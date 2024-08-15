@@ -288,33 +288,32 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
-              "aggr__0__1__key_0", "aggr__0__1__key_1", "aggr__0__1__count",
-              "aggr__0__1__order_2"
-            FROM (
-              SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
-                "aggr__0__1__key_0", "aggr__0__1__key_1", "aggr__0__1__count",
-                "aggr__0__1__order_2", dense_rank() OVER (PARTITION BY 1
-              ORDER BY "aggr__0__order_1", "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
-                 dense_rank() OVER (PARTITION BY "aggr__0__key_0"
-              ORDER BY "aggr__0__1__order_2" DESC, "aggr__0__1__key_0" ASC,
-                "aggr__0__1__key_1" ASC) AS "aggr__0__1__order_2_rank"
-              FROM (
-                SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-                  "aggr__0__key_0", sum("aggr__0__count_part") OVER (PARTITION BY
-                  "aggr__0__key_0") AS "aggr__0__count", sum("aggr__0__order_1_part") OVER
-                  (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1", "severity" AS
-                  "aggr__0__1__key_0", "source" AS "aggr__0__1__key_1", count(*) AS
-                  "aggr__0__1__count", count() AS "aggr__0__1__order_2", count(*) AS
-                  "aggr__0__count_part", count(toUnixTimestamp64Milli("@timestamp") / 30000)
-                   AS "aggr__0__order_1_part"
-                FROM "logs-generic-default"
-                WHERE ("@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z')
-                  AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z'))
-                GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-                  "aggr__0__key_0", "severity" AS "aggr__0__1__key_0", "source" AS
-                  "aggr__0__1__key_1"))
-            WHERE "aggr__0__1__order_2_rank"<=3
-            ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_2_rank" ASC`,
+			  "aggr__0__1__key_0", "aggr__0__1__key_1", "aggr__0__1__count",
+			  "aggr__0__1__order_2"
+			FROM (
+			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
+				"aggr__0__1__key_0", "aggr__0__1__key_1", "aggr__0__1__count",
+				"aggr__0__1__order_2", dense_rank() OVER (PARTITION BY 1
+			  ORDER BY "aggr__0__order_1", "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				 dense_rank() OVER (PARTITION BY "aggr__0__key_0"
+			  ORDER BY "aggr__0__1__order_2" DESC, "aggr__0__1__key_0" ASC,
+				"aggr__0__1__key_1" ASC) AS "aggr__0__1__order_2_rank"
+			  FROM (
+				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
+				  "aggr__0__key_0", sum("aggr__0__count_part") OVER (PARTITION BY
+				  "aggr__0__key_0") AS "aggr__0__count",
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__order_1",
+				  "severity" AS "aggr__0__1__key_0", "source" AS "aggr__0__1__key_1", count(*) AS
+				  "aggr__0__1__count", count() AS "aggr__0__1__order_2", count(*) AS
+				  "aggr__0__count_part"
+				FROM "logs-generic-default"
+				WHERE ("@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z')
+				  AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z'))
+				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
+				  "aggr__0__key_0", "severity" AS "aggr__0__1__key_0", "source" AS
+				  "aggr__0__1__key_1"))
+			WHERE "aggr__0__1__order_2_rank"<=3
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_2_rank" ASC`,
 	},
 	{ // [1]
 		TestName: "Multi_terms with simple count. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Count of records, Breakdown: @timestamp",
@@ -830,22 +829,22 @@ var AggregationTests = []testdata.AggregationTestCase{
 				"aggr__0__1__count", "aggr__0__1__order_1", "metric__0__1__2_col_0",
 				dense_rank() OVER (PARTITION BY 1
 			  ORDER BY "aggr__0__order_2" DESC, "aggr__0__key_0" ASC, "aggr__0__key_1" ASC)
-				AS "aggr__0__order_2_rank", dense_rank() OVER (PARTITION BY "aggr__0__key_0",
-				"aggr__0__key_1"
+				AS "aggr__0__order_2_rank", dense_rank() OVER
+				  (PARTITION BY "aggr__0__key_0", "aggr__0__key_1"
 			  ORDER BY "aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT "severity" AS "aggr__0__key_0", "source" AS "aggr__0__key_1",
 				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0",
-				  "aggr__0__key_1") AS "aggr__0__count", sum("aggr__0__order_2_part") OVER
-				  (PARTITION BY "aggr__0__key_0", "aggr__0__key_1") AS "aggr__0__order_2",
-				  sum("metric__0__2_col_0_part") OVER (PARTITION BY "aggr__0__key_0",
-				  "aggr__0__key_1") AS "metric__0__2_col_0",
+				  "aggr__0__key_1") AS "aggr__0__count", uniqMerge("aggr__0__order_2_part")
+				  OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1") AS
+				  "aggr__0__order_2", uniqMerge("metric__0__2_col_0_part") OVER (PARTITION
+				  BY "aggr__0__key_0", "aggr__0__key_1") AS "metric__0__2_col_0",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000)
-				   AS "aggr__0__1__order_1", count(DISTINCT "severity") AS
-				  "metric__0__1__2_col_0", count(*) AS "aggr__0__count_part", count(DISTINCT
-				   "severity") AS "aggr__0__order_2_part", count(DISTINCT "severity") AS
+				  count(*) AS "aggr__0__1__count", toInt64(toUnixTimestamp64Milli(
+				  "@timestamp") / 30000) AS "aggr__0__1__order_1", uniq("severity") AS
+				  "metric__0__1__2_col_0", count(*) AS "aggr__0__count_part",
+				  uniqState("severity") AS "aggr__0__order_2_part", uniqState("severity") AS
 				  "metric__0__2_col_0_part"
 				FROM "logs-generic-default"
 				GROUP BY "severity" AS "aggr__0__key_0", "source" AS "aggr__0__key_1",
