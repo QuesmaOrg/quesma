@@ -2116,7 +2116,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				  "surname" AS "aggr__2__key_0", sum("aggr__2__count_part") OVER (PARTITION
 				  BY "aggr__2__key_0") AS "aggr__2__count", avgOrNullMerge("aggr__2__order_1_part")
 				  OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
-				  avgMerge("metric__2__1_col_0_part") OVER (PARTITION BY "aggr__2__key_0") AS
+				  avgOrNullMerge("metric__2__1_col_0_part") OVER (PARTITION BY "aggr__2__key_0") AS
 				  "metric__2__1_col_0", sum(count(*)) OVER (PARTITION BY 1) AS
 				  "aggr__2__8__parent_count", COALESCE("limbName",'__missing__') AS
 				  "aggr__2__8__key_0", sum("aggr__2__8__count_part") OVER (PARTITION BY
