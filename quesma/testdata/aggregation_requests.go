@@ -659,25 +659,27 @@ var AggregationTests = []AggregationTestCase{
 			FROM (
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
 				"aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
-				"aggr__0__1__order_1", dense_rank() OVER (
-			  ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC) AS
-				"aggr__0__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__0__key_0"
-			  ORDER BY "aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__order_1",
+				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
+				AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-				  "FlightDelayType" AS "aggr__0__key_0", sum("aggr__0__count_part") OVER
-				  (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum("aggr__0__order_1_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__order_1", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000)
-				  AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count",
-				  toInt64(toUnixTimestamp64Milli("timestamp") / 10800000) AS "aggr__0__1__order_1",
-				  count(*) AS "aggr__0__count_part", count() AS "aggr__0__order_1_part"
+				  "FlightDelayType" AS "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
+				  toInt64(toUnixTimestamp64Milli("timestamp") / 10800000) AS
+				  "aggr__0__1__key_0", count(*) AS "aggr__0__1__count",
+				  toInt64(toUnixTimestamp64Milli("timestamp") / 10800000) AS
+				  "aggr__0__1__order_1"
 				FROM "logs-generic-default"
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
 				GROUP BY "FlightDelayType" AS "aggr__0__key_0",
-				  toInt64(toUnixTimestamp64Milli("timestamp") / 10800000) AS "aggr__0__1__key_0"))
+				  toInt64(toUnixTimestamp64Milli("timestamp") / 10800000) AS
+				  "aggr__0__1__key_0"))
 			WHERE "aggr__0__order_1_rank"<=11
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
@@ -2024,32 +2026,34 @@ var AggregationTests = []AggregationTestCase{
 				`LIMIT 3`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
-			  "aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1"
+			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+			  "aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
+			  "aggr__0__1__order_1"
 			FROM (
-			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
-				"aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
-				dense_rank() OVER (
-			  ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC) AS
-				"aggr__0__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__0__key_0"
-			  ORDER BY "aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
+			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+				"aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
+				"aggr__0__1__order_1",
+				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
+				AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-				  "severity" AS "aggr__0__key_0", sum("aggr__0__count_part")
-      			  OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum("aggr__0__order_1_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__order_1", toInt64(toUnixTimestamp64Milli("@timestamp") /
-				  10800000) AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count",
+				  "severity" AS "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 10800000) AS
-				  "aggr__0__1__order_1", count(*) AS "aggr__0__count_part", count() AS
-				  "aggr__0__order_1_part"
+				  "aggr__0__1__key_0", count(*) AS "aggr__0__1__count",
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 10800000) AS
+				  "aggr__0__1__order_1"
 				FROM "logs-generic-default"
 				WHERE ("host.name" iLIKE '%prometheus%' AND ("@timestamp">=
 				  parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') AND "@timestamp"<=
 				  parseDateTime64BestEffort('2024-02-09T16:36:49.940Z')))
 				GROUP BY "severity" AS "aggr__0__key_0",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 10800000) AS "aggr__0__1__key_0"))
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 10800000) AS
+				  "aggr__0__1__key_0"))
 			WHERE "aggr__0__order_1_rank"<=4
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
@@ -2587,24 +2591,22 @@ var AggregationTests = []AggregationTestCase{
 			  SELECT "aggr__sample__count", "metric__sample__sample_count_col_0",
 				"aggr__sample__top_values__parent_count", "aggr__sample__top_values__key_0",
 				"aggr__sample__top_values__count", "aggr__sample__top_values__order_1",
-				dense_rank() OVER (
-			  ORDER BY "aggr__sample__top_values__order_1" DESC,
+				dense_rank() OVER (ORDER BY "aggr__sample__top_values__order_1" DESC,
 				"aggr__sample__top_values__key_0" ASC) AS
 				"aggr__sample__top_values__order_1_rank"
 			  FROM (
-				SELECT sum("aggr__sample__count_part") OVER () AS
-				  "aggr__sample__count", count("host.name") AS
-				  "metric__sample__sample_count_col_0", sum(count(*)) OVER ()
-      			  AS "aggr__sample__top_values__parent_count", "host.name" AS
-				  "aggr__sample__top_values__key_0", count(*) AS
-				  "aggr__sample__top_values__count", count() AS
-				  "aggr__sample__top_values__order_1", count(*) AS
-				  "aggr__sample__count_part"
+				SELECT sum(count(*)) OVER () AS "aggr__sample__count",
+				  count("host.name") AS "metric__sample__sample_count_col_0",
+				  sum(count(*)) OVER () AS "aggr__sample__top_values__parent_count",
+				  "host.name" AS "aggr__sample__top_values__key_0",
+				  count(*) AS "aggr__sample__top_values__count",
+				  count() AS "aggr__sample__top_values__order_1"
 				FROM (
 				  SELECT "host.name"
 				  FROM "logs-generic-default"
-				  WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z')
-				    AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%')
+				  WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z'
+					) AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z'
+					)) AND "message" iLIKE '%user%')
 				  LIMIT 8000)
 				GROUP BY "host.name" AS "aggr__sample__top_values__key_0"))
 			WHERE "aggr__sample__top_values__order_1_rank"<=11
@@ -2964,36 +2966,37 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__stats__parent_count", "aggr__stats__key_0", "aggr__stats__count",
-			  "aggr__stats__order_1", "aggr__stats__series__key_0", "aggr__stats__series__count",
-			  "aggr__stats__series__order_1"
+			  "aggr__stats__order_1", "aggr__stats__series__key_0",
+			  "aggr__stats__series__count", "aggr__stats__series__order_1"
 			FROM (
-			  SELECT "aggr__stats__parent_count", "aggr__stats__key_0", "aggr__stats__count",
-			    "aggr__stats__order_1", "aggr__stats__series__key_0", "aggr__stats__series__count",
-				"aggr__stats__series__order_1", dense_rank() OVER (
-			  ORDER BY "aggr__stats__order_1" DESC, "aggr__stats__key_0" ASC) AS
-				"aggr__stats__order_1_rank", dense_rank() OVER (PARTITION BY
-				"aggr__stats__key_0"
-			  ORDER BY "aggr__stats__series__order_1", "aggr__stats__series__key_0" ASC) AS
+			  SELECT "aggr__stats__parent_count", "aggr__stats__key_0",
+				"aggr__stats__count", "aggr__stats__order_1", "aggr__stats__series__key_0",
+				"aggr__stats__series__count", "aggr__stats__series__order_1",
+				dense_rank() OVER (ORDER BY "aggr__stats__order_1" DESC,
+				"aggr__stats__key_0" ASC) AS "aggr__stats__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__stats__key_0" ORDER BY
+				"aggr__stats__series__order_1", "aggr__stats__series__key_0" ASC) AS
 				"aggr__stats__series__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__stats__parent_count",
-				  COALESCE("event.dataset",'unknown') AS "aggr__stats__key_0",
-				  sum("aggr__stats__count_part") OVER (PARTITION BY "aggr__stats__key_0") AS
-				  "aggr__stats__count", sum("aggr__stats__order_1_part") OVER (PARTITION BY
-				  "aggr__stats__key_0") AS "aggr__stats__order_1", toInt64(
-				  toUnixTimestamp64Milli("@timestamp") / 60000) AS
+				  COALESCE("event.dataset", 'unknown') AS "aggr__stats__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__stats__key_0") AS
+				  "aggr__stats__count",
+				  sum(count()) OVER (PARTITION BY "aggr__stats__key_0") AS
+				  "aggr__stats__order_1",
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0", count(*) AS "aggr__stats__series__count",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
-				  "aggr__stats__series__order_1", count(*) AS "aggr__stats__count_part",
-				  count() AS "aggr__stats__order_1_part"
+				  "aggr__stats__series__order_1"
 				FROM "logs-generic-default"
 				WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z')
 				  AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z'))
-				GROUP BY COALESCE("event.dataset",'unknown') AS "aggr__stats__key_0",
+				GROUP BY COALESCE("event.dataset", 'unknown') AS "aggr__stats__key_0",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0"))
 			WHERE "aggr__stats__order_1_rank"<=4
-			ORDER BY "aggr__stats__order_1_rank" ASC, "aggr__stats__series__order_1_rank" ASC`,
+			ORDER BY "aggr__stats__order_1_rank" ASC,
+			  "aggr__stats__series__order_1_rank" ASC`,
 	},
 	{ // [14], "old" test, also can be found in testdata/requests.go TestAsyncSearch[5]
 		// Copied it also here to be more sure we do not create some regression
@@ -4054,16 +4057,16 @@ var AggregationTests = []AggregationTestCase{
 			FROM (
 			  SELECT "aggr__sampler__count", "aggr__sampler__eventRate__key_0",
 				"aggr__sampler__eventRate__count", "aggr__sampler__eventRate__order_1",
-				dense_rank() OVER (
-			  ORDER BY "aggr__sampler__eventRate__order_1",
+				dense_rank() OVER (ORDER BY "aggr__sampler__eventRate__order_1",
 				"aggr__sampler__eventRate__key_0" ASC) AS
 				"aggr__sampler__eventRate__order_1_rank"
 			  FROM (
-				SELECT sum("aggr__sampler__count_part") OVER () AS
-				  "aggr__sampler__count", toInt64(toUnixTimestamp64Milli("@timestamp") / 15000)
-				  AS "aggr__sampler__eventRate__key_0", count(*) AS
-				  "aggr__sampler__eventRate__count", toInt64(toUnixTimestamp64Milli("@timestamp") / 15000)
-				  AS "aggr__sampler__eventRate__order_1", count(*) AS "aggr__sampler__count_part"
+				SELECT sum(count(*)) OVER () AS "aggr__sampler__count",
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 15000) AS
+				  "aggr__sampler__eventRate__key_0",
+				  count(*) AS "aggr__sampler__eventRate__count",
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 15000) AS
+				  "aggr__sampler__eventRate__order_1"
 				FROM (
 				  SELECT "@timestamp"
 				  FROM "logs-generic-default"
@@ -5546,20 +5549,18 @@ var AggregationTests = []AggregationTestCase{
 			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
 				"aggr__0__2__parent_count", "aggr__0__2__key_0", "aggr__0__2__count",
 				"aggr__0__2__order_1",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1",
-				"aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				dense_rank() OVER (ORDER BY "aggr__0__order_1", "aggr__0__key_0" ASC) AS
+				"aggr__0__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
 				"aggr__0__2__order_1" DESC, "aggr__0__2__key_0" ASC) AS
 				"aggr__0__2__order_1_rank"
 			  FROM (
 				SELECT floor("rspContentLen"/2000.000000)*2000.000000 AS "aggr__0__key_0",
-				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
 				  floor("rspContentLen"/2000.000000)*2000.000000 AS "aggr__0__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__2__parent_count", "message" AS "aggr__0__2__key_0",
-				  count(*) AS "aggr__0__2__count", count() AS "aggr__0__2__order_1",
-				  count(*) AS "aggr__0__count_part"
+				  count(*) AS "aggr__0__2__count", count() AS "aggr__0__2__order_1"
 				FROM "logs-generic-default"
 				GROUP BY floor("rspContentLen"/2000.000000)*2000.000000 AS "aggr__0__key_0",
 				  "message" AS "aggr__0__2__key_0"))
@@ -6985,22 +6986,19 @@ var AggregationTests = []AggregationTestCase{
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
 				"aggr__0__order_1", "aggr__0__1__parent_count", "aggr__0__1__key_0",
 				"aggr__0__1__count", "aggr__0__1__order_1",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC,
-				"aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
+				AS "aggr__0__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
 				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "host.name" AS "aggr__0__key_0",
-				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__count",
-				  sum("aggr__0__order_1_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "message" AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count", count() AS "aggr__0__1__order_1",
-				  count(*) AS "aggr__0__count_part", count() AS "aggr__0__order_1_part"
+				  count(*) AS "aggr__0__1__count", count() AS "aggr__0__1__order_1"
 				FROM "logs-generic-default"
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0"))
@@ -7160,8 +7158,8 @@ var AggregationTests = []AggregationTestCase{
 				"aggr__0__order_1", "aggr__0__1__parent_count", "aggr__0__1__key_0",
 				"aggr__0__1__count", "aggr__0__1__order_1", "aggr__0__1__2__parent_count",
 				"aggr__0__1__2__key_0", "aggr__0__1__2__count", "aggr__0__1__2__order_1",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC,
-				"aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
+				AS "aggr__0__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
 				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank",
@@ -7171,22 +7169,17 @@ var AggregationTests = []AggregationTestCase{
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "host.name" AS "aggr__0__key_0",
-				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__count",
-				  sum("aggr__0__order_1_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "message" AS "aggr__0__1__key_0",
-				  sum("aggr__0__1__count_part") OVER (PARTITION BY "aggr__0__key_0",
-				  "aggr__0__1__key_0") AS "aggr__0__1__count",
-				  sum("aggr__0__1__order_1_part") OVER (PARTITION BY "aggr__0__key_0",
-				  "aggr__0__1__key_0") AS "aggr__0__1__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0") AS
+				  "aggr__0__1__count",
+				  sum(count()) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0") AS
+				  "aggr__0__1__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0") AS
 				  "aggr__0__1__2__parent_count", "message" AS "aggr__0__1__2__key_0",
-				  count(*) AS "aggr__0__1__2__count", count() AS "aggr__0__1__2__order_1",
-				  count(*) AS "aggr__0__count_part", count() AS "aggr__0__order_1_part",
-				  count(*) AS "aggr__0__1__count_part",
-				  count() AS "aggr__0__1__order_1_part"
+				  count(*) AS "aggr__0__1__2__count", count() AS "aggr__0__1__2__order_1"
 				FROM "logs-generic-default"
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0",
@@ -7303,23 +7296,23 @@ var AggregationTests = []AggregationTestCase{
 			FROM (
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
 				"aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
-				"aggr__0__1__order_1", dense_rank() OVER (
-			  ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC) AS
-				"aggr__0__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__0__key_0"
-			  ORDER BY "aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__order_1",
+				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
+				AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-				  "host.name" AS "aggr__0__key_0", sum("aggr__0__count_part") OVER
-				  (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum("aggr__0__order_1_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__order_1", "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS
-				  "aggr__0__1__count", "FlightDelayMin" AS "aggr__0__1__order_1", count(*)
-				  AS "aggr__0__count_part", count() AS "aggr__0__order_1_part"
+				  "host.name" AS "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
+				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count",
+				  "FlightDelayMin" AS "aggr__0__1__order_1"
 				FROM "logs-generic-default"
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
-				GROUP BY "host.name" AS "aggr__0__key_0", "FlightDelayMin" AS
-				  "aggr__0__1__key_0"))
+				GROUP BY "host.name" AS "aggr__0__key_0",
+				  "FlightDelayMin" AS "aggr__0__1__key_0"))
 			WHERE "aggr__0__order_1_rank"<=9
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
@@ -7440,27 +7433,29 @@ var AggregationTests = []AggregationTestCase{
 				`LIMIT 10`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
-			  "aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1"
+			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+			  "aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
+			  "aggr__0__1__order_1"
 			FROM (
-			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
-				"aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
-				dense_rank() OVER (
-			  ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC) AS
-				"aggr__0__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__0__key_0"
-			  ORDER BY "aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
+			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+				"aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
+				"aggr__0__1__order_1",
+				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
+				AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-				  "host.name" AS "aggr__0__key_0", sum("aggr__0__count_part") OVER
-				  (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum("aggr__0__order_1_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__order_1", "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS
-				  "aggr__0__1__count", "FlightDelayMin" AS "aggr__0__1__order_1", count(*)
-				  AS "aggr__0__count_part", count() AS "aggr__0__order_1_part"
+				  "host.name" AS "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
+				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count",
+				  "FlightDelayMin" AS "aggr__0__1__order_1"
 				FROM "logs-generic-default"
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
-				GROUP BY "host.name" AS "aggr__0__key_0", "FlightDelayMin" AS "aggr__0__1__key_0"))
+				GROUP BY "host.name" AS "aggr__0__key_0",
+				  "FlightDelayMin" AS "aggr__0__1__key_0"))
 			WHERE "aggr__0__order_1_rank"<=11
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
@@ -7568,28 +7563,29 @@ var AggregationTests = []AggregationTestCase{
 				`LIMIT 10`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
-			  "aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1"
+			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+			  "aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
+			  "aggr__0__1__order_1"
 			FROM (
-			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
-				"aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
-				dense_rank() OVER (
-			  ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC) AS
-				"aggr__0__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__0__key_0"
-			  ORDER BY "aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
+			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+				"aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
+				"aggr__0__1__order_1",
+				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
+				AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-				  "host.name" AS "aggr__0__key_0", sum("aggr__0__count_part") OVER
-				  (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum("aggr__0__order_1_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__order_1", "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS
-				  "aggr__0__1__count", "FlightDelayMin" AS "aggr__0__1__order_1", count(*)
-				  AS "aggr__0__count_part", count() AS "aggr__0__order_1_part"
+				  "host.name" AS "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
+				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count",
+				  "FlightDelayMin" AS "aggr__0__1__order_1"
 				FROM "logs-generic-default"
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
-				GROUP BY "host.name" AS "aggr__0__key_0", "FlightDelayMin" AS
-				  "aggr__0__1__key_0"))
+				GROUP BY "host.name" AS "aggr__0__key_0",
+				  "FlightDelayMin" AS "aggr__0__1__key_0"))
 			WHERE "aggr__0__order_1_rank"<=11
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
@@ -7933,22 +7929,19 @@ var AggregationTests = []AggregationTestCase{
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
 				"aggr__0__order_1", "aggr__0__1__parent_count", "aggr__0__1__key_0",
 				"aggr__0__1__count", "aggr__0__1__order_1",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC,
-				"aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
+				AS "aggr__0__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
 				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "OriginAirportID" AS "aggr__0__key_0",
-				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__count",
-				  sum("aggr__0__order_1_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "DestAirportID" AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count", count() AS "aggr__0__1__order_1",
-				  count(*) AS "aggr__0__count_part", count() AS "aggr__0__order_1_part"
+				  count(*) AS "aggr__0__1__count", count() AS "aggr__0__1__order_1"
 				FROM "logs-generic-default"
 				GROUP BY "OriginAirportID" AS "aggr__0__key_0",
 				  "DestAirportID" AS "aggr__0__1__key_0"))
