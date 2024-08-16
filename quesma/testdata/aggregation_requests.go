@@ -5539,28 +5539,30 @@ var AggregationTests = []AggregationTestCase{
 				`ORDER BY floor("rspContentLen" / 2000.000000) * 2000.000000`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1", "aggr__0__2__parent_count",
-			  "aggr__0__2__key_0", "aggr__0__2__count", "aggr__0__2__order_1"
+			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
+			  "aggr__0__2__parent_count", "aggr__0__2__key_0", "aggr__0__2__count",
+			  "aggr__0__2__order_1"
 			FROM (
-			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1", "aggr__0__2__parent_count",
-				"aggr__0__2__key_0", "aggr__0__2__count", "aggr__0__2__order_1",
-				dense_rank() OVER (PARTITION BY 1
-			  ORDER BY "aggr__0__order_1", "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
-				 dense_rank() OVER (PARTITION BY "aggr__0__key_0"
-			  ORDER BY "aggr__0__2__order_1" DESC, "aggr__0__2__key_0" ASC) AS
+			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
+				"aggr__0__2__parent_count", "aggr__0__2__key_0", "aggr__0__2__count",
+				"aggr__0__2__order_1",
+				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__0__order_1",
+				"aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__2__order_1" DESC, "aggr__0__2__key_0" ASC) AS
 				"aggr__0__2__order_1_rank"
 			  FROM (
 				SELECT floor("rspContentLen"/2000.000000)*2000.000000 AS "aggr__0__key_0",
-				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0") AS
+				  "aggr__0__count",
 				  floor("rspContentLen"/2000.000000)*2000.000000 AS "aggr__0__order_1",
-				  sum(count(*)) OVER (PARTITION BY 1) AS "aggr__0__2__parent_count",
-				  "message" AS "aggr__0__2__key_0",
-				  count(*) AS "aggr__0__2__count",
-				  count() AS "aggr__0__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
+				  "aggr__0__2__parent_count", "message" AS "aggr__0__2__key_0",
+				  count(*) AS "aggr__0__2__count", count() AS "aggr__0__2__order_1",
 				  count(*) AS "aggr__0__count_part"
 				FROM "logs-generic-default"
 				GROUP BY floor("rspContentLen"/2000.000000)*2000.000000 AS "aggr__0__key_0",
-				   "message" AS "aggr__0__2__key_0"))
+				  "message" AS "aggr__0__2__key_0"))
 			WHERE "aggr__0__2__order_1_rank"<=5
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__2__order_1_rank" ASC`,
 	},
@@ -6982,23 +6984,27 @@ var AggregationTests = []AggregationTestCase{
 			FROM (
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
 				"aggr__0__order_1", "aggr__0__1__parent_count", "aggr__0__1__key_0",
-				"aggr__0__1__count", "aggr__0__1__order_1", dense_rank() OVER (PARTITION BY 1
-			  ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC) AS
-				"aggr__0__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__0__key_0"
-			  ORDER BY "aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__count", "aggr__0__1__order_1",
+				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__0__order_1" DESC,
+				"aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__0__parent_count",
-				  "host.name" AS "aggr__0__key_0", sum("aggr__0__count_part") OVER
-				  (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  "host.name" AS "aggr__0__key_0",
+				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0") AS
+				  "aggr__0__count",
 				  sum("aggr__0__order_1_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__order_1", sum(count(*)) OVER (PARTITION BY 1) AS
-				  "aggr__0__1__parent_count", "message" AS "aggr__0__1__key_0", count(*) AS
-				  "aggr__0__1__count", count() AS "aggr__0__1__order_1", count(*) AS
-				  "aggr__0__count_part", count() AS "aggr__0__order_1_part"
+				  "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
+				  "aggr__0__1__parent_count", "message" AS "aggr__0__1__key_0",
+				  count(*) AS "aggr__0__1__count", count() AS "aggr__0__1__order_1",
+				  count(*) AS "aggr__0__count_part", count() AS "aggr__0__order_1_part"
 				FROM "logs-generic-default"
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0"))
+			
 			WHERE ("aggr__0__order_1_rank"<=11 AND "aggr__0__1__order_1_rank"<=4)
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
@@ -7154,30 +7160,33 @@ var AggregationTests = []AggregationTestCase{
 				"aggr__0__order_1", "aggr__0__1__parent_count", "aggr__0__1__key_0",
 				"aggr__0__1__count", "aggr__0__1__order_1", "aggr__0__1__2__parent_count",
 				"aggr__0__1__2__key_0", "aggr__0__1__2__count", "aggr__0__1__2__order_1",
-				dense_rank() OVER (PARTITION BY 1
-			  ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC) AS
-				"aggr__0__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__0__key_0"
-			  ORDER BY "aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
-				"aggr__0__1__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__0__key_0",
-				"aggr__0__1__key_0"
-			  ORDER BY "aggr__0__1__2__order_1" DESC, "aggr__0__1__2__key_0" ASC) AS
+				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__0__order_1" DESC,
+				"aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0" ORDER
+				BY "aggr__0__1__2__order_1" DESC, "aggr__0__1__2__key_0" ASC) AS
 				"aggr__0__1__2__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__0__parent_count",
-				  "host.name" AS "aggr__0__key_0", sum("aggr__0__count_part") OVER
-				  (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  "host.name" AS "aggr__0__key_0",
+				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0") AS
+				  "aggr__0__count",
 				  sum("aggr__0__order_1_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__order_1", sum(count(*)) OVER (PARTITION BY 1) AS
+				  "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "message" AS "aggr__0__1__key_0",
 				  sum("aggr__0__1__count_part") OVER (PARTITION BY "aggr__0__key_0",
 				  "aggr__0__1__key_0") AS "aggr__0__1__count",
 				  sum("aggr__0__1__order_1_part") OVER (PARTITION BY "aggr__0__key_0",
-				  "aggr__0__1__key_0") AS "aggr__0__1__order_1", sum(count(*)) OVER
-				  (PARTITION BY 1) AS "aggr__0__1__2__parent_count", "message" AS
-				  "aggr__0__1__2__key_0", count(*) AS "aggr__0__1__2__count", count() AS
-				  "aggr__0__1__2__order_1", count(*) AS "aggr__0__count_part", count() AS
-				  "aggr__0__order_1_part", count(*) AS "aggr__0__1__count_part", count() AS
-				  "aggr__0__1__order_1_part"
+				  "aggr__0__1__key_0") AS "aggr__0__1__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0") AS
+				  "aggr__0__1__2__parent_count", "message" AS "aggr__0__1__2__key_0",
+				  count(*) AS "aggr__0__1__2__count", count() AS "aggr__0__1__2__order_1",
+				  count(*) AS "aggr__0__count_part", count() AS "aggr__0__order_1_part",
+				  count(*) AS "aggr__0__1__count_part",
+				  count() AS "aggr__0__1__order_1_part"
 				FROM "logs-generic-default"
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0",
@@ -7923,23 +7932,26 @@ var AggregationTests = []AggregationTestCase{
 			FROM (
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
 				"aggr__0__order_1", "aggr__0__1__parent_count", "aggr__0__1__key_0",
-				"aggr__0__1__count", "aggr__0__1__order_1", dense_rank() OVER (PARTITION BY 1
-			  ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC) AS
-				"aggr__0__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__0__key_0"
-			  ORDER BY "aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__count", "aggr__0__1__order_1",
+				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__0__order_1" DESC,
+				"aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__0__parent_count",
-				  "OriginAirportID" AS "aggr__0__key_0", sum("aggr__0__count_part") OVER
-				  (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  "OriginAirportID" AS "aggr__0__key_0",
+				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0") AS
+				  "aggr__0__count",
 				  sum("aggr__0__order_1_part") OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__order_1", sum(count(*)) OVER (PARTITION BY 1) AS
+				  "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "DestAirportID" AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count", count() AS "aggr__0__1__order_1", count(*) AS
-				  "aggr__0__count_part", count() AS "aggr__0__order_1_part"
+				  count(*) AS "aggr__0__1__count", count() AS "aggr__0__1__order_1",
+				  count(*) AS "aggr__0__count_part", count() AS "aggr__0__order_1_part"
 				FROM "logs-generic-default"
-				GROUP BY "OriginAirportID" AS "aggr__0__key_0", "DestAirportID" AS
-				  "aggr__0__1__key_0"))
+				GROUP BY "OriginAirportID" AS "aggr__0__key_0",
+				  "DestAirportID" AS "aggr__0__1__key_0"))
 			WHERE ("aggr__0__order_1_rank"<=11 AND "aggr__0__1__order_1_rank"<=4)
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
