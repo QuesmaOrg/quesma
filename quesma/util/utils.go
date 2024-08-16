@@ -418,12 +418,31 @@ func AssertSqlEqual(t *testing.T, expected, actual string) {
 		fmt.Printf("%s\n", SqlPrettyPrint([]byte(expected)))
 		pp.Println("---- Actual:")
 		fmt.Printf("%s\n", SqlPrettyPrint([]byte(actual)))
-		for i, c := range actual {
-			if c != rune(expected[i]) {
-				const printLen = 100
-				pp.Println("-- First diff: ")
-				fmt.Println("  actual:", actual[i:min(i+printLen, len(actual))])
-				fmt.Println("expected:", expected[i:min(i+printLen, len(expected))])
+		actualLines := strings.Split(actual, "\n")
+		expectedLines := strings.Split(expected, "\n")
+		pp.Println("-- First diff: ")
+		for i, aLine := range actualLines {
+			if i >= len(expectedLines) {
+				fmt.Println("Actual is longer than expected")
+				break
+			}
+			eLine := expectedLines[i]
+			if aLine != eLine {
+				if i > 0 {
+					fmt.Println("         ", actualLines[i-1])
+				}
+				fmt.Println("  actual:", aLine)
+				if i+1 < len(actualLines) {
+					fmt.Println("         ", actualLines[i+1])
+				}
+				fmt.Println()
+				if i > 0 {
+					fmt.Println("         ", expectedLines[i-1])
+				}
+				fmt.Println("expected:", eLine)
+				if i+1 < len(expectedLines) {
+					fmt.Println("         ", expectedLines[i+1])
+				}
 				break
 			}
 		}

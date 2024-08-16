@@ -109,7 +109,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 	if query_util.IsAnyKindOfTerms(bucketAggregation.queryType) {
 		parentCountColumn := model.WindowFunction{Name: "sum",
 			Args:        []model.Expr{model.NewFunction("count", model.NewLiteral("*"))},
-			PartitionBy: p.generatePartitionBy(addGroupBys),
+			PartitionBy: p.generatePartitionBy(groupByColumns),
 			OrderBy:     []model.OrderByExpr{},
 		}
 		parentCountAliasedColumn := model.AliasedExpr{Expr: parentCountColumn, Alias: bucketAggregation.InternalNameForParentCount()}
