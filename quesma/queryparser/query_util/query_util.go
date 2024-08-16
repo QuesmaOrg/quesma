@@ -22,13 +22,12 @@ func IsNonAggregationQuery(query *model.Query) bool {
 
 // IsAnyKindOfTerms returns true if queryType is Terms, Significant Terms, or Multi Terms
 func IsAnyKindOfTerms(queryType model.QueryType) bool {
-	if _, ok := queryType.(bucket_aggregations.Terms); ok {
+	switch queryType.(type) {
+	case bucket_aggregations.Terms, bucket_aggregations.MultiTerms:
 		return true
+	default:
+		return false
 	}
-	if _, ok := queryType.(bucket_aggregations.MultiTerms); ok {
-		return true
-	}
-	return false
 }
 
 /* FIXME use this in MakeSearchResponse to stop relying on order of queries
