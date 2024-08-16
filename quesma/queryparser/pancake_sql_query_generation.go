@@ -103,9 +103,7 @@ func (p *pancakeSqlQueryGenerator) isPartOfGroupBy(column model.Expr, groupByCol
 	return false
 }
 
-func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (
-	addSelectColumns, addPartColumns, addGroupBys, addRankColumns []model.AliasedExpr, addRankWheres []model.Expr, addRankOrderBys []model.OrderByExpr, err error) {
-
+func (p *pancakeSqlQueryGenerator) addPotentialParentCount(bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr) []model.AliasedExpr {
 	if query_util.IsAnyKindOfTerms(bucketAggregation.queryType) {
 		parentCountColumn := model.WindowFunction{Name: "sum",
 			Args:        []model.Expr{model.NewFunction("count", model.NewLiteral("*"))},
@@ -113,8 +111,16 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 			OrderBy:     []model.OrderByExpr{},
 		}
 		parentCountAliasedColumn := model.AliasedExpr{Expr: parentCountColumn, Alias: bucketAggregation.InternalNameForParentCount()}
-		addSelectColumns = append(addSelectColumns, parentCountAliasedColumn)
+		return []model.AliasedExpr{parentCountAliasedColumn}
 	}
+	return []model.AliasedExpr{}
+}
+
+func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (
+	addSelectColumns, addPartColumns, addGroupBys, addRankColumns []model.AliasedExpr, addRankWheres []model.Expr, addRankOrderBys []model.OrderByExpr, err error) {
+
+	// For some group by such as terms, we need total count. We add it in this method.
+	addSelectColumns = append(addSelectColumns, p.addPotentialParentCount(bucketAggregation, groupByColumns)...)
 
 	// TODO: ...
 	for columnId, column := range bucketAggregation.selectedColumns {
