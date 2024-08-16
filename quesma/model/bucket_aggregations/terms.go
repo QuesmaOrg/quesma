@@ -25,7 +25,7 @@ func (query Terms) AggregationType() model.AggregationType {
 }
 
 func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	if len(rows) > 0 && len(rows[0].Cols) < 3 {
+	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in terms aggregation response, len: %d, rows[0]: %v", len(rows[0].Cols), rows[0])
 	}
@@ -98,7 +98,7 @@ func (query Terms) parentCount(row model.QueryResultRow) any {
 	return row.Cols[len(row.Cols)-3].Value
 }
 
-// FIXME: Soon-to-be deprecated. Remove after change to pancake-only
+// Soon-to-be deprecated. TODO: Remove after change to pancake-only
 func (query Terms) isPancake(row model.QueryResultRow) bool {
 	if len(row.Cols) < 3 {
 		return false

@@ -20,7 +20,8 @@ func IsNonAggregationQuery(query *model.Query) bool {
 	}
 }
 
-func IsTerms(queryType model.QueryType) bool {
+// IsAnyKindOfTerms returns true if queryType is Terms, Significant Terms, or Multi Terms
+func IsAnyKindOfTerms(queryType model.QueryType) bool {
 	if _, ok := queryType.(bucket_aggregations.Terms); ok {
 		return true
 	}

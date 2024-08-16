@@ -60,8 +60,8 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregat
 			subAggrs = append(subAggrs, []model.QueryResultRow{})
 			lastIdx := len(buckets) - 1
 			for _, cols := range row.Cols {
-				fmt.Println("lala", cols.ColName, bucketKeyName, bucketCountName)
-				if strings.HasPrefix(cols.ColName, bucketKeyName) || strings.HasPrefix(cols.ColName, bucketCountName) || strings.HasPrefix(cols.ColName, bucketParentCountName) {
+				if strings.HasPrefix(cols.ColName, bucketKeyName) || strings.HasPrefix(cols.ColName, bucketCountName) ||
+					strings.HasPrefix(cols.ColName, bucketParentCountName) {
 					buckets[lastIdx].Cols = append(buckets[lastIdx].Cols, cols)
 				}
 			}
