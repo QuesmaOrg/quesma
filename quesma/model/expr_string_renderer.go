@@ -289,17 +289,26 @@ func (v *renderer) VisitWindowFunction(f WindowFunction) interface{} {
 	for _, arg := range f.Args {
 		args = append(args, AsString(arg))
 	}
-	partitionBy := make([]string, 0)
-	for _, col := range f.PartitionBy {
-		partitionBy = append(partitionBy, AsString(col))
-	}
 
 	var sb strings.Builder
-	stmtWithoutOrderBy := fmt.Sprintf("%s(%s) OVER (PARTITION BY %s", f.Name, strings.Join(args, ", "), strings.Join(partitionBy, ", "))
+	stmtWithoutOrderBy := fmt.Sprintf("%s(%s) OVER (", f.Name, strings.Join(args, ", "))
 	sb.WriteString(stmtWithoutOrderBy)
 
+	if len(f.PartitionBy) > 0 {
+		sb.WriteString("PARTITION BY ")
+
+		partitionBy := make([]string, 0)
+		for _, col := range f.PartitionBy {
+			partitionBy = append(partitionBy, AsString(col))
+		}
+		sb.WriteString(strings.Join(partitionBy, ", "))
+	}
+
 	if len(f.OrderBy) > 0 && len(f.OrderBy[0].Exprs) > 0 {
-		sb.WriteString(" ORDER BY ")
+		if len(f.PartitionBy) > 0 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("ORDER BY ")
 		var orderByStr []string
 		for _, orderBy := range f.OrderBy {
 			orderByStr = append(orderByStr, AsString(orderBy))

@@ -36,12 +36,8 @@ func (p *pancakeSqlQueryGenerator) aliasedExprArrayToLiteralExpr(aliasedExprs []
 
 func (p *pancakeSqlQueryGenerator) generatePartitionBy(groupByColumns []model.AliasedExpr) []model.Expr {
 	partitionBy := make([]model.Expr, 0)
-	if len(groupByColumns) == 0 {
-		partitionBy = []model.Expr{model.NewLiteral(1)}
-	} else {
-		for _, col := range groupByColumns {
-			partitionBy = append(partitionBy, p.newQuotedLiteral(col.Alias))
-		}
+	for _, col := range groupByColumns {
+		partitionBy = append(partitionBy, p.newQuotedLiteral(col.Alias))
 	}
 	return partitionBy
 }
