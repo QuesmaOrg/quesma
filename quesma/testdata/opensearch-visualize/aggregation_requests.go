@@ -829,7 +829,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT
-			  sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+			  sum(count(*)) OVER () AS "aggr__2__parent_count",
 			  "response" AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
 			  count() AS "aggr__2__order_1",
@@ -1032,7 +1032,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT
-			  sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+			  sum(count(*)) OVER () AS "aggr__2__parent_count",
 			  "response" AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
 			  count() AS "aggr__2__order_1",
@@ -1261,7 +1261,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT
-			  sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+			  sum(count(*)) OVER () AS "aggr__2__parent_count",
 			  "response" AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
 			  count() AS "aggr__2__order_1",

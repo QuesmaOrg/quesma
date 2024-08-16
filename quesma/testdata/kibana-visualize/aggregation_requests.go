@@ -299,7 +299,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
 				"aggr__0__1__parent_count", "aggr__0__1__key_0", "aggr__0__1__key_1",
 				"aggr__0__1__count", "aggr__0__1__order_2",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__0__order_1",
+				dense_rank() OVER (ORDER BY "aggr__0__order_1",
 				"aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
 				"aggr__0__1__order_2" DESC, "aggr__0__1__key_0" ASC, "aggr__0__1__key_1" ASC
@@ -528,13 +528,13 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__key_1",
 				"aggr__0__count", "aggr__0__order_2", "aggr__0__1__key_0",
 				"aggr__0__1__count", "aggr__0__1__order_1",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__0__order_2" DESC,
+				dense_rank() OVER (ORDER BY "aggr__0__order_2" DESC,
 				"aggr__0__key_0" ASC, "aggr__0__key_1" ASC) AS "aggr__0__order_2_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1" ORDER BY
 				"aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__0__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "message" AS "aggr__0__key_0", "host.name" AS "aggr__0__key_1",
 				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0",
 				  "aggr__0__key_1") AS "aggr__0__count",
@@ -848,13 +848,13 @@ var AggregationTests = []testdata.AggregationTestCase{
 				"aggr__0__count", "aggr__0__order_2", "metric__0__2_col_0",
 				"aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
 				"metric__0__1__2_col_0",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__0__order_2" DESC,
+				dense_rank() OVER (ORDER BY "aggr__0__order_2" DESC,
 				"aggr__0__key_0" ASC, "aggr__0__key_1" ASC) AS "aggr__0__order_2_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1" ORDER BY
 				"aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__0__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "severity" AS "aggr__0__key_0", "source" AS "aggr__0__key_1",
 				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0",
 				  "aggr__0__key_1") AS "aggr__0__count",
@@ -1110,13 +1110,13 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__key_1",
 				"aggr__0__count", "aggr__0__order_2", "aggr__0__1__key_0",
 				"aggr__0__1__count", "aggr__0__1__order_1",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__0__order_2" DESC,
+				dense_rank() OVER (ORDER BY "aggr__0__order_2" DESC,
 				"aggr__0__key_0" ASC, "aggr__0__key_1" ASC) AS "aggr__0__order_2_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1" ORDER BY
 				"aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__0__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "Cancelled" AS "aggr__0__key_0", "AvgTicketPrice" AS "aggr__0__key_1",
 				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0",
 				  "aggr__0__key_1") AS "aggr__0__count",

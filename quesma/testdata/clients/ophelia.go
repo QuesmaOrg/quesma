@@ -354,7 +354,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
 				"aggr__2__8__count", "aggr__2__8__order_1", "aggr__2__8__4__parent_count",
 				"aggr__2__8__4__key_0", "aggr__2__8__4__count", "aggr__2__8__4__order_1",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1" DESC,
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC,
 				"aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
@@ -363,7 +363,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				BY "aggr__2__8__4__order_1" DESC, "aggr__2__8__4__key_0" ASC) AS
 				"aggr__2__8__4__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__count",
@@ -998,7 +998,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				"metric__2__8__1_col_0", "aggr__2__8__4__parent_count",
 				"aggr__2__8__4__key_0", "aggr__2__8__4__count", "aggr__2__8__4__order_1",
 				"metric__2__8__4__1_col_0", "metric__2__8__4__5_col_0",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1" DESC,
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC,
 				"aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
@@ -1007,7 +1007,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				BY "aggr__2__8__4__order_1" DESC, "aggr__2__8__4__key_0" ASC) AS
 				"aggr__2__8__4__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__count",
@@ -2116,7 +2116,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				"aggr__2__8__key_0", "aggr__2__8__count", "aggr__2__8__order_1",
 				"metric__2__8__1_col_0", "aggr__2__8__4__parent_count",
 				"aggr__2__8__4__key_0", "aggr__2__8__4__count", "aggr__2__8__4__order_1",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1" DESC,
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC,
 				"aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__8__order_1" ASC, "aggr__2__8__key_0" ASC) AS
@@ -2125,7 +2125,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				BY "aggr__2__8__4__order_1" DESC, "aggr__2__8__4__key_0" ASC) AS
 				"aggr__2__8__4__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__count",
@@ -2706,7 +2706,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				"aggr__2__8__4__count", "aggr__2__8__4__order_1",
 				"aggr__2__8__4__5__parent_count", "aggr__2__8__4__5__key_0",
 				"aggr__2__8__4__5__count", "aggr__2__8__4__5__order_1",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1" DESC,
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC,
 				"aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__8__order_1" ASC, "aggr__2__8__key_0" ASC) AS
@@ -2718,7 +2718,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				"aggr__2__8__4__key_0" ORDER BY "aggr__2__8__4__5__order_1" DESC,
 				"aggr__2__8__4__5__key_0" ASC) AS "aggr__2__8__4__5__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__count", "surname" AS "aggr__2__order_1",
@@ -3352,7 +3352,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				"metric__2__8__1_col_0", "aggr__2__8__4__parent_count",
 				"aggr__2__8__4__key_0", "aggr__2__8__4__count", "aggr__2__8__4__order_1",
 				"metric__2__8__4__1_col_0", "metric__2__8__4__5_col_0",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1" DESC,
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC,
 				"aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
@@ -3361,7 +3361,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				BY "aggr__2__8__4__order_1" DESC, "aggr__2__8__4__key_0" ASC) AS
 				"aggr__2__8__4__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__count",
