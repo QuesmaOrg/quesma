@@ -35,6 +35,7 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregat
 	}
 	bucketKeyName := bucket.InternalNameForKeyPrefix()
 	bucketCountName := bucket.InternalNameForCount()
+	bucketParentCountName := bucket.InternalNameForParentCount()
 	indexName := rows[0].Index
 	for rowIdx, row := range rows {
 		isNewBucket := rowIdx == 0 // first row is always new bucket
@@ -59,7 +60,8 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregat
 			subAggrs = append(subAggrs, []model.QueryResultRow{})
 			lastIdx := len(buckets) - 1
 			for _, cols := range row.Cols {
-				if strings.HasPrefix(cols.ColName, bucketKeyName) || strings.HasPrefix(cols.ColName, bucketCountName) {
+				if strings.HasPrefix(cols.ColName, bucketKeyName) || strings.HasPrefix(cols.ColName, bucketCountName) ||
+					strings.HasPrefix(cols.ColName, bucketParentCountName) {
 					buckets[lastIdx].Cols = append(buckets[lastIdx].Cols, cols)
 				}
 			}

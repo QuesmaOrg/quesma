@@ -124,8 +124,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 
 			// FIXME we can quite easily remove 'probability' and 'seed' from above - just start remembering them in RandomSampler struct and print in JSON response.
-			acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
-				"sum_other_doc_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
+			acceptableDifference := []string{"probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
+				"doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
 
 			actualMinusExpected, expectedMinusActual := util.MapDifference(pancakeJson,
 				expectedAggregationsPart, acceptableDifference, true, true)
@@ -264,7 +264,8 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 
 `,
 			sql: `
-SELECT "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
+SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__0__parent_count",
+  "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
   count() AS "aggr__0__order_1"
 FROM "logs-generic-default"
 GROUP BY "host.name" AS "aggr__0__key_0"
@@ -293,7 +294,8 @@ LIMIT 4`, // -- we added one more as filtering nulls happens during rendering
 }
 `,
 			`
-SELECT "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
+SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__0__parent_count",
+  "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
   count() AS "aggr__0__order_1",
   avgOrNull("bytes_gauge") AS "metric__0__2_col_0"
 FROM "logs-generic-default"

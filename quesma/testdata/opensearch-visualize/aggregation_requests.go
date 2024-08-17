@@ -744,7 +744,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"score": 94
 						}
 					],
-					"doc_count_error_upper_bound": 0
+					"sum_other_doc_count": 2336
 				}
 			},
 			"hits": {
@@ -783,14 +783,16 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 5000),
 				model.NewQueryResultCol("aggr__2__key_0", "200"),
-				model.NewQueryResultCol("aggr__2__count", 2570),
+				model.NewQueryResultCol("aggr__2__count", int64(2570)),
 				model.NewQueryResultCol("aggr__2__order_1", 2570),
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-05-02T21:58:16.297Z")),
 			}},
 			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 5000),
 				model.NewQueryResultCol("aggr__2__key_0", "503"),
-				model.NewQueryResultCol("aggr__2__count", 94),
+				model.NewQueryResultCol("aggr__2__count", int64(94)),
 				model.NewQueryResultCol("aggr__2__order_1", 94),
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-05-02T15:59:12.949Z")),
 			}},
@@ -827,6 +829,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT
+			  sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
 			  "response" AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
 			  count() AS "aggr__2__order_1",
@@ -943,7 +946,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"score": 94
 						}
 					],
-					"doc_count": 2786,
+					"sum_other_doc_count": 2636,
 					"doc_count_error_upper_bound": 0
 				}
 			},
@@ -983,14 +986,16 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 5300),
 				model.NewQueryResultCol("aggr__2__key_0", "200"),
-				model.NewQueryResultCol("aggr__2__count", 2570),
+				model.NewQueryResultCol("aggr__2__count", uint64(2570)),
 				model.NewQueryResultCol("aggr__2__order_1", 2570),
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-04-21T00:39:02.912Z")),
 			}},
 			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 5300),
 				model.NewQueryResultCol("aggr__2__key_0", "503"),
-				model.NewQueryResultCol("aggr__2__count", 94),
+				model.NewQueryResultCol("aggr__2__count", uint64(94)),
 				model.NewQueryResultCol("aggr__2__order_1", 94),
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-04-21T03:30:25.131Z")),
 			}},
@@ -1027,6 +1032,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT
+			  sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
 			  "response" AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
 			  count() AS "aggr__2__order_1",
@@ -1170,7 +1176,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"score": 2570
 						}
 					],
-					"doc_count": 2786,
+					"sum_other_doc_count": 216,
 					"doc_count_error_upper_bound": 0
 				}
 			},
@@ -1204,8 +1210,9 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", int64(2786)),
 				model.NewQueryResultCol("aggr__2__key_0", "200"),
-				model.NewQueryResultCol("aggr__2__count", 2570),
+				model.NewQueryResultCol("aggr__2__count", int64(2570)),
 				model.NewQueryResultCol("aggr__2__order_1", 2570),
 				model.NewQueryResultCol("metric__2__1_col_0", []time.Time{util.ParseTime("2024-04-21T06:11:13.619Z")}),
 				model.NewQueryResultCol("metric__2__1_col_1", []time.Time{util.ParseTime("2024-04-21T12:21:13.414Z")}),
@@ -1254,6 +1261,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT
+			  sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
 			  "response" AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
 			  count() AS "aggr__2__order_1",

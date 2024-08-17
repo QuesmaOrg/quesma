@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/util"
 	"strings"
 )
 
@@ -48,15 +49,19 @@ func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 			keyAsString.WriteString(fmt.Sprintf("%v", col.Value))
 		}
 
-		docCount := row.Cols[len(row.Cols)-1].Value
 		bucket := model.JsonMap{
 			"key":           keys,
 			"key_as_string": keyAsString.String(),
-			"doc_count":     docCount,
+			"doc_count":     query.docCount(row),
 		}
 		response = append(response, bucket)
 	}
+	sumOtherDocCount := 0
+	if len(rows) > 0 && query.isPancake(rows[0]) { // TODO: remove this after change to pancake-only
+		sumOtherDocCount = int(util.ExtractInt64(query.parentCount(rows[0]))) - query.sumDocCounts(rows)
+	}
 	return model.JsonMap{
+		"sum_other_doc_count":         sumOtherDocCount,
 		"doc_count_error_upper_bound": 0,
 		"buckets":                     response,
 	}
@@ -64,4 +69,47 @@ func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 
 func (query MultiTerms) String() string {
 	return fmt.Sprintf("multi_terms(fieldsNr: %d)", query.fieldsNr)
+}
+
+func (query MultiTerms) sumDocCounts(rows []model.QueryResultRow) int {
+	sum := 0
+	if len(rows) > 0 {
+		switch query.docCount(rows[0]).(type) {
+		case int:
+			for _, row := range rows {
+				sum += query.docCount(row).(int)
+			}
+		case int64:
+			for _, row := range rows {
+				sum += int(query.docCount(row).(int64))
+			}
+		case uint64:
+			for _, row := range rows {
+				sum += int(query.docCount(row).(uint64))
+			}
+		default:
+			logger.WarnWithCtx(query.ctx).Msgf("unknown type for terms doc_count: %T, value: %v",
+				query.docCount(rows[0]), query.docCount(rows[0]))
+		}
+	}
+	return sum
+}
+
+func (query MultiTerms) docCount(row model.QueryResultRow) any {
+	return row.Cols[len(row.Cols)-1].Value
+}
+
+func (query MultiTerms) parentCountIdx(row model.QueryResultRow) int {
+	return len(row.Cols) - query.fieldsNr - 2
+}
+func (query MultiTerms) parentCount(row model.QueryResultRow) any {
+	return row.Cols[query.parentCountIdx(row)].Value
+}
+
+// Soon-to-be deprecated. TODO: Remove after change to pancake-only
+func (query MultiTerms) isPancake(row model.QueryResultRow) bool {
+	if query.parentCountIdx(row) < 0 {
+		return false
+	}
+	return strings.HasSuffix(row.Cols[query.parentCountIdx(row)].ColName, "parent_count")
 }

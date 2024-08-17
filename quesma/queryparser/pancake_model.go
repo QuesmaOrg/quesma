@@ -65,3 +65,8 @@ func (p pancakeModelBucketAggregation) InternalNameForOrderBy(id int) string {
 func (p pancakeModelBucketAggregation) InternalNameForCount() string {
 	return fmt.Sprintf("%scount", p.internalName)
 }
+
+// Used by terms aggregation to get the total count, so we can calculate sum_other_doc_count
+func (p pancakeModelBucketAggregation) InternalNameForParentCount() string {
+	return fmt.Sprintf("%sparent_count", p.internalName)
+}
