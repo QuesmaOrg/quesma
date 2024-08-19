@@ -264,7 +264,7 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 
 `,
 			sql: `
-SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__0__parent_count",
+SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
   "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
   count() AS "aggr__0__order_1"
 FROM "logs-generic-default"
@@ -294,7 +294,7 @@ LIMIT 4`, // -- we added one more as filtering nulls happens during rendering
 }
 `,
 			`
-SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__0__parent_count",
+SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
   "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
   count() AS "aggr__0__order_1",
   avgOrNull("bytes_gauge") AS "metric__0__2_col_0"

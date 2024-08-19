@@ -645,7 +645,7 @@ var AggregationTests2 = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT
-			  sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+			  sum(count(*)) OVER () AS "aggr__2__parent_count",
 			  "response" AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
 			  count() AS "aggr__2__order_1",
@@ -869,23 +869,20 @@ var AggregationTests2 = []AggregationTestCase{
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
 				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
 				"aggr__2__8__count", "aggr__2__8__order_1",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1" DESC,
-				"aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
+				AS "aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
 				"aggr__2__8__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
-				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__count",
-				  sum("aggr__2__order_1_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1",
-				  count(*) AS "aggr__2__count_part", count() AS "aggr__2__order_1_part"
+				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
 				FROM "logs-generic-default"
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0"))
@@ -1186,22 +1183,19 @@ var AggregationTests2 = []AggregationTestCase{
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
 				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
 				"aggr__2__8__count", "aggr__2__8__order_1",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1" DESC,
-				"aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
+				AS "aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
 				"aggr__2__8__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
-				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__count",
-				  sum("aggr__2__order_1_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count", "limbName" AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1",
-				  count(*) AS "aggr__2__count_part", count() AS "aggr__2__order_1_part"
+				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
 				FROM "logs-generic-default"
 				GROUP BY "surname" AS "aggr__2__key_0", "limbName" AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
@@ -1415,23 +1409,20 @@ var AggregationTests2 = []AggregationTestCase{
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
 				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
 				"aggr__2__8__count", "aggr__2__8__order_1",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1" DESC,
-				"aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
+				AS "aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
 				"aggr__2__8__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  COALESCE("surname", 'miss') AS "aggr__2__key_0",
-				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__count",
-				  sum("aggr__2__order_1_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1",
-				  count(*) AS "aggr__2__count_part", count() AS "aggr__2__order_1_part"
+				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
 				FROM "logs-generic-default"
 				GROUP BY COALESCE("surname", 'miss') AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0"))
@@ -1677,22 +1668,19 @@ var AggregationTests2 = []AggregationTestCase{
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
 				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
 				"aggr__2__8__count", "aggr__2__8__order_1",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1" DESC,
-				"aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
+				AS "aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
 				"aggr__2__8__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
-				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__count",
-				  sum("aggr__2__order_1_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count", "limbName" AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1",
-				  count(*) AS "aggr__2__count_part", count() AS "aggr__2__order_1_part"
+				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
 				FROM "logs-generic-default"
 				GROUP BY "surname" AS "aggr__2__key_0", "limbName" AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
@@ -1862,24 +1850,26 @@ var AggregationTests2 = []AggregationTestCase{
 			FROM (
 			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
 				"aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1",
-				dense_rank() OVER (PARTITION BY 1
-			  ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
-				 dense_rank() OVER (PARTITION BY "aggr__2__key_0"
-			  ORDER BY "aggr__2__3__order_1", "aggr__2__3__key_0" ASC) AS
+				dense_rank() OVER (ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
+				"aggr__2__3__order_1", "aggr__2__3__key_0" ASC) AS
 				"aggr__2__3__order_1_rank"
 			  FROM (
 				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-				  "aggr__2__key_0", sum("aggr__2__count_part") OVER (PARTITION BY
-				  "aggr__2__key_0") AS "aggr__2__count",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__2__order_1",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 40000) AS "aggr__2__3__key_0",
-				  count(*) AS "aggr__2__3__count",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 40000) AS "aggr__2__3__order_1",
-				  count(*) AS "aggr__2__count_part"
+				  "aggr__2__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
+				  "aggr__2__order_1",
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 40000) AS
+				  "aggr__2__3__key_0", count(*) AS "aggr__2__3__count",
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 40000) AS
+				  "aggr__2__3__order_1"
 				FROM "logs-generic-default"
 				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-				  "aggr__2__key_0", toInt64(toUnixTimestamp64Milli("@timestamp") / 40000) AS
-				   "aggr__2__3__key_0"))
+				  "aggr__2__key_0",
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 40000) AS
+				  "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
 	},
 	{ // [49] TODO should null be in the response? Maybe try to replicate and see if it's fine as is.
@@ -2055,24 +2045,23 @@ var AggregationTests2 = []AggregationTestCase{
 			FROM (
 			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
 				"aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1",
-				dense_rank() OVER (PARTITION BY 1
-			  ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
-				 dense_rank() OVER (PARTITION BY "aggr__2__key_0"
-			  ORDER BY "aggr__2__3__order_1", "aggr__2__3__key_0" ASC) AS
+				dense_rank() OVER (ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
+				"aggr__2__3__order_1", "aggr__2__3__key_0" ASC) AS
 				"aggr__2__3__order_1_rank"
 			  FROM (
 				SELECT floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
-				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__count", floor("bytes"/100.000000)*100.000000 AS
-				  "aggr__2__order_1", floor("bytes2"/5.000000)*5.000000 AS
-				  "aggr__2__3__key_0", count(*) AS "aggr__2__3__count",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__order_1", count(*) AS
-				  "aggr__2__count_part"
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  floor("bytes"/100.000000)*100.000000 AS "aggr__2__order_1",
+				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0",
+				  count(*) AS "aggr__2__3__count",
+				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__order_1"
 				FROM "logs-generic-default"
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
-				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0", floor(
-				  "bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
+				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
+				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
 	},
 	{ // [50] TODO: what about nulls in histogram? Maybe they should be treated like in terms?
@@ -2268,24 +2257,23 @@ var AggregationTests2 = []AggregationTestCase{
 			FROM (
 			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
 				"aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1",
-				dense_rank() OVER (PARTITION BY 1
-			  ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
-				 dense_rank() OVER (PARTITION BY "aggr__2__key_0"
-			  ORDER BY "aggr__2__3__order_1", "aggr__2__3__key_0" ASC) AS
+				dense_rank() OVER (ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
+				"aggr__2__3__order_1", "aggr__2__3__key_0" ASC) AS
 				"aggr__2__3__order_1_rank"
 			  FROM (
 				SELECT floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
-				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__count", floor("bytes"/100.000000)*100.000000 AS
-				  "aggr__2__order_1", floor("bytes2"/5.000000)*5.000000 AS
-				  "aggr__2__3__key_0", count(*) AS "aggr__2__3__count",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__order_1", count(*) AS
-				  "aggr__2__count_part"
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  floor("bytes"/100.000000)*100.000000 AS "aggr__2__order_1",
+				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0",
+				  count(*) AS "aggr__2__3__count",
+				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__order_1"
 				FROM "logs-generic-default"
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
-				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0", floor(
-				  "bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
+				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
+				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
 	},
 	{ // [51]
@@ -2537,26 +2525,21 @@ var AggregationTests2 = []AggregationTestCase{
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
 				"aggr__2__order_1", "aggr__2__8__count", "aggr__2__8__5__parent_count",
 				"aggr__2__8__5__key_0", "aggr__2__8__5__count", "aggr__2__8__5__order_1",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1" DESC,
-				"aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
+				AS "aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__8__5__order_1" DESC, "aggr__2__8__5__key_0" ASC) AS
 				"aggr__2__8__5__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
-				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__count",
-				  sum("aggr__2__order_1_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__order_1",
-				  sum("aggr__2__8__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__8__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__8__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__5__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0",
-				  count(*) AS "aggr__2__8__5__count", count() AS "aggr__2__8__5__order_1",
-				  count(*) AS "aggr__2__count_part", count() AS "aggr__2__order_1_part",
-				  count(*) AS "aggr__2__8__count_part"
+				  count(*) AS "aggr__2__8__5__count", count() AS "aggr__2__8__5__order_1"
 				FROM "logs-generic-default"
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0"))
@@ -2817,26 +2800,21 @@ var AggregationTests2 = []AggregationTestCase{
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
 				"aggr__2__order_1", "aggr__2__8__count", "aggr__2__8__5__parent_count",
 				"aggr__2__8__5__key_0", "aggr__2__8__5__count", "aggr__2__8__5__order_1",
-				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1" DESC,
-				"aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
+				AS "aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__8__5__order_1" DESC, "aggr__2__8__5__key_0" ASC) AS
 				"aggr__2__8__5__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER (PARTITION BY 1) AS "aggr__2__parent_count",
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
-				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__count",
-				  sum("aggr__2__order_1_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__order_1",
-				  sum("aggr__2__8__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__8__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__8__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__5__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0",
-				  count(*) AS "aggr__2__8__5__count", count() AS "aggr__2__8__5__order_1",
-				  count(*) AS "aggr__2__count_part", count() AS "aggr__2__order_1_part",
-				  count(*) AS "aggr__2__8__count_part"
+				  count(*) AS "aggr__2__8__5__count", count() AS "aggr__2__8__5__order_1"
 				FROM "logs-generic-default"
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0"))
