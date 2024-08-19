@@ -37,15 +37,18 @@ func TestAlterTable(t *testing.T) {
 		"ALTER TABLE \"\" ADD COLUMN IF NOT EXISTS \"Test1\" Int64",
 		"ALTER TABLE \"\" ADD COLUMN IF NOT EXISTS \"Test2\" Int64",
 	}
-	fieldsMap := concurrent.NewMapWith("tableName", &Table{
+	table := &Table{
 		Cols: map[string]*Column{},
-	})
+	}
+	fieldsMap := concurrent.NewMapWith("tableName", table)
 
 	lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{})
 	for i := range rowsToInsert {
 		insert, alter, err := lm.BuildIngestSQLStatements("tableName", types.MustJSON(rowsToInsert[i]), nil, chConfig, true)
 		assert.Equal(t, expectedInsert[i], insert)
 		assert.Equal(t, alters[i], alter[0])
+		// Table will grow with each iteration
+		assert.Equal(t, i+1, len(table.Cols))
 		assert.NoError(t, err)
 	}
 }

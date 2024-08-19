@@ -446,6 +446,8 @@ func getAttributesByArrayName(arrayName string,
 // This function generates ALTER TABLE commands for adding new columns
 // to the table based on the attributesMap and the table name
 // AttributesMap contains the attributes that are not part of the schema
+// Function has side effects, it modifies the table.Cols map
+// and removes the attributes that were promoted to columns
 func (lm *LogManager) generateNewColumns(
 	attrsMap map[string][]interface{},
 	table *Table) []string {
