@@ -447,13 +447,20 @@ func getAttributesByArrayName(arrayName string,
 // AttributesMap contains the attributes that are not part of the schema
 func (lm *LogManager) generateNewColumns(
 	attrsMap map[string][]interface{},
-	tableName string) []string {
+	table *Table) []string {
 	var alterCmd []string
 	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
 	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
+	var deleteIndexes []int
 	for i := 0; i < len(attrKeys); i++ {
-		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", tableName, attrKeys[i], attrTypes[i])
+		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, attrKeys[i], attrTypes[i])
+		table.Cols[attrKeys[i]] = &Column{Name: attrKeys[i], Type: NewBaseType(attrTypes[i])}
 		alterCmd = append(alterCmd, alterTable)
+		deleteIndexes = append(deleteIndexes, i)
+	}
+	for i := len(deleteIndexes) - 1; i >= 0; i-- {
+		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn][:deleteIndexes[i]], attrsMap[AttributesKeyColumn][deleteIndexes[i]+1:]...)
+		attrsMap[AttributesValueType] = append(attrsMap[AttributesValueType][:deleteIndexes[i]], attrsMap[AttributesValueType][deleteIndexes[i]+1:]...)
 	}
 	return alterCmd
 }
@@ -528,7 +535,7 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	// have columns for them
 	var alterCmd []string
 	if generateNewColumns {
-		alterCmd = lm.generateNewColumns(attrsMap, tableName)
+		alterCmd = lm.generateNewColumns(attrsMap, table)
 	}
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
@@ -553,6 +560,7 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	if nonSchemaStr != "" && len(schemaFieldsJson) > 2 {
 		comma = "," // need to watch out where we input commas, CH doesn't tolerate trailing ones
 	}
+
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), alterCmd, nil
 }
 
@@ -670,7 +678,6 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 			inValidJson, NestedSeparator)
 		// Remove invalid fields from the input JSON
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
-
 		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson, inValidJson, config, generateNewColumns)
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
