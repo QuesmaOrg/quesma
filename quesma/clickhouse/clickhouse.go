@@ -406,13 +406,25 @@ func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name strin
 	return nil
 }
 
-// This function takes an attributesMap and updates it
-// with the fields that are not valid according to the inferred schema
-func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalidJson types.JSON) {
-	for k, v := range invalidJson {
-		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn], k)
-		attrsMap[AttributesValueColumn] = append(attrsMap[AttributesValueColumn], v)
+func deepCopyMapSliceInterface(original map[string][]interface{}) map[string][]interface{} {
+	copiedMap := make(map[string][]interface{}, len(original))
+	for key, value := range original {
+		copiedSlice := make([]interface{}, len(value))
+		copy(copiedSlice, value) // Copy the slice contents
+		copiedMap[key] = copiedSlice
 	}
+	return copiedMap
+}
+
+// This function takes an attributesMap, creates a copy and updates it
+// with the fields that are not valid according to the inferred schema
+func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalidJson types.JSON) map[string][]interface{} {
+	newAttrsMap := deepCopyMapSliceInterface(attrsMap)
+	for k, v := range invalidJson {
+		newAttrsMap[AttributesKeyColumn] = append(newAttrsMap[AttributesKeyColumn], k)
+		newAttrsMap[AttributesValueColumn] = append(newAttrsMap[AttributesValueColumn], v)
+	}
+	return newAttrsMap
 }
 
 // This function takes an attributesMap and arrayName and returns
@@ -446,9 +458,20 @@ func (lm *LogManager) generateNewColumns(
 	return alterCmd
 }
 
-// TODO
-// This method should be refactored to use mux.JSON instead of string
-func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValidJson types.JSON,
+func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, error) {
+	var nonSchemaStr string
+	if len(attrsMap) <= 0 {
+		return nonSchemaStr, nil
+	}
+	attributesBytes, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
+	if err != nil {
+		return "", err
+	}
+	nonSchemaStr = string(attributesBytes[1 : len(attributesBytes)-1])
+	return nonSchemaStr, nil
+}
+
+func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON, inValidJson types.JSON,
 	config *ChTableConfig, generateNewColumns bool) (string, []string, error) {
 
 	jsonData, err := json.Marshal(data)
@@ -456,37 +479,40 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	if err != nil {
 		return "", nil, err
 	}
-	js := string(jsonData)
+	jsonDataAsString := string(jsonData)
 
 	// we find all non-schema fields
-	m, err := types.ParseJSON(js)
+	jsonMap, err := types.ParseJSON(jsonDataAsString)
 	if err != nil {
 		return "", nil, err
 	}
 
-	wasReplaced := replaceDotsWithSeparator(m)
+	wasReplaced := replaceDotsWithSeparator(jsonMap)
+
 	if len(config.attributes) == 0 {
-		if wasReplaced {
-			rawBytes, err := m.Bytes()
-			if err != nil {
-				return "", nil, err
-			}
-			js = string(rawBytes)
+		// if we don't have any attributes, and it wasn't replaced,
+		// we don't need to modify the json
+		if !wasReplaced {
+			return jsonDataAsString, nil, nil
 		}
-		return js, nil, nil
+		rawBytes, err := jsonMap.Bytes()
+		if err != nil {
+			return "", nil, err
+		}
+		return string(rawBytes), nil, nil
 	}
 
-	t := lm.FindTable(tableName)
-	schemaFieldsJson, err := json.Marshal(m)
+	table := lm.FindTable(tableName)
+	schemaFieldsJson, err := json.Marshal(jsonMap)
 
 	if err != nil {
 		return "", nil, err
 	}
 
-	mDiff := DifferenceMap(m, t) // TODO change to DifferenceMap(m, t)
+	mDiff := DifferenceMap(jsonMap, table) // TODO change to DifferenceMap(m, t)
 
-	if len(mDiff) == 0 && string(schemaFieldsJson) == js && len(inValidJson) == 0 { // no need to modify, just insert 'js'
-		return js, nil, nil
+	if len(mDiff) == 0 && string(schemaFieldsJson) == jsonDataAsString && len(inValidJson) == 0 { // no need to modify, just insert 'js'
+		return jsonDataAsString, nil, nil
 	}
 
 	// check attributes precondition
@@ -494,7 +520,9 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 		return "", nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
 	}
 	attrsMap, _ := BuildAttrsMap(mDiff, config)
-	// generateNewColumns is called before adding invalid fields to attributes map
+
+	// generateNewColumns is called on original attributes map
+	// before adding invalid fields to it
 	// otherwise it would contain invalid fields e.g. with wrong types
 	// we only want to add fields that are not part of the schema e.g we don't
 	// have columns for them
@@ -505,16 +533,16 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
 	// generating correct update query
-	addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
-	nonSchemaStr := ""
-	if len(attrsMap) > 0 {
-		attrs, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
-		if err != nil {
-			return "", nil, err
-		}
-		nonSchemaStr = string(attrs[1 : len(attrs)-1])
+	// addInvalidJsonFieldsToAttributes returns a new map with invalid fields added
+	// this map is then used to generate non-schema fields string
+	attrsMapWithInvalidFields := addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
+	nonSchemaStr, err := generateNonSchemaFieldsString(attrsMapWithInvalidFields)
+
+	if err != nil {
+		return "", nil, err
 	}
-	onlySchemaFields := RemoveNonSchemaFields(m, t)
+
+	onlySchemaFields := RemoveNonSchemaFields(jsonMap, table)
 
 	schemaFieldsJson, err = json.Marshal(onlySchemaFields)
 
@@ -643,7 +671,7 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 		// Remove invalid fields from the input JSON
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
 
-		insertJson, alter, err := lm.BuildInsertJson(tableName, preprocessedJson, inValidJson, config, generateNewColumns)
+		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson, inValidJson, config, generateNewColumns)
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
