@@ -25,18 +25,27 @@ func TestAlterTable(t *testing.T) {
 		castUnsupportedAttrValueTypesToString: true,
 		preferCastingToOthers:                 true,
 	}
-	rowsToInsert := []string{`{"Test1":1}`}
-	expectedInsert := []string{"{\"attributes_string_key\":[],\"attributes_string_type\":[],\"attributes_string_value\":[],\"Test1\":1}"}
-	alters := []string{"ALTER TABLE \"\" ADD COLUMN IF NOT EXISTS \"Test1\" Int64"}
+	rowsToInsert := []string{
+		`{"Test1":1}`,
+		`{"Test1":1,"Test2":2}`,
+	}
+	expectedInsert := []string{
+		"{\"attributes_string_key\":[],\"attributes_string_type\":[],\"attributes_string_value\":[],\"Test1\":1}",
+		"{\"attributes_string_key\":[],\"attributes_string_type\":[],\"attributes_string_value\":[],\"Test1\":1,\"Test2\":2}",
+	}
+	alters := []string{
+		"ALTER TABLE \"\" ADD COLUMN IF NOT EXISTS \"Test1\" Int64",
+		"ALTER TABLE \"\" ADD COLUMN IF NOT EXISTS \"Test2\" Int64",
+	}
 	fieldsMap := concurrent.NewMapWith("tableName", &Table{
 		Cols: map[string]*Column{},
 	})
 
 	lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{})
 	for i := range rowsToInsert {
-		insert, alter, err := lm.BuildIngestSQLStatements("tableName", types.MustJSON(rowsToInsert[0]), nil, chConfig, true)
+		insert, alter, err := lm.BuildIngestSQLStatements("tableName", types.MustJSON(rowsToInsert[i]), nil, chConfig, true)
 		assert.Equal(t, expectedInsert[i], insert)
-		assert.Equal(t, alters, alter)
+		assert.Equal(t, alters[i], alter[0])
 		assert.NoError(t, err)
 	}
 }
