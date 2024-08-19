@@ -423,6 +423,7 @@ func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalid
 	for k, v := range invalidJson {
 		newAttrsMap[AttributesKeyColumn] = append(newAttrsMap[AttributesKeyColumn], k)
 		newAttrsMap[AttributesValueColumn] = append(newAttrsMap[AttributesValueColumn], v)
+		newAttrsMap[AttributesValueType] = append(newAttrsMap[AttributesValueType], NewType(v).String())
 	}
 	return newAttrsMap
 }
@@ -461,6 +462,7 @@ func (lm *LogManager) generateNewColumns(
 	for i := len(deleteIndexes) - 1; i >= 0; i-- {
 		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn][:deleteIndexes[i]], attrsMap[AttributesKeyColumn][deleteIndexes[i]+1:]...)
 		attrsMap[AttributesValueType] = append(attrsMap[AttributesValueType][:deleteIndexes[i]], attrsMap[AttributesValueType][deleteIndexes[i]+1:]...)
+		attrsMap[AttributesValueColumn] = append(attrsMap[AttributesValueColumn][:deleteIndexes[i]], attrsMap[AttributesValueColumn][deleteIndexes[i]+1:]...)
 	}
 	return alterCmd
 }
