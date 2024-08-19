@@ -131,7 +131,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			}
 		}
 
-		orderBy := cw.parseOrder(terms, queryMap, fieldExpression)
+		orderBy := cw.parseOrder(terms, queryMap, []model.Expr{fieldExpression})
 		aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", orderBy[0]) // TODO probably full, not [0]
 		aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)
 		aggregation.limit = size
@@ -161,11 +161,12 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 				logger.WarnWithCtx(cw.Ctx).Msgf("terms is not an array, but %T, value: %v. Using empty array", termsRaw, termsRaw)
 			}
 			fieldsNr = len(terms)
+			columns := make([]model.Expr, 0, fieldsNr)
 			for _, term := range terms {
-				column := cw.parseFieldField(term, "multi_terms")
-				aggregation.selectedColumns = append(aggregation.selectedColumns, column)
-				aggregation.orderBy = append(aggregation.orderBy, cw.parseOrder(multiTerms, queryMap, column)...)
+				columns = append(columns, cw.parseFieldField(term, "multi_terms"))
 			}
+			aggregation.selectedColumns = append(aggregation.selectedColumns, columns...)
+			aggregation.orderBy = append(aggregation.orderBy, cw.parseOrder(multiTerms, queryMap, columns)...)
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msg("no terms in multi_terms")
 		}
@@ -366,15 +367,20 @@ func (cw *ClickhouseQueryTranslator) parseRandomSampler(randomSamplerRaw any) bu
 	)
 }
 
-func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldExpression model.Expr) []model.OrderByExpr {
+func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldExpressions []model.Expr) []model.OrderByExpr {
 	defaultMainOrderBy := model.NewCountFunc()
 	defaultDirection := model.DescOrder
+
+	fieldOrderBys := make([]model.OrderByExpr, 0, len(fieldExpressions))
+	for _, fieldExpression := range fieldExpressions {
+		fieldOrderBys = append(fieldOrderBys, model.OrderByExpr{Exprs: []model.Expr{fieldExpression}})
+	}
 
 	var mainOrderBy model.Expr = defaultMainOrderBy
 	fullOrderBy := []model.OrderByExpr{ // default
 		{Exprs: []model.Expr{mainOrderBy}, Direction: defaultDirection, ExchangeToAliasInCTE: true},
-		{Exprs: []model.Expr{fieldExpression}},
 	}
+	fullOrderBy = append(fullOrderBy, fieldOrderBys...)
 	direction := defaultDirection
 
 	orderRaw, exists := terms["order"]
@@ -403,7 +409,10 @@ func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldE
 		}
 
 		if key == "_key" {
-			fullOrderBy = []model.OrderByExpr{{Exprs: []model.Expr{fieldExpression}, Direction: direction}}
+			fullOrderBy = fieldOrderBys
+			for i := range fullOrderBy {
+				fullOrderBy[i].Direction = direction
+			}
 			break // mainOrderBy remains default
 		} else if key != "_count" {
 			mainOrderBy = cw.pancakeFindMetricAggregation(queryMap, key)
@@ -411,8 +420,8 @@ func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldE
 
 		fullOrderBy = []model.OrderByExpr{
 			{Exprs: []model.Expr{mainOrderBy}, Direction: direction, ExchangeToAliasInCTE: true},
-			{Exprs: []model.Expr{fieldExpression}},
 		}
+		fullOrderBy = append(fullOrderBy, fieldOrderBys...)
 	}
 
 	return fullOrderBy

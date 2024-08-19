@@ -1809,18 +1809,14 @@ var AggregationTests2 = []AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1706021670000/30000)),
 				model.NewQueryResultCol("aggr__2__count", 2),
-				model.NewQueryResultCol("aggr__2__order_1", int64(1706021670000/30000)),
 				model.NewQueryResultCol("aggr__2__3__key_0", int64(1706021820000/40000)),
 				model.NewQueryResultCol("aggr__2__3__count", 13),
-				model.NewQueryResultCol("aggr__2__3__order_1", int64(1706021820000/40000)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1706021820000/30000)),
 				model.NewQueryResultCol("aggr__2__count", 13),
-				model.NewQueryResultCol("aggr__2__order_1", int64(1706021820000/30000)),
 				model.NewQueryResultCol("aggr__2__3__key_0", int64(1706021670000/40000)),
 				model.NewQueryResultCol("aggr__2__3__count", 2),
-				model.NewQueryResultCol("aggr__2__3__order_1", int64(1706021670000/40000)),
 			}},
 		},
 		/*
@@ -1845,26 +1841,21 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 		*/
 		ExpectedPancakeSQL: `
-			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
-			  "aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1"
+			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
+			  "aggr__2__3__count"
 			FROM (
-			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
-				"aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC) AS
-				"aggr__2__order_1_rank",
+			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
+				"aggr__2__3__count",
+				dense_rank() OVER (ORDER BY "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank"
+				,
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__3__order_1", "aggr__2__3__key_0" ASC) AS
-				"aggr__2__3__order_1_rank"
+				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank"
 			  FROM (
 				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				  "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-				  "aggr__2__order_1",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 40000) AS
-				  "aggr__2__3__key_0", count(*) AS "aggr__2__3__count",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 40000) AS
-				  "aggr__2__3__order_1"
+				  "aggr__2__3__key_0", count(*) AS "aggr__2__3__count"
 				FROM "logs-generic-default"
 				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				  "aggr__2__key_0",
@@ -2013,18 +2004,14 @@ var AggregationTests2 = []AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 9100.0),
 				model.NewQueryResultCol("aggr__2__count", 1),
-				model.NewQueryResultCol("aggr__2__order_1", 9100.0),
 				model.NewQueryResultCol("aggr__2__3__key_0", 12),
 				model.NewQueryResultCol("aggr__2__3__count", 1),
-				model.NewQueryResultCol("aggr__2__3__order_1", 1),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 9700.0),
 				model.NewQueryResultCol("aggr__2__count", 2),
-				model.NewQueryResultCol("aggr__2__order_1", 9700.0),
 				model.NewQueryResultCol("aggr__2__3__key_0", nil),
 				model.NewQueryResultCol("aggr__2__3__count", 1),
-				model.NewQueryResultCol("aggr__2__3__order_1", nil),
 			}},
 		},
 		ExpectedSQLs: []string{
@@ -2040,23 +2027,20 @@ var AggregationTests2 = []AggregationTestCase{
 				`ORDER BY floor("bytes"/100.000000)*100.000000`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
-			  "aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1"
+			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
+			  "aggr__2__3__count"
 			FROM (
-			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
-				"aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC) AS
-				"aggr__2__order_1_rank",
+			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
+				"aggr__2__3__count",
+				dense_rank() OVER (ORDER BY "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank"
+				,
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__3__order_1", "aggr__2__3__key_0" ASC) AS
-				"aggr__2__3__order_1_rank"
+				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank"
 			  FROM (
 				SELECT floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  floor("bytes"/100.000000)*100.000000 AS "aggr__2__order_1",
 				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0",
-				  count(*) AS "aggr__2__3__count",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__order_1"
+				  count(*) AS "aggr__2__3__count"
 				FROM "logs-generic-default"
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
@@ -2225,18 +2209,14 @@ var AggregationTests2 = []AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 9100.0),
 				model.NewQueryResultCol("aggr__2__count", 1),
-				model.NewQueryResultCol("aggr__2__order_1", 9100.0),
 				model.NewQueryResultCol("aggr__2__3__key_0", 12),
 				model.NewQueryResultCol("aggr__2__3__count", 1),
-				model.NewQueryResultCol("aggr__2__3__order_1", 1),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 9700.0),
 				model.NewQueryResultCol("aggr__2__count", 2),
-				model.NewQueryResultCol("aggr__2__order_1", 9700.0),
 				model.NewQueryResultCol("aggr__2__3__key_0", nil),
 				model.NewQueryResultCol("aggr__2__3__count", 1),
-				model.NewQueryResultCol("aggr__2__3__order_1", nil),
 			}},
 		},
 		ExpectedSQLs: []string{
@@ -2252,23 +2232,20 @@ var AggregationTests2 = []AggregationTestCase{
 				`ORDER BY floor("bytes"/100.000000)*100.000000`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
-			  "aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1"
+			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
+			  "aggr__2__3__count"
 			FROM (
-			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
-				"aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC) AS
-				"aggr__2__order_1_rank",
+			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
+				"aggr__2__3__count",
+				dense_rank() OVER (ORDER BY "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank"
+				,
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__3__order_1", "aggr__2__3__key_0" ASC) AS
-				"aggr__2__3__order_1_rank"
+				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank"
 			  FROM (
 				SELECT floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  floor("bytes"/100.000000)*100.000000 AS "aggr__2__order_1",
 				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0",
-				  count(*) AS "aggr__2__3__count",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__order_1"
+				  count(*) AS "aggr__2__3__count"
 				FROM "logs-generic-default"
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
