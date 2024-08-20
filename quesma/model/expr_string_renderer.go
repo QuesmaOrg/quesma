@@ -107,11 +107,7 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 }
 
 func (v *renderer) VisitOrderByExpr(e OrderByExpr) interface{} {
-	var exprsAsStr []string
-	for _, expr := range e.Exprs {
-		exprsAsStr = append(exprsAsStr, expr.Accept(v).(string))
-	}
-	allExprs := strings.Join(exprsAsStr, ", ")
+	allExprs := e.Expr.Accept(v).(string)
 	if e.Direction == DescOrder {
 		return fmt.Sprintf("%s %s", allExprs, "DESC")
 	}
@@ -304,7 +300,7 @@ func (v *renderer) VisitWindowFunction(f WindowFunction) interface{} {
 		sb.WriteString(strings.Join(partitionBy, ", "))
 	}
 
-	if len(f.OrderBy) > 0 && len(f.OrderBy[0].Exprs) > 0 {
+	if len(f.OrderBy) > 0 {
 		if len(f.PartitionBy) > 0 {
 			sb.WriteString(" ")
 		}

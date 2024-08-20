@@ -143,7 +143,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 
 		for i, orderBy := range bucketAggregation.orderBy {
 			columnId := len(bucketAggregation.selectedColumns) + i
-			orderByExpr := orderBy.Exprs[0]
+			orderByExpr := orderBy.Expr
 
 			partOfGroupByOpt := p.isPartOfGroupBy(orderByExpr, append(groupByColumns, addGroupBys...))
 			if partOfGroupByOpt != nil {
@@ -152,7 +152,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 					direction = model.AscOrder // primarily needed for tests
 				}
 				rankColumnOrderBy = append(rankColumnOrderBy, model.NewOrderByExpr(
-					[]model.Expr{p.newQuotedLiteral(partOfGroupByOpt.Alias)}, direction))
+					p.newQuotedLiteral(partOfGroupByOpt.Alias), direction))
 				continue
 			}
 
@@ -171,7 +171,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 			addSelectColumns = append(addSelectColumns, aliasedColumn)
 
 			rankColumnOrderBy = append(rankColumnOrderBy, model.NewOrderByExpr(
-				[]model.Expr{p.newQuotedLiteral(aliasedColumn.Alias)}, orderBy.Direction))
+				p.newQuotedLiteral(aliasedColumn.Alias), orderBy.Direction))
 		}
 
 		// We order by count, but add key to get right dense_rank()
@@ -179,7 +179,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 			alreadyAdded := false
 			for _, orderBy := range rankColumnOrderBy {
 				if toAdd, ok := addedGroupByAlias.(model.LiteralExpr); ok {
-					if added, ok2 := orderBy.Exprs[0].(model.LiteralExpr); ok2 {
+					if added, ok2 := orderBy.Expr.(model.LiteralExpr); ok2 {
 						if added.Value == toAdd.Value {
 							alreadyAdded = true
 							break
@@ -188,7 +188,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 				}
 			}
 			if !alreadyAdded {
-				rankColumnOrderBy = append(rankColumnOrderBy, model.NewOrderByExpr([]model.Expr{addedGroupByAlias}, model.AscOrder))
+				rankColumnOrderBy = append(rankColumnOrderBy, model.NewOrderByExpr(addedGroupByAlias, model.AscOrder))
 			}
 		}
 
@@ -210,7 +210,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 			addRankWheres = append(addRankWheres, whereRank)
 		}
 
-		rankOrderBy := model.NewOrderByExpr([]model.Expr{p.newQuotedLiteral(aliasedRank.Alias)}, model.AscOrder)
+		rankOrderBy := model.NewOrderByExpr(p.newQuotedLiteral(aliasedRank.Alias), model.AscOrder)
 		addRankOrderBys = append(addRankOrderBys, rankOrderBy)
 	}
 	return

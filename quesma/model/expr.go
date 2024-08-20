@@ -165,7 +165,7 @@ const (
 )
 
 type OrderByExpr struct {
-	Exprs                []Expr
+	Expr                 Expr
 	Direction            OrderByDirection
 	ExchangeToAliasInCTE bool
 }
@@ -174,19 +174,19 @@ func (o OrderByExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitOrderByExpr(o)
 }
 
-func NewOrderByExpr(exprs []Expr, direction OrderByDirection) OrderByExpr {
-	return OrderByExpr{Exprs: exprs, Direction: direction}
+func NewOrderByExpr(expr Expr, direction OrderByDirection) OrderByExpr {
+	return OrderByExpr{Expr: expr, Direction: direction}
 }
-func NewOrderByExprWithoutOrder(exprs ...Expr) OrderByExpr {
-	return OrderByExpr{Exprs: exprs, Direction: DefaultOrder}
+func NewOrderByExprWithoutOrder(expr Expr) OrderByExpr {
+	return OrderByExpr{Expr: expr, Direction: DefaultOrder}
 }
 
 // IsCountDesc returns true <=> this OrderByExpr is count() DESC
 func (o OrderByExpr) IsCountDesc() bool {
-	if len(o.Exprs) != 1 || o.Direction != DescOrder {
+	if o.Direction != DescOrder {
 		return false
 	}
-	function, ok := o.Exprs[0].(FunctionExpr)
+	function, ok := o.Expr.(FunctionExpr)
 	return ok && function.Name == "count"
 }
 
