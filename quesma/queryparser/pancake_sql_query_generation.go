@@ -88,6 +88,17 @@ func (p *pancakeSqlQueryGenerator) isPartOfGroupBy(column model.Expr, groupByCol
 	return nil
 }
 
+func (p *pancakeSqlQueryGenerator) isPartOfOrderBy(alias model.AliasedExpr, orderByColumns []model.OrderByExpr) bool {
+	for _, orderBy := range orderByColumns {
+		if orderByLiteral, ok := orderBy.Expr.(model.LiteralExpr); ok {
+			if alias.AliasRef().Value == orderByLiteral.Value {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (p *pancakeSqlQueryGenerator) addPotentialParentCount(bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr) []model.AliasedExpr {
 	if query_util.IsAnyKindOfTerms(bucketAggregation.queryType) {
 		parentCountColumn := model.NewWindowFunction("sum",
@@ -154,20 +165,9 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 		}
 
 		// We order by count, but add key to get right dense_rank()
-		for _, addedGroupByAlias := range p.aliasedExprArrayToLiteralExpr(addGroupBys) {
-			alreadyAdded := false
-			for _, orderBy := range rankOrderBy {
-				if toAdd, ok := addedGroupByAlias.(model.LiteralExpr); ok {
-					if added, ok2 := orderBy.Expr.(model.LiteralExpr); ok2 {
-						if added.Value == toAdd.Value {
-							alreadyAdded = true
-							break
-						}
-					}
-				}
-			}
-			if !alreadyAdded {
-				rankOrderBy = append(rankOrderBy, model.NewOrderByExpr(addedGroupByAlias, model.AscOrder))
+		for _, addedGroupByAlias := range addGroupBys {
+			if !p.isPartOfOrderBy(addedGroupByAlias, rankOrderBy) {
+				rankOrderBy = append(rankOrderBy, model.NewOrderByExpr(addedGroupByAlias.AliasRef(), model.AscOrder))
 			}
 		}
 
