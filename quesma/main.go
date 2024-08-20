@@ -79,11 +79,10 @@ func main() {
 	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool, licenseMod.License.ClientID)
 	phoneHomeAgent.Start()
 
-	schemaManagement := clickhouse.NewSchemaManagement(connectionPool)
-	schemaLoader := clickhouse.NewTableDiscovery(cfg, schemaManagement)
-	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: schemaLoader}, cfg, clickhouse.SchemaTypeAdapter{})
+	tableDisco := clickhouse.NewTableDiscovery(cfg, connectionPool)
+	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, cfg, clickhouse.SchemaTypeAdapter{})
 
-	connManager := connectors.NewConnectorManager(cfg, connectionPool, phoneHomeAgent, schemaLoader, schemaRegistry)
+	connManager := connectors.NewConnectorManager(cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry)
 	lm := connManager.GetConnector()
 
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
@@ -95,7 +94,7 @@ func main() {
 	abTestingController := sender.NewSenderCoordinator(cfg)
 	abTestingController.Start()
 
-	instance := constructQuesma(cfg, schemaLoader, lm, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender())
+	instance := constructQuesma(cfg, tableDisco, lm, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender())
 	instance.Start()
 
 	<-doneCh
