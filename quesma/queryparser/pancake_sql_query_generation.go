@@ -105,7 +105,6 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 	// For some group by such as terms, we need total count. We add it in this method.
 	addSelectColumns = append(addSelectColumns, p.addPotentialParentCount(bucketAggregation, groupByColumns)...)
 
-	// TODO: ...
 	for columnId, column := range bucketAggregation.selectedColumns {
 		aliasedColumn := model.NewAliasedExpr(column, bucketAggregation.InternalNameForKey(columnId))
 		addSelectColumns = append(addSelectColumns, aliasedColumn)
@@ -130,30 +129,28 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 
 		for i, orderBy := range bucketAggregation.orderBy {
 			columnId := len(bucketAggregation.selectedColumns) + i
-			orderByExpr := orderBy.Expr
+			direction := orderBy.Direction
 
-			partOfGroupByOpt := p.isPartOfGroupBy(orderByExpr, append(groupByColumns, addGroupBys...))
-			if partOfGroupByOpt != nil {
-				direction := orderBy.Direction
+			rankColumn := p.isPartOfGroupBy(orderBy.Expr, append(groupByColumns, addGroupBys...))
+			if rankColumn != nil { // rank is part of group by
 				if direction == model.DefaultOrder {
 					direction = model.AscOrder // primarily needed for tests
 				}
-				rankOrderBy = append(rankOrderBy, model.NewOrderByExpr(partOfGroupByOpt.AliasRef(), direction))
-				continue
-			}
-
-			if hasMoreBucketAggregations {
-				partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderByExpr, nil)
-				if err != nil {
-					return nil, nil, nil, nil, nil, err
+			} else { // we need new columns for rank
+				orderByExpr := orderBy.Expr
+				if hasMoreBucketAggregations {
+					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderByExpr, nil)
+					if err != nil {
+						return nil, nil, nil, nil, nil, err
+					}
+					orderByExpr = model.NewWindowFunction(aggFunctionName, []model.Expr{partColumn},
+						p.generatePartitionBy(append(groupByColumns, addGroupBys...)), []model.OrderByExpr{})
 				}
-				orderByExpr = model.NewWindowFunction(aggFunctionName, []model.Expr{partColumn},
-					p.generatePartitionBy(append(groupByColumns, addGroupBys...)), []model.OrderByExpr{})
+				aliasedExpr := model.NewAliasedExpr(orderByExpr, bucketAggregation.InternalNameForOrderBy(columnId))
+				addSelectColumns = append(addSelectColumns, aliasedExpr)
+				rankColumn = &aliasedExpr
 			}
-			aliasedColumn := model.NewAliasedExpr(orderByExpr, bucketAggregation.InternalNameForOrderBy(columnId))
-			addSelectColumns = append(addSelectColumns, aliasedColumn)
-
-			rankOrderBy = append(rankOrderBy, model.NewOrderByExpr(aliasedColumn.AliasRef(), orderBy.Direction))
+			rankOrderBy = append(rankOrderBy, model.NewOrderByExpr(rankColumn.AliasRef(), direction))
 		}
 
 		// We order by count, but add key to get right dense_rank()
