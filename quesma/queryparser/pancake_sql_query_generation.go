@@ -8,14 +8,9 @@ import (
 	"quesma/clickhouse"
 	"quesma/model"
 	"quesma/queryparser/query_util"
-	"strconv"
 )
 
 type pancakeSqlQueryGenerator struct {
-}
-
-func (p *pancakeSqlQueryGenerator) newQuotedLiteral(value string) model.LiteralExpr {
-	return model.LiteralExpr{Value: strconv.Quote(value)}
 }
 
 func (p *pancakeSqlQueryGenerator) aliasedExprArrayToExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
@@ -29,7 +24,7 @@ func (p *pancakeSqlQueryGenerator) aliasedExprArrayToExpr(aliasedExprs []model.A
 func (p *pancakeSqlQueryGenerator) aliasedExprArrayToLiteralExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
 	exprs := make([]model.Expr, 0, len(aliasedExprs))
 	for _, aliasedExpr := range aliasedExprs {
-		exprs = append(exprs, p.newQuotedLiteral(aliasedExpr.Alias))
+		exprs = append(exprs, aliasedExpr.AliasRef())
 	}
 	return exprs
 }
@@ -37,7 +32,7 @@ func (p *pancakeSqlQueryGenerator) aliasedExprArrayToLiteralExpr(aliasedExprs []
 func (p *pancakeSqlQueryGenerator) generatePartitionBy(groupByColumns []model.AliasedExpr) []model.Expr {
 	partitionBy := make([]model.Expr, 0)
 	for _, col := range groupByColumns {
-		partitionBy = append(partitionBy, p.newQuotedLiteral(col.Alias))
+		partitionBy = append(partitionBy, col.AliasRef())
 	}
 	return partitionBy
 }
@@ -131,7 +126,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 	addSelectColumns = append(addSelectColumns, countAliasedColumn)
 
 	if bucketAggregation.orderBy != nil && len(bucketAggregation.orderBy) > 0 {
-		rankColumnOrderBy := make([]model.OrderByExpr, 0)
+		rankOrderBy := make([]model.OrderByExpr, 0)
 
 		for i, orderBy := range bucketAggregation.orderBy {
 			columnId := len(bucketAggregation.selectedColumns) + i
@@ -143,8 +138,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 				if direction == model.DefaultOrder {
 					direction = model.AscOrder // primarily needed for tests
 				}
-				rankColumnOrderBy = append(rankColumnOrderBy, model.NewOrderByExpr(
-					p.newQuotedLiteral(partOfGroupByOpt.Alias), direction))
+				rankOrderBy = append(rankOrderBy, model.NewOrderByExpr(partOfGroupByOpt.AliasRef(), direction))
 				continue
 			}
 
@@ -159,14 +153,13 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 			aliasedColumn := model.NewAliasedExpr(orderByExpr, bucketAggregation.InternalNameForOrderBy(columnId))
 			addSelectColumns = append(addSelectColumns, aliasedColumn)
 
-			rankColumnOrderBy = append(rankColumnOrderBy, model.NewOrderByExpr(
-				p.newQuotedLiteral(aliasedColumn.Alias), orderBy.Direction))
+			rankOrderBy = append(rankOrderBy, model.NewOrderByExpr(aliasedColumn.AliasRef(), orderBy.Direction))
 		}
 
 		// We order by count, but add key to get right dense_rank()
 		for _, addedGroupByAlias := range p.aliasedExprArrayToLiteralExpr(addGroupBys) {
 			alreadyAdded := false
-			for _, orderBy := range rankColumnOrderBy {
+			for _, orderBy := range rankOrderBy {
 				if toAdd, ok := addedGroupByAlias.(model.LiteralExpr); ok {
 					if added, ok2 := orderBy.Expr.(model.LiteralExpr); ok2 {
 						if added.Value == toAdd.Value {
@@ -177,12 +170,12 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 				}
 			}
 			if !alreadyAdded {
-				rankColumnOrderBy = append(rankColumnOrderBy, model.NewOrderByExpr(addedGroupByAlias, model.AscOrder))
+				rankOrderBy = append(rankOrderBy, model.NewOrderByExpr(addedGroupByAlias, model.AscOrder))
 			}
 		}
 
 		rankColumn := model.NewWindowFunction("dense_rank", []model.Expr{},
-			p.generatePartitionBy(groupByColumns), rankColumnOrderBy)
+			p.generatePartitionBy(groupByColumns), rankOrderBy)
 		aliasedRank := model.NewAliasedExpr(rankColumn, bucketAggregation.InternalNameForOrderBy(1)+"_rank")
 		addRankColumns = append(addRankColumns, aliasedRank)
 
@@ -192,12 +185,11 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 			if bucketAggregation.filterOurEmptyKeyBucket {
 				limit += 1
 			}
-			whereRank := model.NewInfixExpr(p.newQuotedLiteral(aliasedRank.Alias), "<=", model.NewLiteral(limit))
+			whereRank := model.NewInfixExpr(aliasedRank.AliasRef(), "<=", model.NewLiteral(limit))
 			addRankWheres = append(addRankWheres, whereRank)
 		}
 
-		rankOrderBy := model.NewOrderByExpr(p.newQuotedLiteral(aliasedRank.Alias), model.AscOrder)
-		addRankOrderBys = append(addRankOrderBys, rankOrderBy)
+		addRankOrderBys = append(addRankOrderBys, model.NewOrderByExpr(aliasedRank.AliasRef(), model.AscOrder))
 	}
 	return
 }

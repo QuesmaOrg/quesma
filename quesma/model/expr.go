@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Elastic-2.0
 package model
 
+import "strconv"
+
 // Expr is a generic representation of an expression which is a part of the SQL query.
 type Expr interface {
 	Accept(v ExprVisitor) interface{}
@@ -205,6 +207,10 @@ func NewAliasedExpr(expr Expr, alias string) AliasedExpr {
 }
 
 func (a AliasedExpr) Accept(v ExprVisitor) interface{} { return v.VisitAliasedExpr(a) }
+
+func (a AliasedExpr) AliasRef() LiteralExpr {
+	return LiteralExpr{Value: strconv.Quote(a.Alias)}
+}
 
 // WindowFunction representation e.g. `SUM(x) OVER (PARTITION BY y ORDER BY z)`
 type WindowFunction struct {
