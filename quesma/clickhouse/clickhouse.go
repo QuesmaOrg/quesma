@@ -743,7 +743,7 @@ func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager
 
 // right now only for tests purposes
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
-	return &LogManager{chDb: db, tableDiscovery: newTableDiscoveryWith(config.QuesmaConfiguration{}, NewSchemaManagement(db), *tables), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{chDb: db, tableDiscovery: newTableDiscoveryWith(config.QuesmaConfiguration{}, db, *tables), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewLogManagerEmpty() *LogManager {
