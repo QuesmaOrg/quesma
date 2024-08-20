@@ -1422,14 +1422,12 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1714860000000/3600000)),
 				model.NewQueryResultCol("aggr__2__count", 9),
-				model.NewQueryResultCol("aggr__2__order_1", int64(1714860000000/3600000)),
 				model.NewQueryResultCol("metric__2__1_col_0", 0.0),
 				model.NewQueryResultCol("metric__2__1_col_1", 100.0),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1714863600000/3600000)),
 				model.NewQueryResultCol("aggr__2__count", 12),
-				model.NewQueryResultCol("aggr__2__order_1", int64(1714863600000/3600000)),
 				model.NewQueryResultCol("metric__2__1_col_0", 0.0),
 				model.NewQueryResultCol("metric__2__1_col_1", 50.0),
 			}},
@@ -1448,14 +1446,14 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000)`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS "aggr__2__order_1",
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS
+			  "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  countIf("AvgTicketPrice"<=0.000000)/count(*)*100 AS "metric__2__1_col_0",
 			  countIf("AvgTicketPrice"<=50000.000000)/count(*)*100 AS "metric__2__1_col_1"
 			FROM "logs-generic-default"
-			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC`,
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS
+			  "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [8]
 		TestName: "Min/max with simple script. Reproduce: Visualize -> Line -> Metrics: Count, Buckets: X-Asis Histogram",
@@ -1678,17 +1676,14 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 0.0),
 				model.NewQueryResultCol("aggr__2__count", 44),
-				model.NewQueryResultCol("aggr__2__order_1", 0.0),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 1.0),
 				model.NewQueryResultCol("aggr__2__count", 43),
-				model.NewQueryResultCol("aggr__2__order_1", 1.0),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 2.0),
 				model.NewQueryResultCol("aggr__2__count", 34),
-				model.NewQueryResultCol("aggr__2__order_1", 2.0),
 			}},
 		},
 		ExpectedSQLs: []string{
@@ -1698,10 +1693,9 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY toHour("timestamp")`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT toHour("timestamp") AS "aggr__2__key_0", count(*) AS "aggr__2__count",
-			  toHour("timestamp") AS "aggr__2__order_1"
+			SELECT toHour("timestamp") AS "aggr__2__key_0", count(*) AS "aggr__2__count"
 			FROM "logs-generic-default"
 			GROUP BY toHour("timestamp") AS "aggr__2__key_0"
-			ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC`,
+			ORDER BY "aggr__2__key_0" ASC`,
 	},
 }

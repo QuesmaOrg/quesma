@@ -93,11 +93,11 @@ func NewQueryExecutionHints() *QueryOptimizeHints {
 }
 
 func NewSortColumn(field string, direction OrderByDirection) OrderByExpr {
-	return NewOrderByExpr([]Expr{NewColumnRef(field)}, direction)
+	return NewOrderByExpr(NewColumnRef(field), direction)
 }
 
 func NewSortByCountColumn(direction OrderByDirection) OrderByExpr {
-	return NewOrderByExpr([]Expr{NewCountFunc()}, direction)
+	return NewOrderByExpr(NewCountFunc(), direction)
 }
 
 var NoMetadataField JsonMap = nil
@@ -149,16 +149,16 @@ func (q *Query) IsChild(maybeParent *Query) bool {
 
 func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []Expr,
 	whereClause Expr, orderByField string, orderByDesc bool) SelectCommand {
-	var orderByExpr OrderByExpr
+	orderBy := []OrderByExpr{}
 	if orderByField != "" {
 		if orderByDesc {
-			orderByExpr = NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, DescOrder)
+			orderBy = []OrderByExpr{NewOrderByExpr(NewColumnRef(orderByField), DescOrder)}
 		} else {
-			orderByExpr = NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, AscOrder)
+			orderBy = []OrderByExpr{NewOrderByExpr(NewColumnRef(orderByField), AscOrder)}
 		}
 	}
 	selectFields = append(selectFields, NewAliasedExpr(NewWindowFunction(
-		"ROW_NUMBER", nil, groupByFields, []OrderByExpr{orderByExpr},
+		"ROW_NUMBER", nil, groupByFields, orderBy,
 	), RowNumberColumnName))
 
 	return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, whereClause, []Expr{}, 0, 0, false, []*SelectCommand{})

@@ -8,14 +8,9 @@ import (
 	"quesma/clickhouse"
 	"quesma/model"
 	"quesma/queryparser/query_util"
-	"strconv"
 )
 
 type pancakeSqlQueryGenerator struct {
-}
-
-func (p *pancakeSqlQueryGenerator) newQuotedLiteral(value string) model.LiteralExpr {
-	return model.LiteralExpr{Value: strconv.Quote(value)}
 }
 
 func (p *pancakeSqlQueryGenerator) aliasedExprArrayToExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
@@ -29,7 +24,7 @@ func (p *pancakeSqlQueryGenerator) aliasedExprArrayToExpr(aliasedExprs []model.A
 func (p *pancakeSqlQueryGenerator) aliasedExprArrayToLiteralExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
 	exprs := make([]model.Expr, 0, len(aliasedExprs))
 	for _, aliasedExpr := range aliasedExprs {
-		exprs = append(exprs, p.newQuotedLiteral(aliasedExpr.Alias))
+		exprs = append(exprs, aliasedExpr.AliasRef())
 	}
 	return exprs
 }
@@ -37,7 +32,7 @@ func (p *pancakeSqlQueryGenerator) aliasedExprArrayToLiteralExpr(aliasedExprs []
 func (p *pancakeSqlQueryGenerator) generatePartitionBy(groupByColumns []model.AliasedExpr) []model.Expr {
 	partitionBy := make([]model.Expr, 0)
 	for _, col := range groupByColumns {
-		partitionBy = append(partitionBy, p.newQuotedLiteral(col.Alias))
+		partitionBy = append(partitionBy, col.AliasRef())
 	}
 	return partitionBy
 }
@@ -75,22 +70,30 @@ func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMet
 			if err != nil {
 				return nil, err
 			}
-			finalColumn = model.WindowFunction{Name: aggFunctionName,
-				Args:        []model.Expr{partColumn},
-				PartitionBy: p.generatePartitionBy(groupByColumns),
-				OrderBy:     []model.OrderByExpr{},
-			}
+			finalColumn = model.NewWindowFunction(aggFunctionName, []model.Expr{partColumn},
+				p.generatePartitionBy(groupByColumns), []model.OrderByExpr{})
 		}
-		aliasedColumn := model.AliasedExpr{Expr: finalColumn, Alias: aliasedName}
+		aliasedColumn := model.NewAliasedExpr(finalColumn, aliasedName)
 		addSelectColumns = append(addSelectColumns, aliasedColumn)
 	}
 	return
 }
 
-func (p *pancakeSqlQueryGenerator) isPartOfGroupBy(column model.Expr, groupByColumns []model.AliasedExpr) bool {
+func (p *pancakeSqlQueryGenerator) isPartOfGroupBy(column model.Expr, groupByColumns []model.AliasedExpr) *model.AliasedExpr {
 	for _, groupByColumn := range groupByColumns {
 		if model.PartlyImplementedIsEqual(column, groupByColumn) {
-			return true
+			return &groupByColumn
+		}
+	}
+	return nil
+}
+
+func (p *pancakeSqlQueryGenerator) isPartOfOrderBy(alias model.AliasedExpr, orderByColumns []model.OrderByExpr) bool {
+	for _, orderBy := range orderByColumns {
+		if orderByLiteral, ok := orderBy.Expr.(model.LiteralExpr); ok {
+			if alias.AliasRef().Value == orderByLiteral.Value {
+				return true
+			}
 		}
 	}
 	return false
@@ -98,12 +101,10 @@ func (p *pancakeSqlQueryGenerator) isPartOfGroupBy(column model.Expr, groupByCol
 
 func (p *pancakeSqlQueryGenerator) addPotentialParentCount(bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr) []model.AliasedExpr {
 	if query_util.IsAnyKindOfTerms(bucketAggregation.queryType) {
-		parentCountColumn := model.WindowFunction{Name: "sum",
-			Args:        []model.Expr{model.NewFunction("count", model.NewLiteral("*"))},
-			PartitionBy: p.generatePartitionBy(groupByColumns),
-			OrderBy:     []model.OrderByExpr{},
-		}
-		parentCountAliasedColumn := model.AliasedExpr{Expr: parentCountColumn, Alias: bucketAggregation.InternalNameForParentCount()}
+		parentCountColumn := model.NewWindowFunction("sum",
+			[]model.Expr{model.NewFunction("count", model.NewLiteral("*"))},
+			p.generatePartitionBy(groupByColumns), []model.OrderByExpr{})
+		parentCountAliasedColumn := model.NewAliasedExpr(parentCountColumn, bucketAggregation.InternalNameForParentCount())
 		return []model.AliasedExpr{parentCountAliasedColumn}
 	}
 	return []model.AliasedExpr{}
@@ -115,63 +116,64 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 	// For some group by such as terms, we need total count. We add it in this method.
 	addSelectColumns = append(addSelectColumns, p.addPotentialParentCount(bucketAggregation, groupByColumns)...)
 
-	// TODO: ...
 	for columnId, column := range bucketAggregation.selectedColumns {
-		aliasedColumn := model.AliasedExpr{Expr: column, Alias: bucketAggregation.InternalNameForKey(columnId)}
+		aliasedColumn := model.NewAliasedExpr(column, bucketAggregation.InternalNameForKey(columnId))
 		addSelectColumns = append(addSelectColumns, aliasedColumn)
 		addGroupBys = append(addGroupBys, aliasedColumn)
 	}
 
 	// build count for aggr
-	// TODO: Maybe optimize
 	var countColumn model.Expr
 	if hasMoreBucketAggregations {
 		partCountColumn := model.NewFunction("count", model.NewLiteral("*"))
 
-		countColumn = model.WindowFunction{Name: "sum",
-			Args:        []model.Expr{partCountColumn},
-			PartitionBy: p.generatePartitionBy(append(groupByColumns, addGroupBys...)), /// TODO
-			OrderBy:     []model.OrderByExpr{},
-		}
+		countColumn = model.NewWindowFunction("sum", []model.Expr{partCountColumn},
+			p.generatePartitionBy(append(groupByColumns, addGroupBys...)), []model.OrderByExpr{})
 	} else {
 		countColumn = model.NewFunction("count", model.NewLiteral("*"))
 	}
-	countAliasedColumn := model.AliasedExpr{Expr: countColumn, Alias: bucketAggregation.InternalNameForCount()}
+	countAliasedColumn := model.NewAliasedExpr(countColumn, bucketAggregation.InternalNameForCount())
 	addSelectColumns = append(addSelectColumns, countAliasedColumn)
 
-	columnId := len(bucketAggregation.selectedColumns)
 	if bucketAggregation.orderBy != nil && len(bucketAggregation.orderBy) > 0 {
-		// TODO: handle all columns
-		orderBy := bucketAggregation.orderBy[0].Exprs[0]
-		orderByDirection := bucketAggregation.orderBy[0].Direction
+		rankOrderBy := make([]model.OrderByExpr, 0)
 
-		if hasMoreBucketAggregations && !p.isPartOfGroupBy(orderBy, append(groupByColumns, addGroupBys...)) {
-			partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderBy, nil)
-			if err != nil {
-				return nil, nil, nil, nil, nil, err
+		for i, orderBy := range bucketAggregation.orderBy {
+			columnId := len(bucketAggregation.selectedColumns) + i
+			direction := orderBy.Direction
+
+			rankColumn := p.isPartOfGroupBy(orderBy.Expr, append(groupByColumns, addGroupBys...))
+			if rankColumn != nil { // rank is part of group by
+				if direction == model.DefaultOrder {
+					direction = model.AscOrder // primarily needed for tests
+				}
+			} else { // we need new columns for rank
+				orderByExpr := orderBy.Expr
+				if hasMoreBucketAggregations {
+					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderByExpr, nil)
+					if err != nil {
+						return nil, nil, nil, nil, nil, err
+					}
+					orderByExpr = model.NewWindowFunction(aggFunctionName, []model.Expr{partColumn},
+						p.generatePartitionBy(append(groupByColumns, addGroupBys...)), []model.OrderByExpr{})
+				}
+				aliasedExpr := model.NewAliasedExpr(orderByExpr, bucketAggregation.InternalNameForOrderBy(columnId))
+				addSelectColumns = append(addSelectColumns, aliasedExpr)
+				rankColumn = &aliasedExpr
 			}
-			// TODO: fix order by
-			orderBy = model.WindowFunction{Name: aggFunctionName,
-				Args:        []model.Expr{partColumn},
-				PartitionBy: p.generatePartitionBy(append(groupByColumns, addGroupBys...)),
-				OrderBy:     []model.OrderByExpr{},
-			}
+			rankOrderBy = append(rankOrderBy, model.NewOrderByExpr(rankColumn.AliasRef(), direction))
 		}
-		aliasedColumn := model.AliasedExpr{Expr: orderBy, Alias: bucketAggregation.InternalNameForOrderBy(columnId)}
-		addSelectColumns = append(addSelectColumns, aliasedColumn)
 
 		// We order by count, but add key to get right dense_rank()
-		rankColumOrderBy := []model.OrderByExpr{model.NewOrderByExpr([]model.Expr{p.newQuotedLiteral(bucketAggregation.InternalNameForOrderBy(columnId))}, orderByDirection)}
-		for _, addedGroupByAlias := range p.aliasedExprArrayToLiteralExpr(addGroupBys) {
-			rankColumOrderBy = append(rankColumOrderBy, model.NewOrderByExpr([]model.Expr{addedGroupByAlias}, model.AscOrder))
+		for _, addedGroupByAlias := range addGroupBys {
+			if !p.isPartOfOrderBy(addedGroupByAlias, rankOrderBy) {
+				rankOrderBy = append(rankOrderBy, model.NewOrderByExpr(addedGroupByAlias.AliasRef(), model.AscOrder))
+			}
 		}
 
-		rankColum := model.WindowFunction{Name: "dense_rank",
-			Args:        []model.Expr{},
-			PartitionBy: p.generatePartitionBy(groupByColumns),
-			OrderBy:     rankColumOrderBy,
-		}
-		aliasedRank := model.AliasedExpr{Expr: rankColum, Alias: bucketAggregation.InternalNameForOrderBy(columnId) + "_rank"}
+		rankColumn := model.NewWindowFunction("dense_rank", []model.Expr{},
+			p.generatePartitionBy(groupByColumns), rankOrderBy)
+		aliasedRank := model.NewAliasedExpr(rankColumn, bucketAggregation.InternalNameForOrderBy(1)+"_rank")
 		addRankColumns = append(addRankColumns, aliasedRank)
 
 		if bucketAggregation.limit != pancakeBucketAggregationNoLimit {
@@ -180,12 +182,11 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 			if bucketAggregation.filterOurEmptyKeyBucket {
 				limit += 1
 			}
-			whereRank := model.NewInfixExpr(p.newQuotedLiteral(aliasedRank.Alias), "<=", model.NewLiteral(limit))
+			whereRank := model.NewInfixExpr(aliasedRank.AliasRef(), "<=", model.NewLiteral(limit))
 			addRankWheres = append(addRankWheres, whereRank)
 		}
 
-		rankOrderBy := model.NewOrderByExpr([]model.Expr{p.newQuotedLiteral(aliasedRank.Alias)}, model.AscOrder)
-		addRankOrderBys = append(addRankOrderBys, rankOrderBy)
+		addRankOrderBys = append(addRankOrderBys, model.NewOrderByExpr(aliasedRank.AliasRef(), model.AscOrder))
 	}
 	return
 }

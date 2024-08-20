@@ -790,8 +790,8 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 
 		var mainOrderBy model.Expr = defaultMainOrderBy
 		fullOrderBy := []model.OrderByExpr{ // default
-			{Exprs: []model.Expr{mainOrderBy}, Direction: defaultDirection, ExchangeToAliasInCTE: true},
-			{Exprs: []model.Expr{fieldExpression}},
+			{Expr: mainOrderBy, Direction: defaultDirection, ExchangeToAliasInCTE: true},
+			{Expr: fieldExpression},
 		}
 		direction := defaultDirection
 		if orderRaw, exists := terms["order"]; exists {
@@ -808,15 +808,15 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 						}
 
 						if key == "_key" {
-							fullOrderBy = []model.OrderByExpr{{Exprs: []model.Expr{fieldExpression}, Direction: direction}}
+							fullOrderBy = []model.OrderByExpr{{Expr: fieldExpression, Direction: direction}}
 							break // mainOrderBy remains default
 						} else if key != "_count" {
 							mainOrderBy = cw.findMetricAggregation(queryMap, key, currentAggr)
 						}
 
 						fullOrderBy = []model.OrderByExpr{
-							{Exprs: []model.Expr{mainOrderBy}, Direction: direction, ExchangeToAliasInCTE: true},
-							{Exprs: []model.Expr{fieldExpression}},
+							{Expr: mainOrderBy, Direction: direction, ExchangeToAliasInCTE: true},
+							{Expr: fieldExpression},
 						}
 					}
 				} else {
