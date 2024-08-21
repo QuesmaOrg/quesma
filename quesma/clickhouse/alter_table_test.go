@@ -34,9 +34,10 @@ func TestAlterTable(t *testing.T) {
 		"{\"attributes_string_key\":[],\"attributes_string_type\":[],\"attributes_string_value\":[],\"Test1\":1,\"Test2\":2}",
 	}
 	alters := []string{
-		"ALTER TABLE \"\" ADD COLUMN IF NOT EXISTS \"Test1\" Int64",
-		"ALTER TABLE \"\" ADD COLUMN IF NOT EXISTS \"Test2\" Int64",
+		"ALTER TABLE \"\" ADD COLUMN IF NOT EXISTS \"Test1\" Nullable(Int64)",
+		"ALTER TABLE \"\" ADD COLUMN IF NOT EXISTS \"Test2\" Nullable(Int64)",
 	}
+	columns := []string{"Test1", "Test2"}
 	table := &Table{
 		Cols: map[string]*Column{},
 	}
@@ -49,6 +50,15 @@ func TestAlterTable(t *testing.T) {
 		assert.Equal(t, alters[i], alter[0])
 		// Table will grow with each iteration
 		assert.Equal(t, i+1, len(table.Cols))
+		for _, col := range columns[:i+1] {
+			_, ok := table.Cols[col]
+			assert.True(t, ok)
+		}
+		for k, col := range table.Cols {
+			assert.Equal(t, k, col.Name)
+			assert.Equal(t, "Nullable", col.Modifiers)
+		}
+
 		assert.NoError(t, err)
 	}
 }
