@@ -376,7 +376,78 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("count()", uint64(33)),
 			}}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__day1__key_0", int64(1717980400000/86400000)),
+				model.NewQueryResultCol("aggr__day1__count", uint64(33)),
+			}},
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__day2__key_0", int64(1717980400000/86400000)),
+				model.NewQueryResultCol("aggr__day2__count", uint64(33)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__hour1__key_0", int64(1718024400000/3600000)),
+				model.NewQueryResultCol("aggr__hour1__count", uint64(33)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__hour2__key_0", int64(1718024400000/3600000)),
+				model.NewQueryResultCol("aggr__hour2__count", uint64(33)),
+			}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__minute1__key_0", int64(1718025840000/60000)),
+					model.NewQueryResultCol("aggr__minute1__count", uint64(9)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__minute1__key_0", int64(1718025900000/60000)),
+					model.NewQueryResultCol("aggr__minute1__count", uint64(24)),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__minute2__key_0", int64(1718025840000/60000)),
+					model.NewQueryResultCol("aggr__minute2__count", uint64(9)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__minute2__key_0", int64(1718025900000/60000)),
+					model.NewQueryResultCol("aggr__minute2__count", uint64(24)),
+				}},
+			},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__month1__key_0", int64(1717192800000)),
+				model.NewQueryResultCol("aggr__month1__count", uint64(33)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__month2__key_0", int64(1717192800000)),
+				model.NewQueryResultCol("aggr__month2__count", uint64(33)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__quarter1__key_0", int64(1711922400000)),
+				model.NewQueryResultCol("aggr__quarter1__count", uint64(33)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__quarter2__key_0", int64(1711922400000)),
+				model.NewQueryResultCol("aggr__quarter2__count", uint64(33)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__week1__key_0", int64(1717970400000)),
+				model.NewQueryResultCol("aggr__week1__count", uint64(33)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__week2__key_0", int64(1717970400000)),
+				model.NewQueryResultCol("aggr__week2__count", uint64(33)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__year1__key_0", int64(1704063600000)),
+				model.NewQueryResultCol("aggr__year1__count", uint64(33)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__year2__key_0", int64(1704063600000)),
+				model.NewQueryResultCol("aggr__year2__count", uint64(33)),
+			}}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + QuotedTableName,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000), count() ` +

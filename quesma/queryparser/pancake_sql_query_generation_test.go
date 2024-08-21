@@ -97,6 +97,11 @@ func TestPancakeQueryGeneration(t *testing.T) {
 						fmt.Println(prettyPancakeSql)
 						continue
 					}
+					if pancakeIdx-1 >= len(test.ExpectedAdditionalPancakeResults) {
+						pp.Println("=== Expected additional results for SQL:")
+						fmt.Println(prettyPancakeSql)
+						continue
+					}
 					expectedSql = test.ExpectedAdditionalPancakeSQLs[pancakeIdx-1]
 				}
 				prettyExpectedSql := util.SqlPrettyPrint([]byte(strings.TrimSpace(expectedSql)))
@@ -107,10 +112,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				if !ok {
 					assert.Fail(t, "Expected pancake query type")
 				}
-			}
-
-			if len(pancakeSqls) > 1 {
-				return // TODO: Process all pancakes
 			}
 
 			expectedJson, err := util.JsonToMap(test.ExpectedResponse)
@@ -125,7 +126,12 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 			assert.NotNil(t, expectedAggregationsPart, "Expected JSON should have 'response'/'aggregations' part")
 
-			pancakeJson, err := cw.MakeAggregationPartOfResponse(pancakeSqls, [][]model.QueryResultRow{test.ExpectedPancakeResults})
+			sqlResults := [][]model.QueryResultRow{test.ExpectedPancakeResults}
+			if len(test.ExpectedAdditionalPancakeResults) > 0 {
+				sqlResults = append(sqlResults, test.ExpectedAdditionalPancakeResults...)
+			}
+
+			pancakeJson, err := cw.MakeAggregationPartOfResponse(pancakeSqls, sqlResults)
 
 			if err != nil {
 				t.Fatal("Failed to render pancake JSON", err)
