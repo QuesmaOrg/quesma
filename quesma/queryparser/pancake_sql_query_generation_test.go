@@ -62,9 +62,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if topMetrics(test.TestName) {
 				t.Skip("Fix top metrics")
 			}
-			if multiplePancakes(test.TestName) {
-				//t.Skip("Fix multiple pancakes")
-			}
 			if filter(test.TestName) {
 				t.Skip("Fix filter")
 			}
@@ -79,7 +76,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp, false)
 			assert.NoError(t, err)
-			//pp.Println("pancakeSqls", pancakeSqls)
 			assert.True(t, len(pancakeSqls) >= 1, "pancakeSqls should have at least one query")
 			if len(pancakeSqls) < 1 {
 				return
@@ -129,9 +125,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 			assert.NotNil(t, expectedAggregationsPart, "Expected JSON should have 'response'/'aggregations' part")
 
-			renderer := &pancakeJSONRenderer{}
-			queryType := pancakeSqls[0].Type.(PancakeQueryType)
-			pancakeJson, err := renderer.toJSON(queryType.pancakeAggregation, test.ExpectedPancakeResults)
+			pancakeJson, err := cw.MakeAggregationPartOfResponse(pancakeSqls, [][]model.QueryResultRow{test.ExpectedPancakeResults})
 
 			if err != nil {
 				t.Fatal("Failed to render pancake JSON", err)
@@ -197,11 +191,6 @@ func topMetrics(testName string) bool {
 	t3 := testName == "simplest top_metrics, with sort"
 	t4 := testName == "very long: multiple top_metrics + histogram" // also top_metrics
 	return t1 || t2 || t3 || t4
-}
-
-// TODO remove after fix
-func multiplePancakes(testName string) bool {
-	return testName == "histogram with all possible calendar_intervals"
 }
 
 // TODO remove after fix
