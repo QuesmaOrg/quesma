@@ -137,6 +137,16 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	// THIS SHOULD PRODUCE QUERY IN  BRACES
 	var sb strings.Builder
 
+	if len(c.NamedCTEs) > 0 || len(c.CTEs) > 0 {
+		sb.WriteString("WITH ")
+	}
+
+	var namedCTEsAsString []string
+	for _, cte := range c.NamedCTEs {
+		namedCTEsAsString = append(namedCTEsAsString, cte.Accept(v).(string))
+	}
+	sb.WriteString(strings.Join(namedCTEsAsString, ", "))
+
 	const cteNamePrefix = "cte"
 	cteName := func(cteIdx int) string {
 		return fmt.Sprintf("%s_%d", cteNamePrefix, cteIdx+1)
@@ -160,7 +170,7 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 			str := fmt.Sprintf("%s AS (%s)", cteName(i), AsString(cte))
 			CTEsStrings = append(CTEsStrings, str)
 		}
-		sb.WriteString(fmt.Sprintf("WITH %s ", strings.Join(CTEsStrings, ", ")))
+		sb.WriteString(fmt.Sprintf(" %s ", strings.Join(CTEsStrings, ", ")))
 	}
 
 	sb.WriteString("SELECT ")
@@ -323,5 +333,41 @@ func (v *renderer) VisitLambdaExpr(l LambdaExpr) interface{} {
 }
 
 func (v *renderer) VisitJoinExpr(j JoinExpr) interface{} {
-	return fmt.Sprintf("%s %s JOIN %s ON (%s)", j.Lhs.Accept(v), j.JoinType, j.Rhs.Accept(v), j.On.Accept(v))
+
+	var sb strings.Builder
+
+	var join *JoinExpr
+
+	join = &j
+
+	sb.WriteString(join.Lhs.Accept(v).(string))
+
+	for join != nil {
+
+		var nextJoin *JoinExpr
+
+		sb.WriteString(" ")
+		sb.WriteString(join.JoinType)
+		sb.WriteString(" JOIN ")
+
+		if rhsJoin, ok := join.Rhs.(JoinExpr); ok {
+			sb.WriteString(rhsJoin.Lhs.Accept(v).(string))
+			nextJoin = &rhsJoin
+		} else {
+			sb.WriteString(join.Rhs.Accept(v).(string))
+		}
+
+		sb.WriteString(" ON ")
+		sb.WriteString("(")
+		sb.WriteString(join.On.Accept(v).(string))
+		sb.WriteString(")")
+
+		join = nextJoin
+	}
+
+	return sb.String()
+}
+
+func (v *renderer) VisitCTE(c CTE) interface{} {
+	return fmt.Sprintf("%s AS (%s) ", c.Name, AsString(c.SelectCommand))
 }

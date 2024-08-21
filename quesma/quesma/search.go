@@ -22,6 +22,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/stiching"
 	"quesma/tracing"
 	"quesma/util"
 	"slices"
@@ -71,6 +72,15 @@ type QueryRunner struct {
 
 func (q *QueryRunner) EnableQueryOptimization(cfg config.QuesmaConfiguration) {
 	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
+}
+
+func (q *QueryRunner) EnableStitching(cfg config.QuesmaConfiguration, schemaLoader clickhouse.TableDiscovery) {
+
+	t := &stiching.StitchingTransformer{
+		SchemaLoader: schemaLoader,
+	}
+
+	q.transformationPipeline.transformers = append([]model.QueryTransformer{t}, q.transformationPipeline.transformers...)
 }
 
 func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry, abResultsRepository ab_testing.Sender) *QueryRunner {
@@ -225,9 +235,12 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 
 	q.transformQueries(ctx, plan, table)
 
-	if resp, err := q.checkProperties(ctx, plan, table, queryTranslator); err != nil {
-		return resp, err
-	}
+	/*
+		if resp, err := q.checkProperties(ctx, plan, table, queryTranslator); err != nil {
+			return resp, err
+		}
+
+	*/
 
 	q.runExecutePlanAsync(ctx, plan, queryTranslator, table, doneCh, optAsync)
 
@@ -340,6 +353,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if len(q.cfg.IndexConfig[resolvedTableName].Override) > 0 {
 		resolvedTableName = q.cfg.IndexConfig[resolvedTableName].Override
 	}
+
 	table, _ := tables.Load(resolvedTableName)
 	if table == nil {
 		return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)

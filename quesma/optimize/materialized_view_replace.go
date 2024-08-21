@@ -141,6 +141,13 @@ func (s *materializedViewReplace) replace(rule materializedViewReplaceRule, quer
 			}
 		}
 
+		var namedCTEs []*model.CTE
+		if query.NamedCTEs != nil {
+			for _, cte := range query.NamedCTEs {
+				namedCTEs = append(namedCTEs, cte.Accept(v).(*model.CTE))
+			}
+		}
+
 		from := query.FromClause
 
 		if from != nil {
@@ -166,7 +173,7 @@ func (s *materializedViewReplace) replace(rule materializedViewReplaceRule, quer
 					if whereReplaced {
 						replaced = true
 						from = model.NewTableRef(rule.materializedView) // config param
-						return model.NewSelectCommand(query.Columns, query.GroupBy, query.OrderBy, from, newWhere, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes)
+						return model.NewSelectCommand(query.Columns, query.GroupBy, query.OrderBy, from, newWhere, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes, namedCTEs)
 					}
 				}
 			} else {
@@ -176,7 +183,7 @@ func (s *materializedViewReplace) replace(rule materializedViewReplaceRule, quer
 
 		where := query.WhereClause.Accept(v).(model.Expr)
 
-		return model.NewSelectCommand(query.Columns, query.GroupBy, query.OrderBy, from, where, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes)
+		return model.NewSelectCommand(query.Columns, query.GroupBy, query.OrderBy, from, where, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes, namedCTEs)
 
 	}
 

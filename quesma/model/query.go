@@ -47,6 +47,7 @@ type (
 
 		Type      QueryType
 		TableName string
+		//Table *clickhouse.Table
 
 		Highlighter Highlighter
 		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
@@ -161,7 +162,7 @@ func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []
 		"ROW_NUMBER", nil, groupByFields, []OrderByExpr{orderByExpr},
 	), RowNumberColumnName))
 
-	return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, whereClause, []Expr{}, 0, 0, false, []*SelectCommand{})
+	return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, whereClause, []Expr{}, 0, 0, false, []*SelectCommand{}, []*CTE{})
 }
 
 // Aggregator is always initialized as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.

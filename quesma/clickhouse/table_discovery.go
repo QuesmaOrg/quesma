@@ -106,6 +106,30 @@ func (sl *tableDiscovery) ForceReloadCh() <-chan chan<- struct{} {
 	return sl.forceReloadCh
 }
 
+var StitchedTable map[string][]string
+
+func (sl *tableDiscovery) TODOStitch(configuredTables map[string]discoveredTable) {
+
+	StitchedTable = make(map[string][]string)
+
+	// FIXME this stitching setup
+	allLogsTable := discoveredTable{name: "all_logs", columnTypes: make(map[string]string), config: config.IndexConfiguration{}}
+	tables := []string{"kibana_sample_data_ecommerce", "kibana_sample_data_logs", "kibana_sample_data_flights"}
+
+	StitchedTable["all_logs"] = tables
+
+	for _, tableName := range tables {
+		if _, ok := configuredTables[tableName]; !ok {
+			logger.Warn().Msgf("table %s not found in the database", tableName)
+			continue
+		}
+		for col, colType := range configuredTables[tableName].columnTypes {
+			allLogsTable.columnTypes[fmt.Sprintf("%s", col)] = colType
+		}
+	}
+	configuredTables[allLogsTable.name] = allLogsTable
+}
+
 func (sl *tableDiscovery) ReloadTableDefinitions() {
 	sl.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 	logger.Debug().Msg("reloading tables definitions")
@@ -132,6 +156,8 @@ func (sl *tableDiscovery) ReloadTableDefinitions() {
 			configuredTables = sl.configureTables(tables, databaseName)
 		}
 	}
+	sl.TODOStitch(configuredTables)
+
 	sl.ReloadTablesError = nil
 	sl.verify(configuredTables)
 	sl.populateTableDefinitions(configuredTables, databaseName, sl.cfg)
