@@ -23,7 +23,7 @@ Quesma is an actively developed database gateway currently in pre-alpha Early Ac
 How? Isn't migrating to a new database hard? Quesma does it without touching your application/client stack - keeping backward compatibility and moving safely, step-by-step. We translate your queries so you don’t have to rewrite your database query code during migrations.
 
 <p align="center">
-<a href=""><img src="https://github.com/QuesmaOrg/quesma/assets/150345712/caea2d09-6143-45a5-8441-e789211c49c1" /></a>
+<a href=""><img src="https://github.com/user-attachments/assets/2dd08bb9-81cc-4f20-8170-4a3e479f35e2" /></a>
 </p>
 
 
@@ -53,12 +53,12 @@ The setup contains following demo datasets:
 
 ### Running the example
 In order to run it, you need to:
-- clone this repository: `git clone git@github.com:QuesmaOrg/quesma.git`
+- clone this repository: `git clone https://github.com/QuesmaOrg/quesma.git`
 - run `docker-compose up` directly from `/examples/kibana-sample-data` directory
 
 Handy one-liner for above commands:
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/QuesmaOrg/quesma/main/examples/run.sh)"
+git clone https://github.com/QuesmaOrg/quesma.git && docker compose -f quesma/examples/kibana-sample-data/docker-compose.yml up
 ```
 
 The example above uses the latest Quesma Docker image published in DockerHub. In case you want to build Quesma Docker image from the sources, run `./bin/build-image.sh` from the root directory
