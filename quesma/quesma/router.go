@@ -200,6 +200,20 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		return putIndexResult(index), nil
 	})
 
+	router.Register(routes.IndexMappingPath, and(method("GET"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		index := req.Params["index"]
+
+		foundSchema, found := sr.FindSchema(schema.TableName(index))
+		if !found {
+			return &mux.Result{StatusCode: http.StatusNotFound}, nil
+		}
+
+		hierarchicalSchema := schema.SchemaToHierarchicalSchema(&foundSchema)
+		mappings := elasticsearch.GenerateMappings(hierarchicalSchema)
+
+		return getIndexMappingResult(index, mappings), nil
+	})
+
 	router.Register(routes.AsyncSearchIdPath, and(method("GET"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, req.Params["id"])
 		responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, req.Params["id"])
@@ -288,6 +302,20 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		sr.UpdateDynamicConfiguration(schema.TableName(index), schema.Table{Columns: columns})
 
 		return putIndexResult(index), nil
+	})
+
+	router.Register(routes.IndexPath, and(method("GET"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		index := req.Params["index"]
+
+		foundSchema, found := sr.FindSchema(schema.TableName(index))
+		if !found {
+			return &mux.Result{StatusCode: http.StatusNotFound}, nil
+		}
+
+		hierarchicalSchema := schema.SchemaToHierarchicalSchema(&foundSchema)
+		mappings := elasticsearch.GenerateMappings(hierarchicalSchema)
+
+		return getIndexResult(index, mappings), nil
 	})
 
 	return router
@@ -423,6 +451,26 @@ func putIndexResult(index string) *mux.Result {
 	}
 
 	return &mux.Result{StatusCode: http.StatusOK, Body: string(serialized)}
+}
+
+func getIndexMappingResult(index string, mappings map[string]any) *mux.Result {
+	result := map[string]any{
+		index: map[string]any{
+			"mappings": mappings,
+		},
+	}
+	serialized, err := json.Marshal(result)
+	if err != nil {
+		panic(err)
+	}
+
+	return &mux.Result{StatusCode: http.StatusOK, Body: string(serialized)}
+}
+
+func getIndexResult(index string, mappings map[string]any) *mux.Result {
+	// For now return the same as getIndexMappingResult,
+	// but "GET /:index" can also contain "settings" and "aliases" (in the future)
+	return getIndexMappingResult(index, mappings)
 }
 
 type (

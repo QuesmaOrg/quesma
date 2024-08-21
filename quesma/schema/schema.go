@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Elastic-2.0
 package schema
 
+import "strings"
+
 type (
 	Schema struct {
 		Fields              map[FieldName]Field
@@ -37,8 +39,12 @@ func NewSchema(fields map[FieldName]Field, existsInDataSource bool) Schema {
 	return NewSchemaWithAliases(fields, map[FieldName]FieldName{}, existsInDataSource)
 }
 
-func (t FieldName) AsString() string {
-	return string(t)
+func (f FieldName) AsString() string {
+	return string(f)
+}
+
+func (f FieldName) Components() []string {
+	return strings.Split(f.AsString(), ".")
 }
 
 func (t TableName) AsString() string {
