@@ -63,7 +63,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Fix top metrics")
 			}
 			if multiplePancakes(test.TestName) {
-				t.Skip("Fix multiple pancakes")
+				//t.Skip("Fix multiple pancakes")
 			}
 			if filter(test.TestName) {
 				t.Skip("Fix filter")
@@ -79,7 +79,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp, false)
 			assert.NoError(t, err)
-			assert.True(t, len(pancakeSqls) == 1, "pancakeSqls should have only one query")
+			//pp.Println("pancakeSqls", pancakeSqls)
+			assert.True(t, len(pancakeSqls) >= 1, "pancakeSqls should have at least one query")
 			if len(pancakeSqls) < 1 {
 				return
 			}
@@ -102,6 +103,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			queryType, ok := pancakeSqls[0].Type.(PancakeQueryType)
 			if !ok {
 				assert.Fail(t, "Expected pancake query type")
+			}
+
+			if len(pancakeSqls) > 1 {
+				return // TODO: Process all pancakes
 			}
 
 			expectedJson, err := util.JsonToMap(test.ExpectedResponse)

@@ -436,7 +436,13 @@ var AggregationTests2 = []AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
+			  "aggr__day1__key_0", count(*) AS "aggr__day1__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
+			  "aggr__day1__key_0"
+			ORDER BY "aggr__day1__key_0" ASC`,
 	},
 	{ // [43]
 		TestName: "Percentiles with another metric aggregation. It might get buggy after introducing pancakes.",
