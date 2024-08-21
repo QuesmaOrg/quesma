@@ -54,7 +54,7 @@ The setup contains following demo datasets:
 ### Running the example
 In order to run it, you need to:
 - clone this repository: `git clone https://github.com/QuesmaOrg/quesma.git`
-- run `docker-compose up` directly from `/examples/kibana-sample-data` directory
+- run `docker-compose up` directly from `examples/kibana-sample-data` directory
 
 Handy one-liner for above commands:
 ```bash
