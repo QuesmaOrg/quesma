@@ -443,6 +443,86 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
 			  "aggr__day1__key_0"
 			ORDER BY "aggr__day1__key_0" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{
+			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
+			  "aggr__day2__key_0", count(*) AS "aggr__day2__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
+			  "aggr__day2__key_0"
+			ORDER BY "aggr__day2__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
+			  "aggr__hour1__key_0", count(*) AS "aggr__hour1__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
+			  "aggr__hour1__key_0"
+			ORDER BY "aggr__hour1__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
+			  "aggr__hour2__key_0", count(*) AS "aggr__hour2__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
+			  "aggr__hour2__key_0"
+			ORDER BY "aggr__hour2__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
+			  "aggr__minute1__key_0", count(*) AS "aggr__minute1__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
+			  "aggr__minute1__key_0"
+			ORDER BY "aggr__minute1__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
+			  "aggr__minute2__key_0", count(*) AS "aggr__minute2__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
+			  "aggr__minute2__key_0"
+			ORDER BY "aggr__minute2__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
+			  "aggr__month1__key_0", count(*) AS "aggr__month1__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
+			  "aggr__month1__key_0"
+			ORDER BY "aggr__month1__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
+			  "aggr__month2__key_0", count(*) AS "aggr__month2__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
+			  "aggr__month2__key_0"
+			ORDER BY "aggr__month2__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
+			  "aggr__quarter1__key_0", count(*) AS "aggr__quarter1__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
+			  "aggr__quarter1__key_0"
+			ORDER BY "aggr__quarter1__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
+			  "aggr__quarter2__key_0", count(*) AS "aggr__quarter2__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
+			  "aggr__quarter2__key_0"
+			ORDER BY "aggr__quarter2__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
+			  "aggr__week1__key_0", count(*) AS "aggr__week1__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
+			  "aggr__week1__key_0"
+			ORDER BY "aggr__week1__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
+			  "aggr__week2__key_0", count(*) AS "aggr__week2__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
+			  "aggr__week2__key_0"
+			ORDER BY "aggr__week2__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
+			  "aggr__year1__key_0", count(*) AS "aggr__year1__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
+			  "aggr__year1__key_0"
+			ORDER BY "aggr__year1__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
+			  "aggr__year2__key_0", count(*) AS "aggr__year2__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
+			  "aggr__year2__key_0"
+			ORDER BY "aggr__year2__key_0" ASC`,
+		},
 	},
 	{ // [43]
 		TestName: "Percentiles with another metric aggregation. It might get buggy after introducing pancakes.",

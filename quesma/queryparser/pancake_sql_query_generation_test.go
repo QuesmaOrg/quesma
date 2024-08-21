@@ -84,25 +84,33 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if len(pancakeSqls) < 1 {
 				return
 			}
-			pancakeSqlStr := model.AsString(pancakeSqls[0].SelectCommand)
 
-			prettyExpectedSql := util.SqlPrettyPrint([]byte(strings.TrimSpace(test.ExpectedPancakeSQL)))
+			assert.Len(t, pancakeSqls, 1+len(test.ExpectedAdditionalPancakeSQLs),
+				"Mismatch pancake sqls vs main and 'ExpectedAdditionalPancakeSQLs'")
+			for pancakeIdx, pancakeSql := range pancakeSqls {
+				pancakeSqlStr := model.AsString(pancakeSql.SelectCommand)
 
-			prettyPancakeSql := util.SqlPrettyPrint([]byte(pancakeSqlStr))
+				prettyPancakeSql := util.SqlPrettyPrint([]byte(pancakeSqlStr))
 
-			/*
-				pp.Println("Expected SQL:")
-				fmt.Println(prettyExpectedSql)
-				pp.Println("Actual (pancake) SQL:")
-				fmt.Println(prettyPancakeSql)
-			*/
+				var expectedSql string
+				if pancakeIdx == 0 {
+					expectedSql = test.ExpectedPancakeSQL
+				} else {
+					if pancakeIdx-1 >= len(test.ExpectedAdditionalPancakeSQLs) {
+						pp.Println("=== Expected additional SQL:")
+						fmt.Println(prettyPancakeSql)
+						continue
+					}
+					expectedSql = test.ExpectedAdditionalPancakeSQLs[pancakeIdx-1]
+				}
+				prettyExpectedSql := util.SqlPrettyPrint([]byte(strings.TrimSpace(expectedSql)))
 
-			util.AssertSqlEqual(t, prettyExpectedSql, prettyPancakeSql)
-			// assert.Equal(t, prettyExpectedSql, prettyPancakeSql)
+				util.AssertSqlEqual(t, prettyExpectedSql, prettyPancakeSql)
 
-			queryType, ok := pancakeSqls[0].Type.(PancakeQueryType)
-			if !ok {
-				assert.Fail(t, "Expected pancake query type")
+				_, ok := pancakeSql.Type.(PancakeQueryType)
+				if !ok {
+					assert.Fail(t, "Expected pancake query type")
+				}
 			}
 
 			if len(pancakeSqls) > 1 {
@@ -122,6 +130,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			assert.NotNil(t, expectedAggregationsPart, "Expected JSON should have 'response'/'aggregations' part")
 
 			renderer := &pancakeJSONRenderer{}
+			queryType := pancakeSqls[0].Type.(PancakeQueryType)
 			pancakeJson, err := renderer.toJSON(queryType.pancakeAggregation, test.ExpectedPancakeResults)
 
 			if err != nil {
