@@ -161,24 +161,28 @@ func (a *pancakeTransformer) aggregationChildrenToLayers(aggrNames []string, chi
 	}
 	resultLayers = make([][]*pancakeModelLayer, 0, len(results))
 	for _, res := range results {
-		newLayer := []*pancakeModelLayer{res.layer}
 		if res.nextBucketAggregation != nil {
 			childLayers, err := a.aggregationChildrenToLayers(append(aggrNames, res.nextBucketAggregation.name), res.nextBucketAggregation.children)
 			if err != nil {
 				return nil, err
 			}
 			if len(childLayers) == 0 {
-				resultLayers = append(resultLayers, newLayer)
+				resultLayers = append(resultLayers, []*pancakeModelLayer{res.layer})
 			} else {
 				for i, childLayer := range childLayers {
-					if i > 0 {
-						// TODO: remove metrics
+					newLayer := res.layer
+					if i > 0 { // remove metrics
+						newLayer = &pancakeModelLayer{
+							currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
+							nextBucketAggregation:     res.layer.nextBucketAggregation,
+						}
 					}
-					resultLayers = append(resultLayers, append(newLayer, childLayer...))
+
+					resultLayers = append(resultLayers, append([]*pancakeModelLayer{newLayer}, childLayer...))
 				}
 			}
 		} else {
-			resultLayers = append(resultLayers, newLayer)
+			resultLayers = append(resultLayers, []*pancakeModelLayer{res.layer})
 		}
 	}
 	return resultLayers, nil
