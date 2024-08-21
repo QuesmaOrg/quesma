@@ -36,6 +36,11 @@ func addToTree(root *SchemaTreeNode, field *Field) {
 	currentNode.Children = append(currentNode.Children, &SchemaTreeNode{Name: leafComponent, Field: field})
 }
 
+// SchemaToHierarchicalSchema unflattens a "flat" Schema to a tree representation (returns a pointer to the root SchemaTreeNode).
+//
+// For example, if a field "product" with subfields "product_id" and "base_price", it's represented as two flat fields
+// "product.product_id", "product.base_price" in Schema. This function will convert it to a tree with a root node "",
+// a child node "product" with two grandchildren "product_id" and "base_price".
 func SchemaToHierarchicalSchema(s *Schema) *SchemaTreeNode {
 	root := SchemaTreeNode{Name: ""}
 
