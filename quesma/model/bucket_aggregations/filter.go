@@ -35,3 +35,7 @@ func (query FilterAgg) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 func (query FilterAgg) String() string {
 	return "count"
 }
+
+func (query FilterAgg) DoesNotHaveGroupBy() bool {
+	return true
+}

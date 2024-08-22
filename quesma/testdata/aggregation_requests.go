@@ -2600,33 +2600,23 @@ var AggregationTests = []AggregationTestCase{
 				`ORDER BY count() DESC`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT "aggr__sample__count", "metric__sample__sample_count_col_0",
-			  "aggr__sample__top_values__parent_count", "aggr__sample__top_values__key_0",
-			  "aggr__sample__top_values__count", "aggr__sample__top_values__order_1"
+			SELECT sum(count(*)) OVER () AS "aggr__sample__count",
+			  sum(count("host.name")) OVER () AS "metric__sample__sample_count_col_0",
+			  sum(count(*)) OVER () AS "aggr__sample__top_values__parent_count",
+			  "host.name" AS "aggr__sample__top_values__key_0",
+			  count(*) AS "aggr__sample__top_values__count",
+			  count() AS "aggr__sample__top_values__order_1"
 			FROM (
-			  SELECT "aggr__sample__count", "metric__sample__sample_count_col_0",
-				"aggr__sample__top_values__parent_count", "aggr__sample__top_values__key_0",
-				"aggr__sample__top_values__count", "aggr__sample__top_values__order_1",
-				dense_rank() OVER (ORDER BY "aggr__sample__top_values__order_1" DESC,
-				"aggr__sample__top_values__key_0" ASC) AS
-				"aggr__sample__top_values__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__sample__count",
-				  sum(count("host.name")) OVER () AS "metric__sample__sample_count_col_0",
-				  sum(count(*)) OVER () AS "aggr__sample__top_values__parent_count",
-				  "host.name" AS "aggr__sample__top_values__key_0",
-				  count(*) AS "aggr__sample__top_values__count",
-				  count() AS "aggr__sample__top_values__order_1"
-				FROM (
-				  SELECT "host.name"
-				  FROM "logs-generic-default"
-				  WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z'
-					) AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z'
-					)) AND "message" iLIKE '%user%')
-				  LIMIT 8000)
-				GROUP BY "host.name" AS "aggr__sample__top_values__key_0"))
-			WHERE "aggr__sample__top_values__order_1_rank"<=11
-			ORDER BY "aggr__sample__top_values__order_1_rank" ASC`,
+			  SELECT "host.name"
+			  FROM "logs-generic-default"
+			  WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z')
+				AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND
+				"message" iLIKE '%user%')
+			  LIMIT 8000)
+			GROUP BY "host.name" AS "aggr__sample__top_values__key_0"
+			ORDER BY "aggr__sample__top_values__order_1" DESC,
+			  "aggr__sample__top_values__key_0" ASC
+			LIMIT 11`,
 	},
 	{ // [12], "old" test, also can be found in testdata/requests.go TestAsyncSearch[3]
 		// Copied it also here to be more sure we do not create some regression
@@ -4079,27 +4069,19 @@ var AggregationTests = []AggregationTestCase{
 				`AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT "aggr__sampler__count", "aggr__sampler__eventRate__key_0",
-			  "aggr__sampler__eventRate__count"
+			SELECT sum(count(*)) OVER () AS "aggr__sampler__count",
+			  toInt64(toUnixTimestamp64Milli("@timestamp") / 15000) AS
+			  "aggr__sampler__eventRate__key_0",
+			  count(*) AS "aggr__sampler__eventRate__count"
 			FROM (
-			  SELECT "aggr__sampler__count", "aggr__sampler__eventRate__key_0",
-				"aggr__sampler__eventRate__count",
-				dense_rank() OVER (ORDER BY "aggr__sampler__eventRate__key_0" ASC) AS
-				"aggr__sampler__eventRate__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__sampler__count",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 15000) AS
-				  "aggr__sampler__eventRate__key_0",
-				  count(*) AS "aggr__sampler__eventRate__count"
-				FROM (
-				  SELECT "@timestamp"
-				  FROM "logs-generic-default"
-				  WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND
-					toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)
-				  LIMIT 20000)
-				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 15000) AS
-				  "aggr__sampler__eventRate__key_0"))
-			ORDER BY "aggr__sampler__eventRate__order_1_rank" ASC`,
+			  SELECT "@timestamp"
+			  FROM "logs-generic-default"
+			  WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND
+				toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)
+			  LIMIT 20000)
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 15000) AS
+			  "aggr__sampler__eventRate__key_0"
+			ORDER BY "aggr__sampler__eventRate__key_0" ASC`,
 	},
 	{ // [20]
 		TestName: "Field statistics > summary for numeric fields",

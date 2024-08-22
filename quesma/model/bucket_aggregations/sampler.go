@@ -34,3 +34,7 @@ func (query Sampler) String() string {
 func (query Sampler) GetSampleLimit() int {
 	return shardSizeToSampleLimitRatio * query.size
 }
+
+func (query Sampler) DoesNotHaveGroupBy() bool {
+	return true
+}

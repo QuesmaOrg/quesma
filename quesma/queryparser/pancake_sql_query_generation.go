@@ -230,7 +230,7 @@ func (p *pancakeSqlQueryGenerator) countRealBucketAggregations(aggregation *panc
 	bucketAggregationCount := 0
 	for _, layer := range aggregation.layers {
 		if layer.nextBucketAggregation != nil {
-			if _, isFilter := layer.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg); !isFilter {
+			if layer.nextBucketAggregation.DoesHaveGroupBy() {
 				bucketAggregationCount++
 			}
 		}
@@ -280,7 +280,9 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 				break
 			}
 
-			bucketAggregationSoFar += 1
+			if layer.nextBucketAggregation.DoesHaveGroupBy() {
+				bucketAggregationSoFar += 1
+			}
 			hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
 			addSelectColumns, addGroupBys, addRankColumns, addRankWheres, addRankOrderBys, err :=
 				p.generateBucketSqlParts(layer.nextBucketAggregation, groupBys, hasMoreBucketAggregations)
@@ -298,19 +300,21 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	// if we have single layer we can emit simpler query
 	if bucketAggregationCount <= 1 {
 		limit := 0
-		orderBy := make([]model.OrderByExpr, 0)
-		if aggregation.layers[0].nextBucketAggregation != nil {
-			limit = aggregation.layers[0].nextBucketAggregation.limit
-			// if where not null, increase limit by 1
-			if aggregation.layers[0].nextBucketAggregation.filterOurEmptyKeyBucket {
-				if limit != 0 {
-					limit += 1
+		for _, layer := range aggregation.layers {
+			if layer.nextBucketAggregation != nil && layer.nextBucketAggregation.DoesHaveGroupBy() {
+				limit = layer.nextBucketAggregation.limit
+				// if where not null, increase limit by 1
+				if layer.nextBucketAggregation.filterOurEmptyKeyBucket {
+					if limit != 0 {
+						limit += 1
+					}
 				}
 			}
+		}
 
-			if len(rankColumns) > 0 {
-				orderBy = rankColumns[0].Expr.(model.WindowFunction).OrderBy
-			}
+		orderBy := make([]model.OrderByExpr, 0)
+		if len(rankColumns) > 0 {
+			orderBy = rankColumns[0].Expr.(model.WindowFunction).OrderBy
 		}
 
 		query := model.SelectCommand{
@@ -320,6 +324,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			FromClause:  model.NewTableRef(table.FullTableName()),
 			OrderBy:     orderBy,
 			Limit:       limit,
+			SampleLimit: aggregation.sampleLimit,
 		}
 		return &query, false, nil
 	}

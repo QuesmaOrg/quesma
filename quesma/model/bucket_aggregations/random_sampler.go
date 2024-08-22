@@ -38,3 +38,7 @@ func (query RandomSampler) String() string {
 func (query RandomSampler) GetSampleLimit() int {
 	return 20000 // TODO temporary, to be fixed
 }
+
+func (query RandomSampler) DoesNotHaveGroupBy() bool {
+	return true
+}
