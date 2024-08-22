@@ -132,7 +132,7 @@ func (c *QuesmaNewConfiguration) getElasticsearchConfig() ElasticsearchConfigura
 			Url:      esBackendConn.Config.Url,
 			User:     esBackendConn.Config.User,
 			Password: esBackendConn.Config.Password,
-			Call:     true, // TODO this is hardcoded for now, but eventually should get deleted
+			Call:     false, // TODO this is hardcoded for now, but eventually this whole option should get deleted
 		}
 	}
 	panic("Elasticsearch backend connector must be configured")
