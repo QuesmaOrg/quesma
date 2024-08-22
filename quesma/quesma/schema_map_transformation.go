@@ -37,9 +37,9 @@ func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScop
 	}
 
 	switch resultSuffix {
-	case ".keys":
+	case ".key":
 		scope = scopeKeys
-	case ".values":
+	case ".value":
 		scope = scopeValues
 	default:
 		scope = scopeWholeMap
@@ -95,7 +95,7 @@ func NewMapTypeVisitor(resolver mapTypeResolver) model.ExprVisitor {
 				existsInValue := model.NewFunction("arrayExists", lambda, model.NewFunction("mapValues", left))
 				return model.NewInfixExpr(existsInKey, "OR", existsInValue)
 
-			case op == "=" && scope == scopeWholeMap:
+			case op == "=" && (scope == scopeWholeMap || scope == scopeKeys):
 				return model.NewFunction("mapContains", left, e.Right.Accept(b).(model.Expr))
 
 			case (op == "ILIKE" || op == "LIKE") && scope == scopeKeys:
@@ -113,6 +113,10 @@ func NewMapTypeVisitor(resolver mapTypeResolver) model.ExprVisitor {
 				existsInValue := model.NewFunction("arrayExists", lambda, model.NewFunction("mapValues", left))
 
 				return existsInValue
+
+			case op == "=" && scope == scopeValues:
+				toArray := model.NewFunction("keyValues", left)
+				return model.NewFunction("has", toArray, e.Right.Accept(b).(model.Expr))
 
 			default:
 				logger.Warn().Msgf("Unhandled map infix operation  %s, column: %v, scope: %v, expr: %v", e.Op, column.ColumnName, scope, e)
