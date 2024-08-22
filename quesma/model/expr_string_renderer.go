@@ -158,6 +158,11 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 		return fmt.Sprintf("%s_%d_cnt", cteNamePrefix, ctxIdx+1)
 	}
 	if len(c.CTEs) > 0 {
+
+		if len(c.NamedCTEs) > 0 {
+			sb.WriteString(", ")
+		}
+
 		CTEsStrings := make([]string, 0, len(c.CTEs))
 		for i, cte := range c.CTEs {
 			for j, col := range cte.Columns {
