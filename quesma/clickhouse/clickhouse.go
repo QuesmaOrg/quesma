@@ -36,6 +36,15 @@ const (
 )
 
 type (
+	IngestFieldBucketKey struct {
+		indexName    string
+		field        string
+		insertBucket int
+	}
+	IngestFieldStatistics map[IngestFieldBucketKey]int
+)
+
+type (
 	// LogManager should be renamed to Connector  -> TODO !!!
 	LogManager struct {
 		ctx            context.Context
