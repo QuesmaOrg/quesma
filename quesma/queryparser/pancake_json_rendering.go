@@ -133,7 +133,12 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 		if filter, isFilter := layer.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg); isFilter {
 			// Maybe metadata?
 			filterRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"_col_", rows)
-			result[layer.nextBucketAggregation.name] = filter.TranslateSqlResponseToJson(filterRows, 0)
+			filterDocCountJson := filter.TranslateSqlResponseToJson(filterRows, 0)
+			subAggr, err := p.layerToJSON(layerIdx+1, layers, rows)
+			if err != nil {
+				return nil, err
+			}
+			result[layer.nextBucketAggregation.name] = util.MergeMaps(context.Background(), filterDocCountJson, subAggr, model.KeyAddedByQuesma)
 			return result, nil
 		}
 
