@@ -202,19 +202,19 @@ func topMetrics(testName string) bool {
 // TODO remove after fix
 func filter(testName string) bool {
 	//t1 := testName == "Terms, completely different tree results from 2 queries - merging them didn't work before"
-	t2 := testName == "Kibana Visualize -> Last Value. Used to panic" // also top_metrics
+	//t2 := testName == "Kibana Visualize -> Last Value. Used to panic" // also top_metrics
 	//t3 := testName == "2 sibling count aggregations"
 	//t4 := testName == "simple filter/count"
 	//t5 := testName == "triple nested aggs"
 	t6 := testName == "Field statistics > summary for numeric fields" // also percentiles
-	t7 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
-		"Output more or less works, but is different and worse than what Elastic returns."+
-		"If it starts failing, maybe that's a good thing"
+	//t7 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
+	//	"Output more or less works, but is different and worse than what Elastic returns."+
+	//		"If it starts failing, maybe that's a good thing"
 	t8 := testName == "it's the same input as in previous test, but with the original output from Elastic."+
 		"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
 		"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix"
 	t9 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" // also filters
-	return t2 || t6 || t7 || t8 || t9
+	return t6 || t8 || t9
 }
 
 // TODO remove after fix
