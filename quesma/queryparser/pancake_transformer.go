@@ -207,6 +207,18 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 			}
 		}
 
+		// for now we support filter only as last bucket aggregation
+		for layerIdx, layer := range layers {
+			if layer.nextBucketAggregation != nil {
+				switch layer.nextBucketAggregation.queryType.(type) {
+				case bucket_aggregations.FilterAgg:
+					if layerIdx+1 < len(layers) && layers[layerIdx+1].nextBucketAggregation != nil {
+						return nil, fmt.Errorf("filter aggregation must be last bucket aggregation")
+					}
+				}
+			}
+		}
+
 		pancakeResults = append(pancakeResults, &pancakeModel{
 			layers:      layers,
 			whereClause: topLevel.whereClause,
