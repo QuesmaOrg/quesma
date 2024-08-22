@@ -203,7 +203,7 @@ func topMetrics(testName string) bool {
 func filter(testName string) bool {
 	t1 := testName == "Terms, completely different tree results from 2 queries - merging them didn't work before"
 	t2 := testName == "Kibana Visualize -> Last Value. Used to panic" // also top_metrics
-	t3 := testName == "2 sibling count aggregations"
+	//t3 := testName == "2 sibling count aggregations"
 	//t4 := testName == "simple filter/count"
 	t5 := testName == "triple nested aggs"
 	t6 := testName == "Field statistics > summary for numeric fields" // also percentiles
@@ -214,7 +214,7 @@ func filter(testName string) bool {
 		"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
 		"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix"
 	t9 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" // also filters
-	return t1 || t2 || t3 || t5 || t6 || t7 || t8 || t9
+	return t1 || t2 || t5 || t6 || t7 || t8 || t9
 }
 
 // TODO remove after fix

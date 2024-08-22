@@ -341,7 +341,48 @@ var AggregationTests = []AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", 46),
+				model.NewQueryResultCol("aggr__0__key_0", "Abu Dhabi"),
+				model.NewQueryResultCol("aggr__0__count", uint64(23)),
+				model.NewQueryResultCol("aggr__0__1-bucket___col_0", 7),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", 46),
+				model.NewQueryResultCol("aggr__0__key_0", "Adelaide"),
+				model.NewQueryResultCol("aggr__0__count", uint64(20)),
+				model.NewQueryResultCol("aggr__0__1-bucket___col_0", 3),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", 46),
+				model.NewQueryResultCol("aggr__0__key_0", "Albuquerque"),
+				model.NewQueryResultCol("aggr__0__count", uint64(3)),
+				model.NewQueryResultCol("aggr__0__1-bucket___col_0", 0),
+			}},
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__0__parent_count", 46),
+					model.NewQueryResultCol("aggr__0__key_0", "Abu Dhabi"),
+					model.NewQueryResultCol("aggr__0__count", uint64(23)),
+					model.NewQueryResultCol("aggr__0__3-bucket___col_0", 3),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__0__parent_count", 46),
+					model.NewQueryResultCol("aggr__0__key_0", "Adelaide"),
+					model.NewQueryResultCol("aggr__0__count", uint64(20)),
+					model.NewQueryResultCol("aggr__0__3-bucket___col_0", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__0__parent_count", 46),
+					model.NewQueryResultCol("aggr__0__key_0", "Albuquerque"),
+					model.NewQueryResultCol("aggr__0__count", uint64(3)),
+					model.NewQueryResultCol("aggr__0__3-bucket___col_0", 2),
+				}},
+			},
+		},
 		ExpectedSQLs: []string{
 			`WITH cte_1 AS ` +
 				`(SELECT "OriginCityName" AS "cte_1_1", count() AS "cte_1_cnt" ` +
@@ -386,7 +427,44 @@ var AggregationTests = []AggregationTestCase{
 				`ORDER BY "OriginCityName" ASC ` +
 				`LIMIT 1000`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+			  "aggr__0__1-bucket___col_0"
+			FROM (
+			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+				"aggr__0__1-bucket___col_0",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
+			
+			  FROM (
+				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+				  "OriginCityName" AS "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  countIf("FlightDelay"==true) AS "aggr__0__1-bucket___col_0"
+				FROM "logs-generic-default"
+				WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')
+				  AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
+				GROUP BY "OriginCityName" AS "aggr__0__key_0"))
+			WHERE "aggr__0__order_1_rank"<=1001
+			ORDER BY "aggr__0__order_1_rank" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{`
+			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+			  "aggr__0__3-bucket___col_0"
+			FROM (
+			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+				"aggr__0__3-bucket___col_0",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
+			
+			  FROM (
+				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+				  "OriginCityName" AS "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  countIf("Cancelled"==true) AS "aggr__0__3-bucket___col_0"
+				FROM "logs-generic-default"
+				WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')
+				  AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
+				GROUP BY "OriginCityName" AS "aggr__0__key_0"))
+			WHERE "aggr__0__order_1_rank"<=1001
+			ORDER BY "aggr__0__order_1_rank" ASC`},
 	},
 	{ // [2]
 		TestName: "date_histogram",
