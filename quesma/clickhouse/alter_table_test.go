@@ -62,3 +62,42 @@ func TestAlterTable(t *testing.T) {
 		assert.NoError(t, err)
 	}
 }
+
+func TestAlterTableHeuristic(t *testing.T) {
+	chConfig := &ChTableConfig{
+		hasTimestamp:         true,
+		timestampDefaultsNow: true,
+		engine:               "MergeTree",
+		orderBy:              "(timestamp)",
+		partitionBy:          "",
+		primaryKey:           "",
+		ttl:                  "",
+		attributes: []Attribute{
+			NewDefaultStringAttribute(),
+		},
+		castUnsupportedAttrValueTypesToString: true,
+		preferCastingToOthers:                 true,
+	}
+	table := &Table{
+		Cols: map[string]*Column{},
+	}
+	fieldsMap := concurrent.NewMapWith("tableName", table)
+
+	lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{})
+	rowsToInsert := []string{
+		`{"Test1":1}`,
+		`{"Test1":1,"Test2":2}`,
+	}
+	for i := range rowsToInsert {
+		shouldAlterColumns := lm.shouldAlterColumns(table)
+		if i < 100 {
+			assert.True(t, shouldAlterColumns)
+		} else {
+			assert.False(t, shouldAlterColumns)
+
+		}
+		_, _, err := lm.BuildIngestSQLStatements("tableName", types.MustJSON(rowsToInsert[i]), nil, chConfig, true)
+		assert.NoError(t, err)
+	}
+
+}

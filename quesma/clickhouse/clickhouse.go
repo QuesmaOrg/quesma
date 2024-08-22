@@ -482,7 +482,8 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 	return nonSchemaStr, nil
 }
 
-func (lm *LogManager) alterColumns(table *Table) bool {
+// This function implements heuristic for deciding if we should add new columns
+func (lm *LogManager) shouldAlterColumns(table *Table) bool {
 	// Above this number of columns we will use heuristic
 	// to decide if we should add new columns
 	const maxColumns = 100
@@ -669,7 +670,7 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 
 	// Below const tells if we should generate new columns for the table
 	// or add them to the attributes map
-	generateNewColumns := lm.alterColumns(lm.FindTable(tableName))
+	generateNewColumns := lm.shouldAlterColumns(lm.FindTable(tableName))
 
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
