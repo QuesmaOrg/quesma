@@ -21,8 +21,11 @@ func AsString(expr Expr) string {
 }
 
 func (v *renderer) VisitColumnRef(e ColumnRef) interface{} {
+	// TODO this should be done as the last step in the pipeline, not here
 	name := strings.TrimSuffix(e.ColumnName, ".keyword")
-	name = strings.TrimSuffix(name, "::keyword") // Not sure if this is the best place to do this
+	name = strings.TrimSuffix(name, "::keyword")
+	name = strings.TrimSuffix(name, ".keys")
+	name = strings.TrimSuffix(name, ".values")
 	return strconv.Quote(name)
 }
 

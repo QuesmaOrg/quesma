@@ -13,53 +13,109 @@ type mapTypeResolver struct {
 	table *clickhouse.Table
 }
 
-func (v *mapTypeResolver) dbColumnType(fieldName string) string {
+type searchScope int
+
+const (
+	scopeWholeMap searchScope = iota
+	scopeKeys
+	scopeValues
+)
+
+func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScope, columnName string) {
 
 	//
 	// This is a HACK to get the column database type from the schema
 	//
 	//
-	fieldName = strings.TrimSuffix(fieldName, ".keyword")
+	suffixes := []string{".keyword", ".text", ".key", ".value"}
+	var resultSuffix string
+	for _, suffix := range suffixes {
+		if strings.HasSuffix(fieldName, suffix) {
+			fieldName = strings.TrimSuffix(fieldName, suffix)
+			resultSuffix = suffix
+		}
+	}
+
+	switch resultSuffix {
+	case ".keys":
+		scope = scopeKeys
+	case ".values":
+		scope = scopeValues
+	default:
+		scope = scopeWholeMap
+	}
 
 	tableColumnName := strings.ReplaceAll(fieldName, ".", "::")
 	col, ok := v.table.Cols[tableColumnName]
+
 	if ok {
-		return col.Type.String()
+		if strings.HasPrefix(col.Type.String(), "Map") {
+			return true, scope, tableColumnName
+		}
 	}
 
-	return ""
+	return false, scope, tableColumnName
 }
 
 func NewMapTypeVisitor(resolver mapTypeResolver) model.ExprVisitor {
 
 	visitor := model.NewBaseVisitor()
 
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+		isMap, _, realName := resolver.isMap(e.ColumnName)
+
+		if !isMap {
+			return e
+		}
+
+		return model.NewColumnRef(realName)
+	}
+
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 
 		column, ok := e.Left.(model.ColumnRef)
 		if ok {
-			dbType := resolver.dbColumnType(column.ColumnName)
+			isMap, scope, _ := resolver.isMap(column.ColumnName)
 
-			if strings.HasPrefix(dbType, "Unknown(Map") {
+			left := e.Left.Accept(b).(model.Expr)
 
-				op := strings.ToUpper(e.Op)
+			if !isMap {
+				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+			}
 
-				switch {
+			op := strings.ToUpper(e.Op)
 
-				case (op == "ILIKE" || op == "LIKE") && dbType == "Unknown(Map(String, String))":
+			switch {
 
-					variableName := "x"
-					lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, e.Right.Accept(b).(model.Expr)))
-					existsInKey := model.NewFunction("arrayExists", lambda, model.NewFunction("mapKeys", e.Left))
-					existsInValue := model.NewFunction("arrayExists", lambda, model.NewFunction("mapValues", e.Left))
-					return model.NewInfixExpr(existsInKey, "OR", existsInValue)
+			case (op == "ILIKE" || op == "LIKE") && scope == scopeWholeMap:
 
-				case e.Op == "=":
-					return model.NewFunction("has", e.Left, e.Right.Accept(b).(model.Expr))
+				variableName := "x"
+				lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, e.Right.Accept(b).(model.Expr)))
+				existsInKey := model.NewFunction("arrayExists", lambda, model.NewFunction("mapKeys", left))
+				existsInValue := model.NewFunction("arrayExists", lambda, model.NewFunction("mapValues", left))
+				return model.NewInfixExpr(existsInKey, "OR", existsInValue)
 
-				default:
-					logger.Warn().Msgf("Unhandled array infix operation  %s, column %v (%v)", e.Op, column.ColumnName, dbType)
-				}
+			case op == "=" && scope == scopeWholeMap:
+				return model.NewFunction("mapContains", left, e.Right.Accept(b).(model.Expr))
+
+			case (op == "ILIKE" || op == "LIKE") && scope == scopeKeys:
+
+				variableName := "x"
+				lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, e.Right.Accept(b).(model.Expr)))
+				existsInKey := model.NewFunction("arrayExists", lambda, model.NewFunction("mapKeys", left))
+
+				return existsInKey
+
+			case (op == "ILIKE" || op == "LIKE") && scope == scopeValues:
+
+				variableName := "x"
+				lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, e.Right.Accept(b).(model.Expr)))
+				existsInValue := model.NewFunction("arrayExists", lambda, model.NewFunction("mapValues", left))
+
+				return existsInValue
+
+			default:
+				logger.Warn().Msgf("Unhandled map infix operation  %s, column: %v, scope: %v, expr: %v", e.Op, column.ColumnName, scope, e)
 			}
 		}
 
@@ -67,7 +123,6 @@ func NewMapTypeVisitor(resolver mapTypeResolver) model.ExprVisitor {
 		right := e.Right.Accept(b).(model.Expr)
 
 		return model.NewInfixExpr(left, e.Op, right)
-
 	}
 
 	return visitor

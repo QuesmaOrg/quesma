@@ -301,8 +301,8 @@ func (s *SchemaCheckPass) applyMapTransformations(query *model.Query) (*model.Qu
 
 	hasMapColumn := false
 	for _, col := range allColumns {
-		dbType := mapResolver.dbColumnType(col.ColumnName)
-		if strings.HasPrefix(dbType, "Unknown(Map") {
+		isMap, _, _ := mapResolver.isMap(col.ColumnName)
+		if isMap {
 			hasMapColumn = true
 			break
 		}

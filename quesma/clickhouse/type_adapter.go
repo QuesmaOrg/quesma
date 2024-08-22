@@ -38,6 +38,8 @@ func (c SchemaTypeAdapter) Convert(s string) (schema.Type, bool) {
 		return schema.TypeDate, true
 	case "Point":
 		return schema.TypePoint, true
+	case "Map(String, Nullable(String))", "Map(String, String)":
+		return schema.TypeMap, true
 	default:
 		return schema.TypeUnknown, false
 	}
