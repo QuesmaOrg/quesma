@@ -968,17 +968,19 @@ var AggregationTests = []AggregationTestCase{
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 		},
-		ExpectedPancakeSQL: `SELECT uniq("OriginCityName") AS "metric__unique_terms_col_0", ` +
-			`sum(count(*)) OVER () AS "aggr__suggestions__parent_count", ` +
-			`"OriginCityName" AS "aggr__suggestions__key_0", ` +
-			`count(*) AS "aggr__suggestions__count", ` +
-			`count() AS "aggr__suggestions__order_1" ` +
-			`FROM ` + QuotedTableName + ` ` +
-			`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
-			`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
-			`GROUP BY "OriginCityName" AS "aggr__suggestions__key_0" ` +
-			`ORDER BY "aggr__suggestions__order_1" DESC, "aggr__suggestions__key_0" ASC ` +
-			`LIMIT 11`,
+		ExpectedPancakeSQL: `
+			SELECT uniqMerge(uniqState("OriginCityName")) OVER () AS
+			  "metric__unique_terms_col_0",
+			  sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
+			  "OriginCityName" AS "aggr__suggestions__key_0",
+			  count(*) AS "aggr__suggestions__count",
+			  count() AS "aggr__suggestions__order_1"
+			FROM "logs-generic-default"
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
+			GROUP BY "OriginCityName" AS "aggr__suggestions__key_0"
+			ORDER BY "aggr__suggestions__order_1" DESC, "aggr__suggestions__key_0" ASC
+			LIMIT 11`,
 	},
 	{ // [5]
 		TestName: "simple filter/count",
@@ -2610,7 +2612,7 @@ var AggregationTests = []AggregationTestCase{
 				"aggr__sample__top_values__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__sample__count",
-				  count("host.name") AS "metric__sample__sample_count_col_0",
+				  sum(count("host.name")) OVER () AS "metric__sample__sample_count_col_0",
 				  sum(count(*)) OVER () AS "aggr__sample__top_values__parent_count",
 				  "host.name" AS "aggr__sample__top_values__key_0",
 				  count(*) AS "aggr__sample__top_values__count",
