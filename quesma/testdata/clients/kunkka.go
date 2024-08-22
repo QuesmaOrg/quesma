@@ -488,25 +488,16 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT "aggr__0__key_0", "aggr__0__count", "metric__0__1_col_0",
-			  "aggr__0__2-bucket___col_0", "metric__0__2-bucket__2-metric_col_0"
-			FROM (
-			  SELECT "aggr__0__key_0", "aggr__0__count", "metric__0__1_col_0",
-				"aggr__0__2-bucket___col_0", "metric__0__2-bucket__2-metric_col_0",
-				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
-			  FROM (
-				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
-				  "aggr__0__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sumOrNull(sumOrNull("spent")) OVER (PARTITION BY "aggr__0__key_0") AS
-				  "metric__0__1_col_0",
-				  countIf("message" iLIKE '%started%') AS "aggr__0__2-bucket___col_0",
-				  sumOrNullIf("multiplier", "message" iLIKE '%started%') AS
-				  "metric__0__2-bucket__2-metric_col_0"
-				FROM "logs-generic-default"
-				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
-				  "aggr__0__key_0"))
-			ORDER BY "aggr__0__order_1_rank" ASC`,
+			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
+			  "aggr__0__key_0", count(*) AS "aggr__0__count",
+			  sumOrNull("spent") AS "metric__0__1_col_0",
+			  countIf("message" iLIKE '%started%') AS "aggr__0__2-bucket___col_0",
+			  sumOrNullIf("multiplier", "message" iLIKE '%started%') AS
+			  "metric__0__2-bucket__2-metric_col_0"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
+			  "aggr__0__key_0"
+			ORDER BY "aggr__0__key_0" ASC`,
 	},
 	{ // [2]
 		TestName: "clients/kunkka/test_1, used to be broken before aggregations merge fix",
