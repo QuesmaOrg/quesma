@@ -238,7 +238,6 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			  SELECT "aggr__0__key_0", "aggr__0__count", "metric__0__1_col_0",
 				"aggr__0__2-bucket___col_0", "metric__0__2-bucket__2-metric_col_0",
 				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
-			
 			  FROM (
 				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 				  "aggr__0__key_0",
@@ -495,7 +494,6 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			  SELECT "aggr__0__key_0", "aggr__0__count", "metric__0__1_col_0",
 				"aggr__0__2-bucket___col_0", "metric__0__2-bucket__2-metric_col_0",
 				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
-			
 			  FROM (
 				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 				  "aggr__0__key_0",

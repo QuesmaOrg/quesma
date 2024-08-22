@@ -453,7 +453,6 @@ var AggregationTests = []AggregationTestCase{
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
 				"aggr__0__3-bucket___col_0",
 				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
-			
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "OriginCityName" AS "aggr__0__key_0",
@@ -3689,7 +3688,6 @@ var AggregationTests = []AggregationTestCase{
 			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1-bucket___col_0",
 				"metric__0__1-bucket__1-metric_col_0",
 				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
-			
 			  FROM (
 				SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000) AS
 				  "aggr__0__key_0",
@@ -5891,7 +5889,6 @@ var AggregationTests = []AggregationTestCase{
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
 				"aggr__0__1-bucket___col_0",
 				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
-			
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "OriginCityName" AS "aggr__0__key_0",
@@ -5908,7 +5905,6 @@ var AggregationTests = []AggregationTestCase{
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
 				"aggr__0__3-bucket___col_0",
 				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
-			
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "OriginCityName" AS "aggr__0__key_0",
