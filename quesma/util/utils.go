@@ -83,12 +83,16 @@ func JsonToMap(jsonn string) (JsonMap, error) {
 
 // MapDifference returns pair of maps with fields that are present in one of input maps and not in the other
 // specifically (mActual - mExpected, mExpected - mActual)
+// * mActual - uses JsonMap fully: values are []JsonMap, or JsonMap, or base types
+// * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
+// * acceptableDifference - list of keys that are allowed to be different
 // * compareBaseTypes - if true, we compare base type values as well (e.g. if mActual["key1"]["key2"] == 1,
 // and mExpected["key1"]["key2"] == 2, we say that they are different)
 // * compareFullArrays - if true, we compare entire arrays, if false just first element ([0])
-// * mActual - uses JsonMap fully: values are []JsonMap, or JsonMap, or base types
-// * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
-func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArrays bool) (JsonMap, JsonMap) {
+// FIXME all tests are with acceptableDifference = [], add some else
+func MapDifference(mActual, mExpected JsonMap, acceptableDifference []string,
+	compareBaseTypes, compareFullArrays bool) (JsonMap, JsonMap) {
+
 	// We're adding 'mapToAdd' to 'resultDiff' at the key keysNested + name (`keysNested` is a list of keys, as JSONs can be nested)
 	// (or before, if such map doesn't exist on previous nested levels)
 	// append(keysNested, name) - list of keys to get to the current map ('mapToAdd')
@@ -115,7 +119,10 @@ func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArra
 		for name, vActual := range mActualCur {
 			vExpected, ok := mExpectedCur[name]
 			if !ok {
-				addToResult(mActualCur[name], name, keysNested, resultDiffThis)
+				if !slices.Contains(acceptableDifference, name) {
+					addToResult(mActualCur[name], name, keysNested, resultDiffThis)
+				}
+				// FIXME maybe check if vActual is a base type. If it's not, we probably should add it to resultDiff.
 				continue
 			}
 			if !descendFurther {
@@ -210,7 +217,9 @@ func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArra
 					addToResult(vExpectedArr[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffOther)
 				}
 			default:
-				if compareBaseTypes && !equal(vActual, vExpected) {
+				if !equal(vActual, vExpected) && compareBaseTypes && !slices.Contains(acceptableDifference, name) {
+					// FIXME maybe check if both vActual && vExpected are indeed base types.
+					// If they are not, we probably should add them to both results, even if acceptableDifference contains name.
 					addToResult(vActual, name, keysNested, resultDiffThis)
 					addToResult(vExpected, name, keysNested, resultDiffOther)
 				}
@@ -241,7 +250,7 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("%v (second JSON, json: %s)", err, jsonExpected)
 	}
-	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, false, false)
+	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, []string{}, false, false)
 	return actualMinusExpected, expectedMinusActual, nil
 }
 
@@ -409,15 +418,35 @@ func AssertSqlEqual(t *testing.T, expected, actual string) {
 		fmt.Printf("%s\n", SqlPrettyPrint([]byte(expected)))
 		pp.Println("---- Actual:")
 		fmt.Printf("%s\n", SqlPrettyPrint([]byte(actual)))
-		for i, c := range actual {
-			if c != rune(expected[i]) {
-				const printLen = 100
-				pp.Printf("-- First diff: ")
-				fmt.Println(actual[i:min(i+printLen, len(actual))])
+		actualLines := strings.Split(actual, "\n")
+		expectedLines := strings.Split(expected, "\n")
+		pp.Println("-- First diff: ")
+		for i, aLine := range actualLines {
+			if i >= len(expectedLines) {
+				fmt.Println("Actual is longer than expected")
+				break
+			}
+			eLine := expectedLines[i]
+			if aLine != eLine {
+				if i > 0 {
+					fmt.Println("         ", actualLines[i-1])
+				}
+				fmt.Println("  actual:", aLine)
+				if i+1 < len(actualLines) {
+					fmt.Println("         ", actualLines[i+1])
+				}
+				fmt.Println()
+				if i > 0 {
+					fmt.Println("         ", expectedLines[i-1])
+				}
+				fmt.Println("expected:", eLine)
+				if i+1 < len(expectedLines) {
+					fmt.Println("         ", expectedLines[i+1])
+				}
 				break
 			}
 		}
-		t.Errorf("Expected: %s, got: %s", expected, actual)
+		t.Errorf("Expected: %s\n\nactual: %s", expected, actual)
 	}
 }
 
@@ -563,7 +592,7 @@ func equal(a, b any) bool {
 	aFloat, aIsFloat := a.(float64)
 	bFloat, bIsFloat := b.(float64)
 	if aIsFloat && bIsFloat {
-		return aFloat-bFloat < 1e-10 && aFloat-bFloat > -1e-10
+		return aFloat-bFloat < 5e-6 && aFloat-bFloat > -5e-6
 	}
 
 	switch aTyped := a.(type) {

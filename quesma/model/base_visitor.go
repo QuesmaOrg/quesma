@@ -20,6 +20,7 @@ type BaseExprVisitor struct {
 	OverrideVisitWindowFunction func(b *BaseExprVisitor, f WindowFunction) interface{}
 	OverrideVisitParenExpr      func(b *BaseExprVisitor, e ParenExpr) interface{}
 	OverrideVisitLambdaExpr     func(b *BaseExprVisitor, e LambdaExpr) interface{}
+	OverrideVisitJoinExpr       func(b *BaseExprVisitor, e JoinExpr) interface{}
 }
 
 func NewBaseVisitor() *BaseExprVisitor {
@@ -116,7 +117,7 @@ func (v *BaseExprVisitor) VisitOrderByExpr(e OrderByExpr) interface{} {
 	if v.OverrideVisitOrderByExpr != nil {
 		return v.OverrideVisitOrderByExpr(v, e)
 	}
-	return OrderByExpr{Exprs: v.VisitChildren(e.Exprs), Direction: e.Direction, ExchangeToAliasInCTE: e.ExchangeToAliasInCTE}
+	return OrderByExpr{Expr: e.Expr.Accept(v).(Expr), Direction: e.Direction, ExchangeToAliasInCTE: e.ExchangeToAliasInCTE}
 }
 
 func (v *BaseExprVisitor) VisitDistinctExpr(e DistinctExpr) interface{} {
@@ -137,11 +138,15 @@ func (v *BaseExprVisitor) VisitWindowFunction(f WindowFunction) interface{} {
 	if v.OverrideVisitWindowFunction != nil {
 		return v.OverrideVisitWindowFunction(v, f)
 	}
+	var orderBy []OrderByExpr
+	for _, expr := range f.OrderBy {
+		orderBy = append(orderBy, expr.Accept(v).(OrderByExpr))
+	}
 	return WindowFunction{
 		Name:        f.Name,
 		Args:        v.VisitChildren(f.Args),
 		PartitionBy: v.VisitChildren(f.PartitionBy),
-		OrderBy:     f.OrderBy.Accept(v).(OrderByExpr),
+		OrderBy:     orderBy,
 	}
 }
 
@@ -197,4 +202,11 @@ func (v *BaseExprVisitor) VisitLambdaExpr(e LambdaExpr) interface{} {
 		return v.OverrideVisitLambdaExpr(v, e)
 	}
 	return NewLambdaExpr(e.Args, e.Body.Accept(v).(Expr))
+}
+
+func (v *BaseExprVisitor) VisitJoinExpr(j JoinExpr) interface{} {
+	if v.OverrideVisitJoinExpr != nil {
+		return v.OverrideVisitJoinExpr(v, j)
+	}
+	return NewJoinExpr(j.Lhs.Accept(v).(Expr), j.Rhs.Accept(v).(Expr), j.JoinType, j.On.Accept(v).(Expr))
 }

@@ -11,7 +11,6 @@ var newLineKeywords = map[string]bool{
 	"FROM":  true,
 	"WHERE": true,
 	"GROUP": true,
-	"ORDER": true,
 	"LIMIT": true,
 }
 
@@ -19,6 +18,34 @@ const (
 	lineLengthLimit     = 80
 	whitespacePerIndent = 2
 )
+
+func calcHowMuchNextStmtWillTake(tokens []sqllexer.Token) int {
+	result := 0
+	stack := []string{}
+	for _, token := range tokens {
+		if token.Type == sqllexer.WS {
+			result += 1
+			continue
+		}
+		if token.Value == "(" {
+			stack = append(stack, token.Value)
+		} else if token.Value == ")" {
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			} else {
+				return result
+			}
+		} else if token.Value == "," {
+			if len(stack) == 0 {
+				return result + 1
+			}
+		} else if newLineKeywords[token.Value] {
+			return result
+		} // maybe more breaks
+		result += len(token.Value)
+	}
+	return result
+}
 
 func SqlPrettyPrint(sqlData []byte) string {
 	lexer := sqllexer.New(string(sqlData))
@@ -28,17 +55,25 @@ func SqlPrettyPrint(sqlData []byte) string {
 	subQueryIndent := 0
 	isBreakIndent := false
 	stack := []string{}
-	for _, token := range tokens {
+	for tokenIdx, token := range tokens {
 		// Super useful, uncomment to debug and run go test ./...
 		// fmt.Print(token, ", ")
 
 		// Skip original whitespace
 		if token.Type == sqllexer.WS {
 			token.Value = " "
+			if tokenIdx > 0 && tokens[tokenIdx-1].Value == "(" {
+				continue
+			}
 		}
 
 		// Add new line if needed
 		if newLineKeywords[token.Value] {
+			sb.WriteString("\n")
+			lineLength = 0
+			isBreakIndent = false
+		}
+		if token.Value == "ORDER" && len(stack) > 0 && stack[len(stack)-1] != "(" {
 			sb.WriteString("\n")
 			lineLength = 0
 			isBreakIndent = false
@@ -104,11 +139,31 @@ func SqlPrettyPrint(sqlData []byte) string {
 				sb.WriteString(" ")
 			}
 			lineLength += currentIndentLevel
+			if token.Type == sqllexer.WS {
+				continue
+			}
 		}
 
 		// regular print
 		sb.WriteString(token.Value)
 		lineLength += len(token.Value)
+
+		// comma after , in long SELECT?
+		if token.Value == "," {
+			if len(stack) > 0 && stack[len(stack)-1] == "SELECT" {
+				howMuchNextWillTake := calcHowMuchNextStmtWillTake(tokens[tokenIdx+1:])
+				if lineLength+howMuchNextWillTake > lineLengthLimit {
+					sb.WriteString("\n")
+					lineLength = 0
+					isBreakIndent = true
+				}
+			} else {
+				if tokenIdx+1 < len(tokens) && tokens[tokenIdx+1].Type != sqllexer.WS {
+					sb.WriteString(" ")
+					lineLength += 1
+				}
+			}
+		}
 	}
 	// Add also space
 	// fmt.Println()

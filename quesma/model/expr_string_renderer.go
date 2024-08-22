@@ -5,6 +5,7 @@ package model
 import (
 	"fmt"
 	"quesma/logger"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -106,11 +107,7 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 }
 
 func (v *renderer) VisitOrderByExpr(e OrderByExpr) interface{} {
-	var exprsAsStr []string
-	for _, expr := range e.Exprs {
-		exprsAsStr = append(exprsAsStr, expr.Accept(v).(string))
-	}
-	allExprs := strings.Join(exprsAsStr, ", ")
+	allExprs := e.Expr.Accept(v).(string)
 	if e.Direction == DescOrder {
 		return fmt.Sprintf("%s %s", allExprs, "DESC")
 	}
@@ -190,21 +187,22 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	//  LIMIT 12)
 	if c.SampleLimit > 0 {
 		sb.WriteString("(SELECT ")
-		innerColumn := make([]string, 0)
-		for _, col := range c.Columns {
-			if _, ok := col.(ColumnRef); ok {
-				innerColumn = append(innerColumn, AsString(col))
-			}
-			if aliased, ok := col.(AliasedExpr); ok {
-				if v, ok := aliased.Expr.(ColumnRef); ok {
-					innerColumn = append(innerColumn, AsString(v))
-				}
+		usedColumns := make(map[string]bool)
+		for _, col := range append(c.Columns, c.GroupBy...) {
+			for _, usedCol := range GetUsedColumns(col) {
+				usedColumns[AsString(usedCol)] = true
 			}
 		}
-		if len(innerColumn) == 0 {
-			innerColumn = append(innerColumn, "1")
+		if len(usedColumns) == 0 {
+			sb.WriteString("1") // if no columns are used, it is simple count, 1 is enough
+		} else {
+			usedKeys := make([]string, 0, len(usedColumns))
+			for key := range usedColumns {
+				usedKeys = append(usedKeys, key)
+			}
+			sort.Strings(usedKeys)
+			sb.WriteString(strings.Join(usedKeys, ", "))
 		}
-		sb.WriteString(strings.Join(innerColumn, ", "))
 		sb.WriteString(" FROM ")
 	}
 	/* HACK ALERT END */
@@ -287,18 +285,31 @@ func (v *renderer) VisitWindowFunction(f WindowFunction) interface{} {
 	for _, arg := range f.Args {
 		args = append(args, AsString(arg))
 	}
-	partitionBy := make([]string, 0)
-	for _, col := range f.PartitionBy {
-		partitionBy = append(partitionBy, AsString(col))
-	}
 
 	var sb strings.Builder
-	stmtWithoutOrderBy := fmt.Sprintf("%s(%s) OVER (PARTITION BY %s", f.Name, strings.Join(args, ", "), strings.Join(partitionBy, ", "))
+	stmtWithoutOrderBy := fmt.Sprintf("%s(%s) OVER (", f.Name, strings.Join(args, ", "))
 	sb.WriteString(stmtWithoutOrderBy)
 
-	if len(f.OrderBy.Exprs) != 0 {
-		sb.WriteString(" ORDER BY ")
-		sb.WriteString(AsString(f.OrderBy))
+	if len(f.PartitionBy) > 0 {
+		sb.WriteString("PARTITION BY ")
+
+		partitionBy := make([]string, 0)
+		for _, col := range f.PartitionBy {
+			partitionBy = append(partitionBy, AsString(col))
+		}
+		sb.WriteString(strings.Join(partitionBy, ", "))
+	}
+
+	if len(f.OrderBy) > 0 {
+		if len(f.PartitionBy) > 0 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("ORDER BY ")
+		var orderByStr []string
+		for _, orderBy := range f.OrderBy {
+			orderByStr = append(orderByStr, AsString(orderBy))
+		}
+		sb.WriteString(strings.Join(orderByStr, ", "))
 	}
 	sb.WriteString(")")
 	return sb.String()
@@ -314,4 +325,8 @@ func (v *renderer) VisitParenExpr(p ParenExpr) interface{} {
 
 func (v *renderer) VisitLambdaExpr(l LambdaExpr) interface{} {
 	return fmt.Sprintf("(%s) -> %s", strings.Join(l.Args, ", "), AsString(l.Body))
+}
+
+func (v *renderer) VisitJoinExpr(j JoinExpr) interface{} {
+	return fmt.Sprintf("%s %s JOIN %s ON (%s)", j.Lhs.Accept(v), j.JoinType, j.Rhs.Accept(v), j.On.Accept(v))
 }

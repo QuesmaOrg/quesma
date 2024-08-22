@@ -8,6 +8,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"quesma/ab_testing"
+	"quesma/ab_testing/sender"
 	"quesma/buildinfo"
 	"quesma/clickhouse"
 	"quesma/connectors"
@@ -60,6 +62,11 @@ func main() {
 	}, sig, doneCh, asyncQueryTraceLogger)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
+	go func() {
+		if upgradeAvailable, message := buildinfo.CheckForTheLatestVersion(); upgradeAvailable {
+			logger.Warn().Msg(message)
+		}
+	}()
 
 	if asyncQueryTraceLogger != nil {
 		asyncQueryTraceEvictor := quesma.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
@@ -72,11 +79,10 @@ func main() {
 	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool, licenseMod.License.ClientID)
 	phoneHomeAgent.Start()
 
-	schemaManagement := clickhouse.NewSchemaManagement(connectionPool)
-	schemaLoader := clickhouse.NewTableDiscovery(cfg, schemaManagement)
-	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: schemaLoader}, cfg, clickhouse.SchemaTypeAdapter{})
+	tableDisco := clickhouse.NewTableDiscovery(cfg, connectionPool)
+	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, cfg, clickhouse.SchemaTypeAdapter{})
 
-	connManager := connectors.NewConnectorManager(cfg, connectionPool, phoneHomeAgent, schemaLoader, schemaRegistry)
+	connManager := connectors.NewConnectorManager(cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry)
 	lm := connManager.GetConnector()
 
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
@@ -85,7 +91,10 @@ func main() {
 
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry)
 
-	instance := constructQuesma(cfg, schemaLoader, lm, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel)
+	abTestingController := sender.NewSenderCoordinator(cfg)
+	abTestingController.Start()
+
+	instance := constructQuesma(cfg, tableDisco, lm, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender())
 	instance.Start()
 
 	<-doneCh
@@ -97,19 +106,20 @@ func main() {
 	feature.NotSupportedLogger.Stop()
 	phoneHomeAgent.Stop(ctx)
 	lm.Stop()
+	abTestingController.Stop()
 
 	instance.Close(ctx)
 
 }
 
-func constructQuesma(cfg config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel) *quesma.Quesma {
+func constructQuesma(cfg config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender) *quesma.Quesma {
 	switch cfg.Mode {
 	case config.Proxy:
 		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, false)
 	case config.ProxyInspect:
 		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, true)
 	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, sl, im, schemaRegistry, cfg, quesmaManagementConsole, logChan)
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, sl, im, schemaRegistry, cfg, quesmaManagementConsole, logChan, abResultsrepository)
 	}
 	logger.Panic().Msgf("unknown operation mode: %s", cfg.Mode.String())
 	panic("unreachable")

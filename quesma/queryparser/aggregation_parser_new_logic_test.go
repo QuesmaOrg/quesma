@@ -153,12 +153,13 @@ func Test3AggregationParserNewLogic(t *testing.T) {
 			} else {
 				expectedAggregationsPart = expectedResponseMap["aggregations"].(JsonMap)
 			}
-			actualMinusExpected, expectedMinusActual := util.MapDifference(response.Aggregations, expectedAggregationsPart, true, true)
 
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
 			acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
 				"sum_other_doc_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
 
+			actualMinusExpected, expectedMinusActual := util.MapDifference(response.Aggregations,
+				expectedAggregationsPart, acceptableDifference, true, true)
 			// pp.Println("ACTUAL diff", actualMinusExpected)
 			// pp.Println("EXPECTED diff", expectedMinusActual)
 			// pp.Println("ACTUAL", response.Aggregations)

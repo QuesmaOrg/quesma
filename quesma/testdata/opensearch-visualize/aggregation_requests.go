@@ -129,18 +129,21 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("value", 1260),
 			}}},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
-			// TODO after merge of some PR, change logs-generic-default to testdata.QuotedTableName
-			`SELECT count() FROM "logs-generic-default" WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
-			`SELECT count(DISTINCT "ftd_session_time") FROM "logs-generic-default" ` +
+			`SELECT count() FROM ` + testdata.QuotedTableName + ` WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
+			`SELECT count(DISTINCT "ftd_session_time") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z') AND "ftd_session_time"<1000)`,
-			`SELECT count(DISTINCT "ftd_session_time") FROM "logs-generic-default" ` +
+			`SELECT count(DISTINCT "ftd_session_time") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z') AND "ftd_session_time">=-100)`,
 			`SELECT count(if("ftd_session_time"<1000.000000,1,NULL)), count(if("ftd_session_time">=-100.000000,1,NULL)), count() ` +
-				`FROM "logs-generic-default" WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
-	// Need to improve 'top_hits' aggregation. Seems really easy, but done in next PR.
 	{ // [1]
 		TestName: "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range",
 		QueryRequestJson: `
@@ -329,10 +332,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1880))}}},
 			{},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
-			// TODO after merge of some PR, change logs-generic-default to testdata.QuotedTableName
 			``,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [2]
 		TestName: "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Sum, Buckets: Aggregation: Range",
@@ -466,23 +470,28 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("value", 4378),
 			}}},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
-			// TODO after merge of some PR, change logs-generic-default to testdata.QuotedTableName
-			`SELECT count() FROM "logs-generic-default" ` +
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z')`,
-			`SELECT sumOrNull("properties.entry_time") FROM "logs-generic-default" ` +
+			`SELECT sumOrNull("properties.entry_time") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
 				`AND ("epoch_time_original">=0 AND "epoch_time_original"<1000))`,
-			`SELECT sumOrNull("properties.entry_time") FROM "logs-generic-default" ` +
+			`SELECT sumOrNull("properties.entry_time") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
 				`AND "epoch_time_original">=1000)`,
 			`SELECT count(if(("epoch_time_original">=0.000000 AND "epoch_time_original"<1000.000000),1,NULL)), ` +
-				`count(if("epoch_time_original">=1000.000000,1,NULL)), count() FROM "logs-generic-default" ` +
+				`count(if("epoch_time_original">=1000.000000,1,NULL)), count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z')`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [3]
-		TestName: `Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range`,
+		TestName: "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -610,8 +619,10 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("doc_count", 4),
 			}}},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z')`,
 			`SELECT quantiles(0.500000)("properties::entry_time") AS "quantile_50" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
@@ -627,6 +638,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z')`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [4]
 		TestName: "Max on DateTime field. Reproduce: Visualize -> Line: Metrics -> Max @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms",
@@ -732,7 +744,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"score": 94
 						}
 					],
-					"doc_count_error_upper_bound": 0
+					"sum_other_doc_count": 2336
 				}
 			},
 			"hits": {
@@ -769,6 +781,22 @@ var AggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 5000),
+				model.NewQueryResultCol("aggr__2__key_0", "200"),
+				model.NewQueryResultCol("aggr__2__count", int64(2570)),
+				model.NewQueryResultCol("aggr__2__order_1", 2570),
+				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-05-02T21:58:16.297Z")),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 5000),
+				model.NewQueryResultCol("aggr__2__key_0", "503"),
+				model.NewQueryResultCol("aggr__2__count", int64(94)),
+				model.NewQueryResultCol("aggr__2__order_1", 94),
+				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-05-02T15:59:12.949Z")),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
@@ -799,6 +827,19 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY count() DESC, "response" ` +
 				`LIMIT 3`,
 		},
+		ExpectedPancakeSQL: `
+			SELECT
+			  sum(count(*)) OVER () AS "aggr__2__parent_count",
+			  "response" AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count",
+			  count() AS "aggr__2__order_1",
+			  maxOrNull("timestamp") AS "metric__2__1_col_0"
+			FROM "logs-generic-default"
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z'))
+			GROUP BY "response" AS "aggr__2__key_0"
+			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
+			LIMIT 4`,
 	},
 	{ // [5]
 		TestName: "Min on DateTime field. Reproduce: Visualize -> Line: Metrics -> Min @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms",
@@ -905,7 +946,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"score": 94
 						}
 					],
-					"doc_count": 2786,
+					"sum_other_doc_count": 2636,
 					"doc_count_error_upper_bound": 0
 				}
 			},
@@ -943,6 +984,22 @@ var AggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 5300),
+				model.NewQueryResultCol("aggr__2__key_0", "200"),
+				model.NewQueryResultCol("aggr__2__count", uint64(2570)),
+				model.NewQueryResultCol("aggr__2__order_1", 2570),
+				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-04-21T00:39:02.912Z")),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 5300),
+				model.NewQueryResultCol("aggr__2__key_0", "503"),
+				model.NewQueryResultCol("aggr__2__count", uint64(94)),
+				model.NewQueryResultCol("aggr__2__order_1", 94),
+				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-04-21T03:30:25.131Z")),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
@@ -973,6 +1030,19 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY count() DESC, "response" ` +
 				`LIMIT 3`,
 		},
+		ExpectedPancakeSQL: `
+			SELECT
+			  sum(count(*)) OVER () AS "aggr__2__parent_count",
+			  "response" AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count",
+			  count() AS "aggr__2__order_1",
+			  minOrNull("timestamp") AS "metric__2__1_col_0"
+			FROM "logs-generic-default"
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z'))
+			GROUP BY "response" AS "aggr__2__key_0"
+			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
+			LIMIT 4`,
 	},
 	{ // [6]
 		TestName: "Percentiles on DateTime field. Reproduce: Visualize -> Line: Metrics -> Percentiles (or Median, it's the same aggregation) @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms",
@@ -1106,7 +1176,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"score": 2570
 						}
 					],
-					"doc_count": 2786,
+					"sum_other_doc_count": 216,
 					"doc_count_error_upper_bound": 0
 				}
 			},
@@ -1137,6 +1207,21 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("response", "200"),
 				model.NewQueryResultCol(`doc_count`, 2570),
 			}}},
+		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", int64(2786)),
+				model.NewQueryResultCol("aggr__2__key_0", "200"),
+				model.NewQueryResultCol("aggr__2__count", int64(2570)),
+				model.NewQueryResultCol("aggr__2__order_1", 2570),
+				model.NewQueryResultCol("metric__2__1_col_0", []time.Time{util.ParseTime("2024-04-21T06:11:13.619Z")}),
+				model.NewQueryResultCol("metric__2__1_col_1", []time.Time{util.ParseTime("2024-04-21T12:21:13.414Z")}),
+				model.NewQueryResultCol("metric__2__1_col_2", []time.Time{util.ParseTime("2024-04-23T18:47:45.613Z")}),
+				model.NewQueryResultCol("metric__2__1_col_3", []time.Time{util.ParseTime("2024-04-26T20:31:45.522Z")}),
+				model.NewQueryResultCol("metric__2__1_col_4", []time.Time{util.ParseTime("2024-04-29T19:39:15.029Z")}),
+				model.NewQueryResultCol("metric__2__1_col_5", []time.Time{util.ParseTime("2024-05-02T11:24:42.507Z")}),
+				model.NewQueryResultCol("metric__2__1_col_6", []time.Time{util.ParseTime("2024-05-02T16:09:28.003Z")}),
+			}},
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
@@ -1174,6 +1259,25 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY count() DESC, "response" ` +
 				`LIMIT 3`,
 		},
+		ExpectedPancakeSQL: `
+			SELECT
+			  sum(count(*)) OVER () AS "aggr__2__parent_count",
+			  "response" AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count",
+			  count() AS "aggr__2__order_1",
+			  quantiles(0.010000)("timestamp") AS "quantile_1" AS "metric__2__1_col_0",
+			  quantiles(0.020000)("timestamp") AS "quantile_2" AS "metric__2__1_col_1",
+			  quantiles(0.250000)("timestamp") AS "quantile_25" AS "metric__2__1_col_2",
+			  quantiles(0.500000)("timestamp") AS "quantile_50" AS "metric__2__1_col_3",
+			  quantiles(0.750000)("timestamp") AS "quantile_75" AS "metric__2__1_col_4",
+			  quantiles(0.950000)("timestamp") AS "quantile_95" AS "metric__2__1_col_5",
+			  quantiles(0.990000)("timestamp") AS "quantile_99" AS "metric__2__1_col_6"
+			FROM "logs-generic-default"
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))
+			GROUP BY "response" AS "aggr__2__key_0"
+			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
+			LIMIT 4`,
 	},
 	{ // [7]
 		TestName: "Percentile_ranks keyed=false. Reproduce: Visualize -> Line -> Metrics: Percentile Ranks, Buckets: X-Asis Date Histogram",
@@ -1314,11 +1418,25 @@ var AggregationTests = []testdata.AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1714863600000/3600000)), model.NewQueryResultCol("doc_count", 12)}},
 			},
 		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714860000000/3600000)),
+				model.NewQueryResultCol("aggr__2__count", 9),
+				model.NewQueryResultCol("metric__2__1_col_0", 0.0),
+				model.NewQueryResultCol("metric__2__1_col_1", 100.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714863600000/3600000)),
+				model.NewQueryResultCol("aggr__2__count", 12),
+				model.NewQueryResultCol("metric__2__1_col_0", 0.0),
+				model.NewQueryResultCol("metric__2__1_col_1", 50.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 3600000), ` +
-				`count(if("AvgTicketPrice"<=0.000000,1,NULL))/count(*)*100, ` +
-				`count(if("AvgTicketPrice"<=50000.000000,1,NULL))/count(*)*100 ` +
+				`countIf("AvgTicketPrice"<=0.000000)/count(*)*100, ` +
+				`countIf("AvgTicketPrice"<=50000.000000)/count(*)*100 ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000)`,
@@ -1327,6 +1445,15 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000)`,
 		},
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS
+			  "aggr__2__key_0", count(*) AS "aggr__2__count",
+			  countIf("AvgTicketPrice"<=0.000000)/count(*)*100 AS "metric__2__1_col_0",
+			  countIf("AvgTicketPrice"<=50000.000000)/count(*)*100 AS "metric__2__1_col_1"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS
+			  "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [8]
 		TestName: "Min/max with simple script. Reproduce: Visualize -> Line -> Metrics: Count, Buckets: X-Asis Histogram",
@@ -1425,11 +1552,21 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("todo")`, 23.0)}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`minOrNull("todo")`, 0.0)}}},
 		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("metric__maxAgg_col_0", 23.0),
+				model.NewQueryResultCol("metric__minAgg_col_0", 0.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`SELECT maxOrNull(toHour("timestamp")) FROM ` + testdata.QuotedTableName,
 			`SELECT minOrNull(toHour("timestamp")) FROM ` + testdata.QuotedTableName,
 		},
+		ExpectedPancakeSQL: `
+			SELECT maxOrNull(toHour("timestamp")) AS "metric__maxAgg_col_0",
+			  minOrNull(toHour("timestamp")) AS "metric__minAgg_col_0"
+			FROM "logs-generic-default"`,
 	},
 	{ // [9]
 		TestName: "Histogram with simple script. Reproduce: Visualize -> Line -> Metrics: Count, Buckets: X-Asis Histogram",
@@ -1535,11 +1672,30 @@ var AggregationTests = []testdata.AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 2.0), model.NewQueryResultCol("doc_count", 34)}},
 			},
 		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 0.0),
+				model.NewQueryResultCol("aggr__2__count", 44),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 1.0),
+				model.NewQueryResultCol("aggr__2__count", 43),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 2.0),
+				model.NewQueryResultCol("aggr__2__count", 34),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`SELECT toHour("timestamp"), count() FROM ` + testdata.QuotedTableName + " " +
 				`GROUP BY toHour("timestamp") ` +
 				`ORDER BY toHour("timestamp")`,
 		},
+		ExpectedPancakeSQL: `
+			SELECT toHour("timestamp") AS "aggr__2__key_0", count(*) AS "aggr__2__count"
+			FROM "logs-generic-default"
+			GROUP BY toHour("timestamp") AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
 	},
 }

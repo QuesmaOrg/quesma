@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Elastic-2.0
 package model
 
+import "strconv"
+
 // Expr is a generic representation of an expression which is a part of the SQL query.
 type Expr interface {
 	Accept(v ExprVisitor) interface{}
@@ -165,7 +167,7 @@ const (
 )
 
 type OrderByExpr struct {
-	Exprs                []Expr
+	Expr                 Expr
 	Direction            OrderByDirection
 	ExchangeToAliasInCTE bool
 }
@@ -174,24 +176,24 @@ func (o OrderByExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitOrderByExpr(o)
 }
 
-func NewOrderByExpr(exprs []Expr, direction OrderByDirection) OrderByExpr {
-	return OrderByExpr{Exprs: exprs, Direction: direction}
+func NewOrderByExpr(expr Expr, direction OrderByDirection) OrderByExpr {
+	return OrderByExpr{Expr: expr, Direction: direction}
 }
-func NewOrderByExprWithoutOrder(exprs ...Expr) OrderByExpr {
-	return OrderByExpr{Exprs: exprs, Direction: DefaultOrder}
+func NewOrderByExprWithoutOrder(expr Expr) OrderByExpr {
+	return OrderByExpr{Expr: expr, Direction: DefaultOrder}
 }
 
 // IsCountDesc returns true <=> this OrderByExpr is count() DESC
 func (o OrderByExpr) IsCountDesc() bool {
-	if len(o.Exprs) != 1 || o.Direction != DescOrder {
+	if o.Direction != DescOrder {
 		return false
 	}
-	function, ok := o.Exprs[0].(FunctionExpr)
+	function, ok := o.Expr.(FunctionExpr)
 	return ok && function.Name == "count"
 }
 
 func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {
-	return InfixExpr{lhs, operator, rhs}
+	return InfixExpr{Left: lhs, Op: operator, Right: rhs}
 }
 
 // AliasedExpr is an expression with an alias, e.g. `columnName AS alias` or `COUNT(x) AS sum_of_xs`
@@ -206,15 +208,19 @@ func NewAliasedExpr(expr Expr, alias string) AliasedExpr {
 
 func (a AliasedExpr) Accept(v ExprVisitor) interface{} { return v.VisitAliasedExpr(a) }
 
+func (a AliasedExpr) AliasRef() LiteralExpr {
+	return LiteralExpr{Value: strconv.Quote(a.Alias)}
+}
+
 // WindowFunction representation e.g. `SUM(x) OVER (PARTITION BY y ORDER BY z)`
 type WindowFunction struct {
 	Name        string
 	Args        []Expr
 	PartitionBy []Expr
-	OrderBy     OrderByExpr
+	OrderBy     []OrderByExpr
 }
 
-func NewWindowFunction(name string, args, partitionBy []Expr, orderBy OrderByExpr) WindowFunction {
+func NewWindowFunction(name string, args, partitionBy []Expr, orderBy []OrderByExpr) WindowFunction {
 	return WindowFunction{Name: name, Args: args, PartitionBy: partitionBy, OrderBy: orderBy}
 }
 
@@ -251,6 +257,22 @@ func (l LambdaExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLambdaExpr(l)
 }
 
+// JoinExpr represents a JOIN expression, e.g. `table1 INNER JOIN table2 ON (table1.id = table2.id)`
+type JoinExpr struct {
+	Lhs      Expr
+	JoinType string
+	Rhs      Expr
+	On       Expr
+}
+
+func NewJoinExpr(lhs, rhs Expr, joinType string, on Expr) JoinExpr {
+	return JoinExpr{Lhs: lhs, JoinType: joinType, Rhs: rhs, On: on}
+}
+
+func (e JoinExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitJoinExpr(e)
+}
+
 type ExprVisitor interface {
 	VisitFunction(e FunctionExpr) interface{}
 	VisitMultiFunction(e MultiFunctionExpr) interface{}
@@ -269,4 +291,5 @@ type ExprVisitor interface {
 	VisitWindowFunction(f WindowFunction) interface{}
 	VisitParenExpr(e ParenExpr) interface{}
 	VisitLambdaExpr(e LambdaExpr) interface{}
+	VisitJoinExpr(e JoinExpr) interface{}
 }

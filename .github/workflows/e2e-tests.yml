@@ -73,9 +73,9 @@ jobs:
           done
           docker image ls -a  
 
-      - name: Build and start docker-compose
+      - name: Build and start docker compose
         timeout-minutes: 10
-        run: docker-compose -f ci/e2e-old.yml up -d
+        run: docker compose -f ci/e2e-old.yml up -d
 
       - name: Wait until Elasticsearch is up
         timeout-minutes: 6

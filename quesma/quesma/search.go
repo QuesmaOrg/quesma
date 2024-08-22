@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/concurrent"
 	"quesma/elasticsearch"
@@ -13,8 +14,6 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/optimize"
-	"quesma/plugins"
-	"quesma/plugins/registry"
 	"quesma/queryparser"
 	"quesma/queryparser/query_util"
 	"quesma/quesma/config"
@@ -67,23 +66,27 @@ type QueryRunner struct {
 	currentParallelQueryJobs atomic.Int64
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
+	ABResultsSender          ab_testing.Sender
 }
 
 func (q *QueryRunner) EnableQueryOptimization(cfg config.QuesmaConfiguration) {
 	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
 }
 
-func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry) *QueryRunner {
+func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry, abResultsRepository ab_testing.Sender) *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
 		executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](),
 		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
 		transformationPipeline: TransformationPipeline{
-			transformers: []plugins.QueryTransformer{
+			transformers: []model.QueryTransformer{
 				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry, logManager: lm}, // this can be a part of another plugin
 			},
-		}, schemaRegistry: schemaRegistry}
+		},
+		schemaRegistry:  schemaRegistry,
+		ABResultsSender: abResultsRepository,
+	}
 }
 
 func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id string) *AsyncQueryContext {
@@ -146,12 +149,6 @@ type AsyncQuery struct {
 	startTime        time.Time
 }
 
-type executionPlanResult struct {
-	plan         *model.ExecutionPlan
-	err          error
-	responseBody []byte
-}
-
 func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.ExecutionPlan, table *clickhouse.Table) {
 	var err error
 	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
@@ -159,10 +156,6 @@ func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.Executio
 		logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 	}
 
-	plan.Queries, err = registry.QueryTransformerFor(table.Name, q.cfg, q.schemaRegistry).Transform(plan.Queries)
-	if err != nil {
-		logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
-	}
 }
 
 // Deprecated - this method should be examined and potentially removed
@@ -204,59 +197,28 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 		}
 
-		if plan.ResultAdapter != nil {
-			results, err = plan.ResultAdapter.Transform(results)
-			if err != nil {
-				doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
-			}
-		}
-
 		searchResponse := queryTranslator.MakeSearchResponse(plan.Queries, results)
 
 		doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 	}()
 }
 
-func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON) (responseBody []byte, err error) {
-
-	doneCh := make(chan AsyncSearchWithError, 1)
-
-	q.transformQueries(ctx, plan, table)
-
-	if resp, err := q.checkProperties(ctx, plan, table, queryTranslator); err != nil {
-		return resp, err
-	}
-
-	q.runExecutePlanAsync(ctx, plan, queryTranslator, table, doneCh, nil)
-
-	response := <-doneCh
-
-	responseBody, err = response.response.Marshal()
-	if err != nil {
-		return nil, err
-	}
-
-	contextValues := tracing.ExtractValues(ctx)
-	bodyAsBytes, _ := body.Bytes()
-	pushAlternativeInfo(q.quesmaManagementConsole, contextValues.RequestId, "", contextValues.RequestPath, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
-
-	return responseBody, response.err
-
-}
-
 func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, optComparePlansCh chan<- executionPlanResult) (responseBody []byte, err error) {
 	contextValues := tracing.ExtractValues(ctx)
 	id := contextValues.RequestId
 	path := contextValues.RequestPath
+	opaqueId := contextValues.OpaqueId
 
 	doneCh := make(chan AsyncSearchWithError, 1)
 
 	sendMainPlanResult := func(responseBody []byte, err error) {
 		if optComparePlansCh != nil {
 			optComparePlansCh <- executionPlanResult{
+				isMain:       true,
 				plan:         plan,
 				err:          err,
 				responseBody: responseBody,
+				endTime:      time.Now(),
 			}
 		}
 	}
@@ -291,67 +253,17 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 			go func() { // Async search takes longer. Return partial results and wait for
 				recovery.LogPanicWithCtx(ctx)
 				res := <-doneCh
-				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res, true)
+				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res, true, opaqueId)
 				sendMainPlanResult(responseBody, err)
 			}()
 			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
 		case res := <-doneCh:
 			responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res,
-				optAsync.keepOnCompletion)
+				optAsync.keepOnCompletion, opaqueId)
 			sendMainPlanResult(responseBody, err)
 			return responseBody, err
 		}
 	}
-}
-
-// runAlternativePlanAndComparison runs the alternative plan and comparison method in the background. It returns a channel to collect the main plan results.
-func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alternativePlan *model.ExecutionPlan, table *clickhouse.Table, body types.JSON, queryTranslator IQueryTranslator) chan<- executionPlanResult {
-	numberOfExpectedResults := len([]string{model.MainExecutionPlan, model.AlternativeExecutionPlan})
-
-	optComparePlansCh := make(chan executionPlanResult, numberOfExpectedResults)
-
-	// run alternative plan in the background (generator)
-	go func(optComparePlansCh chan<- executionPlanResult) {
-		defer recovery.LogPanic()
-
-		// results are passed via channel
-		body, err := q.executeAlternativePlan(ctx, alternativePlan, queryTranslator, table, body)
-
-		optComparePlansCh <- executionPlanResult{
-			plan:         alternativePlan,
-			err:          err,
-			responseBody: body,
-		}
-
-	}(optComparePlansCh)
-
-	// collector
-	go func(optComparePlansCh <-chan executionPlanResult) {
-		defer recovery.LogPanic()
-		var alternative executionPlanResult
-		var main executionPlanResult
-
-		for range numberOfExpectedResults {
-			r := <-optComparePlansCh
-			logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan.Name)
-			if r.plan.Name == model.AlternativeExecutionPlan {
-				alternative = r
-			} else if r.plan.Name == model.MainExecutionPlan {
-				main = r
-			}
-		}
-
-		// TODO add JSON comparison here
-		if string(alternative.responseBody) != string(main.responseBody) {
-			logger.ErrorWithCtx(ctx).Msgf("alternative plan returned different results")
-			// dump the results here, or
-		} else {
-			logger.InfoWithCtx(ctx).Msgf("alternative plan returned same results")
-		}
-
-	}(optComparePlansCh)
-
-	return optComparePlansCh
 }
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
@@ -433,7 +345,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
 	}
 
-	queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName)
+	queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName, q.cfg)
 
 	plan, err := queryTranslator.ParseQuery(body)
 
@@ -457,27 +369,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	plan.StartTime = startTime
 	plan.Name = model.MainExecutionPlan
 
-	var alternativePlan *model.ExecutionPlan
-
-	// TODO add alternative plan here
-
-	/* You may use this code to run alternative plan for checking how it works
-	   It breaks the tests. So, it is commented out.
-
-	alternativePlan = &model.ExecutionPlan{
-		IndexPattern:          plan.IndexPattern,
-		QueryRowsTransformers: plan.QueryRowsTransformers,
-		ResultAdapter:         plan.ResultAdapter,
-		Queries:               plan.Queries,
-		StartTime:             plan.StartTime,
-		Name:                  model.AlternativeExecutionPlan,
-	}
-	*/
+	// Some flags may trigger alternative execution plans, this is primary for dev
+	alternativePlan, alternativePlanExecutor := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedTableName, plan, queryTranslator, body, table, optAsync != nil)
 
 	var optComparePlansCh chan<- executionPlanResult
 
 	if alternativePlan != nil {
-		optComparePlansCh = q.runAlternativePlanAndComparison(ctx, alternativePlan, table, body, queryTranslator)
+		optComparePlansCh = q.runAlternativePlanAndComparison(ctx, alternativePlan, alternativePlanExecutor, body)
 	}
 
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh)
@@ -496,7 +394,7 @@ func (q *QueryRunner) removeNotExistingTables(sourcesClickhouse []string) []stri
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncId string,
-	startTime time.Time, path string, body types.JSON, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
+	startTime time.Time, path string, body types.JSON, result AsyncSearchWithError, keep bool, opaqueId string) (responseBody []byte, err error) {
 	took := time.Since(startTime)
 	if result.err != nil {
 		if keep {
@@ -509,6 +407,7 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
 			AsyncId:                asyncId,
+			OpaqueId:               opaqueId,
 			Path:                   path,
 			IncomingQueryBody:      bodyAsBytes,
 			QueryBodyTranslated:    result.translatedQueryBody,
@@ -523,6 +422,7 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     id,
 		AsyncId:                asyncId,
+		OpaqueId:               opaqueId,
 		Path:                   path,
 		IncomingQueryBody:      bodyAsBytes,
 		QueryBodyTranslated:    result.translatedQueryBody,
@@ -848,7 +748,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 
 func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
-	transformer := registry.ResultTransformerFor(table.Name, q.cfg, q.schemaRegistry)
+	transformer := &replaceColumNamesWithFieldNames{}
 
 	res, err := transformer.Transform(results)
 
@@ -872,10 +772,11 @@ func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string
 		SecondaryTook:          time.Since(startTime)})
 }
 
-func pushAlternativeInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []types.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
+func pushAlternativeInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, OpaqueId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []types.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     Id,
 		AsyncId:                AsyncId,
+		OpaqueId:               OpaqueId,
 		Path:                   Path,
 		IncomingQueryBody:      IncomingQueryBody,
 		QueryBodyTranslated:    QueryBodyTranslated,

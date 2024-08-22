@@ -3,9 +3,7 @@
 package optimize
 
 import (
-	"fmt"
 	"quesma/model"
-	"quesma/plugins"
 	"quesma/quesma/config"
 	"strings"
 	"time"
@@ -25,7 +23,7 @@ type OptimizePipeline struct {
 	optimizations []OptimizeTransformer
 }
 
-func NewOptimizePipeline(config config.QuesmaConfiguration) plugins.QueryTransformer {
+func NewOptimizePipeline(config config.QuesmaConfiguration) model.QueryTransformer {
 
 	return &OptimizePipeline{
 		config: config,
@@ -66,9 +64,7 @@ func (s *OptimizePipeline) findConfig(transformer OptimizeTransformer, queries [
 
 	// first we check index specific settings
 	if indexCfg, ok := s.config.IndexConfig[indexName]; ok {
-		fmt.Println("Index specific settings found", indexName)
 		if optimizerCfg, ok := indexCfg.EnabledOptimizers[transformer.Name()]; ok {
-			fmt.Println("Optimizer specific settings found", transformer.Name(), optimizerCfg.Enabled)
 			return optimizerCfg.Enabled, optimizerCfg.Properties
 		}
 	}

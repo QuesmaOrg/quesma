@@ -6,12 +6,24 @@ import (
 	"context"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/model/bucket_aggregations"
 	"quesma/model/typical_queries"
 )
 
 func IsNonAggregationQuery(query *model.Query) bool {
 	switch query.Type.(type) {
-	case typical_queries.Count, *typical_queries.Hits, nil: // FIXME erase nil, always have type non-empty, but it's not that completely easy, as it seems
+	// FIXME erase nil, always have type non-empty, but it's not that completely easy, as it seems
+	case typical_queries.Count, *typical_queries.Hits, nil:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAnyKindOfTerms returns true if queryType is Terms, Significant Terms, or Multi Terms
+func IsAnyKindOfTerms(queryType model.QueryType) bool {
+	switch queryType.(type) {
+	case bucket_aggregations.Terms, bucket_aggregations.MultiTerms:
 		return true
 	default:
 		return false

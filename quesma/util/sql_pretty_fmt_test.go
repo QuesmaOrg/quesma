@@ -133,3 +133,62 @@ LIMIT 6`
 	sqlFormatted := SqlPrettyPrint([]byte(sql))
 	assert.Equal(t, expect, sqlFormatted)
 }
+
+func TestSqlPrettyPancake(t *testing.T) {
+	sql := `
+SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+  "metric__2__1_col_0", "aggr__2__8__key_0", "aggr__2__8__count",
+  "aggr__2__8__order_1", "metric__2__8__1_col_0", "aggr__2__8__4__key_0",
+  "aggr__2__8__4__count", "aggr__2__8__4__order_1"
+FROM (
+  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+    "metric__2__1_col_0", "aggr__2__8__key_0", "aggr__2__8__count",
+    "aggr__2__8__order_1", "metric__2__8__1_col_0", "aggr__2__8__4__key_0",
+    "aggr__2__8__4__count", "aggr__2__8__4__order_1",
+    dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1" DESC,
+    "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
+    dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
+    "aggr__2__8__order_1" ASC, "aggr__2__8__key_0" ASC) AS
+    "aggr__2__8__order_1_rank",
+    dense_rank() OVER (PARTITION BY "aggr__2__key_0" , "aggr__2__8__key_0" ORDER
+    BY "aggr__2__8__4__order_1" DESC, "aggr__2__8__4__key_0" ASC) AS
+    "aggr__2__8__4__order_1_rank"
+  FROM (
+    SELECT "surname" AS "aggr__2__key_0",
+      sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
+      "aggr__2__count",
+      avgOrNullMerge("aggr__2__order_1_part") OVER (PARTITION BY
+      "aggr__2__key_0") AS "aggr__2__order_1",
+      avgOrNullMerge("metric__2__1_col_0_part") OVER (PARTITION BY
+      "aggr__2__key_0") AS "metric__2__1_col_0",
+      COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
+      sum("aggr__2__8__count_part") OVER (PARTITION BY "aggr__2__key_0",
+      "aggr__2__8__key_0") AS "aggr__2__8__count",
+      sumOrNull("aggr__2__8__order_1_part") OVER (PARTITION BY "aggr__2__key_0",
+      "aggr__2__8__key_0") AS "aggr__2__8__order_1",
+      sumOrNull("total") AS "metric__2__8__1_col_0",
+      "organName" AS "aggr__2__8__4__key_0", count(*) AS "aggr__2__8__4__count",
+      "organName" AS "aggr__2__8__4__order_1",
+      count(*) AS "aggr__2__count_part",
+      avgOrNullState("total") AS "aggr__2__order_1_part",
+      avgOrNullState("total") AS "metric__2__1_col_0_part",
+      count(*) AS "aggr__2__8__count_part",
+      sumOrNull ("total") AS "aggr__2__8__order_1_part"
+    FROM "logs-generic-default"
+    GROUP BY "surname" AS "aggr__2__key_0",
+      COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
+      "organName" AS "aggr__2__8__4__key_0"))
+WHERE (("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20) AND
+  "aggr__2__8__4__order_1_rank"<=2)
+ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
+  "aggr__2__8__4__order_1_rank" ASC`
+	expect := strings.Trim(sql, " \n")
+
+	sqlFormatted := SqlPrettyPrint([]byte(sql))
+	println("===== Expected: ")
+
+	println(expect)
+	println("===== Actual: ")
+	println(sqlFormatted)
+	assert.Equal(t, expect, sqlFormatted)
+}

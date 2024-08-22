@@ -15,11 +15,11 @@ import (
 	"quesma/index"
 	"quesma/jsonprocessor"
 	"quesma/logger"
-	"quesma/plugins"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/schema"
+	"quesma/stats"
 	"quesma/telemetry"
 	"quesma/util"
 	"slices"
@@ -30,7 +30,6 @@ import (
 
 const (
 	timestampFieldName = "@timestamp" // it's always DateTime64 for now, don't want to waste time changing that, we don't seem to use that anyway
-	othersFieldName    = "others"
 )
 
 type (
@@ -49,6 +48,7 @@ type (
 	Attribute struct {
 		KeysArrayName   string
 		ValuesArrayName string
+		TypesArrayName  string
 		Type            BaseType
 	}
 	ChTableConfig struct {
@@ -66,7 +66,6 @@ type (
 		ttl                  string // of type Interval, e.g. 3 MONTH, 1 YEAR
 		// look https://clickhouse.com/docs/en/sql-reference/data-types/special-data-types/interval
 		// "" if none
-		hasOthers bool // has additional "others" JSON field for out of schema values
 		// TODO make sure it's unique in schema (there's no other 'others' field)
 		// I (Krzysiek) can write it quickly, but don't want to waste time for it right now.
 		attributes                            []Attribute
@@ -196,7 +195,7 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 
 // updates also Table TODO stop updating table here, find a better solution
 func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Table) string {
-	if !config.hasOthers && len(config.attributes) == 0 {
+	if len(config.attributes) == 0 {
 		_, ok := table.Cols[timestampFieldName]
 		if !config.hasTimestamp || ok {
 			return q
@@ -204,13 +203,6 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 	}
 
 	othersStr, timestampStr, attributesStr := "", "", ""
-	if config.hasOthers {
-		_, ok := table.Cols[othersFieldName]
-		if !ok {
-			othersStr = fmt.Sprintf("%s\"%s\" JSON,\n", util.Indent(1), othersFieldName)
-			table.Cols[othersFieldName] = &Column{Name: othersFieldName, Type: NewBaseType("JSON")}
-		}
-	}
 	if config.hasTimestamp {
 		_, ok := table.Cols[timestampFieldName]
 		if !ok {
@@ -368,7 +360,7 @@ func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema
 }
 
 func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tableName string,
-	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter plugins.TableColumNameFormatter) (string, error) {
+	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter TableColumNameFormatter) (string, error) {
 
 	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName)) + Indexes(jsonData)
 
@@ -399,7 +391,7 @@ func Indexes(m SchemaMap) string {
 	return result.String()
 }
 
-func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig, tableFormatter plugins.TableColumNameFormatter) error {
+func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig, tableFormatter TableColumNameFormatter) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
 	query, err := lm.buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, tableFormatter)
@@ -414,101 +406,169 @@ func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name strin
 	return nil
 }
 
-// This function takes an attributesMap and updates it
-// with the fields that are not valid according to the inferred schema
-func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalidJson types.JSON) {
-	for k, v := range invalidJson {
-		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn], k)
-		attrsMap[AttributesValueColumn] = append(attrsMap[AttributesValueColumn], v)
+func deepCopyMapSliceInterface(original map[string][]interface{}) map[string][]interface{} {
+	copiedMap := make(map[string][]interface{}, len(original))
+	for key, value := range original {
+		copiedSlice := make([]interface{}, len(value))
+		copy(copiedSlice, value) // Copy the slice contents
+		copiedMap[key] = copiedSlice
 	}
+	return copiedMap
 }
 
-// TODO
-// This method should be refactored to use mux.JSON instead of string
-func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValidJson types.JSON, config *ChTableConfig) (string, error) {
+// This function takes an attributesMap, creates a copy and updates it
+// with the fields that are not valid according to the inferred schema
+func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalidJson types.JSON) map[string][]interface{} {
+	newAttrsMap := deepCopyMapSliceInterface(attrsMap)
+	for k, v := range invalidJson {
+		newAttrsMap[AttributesKeyColumn] = append(newAttrsMap[AttributesKeyColumn], k)
+		newAttrsMap[AttributesValueColumn] = append(newAttrsMap[AttributesValueColumn], v)
+		newAttrsMap[AttributesValueType] = append(newAttrsMap[AttributesValueType], NewType(v).String())
+	}
+	return newAttrsMap
+}
+
+// This function takes an attributesMap and arrayName and returns
+// the values of the array named arrayName from the attributesMap
+func getAttributesByArrayName(arrayName string,
+	attrsMap map[string][]interface{}) []string {
+	var attributes []string
+	for k, v := range attrsMap {
+		if k == arrayName {
+			for _, val := range v {
+				attributes = append(attributes, fmt.Sprintf("%s", val))
+			}
+		}
+	}
+	return attributes
+}
+
+// This function generates ALTER TABLE commands for adding new columns
+// to the table based on the attributesMap and the table name
+// AttributesMap contains the attributes that are not part of the schema
+// Function has side effects, it modifies the table.Cols map
+// and removes the attributes that were promoted to columns
+func (lm *LogManager) generateNewColumns(
+	attrsMap map[string][]interface{},
+	table *Table) []string {
+	var alterCmd []string
+	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
+	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
+	var deleteIndexes []int
+	for i := 0; i < len(attrKeys); i++ {
+		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" Nullable(%s)", table.Name, attrKeys[i], attrTypes[i])
+		table.Cols[attrKeys[i]] = &Column{Name: attrKeys[i], Type: NewBaseType(attrTypes[i]), Modifiers: "Nullable"}
+		alterCmd = append(alterCmd, alterTable)
+		deleteIndexes = append(deleteIndexes, i)
+	}
+	for i := len(deleteIndexes) - 1; i >= 0; i-- {
+		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn][:deleteIndexes[i]], attrsMap[AttributesKeyColumn][deleteIndexes[i]+1:]...)
+		attrsMap[AttributesValueType] = append(attrsMap[AttributesValueType][:deleteIndexes[i]], attrsMap[AttributesValueType][deleteIndexes[i]+1:]...)
+		attrsMap[AttributesValueColumn] = append(attrsMap[AttributesValueColumn][:deleteIndexes[i]], attrsMap[AttributesValueColumn][deleteIndexes[i]+1:]...)
+	}
+	return alterCmd
+}
+
+func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, error) {
+	var nonSchemaStr string
+	if len(attrsMap) <= 0 {
+		return nonSchemaStr, nil
+	}
+	attributesBytes, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
+	if err != nil {
+		return "", err
+	}
+	nonSchemaStr = string(attributesBytes[1 : len(attributesBytes)-1])
+	return nonSchemaStr, nil
+}
+
+func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON, inValidJson types.JSON,
+	config *ChTableConfig, generateNewColumns bool) (string, []string, error) {
 
 	jsonData, err := json.Marshal(data)
 
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	js := string(jsonData)
+	jsonDataAsString := string(jsonData)
 
 	// we find all non-schema fields
-	m, err := types.ParseJSON(js)
+	jsonMap, err := types.ParseJSON(jsonDataAsString)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	wasReplaced := replaceDotsWithSeparator(m)
-	if !config.hasOthers && len(config.attributes) == 0 {
-		if wasReplaced {
-			rawBytes, err := m.Bytes()
-			if err != nil {
-				return "", err
-			}
-			js = string(rawBytes)
+	wasReplaced := replaceDotsWithSeparator(jsonMap)
+
+	if len(config.attributes) == 0 {
+		// if we don't have any attributes, and it wasn't replaced,
+		// we don't need to modify the json
+		if !wasReplaced {
+			return jsonDataAsString, nil, nil
 		}
-		return js, nil
+		rawBytes, err := jsonMap.Bytes()
+		if err != nil {
+			return "", nil, err
+		}
+		return string(rawBytes), nil, nil
 	}
 
-	t := lm.FindTable(tableName)
-	onlySchemaFields := RemoveTypeMismatchSchemaFields(m, t)
-	schemaFieldsJson, err := json.Marshal(onlySchemaFields)
+	table := lm.FindTable(tableName)
+	schemaFieldsJson, err := json.Marshal(jsonMap)
 
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	mDiff := DifferenceMap(m, t) // TODO change to DifferenceMap(m, t)
+	mDiff := DifferenceMap(jsonMap, table) // TODO change to DifferenceMap(m, t)
 
-	if len(mDiff) == 0 && string(schemaFieldsJson) == js && len(inValidJson) == 0 { // no need to modify, just insert 'js'
-		return js, nil
+	if len(mDiff) == 0 && string(schemaFieldsJson) == jsonDataAsString && len(inValidJson) == 0 { // no need to modify, just insert 'js'
+		return jsonDataAsString, nil, nil
 	}
-	var attrsMap map[string][]interface{}
-	var othersMap SchemaMap
-	if len(config.attributes) > 0 {
-		attrsMap, othersMap, _ = BuildAttrsMapAndOthers(mDiff, config)
-	} else if config.hasOthers {
-		othersMap = mDiff
-	} else {
-		return "", fmt.Errorf("no attributes or others in config, but received non-schema fields: %s", mDiff)
+
+	// check attributes precondition
+	if len(config.attributes) <= 0 {
+		return "", nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
+	}
+	attrsMap, _ := BuildAttrsMap(mDiff, config)
+
+	// generateNewColumns is called on original attributes map
+	// before adding invalid fields to it
+	// otherwise it would contain invalid fields e.g. with wrong types
+	// we only want to add fields that are not part of the schema e.g we don't
+	// have columns for them
+	var alterCmd []string
+	if generateNewColumns {
+		alterCmd = lm.generateNewColumns(attrsMap, table)
 	}
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
 	// generating correct update query
-	addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
-	nonSchemaStr := ""
-	if len(attrsMap) > 0 {
-		attrs, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
-		if err != nil {
-			return "", err
-		}
-		nonSchemaStr = string(attrs[1 : len(attrs)-1])
-	}
-	if len(othersMap) > 0 {
-		others, err := json.Marshal(othersMap)
-		if err != nil {
-			return "", err
-		}
-		if nonSchemaStr != "" {
-			nonSchemaStr += "," // need to watch out where we input commas, CH doesn't tolerate trailing ones
-		}
-		nonSchemaStr += fmt.Sprintf(`"%s":%s`, othersFieldName, others)
-	}
-	onlySchemaFields = RemoveNonSchemaFields(m, t)
-	schemaFieldsJson, err = json.Marshal(onlySchemaFields)
+	// addInvalidJsonFieldsToAttributes returns a new map with invalid fields added
+	// this map is then used to generate non-schema fields string
+	attrsMapWithInvalidFields := addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
+	nonSchemaStr, err := generateNonSchemaFieldsString(attrsMapWithInvalidFields)
+
 	if err != nil {
-		return "", err
+		return "", nil, err
+	}
+
+	onlySchemaFields := RemoveNonSchemaFields(jsonMap, table)
+
+	schemaFieldsJson, err = json.Marshal(onlySchemaFields)
+
+	if err != nil {
+		return "", nil, err
 	}
 	comma := ""
 	if nonSchemaStr != "" && len(schemaFieldsJson) > 2 {
 		comma = "," // need to watch out where we input commas, CH doesn't tolerate trailing ones
 	}
-	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), nil
+
+	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), alterCmd, nil
 }
 
-func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName string, jsonData types.JSON, tableFormatter plugins.TableColumNameFormatter) (*ChTableConfig, error) {
+func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName string, jsonData types.JSON, tableFormatter TableColumNameFormatter) (*ChTableConfig, error) {
 	table := lm.FindTable(tableName)
 	var config *ChTableConfig
 	if table == nil {
@@ -531,7 +591,9 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 	return config, nil
 }
 
-func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON, transformer plugins.IngestTransformer, tableFormatter plugins.TableColumNameFormatter) error {
+func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string,
+	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	tableFormatter TableColumNameFormatter) ([]string, error) {
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
@@ -540,7 +602,7 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 	for _, jsonValue := range jsonData {
 		result, err := preIngestTransformer.Transform(jsonValue)
 		if err != nil {
-			return fmt.Errorf("error while rewriting json: %v", err)
+			return nil, fmt.Errorf("error while rewriting json: %v", err)
 		}
 		processed = append(processed, result)
 	}
@@ -548,10 +610,23 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 
 	tableConfig, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0], tableFormatter)
 	if err != nil {
+		return nil, err
+	}
+	return lm.GenerateSqlStatements(ctx, tableName, jsonData, tableConfig, transformer)
+}
+
+func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
+	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	tableFormatter TableColumNameFormatter) error {
+	statements, err := lm.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter)
+	if err != nil {
 		return err
 	}
-	return lm.Insert(ctx, tableName, jsonData, tableConfig, transformer)
-
+	// We expect to have date format set to `best_effort`
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
+		"date_time_input_format": "best_effort",
+	}))
+	return lm.executeStatements(ctx, statements)
 }
 
 // This function removes fields that are part of anotherDoc from inputDoc
@@ -571,44 +646,57 @@ func (lm *LogManager) execute(ctx context.Context, query string) error {
 	return err
 }
 
-func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig, transformer plugins.IngestTransformer) error {
+func (lm *LogManager) executeStatements(ctx context.Context, queries []string) error {
+	for _, q := range queries {
+		err := lm.execute(ctx, q)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("error executing query: %v", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName string, jsons []types.JSON,
+	config *ChTableConfig, transformer jsonprocessor.IngestTransformer) ([]string, error) {
+
+	// Below const tells if we should generate new columns for the table
+	// or add them to the attributes map
+	const generateNewColumns = false
+
 	var jsonsReadyForInsertion []string
+	var alterCmd []string
 	for _, jsonValue := range jsons {
 		preprocessedJson, err := transformer.Transform(jsonValue)
-
 		if err != nil {
-			return fmt.Errorf("error IngestTransformer: %v", err)
+			return nil, fmt.Errorf("error IngestTransformer: %v", err)
 		}
-
 		// Validate the input JSON
 		// against the schema
 		inValidJson, err := lm.validateIngest(tableName, preprocessedJson)
 		if err != nil {
-			return fmt.Errorf("error validation: %v", err)
+			return nil, fmt.Errorf("error validation: %v", err)
 		}
 
+		stats.GlobalStatistics.UpdateNonSchemaValues(lm.cfg, tableName,
+			inValidJson, NestedSeparator)
 		// Remove invalid fields from the input JSON
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
-
-		insertJson, err := lm.BuildInsertJson(tableName, preprocessedJson, inValidJson, config)
+		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson, inValidJson, config, generateNewColumns)
+		alterCmd = append(alterCmd, alter...)
 		if err != nil {
-			return fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
+			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
 		}
 		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
 	}
 
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
-	// We expect to have date format set to `best_effort`
-	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
-		"date_time_input_format": "best_effort",
-	}))
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
-	err := lm.execute(ctx, insert)
-	if err != nil {
-		return end_user_errors.GuessClickhouseErrorType(err).InternalDetails("insert into table '%s' failed", tableName)
-	} else {
-		return nil
-	}
+
+	var statements []string
+	statements = append(statements, alterCmd...)
+	statements = append(statements, insert)
+	return statements, nil
 }
 
 func (lm *LogManager) FindTable(tableName string) (result *Table) {
@@ -666,7 +754,7 @@ func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager
 
 // right now only for tests purposes
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
-	return &LogManager{chDb: db, tableDiscovery: newTableDiscoveryWith(config.QuesmaConfiguration{}, NewSchemaManagement(db), *tables), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{chDb: db, tableDiscovery: newTableDiscoveryWith(config.QuesmaConfiguration{}, db, *tables), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewLogManagerEmpty() *LogManager {
@@ -684,7 +772,6 @@ func NewOnlySchemaFieldsCHConfig() *ChTableConfig {
 		partitionBy:                           "",
 		primaryKey:                            "",
 		ttl:                                   "",
-		hasOthers:                             false,
 		attributes:                            []Attribute{NewDefaultStringAttribute()},
 		castUnsupportedAttrValueTypesToString: false,
 		preferCastingToOthers:                 false,
@@ -700,7 +787,6 @@ func NewDefaultCHConfig() *ChTableConfig {
 		partitionBy:          "",
 		primaryKey:           "",
 		ttl:                  "",
-		hasOthers:            false,
 		attributes: []Attribute{
 			NewDefaultInt64Attribute(),
 			NewDefaultFloat64Attribute(),
@@ -721,7 +807,6 @@ func NewNoTimestampOnlyStringAttrCHConfig() *ChTableConfig {
 		partitionBy:          "",
 		primaryKey:           "",
 		ttl:                  "",
-		hasOthers:            false,
 		attributes: []Attribute{
 			NewDefaultStringAttribute(),
 		},
@@ -736,7 +821,6 @@ func NewChTableConfigNoAttrs() *ChTableConfig {
 		timestampDefaultsNow:                  false,
 		engine:                                "MergeTree",
 		orderBy:                               "(" + `"@timestamp"` + ")",
-		hasOthers:                             false,
 		attributes:                            []Attribute{},
 		castUnsupportedAttrValueTypesToString: true,
 		preferCastingToOthers:                 true,
@@ -749,7 +833,6 @@ func NewChTableConfigFourAttrs() *ChTableConfig {
 		timestampDefaultsNow: true,
 		engine:               "MergeTree",
 		orderBy:              "(" + "`@timestamp`" + ")",
-		hasOthers:            false,
 		attributes: []Attribute{
 			NewDefaultInt64Attribute(),
 			NewDefaultFloat64Attribute(),
@@ -768,7 +851,6 @@ func NewChTableConfigTimestampStringAttr() *ChTableConfig {
 		attributes:                            []Attribute{NewDefaultStringAttribute()},
 		engine:                                "MergeTree",
 		orderBy:                               "(" + "`@timestamp`" + ")",
-		hasOthers:                             false,
 		castUnsupportedAttrValueTypesToString: true,
 		preferCastingToOthers:                 true,
 	}

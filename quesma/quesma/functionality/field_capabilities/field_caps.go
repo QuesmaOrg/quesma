@@ -11,7 +11,6 @@ import (
 	"quesma/elasticsearch/elasticsearch_field_types"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/plugins/registry"
 	"quesma/quesma/config"
 	"quesma/quesma/errors"
 	"quesma/schema"
@@ -72,13 +71,7 @@ func handleFieldCapsIndex(cfg config.QuesmaConfiguration, schemaRegistry schema.
 					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s.text", fieldName.AsString()), schema.TypeText, resolvedIndex)
 				}
 			}
-			transformer := registry.FieldCapsTransformerFor(resolvedIndex, cfg, schemaRegistry)
-			var err error
-			fields, err = transformer.Transform(fields)
 
-			if err != nil {
-				return nil, err
-			}
 		} else {
 			logger.Error().Msgf("no schema found for index %s", resolvedIndex)
 		}
@@ -142,6 +135,8 @@ func asElasticType(t schema.Type) string {
 		return elasticsearch_field_types.FieldTypeObject
 	case schema.TypePoint.Name:
 		return elasticsearch_field_types.FieldTypeGeoPoint
+	case schema.TypeInteger.Name:
+		return elasticsearch_field_types.FieldTypeInteger
 	default:
 		return elasticsearch_field_types.FieldTypeText
 	}

@@ -4,6 +4,7 @@ package clickhouse
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"quesma/end_user_errors"
@@ -15,6 +16,17 @@ import (
 	"sync/atomic"
 	"time"
 )
+
+type DbKind int
+
+const (
+	ClickHouse DbKind = iota //"clickhouse"
+	Hydrolix                 // = "hydrolix"
+)
+
+func (d DbKind) String() string {
+	return [...]string{"clickhouse", "hydrolix"}[d]
+}
 
 type TableDiscovery interface {
 	ReloadTableDefinitions()
@@ -28,8 +40,8 @@ type TableDiscovery interface {
 
 type tableDiscovery struct {
 	cfg                               config.QuesmaConfiguration
+	dbConnPool                        *sql.DB
 	tableVerifier                     tableVerifier
-	SchemaManagement                  *SchemaManagement
 	tableDefinitions                  *atomic.Pointer[TableMap]
 	tableDefinitionsAccessUnixSec     atomic.Int64
 	tableDefinitionsLastReloadUnixSec atomic.Int64
@@ -37,12 +49,12 @@ type tableDiscovery struct {
 	ReloadTablesError                 error
 }
 
-func NewTableDiscovery(cfg config.QuesmaConfiguration, schemaManagement *SchemaManagement) TableDiscovery {
+func NewTableDiscovery(cfg config.QuesmaConfiguration, dbConnPool *sql.DB) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
 	result := &tableDiscovery{
 		cfg:              cfg,
-		SchemaManagement: schemaManagement,
+		dbConnPool:       dbConnPool,
 		tableDefinitions: &tableDefinitions,
 		forceReloadCh:    make(chan chan<- struct{}),
 	}
@@ -71,12 +83,12 @@ func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema
 	return tables
 }
 
-func newTableDiscoveryWith(cfg config.QuesmaConfiguration, schemaManagement *SchemaManagement, tables TableMap) TableDiscovery {
+func newTableDiscoveryWith(cfg config.QuesmaConfiguration, dbConnPool *sql.DB, tables TableMap) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(&tables)
 	result := &tableDiscovery{
 		cfg:              cfg,
-		SchemaManagement: schemaManagement,
+		dbConnPool:       dbConnPool,
 		tableDefinitions: &tableDefinitions,
 		forceReloadCh:    make(chan chan<- struct{}),
 	}
@@ -84,73 +96,73 @@ func newTableDiscoveryWith(cfg config.QuesmaConfiguration, schemaManagement *Sch
 	return result
 }
 
-func (sl *tableDiscovery) TableDefinitionsFetchError() error {
-	return sl.ReloadTablesError
+func (td *tableDiscovery) TableDefinitionsFetchError() error {
+	return td.ReloadTablesError
 }
 
-func (sl *tableDiscovery) TableAutodiscoveryEnabled() bool {
-	return sl.cfg.IndexConfig == nil
+func (td *tableDiscovery) TableAutodiscoveryEnabled() bool {
+	return td.cfg.IndexConfig == nil
 }
 
-func (sl *tableDiscovery) LastAccessTime() time.Time {
-	timeMs := sl.tableDefinitionsAccessUnixSec.Load()
+func (td *tableDiscovery) LastAccessTime() time.Time {
+	timeMs := td.tableDefinitionsAccessUnixSec.Load()
 	return time.Unix(timeMs, 0)
 }
 
-func (sl *tableDiscovery) LastReloadTime() time.Time {
-	timeMs := sl.tableDefinitionsLastReloadUnixSec.Load()
+func (td *tableDiscovery) LastReloadTime() time.Time {
+	timeMs := td.tableDefinitionsLastReloadUnixSec.Load()
 	return time.Unix(timeMs, 0)
 }
 
-func (sl *tableDiscovery) ForceReloadCh() <-chan chan<- struct{} {
-	return sl.forceReloadCh
+func (td *tableDiscovery) ForceReloadCh() <-chan chan<- struct{} {
+	return td.forceReloadCh
 }
 
-func (sl *tableDiscovery) ReloadTableDefinitions() {
-	sl.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
+func (td *tableDiscovery) ReloadTableDefinitions() {
+	td.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 	logger.Debug().Msg("reloading tables definitions")
 	var configuredTables map[string]discoveredTable
 	databaseName := "default"
-	if sl.cfg.ClickHouse.Database != "" {
-		databaseName = sl.cfg.ClickHouse.Database
+	if td.cfg.ClickHouse.Database != "" {
+		databaseName = td.cfg.ClickHouse.Database
 	}
-	if tables, err := sl.SchemaManagement.readTables(databaseName); err != nil {
+	if tables, err := td.readTables(databaseName); err != nil {
 		var endUserError *end_user_errors.EndUserError
 		if errors.As(err, &endUserError) {
 			logger.ErrorWithCtxAndReason(context.Background(), endUserError.Reason()).Msgf("could not describe tables: %v", err)
 		} else {
 			logger.Error().Msgf("could not describe tables: %v", err)
 		}
-		sl.ReloadTablesError = err
-		sl.tableDefinitions.Store(NewTableMap())
-		sl.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
+		td.ReloadTablesError = err
+		td.tableDefinitions.Store(NewTableMap())
+		td.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 		return
 	} else {
-		if sl.TableAutodiscoveryEnabled() {
-			configuredTables = sl.autoConfigureTables(tables, databaseName)
+		if td.TableAutodiscoveryEnabled() {
+			configuredTables = td.autoConfigureTables(tables, databaseName)
 		} else {
-			configuredTables = sl.configureTables(tables, databaseName)
+			configuredTables = td.configureTables(tables, databaseName)
 		}
 	}
-	sl.ReloadTablesError = nil
-	sl.verify(configuredTables)
-	sl.populateTableDefinitions(configuredTables, databaseName, sl.cfg)
+	td.ReloadTablesError = nil
+	td.verify(configuredTables)
+	td.populateTableDefinitions(configuredTables, databaseName, td.cfg)
 }
 
 // configureTables confronts the tables discovered in the database with the configuration provided by the user, returning final list of tables managed by Quesma
-func (sl *tableDiscovery) configureTables(tables map[string]map[string]string, databaseName string) (configuredTables map[string]discoveredTable) {
+func (td *tableDiscovery) configureTables(tables map[string]map[string]string, databaseName string) (configuredTables map[string]discoveredTable) {
 	configuredTables = make(map[string]discoveredTable)
 	var explicitlyDisabledTables, notConfiguredTables []string
 	for table, columns := range tables {
-		if indexConfig, found := sl.cfg.IndexConfig[table]; found {
+		if indexConfig, found := td.cfg.IndexConfig[table]; found {
 			if indexConfig.Enabled {
 				for colName := range columns {
 					if _, exists := indexConfig.Aliases[colName]; exists {
 						logger.Error().Msgf("column [%s] clashes with an existing alias, table [%s]", colName, table)
 					}
 				}
-				comment := sl.SchemaManagement.tableComment(databaseName, table)
-				createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
+				comment := td.tableComment(databaseName, table)
+				createTableQuery := td.createTableQuery(databaseName, table)
 				configuredTables[table] = discoveredTable{table, columns, indexConfig, comment, createTableQuery}
 			} else {
 				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
@@ -169,18 +181,18 @@ func (sl *tableDiscovery) configureTables(tables map[string]map[string]string, d
 }
 
 // autoConfigureTables takes the list of discovered tables and automatically configures them, returning the final list of tables managed by Quesma
-func (sl *tableDiscovery) autoConfigureTables(tables map[string]map[string]string, databaseName string) (configuredTables map[string]discoveredTable) {
+func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]string, databaseName string) (configuredTables map[string]discoveredTable) {
 	configuredTables = make(map[string]discoveredTable)
 	var autoDiscoResults strings.Builder
 	logger.Info().Msg("Index configuration empty, running table auto-discovery")
 	for table, columns := range tables {
-		comment := sl.SchemaManagement.tableComment(databaseName, table)
-		createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
+		comment := td.tableComment(databaseName, table)
+		createTableQuery := td.createTableQuery(databaseName, table)
 		var maybeTimestampField string
-		if sl.cfg.Hydrolix.IsNonEmpty() {
-			maybeTimestampField = sl.SchemaManagement.tableTimestampField(databaseName, table, Hydrolix)
+		if td.cfg.Hydrolix.IsNonEmpty() {
+			maybeTimestampField = td.tableTimestampField(databaseName, table, Hydrolix)
 		} else {
-			maybeTimestampField = sl.SchemaManagement.tableTimestampField(databaseName, table, ClickHouse)
+			maybeTimestampField = td.tableTimestampField(databaseName, table, ClickHouse)
 		}
 		if maybeTimestampField != "" {
 			configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{TimestampField: &maybeTimestampField}, comment, createTableQuery}
@@ -195,7 +207,7 @@ func (sl *tableDiscovery) autoConfigureTables(tables map[string]map[string]strin
 	return
 }
 
-func (sl *tableDiscovery) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg config.QuesmaConfiguration) {
+func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg config.QuesmaConfiguration) {
 	tableMap := NewTableMap()
 	for tableName, resTable := range configuredTables {
 		var columnsMap = make(map[string]*Column)
@@ -244,7 +256,7 @@ func (sl *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 		}
 	}
 
-	existing := sl.tableDefinitions.Load()
+	existing := td.tableDefinitions.Load()
 	existing.Range(func(key string, _ *Table) bool {
 		if !tableMap.Has(key) {
 			logger.Info().Msgf("table %s is no longer found in the database, ignoring", key)
@@ -261,26 +273,26 @@ func (sl *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 	if len(discoveredTables) > 0 {
 		logger.Info().Msgf("discovered new tables: %s", discoveredTables)
 	}
-	sl.tableDefinitions.Store(tableMap)
+	td.tableDefinitions.Store(tableMap)
 }
 
-func (sl *tableDiscovery) TableDefinitions() *TableMap {
-	sl.tableDefinitionsAccessUnixSec.Store(time.Now().Unix())
-	lastReloadUnixSec := sl.tableDefinitionsLastReloadUnixSec.Load()
+func (td *tableDiscovery) TableDefinitions() *TableMap {
+	td.tableDefinitionsAccessUnixSec.Store(time.Now().Unix())
+	lastReloadUnixSec := td.tableDefinitionsLastReloadUnixSec.Load()
 	lastReload := time.Unix(lastReloadUnixSec, 0)
 	if time.Since(lastReload) > 15*time.Minute { // maybe configure
 		logger.Info().Msg("Table definitions are stale for 15 minutes, forcing reload")
 		doneCh := make(chan struct{}, 1)
-		sl.forceReloadCh <- doneCh
+		td.forceReloadCh <- doneCh
 		<-doneCh
 	}
-	return sl.tableDefinitions.Load()
+	return td.tableDefinitions.Load()
 }
 
-func (sl *tableDiscovery) verify(tables map[string]discoveredTable) {
+func (td *tableDiscovery) verify(tables map[string]discoveredTable) {
 	for _, table := range tables {
 		logger.Info().Msgf("verifying table %s", table.name)
-		if correct, violations := sl.tableVerifier.verify(table); correct {
+		if correct, violations := td.tableVerifier.verify(table); correct {
 			logger.Debug().Msgf("table %s verified", table.name)
 		} else {
 			logger.Warn().Msgf("table %s verification failed: %s", table.name, violations)
@@ -419,4 +431,76 @@ func removePrecision(str string) string {
 	} else {
 		return str
 	}
+}
+
+func (td *tableDiscovery) readTables(database string) (map[string]map[string]string, error) {
+	logger.Debug().Msgf("describing tables: %s", database)
+
+	rows, err := td.dbConnPool.Query("SELECT table, name, type FROM system.columns WHERE database = ?", database)
+	if err != nil {
+		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
+		return map[string]map[string]string{}, err
+	}
+	defer rows.Close()
+	columnsPerTable := make(map[string]map[string]string)
+	for rows.Next() {
+		var table, colName, colType string
+		if err := rows.Scan(&table, &colName, &colType); err != nil {
+			return map[string]map[string]string{}, err
+		}
+		if _, ok := columnsPerTable[table]; !ok {
+			columnsPerTable[table] = make(map[string]string)
+		}
+		columnsPerTable[table][colName] = colType
+	}
+
+	return columnsPerTable, nil
+}
+
+func (td *tableDiscovery) tableTimestampField(database, table string, dbKind DbKind) (primaryKey string) {
+	switch dbKind {
+	case Hydrolix:
+		return td.getTimestampFieldForHydrolix(database, table)
+	case ClickHouse:
+		return td.getTimestampFieldForClickHouse(database, table)
+	}
+	return
+}
+
+func (td *tableDiscovery) getTimestampFieldForHydrolix(database, table string) (timestampField string) {
+	// In Hydrolix, there's always only one column in a table set as a primary timestamp
+	// Ref: https://docs.hydrolix.io/docs/transforms-and-write-schema#primary-timestamp
+	if err := td.dbConnPool.QueryRow("SELECT primary_key FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&timestampField); err != nil {
+		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
+	}
+	return timestampField
+}
+
+func (td *tableDiscovery) getTimestampFieldForClickHouse(database, table string) (timestampField string) {
+	// In ClickHouse, there's no concept of a primary timestamp field, primary keys are often composite,
+	// hence we have to use following heuristic to determine the timestamp field (also just picking the first column if there are multiple)
+	if err := td.dbConnPool.QueryRow("SELECT name FROM system.columns WHERE database = ? AND table = ? AND is_in_primary_key = 1 AND type iLIKE 'DateTime%'", database, table).Scan(&timestampField); err != nil {
+		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
+		return
+	}
+	return timestampField
+}
+
+func (td *tableDiscovery) tableComment(database, table string) (comment string) {
+
+	err := td.dbConnPool.QueryRow("SELECT comment FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&comment)
+
+	if err != nil {
+		logger.Error().Msgf("could not get table comment: %v", err)
+	}
+	return comment
+}
+
+func (td *tableDiscovery) createTableQuery(database, table string) (ddl string) {
+	err := td.dbConnPool.QueryRow("SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&ddl)
+
+	if err != nil {
+		logger.Error().Msgf("could not get table comment: %v", err)
+	}
+	return ddl
 }

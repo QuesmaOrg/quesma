@@ -30,9 +30,10 @@ type (
 		Keys      map[string]*KeyStatistics
 	}
 	KeyStatistics struct {
-		KeyName     string
-		Occurrences int64
-		Values      map[string]*ValueStatistics
+		KeyName         string
+		Occurrences     int64
+		Values          map[string]*ValueStatistics
+		NonSchemaValues map[string]*ValueStatistics
 	}
 	ValueStatistics struct {
 		ValueName   string
@@ -69,7 +70,17 @@ func New() *Statistics {
 	return &statistics
 }
 
-func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
+func (s *Statistics) getValueStatisticsPtr(keyStatistics *KeyStatistics, nonSchemaFields bool) *map[string]*ValueStatistics {
+	switch nonSchemaFields {
+	case true:
+		return &keyStatistics.NonSchemaValues
+	default:
+		return &keyStatistics.Values
+	}
+}
+
+func (s *Statistics) process(cfg config.QuesmaConfiguration, index string,
+	jsonData types.JSON, nonSchemaFields bool, nestedSeparator string) {
 	// TODO reading cfg.IngestStatistics is not thread safe
 	if !cfg.IngestStatistics {
 		return
@@ -91,25 +102,39 @@ func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonD
 		cfg.IngestStatistics = false
 		return
 	}
-	statistics.Requests++
 
 	for key, value := range flatJson {
 		keyStatistics, ok := statistics.Keys[key]
 		if !ok {
-			keyStatistics = &KeyStatistics{KeyName: key, Values: make(map[string]*ValueStatistics)}
+			keyStatistics = &KeyStatistics{KeyName: key, Values: make(map[string]*ValueStatistics),
+				NonSchemaValues: make(map[string]*ValueStatistics)}
 			statistics.Keys[key] = keyStatistics
 		}
 
-		keyStatistics.Occurrences++
+		if !nonSchemaFields {
+			keyStatistics.Occurrences++
+		}
 		valueString := fmt.Sprintf("%v", value)
-		valueStatistics, ok := keyStatistics.Values[valueString]
+		valuesPtr := s.getValueStatisticsPtr(keyStatistics, nonSchemaFields)
+		valueStatistics, ok := (*valuesPtr)[valueString]
 		if !ok {
 			valueStatistics = &ValueStatistics{ValueName: valueString}
-			keyStatistics.Values[valueString] = valueStatistics
+			(*valuesPtr)[valueString] = valueStatistics
 		}
-		valueStatistics.Occurrences++
+		(*valuesPtr)[valueString].Occurrences++
 		valueStatistics.Types = typesOf(valueString)
 	}
+}
+
+func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
+	s.process(cfg, index, jsonData, false, nestedSeparator)
+	if statistics, ok := (*s)[index]; ok {
+		statistics.Requests++
+	}
+}
+
+func (s *Statistics) UpdateNonSchemaValues(cfg config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
+	s.process(cfg, index, jsonData, true, nestedSeparator)
 }
 
 func (s *Statistics) GetIngestStatistics(indexName string) (*IngestStatistics, error) {
@@ -150,9 +175,9 @@ func (is *IngestStatistics) SortedKeyStatistics() (result []*KeyStatistics) {
 	return result
 }
 
-func (vs *KeyStatistics) TopNValues(n int) (result []*ValueStatistics) {
+func topNValuesHelper(n int, values map[string]*ValueStatistics) (result []*ValueStatistics) {
 	mu.Lock()
-	for _, value := range vs.Values {
+	for _, value := range values {
 		result = append(result, value)
 	}
 	mu.Unlock()
@@ -166,6 +191,14 @@ func (vs *KeyStatistics) TopNValues(n int) (result []*ValueStatistics) {
 	})
 
 	return result[:n]
+}
+
+func (vs *KeyStatistics) TopNValues(n int) (result []*ValueStatistics) {
+	return topNValuesHelper(n, vs.Values)
+}
+
+func (vs *KeyStatistics) TopNInvalidValues(n int) (result []*ValueStatistics) {
+	return topNValuesHelper(n, vs.NonSchemaValues)
 }
 
 func typesOf(str string) (types []string) {

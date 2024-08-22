@@ -8,6 +8,7 @@ var (
 	// TODO add more and review existing
 	TypeText         = Type{Name: "text", Properties: []TypeProperty{Searchable, FullText}}
 	TypeKeyword      = Type{Name: "keyword", Properties: []TypeProperty{Searchable, Aggregatable}}
+	TypeInteger      = Type{Name: "integer", Properties: []TypeProperty{Searchable, Aggregatable}}
 	TypeLong         = Type{Name: "long", Properties: []TypeProperty{Searchable, Aggregatable}}
 	TypeUnsignedLong = Type{Name: "unsigned_long", Properties: []TypeProperty{Searchable, Aggregatable}}
 	TypeTimestamp    = Type{Name: "timestamp", Properties: []TypeProperty{Searchable, Aggregatable}}

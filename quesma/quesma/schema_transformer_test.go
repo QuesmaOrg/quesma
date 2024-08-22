@@ -23,7 +23,8 @@ func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
 func Test_ipRangeTransform(t *testing.T) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
-	const StringLiteral = "'String'"
+	const COALESCEPrimitive = "COALESCE"
+	const StringLiteral = "String"
 	const IpFieldContent = "'111.42.223.209/16'"
 	IpFieldName := strconv.Quote("clientip")
 
@@ -33,6 +34,14 @@ func Test_ipRangeTransform(t *testing.T) {
 			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
 			TypeMappings:   map[string]string{IpFieldName: "ip"},
+		},
+		// Identical to kibana_sample_data_logs, but with "nested.clientip"
+		// instead of "clientip"
+		"kibana_sample_data_logs_nested": {
+			Name:           "kibana_sample_data_logs_nested",
+			Enabled:        true,
+			FullTextFields: []string{"message", "content"},
+			TypeMappings:   map[string]string{"nested.clientip": "ip"},
 		},
 		"kibana_sample_data_flights": {
 			Name:           "kibana_sample_data_flights",
@@ -52,6 +61,10 @@ func Test_ipRangeTransform(t *testing.T) {
 				"DestLocation": {Name: "DestLocation", Type: "geo_point"},
 				"clientip":     {Name: "clientip", Type: "ip"},
 			}},
+			"kibana_sample_data_logs_nested": {Columns: map[string]schema.Column{
+				"DestLocation":     {Name: "DestLocation", Type: "geo_point"},
+				"nested::clientip": {Name: "nested::clientip", Type: "ip"},
+			}},
 		}}
 	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: clickhouse.NewLogManagerEmpty()}
@@ -68,8 +81,72 @@ func Test_ipRangeTransform(t *testing.T) {
 						&model.FunctionExpr{
 							Name: CASTPrimitive,
 							Args: []model.Expr{
-								&model.LiteralExpr{Value: IpFieldName},
-								&model.LiteralExpr{Value: StringLiteral},
+								&model.AliasedExpr{
+									Expr: &model.FunctionExpr{
+										Name: COALESCEPrimitive,
+										Args: []model.Expr{
+											&model.LiteralExpr{Value: IpFieldName},
+											&model.LiteralExpr{Value: "'0.0.0.0'"},
+										},
+									},
+									Alias: StringLiteral,
+								},
+							},
+						},
+						&model.LiteralExpr{Value: IpFieldContent},
+					},
+				},
+			},
+		},
+		{
+			TableName: "kibana_sample_data_logs_nested",
+			SelectCommand: model.SelectCommand{
+				FromClause: model.NewTableRef("kibana_sample_data_logs_nested"),
+				Columns:    []model.Expr{model.NewWildcardExpr},
+				WhereClause: &model.FunctionExpr{
+					Name: isIPAddressInRangePrimitive,
+					Args: []model.Expr{
+						&model.FunctionExpr{
+							Name: CASTPrimitive,
+							Args: []model.Expr{
+								&model.AliasedExpr{
+									Expr: &model.FunctionExpr{
+										Name: COALESCEPrimitive,
+										Args: []model.Expr{
+											&model.ColumnRef{ColumnName: "nested::clientip"},
+											&model.LiteralExpr{Value: "'0.0.0.0'"},
+										},
+									},
+									Alias: StringLiteral,
+								},
+							},
+						},
+						&model.LiteralExpr{Value: IpFieldContent},
+					},
+				},
+			},
+		},
+		{
+			TableName: "kibana_sample_data_logs",
+			SelectCommand: model.SelectCommand{
+				FromClause: model.NewTableRef("kibana_sample_data_logs"),
+				Columns:    []model.Expr{model.NewWildcardExpr},
+				WhereClause: &model.FunctionExpr{
+					Name: isIPAddressInRangePrimitive,
+					Args: []model.Expr{
+						&model.FunctionExpr{
+							Name: CASTPrimitive,
+							Args: []model.Expr{
+								&model.AliasedExpr{
+									Expr: &model.FunctionExpr{
+										Name: COALESCEPrimitive,
+										Args: []model.Expr{
+											&model.ColumnRef{ColumnName: IpFieldName},
+											&model.LiteralExpr{Value: "'0.0.0.0'"},
+										},
+									},
+									Alias: StringLiteral,
+								},
 							},
 						},
 						&model.LiteralExpr{Value: IpFieldContent},
@@ -100,8 +177,16 @@ func Test_ipRangeTransform(t *testing.T) {
 						&model.FunctionExpr{
 							Name: CASTPrimitive,
 							Args: []model.Expr{
-								&model.LiteralExpr{Value: IpFieldName},
-								&model.LiteralExpr{Value: StringLiteral},
+								&model.AliasedExpr{
+									Expr: &model.FunctionExpr{
+										Name: COALESCEPrimitive,
+										Args: []model.Expr{
+											&model.LiteralExpr{Value: IpFieldName},
+											&model.LiteralExpr{Value: "'0.0.0.0'"},
+										},
+									},
+									Alias: StringLiteral,
+								},
 							},
 						},
 						&model.LiteralExpr{Value: IpFieldContent},
@@ -137,14 +222,23 @@ func Test_ipRangeTransform(t *testing.T) {
 						},
 					},
 					Op: "AND",
+
 					Right: &model.FunctionExpr{
 						Name: isIPAddressInRangePrimitive,
 						Args: []model.Expr{
 							&model.FunctionExpr{
 								Name: CASTPrimitive,
 								Args: []model.Expr{
-									&model.LiteralExpr{Value: IpFieldName},
-									&model.LiteralExpr{Value: StringLiteral},
+									&model.AliasedExpr{
+										Expr: &model.FunctionExpr{
+											Name: COALESCEPrimitive,
+											Args: []model.Expr{
+												&model.LiteralExpr{Value: IpFieldName},
+												&model.LiteralExpr{Value: "'0.0.0.0'"},
+											},
+										},
+										Alias: StringLiteral,
+									},
 								},
 							},
 							&model.LiteralExpr{Value: IpFieldContent},
@@ -169,6 +263,32 @@ func Test_ipRangeTransform(t *testing.T) {
 					Columns:    []model.Expr{model.NewWildcardExpr},
 					WhereClause: &model.InfixExpr{
 						Left:  &model.LiteralExpr{Value: IpFieldName},
+						Op:    "=",
+						Right: &model.LiteralExpr{Value: IpFieldContent},
+					},
+				}},
+		},
+		{
+			{
+				TableName: "kibana_sample_data_logs_nested",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_logs_nested"),
+					Columns:    []model.Expr{model.NewWildcardExpr},
+					WhereClause: &model.InfixExpr{
+						Left:  &model.ColumnRef{ColumnName: "nested::clientip"},
+						Op:    "=",
+						Right: &model.LiteralExpr{Value: IpFieldContent},
+					},
+				}},
+		},
+		{
+			{
+				TableName: "kibana_sample_data_logs",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_logs"),
+					Columns:    []model.Expr{model.NewWildcardExpr},
+					WhereClause: &model.InfixExpr{
+						Left:  &model.ColumnRef{ColumnName: IpFieldName},
 						Op:    "=",
 						Right: &model.LiteralExpr{Value: IpFieldContent},
 					},

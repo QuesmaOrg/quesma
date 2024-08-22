@@ -48,8 +48,8 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 	// Show Request and SQL
 	if requestFound {
-		buffer.Html(`<div>` + "\n")
 
+		buffer.Html(`<div>` + "\n")
 		buffer.Html(`<div class="query-body">` + "\n")
 		buffer.Html("<p class=\"title\">Original query:</p>\n")
 		buffer.Html(`<pre>`)
@@ -159,6 +159,10 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 		if len(request.AsyncId) > 0 {
 			buffer.Html("<li>").Text("Async id: ").Text(request.AsyncId).Html("</li>\n")
 		}
+		if request.OpaqueId != "" {
+			buffer.Html("<li>").Text("Opaque id: ").Text(request.OpaqueId).Html("</li>\n")
+		}
+
 		if request.unsupported != nil {
 			buffer.Html("<li>").Text("Unsupported: ").Text(*request.unsupported).Html("</li>\n")
 		}

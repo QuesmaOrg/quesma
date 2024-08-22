@@ -3,9 +3,9 @@
 package elasticsearch
 
 import (
-	"github.com/rs/zerolog/log"
 	"maps"
 	"quesma/elasticsearch/elasticsearch_field_types"
+	"quesma/logger"
 	"quesma/schema"
 )
 
@@ -14,7 +14,7 @@ func ParseMappings(namespace string, mappings map[string]interface{}) map[string
 
 	properties, found := mappings["properties"]
 	if !found {
-		log.Warn().Msgf("No 'properties' found in the mapping. The mapping was: %v", mappings)
+		logger.Warn().Msgf("No 'properties' found in the mapping. The mapping was: %v", mappings)
 		return result
 	}
 
@@ -29,20 +29,41 @@ func ParseMappings(namespace string, mappings map[string]interface{}) map[string
 		}
 
 		if typeMapping := fieldMappingAsMap["type"]; typeMapping != nil {
-			parsedType, _ := parseElasticType(typeMapping.(string))
+			parsedType, _ := ParseElasticType(typeMapping.(string))
+			if parsedType.Name == schema.TypeUnknown.Name {
+				logger.Warn().Msgf("unknown type '%v' of field %s", typeMapping, fieldName)
+			}
 			result[fieldName] = schema.Column{Name: fieldName, Type: parsedType.Name}
 		} else if fieldMappingAsMap["properties"] != nil {
 			// Nested field
 			maps.Copy(result, ParseMappings(fieldName, fieldMappingAsMap))
 		} else {
-			log.Warn().Msgf("Unsupported type of field %s. Skipping the field. Full mapping: %v", fieldName, fieldMapping)
+			logger.Warn().Msgf("Unsupported type of field %s. Skipping the field. Full mapping: %v", fieldName, fieldMapping)
 		}
 	}
 	return result
 }
 
+func GenerateMappings(schemaNode *schema.SchemaTreeNode) map[string]any {
+	if schemaNode.Field != nil {
+		result := map[string]any{"type": schemaTypeToElasticType(schemaNode.Field.Type)}
+		if schemaNode.Field.Type.Name == schema.TypeText.Name {
+			result["fields"] = map[string]any{
+				"keyword": map[string]any{"type": "keyword"},
+			}
+		}
+		return result
+	} else {
+		result := make(map[string]any)
+		for _, child := range schemaNode.Children {
+			result[child.Name] = GenerateMappings(child)
+		}
+		return map[string]any{"properties": result}
+	}
+}
+
 // FIXME: should be in elasticsearch_field_types, but this causes import cycle
-func parseElasticType(t string) (schema.Type, bool) {
+func ParseElasticType(t string) (schema.Type, bool) {
 	switch t {
 	case elasticsearch_field_types.FieldTypeText:
 		return schema.TypeText, true
@@ -52,7 +73,7 @@ func parseElasticType(t string) (schema.Type, bool) {
 		return schema.TypeLong, true
 	case elasticsearch_field_types.FieldTypeDate:
 		return schema.TypeTimestamp, true
-	case elasticsearch_field_types.FieldTypeFloat, elasticsearch_field_types.FieldTypeHalfFloat:
+	case elasticsearch_field_types.FieldTypeFloat, elasticsearch_field_types.FieldTypeHalfFloat, elasticsearch_field_types.FieldTypeDouble:
 		return schema.TypeFloat, true
 	case elasticsearch_field_types.FieldTypeBoolean:
 		return schema.TypeBoolean, true
@@ -62,5 +83,37 @@ func parseElasticType(t string) (schema.Type, bool) {
 		return schema.TypePoint, true
 	default:
 		return schema.TypeUnknown, false
+	}
+}
+
+func schemaTypeToElasticType(t schema.Type) string {
+	switch t.Name {
+	case schema.TypeText.Name:
+		return elasticsearch_field_types.FieldTypeText
+	case schema.TypeKeyword.Name:
+		return elasticsearch_field_types.FieldTypeKeyword
+	case schema.TypeInteger.Name:
+		return elasticsearch_field_types.FieldTypeInteger
+	case schema.TypeLong.Name:
+		return elasticsearch_field_types.FieldTypeLong
+	case schema.TypeUnsignedLong.Name:
+		return elasticsearch_field_types.FieldTypeUnsignedLong
+	case schema.TypeTimestamp.Name:
+		return elasticsearch_field_types.FieldTypeDate
+	case schema.TypeDate.Name:
+		return elasticsearch_field_types.FieldTypeDate
+	case schema.TypeFloat.Name:
+		return elasticsearch_field_types.FieldTypeDouble
+	case schema.TypeBoolean.Name:
+		return elasticsearch_field_types.FieldTypeBoolean
+	case schema.TypeObject.Name:
+		return elasticsearch_field_types.FieldTypeObject
+	case schema.TypeIp.Name:
+		return elasticsearch_field_types.FieldTypeIp
+	case schema.TypePoint.Name:
+		return elasticsearch_field_types.FieldTypeGeoPoint
+	default:
+		logger.Error().Msgf("Unknown type '%s', defaulting to 'text' type", t.Name)
+		return elasticsearch_field_types.FieldTypeText
 	}
 }

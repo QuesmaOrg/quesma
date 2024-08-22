@@ -8,6 +8,10 @@ on:
     branches: [ "main" ]
   workflow_dispatch: # Handy for testing
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quesma-test-and-compile:
     strategy:
@@ -159,9 +163,9 @@ jobs:
           done
           docker image ls -a  
 
-      - name: Build and start docker-compose
+      - name: Build and start docker compose
         timeout-minutes: 10
-        run: docker-compose -f ci/ci.yml up -d
+        run: docker compose -f ci/ci.yml up -d
 
       - name: Wait until services are healthy
         timeout-minutes: 6
@@ -176,8 +180,8 @@ jobs:
 
       - name: Print docker status
         if: failure()
-        run: docker-compose -f ci/ci.yml ps
+        run: docker compose -f ci/ci.yml ps
 
-      - name: Print docker-compose logs
+      - name: Print docker compose logs
         if: failure()
-        run: docker-compose -f ci/ci.yml logs
+        run: docker compose -f ci/ci.yml logs

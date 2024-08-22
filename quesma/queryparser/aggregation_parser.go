@@ -33,6 +33,7 @@ type metricsAggregation struct {
 	FieldType           clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
 	Percentiles         map[string]float64      // Only for percentiles aggregation
 	Keyed               bool                    // Only for percentiles aggregation
+	CutValues           []string                // Only for percentile_ranks
 	SortBy              string                  // Only for top_metrics
 	Size                int                     // Only for top_metrics
 	Order               string                  // Only for top_metrics
@@ -127,7 +128,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewCountFunc(model.NewDistinctExpr(getFirstExpression())))
 
 	case "value_count":
-		query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewCountFunc())
+		query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewCountFunc(getFirstExpression()))
 
 	case "stats":
 		expr := getFirstExpression()
@@ -213,23 +214,17 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			}
 		}
 	case "percentile_ranks":
-		for _, cutValueAsString := range metricsAggr.Fields[1:] {
-			unquoted, _ := strconv.Unquote(model.AsString(cutValueAsString))
-			cutValue, _ := strconv.ParseFloat(unquoted, 64)
+		for _, cutValueAsString := range metricsAggr.CutValues {
+			// full exp we create below looks like this: countIf(field <= cutValue)/count(*) * 100
+			cutValue, _ := strconv.ParseFloat(cutValueAsString, 64)
 
-			// full exp we create below looks like this:
-			// fmt.Sprintf("count(if(%s<=%f, 1, NULL))/count(*)*100", strconv.Quote(getFirstFieldName()), cutValue)
+			countIfExp := model.NewFunction(
+				"countIf", model.NewInfixExpr(getFirstExpression(), "<=", model.NewLiteral(cutValue)))
+			// TODO replace and centralize count below
+			bothCountsExp := model.NewInfixExpr(countIfExp, "/", model.NewCountFunc(model.NewWildcardExpr))
+			fullExp := model.NewInfixExpr(bothCountsExp, "*", model.NewLiteral(100))
 
-			ifExp := model.NewFunction(
-				"if",
-				model.NewInfixExpr(getFirstExpression(), "<=", model.NewLiteral(cutValue)),
-				model.NewLiteral(1),
-				model.NewStringExpr("NULL"),
-			)
-			firstCountExp := model.NewFunction("count", ifExp)
-			twoCountsExp := model.NewInfixExpr(firstCountExp, "/", model.NewCountFunc(model.NewWildcardExpr))
-
-			query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewInfixExpr(twoCountsExp, "*", model.NewLiteral(100)))
+			query.SelectCommand.Columns = append(query.SelectCommand.Columns, fullExp)
 		}
 	case "extended_stats":
 
@@ -285,7 +280,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "cardinality":
 		query.Type = metrics_aggregations.NewCardinality(b.ctx)
 	case "quantile":
-		query.Type = metrics_aggregations.NewQuantile(b.ctx, metricsAggr.Keyed, metricsAggr.FieldType)
+		query.Type = metrics_aggregations.NewQuantile(b.ctx, util.MapKeysSortedByValue(metricsAggr.Percentiles), metricsAggr.Keyed, metricsAggr.FieldType)
 	case "top_hits":
 		query.Type = metrics_aggregations.NewTopHits(b.ctx)
 	case "top_metrics":
@@ -293,7 +288,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "value_count":
 		query.Type = metrics_aggregations.NewValueCount(b.ctx)
 	case "percentile_ranks":
-		query.Type = metrics_aggregations.NewPercentileRanks(b.ctx, metricsAggr.Keyed)
+		query.Type = metrics_aggregations.NewPercentileRanks(b.ctx, metricsAggr.CutValues, metricsAggr.Keyed)
 	case "geo_centroid":
 		query.Type = metrics_aggregations.NewGeoCentroid(b.ctx)
 	}
@@ -594,26 +589,30 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	// Shortcut here. Percentile_ranks has "field" and a list of "values"
 	// I'm keeping all of them in `fieldNames' array for "simplicity".
 	if percentileRanks, ok := queryMap["percentile_ranks"]; ok {
-		fields := []model.Expr{cw.parseFieldField(percentileRanks, "percentile_ranks")}
-		var cutValues []any
+		var cutValuesRaw []any
 		if values, exists := percentileRanks.(QueryMap)["values"]; exists {
-			cutValues, ok = values.([]any)
+			cutValuesRaw, ok = values.([]any)
 			if !ok {
 				logger.WarnWithCtx(cw.Ctx).Msgf("values in percentile_ranks is not an array, but %T, value: %v. Using empty array.", values, values)
 			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msg("no values in percentile_ranks. Using empty array.")
 		}
-		for _, cutValue := range cutValues {
+
+		cutValues := make([]string, 0, len(cutValuesRaw))
+		for _, cutValue := range cutValuesRaw {
 			switch cutValueTyped := cutValue.(type) {
 			case float64:
-				fields = append(fields, model.NewColumnRef(strconv.FormatFloat(cutValueTyped, 'f', -1, 64)))
+				asFloat := strconv.FormatFloat(cutValueTyped, 'f', -1, 64)
+				cutValues = append(cutValues, asFloat)
 			case int64:
-				fields = append(fields, model.NewColumnRef(strconv.FormatInt(cutValueTyped, 10)))
+				asInt := strconv.FormatInt(cutValueTyped, 10)
+				cutValues = append(cutValues, asInt)
 			default:
 				logger.WarnWithCtx(cw.Ctx).Msgf("cutValue in percentile_ranks is not a number, but %T, value: %v. Skipping.", cutValue, cutValue)
 			}
 		}
+
 		var keyed bool
 		if keyedRaw, ok := percentileRanks.(QueryMap)["keyed"]; ok {
 			if keyed, ok = keyedRaw.(bool); !ok {
@@ -623,11 +622,13 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		} else {
 			keyed = keyedDefaultValuePercentileRanks
 		}
+
 		return metricsAggregation{
 			AggrType:  "percentile_ranks",
-			Fields:    fields,
+			Fields:    []model.Expr{cw.parseFieldField(percentileRanks, "percentile_ranks")},
 			FieldType: metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
 			Keyed:     keyed,
+			CutValues: cutValues,
 		}, true
 	}
 
@@ -789,8 +790,8 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 
 		var mainOrderBy model.Expr = defaultMainOrderBy
 		fullOrderBy := []model.OrderByExpr{ // default
-			{Exprs: []model.Expr{mainOrderBy}, Direction: defaultDirection, ExchangeToAliasInCTE: true},
-			{Exprs: []model.Expr{fieldExpression}},
+			{Expr: mainOrderBy, Direction: defaultDirection, ExchangeToAliasInCTE: true},
+			{Expr: fieldExpression},
 		}
 		direction := defaultDirection
 		if orderRaw, exists := terms["order"]; exists {
@@ -807,15 +808,15 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 						}
 
 						if key == "_key" {
-							fullOrderBy = []model.OrderByExpr{{Exprs: []model.Expr{fieldExpression}, Direction: direction}}
+							fullOrderBy = []model.OrderByExpr{{Expr: fieldExpression, Direction: direction}}
 							break // mainOrderBy remains default
 						} else if key != "_count" {
 							mainOrderBy = cw.findMetricAggregation(queryMap, key, currentAggr)
 						}
 
 						fullOrderBy = []model.OrderByExpr{
-							{Exprs: []model.Expr{mainOrderBy}, Direction: direction, ExchangeToAliasInCTE: true},
-							{Exprs: []model.Expr{fieldExpression}},
+							{Expr: mainOrderBy, Direction: direction, ExchangeToAliasInCTE: true},
+							{Expr: fieldExpression},
 						}
 					}
 				} else {
@@ -1055,7 +1056,17 @@ func (cw *ClickhouseQueryTranslator) parseIntField(queryMap QueryMap, fieldName 
 		if asFloat, ok := valueRaw.(float64); ok {
 			return int(asFloat)
 		}
-		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default", fieldName, valueRaw, valueRaw)
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default: %d", fieldName, valueRaw, valueRaw, defaultValue)
+	}
+	return defaultValue
+}
+
+func (cw *ClickhouseQueryTranslator) parseFloatField(queryMap QueryMap, fieldName string, defaultValue float64) float64 {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asFloat, ok := valueRaw.(float64); ok {
+			return asFloat
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default: %f", fieldName, valueRaw, valueRaw, defaultValue)
 	}
 	return defaultValue
 }

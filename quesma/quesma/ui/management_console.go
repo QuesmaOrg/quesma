@@ -44,8 +44,9 @@ type QueryDebugPrimarySource struct {
 }
 
 type QueryDebugSecondarySource struct {
-	Id      string
-	AsyncId string
+	Id       string
+	AsyncId  string
+	OpaqueId string
 
 	Path              string
 	IncomingQueryBody []byte
@@ -192,6 +193,7 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 		secondaryDebugInfo := QueryDebugSecondarySource{
 			msg.Id,
 			msg.AsyncId,
+			msg.OpaqueId,
 			msg.Path,
 			[]byte(util.JsonPrettify(string(msg.IncomingQueryBody), true)),
 			msg.QueryBodyTranslated,
@@ -313,7 +315,7 @@ func (qmc *QuesmaManagementConsole) comparePipelines() {
 					continue
 				}
 				if len(elasticSurplusFields) > 0 || len(ourSurplusFields) > 0 {
-					logger.Info().Str(logger.RID, queryDebugInfo.QueryDebugPrimarySource.Id).
+					logger.Debug().Str(logger.RID, queryDebugInfo.QueryDebugPrimarySource.Id).
 						Msgf("Response structure different, extra keys:\n"+
 							" Clickhouse response - Elastic response: %v\n"+
 							" Elastic response - Clickhouse response: %v",
