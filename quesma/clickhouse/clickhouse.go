@@ -485,13 +485,8 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 func (lm *LogManager) alterColumns(table *Table) bool {
 	// Above this number of columns we will use heuristic
 	// to decide if we should add new columns
-	/*
-		const maxColumns = 100
-		if len(table.Cols) < maxColumns {
-			return true
-		}
-	*/
-	return false
+	const maxColumns = 100
+	return len(table.Cols) < maxColumns
 }
 
 func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON, inValidJson types.JSON,

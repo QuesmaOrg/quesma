@@ -110,14 +110,20 @@ var configs = []*ChTableConfig{
 var expectedInserts = [][]string{
 	[]string{EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","service::name":"frontend","severity":"debug","source":"rhel"}`)},
 	[]string{
-		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":["service::name","severity","source"],"attributes_string_type":["String","String","String"],"attributes_string_value":["frontend","debug","rhel"],"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed"}`),
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "service::name" Nullable(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "source" Nullable(String)`),
+		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":[],"attributes_string_type":[],"attributes_string_value":[],"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","service::name":"frontend","severity":"debug","source":"rhel"}`),
 	},
 	[]string{
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random1" Nullable(Array(String))`),
 	},
-	[]string{EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":["random1","random2","severity"],"attributes_string_type":["Array(String)","String","String"],"attributes_string_value":["[debug]","random-string","frontend"],"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed"}`)},
+	[]string{
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random1" Nullable(Array(String))`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random2" Nullable(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
+		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":[],"attributes_string_type":[],"attributes_string_value":[],"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
+	},
 }
 
 type logManagerHelper struct {
@@ -236,9 +242,13 @@ func TestProcessInsertQuery(t *testing.T) {
 						}
 					}
 					if len(config.attributes) == 0 || (lm.lm.tableDiscovery.TableDefinitions().Size() == 0) {
-						mock.ExpectExec(expectedInserts[2*index1][0]).WillReturnResult(sqlmock.NewResult(545, 54))
+						for i := range expectedInserts[2*index1] {
+							mock.ExpectExec(expectedInserts[2*index1][i]).WillReturnResult(sqlmock.NewResult(545, 54))
+						}
 					} else {
-						mock.ExpectExec(expectedInserts[2*index1+1][0]).WillReturnResult(sqlmock.NewResult(1, 1))
+						for i := range expectedInserts[2*index1+1] {
+							mock.ExpectExec(expectedInserts[2*index1+1][i]).WillReturnResult(sqlmock.NewResult(545, 54))
+						}
 					}
 
 					err := lm.lm.ProcessInsertQuery(ctx, tableName, []types.JSON{types.MustJSON(tt.insertJson)}, &IngestTransformer{}, &columNameFormatter{separator: "::"})
