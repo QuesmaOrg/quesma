@@ -42,6 +42,7 @@ type QuesmaConfiguration struct {
 	IndexConfig                map[string]IndexConfiguration `koanf:"indexes"`
 	Logging                    LoggingConfiguration          `koanf:"logging"`
 	PublicTcpPort              network.Port                  `koanf:"port"`
+	EnableElasticsearchIngest  bool                          `koanf:"enableElasticsearchIngest"`
 	IngestStatistics           bool                          `koanf:"ingestStatistics"`
 	QuesmaInternalTelemetryUrl *Url                          `koanf:"internalTelemetryUrl"`
 }
@@ -342,7 +343,7 @@ Quesma Configuration:
 		clickhouseUrl,
 		clickhouseExtra,
 		connectorString.String(),
-		c.Elasticsearch.Call,
+		c.EnableElasticsearchIngest,
 		indexConfigs,
 		c.Logging.Path,
 		c.Logging.Level,
