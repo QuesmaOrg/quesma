@@ -128,7 +128,14 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 			result[layer.nextBucketAggregation.name] = jsonWithOmittedSampler
 			return result, nil
 		}
-		// if filter/filters/range/dateRange do something special
+
+		// TODO: if filter/filters/range/dateRange do something special
+		if filter, isFilter := layer.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg); isFilter {
+			// Maybe metadata?
+			filterRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"_col_", rows)
+			result[layer.nextBucketAggregation.name] = filter.TranslateSqlResponseToJson(filterRows, 0)
+			return result, nil
+		}
 
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
 

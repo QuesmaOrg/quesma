@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"quesma/clickhouse"
 	"quesma/model"
+	"quesma/model/bucket_aggregations"
 	"quesma/queryparser/query_util"
 )
 
@@ -214,6 +215,16 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		}
 
 		if layer.nextBucketAggregation != nil {
+			if _, isFilter := layer.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg); isFilter {
+
+				for i, newFilterColumn := range layer.nextBucketAggregation.selectedColumns {
+					aliasName := fmt.Sprintf("%s_col_%d", layer.nextBucketAggregation.internalName, i)
+					aliasedColumn := model.NewAliasedExpr(newFilterColumn, aliasName)
+					selectColumns = append(selectColumns, aliasedColumn)
+				}
+				// TODO: push down filters and maybe agg name
+				continue
+			}
 			// if it is filter/filters than do something else
 			// if layerId == 0 and single filter than add to WHERE // optimion
 			// if filter, but last one, than pass count if combinators

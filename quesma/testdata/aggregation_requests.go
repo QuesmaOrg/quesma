@@ -1055,7 +1055,11 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2200))}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", uint64(553))}}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0-bucket___col_0", uint64(553)),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -1067,7 +1071,11 @@ var AggregationTests = []AggregationTestCase{
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`AND "FlightDelay"==true)`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT countIf("FlightDelay"==true) AS "aggr__0-bucket___col_0"
+			FROM "logs-generic-default"
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 	},
 	{ // [6]
 		TestName: "filters",

@@ -150,7 +150,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 		if filter, ok := filterRaw.(QueryMap); ok {
 			whereClause := cw.parseQueryMap(filter).WhereClause
 			aggregation.queryType = bucket_aggregations.NewFilterAgg(cw.Ctx, whereClause)
-			aggregation.selectedColumns = []model.Expr{model.NewFunction("countIf", model.NewLiteral("*"), whereClause)}
+			aggregation.selectedColumns = []model.Expr{model.NewFunction("countIf", whereClause)}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping", filterRaw, filterRaw)
 		}
