@@ -62,9 +62,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if topMetrics(test.TestName) {
 				t.Skip("Fix top metrics")
 			}
-			if multiplePancakes(test.TestName) {
-				t.Skip("Fix multiple pancakes")
-			}
 			if filter(test.TestName) {
 				t.Skip("Fix filter")
 			}
@@ -79,29 +76,42 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp, false)
 			assert.NoError(t, err)
-			assert.True(t, len(pancakeSqls) == 1, "pancakeSqls should have only one query")
+			assert.True(t, len(pancakeSqls) >= 1, "pancakeSqls should have at least one query")
 			if len(pancakeSqls) < 1 {
 				return
 			}
-			pancakeSqlStr := model.AsString(pancakeSqls[0].SelectCommand)
 
-			prettyExpectedSql := util.SqlPrettyPrint([]byte(strings.TrimSpace(test.ExpectedPancakeSQL)))
+			assert.Len(t, pancakeSqls, 1+len(test.ExpectedAdditionalPancakeSQLs),
+				"Mismatch pancake sqls vs main and 'ExpectedAdditionalPancakeSQLs'")
+			for pancakeIdx, pancakeSql := range pancakeSqls {
+				pancakeSqlStr := model.AsString(pancakeSql.SelectCommand)
 
-			prettyPancakeSql := util.SqlPrettyPrint([]byte(pancakeSqlStr))
+				prettyPancakeSql := util.SqlPrettyPrint([]byte(pancakeSqlStr))
 
-			/*
-				pp.Println("Expected SQL:")
-				fmt.Println(prettyExpectedSql)
-				pp.Println("Actual (pancake) SQL:")
-				fmt.Println(prettyPancakeSql)
-			*/
+				var expectedSql string
+				if pancakeIdx == 0 {
+					expectedSql = test.ExpectedPancakeSQL
+				} else {
+					if pancakeIdx-1 >= len(test.ExpectedAdditionalPancakeSQLs) {
+						pp.Println("=== Expected additional SQL:")
+						fmt.Println(prettyPancakeSql)
+						continue
+					}
+					if pancakeIdx-1 >= len(test.ExpectedAdditionalPancakeResults) {
+						pp.Println("=== Expected additional results for SQL:")
+						fmt.Println(prettyPancakeSql)
+						continue
+					}
+					expectedSql = test.ExpectedAdditionalPancakeSQLs[pancakeIdx-1]
+				}
+				prettyExpectedSql := util.SqlPrettyPrint([]byte(strings.TrimSpace(expectedSql)))
 
-			util.AssertSqlEqual(t, prettyExpectedSql, prettyPancakeSql)
-			// assert.Equal(t, prettyExpectedSql, prettyPancakeSql)
+				util.AssertSqlEqual(t, prettyExpectedSql, prettyPancakeSql)
 
-			queryType, ok := pancakeSqls[0].Type.(PancakeQueryType)
-			if !ok {
-				assert.Fail(t, "Expected pancake query type")
+				_, ok := pancakeSql.Type.(PancakeQueryType)
+				if !ok {
+					assert.Fail(t, "Expected pancake query type")
+				}
 			}
 
 			expectedJson, err := util.JsonToMap(test.ExpectedResponse)
@@ -116,8 +126,12 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 			assert.NotNil(t, expectedAggregationsPart, "Expected JSON should have 'response'/'aggregations' part")
 
-			renderer := &pancakeJSONRenderer{}
-			pancakeJson, err := renderer.toJSON(queryType.pancakeAggregation, test.ExpectedPancakeResults)
+			sqlResults := [][]model.QueryResultRow{test.ExpectedPancakeResults}
+			if len(test.ExpectedAdditionalPancakeResults) > 0 {
+				sqlResults = append(sqlResults, test.ExpectedAdditionalPancakeResults...)
+			}
+
+			pancakeJson, err := cw.MakeAggregationPartOfResponse(pancakeSqls, sqlResults)
 
 			if err != nil {
 				t.Fatal("Failed to render pancake JSON", err)
@@ -183,11 +197,6 @@ func topMetrics(testName string) bool {
 	t3 := testName == "simplest top_metrics, with sort"
 	t4 := testName == "very long: multiple top_metrics + histogram" // also top_metrics
 	return t1 || t2 || t3 || t4
-}
-
-// TODO remove after fix
-func multiplePancakes(testName string) bool {
-	return testName == "histogram with all possible calendar_intervals"
 }
 
 // TODO remove after fix

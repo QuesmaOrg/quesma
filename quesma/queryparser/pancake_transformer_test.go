@@ -127,7 +127,9 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 
 			transformer := newPancakeTransformer()
 
-			pan, err := transformer.aggregationTreeToPancake(*tt.tree)
+			pancakes, err := transformer.aggregationTreeToPancakes(*tt.tree)
+			assert.Len(t, pancakes, 1)
+			pan := pancakes[0]
 
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)

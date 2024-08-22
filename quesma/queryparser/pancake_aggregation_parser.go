@@ -53,7 +53,7 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 
 	// Phase 2: Translate aggregation tree into pancake model
 	transformer := newPancakeTransformer()
-	pancakeQueries, err := transformer.aggregationTreeToPancake(topLevel)
+	pancakeQueries, err := transformer.aggregationTreeToPancakes(topLevel)
 
 	if err != nil {
 		return nil, err
@@ -69,19 +69,20 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 			selectedColumns: []model.Expr{model.NewFunction("count", model.NewLiteral("*"))},
 		}
 
-		pancakeQueries.layers[0].currentMetricAggregations = append(pancakeQueries.layers[0].currentMetricAggregations, augmentedCountAggregation)
-
+		pancakeQueries[0].layers[0].currentMetricAggregations = append(pancakeQueries[0].layers[0].currentMetricAggregations, augmentedCountAggregation)
 	}
 
 	// Phase 3: Generate SQL queries from pancake model
-	generator := &pancakeSqlQueryGenerator{}
-	dbQuery, err := generator.generateQuery(pancakeQueries, cw.Table)
-	if err != nil {
-		return nil, err
-	}
-
 	aggregationQueries := make([]*model.Query, 0)
-	aggregationQueries = append(aggregationQueries, dbQuery)
+	for _, pancakeQuery := range pancakeQueries {
+		generator := &pancakeSqlQueryGenerator{}
+		dbQuery, err := generator.generateQuery(pancakeQuery, cw.Table)
+		if err != nil {
+			return nil, err
+		}
+
+		aggregationQueries = append(aggregationQueries, dbQuery)
+	}
 
 	return aggregationQueries, nil
 }

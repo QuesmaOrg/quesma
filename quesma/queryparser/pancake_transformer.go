@@ -91,99 +91,127 @@ func (a *pancakeTransformer) bucketAggregationToLayer(previousAggrNames []string
 	}, nil
 }
 
-func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggregations []*pancakeAggregationTreeNode) (layer *pancakeModelLayer, nextBucketAggregation *pancakeAggregationTreeNode, err error) {
+type layerAndNextBucket struct {
+	layer                 *pancakeModelLayer
+	nextBucketAggregation *pancakeAggregationTreeNode
+}
+
+func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggregations []*pancakeAggregationTreeNode) (result []layerAndNextBucket, err error) {
 
 	if len(childAggregations) == 0 {
-		return nil, nil, nil
+		return nil, nil
 	}
 
-	layer = &pancakeModelLayer{
+	result = make([]layerAndNextBucket, 1)
+
+	result[0].layer = &pancakeModelLayer{
 		currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
 	}
 
+	// we need sort aggregation to generate consistent results, otherwise:
+	// - tests are flaky
+	// - database might not use it query cache
+	sort.Slice(childAggregations, func(i, j int) bool {
+		return childAggregations[i].name < childAggregations[j].name
+	})
+
 	for _, childAgg := range childAggregations {
 		if childAgg.queryType == nil {
-			return nil, nil, fmt.Errorf("query type is nil in createLayer")
+			return nil, fmt.Errorf("query type is nil in createLayer")
 		}
 		switch childAgg.queryType.AggregationType() {
 		case model.MetricsAggregation:
 			metrics, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
-			layer.currentMetricAggregations = append(layer.currentMetricAggregations, metrics)
+			result[0].layer.currentMetricAggregations = append(result[0].layer.currentMetricAggregations, metrics)
 
 		case model.BucketAggregation:
-			if layer.nextBucketAggregation != nil {
-				return nil, nil, fmt.Errorf("two bucket aggregation on same level are not supported: %s, %s",
-					layer.nextBucketAggregation.name, childAgg.name)
-			}
-
 			bucket, err := a.bucketAggregationToLayer(previousAggrNames, childAgg)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 
-			layer.nextBucketAggregation = bucket
-			nextBucketAggregation = childAgg
+			if result[0].nextBucketAggregation == nil {
+				result[0].layer.nextBucketAggregation = bucket
+				result[0].nextBucketAggregation = childAgg
+			} else {
+				layer := &pancakeModelLayer{
+					currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
+					nextBucketAggregation:     bucket,
+				}
+				result = append(result, layerAndNextBucket{layer: layer, nextBucketAggregation: childAgg})
+			}
 		default:
-			return nil, nil, fmt.Errorf("unsupported aggregation type in pancake, name: %s, type: %s",
+			return nil, fmt.Errorf("unsupported aggregation type in pancake, name: %s, type: %s",
 				childAgg.name, childAgg.queryType.AggregationType().String())
 		}
 	}
-	return layer, nextBucketAggregation, nil
+	return result, nil
 }
 
-func (a *pancakeTransformer) aggregationTreeToPancake(topLevel pancakeAggregationTree) (pancakeResult *pancakeModel, err error) {
+func (a *pancakeTransformer) aggregationChildrenToLayers(aggrNames []string, children []*pancakeAggregationTreeNode) (resultLayers [][]*pancakeModelLayer, err error) {
+	results, err := a.createLayer(aggrNames, children)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, nil
+	}
+	resultLayers = make([][]*pancakeModelLayer, 0, len(results))
+	for _, res := range results {
+		if res.nextBucketAggregation != nil {
+			childLayers, err := a.aggregationChildrenToLayers(append(aggrNames, res.nextBucketAggregation.name), res.nextBucketAggregation.children)
+			if err != nil {
+				return nil, err
+			}
+			if len(childLayers) == 0 {
+				resultLayers = append(resultLayers, []*pancakeModelLayer{res.layer})
+			} else {
+				for i, childLayer := range childLayers {
+					newLayer := res.layer
+					if i > 0 { // remove metrics
+						newLayer = &pancakeModelLayer{
+							currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
+							nextBucketAggregation:     res.layer.nextBucketAggregation,
+						}
+					}
+
+					resultLayers = append(resultLayers, append([]*pancakeModelLayer{newLayer}, childLayer...))
+				}
+			}
+		} else {
+			resultLayers = append(resultLayers, []*pancakeModelLayer{res.layer})
+		}
+	}
+	return resultLayers, nil
+}
+
+func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregationTree) (pancakeResults []*pancakeModel, err error) {
 	if topLevel.children == nil || len(topLevel.children) == 0 {
 		return nil, fmt.Errorf("no top level aggregations found")
 	}
 
-	var nextBucketAggregation *pancakeAggregationTreeNode
+	resultLayers, err := a.aggregationChildrenToLayers([]string{}, topLevel.children)
 
-	layers := make([]*pancakeModelLayer, 0)
-	aggrNames := make([]string, 0)
-	firstLayer, nextBucketAggregation, err := a.createLayer(aggrNames, topLevel.children)
 	if err != nil {
 		return nil, err
 	}
 
-	layers = append(layers, firstLayer)
-
-	for nextBucketAggregation != nil {
-		var layer *pancakeModelLayer
-		aggrNames = append(aggrNames, nextBucketAggregation.name)
-		layer, nextBucketAggregation, err = a.createLayer(aggrNames, nextBucketAggregation.children)
-		if err != nil {
-			return nil, err
-		}
-		if layer == nil {
-			break
+	for _, layers := range resultLayers {
+		sampleLimit := noSampleLimit
+		if layers[0].nextBucketAggregation != nil {
+			if sampler, ok := layers[0].nextBucketAggregation.queryType.(bucket_aggregations.SamplerInterface); ok {
+				sampleLimit = sampler.GetSampleLimit()
+			}
 		}
 
-		layers = append(layers, layer)
-	}
-
-	// we need sort metric aggregation to generate consistent results, otherwise:
-	// - tests are flaky
-	// - database might not use it query cache
-	for _, layer := range layers {
-		sort.Slice(layer.currentMetricAggregations, func(i, j int) bool {
-			return layer.currentMetricAggregations[i].name < layer.currentMetricAggregations[j].name
+		pancakeResults = append(pancakeResults, &pancakeModel{
+			layers:      layers,
+			whereClause: topLevel.whereClause,
+			sampleLimit: sampleLimit,
 		})
-	}
-
-	sampleLimit := noSampleLimit
-	if firstLayer.nextBucketAggregation != nil {
-		if sampler, ok := firstLayer.nextBucketAggregation.queryType.(bucket_aggregations.SamplerInterface); ok {
-			sampleLimit = sampler.GetSampleLimit()
-		}
-	}
-
-	pancakeResult = &pancakeModel{
-		layers:      layers,
-		whereClause: topLevel.whereClause,
-		sampleLimit: sampleLimit,
 	}
 
 	return

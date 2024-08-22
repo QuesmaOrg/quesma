@@ -26,13 +26,15 @@ type AsyncSearchTestCase struct {
 }
 
 type AggregationTestCase struct {
-	TestName               string
-	QueryRequestJson       string                   // JSON query request, just like received from Kibana
-	ExpectedResponse       string                   // JSON response, just like Elastic would respond to the query request
-	ExpectedResults        [][]model.QueryResultRow // [0] = result for first aggregation, [1] = result for second aggregation, etc.
-	ExpectedPancakeResults []model.QueryResultRow   // nil if we don't have pancake results for this test
-	ExpectedSQLs           []string                 // [0] = translated SQLs for first aggregation, [1] = translated SQL for second aggregation, etc.
-	ExpectedPancakeSQL     string                   // "" if we don't have pancake results for this test
+	TestName                         string
+	QueryRequestJson                 string                   // JSON query request, just like received from Kibana
+	ExpectedResponse                 string                   // JSON response, just like Elastic would respond to the query request
+	ExpectedResults                  [][]model.QueryResultRow // [0] = result for first aggregation, [1] = result for second aggregation, etc.
+	ExpectedPancakeResults           []model.QueryResultRow   // nil if we don't have pancake results for this test
+	ExpectedSQLs                     []string                 // [0] = translated SQLs for first aggregation, [1] = translated SQL for second aggregation, etc.
+	ExpectedPancakeSQL               string                   // "" if we don't have pancake results for this test
+	ExpectedAdditionalPancakeSQLs    []string                 // additional SQLs that are not part of the main query
+	ExpectedAdditionalPancakeResults [][]model.QueryResultRow // additional results that are not part of the main query
 }
 
 type UnsupportedQueryTestCase struct {
