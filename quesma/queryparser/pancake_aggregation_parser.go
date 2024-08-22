@@ -146,9 +146,15 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 
 	// 3. Now process filter(s) first, because they apply to everything else on the same level or below.
 	// Also filter introduces count to current level.
-	if _, ok := queryMap["filter"]; ok {
+	if filterRaw, ok := queryMap["filter"]; ok {
+		if filter, ok := filterRaw.(QueryMap); ok {
+			whereClause := cw.parseQueryMap(filter).WhereClause
+			aggregation.queryType = bucket_aggregations.NewFilterAgg(cw.Ctx, whereClause)
+			aggregation.selectedColumns = []model.Expr{model.NewFunction("countIf", model.NewLiteral("*"), whereClause)}
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping", filterRaw, filterRaw)
+		}
 		delete(queryMap, "filter")
-		return nil, errors.New("filter is not supported in version")
 	}
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.

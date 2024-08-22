@@ -128,6 +128,7 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 			result[layer.nextBucketAggregation.name] = jsonWithOmittedSampler
 			return result, nil
 		}
+		// if filter/filters/range/dateRange do something special
 
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
 
