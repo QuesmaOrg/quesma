@@ -7,6 +7,7 @@ import (
 	"quesma/concurrent"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
+	"strconv"
 	"testing"
 )
 
@@ -84,13 +85,22 @@ func TestAlterTableHeuristic(t *testing.T) {
 	fieldsMap := concurrent.NewMapWith("tableName", table)
 
 	lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{})
-	rowsToInsert := []string{
-		`{"Test1":1}`,
-		`{"Test1":1,"Test2":2}`,
+	rowsToInsert := make([]string, 0)
+	previousRow := ``
+	comma := ``
+	const numberOfInserts = 1000
+	for i := range numberOfInserts {
+		if i > 0 {
+			comma = ","
+		}
+		currentRow := previousRow + comma + `"Test` + strconv.Itoa(i) + `":` + strconv.Itoa(i)
+		rowsToInsert = append(rowsToInsert, `{`+currentRow+`}`)
+		previousRow = currentRow
 	}
+
 	for i := range rowsToInsert {
 		shouldAlterColumns := lm.shouldAlterColumns(table)
-		if i < 100 {
+		if i < maxColumns {
 			assert.True(t, shouldAlterColumns)
 		} else {
 			assert.False(t, shouldAlterColumns)

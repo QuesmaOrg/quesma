@@ -30,6 +30,9 @@ import (
 
 const (
 	timestampFieldName = "@timestamp" // it's always DateTime64 for now, don't want to waste time changing that, we don't seem to use that anyway
+	// Above this number of columns we will use heuristic
+	// to decide if we should add new columns
+	maxColumns = 100
 )
 
 type (
@@ -484,9 +487,6 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 
 // This function implements heuristic for deciding if we should add new columns
 func (lm *LogManager) shouldAlterColumns(table *Table) bool {
-	// Above this number of columns we will use heuristic
-	// to decide if we should add new columns
-	const maxColumns = 100
 	return len(table.Cols) < maxColumns
 }
 
