@@ -230,15 +230,24 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		return nil, false, errors.New("aggregation is nil in generateQuery")
 	}
 
+	bucketAggregationCount := 0
+	for _, layer := range aggregation.layers {
+		if layer.nextBucketAggregation != nil {
+			if _, isFilter := layer.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg); !isFilter {
+				bucketAggregationCount++
+			}
+		}
+	}
+	bucketAggregationSoFar := 0
+
 	selectColumns := make([]model.AliasedExpr, 0)
 	rankColumns := make([]model.AliasedExpr, 0)
 	rankWheres := make([]model.Expr, 0)
 	rankOrderBys := make([]model.OrderByExpr, 0)
 	groupBys := make([]model.AliasedExpr, 0)
 	for layerId, layer := range aggregation.layers {
-		hasMoreBucketAggregations := layerId+1 < len(aggregation.layers)
-
 		for _, metric := range layer.currentMetricAggregations {
+			hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
 			addSelectColumns, err := p.generateMetricSelects(metric, groupBys, hasMoreBucketAggregations)
 			if err != nil {
 				return nil, false, err
@@ -264,10 +273,12 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 				}
 				break
 			}
+
+			bucketAggregationSoFar += 1
 			// if it is filter/filters than do something else
 			// if layerId == 0 and single filter than add to WHERE // optimion
 			// if filter, but last one, than pass count if combinators
-			hasMoreBucketAggregations = hasMoreBucketAggregations && aggregation.layers[layerId+1].nextBucketAggregation != nil
+			hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
 			addSelectColumns, addGroupBys, addRankColumns, addRankWheres, addRankOrderBys, err :=
 				p.generateBucketSqlParts(layer.nextBucketAggregation, groupBys, hasMoreBucketAggregations)
 			if err != nil {
@@ -282,7 +293,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	}
 
 	// if we have single layer we can emit simpler query
-	if len(aggregation.layers) == 1 || len(aggregation.layers) == 2 && aggregation.layers[1].nextBucketAggregation == nil {
+	if bucketAggregationCount <= 1 {
 		limit := 0
 		orderBy := make([]model.OrderByExpr, 0)
 		if aggregation.layers[0].nextBucketAggregation != nil {
