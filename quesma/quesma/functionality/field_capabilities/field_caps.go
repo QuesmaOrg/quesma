@@ -71,7 +71,7 @@ func handleFieldCapsIndex(cfg config.QuesmaConfiguration, schemaRegistry schema.
 					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s.text", fieldName.AsString()), schema.TypeText, resolvedIndex)
 				case "map":
 					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s.text", fieldName.AsString()), schema.TypeText, resolvedIndex)
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s.key", fieldName.AsString()), schema.TypeKeyword, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s.key", fieldName.AsString()), schema.TypeText, resolvedIndex)
 					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s.value", fieldName.AsString()), schema.TypeText, resolvedIndex)
 				}
 			}
