@@ -5808,7 +5808,48 @@ var AggregationTests = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Baltimore"), model.NewQueryResultCol("doc_count", 5)}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", uint64(14)),
+				model.NewQueryResultCol("aggr__0__key_0", "Albuquerque"),
+				model.NewQueryResultCol("aggr__0__count", uint64(4)),
+				model.NewQueryResultCol("aggr__0__1-bucket___col_0", uint64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", uint64(14)),
+				model.NewQueryResultCol("aggr__0__key_0", "Atlanta"),
+				model.NewQueryResultCol("aggr__0__count", uint64(5)),
+				model.NewQueryResultCol("aggr__0__1-bucket___col_0", uint64(0)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", uint64(14)),
+				model.NewQueryResultCol("aggr__0__key_0", "Baltimore"),
+				model.NewQueryResultCol("aggr__0__count", uint64(5)),
+				model.NewQueryResultCol("aggr__0__1-bucket___col_0", uint64(2)),
+			}},
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__0__parent_count", uint64(14)),
+					model.NewQueryResultCol("aggr__0__key_0", "Albuquerque"),
+					model.NewQueryResultCol("aggr__0__count", uint64(4)),
+					model.NewQueryResultCol("aggr__0__3-bucket___col_0", uint64(2)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__0__parent_count", uint64(14)),
+					model.NewQueryResultCol("aggr__0__key_0", "Atlanta"),
+					model.NewQueryResultCol("aggr__0__count", uint64(5)),
+					model.NewQueryResultCol("aggr__0__3-bucket___col_0", uint64(0)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__0__parent_count", uint64(14)),
+					model.NewQueryResultCol("aggr__0__key_0", "Baltimore"),
+					model.NewQueryResultCol("aggr__0__count", uint64(5)),
+					model.NewQueryResultCol("aggr__0__3-bucket___col_0", uint64(0)),
+				}},
+			},
+		},
 		ExpectedSQLs: []string{
 			`WITH cte_1 AS ` +
 				`(SELECT "OriginCityName" AS "cte_1_1", count() AS "cte_1_cnt" ` +
@@ -5843,7 +5884,41 @@ var AggregationTests = []AggregationTestCase{
 				`ORDER BY "OriginCityName" ASC ` +
 				`LIMIT 1000`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+			  "aggr__0__1-bucket___col_0"
+			FROM (
+			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+				"aggr__0__1-bucket___col_0",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
+			
+			  FROM (
+				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+				  "OriginCityName" AS "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  countIf("FlightDelay"==true) AS "aggr__0__1-bucket___col_0"
+				FROM "logs-generic-default"
+				GROUP BY "OriginCityName" AS "aggr__0__key_0"))
+			WHERE "aggr__0__order_1_rank"<=1001
+			ORDER BY "aggr__0__order_1_rank" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{
+			`SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+			  "aggr__0__3-bucket___col_0"
+			FROM (
+			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+				"aggr__0__3-bucket___col_0",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
+			
+			  FROM (
+				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+				  "OriginCityName" AS "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  countIf("Cancelled"==true) AS "aggr__0__3-bucket___col_0"
+				FROM "logs-generic-default"
+				GROUP BY "OriginCityName" AS "aggr__0__key_0"))
+			WHERE "aggr__0__order_1_rank"<=1001
+			ORDER BY "aggr__0__order_1_rank" ASC`,
+		},
 	},
 	{ // [29]
 		TestName: "Terms, completely different tree results from 2 queries - merging them didn't work before (logs) TODO add results",
