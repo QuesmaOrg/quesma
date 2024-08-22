@@ -210,6 +210,7 @@ func (p *pancakeSqlQueryGenerator) generateLeafFilter(layer *pancakeModelLayer, 
 				if function.Name == "count" {
 					columnWithIf = model.NewFunction("countIf", whereClause)
 				} else if len(function.Args) == 1 {
+					// https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators#-if
 					columnWithIf = model.NewFunction(function.Name+"If", function.Args[0], whereClause)
 				} else {
 					return nil, fmt.Errorf("not implemented -iF for func with more than one argument: %s", model.AsString(column))
@@ -225,11 +226,7 @@ func (p *pancakeSqlQueryGenerator) generateLeafFilter(layer *pancakeModelLayer, 
 	return
 }
 
-func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeModel, table *clickhouse.Table) (*model.SelectCommand, bool, error) {
-	if aggregation == nil {
-		return nil, false, errors.New("aggregation is nil in generateQuery")
-	}
-
+func (p *pancakeSqlQueryGenerator) countRealBucketAggregations(aggregation *pancakeModel) int {
 	bucketAggregationCount := 0
 	for _, layer := range aggregation.layers {
 		if layer.nextBucketAggregation != nil {
@@ -238,6 +235,15 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			}
 		}
 	}
+	return bucketAggregationCount
+}
+
+func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeModel, table *clickhouse.Table) (*model.SelectCommand, bool, error) {
+	if aggregation == nil {
+		return nil, false, errors.New("aggregation is nil in generateQuery")
+	}
+
+	bucketAggregationCount := p.countRealBucketAggregations(aggregation)
 	bucketAggregationSoFar := 0
 
 	selectColumns := make([]model.AliasedExpr, 0)
@@ -275,9 +281,6 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			}
 
 			bucketAggregationSoFar += 1
-			// if it is filter/filters than do something else
-			// if layerId == 0 and single filter than add to WHERE // optimion
-			// if filter, but last one, than pass count if combinators
 			hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
 			addSelectColumns, addGroupBys, addRankColumns, addRankWheres, addRankOrderBys, err :=
 				p.generateBucketSqlParts(layer.nextBucketAggregation, groupBys, hasMoreBucketAggregations)
