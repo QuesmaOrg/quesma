@@ -49,7 +49,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		}
 
 		results, err := bulk.Write(ctx, nil, body, lm, cfg, phoneHomeAgent)
-		return bulkInsertResult(results, err), nil
+		return bulkInsertResult(results, err)
 	})
 
 	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -64,7 +64,11 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		}
 
 		err = doc.Write(ctx, req.Params["index"], body, lm, cfg)
-		return indexDocResult(req.Params["index"], http.StatusOK), err
+		if err != nil {
+			return nil, err
+		}
+
+		return indexDocResult(req.Params["index"], http.StatusOK)
 	})
 
 	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -76,7 +80,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		}
 
 		results, err := bulk.Write(ctx, &index, body, lm, cfg, phoneHomeAgent)
-		return bulkInsertResult(results, err), nil
+		return bulkInsertResult(results, err)
 	})
 
 	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -84,7 +88,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		if err != nil {
 			return nil, err
 		}
-		return resolveIndexResult(sources), nil
+		return resolveIndexResult(sources)
 	})
 
 	router.Register(routes.IndexCountPath, and(method("GET"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -100,7 +104,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		if cnt == -1 {
 			return &mux.Result{StatusCode: http.StatusNotFound}, nil
 		} else {
-			return elasticsearchCountResult(cnt, http.StatusOK), nil
+			return elasticsearchCountResult(cnt, http.StatusOK)
 		}
 	})
 
@@ -197,7 +201,21 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 
 		sr.UpdateDynamicConfiguration(schema.TableName(index), schema.Table{Columns: columns})
 
-		return putIndexResult(index), nil
+		return putIndexResult(index)
+	})
+
+	router.Register(routes.IndexMappingPath, and(method("GET"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		index := req.Params["index"]
+
+		foundSchema, found := sr.FindSchema(schema.TableName(index))
+		if !found {
+			return &mux.Result{StatusCode: http.StatusNotFound}, nil
+		}
+
+		hierarchicalSchema := schema.SchemaToHierarchicalSchema(&foundSchema)
+		mappings := elasticsearch.GenerateMappings(hierarchicalSchema)
+
+		return getIndexMappingResult(index, mappings)
 	})
 
 	router.Register(routes.AsyncSearchIdPath, and(method("GET"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -281,13 +299,27 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		mappings, ok := body["mappings"]
 		if !ok {
 			logger.Warn().Msgf("no mappings found in PUT /%s request, ignoring that request. Full content: %s", index, req.Body)
-			return putIndexResult(index), nil
+			return putIndexResult(index)
 		}
 		columns := elasticsearch.ParseMappings("", mappings.(map[string]interface{}))
 
 		sr.UpdateDynamicConfiguration(schema.TableName(index), schema.Table{Columns: columns})
 
-		return putIndexResult(index), nil
+		return putIndexResult(index)
+	})
+
+	router.Register(routes.IndexPath, and(method("GET"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		index := req.Params["index"]
+
+		foundSchema, found := sr.FindSchema(schema.TableName(index))
+		if !found {
+			return &mux.Result{StatusCode: http.StatusNotFound}, nil
+		}
+
+		hierarchicalSchema := schema.SchemaToHierarchicalSchema(&foundSchema)
+		mappings := elasticsearch.GenerateMappings(hierarchicalSchema)
+
+		return getIndexResult(index, mappings)
 	})
 
 	return router
@@ -305,7 +337,7 @@ func matchedExact(config config.QuesmaConfiguration) mux.RequestMatcher {
 	})
 }
 
-func elasticsearchCountResult(body int64, statusCode int) *mux.Result {
+func elasticsearchCountResult(body int64, statusCode int) (*mux.Result, error) {
 	var result = countResult{
 		Shards: struct {
 			Failed     int `json:"failed"`
@@ -322,12 +354,12 @@ func elasticsearchCountResult(body int64, statusCode int) *mux.Result {
 	}
 	serialized, err := json.Marshal(result)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return &mux.Result{Body: string(serialized), Meta: map[string]string{
 		"Content-Type":            "application/json",
 		"X-Quesma-Headers-Source": "Quesma",
-	}, StatusCode: statusCode}
+	}, StatusCode: statusCode}, nil
 }
 
 type countResult struct {
@@ -347,12 +379,12 @@ func elasticsearchQueryResult(body string, statusCode int) *mux.Result {
 	}, StatusCode: statusCode}
 }
 
-func bulkInsertResult(ops []bulk.BulkItem, err error) *mux.Result {
+func bulkInsertResult(ops []bulk.BulkItem, err error) (*mux.Result, error) {
 	if err != nil {
 		return &mux.Result{
 			Body:       string(queryparser.BadRequestParseError(err)),
 			StatusCode: http.StatusBadRequest,
-		}
+		}, nil
 	}
 
 	body, err := json.Marshal(bulk.BulkResponse{
@@ -361,10 +393,10 @@ func bulkInsertResult(ops []bulk.BulkItem, err error) *mux.Result {
 		Took:   42,
 	})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return elasticsearchInsertResult(string(body), http.StatusOK)
+	return elasticsearchInsertResult(string(body), http.StatusOK), nil
 }
 
 func elasticsearchInsertResult(body string, statusCode int) *mux.Result {
@@ -375,23 +407,23 @@ func elasticsearchInsertResult(body string, statusCode int) *mux.Result {
 	}, StatusCode: statusCode}
 }
 
-func resolveIndexResult(sources elasticsearch.Sources) *mux.Result {
+func resolveIndexResult(sources elasticsearch.Sources) (*mux.Result, error) {
 	if len(sources.Aliases) == 0 && len(sources.DataStreams) == 0 && len(sources.Indices) == 0 {
-		return &mux.Result{StatusCode: http.StatusNotFound}
+		return &mux.Result{StatusCode: http.StatusNotFound}, nil
 	}
 
 	body, err := json.Marshal(sources)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	return &mux.Result{
 		Body:       string(body),
 		Meta:       map[string]string{},
-		StatusCode: http.StatusOK}
+		StatusCode: http.StatusOK}, nil
 }
 
-func indexDocResult(index string, statusCode int) *mux.Result {
+func indexDocResult(index string, statusCode int) (*mux.Result, error) {
 	body, err := json.Marshal(indexDocResponse{
 		Id:          "fakeId",
 		Index:       index,
@@ -406,12 +438,12 @@ func indexDocResult(index string, statusCode int) *mux.Result {
 		Result:  "created",
 	})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return elasticsearchInsertResult(string(body), statusCode)
+	return elasticsearchInsertResult(string(body), statusCode), nil
 }
 
-func putIndexResult(index string) *mux.Result {
+func putIndexResult(index string) (*mux.Result, error) {
 	result := putIndexResponse{
 		Acknowledged:       true,
 		ShardsAcknowledged: true,
@@ -419,10 +451,30 @@ func putIndexResult(index string) *mux.Result {
 	}
 	serialized, err := json.Marshal(result)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return &mux.Result{StatusCode: http.StatusOK, Body: string(serialized)}
+	return &mux.Result{StatusCode: http.StatusOK, Body: string(serialized)}, nil
+}
+
+func getIndexMappingResult(index string, mappings map[string]any) (*mux.Result, error) {
+	result := map[string]any{
+		index: map[string]any{
+			"mappings": mappings,
+		},
+	}
+	serialized, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &mux.Result{StatusCode: http.StatusOK, Body: string(serialized)}, nil
+}
+
+func getIndexResult(index string, mappings map[string]any) (*mux.Result, error) {
+	// For now return the same as getIndexMappingResult,
+	// but "GET /:index" can also contain "settings" and "aliases" (in the future)
+	return getIndexMappingResult(index, mappings)
 }
 
 type (
