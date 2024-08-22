@@ -3630,7 +3630,26 @@ var AggregationTests = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(39553)), model.NewQueryResultCol("doc_count", uint64(83))}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(39551)),
+				model.NewQueryResultCol("aggr__0__count", uint64(10)),
+				model.NewQueryResultCol("aggr__0__1-bucket___col_0", uint64(0)),
+				model.NewQueryResultCol("metric__0__1-bucket__1-metric_col_0", 0.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(39552)),
+				model.NewQueryResultCol("aggr__0__count", uint64(83)),
+				model.NewQueryResultCol("aggr__0__1-bucket___col_0", uint64(13)),
+				model.NewQueryResultCol("metric__0__1-bucket__1-metric_col_0", 1222.65625),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(39553)),
+				model.NewQueryResultCol("aggr__0__count", uint64(83)),
+				model.NewQueryResultCol("aggr__0__1-bucket___col_0", uint64(9)),
+				model.NewQueryResultCol("metric__0__1-bucket__1-metric_col_0", 931.96875),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -3663,7 +3682,28 @@ var AggregationTests = []AggregationTestCase{
 				`GROUP BY ` + groupBySQL("order_date", clickhouse.DateTime64, 12*time.Hour) + ` ` +
 				`ORDER BY ` + groupBySQL("order_date", clickhouse.DateTime64, 12*time.Hour),
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1-bucket___col_0",
+			  "metric__0__1-bucket__1-metric_col_0"
+			FROM (
+			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1-bucket___col_0",
+				"metric__0__1-bucket__1-metric_col_0",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
+			
+			  FROM (
+				SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000) AS
+				  "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  countIf("products.product_name" ILIKE '%watch%') AS
+				  "aggr__0__1-bucket___col_0",
+				  sumOrNullIf("taxful_total_price", "products.product_name" ILIKE '%watch%')
+				  AS "metric__0__1-bucket__1-metric_col_0"
+				FROM "logs-generic-default"
+				WHERE ("order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z')
+				  AND "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z'))
+				GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) AS
+				  "aggr__0__key_0"))
+			ORDER BY "aggr__0__order_1_rank" ASC`,
 	},
 	{ // [18]
 		TestName: "complex filters",
