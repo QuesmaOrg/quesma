@@ -112,22 +112,43 @@ func (sl *tableDiscovery) TODOStitch(configuredTables map[string]discoveredTable
 
 	StitchedTable = make(map[string][]string)
 
-	// FIXME this stitching setup
-	allLogsTable := discoveredTable{name: "all_logs", columnTypes: make(map[string]string), config: config.IndexConfiguration{}}
-	tables := []string{"kibana_sample_data_ecommerce", "kibana_sample_data_logs", "kibana_sample_data_flights"}
+	{
+		// FIXME this stitching setup
+		allLogsTable := discoveredTable{name: "all_logs", columnTypes: make(map[string]string), config: config.IndexConfiguration{}}
+		tables := []string{"kibana_sample_data_ecommerce", "kibana_sample_data_logs", "kibana_sample_data_flights"}
 
-	StitchedTable["all_logs"] = tables
+		StitchedTable["all_logs"] = tables
 
-	for _, tableName := range tables {
-		if _, ok := configuredTables[tableName]; !ok {
-			logger.Warn().Msgf("table %s not found in the database", tableName)
-			continue
+		for _, tableName := range tables {
+			if _, ok := configuredTables[tableName]; !ok {
+				logger.Warn().Msgf("table %s not found in the database", tableName)
+				continue
+			}
+			for col, colType := range configuredTables[tableName].columnTypes {
+				allLogsTable.columnTypes[fmt.Sprintf("%s", col)] = colType
+			}
 		}
-		for col, colType := range configuredTables[tableName].columnTypes {
-			allLogsTable.columnTypes[fmt.Sprintf("%s", col)] = colType
-		}
+		configuredTables[allLogsTable.name] = allLogsTable
 	}
-	configuredTables[allLogsTable.name] = allLogsTable
+
+	{
+		allLogsTable := discoveredTable{name: "oztam_audience_device_index", columnTypes: make(map[string]string), config: config.IndexConfiguration{}}
+		tables := []string{"oztam_part_1", "oztam_part_2", "oztam_part_2"}
+
+		StitchedTable[allLogsTable.name] = tables
+
+		for _, tableName := range tables {
+			if _, ok := configuredTables[tableName]; !ok {
+				logger.Warn().Msgf("table %s not found in the database", tableName)
+				continue
+			}
+			for col, colType := range configuredTables[tableName].columnTypes {
+				allLogsTable.columnTypes[fmt.Sprintf("%s", col)] = colType
+			}
+		}
+		configuredTables[allLogsTable.name] = allLogsTable
+	}
+
 }
 
 func (sl *tableDiscovery) ReloadTableDefinitions() {
