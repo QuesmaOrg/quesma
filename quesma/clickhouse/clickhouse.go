@@ -497,14 +497,17 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 
 // This function implements heuristic for deciding if we should add new columns
 func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]interface{}) bool {
-	_ = attrsMap
+	if len(table.Cols) < maxColumns {
+		return true
+	}
 	if lm.ingestFieldStatistics == nil {
 		lm.ingestFieldStatistics = make(IngestFieldStatistics)
 	}
-
-	lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: "test", insertBucket: 0}]++
-
-	return len(table.Cols) < maxColumns
+	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
+	for _, field := range attrKeys {
+		lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: field, insertBucket: 0}]++
+	}
+	return false
 }
 
 func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON, inValidJson types.JSON,
