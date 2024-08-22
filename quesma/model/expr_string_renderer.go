@@ -24,8 +24,8 @@ func (v *renderer) VisitColumnRef(e ColumnRef) interface{} {
 	// TODO this should be done as the last step in the pipeline, not here
 	name := strings.TrimSuffix(e.ColumnName, ".keyword")
 	name = strings.TrimSuffix(name, "::keyword")
-	name = strings.TrimSuffix(name, ".keys")
-	name = strings.TrimSuffix(name, ".values")
+	name = strings.TrimSuffix(name, ".key")
+	name = strings.TrimSuffix(name, ".value")
 	return strconv.Quote(name)
 }
 
