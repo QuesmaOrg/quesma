@@ -192,7 +192,39 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 	return
 }
 
-// TODO: deduplicate metric names
+func (p *pancakeSqlQueryGenerator) generateLeafFilter(layer *pancakeModelLayer, whereClause model.Expr) (addSelectColumns []model.AliasedExpr, err error) {
+	if layer == nil { // no metric aggregations in filter
+		return nil, nil
+	}
+	if layer.nextBucketAggregation != nil {
+		return nil, errors.New("filter layer can't have sub bucket aggregations")
+	}
+
+	for _, metric := range layer.currentMetricAggregations {
+		for columnId, column := range metric.selectedColumns {
+			aliasedName := fmt.Sprintf("%s_col_%d", metric.internalName, columnId)
+			// Add if
+			var columnWithIf model.Expr
+			switch function := column.(type) {
+			case model.FunctionExpr:
+				if function.Name == "count" {
+					columnWithIf = model.NewFunction("countIf", whereClause)
+				} else if len(function.Args) == 1 {
+					columnWithIf = model.NewFunction(function.Name+"If", function.Args[0], whereClause)
+				} else {
+					return nil, fmt.Errorf("not implemented -iF for func with more than one argument: %s", model.AsString(column))
+				}
+			default:
+				return nil, fmt.Errorf("not implemented -iF for expr: %s", model.AsString(column))
+			}
+
+			aliasedColumn := model.NewAliasedExpr(columnWithIf, aliasedName)
+			addSelectColumns = append(addSelectColumns, aliasedColumn)
+		}
+	}
+	return
+}
+
 func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeModel, table *clickhouse.Table) (*model.SelectCommand, bool, error) {
 	if aggregation == nil {
 		return nil, false, errors.New("aggregation is nil in generateQuery")
@@ -215,15 +247,22 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		}
 
 		if layer.nextBucketAggregation != nil {
-			if _, isFilter := layer.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg); isFilter {
+			if filter, isFilter := layer.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg); isFilter {
 
 				for i, newFilterColumn := range layer.nextBucketAggregation.selectedColumns {
 					aliasName := fmt.Sprintf("%s_col_%d", layer.nextBucketAggregation.internalName, i)
 					aliasedColumn := model.NewAliasedExpr(newFilterColumn, aliasName)
 					selectColumns = append(selectColumns, aliasedColumn)
 				}
-				// TODO: push down filters and maybe agg name
-				continue
+
+				if layerId+1 < len(aggregation.layers) {
+					addSelectColumns, err := p.generateLeafFilter(aggregation.layers[layerId+1], filter.WhereClause)
+					if err != nil {
+						return nil, false, err
+					}
+					selectColumns = append(selectColumns, addSelectColumns...)
+				}
+				break
 			}
 			// if it is filter/filters than do something else
 			// if layerId == 0 and single filter than add to WHERE // optimion
