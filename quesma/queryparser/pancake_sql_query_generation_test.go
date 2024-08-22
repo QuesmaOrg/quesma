@@ -62,8 +62,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if topMetrics(test.TestName) {
 				t.Skip("Fix top metrics")
 			}
-			if filter(test.TestName) {
-				t.Skip("Fix filter")
+			if percentilesAndTest(test.TestName) {
+				t.Skip("Fix percentiles")
 			}
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
@@ -199,6 +199,7 @@ func topMetrics(testName string) bool {
 	return t1 || t2 || t3 || t4
 }
 
+/*
 // TODO remove after fix
 func filter(testName string) bool {
 	//t1 := testName == "Terms, completely different tree results from 2 queries - merging them didn't work before"
@@ -214,7 +215,23 @@ func filter(testName string) bool {
 		"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
 		"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix"
 	t9 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" // also filters
-	return t6 || t8 || t9
+	return t6 || t9
+}
+*/
+
+// TODO remove after fix
+
+func percentilesAndTest(testName string) bool {
+	t1 := testName == "Field statistics > summary for numeric fields" // also percentiles
+	// to be deleted after pancakes
+	t2 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
+		"Output more or less works, but is different and worse than what Elastic returns."+
+		"If it starts failing, maybe that's a good thing"
+	// below test is replacing it
+	// testName == "it's the same input as in previous test, but with the original output from Elastic."+
+	//	"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
+	//	"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix"
+	return t1 || t2
 }
 
 // TODO remove after fix
