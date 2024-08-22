@@ -4,7 +4,6 @@ package util
 
 import (
 	"github.com/DataDog/go-sqllexer"
-	"github.com/k0kubun/pp"
 	"strings"
 )
 
@@ -70,10 +69,6 @@ func SqlPrettyPrint(sqlData []byte) string {
 
 		// Add new line if needed
 		if newLineKeywords[token.Value] {
-			if token.Value == "FROM" {
-				pp.Println("JM sql pretty", sb.String())
-				pp.Println("JM2", tokens[tokenIdx-1])
-			}
 			sb.WriteString("\n")
 			lineLength = 0
 			isBreakIndent = false

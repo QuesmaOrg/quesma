@@ -54,7 +54,10 @@ func (a *pancakeTransformer) metricAggregationTreeNodeToModel(previousAggrNames 
 
 	}
 	if metric.queryType.AggregationType() != model.MetricsAggregation {
-		return nil, fmt.Errorf("metric %s aggregation is not metrics aggregation, type: %s", metric.name, metric.queryType.AggregationType().String())
+		// we can occasionally treat filter as metric if it has no childs
+		if _, isFilter := metric.queryType.(bucket_aggregations.FilterAgg); !isFilter {
+			return nil, fmt.Errorf("metric %s aggregation is not metrics aggregation, type: %s", metric.name, metric.queryType.AggregationType().String())
+		}
 	}
 
 	return &pancakeModelMetricAggregation{
@@ -137,6 +140,20 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 				result[0].layer.nextBucketAggregation = bucket
 				result[0].nextBucketAggregation = childAgg
 			} else {
+				// if both leaf optimizations are filter and second one doesn't have children we can treat second as metric
+				_, isFilter := result[0].nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg)
+				_, isFilter2 := childAgg.queryType.(bucket_aggregations.FilterAgg)
+
+				if isFilter && isFilter2 && len(childAgg.children) == 0 {
+					metrics, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
+					if err != nil {
+						return nil, err
+					}
+					result[0].layer.currentMetricAggregations = append(result[0].layer.currentMetricAggregations, metrics)
+					continue
+				}
+
+				// we need more pancakes as we support just one bucket layer
 				layer := &pancakeModelLayer{
 					currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
 					nextBucketAggregation:     bucket,
