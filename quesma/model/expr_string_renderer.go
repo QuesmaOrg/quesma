@@ -5,6 +5,7 @@ package model
 import (
 	"fmt"
 	"quesma/logger"
+	"quesma/quesma/types"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,10 +23,10 @@ func AsString(expr Expr) string {
 
 func (v *renderer) VisitColumnRef(e ColumnRef) interface{} {
 	// TODO this should be done as the last step in the pipeline, not here
-	name := strings.TrimSuffix(e.ColumnName, ".keyword")
-	name = strings.TrimSuffix(name, "::keyword")
-	name = strings.TrimSuffix(name, ".key")
-	name = strings.TrimSuffix(name, ".value")
+	name := strings.TrimSuffix(e.ColumnName, types.MultifieldKeywordSuffix)
+	name = strings.TrimSuffix(name, "::keyword") // TODO is this needed?
+	name = strings.TrimSuffix(name, types.MultifieldMapKeysSuffix)
+	name = strings.TrimSuffix(name, types.MultifieldMapValuesSuffix)
 	return strconv.Quote(name)
 }
 

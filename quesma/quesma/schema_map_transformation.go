@@ -6,6 +6,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/quesma/types"
 	"strings"
 )
 
@@ -27,7 +28,7 @@ func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScop
 	// This is a HACK to get the column database type from the schema
 	//
 	//
-	suffixes := []string{".keyword", ".text", ".key", ".value"}
+	suffixes := []string{types.MultifieldKeywordSuffix, types.MultifieldTextSuffix, types.MultifieldMapKeysSuffix, types.MultifieldMapValuesSuffix}
 	var resultSuffix string
 	for _, suffix := range suffixes {
 		if strings.HasSuffix(fieldName, suffix) {
@@ -37,9 +38,9 @@ func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScop
 	}
 
 	switch resultSuffix {
-	case ".key":
+	case types.MultifieldMapKeysSuffix:
 		scope = scopeKeys
-	case ".value":
+	case types.MultifieldMapValuesSuffix:
 		scope = scopeValues
 	default:
 		scope = scopeWholeMap
