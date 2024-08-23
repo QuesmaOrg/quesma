@@ -1,15 +1,33 @@
-mode: "dual-write-query-clickhouse"
 installationId: "just-Quesma-smoke-test-instance"
-port: 8080
-indexes:
-  kibana_sample_data_ecommerce:
-    enabled: true
-  kibana_sample_data_flights:
-    enabled: true
-  kibana_sample_data_logs:
-    enabled: true
-  logs-generic-default:
-    enabled: true
-    fullTextFields: [ "message" ]
-  windows_logs:   # Used for EQL e2e tests
-    enabled: true
+frontendConnectors:
+  - name: elasticsearchFakedAPI
+    type: elasticsearch-fe
+    config:
+      listenPort: 8080
+backendConnectors:
+  - name: my-minimal-elasticsearch
+    type: elasticsearch
+    config:
+      url: "http://localhost:9200"
+  - name: my-clickhouse-cloud-data-source
+    type: clickhouse-od
+    config:
+      url: "clickhouse://localhost:9000"
+processors:
+  - name: elasticsearch-to-clickhouse-processor
+    type: quesma-v1-processor
+    config:
+      mode: "dual-write-query-clickhouse"
+      enableElasticsearchIngest: true
+      indexes:
+        kibana_sample_data_ecommerce:
+          enabled: true
+        kibana_sample_data_flights:
+          enabled: true
+        kibana_sample_data_logs:
+          enabled: true
+        logs-generic-default:
+          enabled: true
+          fullTextFields: [ "message" ]
+        windows_logs:   # Used for EQL e2e tests
+          enabled: true
