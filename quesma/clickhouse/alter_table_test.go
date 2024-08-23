@@ -82,7 +82,8 @@ func TestAlterTableHeuristic(t *testing.T) {
 	table := &Table{
 		Cols: map[string]*Column{},
 	}
-	fieldsMap := concurrent.NewMapWith("tableName", table)
+	const tableName = "tableName"
+	fieldsMap := concurrent.NewMapWith(tableName, table)
 	lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{})
 
 	rowsToInsert := make([]string, 0)
@@ -97,19 +98,20 @@ func TestAlterTableHeuristic(t *testing.T) {
 		rowsToInsert = append(rowsToInsert, `{`+currentRow+`}`)
 		previousRow = currentRow
 	}
-	attrsMap := make(map[string][]interface{})
 
 	assert.Equal(t, int64(0), lm.ingestCounter)
 	for i := range rowsToInsert {
-		shouldAlterColumns, _ := lm.shouldAlterColumns(table, attrsMap)
-		if i < maxColumns {
-			assert.True(t, shouldAlterColumns)
-		} else {
-			assert.False(t, shouldAlterColumns)
-		}
-		_, _, err := lm.BuildIngestSQLStatements("tableName", types.MustJSON(rowsToInsert[i]), nil, chConfig)
+		_, _, err := lm.BuildIngestSQLStatements(tableName, types.MustJSON(rowsToInsert[i]), nil, chConfig)
 		assert.NoError(t, err)
 
 	}
+	// Total number of columns should be 500
+	// First 100 columns will be added in the first 100 inserts
+	// without checking any additional heuristics
+	// The rest of the columns will be added in the next 900 inserts
+	// using the heuristic
+	const expectedNumberOfColumns = 500
+	assert.Equal(t, len(table.Cols), expectedNumberOfColumns)
+
 	assert.Equal(t, int64(numberOfInserts), lm.ingestCounter)
 }

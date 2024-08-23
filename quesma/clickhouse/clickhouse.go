@@ -511,13 +511,12 @@ func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]int
 	if lm.ingestFieldStatistics == nil {
 		lm.ingestFieldStatistics = make(IngestFieldStatistics)
 	}
-	const percent100 = 100
-	const percent50 = 50
+	const percent50 = 0.5
 	for i := 0; i < len(attrKeys); i++ {
 		lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]++
 		counter := atomic.LoadInt64(&lm.ingestCounter)
 		fieldCounter := lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]
-		if fieldCounter*percent100/counter > percent50 {
+		if float64(fieldCounter)/float64(counter) > percent50 {
 			alterColumnIndexes = append(alterColumnIndexes, i)
 		}
 	}
