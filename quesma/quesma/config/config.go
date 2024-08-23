@@ -156,7 +156,7 @@ func loadConfigFile() {
 func (c *QuesmaConfiguration) Validate() error {
 	var result error
 	if c.PublicTcpPort == 0 { // unmarshalling defaults to 0 if not present
-		result = multierror.Append(result, fmt.Errorf("specifying Quesma TCP port for incoming traffic is required"))
+		result = multierror.Append(result, fmt.Errorf("specifying TCP port for incoming traffic is required, please verify your frontend connector settings"))
 	}
 	connectorCount := len(c.Connectors)
 	if connectorCount != 1 {

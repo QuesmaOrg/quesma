@@ -81,16 +81,16 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	relDBConn, connType, err := c.getRelationalDBConf()
 	if err != nil {
 		errAcc = multierror.Append(errAcc, err)
-	}
-	relDBConn.ConnectorType = connType
-	if connType == "hydrolix" {
-		conf.Connectors["injected-hydrolix-connector"] = *relDBConn
-		conf.Hydrolix = *relDBConn
 	} else {
-		conf.Connectors["injected-clickhouse-connector"] = *relDBConn
-		conf.ClickHouse = *relDBConn
+		relDBConn.ConnectorType = connType
+		if connType == "hydrolix" {
+			conf.Connectors["injected-hydrolix-connector"] = *relDBConn
+			conf.Hydrolix = *relDBConn
+		} else {
+			conf.Connectors["injected-clickhouse-connector"] = *relDBConn
+			conf.ClickHouse = *relDBConn
+		}
 	}
-
 	if v1processor, err := c.getProcessorConfig(); err == nil {
 		conf.Mode = v1processor.Config.Mode
 		conf.IndexConfig = v1processor.Config.IndexConfig
