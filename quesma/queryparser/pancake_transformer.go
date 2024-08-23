@@ -99,6 +99,21 @@ type layerAndNextBucket struct {
 	nextBucketAggregation *pancakeAggregationTreeNode
 }
 
+func (a *pancakeTransformer) optimizeSimpleFilter(previousAggrNames []string, result *layerAndNextBucket, childAgg *pancakeAggregationTreeNode) bool {
+	_, isFilter := result.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg)
+	_, isFilter2 := childAgg.queryType.(bucket_aggregations.FilterAgg)
+
+	if isFilter && isFilter2 && len(childAgg.children) == 0 {
+		metrics, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
+		if err != nil {
+			return false // not a big deal, we can make two pancake queries instead or get error there
+		}
+		result.layer.currentMetricAggregations = append(result.layer.currentMetricAggregations, metrics)
+		return true
+	}
+	return false
+}
+
 func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggregations []*pancakeAggregationTreeNode) (result []layerAndNextBucket, err error) {
 
 	if len(childAggregations) == 0 {
@@ -141,15 +156,7 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 				result[0].nextBucketAggregation = childAgg
 			} else {
 				// if both leaf optimizations are filter and second one doesn't have children we can treat second as metric
-				_, isFilter := result[0].nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg)
-				_, isFilter2 := childAgg.queryType.(bucket_aggregations.FilterAgg)
-
-				if isFilter && isFilter2 && len(childAgg.children) == 0 {
-					metrics, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
-					if err != nil {
-						return nil, err
-					}
-					result[0].layer.currentMetricAggregations = append(result[0].layer.currentMetricAggregations, metrics)
+				if a.optimizeSimpleFilter(previousAggrNames, &result[0], childAgg) {
 					continue
 				}
 
