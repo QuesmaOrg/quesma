@@ -70,7 +70,6 @@ func NewMapTypeVisitor(resolver mapTypeResolver) model.ExprVisitor {
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 		isMap, _, realName := resolver.isMap(e.ColumnName)
-
 		if !isMap {
 			return e
 		}
@@ -79,38 +78,31 @@ func NewMapTypeVisitor(resolver mapTypeResolver) model.ExprVisitor {
 	}
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
-
 		column, ok := e.Left.(model.ColumnRef)
 		if ok {
 			isMap, scope, _ := resolver.isMap(column.ColumnName)
-
-			left := e.Left.Accept(b).(model.Expr)
-
 			if !isMap {
 				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
 			}
 
+			left := e.Left.Accept(b).(model.Expr)
 			op := strings.ToUpper(e.Op)
 
 			switch {
 
 			case (op == "ILIKE" || op == "LIKE") && scope == scopeWholeMap:
-
 				right := e.Right.Accept(b).(model.Expr)
 				existsInKey := existsInMap(left, op, "mapKeys", right)
 				existsInValue := existsInMap(left, op, "mapValues", right)
-
 				return model.NewInfixExpr(existsInKey, "OR", existsInValue)
 
 			case op == "=" && (scope == scopeWholeMap || scope == scopeKeys):
 				return model.NewFunction("mapContains", left, e.Right.Accept(b).(model.Expr))
 
 			case (op == "ILIKE" || op == "LIKE") && scope == scopeKeys:
-
 				return existsInMap(left, op, "mapKeys", e.Right.Accept(b).(model.Expr))
 
 			case (op == "ILIKE" || op == "LIKE") && scope == scopeValues:
-
 				return existsInMap(left, op, "mapValues", e.Right.Accept(b).(model.Expr))
 
 			case op == "=" && scope == scopeValues:
