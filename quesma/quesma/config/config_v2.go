@@ -13,6 +13,7 @@ import (
 
 const (
 	ElasticsearchFrontedConnectorName = "elasticsearch-fe"
+	ElasticsearchBackendConnectorName = "elasticsearch"
 	ClickHouseOSBackendConnectorName  = "clickhouse-os"
 	ClickHouseBackendConnectorName    = "clickhouse"
 	HydrolixBackendConnectorName      = "hydrolix"
@@ -130,7 +131,7 @@ func (c *QuesmaNewConfiguration) getPublicTcpPort() (network.Port, error) {
 
 func (c *QuesmaNewConfiguration) getElasticsearchBackendConnector() *BackendConnector {
 	for _, backendConn := range c.BackendConnectors {
-		if backendConn.Type == "elasticsearch" {
+		if backendConn.Type == ElasticsearchBackendConnectorName {
 			return &backendConn
 		}
 	}
