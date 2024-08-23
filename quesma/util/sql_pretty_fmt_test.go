@@ -192,3 +192,35 @@ ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
 	println(sqlFormatted)
 	assert.Equal(t, expect, sqlFormatted)
 }
+
+func TestSqlPrettyPancake2(t *testing.T) {
+	sql := `
+SELECT "aggr__0__key_0", "aggr__0__count", "metric__0__1_col_0",
+  "aggr__0__2-bucket___col_0", "metric__0__2-bucket__2-metric_col_0"
+FROM (
+  SELECT "aggr__0__key_0", "aggr__0__count", "metric__0__1_col_0",
+    "aggr__0__2-bucket___col_0", "metric__0__2-bucket__2-metric_col_0",
+    dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
+  FROM (
+    SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
+      "aggr__0__key_0",
+      sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+      sumOrNull(sumOrNull("spent")) OVER (PARTITION BY "aggr__0__key_0") AS
+      "metric__0__1_col_0",
+      countIf("message" iLIKE '%started%') AS "aggr__0__2-bucket___col_0",
+      sumOrNullIf("multiplier", "message" iLIKE '%started%') AS
+      "metric__0__2-bucket__2-metric_col_0"
+    FROM "logs-generic-default"
+    GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
+      "aggr__0__key_0"))
+ORDER BY "aggr__0__order_1_rank" ASC`
+	expect := strings.Trim(sql, " \n")
+
+	sqlFormatted := SqlPrettyPrint([]byte(sql))
+	println("===== Expected: ")
+
+	println(expect)
+	println("===== Actual: ")
+	println(sqlFormatted)
+	assert.Equal(t, expect, sqlFormatted)
+}

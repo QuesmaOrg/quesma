@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"quesma/clickhouse"
 	"quesma/model"
+	"quesma/model/bucket_aggregations"
 	"quesma/queryparser/query_util"
 )
 
@@ -191,11 +192,59 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 	return
 }
 
-// TODO: deduplicate metric names
+func (p *pancakeSqlQueryGenerator) generateLeafFilter(layer *pancakeModelLayer, whereClause model.Expr) (addSelectColumns []model.AliasedExpr, err error) {
+	if layer == nil { // no metric aggregations in filter
+		return nil, nil
+	}
+	if layer.nextBucketAggregation != nil {
+		return nil, errors.New("filter layer can't have sub bucket aggregations")
+	}
+
+	for _, metric := range layer.currentMetricAggregations {
+		for columnId, column := range metric.selectedColumns {
+			aliasedName := fmt.Sprintf("%s_col_%d", metric.internalName, columnId)
+			// Add if
+			var columnWithIf model.Expr
+			switch function := column.(type) {
+			case model.FunctionExpr:
+				if function.Name == "count" {
+					columnWithIf = model.NewFunction("countIf", whereClause)
+				} else if len(function.Args) == 1 {
+					// https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators#-if
+					columnWithIf = model.NewFunction(function.Name+"If", function.Args[0], whereClause)
+				} else {
+					return nil, fmt.Errorf("not implemented -iF for func with more than one argument: %s", model.AsString(column))
+				}
+			default:
+				return nil, fmt.Errorf("not implemented -iF for expr: %s", model.AsString(column))
+			}
+
+			aliasedColumn := model.NewAliasedExpr(columnWithIf, aliasedName)
+			addSelectColumns = append(addSelectColumns, aliasedColumn)
+		}
+	}
+	return
+}
+
+func (p *pancakeSqlQueryGenerator) countRealBucketAggregations(aggregation *pancakeModel) int {
+	bucketAggregationCount := 0
+	for _, layer := range aggregation.layers {
+		if layer.nextBucketAggregation != nil {
+			if layer.nextBucketAggregation.DoesHaveGroupBy() {
+				bucketAggregationCount++
+			}
+		}
+	}
+	return bucketAggregationCount
+}
+
 func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeModel, table *clickhouse.Table) (*model.SelectCommand, bool, error) {
 	if aggregation == nil {
 		return nil, false, errors.New("aggregation is nil in generateQuery")
 	}
+
+	bucketAggregationCount := p.countRealBucketAggregations(aggregation)
+	bucketAggregationSoFar := 0
 
 	selectColumns := make([]model.AliasedExpr, 0)
 	rankColumns := make([]model.AliasedExpr, 0)
@@ -203,9 +252,8 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	rankOrderBys := make([]model.OrderByExpr, 0)
 	groupBys := make([]model.AliasedExpr, 0)
 	for layerId, layer := range aggregation.layers {
-		hasMoreBucketAggregations := layerId+1 < len(aggregation.layers)
-
 		for _, metric := range layer.currentMetricAggregations {
+			hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
 			addSelectColumns, err := p.generateMetricSelects(metric, groupBys, hasMoreBucketAggregations)
 			if err != nil {
 				return nil, false, err
@@ -214,7 +262,28 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		}
 
 		if layer.nextBucketAggregation != nil {
-			hasMoreBucketAggregations = hasMoreBucketAggregations && aggregation.layers[layerId+1].nextBucketAggregation != nil
+			if filter, isFilter := layer.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg); isFilter {
+
+				for _, newFilterColumn := range layer.nextBucketAggregation.selectedColumns { // it is just one column
+					aliasName := layer.nextBucketAggregation.InternalNameForCount()
+					aliasedColumn := model.NewAliasedExpr(newFilterColumn, aliasName)
+					selectColumns = append(selectColumns, aliasedColumn)
+				}
+
+				if layerId+1 < len(aggregation.layers) {
+					addSelectColumns, err := p.generateLeafFilter(aggregation.layers[layerId+1], filter.WhereClause)
+					if err != nil {
+						return nil, false, err
+					}
+					selectColumns = append(selectColumns, addSelectColumns...)
+				}
+				break
+			}
+
+			if layer.nextBucketAggregation.DoesHaveGroupBy() {
+				bucketAggregationSoFar += 1
+			}
+			hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
 			addSelectColumns, addGroupBys, addRankColumns, addRankWheres, addRankOrderBys, err :=
 				p.generateBucketSqlParts(layer.nextBucketAggregation, groupBys, hasMoreBucketAggregations)
 			if err != nil {
@@ -229,21 +298,23 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	}
 
 	// if we have single layer we can emit simpler query
-	if len(aggregation.layers) == 1 || len(aggregation.layers) == 2 && aggregation.layers[1].nextBucketAggregation == nil {
+	if bucketAggregationCount <= 1 {
 		limit := 0
-		orderBy := make([]model.OrderByExpr, 0)
-		if aggregation.layers[0].nextBucketAggregation != nil {
-			limit = aggregation.layers[0].nextBucketAggregation.limit
-			// if where not null, increase limit by 1
-			if aggregation.layers[0].nextBucketAggregation.filterOurEmptyKeyBucket {
-				if limit != 0 {
-					limit += 1
+		for _, layer := range aggregation.layers {
+			if layer.nextBucketAggregation != nil && layer.nextBucketAggregation.DoesHaveGroupBy() {
+				limit = layer.nextBucketAggregation.limit
+				// if where not null, increase limit by 1
+				if layer.nextBucketAggregation.filterOurEmptyKeyBucket {
+					if limit != 0 {
+						limit += 1
+					}
 				}
 			}
+		}
 
-			if len(rankColumns) > 0 {
-				orderBy = rankColumns[0].Expr.(model.WindowFunction).OrderBy
-			}
+		orderBy := make([]model.OrderByExpr, 0)
+		if len(rankColumns) > 0 {
+			orderBy = rankColumns[0].Expr.(model.WindowFunction).OrderBy
 		}
 
 		query := model.SelectCommand{
@@ -253,6 +324,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			FromClause:  model.NewTableRef(table.FullTableName()),
 			OrderBy:     orderBy,
 			Limit:       limit,
+			SampleLimit: aggregation.sampleLimit,
 		}
 		return &query, false, nil
 	}

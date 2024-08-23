@@ -5,8 +5,8 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"quesma/logger"
 	"quesma/model"
-	"quesma/model/bucket_aggregations"
 	"quesma/util"
 	"strings"
 )
@@ -24,6 +24,7 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 		}
 		return []model.QueryResultRow{newRow}
 	}
+	logger.Error().Msgf("no rows in selectMetricRows %s", metricName)
 	return
 }
 
@@ -119,13 +120,16 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 	}
 
 	if layer.nextBucketAggregation != nil {
-		// sampler is special
-		if _, isSampler := layer.nextBucketAggregation.queryType.(bucket_aggregations.SamplerInterface); isSampler {
-			jsonWithOmittedSampler, err := p.layerToJSON(layerIdx+1, layers, rows)
+		// sampler and filter are special
+		if !layer.nextBucketAggregation.DoesHaveGroupBy() {
+			// TODO: if filters/range/dateRange do something special
+			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"count", rows)
+			aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
+			subAggr, err := p.layerToJSON(layerIdx+1, layers, rows)
 			if err != nil {
 				return nil, err
 			}
-			result[layer.nextBucketAggregation.name] = jsonWithOmittedSampler
+			result[layer.nextBucketAggregation.name] = util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma)
 			return result, nil
 		}
 

@@ -5,6 +5,7 @@ package queryparser
 import (
 	"fmt"
 	"quesma/model"
+	"quesma/model/bucket_aggregations"
 )
 
 // Pancake model.
@@ -69,4 +70,9 @@ func (p pancakeModelBucketAggregation) InternalNameForCount() string {
 // Used by terms aggregation to get the total count, so we can calculate sum_other_doc_count
 func (p pancakeModelBucketAggregation) InternalNameForParentCount() string {
 	return fmt.Sprintf("%sparent_count", p.internalName)
+}
+
+func (p pancakeModelBucketAggregation) DoesHaveGroupBy() bool {
+	_, noGroupBy := p.queryType.(bucket_aggregations.NoGroupByInterface)
+	return !noGroupBy
 }

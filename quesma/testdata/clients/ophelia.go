@@ -2122,7 +2122,8 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				  "aggr__2__8__count",
 				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
 				  "aggr__2__8__key_0") AS "aggr__2__8__order_1",
-				  sumOrNull("total") AS "metric__2__8__1_col_0",
+				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
+				  "aggr__2__8__key_0") AS "metric__2__8__1_col_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
 				  "aggr__2__8__4__parent_count", "organName" AS "aggr__2__8__4__key_0",
 				  count(*) AS "aggr__2__8__4__count"
