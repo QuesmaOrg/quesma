@@ -5,8 +5,8 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"quesma/logger"
 	"quesma/model"
-	"quesma/model/bucket_aggregations"
 	"quesma/util"
 	"strings"
 )
@@ -24,6 +24,7 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 		}
 		return []model.QueryResultRow{newRow}
 	}
+	logger.Error().Msgf("no rows in selectMetricRows %s", metricName)
 	return
 }
 
@@ -122,15 +123,7 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 		// sampler and filter are special
 		if !layer.nextBucketAggregation.DoesHaveGroupBy() {
 			// TODO: if filters/range/dateRange do something special
-			var selectedRows []model.QueryResultRow
-			switch layer.nextBucketAggregation.queryType.(type) {
-			case bucket_aggregations.FilterAgg:
-				selectedRows = p.selectMetricRows(layer.nextBucketAggregation.internalName+"_col_", rows)
-			case bucket_aggregations.SamplerInterface:
-				selectedRows = p.selectMetricRows(layer.nextBucketAggregation.internalName+"count", rows)
-			default:
-				return nil, fmt.Errorf("unexpected query type: %T", layer.nextBucketAggregation.queryType)
-			}
+			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"count", rows)
 			aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
 			subAggr, err := p.layerToJSON(layerIdx+1, layers, rows)
 			if err != nil {

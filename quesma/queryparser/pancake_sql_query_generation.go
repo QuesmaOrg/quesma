@@ -264,8 +264,8 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		if layer.nextBucketAggregation != nil {
 			if filter, isFilter := layer.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg); isFilter {
 
-				for i, newFilterColumn := range layer.nextBucketAggregation.selectedColumns {
-					aliasName := fmt.Sprintf("%s_col_%d", layer.nextBucketAggregation.internalName, i)
+				for _, newFilterColumn := range layer.nextBucketAggregation.selectedColumns { // it is just one column
+					aliasName := layer.nextBucketAggregation.InternalNameForCount()
 					aliasedColumn := model.NewAliasedExpr(newFilterColumn, aliasName)
 					selectColumns = append(selectColumns, aliasedColumn)
 				}

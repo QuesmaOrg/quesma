@@ -346,21 +346,21 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", 46),
 				model.NewQueryResultCol("aggr__0__key_0", "Abu Dhabi"),
 				model.NewQueryResultCol("aggr__0__count", uint64(23)),
-				model.NewQueryResultCol("aggr__0__1-bucket___col_0", 7),
+				model.NewQueryResultCol("aggr__0__1-bucket__count", 7),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", 3),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", 46),
 				model.NewQueryResultCol("aggr__0__key_0", "Adelaide"),
 				model.NewQueryResultCol("aggr__0__count", uint64(20)),
-				model.NewQueryResultCol("aggr__0__1-bucket___col_0", 3),
+				model.NewQueryResultCol("aggr__0__1-bucket__count", 3),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", 2),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", 46),
 				model.NewQueryResultCol("aggr__0__key_0", "Albuquerque"),
 				model.NewQueryResultCol("aggr__0__count", uint64(3)),
-				model.NewQueryResultCol("aggr__0__1-bucket___col_0", 0),
+				model.NewQueryResultCol("aggr__0__1-bucket__count", 0),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", 2),
 			}},
 		},
@@ -412,7 +412,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
 			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0",
-			  countIf("FlightDelay"==true) AS "aggr__0__1-bucket___col_0"
+			  countIf("FlightDelay"==true) AS "aggr__0__1-bucket__count"
 			FROM "logs-generic-default"
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
@@ -1091,7 +1091,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0-bucket___col_0", uint64(553)),
+				model.NewQueryResultCol("aggr__0-bucket__count", uint64(553)),
 			}},
 		},
 		ExpectedSQLs: []string{
@@ -1106,7 +1106,7 @@ var AggregationTests = []AggregationTestCase{
 				`AND "FlightDelay"==true)`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf("FlightDelay"==true) AS "aggr__0-bucket___col_0"
+			SELECT countIf("FlightDelay"==true) AS "aggr__0-bucket__count"
 			FROM "logs-generic-default"
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
@@ -3580,19 +3580,19 @@ var AggregationTests = []AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__key_0", int64(39551)),
 				model.NewQueryResultCol("aggr__0__count", uint64(10)),
-				model.NewQueryResultCol("aggr__0__1-bucket___col_0", uint64(0)),
+				model.NewQueryResultCol("aggr__0__1-bucket__count", uint64(0)),
 				model.NewQueryResultCol("metric__0__1-bucket__1-metric_col_0", 0.0),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__key_0", int64(39552)),
 				model.NewQueryResultCol("aggr__0__count", uint64(83)),
-				model.NewQueryResultCol("aggr__0__1-bucket___col_0", uint64(13)),
+				model.NewQueryResultCol("aggr__0__1-bucket__count", uint64(13)),
 				model.NewQueryResultCol("metric__0__1-bucket__1-metric_col_0", 1222.65625),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__key_0", int64(39553)),
 				model.NewQueryResultCol("aggr__0__count", uint64(83)),
-				model.NewQueryResultCol("aggr__0__1-bucket___col_0", uint64(9)),
+				model.NewQueryResultCol("aggr__0__1-bucket__count", uint64(9)),
 				model.NewQueryResultCol("metric__0__1-bucket__1-metric_col_0", 931.96875),
 			}},
 		},
@@ -3632,7 +3632,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000) AS
 			  "aggr__0__key_0", count(*) AS "aggr__0__count",
 			  countIf("products.product_name" ILIKE '%watch%') AS
-			  "aggr__0__1-bucket___col_0",
+			  "aggr__0__1-bucket__count",
 			  sumOrNullIf("taxful_total_price", "products.product_name" ILIKE '%watch%') AS
 			  "metric__0__1-bucket__1-metric_col_0"
 			FROM "logs-generic-default"
@@ -5746,21 +5746,21 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(14)),
 				model.NewQueryResultCol("aggr__0__key_0", "Albuquerque"),
 				model.NewQueryResultCol("aggr__0__count", uint64(4)),
-				model.NewQueryResultCol("aggr__0__1-bucket___col_0", uint64(1)),
+				model.NewQueryResultCol("aggr__0__1-bucket__count", uint64(1)),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", uint64(2)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(14)),
 				model.NewQueryResultCol("aggr__0__key_0", "Atlanta"),
 				model.NewQueryResultCol("aggr__0__count", uint64(5)),
-				model.NewQueryResultCol("aggr__0__1-bucket___col_0", uint64(0)),
+				model.NewQueryResultCol("aggr__0__1-bucket__count", uint64(0)),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", uint64(0)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(14)),
 				model.NewQueryResultCol("aggr__0__key_0", "Baltimore"),
 				model.NewQueryResultCol("aggr__0__count", uint64(5)),
-				model.NewQueryResultCol("aggr__0__1-bucket___col_0", uint64(2)),
+				model.NewQueryResultCol("aggr__0__1-bucket__count", uint64(2)),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", uint64(0)),
 			}},
 		},
@@ -5802,7 +5802,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
 			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0",
-			  countIf("FlightDelay"==true) AS "aggr__0__1-bucket___col_0"
+			  countIf("FlightDelay"==true) AS "aggr__0__1-bucket__count"
 			FROM "logs-generic-default"
 			GROUP BY "OriginCityName" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC
