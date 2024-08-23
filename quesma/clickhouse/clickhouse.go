@@ -37,11 +37,10 @@ const (
 
 type (
 	IngestFieldBucketKey struct {
-		indexName    string
-		field        string
-		insertBucket int
+		indexName string
+		field     string
 	}
-	IngestFieldStatistics map[IngestFieldBucketKey]int
+	IngestFieldStatistics map[IngestFieldBucketKey]int64
 )
 
 type (
@@ -54,6 +53,7 @@ type (
 		cfg                   config.QuesmaConfiguration
 		phoneHomeAgent        telemetry.PhoneHomeAgent
 		schemaRegistry        schema.Registry
+		ingestCounter         int64
 		ingestFieldStatistics IngestFieldStatistics
 	}
 	TableMap  = concurrent.Map[string, *Table]
@@ -496,18 +496,30 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 }
 
 // This function implements heuristic for deciding if we should add new columns
-func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]interface{}) bool {
+func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]interface{}) (bool, []int) {
+	atomic.AddInt64(&lm.ingestCounter, 1)
+	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
+	alterColumnIndexes := make([]int, 0)
 	if len(table.Cols) < maxColumns {
-		return true
+		return true, alterColumnIndexes
 	}
 	if lm.ingestFieldStatistics == nil {
 		lm.ingestFieldStatistics = make(IngestFieldStatistics)
 	}
-	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
-	for _, field := range attrKeys {
-		lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: field, insertBucket: 0}]++
+	const percent100 = 100
+	const percent50 = 50
+	for i := 0; i < len(attrKeys); i++ {
+		lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]++
+		counter := atomic.LoadInt64(&lm.ingestCounter)
+		fieldCounter := lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]
+		if fieldCounter*percent100/counter > percent50 {
+			alterColumnIndexes = append(alterColumnIndexes, i)
+		}
 	}
-	return false
+	if len(alterColumnIndexes) > 0 {
+		return true, alterColumnIndexes
+	}
+	return false, nil
 }
 
 func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON, inValidJson types.JSON,
@@ -566,7 +578,7 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	// we only want to add fields that are not part of the schema e.g we don't
 	// have columns for them
 	var alterCmd []string
-	if lm.shouldAlterColumns(table, attrsMap) {
+	if ok, _ := lm.shouldAlterColumns(table, attrsMap); ok {
 		alterCmd = lm.generateNewColumns(attrsMap, table)
 	}
 	// If there are some invalid fields, we need to add them to the attributes map

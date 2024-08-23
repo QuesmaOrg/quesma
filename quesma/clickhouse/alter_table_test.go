@@ -99,7 +99,7 @@ func TestAlterTableHeuristic(t *testing.T) {
 	}
 	attrsMap := make(map[string][]interface{})
 	for i := range rowsToInsert {
-		shouldAlterColumns := lm.shouldAlterColumns(table, attrsMap)
+		shouldAlterColumns, _ := lm.shouldAlterColumns(table, attrsMap)
 		if i < maxColumns {
 			assert.True(t, shouldAlterColumns)
 		} else {
