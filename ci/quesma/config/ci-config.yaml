@@ -8,11 +8,11 @@ backendConnectors:
   - name: my-minimal-elasticsearch
     type: elasticsearch
     config:
-      url: "http://localhost:9200"
+      url: "http://elasticsearch:9200"
   - name: my-clickhouse-cloud-data-source
     type: clickhouse-os
     config:
-      url: "clickhouse://localhost:9000"
+      url: "clickhouse://clickhouse:9000"
 processors:
   - name: elasticsearch-to-clickhouse-processor
     type: quesma-v1-processor
