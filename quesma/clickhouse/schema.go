@@ -216,6 +216,8 @@ func ResolveType(clickHouseTypeName string) reflect.Type {
 		return reflect.TypeOf(true)
 	case "JSON":
 		return reflect.TypeOf(map[string]interface{}{})
+	case "Map(String, Nullable(String))", "Map(String, String)":
+		return reflect.TypeOf(map[string]string{})
 	case "Unknown":
 		return reflect.TypeOf(UnknownType{})
 	}
