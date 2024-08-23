@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"quesma/combinators"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/metrics_aggregations"
@@ -25,7 +26,7 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
-		result = []model.Expr{model.NewFunction(metricsAggr.AggrType+"OrNull", getFirstExpression())}
+		result = []model.Expr{model.NewFunction(combinators.NewFunction(metricsAggr.AggrType).SetOrNull(true).String(), getFirstExpression())}
 	case "quantile":
 		// Sorting here useful mostly for determinism in tests.
 		// It wasn't there before, and everything worked fine. We could safely remove it, if needed.

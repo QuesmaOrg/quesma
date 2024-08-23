@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"quesma/clickhouse"
+	"quesma/combinators"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/queryparser/query_util"
@@ -42,15 +43,19 @@ func (p *pancakeSqlQueryGenerator) generatePartitionBy(groupByColumns []model.Al
 func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
 	switch origFunc := origExpr.(type) {
 	case model.FunctionExpr:
-		switch origFunc.Name {
-		case "sum", "sumOrNull", "min", "minOrNull", "max", "maxOrNull":
+
+		fn := combinators.ParseAggregateFunction(origFunc.Name)
+
+		switch fn.Name {
+		case "sum", "min", "max":
 			return origExpr, origFunc.Name, nil
-		case "count", "countIf":
-			return model.NewFunction(origFunc.Name, origFunc.Args...), "sum", nil
-		case "avg", "avgOrNull", "varPop", "varSamp", "stddevPop", "stddevSamp", "uniq":
+		case "count":
+			return model.NewFunction(fn.String(), origFunc.Args...), "sum", nil
+		case "avg", "varPop", "varSamp", "stddevPop", "stddevSamp", "uniq":
 			// TODO: I debate whether make that default
 			// This is ClickHouse specific: https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators
-			return model.NewFunction(origFunc.Name+"State", origFunc.Args...), origFunc.Name + "Merge", nil
+
+			return model.NewFunction(fn.Clone().SetState(true).String(), origFunc.Args...), combinators.NewFunction(origFunc.Name).SetMerge(true).String(), nil
 		}
 	}
 	debugQueryType := "<nil>"
