@@ -58,6 +58,12 @@ func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScop
 	return false, scope, tableColumnName
 }
 
+func existsInMap(left model.Expr, op string, mapToArrayFunction string, right model.Expr) model.Expr {
+	variableName := "x"
+	lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, right))
+	return model.NewFunction("arrayExists", lambda, model.NewFunction(mapToArrayFunction, left))
+}
+
 func NewMapTypeVisitor(resolver mapTypeResolver) model.ExprVisitor {
 
 	visitor := model.NewBaseVisitor()
@@ -90,10 +96,10 @@ func NewMapTypeVisitor(resolver mapTypeResolver) model.ExprVisitor {
 
 			case (op == "ILIKE" || op == "LIKE") && scope == scopeWholeMap:
 
-				variableName := "x"
-				lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, e.Right.Accept(b).(model.Expr)))
-				existsInKey := model.NewFunction("arrayExists", lambda, model.NewFunction("mapKeys", left))
-				existsInValue := model.NewFunction("arrayExists", lambda, model.NewFunction("mapValues", left))
+				right := e.Right.Accept(b).(model.Expr)
+				existsInKey := existsInMap(left, op, "mapKeys", right)
+				existsInValue := existsInMap(left, op, "mapValues", right)
+
 				return model.NewInfixExpr(existsInKey, "OR", existsInValue)
 
 			case op == "=" && (scope == scopeWholeMap || scope == scopeKeys):
@@ -101,19 +107,11 @@ func NewMapTypeVisitor(resolver mapTypeResolver) model.ExprVisitor {
 
 			case (op == "ILIKE" || op == "LIKE") && scope == scopeKeys:
 
-				variableName := "x"
-				lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, e.Right.Accept(b).(model.Expr)))
-				existsInKey := model.NewFunction("arrayExists", lambda, model.NewFunction("mapKeys", left))
-
-				return existsInKey
+				return existsInMap(left, op, "mapKeys", e.Right.Accept(b).(model.Expr))
 
 			case (op == "ILIKE" || op == "LIKE") && scope == scopeValues:
 
-				variableName := "x"
-				lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, e.Right.Accept(b).(model.Expr)))
-				existsInValue := model.NewFunction("arrayExists", lambda, model.NewFunction("mapValues", left))
-
-				return existsInValue
+				return existsInMap(left, op, "mapValues", e.Right.Accept(b).(model.Expr))
 
 			case op == "=" && scope == scopeValues:
 				toArray := model.NewFunction("keyValues", left)
