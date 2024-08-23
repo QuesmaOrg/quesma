@@ -36,7 +36,7 @@ func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(
 			value = valueAsTime.UnixMilli()
 			valueAsString = valueAsTime.Format(time.RFC3339Nano)
 		} else {
-			logger.WarnWithCtx(ctx).Msg("could not parse date")
+			logger.WarnWithCtx(ctx).Msgf("could not parse date %v", valueAsAny)
 		}
 	}
 	response := model.JsonMap{

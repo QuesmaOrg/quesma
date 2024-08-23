@@ -13,6 +13,7 @@ import (
 	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/quesma/errors"
+	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/util"
 )
@@ -66,9 +67,13 @@ func handleFieldCapsIndex(cfg config.QuesmaConfiguration, schemaRegistry schema.
 				addFieldCapabilityFromSchemaRegistry(fields, fieldName.AsString(), field.Type, resolvedIndex)
 				switch field.Type.Name {
 				case "text":
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s.keyword", fieldName.AsString()), schema.TypeKeyword, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldKeywordSuffix), schema.TypeKeyword, resolvedIndex)
 				case "keyword":
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s.text", fieldName.AsString()), schema.TypeText, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldTextSuffix), schema.TypeText, resolvedIndex)
+				case "map":
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldTextSuffix), schema.TypeText, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldMapKeysSuffix), schema.TypeText, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldMapValuesSuffix), schema.TypeText, resolvedIndex)
 				}
 			}
 
