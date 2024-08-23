@@ -119,28 +119,24 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 	}
 
 	if layer.nextBucketAggregation != nil {
-		// sampler is special
-		if _, isSampler := layer.nextBucketAggregation.queryType.(bucket_aggregations.SamplerInterface); isSampler {
-			sampleRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"count", rows)
-			sampleJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(sampleRows, 0)
-			jsonWithOmittedSampler, err := p.layerToJSON(layerIdx+1, layers, rows)
-			if err != nil {
-				return nil, err
+		// sampler and filter are special
+		if !layer.nextBucketAggregation.DoesHaveGroupBy() {
+			// TODO: if filters/range/dateRange do something special
+			var selectedRows []model.QueryResultRow
+			switch layer.nextBucketAggregation.queryType.(type) {
+			case bucket_aggregations.FilterAgg:
+				selectedRows = p.selectMetricRows(layer.nextBucketAggregation.internalName+"_col_", rows)
+			case bucket_aggregations.SamplerInterface:
+				selectedRows = p.selectMetricRows(layer.nextBucketAggregation.internalName+"count", rows)
+			default:
+				return nil, fmt.Errorf("unexpected query type: %T", layer.nextBucketAggregation.queryType)
 			}
-			result[layer.nextBucketAggregation.name] = util.MergeMaps(context.Background(), sampleJson, jsonWithOmittedSampler, model.KeyAddedByQuesma)
-			return result, nil
-		}
-
-		// TODO: if filter/filters/range/dateRange do something special
-		if filter, isFilter := layer.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg); isFilter {
-			// Maybe metadata?
-			filterRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"_col_", rows)
-			filterJson := filter.TranslateSqlResponseToJson(filterRows, 0)
+			aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
 			subAggr, err := p.layerToJSON(layerIdx+1, layers, rows)
 			if err != nil {
 				return nil, err
 			}
-			result[layer.nextBucketAggregation.name] = util.MergeMaps(context.Background(), filterJson, subAggr, model.KeyAddedByQuesma)
+			result[layer.nextBucketAggregation.name] = util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma)
 			return result, nil
 		}
 
