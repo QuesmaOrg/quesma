@@ -463,12 +463,13 @@ func getAttributesByArrayName(arrayName string,
 // and removes the attributes that were promoted to columns
 func (lm *LogManager) generateNewColumns(
 	attrsMap map[string][]interface{},
-	table *Table) []string {
+	table *Table,
+	alteredAttributesIndexes []int) []string {
 	var alterCmd []string
 	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
 	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
 	var deleteIndexes []int
-	for i := 0; i < len(attrKeys); i++ {
+	for i := range alteredAttributesIndexes {
 		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" Nullable(%s)", table.Name, attrKeys[i], attrTypes[i])
 		table.Cols[attrKeys[i]] = &Column{Name: attrKeys[i], Type: NewBaseType(attrTypes[i]), Modifiers: "Nullable"}
 		alterCmd = append(alterCmd, alterTable)
@@ -501,6 +502,11 @@ func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]int
 	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
 	alterColumnIndexes := make([]int, 0)
 	if len(table.Cols) < maxColumns {
+		// We promote all non-schema fields to columns
+		// therefore we need to add all attrKeys indexes to alterColumnIndexes
+		for i := 0; i < len(attrKeys); i++ {
+			alterColumnIndexes = append(alterColumnIndexes, i)
+		}
 		return true, alterColumnIndexes
 	}
 	if lm.ingestFieldStatistics == nil {
@@ -578,8 +584,8 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	// we only want to add fields that are not part of the schema e.g we don't
 	// have columns for them
 	var alterCmd []string
-	if ok, _ := lm.shouldAlterColumns(table, attrsMap); ok {
-		alterCmd = lm.generateNewColumns(attrsMap, table)
+	if ok, alteredAttributesIndexes := lm.shouldAlterColumns(table, attrsMap); ok {
+		alterCmd = lm.generateNewColumns(attrsMap, table, alteredAttributesIndexes)
 	}
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
