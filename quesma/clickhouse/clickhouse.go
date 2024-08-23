@@ -32,7 +32,7 @@ const (
 	timestampFieldName = "@timestamp" // it's always DateTime64 for now, don't want to waste time changing that, we don't seem to use that anyway
 	// Above this number of columns we will use heuristic
 	// to decide if we should add new columns
-	maxColumns = 100
+	alwaysAddColumnLimit = 100
 )
 
 type (
@@ -500,7 +500,7 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]interface{}) (bool, []int) {
 	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
 	alterColumnIndexes := make([]int, 0)
-	if len(table.Cols) < maxColumns {
+	if len(table.Cols) < alwaysAddColumnLimit {
 		// We promote all non-schema fields to columns
 		// therefore we need to add all attrKeys indexes to alterColumnIndexes
 		for i := 0; i < len(attrKeys); i++ {
