@@ -66,13 +66,11 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	var conf QuesmaConfiguration
 	conf.PublicTcpPort = c.getPublicTcpPort()
 	conf.Elasticsearch = c.getElasticsearchConfig()
-	conf.Connectors = make(map[string]RelationalDbConfiguration)
 	conf.Logging = c.Logging
-	conf.QuesmaInternalTelemetryUrl = telemetryUrl
-	conf.Logging.RemoteLogDrainUrl = telemetryUrl
 	conf.InstallationId = c.InstallationId
 	conf.LicenseKey = c.LicenseKey
 	conf.IngestStatistics = c.IngestStatistics
+	conf.Connectors = make(map[string]RelationalDbConfiguration)
 	relDBConn, connType := c.getRelationalDBConf()
 	relDBConn.ConnectorType = connType
 	if connType == "hydrolix" {
