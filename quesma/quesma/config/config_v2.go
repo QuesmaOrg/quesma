@@ -11,6 +11,13 @@ import (
 	"strings"
 )
 
+const (
+	ElasticsearchFrontedConnectorName = "elasticsearch-fe"
+	ClickHouseOSBackendConnectorName  = "clickhouse-os"
+	ClickHouseBackendConnectorName    = "clickhouse"
+	HydrolixBackendConnectorName      = "hydrolix"
+)
+
 type QuesmaNewConfiguration struct {
 	BackendConnectors          []BackendConnector   `koanf:"backendConnectors"`
 	FrontendConnectors         []FrontendConnector  `koanf:"frontendConnectors"`
@@ -85,7 +92,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		errAcc = multierror.Append(errAcc, err)
 	} else {
 		relDBConn.ConnectorType = connType
-		if connType == "hydrolix" {
+		if connType == HydrolixBackendConnectorName {
 			conf.Connectors["injected-hydrolix-connector"] = *relDBConn
 			conf.Hydrolix = *relDBConn
 		} else {
@@ -112,7 +119,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 func (c *QuesmaNewConfiguration) getPublicTcpPort() (network.Port, error) {
 	if len(c.FrontendConnectors) == 1 {
-		if c.FrontendConnectors[0].Type == "elasticsearch-fe" {
+		if c.FrontendConnectors[0].Type == ElasticsearchFrontedConnectorName {
 			return c.FrontendConnectors[0].Config.ListenPort, nil
 		} else {
 			return 0, errors.New("frontend connector type not recognized, only `elasticsearch-fe` is supported at this moment")
@@ -132,7 +139,7 @@ func (c *QuesmaNewConfiguration) getElasticsearchBackendConnector() *BackendConn
 
 func (c *QuesmaNewConfiguration) getRelationalDBBackendConnector() (*BackendConnector, string) {
 	for _, backendConn := range c.BackendConnectors {
-		if backendConn.Type == "clickhouse" || backendConn.Type == "clickhouse-os" || backendConn.Type == "hydrolix" {
+		if backendConn.Type == ClickHouseBackendConnectorName || backendConn.Type == ClickHouseOSBackendConnectorName || backendConn.Type == HydrolixBackendConnectorName {
 			return &backendConn, backendConn.Type
 		}
 	}
