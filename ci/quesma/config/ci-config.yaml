@@ -10,7 +10,7 @@ backendConnectors:
     config:
       url: "http://localhost:9200"
   - name: my-clickhouse-cloud-data-source
-    type: clickhouse-od
+    type: clickhouse-os
     config:
       url: "clickhouse://localhost:9000"
 processors:
