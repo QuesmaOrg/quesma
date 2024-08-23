@@ -2932,7 +2932,7 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__stats__count", int64(188)),
 				model.NewQueryResultCol("aggr__stats__order_1", 188),
 				model.NewQueryResultCol("aggr__stats__series__key_0", int64(1713398400000/60000)),
-				model.NewQueryResultCol("aggr__stats__series__count", 79),
+				model.NewQueryResultCol("aggr__stats__series__count", 35),
 			}},
 		},
 		ExpectedSQLs: []string{
@@ -5317,8 +5317,12 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 1),
 			}},
 			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715351640000/30000)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1715351730000/30000)),
-				model.NewQueryResultCol("aggr__2__count", 2),
+				model.NewQueryResultCol("aggr__2__count", 1),
 			}},
 		},
 		ExpectedSQLs: []string{

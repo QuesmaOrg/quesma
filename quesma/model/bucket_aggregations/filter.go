@@ -23,11 +23,8 @@ func (query FilterAgg) AggregationType() model.AggregationType {
 
 func (query FilterAgg) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	if len(rows) == 0 {
-		logger.WarnWithCtx(query.ctx).Msg("no rows returned for count aggregation")
+		logger.WarnWithCtx(query.ctx).Msg("no rows returned for filter aggregation")
 		return make(model.JsonMap, 0)
-	}
-	if len(rows) > 1 {
-		logger.WarnWithCtx(query.ctx).Msg("More than one row returned for count aggregation")
 	}
 	return model.JsonMap{"doc_count": rows[0].Cols[level].Value}
 }

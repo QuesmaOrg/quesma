@@ -121,11 +121,13 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 	if layer.nextBucketAggregation != nil {
 		// sampler is special
 		if _, isSampler := layer.nextBucketAggregation.queryType.(bucket_aggregations.SamplerInterface); isSampler {
+			sampleRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"count", rows)
+			sampleJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(sampleRows, 0)
 			jsonWithOmittedSampler, err := p.layerToJSON(layerIdx+1, layers, rows)
 			if err != nil {
 				return nil, err
 			}
-			result[layer.nextBucketAggregation.name] = jsonWithOmittedSampler
+			result[layer.nextBucketAggregation.name] = util.MergeMaps(context.Background(), sampleJson, jsonWithOmittedSampler, model.KeyAddedByQuesma)
 			return result, nil
 		}
 
