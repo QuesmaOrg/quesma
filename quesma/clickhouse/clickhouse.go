@@ -498,7 +498,6 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 
 // This function implements heuristic for deciding if we should add new columns
 func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]interface{}) (bool, []int) {
-	atomic.AddInt64(&lm.ingestCounter, 1)
 	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
 	alterColumnIndexes := make([]int, 0)
 	if len(table.Cols) < maxColumns {
@@ -584,6 +583,7 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	// we only want to add fields that are not part of the schema e.g we don't
 	// have columns for them
 	var alterCmd []string
+	atomic.AddInt64(&lm.ingestCounter, 1)
 	if ok, alteredAttributesIndexes := lm.shouldAlterColumns(table, attrsMap); ok {
 		alterCmd = lm.generateNewColumns(attrsMap, table, alteredAttributesIndexes)
 	}

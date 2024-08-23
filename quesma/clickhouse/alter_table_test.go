@@ -83,8 +83,8 @@ func TestAlterTableHeuristic(t *testing.T) {
 		Cols: map[string]*Column{},
 	}
 	fieldsMap := concurrent.NewMapWith("tableName", table)
-
 	lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{})
+
 	rowsToInsert := make([]string, 0)
 	previousRow := ``
 	comma := ``
@@ -98,16 +98,18 @@ func TestAlterTableHeuristic(t *testing.T) {
 		previousRow = currentRow
 	}
 	attrsMap := make(map[string][]interface{})
+
+	assert.Equal(t, int64(0), lm.ingestCounter)
 	for i := range rowsToInsert {
 		shouldAlterColumns, _ := lm.shouldAlterColumns(table, attrsMap)
 		if i < maxColumns {
 			assert.True(t, shouldAlterColumns)
 		} else {
 			assert.False(t, shouldAlterColumns)
-
 		}
 		_, _, err := lm.BuildIngestSQLStatements("tableName", types.MustJSON(rowsToInsert[i]), nil, chConfig)
 		assert.NoError(t, err)
-	}
 
+	}
+	assert.Equal(t, int64(numberOfInserts), lm.ingestCounter)
 }
