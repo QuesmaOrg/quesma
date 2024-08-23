@@ -124,6 +124,9 @@ func SqlPrettyPrint(sqlData []byte) string {
 
 		// Break line if needed
 		if lineLength > 0 && len(token.Value)+lineLength > lineLengthLimit {
+			if token.Type == sqllexer.WS && tokenIdx+1 < len(tokens) && newLineKeywords[tokens[tokenIdx+1].Value] {
+				continue // we will break line in next token anyway, no need to double break
+			}
 			lineLength = 0
 			isBreakIndent = true
 			sb.WriteString("\n")

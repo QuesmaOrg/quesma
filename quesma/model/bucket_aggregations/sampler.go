@@ -5,6 +5,7 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
+	"quesma/logger"
 	"quesma/model"
 )
 
@@ -24,7 +25,11 @@ func (query Sampler) AggregationType() model.AggregationType {
 }
 
 func (query Sampler) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	panic("does not create new results") // eventually we should add count
+	if len(rows) == 0 {
+		logger.WarnWithCtx(query.ctx).Msg("no rows returned for sampler")
+		return make(model.JsonMap, 0)
+	}
+	return model.JsonMap{"doc_count": rows[0].Cols[level].Value}
 }
 
 func (query Sampler) String() string {
@@ -33,4 +38,8 @@ func (query Sampler) String() string {
 
 func (query Sampler) GetSampleLimit() int {
 	return shardSizeToSampleLimitRatio * query.size
+}
+
+func (query Sampler) DoesNotHaveGroupBy() bool {
+	return true
 }

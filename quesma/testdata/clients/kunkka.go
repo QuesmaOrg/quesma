@@ -187,7 +187,29 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1718794800000/3600000)),
+				model.NewQueryResultCol("aggr__0__count", uint64(2)),
+				model.NewQueryResultCol("metric__0__1_col_0", 6.600000023841858),
+				model.NewQueryResultCol("aggr__0__2-bucket___col_0", 0),
+				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1718798400000/3600000)),
+				model.NewQueryResultCol("aggr__0__count", uint64(3)),
+				model.NewQueryResultCol("metric__0__1_col_0", 12.100000143051147),
+				model.NewQueryResultCol("aggr__0__2-bucket___col_0", 0),
+				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1718802000000/3600000)),
+				model.NewQueryResultCol("aggr__0__count", uint64(2)),
+				model.NewQueryResultCol("metric__0__1_col_0", 4.399999976158142),
+				model.NewQueryResultCol("aggr__0__2-bucket___col_0", uint64(1)),
+				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 1.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM (SELECT 1 FROM ` + testdata.QuotedTableName + ` LIMIT 10000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("spent") ` +
@@ -209,7 +231,26 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__key_0", "aggr__0__count", "metric__0__1_col_0",
+			  "aggr__0__2-bucket___col_0", "metric__0__2-bucket__2-metric_col_0"
+			FROM (
+			  SELECT "aggr__0__key_0", "aggr__0__count", "metric__0__1_col_0",
+				"aggr__0__2-bucket___col_0", "metric__0__2-bucket__2-metric_col_0",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
+			  FROM (
+				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
+				  "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sumOrNull(sumOrNull("spent")) OVER (PARTITION BY "aggr__0__key_0") AS
+				  "metric__0__1_col_0",
+				  countIf("message" iLIKE '%started%') AS "aggr__0__2-bucket___col_0",
+				  sumOrNullIf("multiplier", "message" iLIKE '%started%') AS
+				  "metric__0__2-bucket__2-metric_col_0"
+				FROM "logs-generic-default"
+				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
+				  "aggr__0__key_0"))
+			ORDER BY "aggr__0__order_1_rank" ASC`,
 	},
 	{ // [1]
 		TestName: "it's the same input as in previous test, but with the original output from Elastic." +
@@ -313,7 +354,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 								},
 								"doc_count": 2,
 								"key": 1718794800000,
-								"key_as_string": "2024/06/19 13:00:00"
+								"key_as_string": "2024-06-19T11:00:00.000"
 							},
 							{
 								"1": {
@@ -327,7 +368,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 								},
 								"doc_count": 3,
 								"key": 1718798400000,
-								"key_as_string": "2024/06/19 14:00:00"
+								"key_as_string": "2024-06-19T12:00:00.000"
 							},
 							{
 								"1": {
@@ -341,7 +382,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 								},
 								"doc_count": 2,
 								"key": 1718802000000,
-								"key_as_string": "2024/06/19 15:00:00"
+								"key_as_string": "2024-06-19T13:00:00.000"
 							}
 						]
 					}
@@ -402,7 +443,29 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1718794800000/3600000)),
+				model.NewQueryResultCol("aggr__0__count", uint64(2)),
+				model.NewQueryResultCol("metric__0__1_col_0", 6.600000023841858),
+				model.NewQueryResultCol("aggr__0__2-bucket__count", 0),
+				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1718798400000/3600000)),
+				model.NewQueryResultCol("aggr__0__count", uint64(3)),
+				model.NewQueryResultCol("metric__0__1_col_0", 12.100000143051147),
+				model.NewQueryResultCol("aggr__0__2-bucket__count", 0),
+				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1718802000000/3600000)),
+				model.NewQueryResultCol("aggr__0__count", uint64(2)),
+				model.NewQueryResultCol("metric__0__1_col_0", 4.399999976158142),
+				model.NewQueryResultCol("aggr__0__2-bucket__count", uint64(1)),
+				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 1.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM (SELECT 1 FROM ` + testdata.QuotedTableName + ` LIMIT 10000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("spent") ` +
@@ -424,7 +487,17 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
+			  "aggr__0__key_0", count(*) AS "aggr__0__count",
+			  sumOrNull("spent") AS "metric__0__1_col_0",
+			  countIf("message" iLIKE '%started%') AS "aggr__0__2-bucket__count",
+			  sumOrNullIf("multiplier", "message" iLIKE '%started%') AS
+			  "metric__0__2-bucket__2-metric_col_0"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
+			  "aggr__0__key_0"
+			ORDER BY "aggr__0__key_0" ASC`,
 	},
 	{ // [2]
 		TestName: "clients/kunkka/test_1, used to be broken before aggregations merge fix",
