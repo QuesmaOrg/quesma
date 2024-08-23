@@ -1,6 +1,8 @@
 package config
 
 import (
+	"errors"
+	"github.com/hashicorp/go-multierror"
 	"github.com/knadh/koanf/providers/env"
 	"log"
 	"quesma/network"
@@ -63,15 +65,23 @@ func LoadV2Config() QuesmaNewConfiguration {
 }
 
 func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
+	var err, errAcc error
 	var conf QuesmaConfiguration
-	conf.PublicTcpPort = c.getPublicTcpPort()
-	conf.Elasticsearch = c.getElasticsearchConfig()
+	if conf.PublicTcpPort, err = c.getPublicTcpPort(); err != nil {
+		errAcc = multierror.Append(errAcc, err)
+	}
+	if conf.Elasticsearch, err = c.getElasticsearchConfig(); err != nil {
+		errAcc = multierror.Append(errAcc, err)
+	}
 	conf.Logging = c.Logging
 	conf.InstallationId = c.InstallationId
 	conf.LicenseKey = c.LicenseKey
 	conf.IngestStatistics = c.IngestStatistics
 	conf.Connectors = make(map[string]RelationalDbConfiguration)
-	relDBConn, connType := c.getRelationalDBConf()
+	relDBConn, connType, err := c.getRelationalDBConf()
+	if err != nil {
+		errAcc = multierror.Append(errAcc, err)
+	}
 	relDBConn.ConnectorType = connType
 	if connType == "hydrolix" {
 		conf.Connectors["injected-hydrolix-connector"] = *relDBConn
@@ -81,7 +91,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.ClickHouse = *relDBConn
 	}
 
-	if v1processor := c.getProcessorConfig(); v1processor != nil {
+	if v1processor, err := c.getProcessorConfig(); err == nil {
 		conf.Mode = v1processor.Config.Mode
 		conf.IndexConfig = v1processor.Config.IndexConfig
 		for indexName, indexConfig := range v1processor.Config.IndexConfig {
@@ -89,21 +99,24 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			conf.IndexConfig[indexName] = indexConfig
 		}
 	} else {
-		panic("Processor must be configured")
+		errAcc = multierror.Append(errAcc, err)
 	}
 
+	if errAcc != nil {
+		log.Fatalf("config validation failed: %v", errAcc)
+	}
 	return conf
 }
 
-func (c *QuesmaNewConfiguration) getPublicTcpPort() network.Port {
+func (c *QuesmaNewConfiguration) getPublicTcpPort() (network.Port, error) {
 	if len(c.FrontendConnectors) == 1 {
 		if c.FrontendConnectors[0].Type == "elasticsearch-fe" {
-			return c.FrontendConnectors[0].Config.ListenPort
+			return c.FrontendConnectors[0].Config.ListenPort, nil
 		} else {
-			panic("Frontend connector type not recognized, only `elasticsearch-fe` is supported at this moment")
+			return 0, errors.New("frontend connector type not recognized, only `elasticsearch-fe` is supported at this moment")
 		}
 	}
-	panic("Exactly one frontend connector must be defined at this moment")
+	return 0, errors.New("exactly one frontend connector must be defined at this moment")
 }
 
 func (c *QuesmaNewConfiguration) getElasticsearchBackendConnector() *BackendConnector {
@@ -121,34 +134,34 @@ func (c *QuesmaNewConfiguration) getRelationalDBBackendConnector() (*BackendConn
 			return &backendConn, backendConn.Type
 		}
 	}
-	panic("Relational DB backend connector type not recognized, only `clickhouse`, `clickhouse-os` and `hydrolix` are supported at this moment")
+	return nil, ""
 }
 
-func (c *QuesmaNewConfiguration) getElasticsearchConfig() ElasticsearchConfiguration {
+func (c *QuesmaNewConfiguration) getElasticsearchConfig() (ElasticsearchConfiguration, error) {
 	if esBackendConn := c.getElasticsearchBackendConnector(); esBackendConn != nil {
 		return ElasticsearchConfiguration{
 			Url:      esBackendConn.Config.Url,
 			User:     esBackendConn.Config.User,
 			Password: esBackendConn.Config.Password,
-		}
+		}, nil
 	}
-	panic("Elasticsearch backend connector must be configured")
+	return ElasticsearchConfiguration{}, errors.New("elasticsearch backend connector must be configured")
 }
 
-func (c *QuesmaNewConfiguration) getRelationalDBConf() (*RelationalDbConfiguration, string) {
-	if esBackendConn, typ := c.getRelationalDBBackendConnector(); esBackendConn != nil {
-		return &esBackendConn.Config, typ
+func (c *QuesmaNewConfiguration) getRelationalDBConf() (*RelationalDbConfiguration, string, error) {
+	if backendConn, typ := c.getRelationalDBBackendConnector(); backendConn != nil {
+		return &backendConn.Config, typ, nil
 	}
-	panic("Elasticsearch backend connector must be configured")
+	return nil, "", errors.New("exactly one backend connector of type `clickhouse`, `clickhouse-os` or `hydrolix` must be configured")
 }
 
-func (c *QuesmaNewConfiguration) getProcessorConfig() *Processor {
+func (c *QuesmaNewConfiguration) getProcessorConfig() (*Processor, error) {
 	if len(c.Processors) == 1 {
 		if c.Processors[0].Type == "quesma-v1-processor" {
-			return &c.Processors[0]
+			return &c.Processors[0], nil
 		} else {
-			panic("Processor type not recognized, only `quesma-v1-processor` is supported at this moment")
+			return nil, errors.New("processor type not recognized, only `quesma-v1-processor` is supported at this moment")
 		}
 	}
-	panic("Exactly one processor must be defined at this moment")
+	return nil, errors.New("exactly one processor must be defined at this moment")
 }
