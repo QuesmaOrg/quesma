@@ -217,7 +217,7 @@ func (a *pancakeTransformer) checkIfSupported(layers []*pancakeModelLayer) error
 	for layerIdx, layer := range layers {
 		if layer.nextBucketAggregation != nil {
 			switch layer.nextBucketAggregation.queryType.(type) {
-			case bucket_aggregations.FilterAgg, bucket_aggregations.Filters:
+			case bucket_aggregations.FilterAgg, bucket_aggregations.SubGroupInterface:
 				if layerIdx+1 < len(layers) && layers[layerIdx+1].nextBucketAggregation != nil {
 					return fmt.Errorf("filter(s) aggregation must be last bucket aggregation")
 				}

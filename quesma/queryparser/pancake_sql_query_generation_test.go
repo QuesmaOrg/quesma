@@ -50,9 +50,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if i == 29 || i == 30 {
 				t.Skip("Skipped also for previous implementation. New tests, harder, failing for now.")
 			}
-			if dateRange(test.TestName) {
-				t.Skip("Fix date range")
-			}
 			if topHits(test.TestName) {
 				t.Skip("Fix top_hits")
 			}
@@ -111,6 +108,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				}
 			}
 
+			if incorrectResult(test.TestName) {
+				t.Skip("We don't have result yet")
+			}
+
 			expectedJson, err := util.JsonToMap(test.ExpectedResponse)
 			if err != nil {
 				assert.Fail(t, "Failed to parse expected JSON")
@@ -164,9 +165,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	}
 }
 
-// TODO remove after fix
-func dateRange(testName string) bool {
-	t1 := testName == "TODO" // we have not implemented, but not sure what we should skip
+func incorrectResult(testName string) bool {
+	t1 := testName == "date_range aggregation" // we use relative time
 	return t1
 }
 

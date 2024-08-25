@@ -173,10 +173,6 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 	}
 	delete(queryMap, "aggs") // no-op if no "aggs"
 
-	// if bucketAggrPresent && !aggsHandledSeparately && !isTerms {
-	// No-op for now
-	// }
-
 	for k, v := range queryMap {
 		// should be empty by now. If it's not, it's an unsupported/unrecognized type of aggregation.
 		logger.WarnWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).

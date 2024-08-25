@@ -4784,14 +4784,9 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__2__key_0", 1541),
-				model.NewQueryResultCol("aggr__2__key_1", int64(1713288530)),
-				model.NewQueryResultCol("aggr__2__key_2", 1541),
-				model.NewQueryResultCol("aggr__2__key_3", int64(1711407600)),
-				model.NewQueryResultCol("aggr__2__key_4", int64(1713288530)),
-				model.NewQueryResultCol("aggr__2__key_5", 414),
-				model.NewQueryResultCol("aggr__2__key_6", int64(1713045600)),
-				model.NewQueryResultCol("aggr__2__count", 1541),
+				model.NewQueryResultCol("range_0__aggr__2__count", int64(1541)),
+				model.NewQueryResultCol("range_1__aggr__2__count", int64(1541)),
+				model.NewQueryResultCol("range_2__aggr__2__count", int(414)),
 			}},
 		},
 		ExpectedSQLs: []string{
@@ -4807,28 +4802,16 @@ var AggregationTests = []AggregationTestCase{
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z'))`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT
-			  count(if("timestamp" < now(),1,NULL)) AS "aggr__2__key_0",
-			  toInt64(toUnixTimestamp(now())) AS "aggr__2__key_1",
-			  count(if(("timestamp" >= toStartOfDay(subDate(now(), INTERVAL 3 week))
-			    AND "timestamp" < now()),1,NULL)) AS "aggr__2__key_2",
-			  toInt64(toUnixTimestamp(toStartOfDay(subDate(now(), INTERVAL 3 week)))) AS "aggr__2__key_3",
-			  toInt64(toUnixTimestamp(now())) AS "aggr__2__key_4",
-			  count(if("timestamp" >= '2024-04-14',1,NULL)) AS "aggr__2__key_5",
-			  toInt64(toUnixTimestamp('2024-04-14')) AS "aggr__2__key_6",
-			  count(*) AS "aggr__2__count"
+			SELECT countIf("timestamp"<toInt64(toUnixTimestamp(now()))) AS
+			  "range_0__aggr__2__count",
+			  countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfDay(subDate(now(),
+			  INTERVAL 3 week)))) AND "timestamp"<toInt64(toUnixTimestamp(now())))) AS
+			  "range_1__aggr__2__count",
+			  countIf("timestamp">=toInt64(toUnixTimestamp('2024-04-14'))) AS
+			  "range_2__aggr__2__count"
 			FROM "logs-generic-default"
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z'))
-			GROUP BY
-			  count(if("timestamp" < now(),1,NULL)) AS "aggr__2__key_0",
-			  toInt64(toUnixTimestamp(now())) AS "aggr__2__key_1",
-			  count(if(("timestamp" >= toStartOfDay(subDate(now(), INTERVAL 3 week))
-				AND "timestamp" < now()),1,NULL)) AS "aggr__2__key_2",
-			  toInt64(toUnixTimestamp(toStartOfDay(subDate(now(), INTERVAL 3 week)))) AS "aggr__2__key_3",
-			  toInt64(toUnixTimestamp(now())) AS "aggr__2__key_4",
-			  count(if("timestamp" >= '2024-04-14',1,NULL)) AS "aggr__2__key_5",
-			  toInt64(toUnixTimestamp('2024-04-14')) AS "aggr__2__key_6"`,
+			  "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z'))`,
 	},
 	{ // [23]
 		TestName: "significant terms aggregation: same as terms for now",
