@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/model/bucket_aggregations"
 	"quesma/util"
 	"strings"
 )
@@ -123,13 +124,31 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 		// sampler and filter are special
 		if !layer.nextBucketAggregation.DoesHaveGroupBy() {
 			// TODO: if filters/range/dateRange do something special
-			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"count", rows)
-			aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
-			subAggr, err := p.layerToJSON(layerIdx+1, layers, rows)
-			if err != nil {
-				return nil, err
+			var json model.JsonMap
+			switch queryType := layer.nextBucketAggregation.queryType.(type) {
+			case bucket_aggregations.SamplerInterface, bucket_aggregations.FilterAgg:
+				selectedRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"count", rows)
+				aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
+				subAggr, err := p.layerToJSON(layerIdx+1, layers, rows)
+				if err != nil {
+					return nil, err
+				}
+				json = util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma)
+			case bucket_aggregations.Filters:
+				buckets := model.JsonMap{}
+				for filterIdx, filter := range queryType.Filters {
+					filterName := fmt.Sprintf("filter_%d__%s", filterIdx, layer.nextBucketAggregation.internalName)
+					selectedRows := p.selectMetricRows(filterName, rows)
+					buckets[filter.Name] = queryType.TranslateSqlResponseToJson(selectedRows, 0)
+					// TODO: Agg
+				}
+				json = model.JsonMap{
+					"buckets": buckets,
+				}
+			default:
+				return nil, fmt.Errorf("unexpected bucket aggregation type: %T", layer.nextBucketAggregation.queryType)
 			}
-			result[layer.nextBucketAggregation.name] = util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma)
+			result[layer.nextBucketAggregation.name] = json
 			return result, nil
 		}
 

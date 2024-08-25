@@ -51,3 +51,7 @@ func (query Filters) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 func (query Filters) String() string {
 	return "filters"
 }
+
+func (query Filters) DoesNotHaveGroupBy() bool {
+	return true
+}

@@ -1261,7 +1261,12 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 553)}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 351)}}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__count", uint64(553)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", uint64(351)),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM "` + TableName + `" WHERE ("FlightDelay"==true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))))`,
 			`SELECT count() FROM "` + TableName + `" WHERE (("FlightDelay"==true ` +
@@ -1273,7 +1278,19 @@ var AggregationTests = []AggregationTestCase{
 				`OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) ` +
 				`AND ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT countIf(("timestamp">=parseDateTime64BestEffort(
+			  '2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort(
+			  '2024-02-09T13:47:16.029Z'))) AS "filter_0__aggr__time_offset_split__count",
+			  countIf(("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z')
+			  AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))) AS
+			  "filter_1__aggr__time_offset_split__count"
+			FROM "logs-generic-default"
+			WHERE ("FlightDelay"==true AND (("timestamp">=parseDateTime64BestEffort(
+			  '2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort(
+			  '2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort(
+			  '2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort(
+			  '2024-02-02T13:47:16.029Z'))))`,
 	},
 	{ // [7]
 		TestName: "top hits, quite complex",
