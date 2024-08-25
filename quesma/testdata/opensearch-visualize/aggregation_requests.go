@@ -470,7 +470,14 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("value", 4378),
 			}}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("range_0__aggr__2__count", uint64(0)),
+				model.NewQueryResultCol("range_0__metric__2__1_col_0", 0.0),
+				model.NewQueryResultCol("range_1__aggr__2__count", uint64(4378)),
+				model.NewQueryResultCol("range_1__metric__2__1_col_0", 7460679809210584.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
@@ -488,7 +495,17 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z')`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT countIf(("epoch_time_original">=0 AND "epoch_time_original"<1000)) AS
+			  "range_0__aggr__2__count",
+			  sumOrNullIf("properties.entry_time", ("epoch_time_original">=0 AND
+			  "epoch_time_original"<1000)) AS "range_0__metric__2__1_col_0",
+			  countIf("epoch_time_original">=1000) AS "range_1__aggr__2__count",
+			  sumOrNullIf("properties.entry_time", "epoch_time_original">=1000) AS
+			  "range_1__metric__2__1_col_0"
+			FROM "logs-generic-default"
+			WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<=
+			  '2024-04-28T14:49:22.674Z')`,
 	},
 	{ // [3]
 		TestName: "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range",
