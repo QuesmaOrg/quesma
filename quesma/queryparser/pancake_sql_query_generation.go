@@ -243,30 +243,6 @@ func (p *pancakeSqlQueryGenerator) addIfCombinator(column model.Expr, whereClaus
 	}
 }
 
-func (p *pancakeSqlQueryGenerator) generateLeafFilter(layer *pancakeModelLayer, whereClause model.Expr, prefix string) (addSelectColumns []model.AliasedExpr, err error) {
-	if layer == nil { // no metric aggregations in filter
-		return nil, nil
-	}
-	if layer.nextBucketAggregation != nil {
-		return nil, errors.New("filter layer can't have sub bucket aggregations")
-	}
-
-	for _, metric := range layer.currentMetricAggregations {
-		for columnId, column := range metric.selectedColumns {
-			aliasedName := fmt.Sprintf("%s%s_col_%d", prefix, metric.internalName, columnId)
-			// Add if
-			columnWithIf, err := p.addIfCombinator(column, whereClause)
-			if err != nil {
-				return nil, err
-			}
-
-			aliasedColumn := model.NewAliasedExpr(columnWithIf, aliasedName)
-			addSelectColumns = append(addSelectColumns, aliasedColumn)
-		}
-	}
-	return
-}
-
 func (p *pancakeSqlQueryGenerator) countRealBucketAggregations(aggregation *pancakeModel) int {
 	bucketAggregationCount := 0
 	for _, layer := range aggregation.layers {

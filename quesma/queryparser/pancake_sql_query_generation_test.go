@@ -165,6 +165,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	}
 }
 
+// We generate correct SQL, but result JSON did not match
 func incorrectResult(testName string) bool {
 	t1 := testName == "date_range aggregation" // we use relative time
 	t2 := testName == "complex filters"        // almost, we differ in doc 0 counts
