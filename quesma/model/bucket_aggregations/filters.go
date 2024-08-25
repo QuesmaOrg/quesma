@@ -60,10 +60,15 @@ func (query Filters) DoesNotHaveGroupBy() bool {
 func (query Filters) SubGroups() (result []SubGroup) {
 	for filterIdx, filter := range query.Filters {
 		result = append(result, SubGroup{
+			idx:         filterIdx,
 			Prefix:      fmt.Sprintf("filter_%d__", filterIdx),
 			Key:         filter.Name,
 			WhereClause: filter.Sql.WhereClause,
 		})
 	}
 	return
+}
+
+func (query Filters) SubGroupTranslateSqlResponseToJson(subGroup SubGroup, rows []model.QueryResultRow) model.JsonMap {
+	return query.TranslateSqlResponseToJson(rows, 0)
 }

@@ -5,7 +5,6 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -152,21 +151,16 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 				buckets := model.JsonMap{}
 				for _, subGroup := range queryType.SubGroups() {
 					selectedRowsWithoutPrefix := p.selectPrefixRows(subGroup.Prefix, rows)
-					pp.Println("JM selectedRowsWithoutPrefix", selectedRowsWithoutPrefix)
-
-					subGroupName := fmt.Sprintf("%s%s", subGroup.Prefix, layer.nextBucketAggregation.internalName)
-					selectedRows := p.selectMetricRows(subGroupName, rows)
-					// TODO: need different function for range
 
 					subAggr, err := p.layerToJSON(layerIdx+1, layers, selectedRowsWithoutPrefix)
 					if err != nil {
 						return nil, err
 					}
 
-					aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
+					selectedRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"count", selectedRowsWithoutPrefix)
+					aggJson := queryType.SubGroupTranslateSqlResponseToJson(subGroup, selectedRows)
 
 					buckets[subGroup.Key] = util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma)
-					pp.Println("JM ", buckets)
 				}
 				json = model.JsonMap{
 					"buckets": buckets,
