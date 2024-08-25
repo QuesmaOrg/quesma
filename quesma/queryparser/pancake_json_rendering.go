@@ -120,6 +120,57 @@ func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLa
 	return bucketRows, subAggrRows
 }
 
+func (p *pancakeJSONRenderer) combinatorBucketToJSON(layerIdx int, layers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
+	layer := layers[layerIdx]
+	switch queryType := layer.nextBucketAggregation.queryType.(type) {
+	case bucket_aggregations.SamplerInterface, bucket_aggregations.FilterAgg:
+		selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), rows)
+		aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
+		subAggr, err := p.layerToJSON(layerIdx+1, layers, rows)
+		if err != nil {
+			return nil, err
+		}
+		return util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma), nil
+	case bucket_aggregations.SubGroupInterface:
+		var bucketArray []model.JsonMap
+		for _, subGroup := range queryType.SubGroups() {
+			selectedRowsWithoutPrefix := p.selectPrefixRows(subGroup.Prefix, rows)
+
+			subAggr, err := p.layerToJSON(layerIdx+1, layers, selectedRowsWithoutPrefix)
+			if err != nil {
+				return nil, err
+			}
+
+			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), selectedRowsWithoutPrefix)
+			aggJson := queryType.SubGroupTranslateSqlResponseToJson(subGroup, selectedRows)
+
+			bucketArray = append(bucketArray,
+				util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma))
+			bucketArray[len(bucketArray)-1]["key"] = subGroup.Key
+		}
+		var bucketsJson any
+		if !layer.nextBucketAggregation.isKeyed {
+			bucketsJson = bucketArray
+		} else {
+			buckets := model.JsonMap{}
+			for _, bucket := range bucketArray {
+				if key, ok := bucket["key"]; ok {
+					delete(bucket, "key")
+					buckets[key.(string)] = bucket
+				} else {
+					return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
+				}
+			}
+			bucketsJson = buckets
+		}
+		return model.JsonMap{
+			"buckets": bucketsJson,
+		}, nil
+	default:
+		return nil, fmt.Errorf("unexpected bucket aggregation type: %T", layer.nextBucketAggregation.queryType)
+	}
+}
+
 func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
 
 	result := model.JsonMap{}
@@ -136,54 +187,9 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 	if layer.nextBucketAggregation != nil {
 		// sampler and filter are special
 		if !layer.nextBucketAggregation.DoesHaveGroupBy() {
-			// TODO: if filters/range/dateRange do something special
-			var json model.JsonMap
-			switch queryType := layer.nextBucketAggregation.queryType.(type) {
-			case bucket_aggregations.SamplerInterface, bucket_aggregations.FilterAgg:
-				selectedRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"count", rows)
-				aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
-				subAggr, err := p.layerToJSON(layerIdx+1, layers, rows)
-				if err != nil {
-					return nil, err
-				}
-				json = util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma)
-			case bucket_aggregations.SubGroupInterface:
-				bucketArray := []model.JsonMap{}
-				for _, subGroup := range queryType.SubGroups() {
-					selectedRowsWithoutPrefix := p.selectPrefixRows(subGroup.Prefix, rows)
-
-					subAggr, err := p.layerToJSON(layerIdx+1, layers, selectedRowsWithoutPrefix)
-					if err != nil {
-						return nil, err
-					}
-
-					selectedRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"count", selectedRowsWithoutPrefix)
-					aggJson := queryType.SubGroupTranslateSqlResponseToJson(subGroup, selectedRows)
-
-					bucketArray = append(bucketArray,
-						util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma))
-					bucketArray[len(bucketArray)-1]["key"] = subGroup.Key
-				}
-				if !layer.nextBucketAggregation.isKeyed {
-					json = model.JsonMap{
-						"buckets": bucketArray,
-					}
-				} else {
-					buckets := model.JsonMap{}
-					for _, bucket := range bucketArray {
-						key, ok := bucket["key"]
-						if !ok {
-							return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
-						}
-						delete(bucket, "key")
-						buckets[key.(string)] = bucket
-					}
-					json = model.JsonMap{
-						"buckets": buckets,
-					}
-				}
-			default:
-				return nil, fmt.Errorf("unexpected bucket aggregation type: %T", layer.nextBucketAggregation.queryType)
+			json, err := p.combinatorBucketToJSON(layerIdx, layers, rows)
+			if err != nil {
+				return nil, err
 			}
 			result[layer.nextBucketAggregation.name] = json
 			return result, nil
