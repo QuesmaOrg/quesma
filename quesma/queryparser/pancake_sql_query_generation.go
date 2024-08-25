@@ -9,6 +9,7 @@ import (
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/queryparser/query_util"
+	"strings"
 )
 
 type pancakeSqlQueryGenerator struct {
@@ -197,6 +198,13 @@ func (p *pancakeSqlQueryGenerator) addIfCombinator(column model.Expr, whereClaus
 	case model.FunctionExpr:
 		if function.Name == "count" {
 			return model.NewFunction("countIf", whereClause), nil
+		} else if strings.HasSuffix(function.Name, "If") && len(function.Args) > 0 {
+			newArgs := make([]model.Expr, len(function.Args))
+			for i, arg := range function.Args {
+				newArgs[i] = arg
+			}
+			newArgs[len(newArgs)-1] = model.And([]model.Expr{newArgs[len(newArgs)-1], whereClause})
+			return model.NewFunction(function.Name, newArgs...), nil
 		} else if len(function.Args) == 1 {
 			// https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators#-if
 			return model.NewFunction(function.Name+"If", function.Args[0], whereClause), nil
@@ -325,10 +333,8 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	}
 
 	// process combinators
-	if len(addIfCombinators) > 1 { // TODO: implement
-		return nil, false, errors.New("multiple filter aggregations are not supported")
-	}
-	for _, combinator := range addIfCombinators {
+	for i := len(addIfCombinators) - 1; i >= 0; i-- { // reverse order is important
+		combinator := addIfCombinators[i]
 		selectsBefore := selectColumns[:combinator.selectNr]
 		selectsAfter := selectColumns[combinator.selectNr:]
 		newAfterSelects := make([]model.AliasedExpr, 0, len(selectsAfter))

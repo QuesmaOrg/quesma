@@ -203,6 +203,7 @@ func percentiles(testName string) bool {
 
 // TODO remove after fix
 func filters(testName string) bool {
+	// this works, but is very suboptimal and didn't update the test case
 	t1 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" // multi level filters
 	return t1
 }

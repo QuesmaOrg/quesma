@@ -224,9 +224,11 @@ func (a *pancakeTransformer) checkIfSupported(layers []*pancakeModelLayer) error
 					if bucket != nil {
 						switch bucket.queryType.(type) {
 						case *bucket_aggregations.DateHistogram:
-							continue // allow this exception
+							continue // histogram are fine
+						case bucket_aggregations.FilterAgg, bucket_aggregations.SubGroupInterface:
+							continue // we also support nested filters/range/dataRange
 						default:
-							return fmt.Errorf("filter(s)/range/dataRange aggregation must be last bucket aggregation")
+							return fmt.Errorf("filter(s)/range/dataRange aggregation must be the last bucket aggregation")
 						}
 					}
 				}
