@@ -8,7 +8,6 @@ import (
 	"math"
 	"quesma/logger"
 	"quesma/model"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -183,11 +182,6 @@ func (query Range) SubGroups() (result []SubGroup) {
 			Prefix:      fmt.Sprintf("range_%d__", intervalIdx),
 			Key:         interval.String(),
 			WhereClause: interval.ToWhereClause(query.Expr),
-		})
-	}
-	if len(result) > 0 {
-		sort.Slice(result, func(i, j int) bool { // needed for stable tests and caching
-			return result[i].Key < result[j].Key
 		})
 	}
 	return

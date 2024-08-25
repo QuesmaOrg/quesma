@@ -148,7 +148,7 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 				}
 				json = util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma)
 			case bucket_aggregations.SubGroupInterface:
-				buckets := model.JsonMap{}
+				bucketArray := []model.JsonMap{}
 				for _, subGroup := range queryType.SubGroups() {
 					selectedRowsWithoutPrefix := p.selectPrefixRows(subGroup.Prefix, rows)
 
@@ -160,10 +160,27 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 					selectedRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"count", selectedRowsWithoutPrefix)
 					aggJson := queryType.SubGroupTranslateSqlResponseToJson(subGroup, selectedRows)
 
-					buckets[subGroup.Key] = util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma)
+					bucketArray = append(bucketArray,
+						util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma))
+					bucketArray[len(bucketArray)-1]["key"] = subGroup.Key
 				}
-				json = model.JsonMap{
-					"buckets": buckets,
+				if !layer.nextBucketAggregation.isKeyed {
+					json = model.JsonMap{
+						"buckets": bucketArray,
+					}
+				} else {
+					buckets := model.JsonMap{}
+					for _, bucket := range bucketArray {
+						key, ok := bucket["key"]
+						if !ok {
+							return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
+						}
+						delete(bucket, "key")
+						buckets[key.(string)] = bucket
+					}
+					json = model.JsonMap{
+						"buckets": buckets,
+					}
 				}
 			default:
 				return nil, fmt.Errorf("unexpected bucket aggregation type: %T", layer.nextBucketAggregation.queryType)

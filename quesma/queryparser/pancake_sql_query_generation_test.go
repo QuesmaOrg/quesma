@@ -50,9 +50,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if i == 29 || i == 30 {
 				t.Skip("Skipped also for previous implementation. New tests, harder, failing for now.")
 			}
-			if Range(test.TestName) {
-				t.Skip("Fix range")
-			}
 			if dateRange(test.TestName) {
 				t.Skip("Fix date range")
 			}
@@ -168,18 +165,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 }
 
 // TODO remove after fix
-func Range(testName string) bool {
-	//t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range"
-	//t2 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Sum, Buckets: Aggregation: Range"
-	//t3 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range"
-	//t4 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Unique Count, Buckets: Aggregation: Range"
-	t5 := testName == "range bucket aggregation, both keyed and not"
-	return t5
-}
-
-// TODO remove after fix
 func dateRange(testName string) bool {
-	t1 := testName == "range bucket aggregation, both keyed and not"
+	t1 := testName == "TODO" // we have not implemented, but not sure what we should skip
 	return t1
 }
 

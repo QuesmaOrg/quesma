@@ -4588,7 +4588,24 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("value", 1),
 			}}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("range_0__aggr__2__count", uint64(1)),
+				model.NewQueryResultCol("range_1__aggr__2__count", uint64(0)),
+				model.NewQueryResultCol("range_2__aggr__2__count", uint64(5)),
+				model.NewQueryResultCol("range_3__aggr__2__count", uint64(6)),
+				model.NewQueryResultCol("range_4__aggr__2__count", uint64(10)),
+			}},
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("range_0__aggr__3__count", uint64(1)),
+				model.NewQueryResultCol("range_1__aggr__3__count", uint64(0)),
+				model.NewQueryResultCol("range_2__aggr__3__count", uint64(5)),
+				model.NewQueryResultCol("range_3__aggr__3__count", uint64(6)),
+				model.NewQueryResultCol("range_4__aggr__3__count", uint64(10)),
+			}}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -4607,7 +4624,29 @@ var AggregationTests = []AggregationTestCase{
 				`count(), count() FROM ` + QuotedTableName + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT countIf(("bytes_gauge">=0 AND "bytes_gauge"<1000)) AS
+			  "range_0__aggr__2__count",
+			  countIf(("bytes_gauge">=1000 AND "bytes_gauge"<2000)) AS
+			  "range_1__aggr__2__count",
+			  countIf("bytes_gauge">=-5.5) AS "range_2__aggr__2__count",
+			  countIf("bytes_gauge"<6.555) AS "range_3__aggr__2__count",
+			  countIf("bytes_gauge" IS NOT NULL) AS "range_4__aggr__2__count"
+			FROM "logs-generic-default"
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
+		ExpectedAdditionalPancakeSQLs: []string{`
+			SELECT countIf(("bytes_gauge">=0 AND "bytes_gauge"<1000)) AS
+			  "range_0__aggr__3__count",
+			  countIf(("bytes_gauge">=1000 AND "bytes_gauge"<2000)) AS
+			  "range_1__aggr__3__count",
+			  countIf("bytes_gauge">=-5.5) AS "range_2__aggr__3__count",
+			  countIf("bytes_gauge"<6.555) AS "range_3__aggr__3__count",
+			  countIf("bytes_gauge" IS NOT NULL) AS "range_4__aggr__3__count"
+			FROM "logs-generic-default"
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
+		},
 	},
 	{ // [22]
 		TestName: "date_range aggregation",

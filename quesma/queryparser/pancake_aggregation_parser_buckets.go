@@ -297,6 +297,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		sort.Slice(filterAggregation.Filters, func(i, j int) bool { // stable order is required for tests and caching
 			return filterAggregation.Filters[i].Name < filterAggregation.Filters[j].Name
 		})
+		aggregation.isKeyed = true
 		aggregation.queryType = filterAggregation
 		delete(queryMap, "filters")
 		return
