@@ -192,7 +192,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 	return
 }
 
-func (p *pancakeSqlQueryGenerator) generateLeafFilter(layer *pancakeModelLayer, whereClause model.Expr) (addSelectColumns []model.AliasedExpr, err error) {
+func (p *pancakeSqlQueryGenerator) generateLeafFilter(layer *pancakeModelLayer, whereClause model.Expr, prefix string) (addSelectColumns []model.AliasedExpr, err error) {
 	if layer == nil { // no metric aggregations in filter
 		return nil, nil
 	}
@@ -202,7 +202,7 @@ func (p *pancakeSqlQueryGenerator) generateLeafFilter(layer *pancakeModelLayer, 
 
 	for _, metric := range layer.currentMetricAggregations {
 		for columnId, column := range metric.selectedColumns {
-			aliasedName := fmt.Sprintf("%s_col_%d", metric.internalName, columnId)
+			aliasedName := fmt.Sprintf("%s%s_col_%d", prefix, metric.internalName, columnId)
 			// Add if
 			var columnWithIf model.Expr
 			switch function := column.(type) {
@@ -271,11 +271,34 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 				}
 
 				if layerId+1 < len(aggregation.layers) {
-					addSelectColumns, err := p.generateLeafFilter(aggregation.layers[layerId+1], filter.WhereClause)
+					addSelectColumns, err := p.generateLeafFilter(aggregation.layers[layerId+1], filter.WhereClause, "")
 					if err != nil {
 						return nil, false, err
 					}
 					selectColumns = append(selectColumns, addSelectColumns...)
+				}
+				break
+			}
+
+			if filters, isFilters := layer.nextBucketAggregation.queryType.(bucket_aggregations.Filters); isFilters {
+				for filterIdx, filter := range filters.Filters {
+					whereClause := filter.Sql.WhereClause
+					prefix := fmt.Sprintf("filter_%d__", filterIdx) // TODO: Not sure if name is right
+
+					// add counts
+					countColumn := model.NewFunction("countIf", whereClause)
+					countAlias := model.NewAliasedExpr(countColumn,
+						fmt.Sprintf("%s%s", prefix, layer.nextBucketAggregation.InternalNameForCount()))
+					selectColumns = append(selectColumns, countAlias)
+
+					// Add rest of columns
+					if layerId+1 < len(aggregation.layers) {
+						addSelectColumns, err := p.generateLeafFilter(aggregation.layers[layerId+1], whereClause, prefix)
+						if err != nil {
+							return nil, false, err
+						}
+						selectColumns = append(selectColumns, addSelectColumns...)
+					}
 				}
 				break
 			}
