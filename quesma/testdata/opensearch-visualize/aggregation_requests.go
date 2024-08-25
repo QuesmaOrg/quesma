@@ -619,7 +619,14 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("doc_count", 4),
 			}}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("range_0__aggr__2__count", uint64(1)),
+				model.NewQueryResultCol("range_0__metric__2__1_col_0", []float64{46.9921875}),
+				model.NewQueryResultCol("range_1__aggr__2__count", uint64(2)),
+				model.NewQueryResultCol("range_1__metric__2__1_col_0", []float64{math.NaN()}),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
@@ -638,7 +645,24 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z')`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT countIf(("properties::exoestimation_connection_speedinkbps">=0 AND
+			  "properties::exoestimation_connection_speedinkbps"<1000)) AS
+			  "range_0__aggr__2__count",
+			  quantilesIf(0.500000)("properties::entry_time", (
+			  "properties::exoestimation_connection_speedinkbps">=0 AND
+			  "properties::exoestimation_connection_speedinkbps"<1000)) AS
+			  "range_0__metric__2__1_col_0",
+			  countIf(("properties::exoestimation_connection_speedinkbps">=1000 AND
+			  "properties::exoestimation_connection_speedinkbps"<2000)) AS
+			  "range_1__aggr__2__count",
+			  quantilesIf(0.500000)("properties::entry_time", (
+			  "properties::exoestimation_connection_speedinkbps">=1000 AND
+			  "properties::exoestimation_connection_speedinkbps"<2000)) AS
+			  "range_1__metric__2__1_col_0"
+			FROM "logs-generic-default"
+			WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<=
+			  '2024-05-03T04:40:12.252Z')`,
 	},
 	{ // [4]
 		TestName: "Max on DateTime field. Reproduce: Visualize -> Line: Metrics -> Max @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms",

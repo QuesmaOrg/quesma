@@ -5,6 +5,7 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -26,6 +27,19 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 		return []model.QueryResultRow{newRow}
 	}
 	logger.Error().Msgf("no rows in selectMetricRows %s", metricName)
+	return
+}
+
+func (p *pancakeJSONRenderer) selectPrefixRows(prefix string, rows []model.QueryResultRow) (result []model.QueryResultRow) {
+	for _, row := range rows {
+		var newCols []model.QueryResultCol
+		for _, col := range row.Cols {
+			if strings.HasPrefix(col.ColName, prefix) {
+				newCols = append(newCols, model.NewQueryResultCol(strings.TrimPrefix(col.ColName, prefix), col.Value))
+			}
+		}
+		result = append(result, model.QueryResultRow{Index: row.Index, Cols: newCols})
+	}
 	return
 }
 
@@ -137,10 +151,22 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 			case bucket_aggregations.SubGroupInterface:
 				buckets := model.JsonMap{}
 				for _, subGroup := range queryType.SubGroups() {
+					selectedRowsWithoutPrefix := p.selectPrefixRows(subGroup.Prefix, rows)
+					pp.Println("JM selectedRowsWithoutPrefix", selectedRowsWithoutPrefix)
+
 					subGroupName := fmt.Sprintf("%s%s", subGroup.Prefix, layer.nextBucketAggregation.internalName)
 					selectedRows := p.selectMetricRows(subGroupName, rows)
-					buckets[subGroup.Key] = layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
-					// TODO: Agg
+					// TODO: need different function for range
+
+					subAggr, err := p.layerToJSON(layerIdx+1, layers, selectedRowsWithoutPrefix)
+					if err != nil {
+						return nil, err
+					}
+
+					aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
+
+					buckets[subGroup.Key] = util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma)
+					pp.Println("JM ", buckets)
 				}
 				json = model.JsonMap{
 					"buckets": buckets,

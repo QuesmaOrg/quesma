@@ -171,6 +171,10 @@ func (query Range) responseForInterval(interval Interval, value any) model.JsonM
 	return response
 }
 
+func (query Range) DoesNotHaveGroupBy() bool {
+	return true
+}
+
 func (query Range) SubGroups() (result []SubGroup) {
 	for intervalIdx, interval := range query.Intervals {
 		result = append(result, SubGroup{
