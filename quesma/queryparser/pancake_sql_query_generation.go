@@ -268,7 +268,14 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	rankWheres := make([]model.Expr, 0)
 	rankOrderBys := make([]model.OrderByExpr, 0)
 	groupBys := make([]model.AliasedExpr, 0)
-	for layerId, layer := range aggregation.layers {
+
+	type addIfCombinator struct {
+		selectNr          int
+		bucketAggregation *pancakeModelBucketAggregation
+	}
+	addIfCombinators := make([]addIfCombinator, 0)
+
+	for _, layer := range aggregation.layers {
 		for _, metric := range layer.currentMetricAggregations {
 			hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
 			addSelectColumns, err := p.generateMetricSelects(metric, groupBys, hasMoreBucketAggregations)
@@ -279,42 +286,9 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		}
 
 		if layer.nextBucketAggregation != nil {
-			if filter, isFilter := layer.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg); isFilter {
-
-				for _, newFilterColumn := range layer.nextBucketAggregation.selectedColumns { // it is just one column
-					aliasName := layer.nextBucketAggregation.InternalNameForCount()
-					aliasedColumn := model.NewAliasedExpr(newFilterColumn, aliasName)
-					selectColumns = append(selectColumns, aliasedColumn)
-				}
-
-				if layerId+1 < len(aggregation.layers) {
-					addSelectColumns, err := p.generateLeafFilter(aggregation.layers[layerId+1], filter.WhereClause, "")
-					if err != nil {
-						return nil, false, err
-					}
-					selectColumns = append(selectColumns, addSelectColumns...)
-				}
-				break
-			}
-
-			if subGroupType, isSubGroup := layer.nextBucketAggregation.queryType.(bucket_aggregations.SubGroupInterface); isSubGroup {
-				for _, subGroup := range subGroupType.SubGroups() {
-					// add counts
-					countColumn := model.NewFunction("countIf", subGroup.WhereClause)
-					countAlias := model.NewAliasedExpr(countColumn,
-						fmt.Sprintf("%s%s", subGroup.Prefix, layer.nextBucketAggregation.InternalNameForCount()))
-					selectColumns = append(selectColumns, countAlias)
-
-					// Add rest of columns
-					if layerId+1 < len(aggregation.layers) {
-						addSelectColumns, err := p.generateLeafFilter(aggregation.layers[layerId+1], subGroup.WhereClause, subGroup.Prefix)
-						if err != nil {
-							return nil, false, err
-						}
-						selectColumns = append(selectColumns, addSelectColumns...)
-					}
-				}
-				break
+			switch layer.nextBucketAggregation.queryType.(type) {
+			case bucket_aggregations.FilterAgg, bucket_aggregations.SubGroupInterface:
+				addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), layer.nextBucketAggregation})
 			}
 
 			if layer.nextBucketAggregation.DoesHaveGroupBy() {
@@ -332,6 +306,41 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			rankWheres = append(rankWheres, addRankWheres...)
 			rankOrderBys = append(rankOrderBys, addRankOrderBys...)
 		}
+	}
+
+	// process combinators
+	if len(addIfCombinators) > 1 { // TODO: implement
+		return nil, false, errors.New("multiple filter aggregations are not supported")
+	}
+	for _, combinator := range addIfCombinators {
+		selectsBefore := selectColumns[:combinator.selectNr]
+		selectsAfter := selectColumns[combinator.selectNr:]
+		newAfterSelects := make([]model.AliasedExpr, 0, len(selectsAfter))
+
+		switch combinatorQuery := combinator.bucketAggregation.queryType.(type) {
+		case bucket_aggregations.FilterAgg:
+			for _, selectAfter := range selectsAfter {
+				withIfCombinator, err := p.addIfCombinator(selectAfter.Expr, combinatorQuery.WhereClause)
+				if err != nil {
+					return nil, false, err
+				}
+				aliasedColumn := model.NewAliasedExpr(withIfCombinator, selectAfter.Alias)
+				newAfterSelects = append(newAfterSelects, aliasedColumn)
+			}
+		case bucket_aggregations.SubGroupInterface:
+			for _, subGroup := range combinatorQuery.SubGroups() {
+				for _, selectAfter := range selectsAfter {
+					withIfCombinator, err := p.addIfCombinator(selectAfter.Expr, subGroup.WhereClause)
+					if err != nil {
+						return nil, false, err
+					}
+					aliasedColumn := model.NewAliasedExpr(withIfCombinator,
+						fmt.Sprintf("%s%s", subGroup.Prefix, selectAfter.Alias))
+					newAfterSelects = append(newAfterSelects, aliasedColumn)
+				}
+			}
+		}
+		selectColumns = append(selectsBefore, newAfterSelects...)
 	}
 
 	// if we have single layer we can emit simpler query

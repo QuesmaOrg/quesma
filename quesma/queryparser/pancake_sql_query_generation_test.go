@@ -203,9 +203,9 @@ func percentilesAndTest(testName string) bool {
 // TODO remove after fix
 func filters(testName string) bool {
 	t2 := testName == "very long: multiple top_metrics + histogram" // also filters
-	t3 := testName == "complex filters"
+	//t3 := testName == "complex filters"
 	t4 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" // also filter
-	return t2 || t3 || t4
+	return t2 || t4
 }
 
 func TestPancakeQueryGeneration_halfpancake(t *testing.T) {

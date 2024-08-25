@@ -218,8 +218,16 @@ func (a *pancakeTransformer) checkIfSupported(layers []*pancakeModelLayer) error
 		if layer.nextBucketAggregation != nil {
 			switch layer.nextBucketAggregation.queryType.(type) {
 			case bucket_aggregations.FilterAgg, bucket_aggregations.SubGroupInterface:
-				if layerIdx+1 < len(layers) && layers[layerIdx+1].nextBucketAggregation != nil {
-					return fmt.Errorf("filter(s) aggregation must be last bucket aggregation")
+				for _, followingLayer := range layers[layerIdx+1:] {
+					bucket := followingLayer.nextBucketAggregation
+					if bucket != nil {
+						switch bucket.queryType.(type) {
+						case *bucket_aggregations.DateHistogram:
+							continue // allow this exception
+						default:
+							return fmt.Errorf("filter(s)/range/dataRange aggregation must be last bucket aggregation")
+						}
+					}
 				}
 			}
 		}
