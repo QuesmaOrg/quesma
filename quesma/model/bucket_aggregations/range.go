@@ -170,3 +170,14 @@ func (query Range) responseForInterval(interval Interval, value any) model.JsonM
 	}
 	return response
 }
+
+func (query Range) SubGroups() (result []SubGroup) {
+	for intervalIdx, interval := range query.Intervals {
+		result = append(result, SubGroup{
+			Prefix:      fmt.Sprintf("range_%d__", intervalIdx),
+			Key:         interval.String(),
+			WhereClause: interval.ToWhereClause(query.Expr),
+		})
+	}
+	return
+}

@@ -192,6 +192,33 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 	return
 }
 
+func (p *pancakeSqlQueryGenerator) addIfCombinator(column model.Expr, whereClause model.Expr) (model.Expr, error) {
+	switch function := column.(type) {
+	case model.FunctionExpr:
+		if function.Name == "count" {
+			return model.NewFunction("countIf", whereClause), nil
+		} else if len(function.Args) == 1 {
+			// https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators#-if
+			return model.NewFunction(function.Name+"If", function.Args[0], whereClause), nil
+		} else {
+			return nil, fmt.Errorf("not implemented -iF for func with more than one argument: %s", model.AsString(column))
+		}
+	case model.MultiFunctionExpr:
+		if function.Name == "quantiles" && len(function.Args) == 2 {
+			// TODO: fix MultiFunctionExpr type
+			return model.MultiFunctionExpr{Name: "quantilesIf", Args: []model.Expr{
+				function.Args[0], model.NewInfixExpr(function.Args[1], ", ", whereClause)}}, nil
+		} else {
+			return nil, fmt.Errorf("not implemented -iF for multi func: %s", model.AsString(column))
+		}
+	case model.AliasedExpr:
+		// should I add alias
+		return p.addIfCombinator(function.Expr, whereClause)
+	default:
+		return nil, fmt.Errorf("not implemented -iF for expr: %s %T", model.AsString(column), column)
+	}
+}
+
 func (p *pancakeSqlQueryGenerator) generateLeafFilter(layer *pancakeModelLayer, whereClause model.Expr, prefix string) (addSelectColumns []model.AliasedExpr, err error) {
 	if layer == nil { // no metric aggregations in filter
 		return nil, nil
@@ -204,19 +231,9 @@ func (p *pancakeSqlQueryGenerator) generateLeafFilter(layer *pancakeModelLayer, 
 		for columnId, column := range metric.selectedColumns {
 			aliasedName := fmt.Sprintf("%s%s_col_%d", prefix, metric.internalName, columnId)
 			// Add if
-			var columnWithIf model.Expr
-			switch function := column.(type) {
-			case model.FunctionExpr:
-				if function.Name == "count" {
-					columnWithIf = model.NewFunction("countIf", whereClause)
-				} else if len(function.Args) == 1 {
-					// https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators#-if
-					columnWithIf = model.NewFunction(function.Name+"If", function.Args[0], whereClause)
-				} else {
-					return nil, fmt.Errorf("not implemented -iF for func with more than one argument: %s", model.AsString(column))
-				}
-			default:
-				return nil, fmt.Errorf("not implemented -iF for expr: %s", model.AsString(column))
+			columnWithIf, err := p.addIfCombinator(column, whereClause)
+			if err != nil {
+				return nil, err
 			}
 
 			aliasedColumn := model.NewAliasedExpr(columnWithIf, aliasedName)
