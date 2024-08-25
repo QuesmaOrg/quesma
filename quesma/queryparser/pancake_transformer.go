@@ -101,13 +101,14 @@ type layerAndNextBucket struct {
 
 func (a *pancakeTransformer) optimizeSimpleFilter(previousAggrNames []string, result *layerAndNextBucket, childAgg *pancakeAggregationTreeNode) bool {
 	_, isFilter := result.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg)
-	_, isFilter2 := childAgg.queryType.(bucket_aggregations.FilterAgg)
+	secondFilter, isFilter2 := childAgg.queryType.(bucket_aggregations.FilterAgg)
 
 	if isFilter && isFilter2 && len(childAgg.children) == 0 {
 		metrics, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
 		if err != nil {
 			return false // not a big deal, we can make two pancake queries instead or get error there
 		}
+		metrics.selectedColumns = []model.Expr{model.NewFunction("countIf", secondFilter.WhereClause)}
 		result.layer.currentMetricAggregations = append(result.layer.currentMetricAggregations, metrics)
 		return true
 	}
