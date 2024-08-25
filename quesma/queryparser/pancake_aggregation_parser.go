@@ -176,17 +176,12 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 	// No-op for now
 	//}
 
-	// TODO what happens if there's all: filters, range, and subaggregations at current level?
-	// We probably need to do |ranges| * |filters| * |subaggregations| queries, but we don't do that yet.
-	// Or probably a bit less, if optimized correctly.
-	// Let's wait until we see such a query, maybe range and filters are mutually exclusive.
+	//_, isFilters := aggregation.queryType.(bucket_aggregations.Filters)
+	//if isFilters {
+	//	return nil, errors.New("filters are not supported in version")
+	//}
 
-	_, isFilters := aggregation.queryType.(bucket_aggregations.Filters)
-	if isFilters {
-		return nil, errors.New("filters are not supported in version")
-	}
-
-	aggsHandledSeparately := isRange || isFilters
+	aggsHandledSeparately := isRange
 	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
 		subAggregations, err := cw.pancakeParseAggregationNames(aggs.(QueryMap))
 		if err != nil {
@@ -204,6 +199,8 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 		// should be empty by now. If it's not, it's an unsupported/unrecognized type of aggregation.
 		logger.WarnWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).
 			Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
+		// TODO: remove hard fail. Temporary to make development easier
+		return nil, fmt.Errorf("unsupported aggregation type: (%v: %v), value type: %T", k, v, v)
 	}
 
 	return aggregation, nil

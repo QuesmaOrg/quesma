@@ -294,6 +294,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 	}
 	if isFilters, filterAggregation := cw.parseFilters(queryMap); isFilters {
 		aggregation.queryType = filterAggregation
+		delete(queryMap, "filters")
 		return
 	}
 	success = false
