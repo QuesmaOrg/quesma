@@ -120,13 +120,13 @@ func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLa
 	return bucketRows, subAggrRows
 }
 
-func (p *pancakeJSONRenderer) combinatorBucketToJSON(layerIdx int, layers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
-	layer := layers[layerIdx]
+func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
+	layer := remainingLayers[0]
 	switch queryType := layer.nextBucketAggregation.queryType.(type) {
 	case bucket_aggregations.SamplerInterface, bucket_aggregations.FilterAgg:
 		selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), rows)
 		aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
-		subAggr, err := p.layerToJSON(layerIdx+1, layers, rows)
+		subAggr, err := p.layerToJSON(remainingLayers[1:], rows)
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +136,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(layerIdx int, layers []*pan
 		for _, subGroup := range queryType.SubGroups() {
 			selectedRowsWithoutPrefix := p.selectPrefixRows(subGroup.Prefix, rows)
 
-			subAggr, err := p.layerToJSON(layerIdx+1, layers, selectedRowsWithoutPrefix)
+			subAggr, err := p.layerToJSON(remainingLayers[1:], selectedRowsWithoutPrefix)
 			if err != nil {
 				return nil, err
 			}
@@ -171,13 +171,13 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(layerIdx int, layers []*pan
 	}
 }
 
-func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
+func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
 
 	result := model.JsonMap{}
-	if layerIdx >= len(layers) {
+	if len(remainingLayers) == 0 {
 		return result, nil
 	}
-	layer := layers[layerIdx]
+	layer := remainingLayers[0]
 	for _, metric := range layer.currentMetricAggregations {
 		metricRows := p.selectMetricRows(metric.internalName+"_col_", rows)
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
@@ -187,7 +187,7 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 	if layer.nextBucketAggregation != nil {
 		// sampler and filter are special
 		if !layer.nextBucketAggregation.DoesHaveGroupBy() {
-			json, err := p.combinatorBucketToJSON(layerIdx, layers, rows)
+			json, err := p.combinatorBucketToJSON(remainingLayers, rows)
 			if err != nil {
 				return nil, err
 			}
@@ -198,7 +198,7 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
 
 		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
-		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, layerIdx+1) // TODO: for date_histogram this layerIdx+1 layer seems correct, is it for all?
+		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, 0)
 
 		if len(buckets) == 0 { // without this we'd generate {"buckets": []} in the response, which Elastic doesn't do.
 			if layer.nextBucketAggregation.metadata != nil {
@@ -208,7 +208,7 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 			return result, nil
 		}
 
-		if layerIdx+1 < len(layers) { // Add subAggregation
+		if len(remainingLayers) > 1 { // Add subAggregation
 			if bucketArrRaw, ok := buckets["buckets"]; ok {
 				bucketArr := bucketArrRaw.([]model.JsonMap)
 
@@ -216,7 +216,7 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 					// Simple case, we merge bucketArr[i] with subAggrRows[i] (if lengths are equal, keys must be equal => it's fine to not check them at all)
 					for i, bucket := range bucketArr {
 						// TODO: Maybe add model.KeyAddedByQuesma if there are more than one pancake
-						subAggr, err := p.layerToJSON(layerIdx+1, layers, subAggrRows[i])
+						subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[i])
 						if err != nil {
 							return nil, err
 						}
@@ -236,7 +236,7 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 						columnNameWithKey := layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
 						subAggrKey, found := p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
 						if found && subAggrKey == key {
-							subAggr, err := p.layerToJSON(layerIdx+1, layers, subAggrRows[subAggrIdx])
+							subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[subAggrIdx])
 							if err != nil {
 								return nil, err
 							}
@@ -274,5 +274,5 @@ func (p *pancakeJSONRenderer) valueForColumn(rows []model.QueryResultRow, column
 }
 
 func (p *pancakeJSONRenderer) toJSON(agg *pancakeModel, rows []model.QueryResultRow) (model.JsonMap, error) {
-	return p.layerToJSON(0, agg.layers, rows)
+	return p.layerToJSON(agg.layers, rows)
 }
