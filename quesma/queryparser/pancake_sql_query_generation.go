@@ -346,11 +346,17 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		case bucket_aggregations.SubGroupInterface:
 			for _, subGroup := range combinatorQuery.SubGroups() {
 				for _, selectAfter := range selectsAfter {
-					withIfCombinator, err := p.addIfCombinator(selectAfter.Expr, subGroup.WhereClause)
-					if err != nil {
-						return nil, false, err
+					var withCombinator model.Expr
+					if p.isPartOfGroupBy(selectAfter.Expr, groupBys) != nil {
+						withCombinator = selectAfter.Expr
+					} else {
+						withIfCombinator, err := p.addIfCombinator(selectAfter.Expr, subGroup.WhereClause)
+						if err != nil {
+							return nil, false, err
+						}
+						withCombinator = withIfCombinator
 					}
-					aliasedColumn := model.NewAliasedExpr(withIfCombinator,
+					aliasedColumn := model.NewAliasedExpr(withCombinator,
 						fmt.Sprintf("%s%s", subGroup.Prefix, selectAfter.Alias))
 					newAfterSelects = append(newAfterSelects, aliasedColumn)
 				}

@@ -3867,7 +3867,45 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19768)), model.NewQueryResultCol("doc_count", 7)}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1026))}}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__count", int64(1051)),
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__key_0", int64(1708560000000/86400000)),
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__count", int64(10)),
+				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__1_col_0", 840.921875),
+				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__2_col_0", 841.921875),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", int64(1026)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__key_0", int64(1708560000000/86400000)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__count", int64(0)),
+				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__1_col_0", nil),
+				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__2_col_0", nil),
+			}},
+
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__count", int64(1051)),
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__key_0", int64(1708646400000/86400000)),
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__count", int64(166)),
+				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__1_col_0", 13902.156250),
+				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__2_col_0", 13903.156250),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", int64(1026)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__key_0", int64(1708646400000/86400000)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__count", int64(0)),
+				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__1_col_0", nil),
+				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__2_col_0", nil),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__count", int64(1051)),
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__key_0", int64(1707955200000/86400000)),
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__count", int64(0)),
+				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__1_col_0", nil),
+				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__2_col_0", nil),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", int64(1026)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__key_0", int64(1707955200000/86400000)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__count", int64(7)),
+				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__1_col_0", 465.843750),
+				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__2_col_0", 466.843750),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT * ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -3956,7 +3994,49 @@ var AggregationTests = []AggregationTestCase{
 				`AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')))`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT sum(countIf(("order_date">=parseDateTime64BestEffort(
+			  '2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort(
+			  '2024-02-29T21:57:36.376Z')))) OVER () AS
+			  "filter_0__aggr__time_offset_split__count",
+			  toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
+			  "filter_0__aggr__time_offset_split__0__key_0",
+			  countIf(("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')
+			  AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z'))) AS
+			  "filter_0__aggr__time_offset_split__0__count",
+			  sumOrNullIf("taxful_total_price", ("order_date">=parseDateTime64BestEffort(
+			  '2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort(
+			  '2024-02-29T21:57:36.376Z'))) AS
+			  "filter_0__metric__time_offset_split__0__1_col_0",
+			  sumOrNullIf("taxful_total_price", ("order_date">=parseDateTime64BestEffort(
+			  '2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort(
+			  '2024-02-29T21:57:36.376Z'))) AS
+			  "filter_0__metric__time_offset_split__0__2_col_0",
+			  sum(countIf(("order_date">=parseDateTime64BestEffort(
+			  '2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort(
+			  '2024-02-22T21:57:36.376Z')))) OVER () AS
+			  "filter_1__aggr__time_offset_split__count",
+			  toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
+			  "filter_1__aggr__time_offset_split__0__key_0",
+			  countIf(("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z')
+			  AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AS
+			  "filter_1__aggr__time_offset_split__0__count",
+			  sumOrNullIf("taxful_total_price", ("order_date">=parseDateTime64BestEffort(
+			  '2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort(
+			  '2024-02-22T21:57:36.376Z'))) AS
+			  "filter_1__metric__time_offset_split__0__1_col_0",
+			  sumOrNullIf("taxful_total_price", ("order_date">=parseDateTime64BestEffort(
+			  '2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort(
+			  '2024-02-22T21:57:36.376Z'))) AS
+			  "filter_1__metric__time_offset_split__0__2_col_0"
+			FROM "logs-generic-default"
+			WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND
+			  "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR (
+			  "order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND
+			  "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')))
+			GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
+			  "aggr__time_offset_split__0__key_0"
+			ORDER BY "aggr__time_offset_split__0__key_0" ASC`,
 	},
 	{ // [19]
 		TestName: "random sampler, from Explorer > Field statistics",

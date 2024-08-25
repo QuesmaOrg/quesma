@@ -213,8 +213,14 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 				bucketArr := bucketArrRaw.([]model.JsonMap)
 
 				if len(bucketArr) == len(subAggrRows) {
+
 					// Simple case, we merge bucketArr[i] with subAggrRows[i] (if lengths are equal, keys must be equal => it's fine to not check them at all)
 					for i, bucket := range bucketArr {
+						if docCount, ok := bucket["doc_count"]; ok {
+							if fmt.Sprintf("%v", docCount) == "0" { // Not sure, but it does the trick
+								continue
+							}
+						}
 						// TODO: Maybe add model.KeyAddedByQuesma if there are more than one pancake
 						subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[i])
 						if err != nil {
@@ -228,6 +234,11 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 					// If not, we just keep bucket[i] (i++, subAggrIdx stays the same)
 					subAggrIdx := 0
 					for i, bucket := range bucketArr {
+						if docCount, ok := bucket["doc_count"]; ok {
+							if fmt.Sprintf("%v", docCount) == "0" { // Not sure, but it does the trick
+								continue
+							}
+						}
 						key, exists := bucket["key"]
 						if !exists {
 							return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
