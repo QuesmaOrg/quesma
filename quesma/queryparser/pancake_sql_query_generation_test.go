@@ -171,10 +171,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 func Range(testName string) bool {
 	//t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range"
 	//t2 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Sum, Buckets: Aggregation: Range"
-	t3 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range"
-	t4 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Unique Count, Buckets: Aggregation: Range"
+	//t3 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range"
+	//t4 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Unique Count, Buckets: Aggregation: Range"
 	t5 := testName == "range bucket aggregation, both keyed and not"
-	return t3 || t4 || t5
+	return t5
 }
 
 // TODO remove after fix

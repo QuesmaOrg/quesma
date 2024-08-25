@@ -129,7 +129,14 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("value", 1260),
 			}}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("range_0__aggr__2__count", uint64(0)),
+				model.NewQueryResultCol("range_0__metric__2__1_col_0", 0),
+				model.NewQueryResultCol("range_1__aggr__2__count", uint64(1260)),
+				model.NewQueryResultCol("range_1__metric__2__1_col_0", 1),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
 			`SELECT count(DISTINCT "ftd_session_time") ` +
@@ -142,7 +149,16 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT countIf("ftd_session_time"<1000) AS "range_0__aggr__2__count",
+			  uniqIf("ftd_session_time", "ftd_session_time"<1000) AS
+			  "range_0__metric__2__1_col_0",
+			  countIf("ftd_session_time">=-100) AS "range_1__aggr__2__count",
+			  uniqIf("ftd_session_time", "ftd_session_time">=-100) AS
+			  "range_1__metric__2__1_col_0"
+			FROM "logs-generic-default"
+			WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<=
+			  '2024-04-27T14:40:59.383Z')`,
 	},
 	{ // [1]
 		TestName: "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range",
