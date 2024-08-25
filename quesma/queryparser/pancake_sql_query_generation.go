@@ -280,20 +280,17 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 				break
 			}
 
-			if filters, isFilters := layer.nextBucketAggregation.queryType.(bucket_aggregations.Filters); isFilters {
-				for filterIdx, filter := range filters.Filters {
-					whereClause := filter.Sql.WhereClause
-					prefix := fmt.Sprintf("filter_%d__", filterIdx) // TODO: Not sure if name is right
-
+			if subGroupType, isSubGroup := layer.nextBucketAggregation.queryType.(bucket_aggregations.SubGroupInterface); isSubGroup {
+				for _, subGroup := range subGroupType.SubGroups() {
 					// add counts
-					countColumn := model.NewFunction("countIf", whereClause)
+					countColumn := model.NewFunction("countIf", subGroup.WhereClause)
 					countAlias := model.NewAliasedExpr(countColumn,
-						fmt.Sprintf("%s%s", prefix, layer.nextBucketAggregation.InternalNameForCount()))
+						fmt.Sprintf("%s%s", subGroup.Prefix, layer.nextBucketAggregation.InternalNameForCount()))
 					selectColumns = append(selectColumns, countAlias)
 
 					// Add rest of columns
 					if layerId+1 < len(aggregation.layers) {
-						addSelectColumns, err := p.generateLeafFilter(aggregation.layers[layerId+1], whereClause, prefix)
+						addSelectColumns, err := p.generateLeafFilter(aggregation.layers[layerId+1], subGroup.WhereClause, subGroup.Prefix)
 						if err != nil {
 							return nil, false, err
 						}

@@ -4,6 +4,7 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 )
@@ -54,4 +55,15 @@ func (query Filters) String() string {
 
 func (query Filters) DoesNotHaveGroupBy() bool {
 	return true
+}
+
+func (query Filters) SubGroups() (result []SubGroup) {
+	for filterIdx, filter := range query.Filters {
+		result = append(result, SubGroup{
+			Prefix:      fmt.Sprintf("filter_%d__", filterIdx),
+			Key:         filter.Name,
+			WhereClause: filter.Sql.WhereClause,
+		})
+	}
+	return
 }

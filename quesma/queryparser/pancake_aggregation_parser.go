@@ -164,25 +164,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 		return nil, err
 	}
 
-	// process "range" with subaggregations
-	_, isRange := aggregation.queryType.(bucket_aggregations.Range)
-	if isRange {
-		// see processRangeAggregation for details how to implement it
-		return nil, errors.New("range is not supported in version")
-	}
-
-	// _, isTerms := aggregation.queryType.(bucket_aggregations.Terms)
-	// if isTerms {
-	// No-op for now
-	//}
-
-	//_, isFilters := aggregation.queryType.(bucket_aggregations.Filters)
-	//if isFilters {
-	//	return nil, errors.New("filters are not supported in version")
-	//}
-
-	aggsHandledSeparately := isRange
-	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
+	if aggs, ok := queryMap["aggs"]; ok {
 		subAggregations, err := cw.pancakeParseAggregationNames(aggs.(QueryMap))
 		if err != nil {
 			return aggregation, err

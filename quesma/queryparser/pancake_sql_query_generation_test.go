@@ -169,12 +169,12 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 // TODO remove after fix
 func Range(testName string) bool {
-	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range"
+	//t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range"
 	t2 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Sum, Buckets: Aggregation: Range"
 	t3 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range"
 	t4 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Unique Count, Buckets: Aggregation: Range"
 	t5 := testName == "range bucket aggregation, both keyed and not"
-	return t1 || t2 || t3 || t4 || t5
+	return t2 || t3 || t4 || t5
 }
 
 // TODO remove after fix
@@ -215,7 +215,6 @@ func percentilesAndTest(testName string) bool {
 
 // TODO remove after fix
 func filters(testName string) bool {
-	//t1 := testName == "filters"
 	t2 := testName == "very long: multiple top_metrics + histogram" // also filters
 	t3 := testName == "complex filters"
 	t4 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" // also filter

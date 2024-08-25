@@ -134,12 +134,12 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 					return nil, err
 				}
 				json = util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma)
-			case bucket_aggregations.Filters:
+			case bucket_aggregations.SubGroupInterface:
 				buckets := model.JsonMap{}
-				for filterIdx, filter := range queryType.Filters {
-					filterName := fmt.Sprintf("filter_%d__%s", filterIdx, layer.nextBucketAggregation.internalName)
-					selectedRows := p.selectMetricRows(filterName, rows)
-					buckets[filter.Name] = queryType.TranslateSqlResponseToJson(selectedRows, 0)
+				for _, subGroup := range queryType.SubGroups() {
+					subGroupName := fmt.Sprintf("%s%s", subGroup.Prefix, layer.nextBucketAggregation.internalName)
+					selectedRows := p.selectMetricRows(subGroupName, rows)
+					buckets[subGroup.Key] = layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
 					// TODO: Agg
 				}
 				json = model.JsonMap{
