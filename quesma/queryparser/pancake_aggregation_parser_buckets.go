@@ -9,6 +9,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -293,6 +294,9 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		return
 	}
 	if isFilters, filterAggregation := cw.parseFilters(queryMap); isFilters {
+		sort.Slice(filterAggregation.Filters, func(i, j int) bool { // stable order is required for tests and caching
+			return filterAggregation.Filters[i].Name < filterAggregation.Filters[j].Name
+		})
 		aggregation.queryType = filterAggregation
 		delete(queryMap, "filters")
 		return
