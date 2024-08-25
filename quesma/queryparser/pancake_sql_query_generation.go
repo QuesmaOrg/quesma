@@ -200,9 +200,7 @@ func (p *pancakeSqlQueryGenerator) addIfCombinator(column model.Expr, whereClaus
 			return model.NewFunction("countIf", whereClause), nil
 		} else if strings.HasSuffix(function.Name, "If") && len(function.Args) > 0 {
 			newArgs := make([]model.Expr, len(function.Args))
-			for i, arg := range function.Args {
-				newArgs[i] = arg
-			}
+			copy(newArgs, function.Args)
 			newArgs[len(newArgs)-1] = model.And([]model.Expr{newArgs[len(newArgs)-1], whereClause})
 			return model.NewFunction(function.Name, newArgs...), nil
 		} else if len(function.Args) == 1 {
