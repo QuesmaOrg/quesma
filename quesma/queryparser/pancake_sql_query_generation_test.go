@@ -56,7 +56,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if topMetrics(test.TestName) {
 				t.Skip("Fix top metrics")
 			}
-			if percentilesAndTest(test.TestName) {
+			if percentiles(test.TestName) {
 				t.Skip("Fix percentiles")
 			}
 			if filters(test.TestName) {
@@ -168,7 +168,15 @@ func TestPancakeQueryGeneration(t *testing.T) {
 func incorrectResult(testName string) bool {
 	t1 := testName == "date_range aggregation" // we use relative time
 	t2 := testName == "complex filters"        // almost, we differ in doc 0 counts
-	return t1 || t2
+	// to be deleted after pancakes
+	t3 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
+		"Output more or less works, but is different and worse than what Elastic returns."+
+		"If it starts failing, maybe that's a good thing"
+	// below test is replacing it
+	// testName == "it's the same input as in previous test, but with the original output from Elastic."+
+	//	"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
+	//	"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix"
+	return t1 || t2 || t3
 }
 
 // TODO remove after fix
@@ -188,17 +196,9 @@ func topMetrics(testName string) bool {
 }
 
 // TODO remove after fix
-func percentilesAndTest(testName string) bool {
+func percentiles(testName string) bool {
 	t1 := testName == "Field statistics > summary for numeric fields" // also percentiles
-	// to be deleted after pancakes
-	t2 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
-		"Output more or less works, but is different and worse than what Elastic returns."+
-		"If it starts failing, maybe that's a good thing"
-	// below test is replacing it
-	// testName == "it's the same input as in previous test, but with the original output from Elastic."+
-	//	"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
-	//	"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix"
-	return t1 || t2
+	return t1
 }
 
 // TODO remove after fix
