@@ -212,8 +212,24 @@ func (p *pancakeSqlQueryGenerator) addIfCombinator(column model.Expr, whereClaus
 			return nil, fmt.Errorf("not implemented -iF for multi func: %s", model.AsString(column))
 		}
 	case model.AliasedExpr:
-		// should I add alias
+		// TODO: maybe preserve alias
 		return p.addIfCombinator(function.Expr, whereClause)
+	case model.WindowFunction:
+		newArgs := make([]model.Expr, 0, len(function.Args))
+		for _, arg := range function.Args {
+			newArg, err := p.addIfCombinator(arg, whereClause)
+			if err != nil {
+				return nil, err
+			}
+			newArgs = append(newArgs, newArg)
+		}
+		newWindow := model.WindowFunction{
+			Name:        function.Name,
+			Args:        newArgs,
+			PartitionBy: function.PartitionBy,
+			OrderBy:     function.OrderBy,
+		}
+		return newWindow, nil
 	default:
 		return nil, fmt.Errorf("not implemented -iF for expr: %s %T", model.AsString(column), column)
 	}

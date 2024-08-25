@@ -202,17 +202,19 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			return false, err
 		}
 		aggregation.queryType = dateRangeParsed
-		for _, interval := range dateRangeParsed.Intervals {
+		// TODO: keep for reference as relative time, but no longer needed
+		/*
+			for _, interval := range dateRangeParsed.Intervals {
 
-			aggregation.selectedColumns = append(aggregation.selectedColumns, interval.ToSQLSelectQuery(dateRangeParsed.FieldName))
+				aggregation.selectedColumns = append(aggregation.selectedColumns, interval.ToSQLSelectQuery(dateRangeParsed.FieldName))
 
-			if sqlSelect, selectNeeded := interval.BeginTimestampToSQL(); selectNeeded {
-				aggregation.selectedColumns = append(aggregation.selectedColumns, sqlSelect)
-			}
-			if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
-				aggregation.selectedColumns = append(aggregation.selectedColumns, sqlSelect)
-			}
-		}
+				if sqlSelect, selectNeeded := interval.BeginTimestampToSQL(); selectNeeded {
+					aggregation.selectedColumns = append(aggregation.selectedColumns, sqlSelect)
+				}
+				if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
+					aggregation.selectedColumns = append(aggregation.selectedColumns, sqlSelect)
+				}
+			}*/
 
 		delete(queryMap, "date_range")
 		return success, nil
