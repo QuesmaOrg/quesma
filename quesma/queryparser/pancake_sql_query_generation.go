@@ -306,7 +306,9 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		}
 	}
 
-	// process combinators
+	// process combinators, e.g. filter, filters, range and dataRange
+	// this change selects by adding -If suffix, e.g. count(*) -> countIf(response_time < 1000)
+	// they may also add more columns with different prefix and where clauses
 	for i := len(addIfCombinators) - 1; i >= 0; i-- { // reverse order is important
 		combinator := addIfCombinators[i]
 		selectsBefore := selectColumns[:combinator.selectNr]

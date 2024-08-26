@@ -195,10 +195,11 @@ func (query DateRange) DoesNotHaveGroupBy() bool {
 
 func (query DateRange) CombinatorGroups() (result []CombinatorGroup) {
 	for intervalIdx, interval := range query.Intervals {
+		prefix := fmt.Sprintf("range_%d__", intervalIdx)
 		result = append(result, CombinatorGroup{
 			idx:         intervalIdx,
-			Prefix:      fmt.Sprintf("range_%d__", intervalIdx),
-			Key:         fmt.Sprintf("range_%d__", intervalIdx), // TODO: we need translate date to real time
+			Prefix:      prefix,
+			Key:         prefix, // TODO: we need translate date to real time
 			WhereClause: interval.ToWhereClause(query.FieldName),
 		})
 	}
@@ -206,6 +207,9 @@ func (query DateRange) CombinatorGroups() (result []CombinatorGroup) {
 }
 
 func (query DateRange) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
+	if len(rows) == 0 || len(rows[0].Cols) == 0 {
+		panic(fmt.Sprintf("need at least one row and column in date_range aggregation response, rows: %d, cols: %d", len(rows), len(rows[0].Cols)))
+	}
 	count := rows[0].Cols[len(rows[0].Cols)-1].Value
 	response := model.JsonMap{
 		"key":       subGroup.Key,
