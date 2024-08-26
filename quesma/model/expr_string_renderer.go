@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"quesma/logger"
 	"quesma/quesma/types"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 )
+
+var identifierRegexp = regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_]*|".*")$`)
 
 type renderer struct{}
 
@@ -113,7 +116,12 @@ func (v *renderer) VisitDistinctExpr(e DistinctExpr) interface{} {
 }
 
 func (v *renderer) VisitTableRef(e TableRef) interface{} {
-	return e.Name
+
+	if identifierRegexp.MatchString(e.Name) {
+		return e.Name
+	}
+
+	return strconv.Quote(e.Name)
 }
 
 func (v *renderer) VisitAliasedExpr(e AliasedExpr) interface{} {
