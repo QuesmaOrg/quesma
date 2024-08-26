@@ -1285,7 +1285,7 @@ var AggregationTests = []AggregationTestCase{
 			  countIf(("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z')
 			  AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))) AS
 			  "filter_1__aggr__time_offset_split__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("FlightDelay"==true AND (("timestamp">=parseDateTime64BestEffort(
 			  '2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort(
 			  '2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort(
@@ -4029,7 +4029,7 @@ var AggregationTests = []AggregationTestCase{
 			  '2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort(
 			  '2024-02-22T21:57:36.376Z'))) AS
 			  "filter_1__metric__time_offset_split__0__2_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND
 			  "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR (
 			  "order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND
@@ -4712,7 +4712,7 @@ var AggregationTests = []AggregationTestCase{
 			  countIf("bytes_gauge">=-5.5) AS "range_2__aggr__2__count",
 			  countIf("bytes_gauge"<6.555) AS "range_3__aggr__2__count",
 			  countIf("bytes_gauge" IS NOT NULL) AS "range_4__aggr__2__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
 		ExpectedAdditionalPancakeSQLs: []string{`
@@ -4723,7 +4723,7 @@ var AggregationTests = []AggregationTestCase{
 			  countIf("bytes_gauge">=-5.5) AS "range_2__aggr__3__count",
 			  countIf("bytes_gauge"<6.555) AS "range_3__aggr__3__count",
 			  countIf("bytes_gauge" IS NOT NULL) AS "range_4__aggr__3__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
 		},

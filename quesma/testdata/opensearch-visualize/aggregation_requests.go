@@ -158,7 +158,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  countIf("ftd_session_time">=-100) AS "range_1__aggr__2__count",
 			  uniqIf("ftd_session_time", "ftd_session_time">=-100) AS
 			  "range_1__metric__2__1_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<=
 			  '2024-04-27T14:40:59.383Z')`,
 	},
@@ -521,7 +521,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  countIf("epoch_time_original">=1000) AS "range_1__aggr__2__count",
 			  sumOrNullIf("properties.entry_time", "epoch_time_original">=1000) AS
 			  "range_1__metric__2__1_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<=
 			  '2024-04-28T14:49:22.674Z')`,
 	},
@@ -695,7 +695,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  "properties::exoestimation_connection_speedinkbps">=1000 AND
 			  "properties::exoestimation_connection_speedinkbps"<2000)) AS
 			  "range_1__metric__2__1_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<=
 			  '2024-05-03T04:40:12.252Z')`,
 	},
