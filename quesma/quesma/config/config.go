@@ -42,6 +42,7 @@ type QuesmaConfiguration struct {
 	IndexConfig                map[string]IndexConfiguration `koanf:"indexes"`
 	Logging                    LoggingConfiguration          `koanf:"logging"`
 	PublicTcpPort              network.Port                  `koanf:"port"`
+	EnableElasticsearchIngest  bool                          `koanf:"enableElasticsearchIngest"`
 	IngestStatistics           bool                          `koanf:"ingestStatistics"`
 	QuesmaInternalTelemetryUrl *Url                          `koanf:"internalTelemetryUrl"`
 }
@@ -154,20 +155,13 @@ func loadConfigFile() {
 
 func (c *QuesmaConfiguration) Validate() error {
 	var result error
-	// at some point we might move to dedicated validation per each nested object,
-	// e.g. c.Elasticsearch.Validate()
 	if c.PublicTcpPort == 0 { // unmarshalling defaults to 0 if not present
-		result = multierror.Append(result, fmt.Errorf("specifying Quesma TCP port for incoming traffic is required"))
+		result = multierror.Append(result, fmt.Errorf("specifying TCP port for incoming traffic is required, please verify your frontend connector settings"))
 	}
 	connectorCount := len(c.Connectors)
 	if connectorCount != 1 {
 		result = multierror.Append(result, fmt.Errorf("%d connectors configured - at this moment Quesma requires **exactly** one connector specified", connectorCount))
 	}
-	//for _, conn := range c.Connectors {
-	//	if conn.Url == nil {
-	//		result = multierror.Append(result, fmt.Errorf("connector %s requires setting the URL", conn.ConnectorType))
-	//	}
-	//}
 	if c.ClickHouse.Url == nil && c.Hydrolix.Url == nil {
 		result = multierror.Append(result, fmt.Errorf("clickHouse or hydrolix URL is required"))
 	}
@@ -342,7 +336,7 @@ Quesma Configuration:
 		clickhouseUrl,
 		clickhouseExtra,
 		connectorString.String(),
-		c.Elasticsearch.Call,
+		c.EnableElasticsearchIngest,
 		indexConfigs,
 		c.Logging.Path,
 		c.Logging.Level,

@@ -44,7 +44,9 @@ func main() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	doneCh := make(chan struct{})
-	var cfg = config.Load()
+
+	var newConfiguration = config.LoadV2Config()
+	var cfg = newConfiguration.TranslateToLegacyConfig()
 
 	if err := cfg.Validate(); err != nil {
 		log.Fatalf("error validating configuration: %v", err)
