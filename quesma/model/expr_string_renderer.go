@@ -74,19 +74,6 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 	}
 }
 
-func (v *renderer) VisitString(e StringExpr) interface{} {
-	return e.Value
-}
-
-func (v *renderer) VisitMultiFunction(f MultiFunctionExpr) interface{} {
-	args := make([]string, 0)
-	for _, arg := range f.Args {
-		r := "(" + arg.Accept(v).(string) + ")"
-		args = append(args, r)
-	}
-	return f.Name + strings.Join(args, "")
-}
-
 func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	var lhs, rhs interface{} // TODO FOR NOW LITTLE PARANOID BUT HELPS ME NOT SEE MANY PANICS WHEN TESTING
 	if e.Left != nil {

@@ -33,17 +33,17 @@ func (interval DateTimeInterval) ToSQLSelectQuery(fieldName string) model.Expr {
 	if interval.Begin != UnboundedInterval && interval.End != UnboundedInterval {
 		return model.NewCountFunc(model.NewFunction("if",
 			model.NewInfixExpr(
-				model.NewInfixExpr(model.NewColumnRef(fieldName), " >= ", model.NewStringExpr(interval.Begin)),
+				model.NewInfixExpr(model.NewColumnRef(fieldName), " >= ", model.NewLiteral(interval.Begin)),
 				"AND",
-				model.NewInfixExpr(model.NewColumnRef(fieldName), " < ", model.NewStringExpr(interval.End)),
+				model.NewInfixExpr(model.NewColumnRef(fieldName), " < ", model.NewLiteral(interval.End)),
 			),
 			model.NewLiteral(1), model.NewLiteral("NULL")))
 	} else if interval.Begin != UnboundedInterval {
 		return model.NewCountFunc(model.NewFunction("if",
-			model.NewInfixExpr(model.NewColumnRef(fieldName), " >= ", model.NewStringExpr(interval.Begin)), model.NewLiteral(1), model.NewLiteral("NULL")))
+			model.NewInfixExpr(model.NewColumnRef(fieldName), " >= ", model.NewLiteral(interval.Begin)), model.NewLiteral(1), model.NewLiteral("NULL")))
 	} else if interval.End != UnboundedInterval {
 		return model.NewCountFunc(model.NewFunction("if",
-			model.NewInfixExpr(model.NewColumnRef(fieldName), " < ", model.NewStringExpr(interval.End)), model.NewLiteral(1), model.NewLiteral("NULL")))
+			model.NewInfixExpr(model.NewColumnRef(fieldName), " < ", model.NewLiteral(interval.End)), model.NewLiteral(1), model.NewLiteral("NULL")))
 	}
 	return model.NewCountFunc()
 }
@@ -53,7 +53,7 @@ func (interval DateTimeInterval) ToSQLSelectQuery(fieldName string) model.Expr {
 // It's only 1 more field to our SELECT query, so it shouldn't be a performance issue.
 func (interval DateTimeInterval) BeginTimestampToSQL() (sqlSelect model.Expr, selectNeeded bool) {
 	if interval.Begin != UnboundedInterval {
-		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewStringExpr(interval.Begin))), true
+		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewLiteral(interval.Begin))), true
 	}
 	return nil, false
 }
@@ -63,7 +63,7 @@ func (interval DateTimeInterval) BeginTimestampToSQL() (sqlSelect model.Expr, se
 // It's only 1 more field to our SELECT query, so it isn't a performance issue.
 func (interval DateTimeInterval) EndTimestampToSQL() (sqlSelect model.Expr, selectNeeded bool) {
 	if interval.End != UnboundedInterval {
-		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewStringExpr(interval.End))), true
+		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewLiteral(interval.End))), true
 	}
 	return nil, false
 }

@@ -50,7 +50,7 @@ func (interval Interval) ToSQLSelectQuery(columnExpr model.Expr) model.Expr {
 		return model.NewFunction("count")
 	}
 	// count(if(sql, 1, NULL))
-	return model.NewFunction("count", model.NewFunction("if", sql, model.NewLiteral(1), model.NewStringExpr("NULL")))
+	return model.NewFunction("count", model.NewFunction("if", sql, model.NewLiteral(1), model.NewLiteral("NULL")))
 }
 
 func (interval Interval) ToWhereClause(field model.Expr) model.Expr { // returns a condition for the interval, just like we want it in SQL's WHERE
