@@ -8,6 +8,7 @@ import (
 	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/schema"
+	"sort"
 	"strings"
 )
 
@@ -321,6 +322,45 @@ func (s *SchemaCheckPass) applyMapTransformations(query *model.Query) (*model.Qu
 	return query, nil
 }
 
+func (s *SchemaCheckPass) applyWildcardExpansion(query *model.Query) (*model.Query, error) {
+	fromTable := getFromTable(query.TableName)
+
+	table := s.logManager.FindTable(fromTable)
+	if table == nil {
+		logger.Error().Msgf("Table %s not found", fromTable)
+		return query, nil
+	}
+
+	var newColumns []model.Expr
+	var hasWildcard bool
+
+	for _, selectColumn := range query.SelectCommand.Columns {
+
+		if selectColumn == model.NewWildcardExpr {
+			hasWildcard = true
+		} else {
+			newColumns = append(newColumns, selectColumn)
+		}
+	}
+
+	if hasWildcard {
+
+		cols := make([]string, 0, len(table.Cols))
+		for _, col := range table.Cols {
+			cols = append(cols, col.Name)
+		}
+		sort.Strings(cols)
+
+		for _, col := range cols {
+			newColumns = append(newColumns, model.NewColumnRef(col))
+		}
+	}
+
+	query.SelectCommand.Columns = newColumns
+
+	return query, nil
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	for k, query := range queries {
 		var err error
@@ -333,6 +373,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 			{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 			{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
+			{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 		}
 		for _, transformation := range transformationChain {
 			inputQuery := query.SelectCommand.String()

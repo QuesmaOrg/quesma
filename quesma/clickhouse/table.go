@@ -9,7 +9,6 @@ import (
 	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/util"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -64,68 +63,6 @@ func (t *Table) createTableOurFieldsString() []string {
 		}
 	}
 	return rows
-}
-
-// it will be removed soon,
-// we should rely on metadata from clickhouse
-// And we shouldn't use '*'. All columns should be explicitly defined.
-func (t *Table) applyTableSchema(query *model.Query) {
-	var newColumns []model.Expr
-	var hasWildcard bool
-
-	for _, selectColumn := range query.SelectCommand.Columns {
-
-		if selectColumn == model.NewWildcardExpr {
-			hasWildcard = true
-		} else {
-			newColumns = append(newColumns, selectColumn)
-		}
-	}
-
-	if hasWildcard {
-
-		cols := make([]string, 0, len(t.Cols))
-		for _, col := range t.Cols {
-			cols = append(cols, col.Name)
-		}
-		sort.Strings(cols)
-
-		for _, col := range cols {
-			newColumns = append(newColumns, model.NewColumnRef(col))
-		}
-	}
-
-	query.SelectCommand.Columns = newColumns
-}
-
-func (t *Table) extractColumns(query *model.Query, addNonSchemaFields bool) ([]string, error) {
-
-	N := len(query.SelectCommand.Columns)
-	if query.SelectCommand.IsWildcard() {
-		N = len(t.Cols)
-	}
-	cols := make([]string, 0, N)
-	if query.SelectCommand.IsWildcard() {
-		for _, col := range t.Cols {
-			cols = append(cols, col.Name)
-		}
-	} else {
-		for _, selectColumn := range query.SelectCommand.Columns {
-			switch selectCol := selectColumn.(type) {
-			case model.ColumnRef:
-				colName := selectCol.ColumnName
-				_, ok := t.Cols[colName]
-				if !ok {
-					return nil, fmt.Errorf("column %s not found in table %s", selectCol, t.Name)
-				}
-
-				cols = append(cols, colName)
-			default:
-				cols = append(cols, model.AsString(selectCol))
-			}
-		}
-	}
-	return cols, nil
 }
 
 func (t *Table) createTableString() string {
