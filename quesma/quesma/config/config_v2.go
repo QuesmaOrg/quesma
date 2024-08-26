@@ -119,14 +119,14 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 }
 
 func (c *QuesmaNewConfiguration) getPublicTcpPort() (network.Port, error) {
-	if len(c.FrontendConnectors) == 1 {
-		if c.FrontendConnectors[0].Type == ElasticsearchFrontedConnectorName {
-			return c.FrontendConnectors[0].Config.ListenPort, nil
-		} else {
-			return 0, errors.New("frontend connector type not recognized, only `elasticsearch-fe` is supported at this moment")
-		}
+	if len(c.FrontendConnectors) != 1 {
+		return 0, errors.New("exactly one frontend connector must be defined at this moment")
 	}
-	return 0, errors.New("exactly one frontend connector must be defined at this moment")
+	if c.FrontendConnectors[0].Type == ElasticsearchFrontedConnectorName {
+		return c.FrontendConnectors[0].Config.ListenPort, nil
+	} else {
+		return 0, errors.New("frontend connector type not recognized, only `elasticsearch-fe` is supported at this moment")
+	}
 }
 
 func (c *QuesmaNewConfiguration) getElasticsearchBackendConnector() *BackendConnector {
@@ -166,12 +166,12 @@ func (c *QuesmaNewConfiguration) getRelationalDBConf() (*RelationalDbConfigurati
 }
 
 func (c *QuesmaNewConfiguration) getProcessorConfig() (*Processor, error) {
-	if len(c.Processors) == 1 {
-		if c.Processors[0].Type == "quesma-v1-processor" {
-			return &c.Processors[0], nil
-		} else {
-			return nil, errors.New("processor type not recognized, only `quesma-v1-processor` is supported at this moment")
-		}
+	if len(c.Processors) != 1 {
+		return nil, errors.New("exactly one processor must be defined at this moment")
 	}
-	return nil, errors.New("exactly one processor must be defined at this moment")
+	if c.Processors[0].Type == "quesma-v1-processor" {
+		return &c.Processors[0], nil
+	} else {
+		return nil, errors.New("processor type not recognized, only `quesma-v1-processor` is supported at this moment")
+	}
 }
