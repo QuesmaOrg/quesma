@@ -354,7 +354,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			TransformationName string
 			Transformation     func(*model.Query) (*model.Query, error)
 		}{
-			{TransformationName: "LogicalToPhysicalTable", Transformation: s.applyPhysicalFromExpression},
+			{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 			{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
 			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
