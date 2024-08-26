@@ -9,7 +9,6 @@ type NoOpVisitor struct {
 func (NoOpVisitor) VisitFunction(e FunctionExpr) interface{}           { return e }
 func (NoOpVisitor) VisitMultiFunction(e MultiFunctionExpr) interface{} { return e }
 func (NoOpVisitor) VisitLiteral(l LiteralExpr) interface{}             { return l }
-func (NoOpVisitor) VisitString(e StringExpr) interface{}               { return e }
 func (NoOpVisitor) VisitInfix(e InfixExpr) interface{}                 { return e }
 func (NoOpVisitor) VisitColumnRef(e ColumnRef) interface{}             { return e }
 func (NoOpVisitor) VisitPrefixExpr(e PrefixExpr) interface{}           { return e }

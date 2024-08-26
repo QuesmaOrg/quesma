@@ -74,10 +74,6 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 	}
 }
 
-func (v *renderer) VisitString(e StringExpr) interface{} {
-	return e.Value
-}
-
 func (v *renderer) VisitMultiFunction(f MultiFunctionExpr) interface{} {
 	args := make([]string, 0)
 	for _, arg := range f.Args {

@@ -6,7 +6,6 @@ type BaseExprVisitor struct {
 	OverrideVisitFunction       func(b *BaseExprVisitor, e FunctionExpr) interface{}
 	OverrideVisitMultiFunction  func(b *BaseExprVisitor, e MultiFunctionExpr) interface{}
 	OverrideVisitLiteral        func(b *BaseExprVisitor, l LiteralExpr) interface{}
-	OverrideVisitString         func(b *BaseExprVisitor, e StringExpr) interface{}
 	OverrideVisitInfix          func(b *BaseExprVisitor, e InfixExpr) interface{}
 	OverrideVisitColumnRef      func(b *BaseExprVisitor, e ColumnRef) interface{}
 	OverrideVisitPrefixExpr     func(b *BaseExprVisitor, e PrefixExpr) interface{}
@@ -97,13 +96,6 @@ func (v *BaseExprVisitor) VisitMultiFunction(e MultiFunctionExpr) interface{} {
 		return v.OverrideVisitMultiFunction(v, e)
 	}
 	return MultiFunctionExpr{Name: e.Name, Args: v.VisitChildren(e.Args)}
-}
-
-func (v *BaseExprVisitor) VisitString(e StringExpr) interface{} {
-	if v.OverrideVisitString != nil {
-		return v.OverrideVisitString(v, e)
-	}
-	return e
 }
 
 func (v *BaseExprVisitor) VisitTableRef(e TableRef) interface{} {

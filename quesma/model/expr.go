@@ -92,16 +92,6 @@ func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLiteral(e)
 }
 
-// Deprecated
-type StringExpr struct {
-	// StringExpr is just like LiteralExpr with string Value, but when rendering we don't quote it.
-	Value string
-}
-
-func (e StringExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitString(e)
-}
-
 type InfixExpr struct {
 	Left  Expr
 	Op    string
@@ -121,10 +111,6 @@ func NewCountFunc(args ...Expr) FunctionExpr {
 }
 
 var NewWildcardExpr = LiteralExpr{Value: "*"}
-
-func NewStringExpr(value string) StringExpr {
-	return StringExpr{Value: value}
-}
 
 func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value}
@@ -277,7 +263,6 @@ type ExprVisitor interface {
 	VisitFunction(e FunctionExpr) interface{}
 	VisitMultiFunction(e MultiFunctionExpr) interface{}
 	VisitLiteral(l LiteralExpr) interface{}
-	VisitString(e StringExpr) interface{}
 	VisitInfix(e InfixExpr) interface{}
 	VisitColumnRef(e ColumnRef) interface{}
 	VisitPrefixExpr(e PrefixExpr) interface{}
