@@ -3,7 +3,7 @@ module quesma
 go 1.22.5
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.27.2
+	github.com/ClickHouse/clickhouse-go/v2 v2.28.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/DataDog/go-sqllexer v0.0.14
 	github.com/barkimedes/go-deepcopy v0.0.0-20220514131651-17c30cfc62df
