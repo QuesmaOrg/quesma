@@ -36,3 +36,16 @@ func (query FilterAgg) String() string {
 func (query FilterAgg) DoesNotHaveGroupBy() bool {
 	return true
 }
+
+func (query FilterAgg) CombinatorGroups() (result []CombinatorGroup) {
+	return []CombinatorGroup{{
+		idx:         0,
+		Prefix:      "",
+		Key:         "",
+		WhereClause: query.WhereClause,
+	}}
+}
+
+func (query FilterAgg) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
+	return query.TranslateSqlResponseToJson(rows, 0)
+}

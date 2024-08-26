@@ -268,8 +268,8 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	groupBys := make([]model.AliasedExpr, 0)
 
 	type addIfCombinator struct {
-		selectNr          int
-		bucketAggregation *pancakeModelBucketAggregation
+		selectNr  int
+		queryType bucket_aggregations.CombinatorAggregationInterface
 	}
 	addIfCombinators := make([]addIfCombinator, 0)
 
@@ -284,9 +284,9 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		}
 
 		if layer.nextBucketAggregation != nil {
-			switch layer.nextBucketAggregation.queryType.(type) {
-			case bucket_aggregations.FilterAgg, bucket_aggregations.CombinatorAggregationInterface:
-				addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), layer.nextBucketAggregation})
+			switch queryType := layer.nextBucketAggregation.queryType.(type) {
+			case bucket_aggregations.CombinatorAggregationInterface:
+				addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), queryType})
 			}
 
 			if layer.nextBucketAggregation.DoesHaveGroupBy() {
@@ -315,33 +315,21 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		selectsAfter := selectColumns[combinator.selectNr:]
 		newAfterSelects := make([]model.AliasedExpr, 0, len(selectsAfter))
 
-		switch combinatorQuery := combinator.bucketAggregation.queryType.(type) {
-		case bucket_aggregations.FilterAgg:
+		for _, subGroup := range combinator.queryType.CombinatorGroups() {
 			for _, selectAfter := range selectsAfter {
-				withIfCombinator, err := p.addIfCombinator(selectAfter.Expr, combinatorQuery.WhereClause)
-				if err != nil {
-					return nil, false, err
-				}
-				aliasedColumn := model.NewAliasedExpr(withIfCombinator, selectAfter.Alias)
-				newAfterSelects = append(newAfterSelects, aliasedColumn)
-			}
-		case bucket_aggregations.CombinatorAggregationInterface:
-			for _, subGroup := range combinatorQuery.CombinatorGroups() {
-				for _, selectAfter := range selectsAfter {
-					var withCombinator model.Expr
-					if p.isPartOfGroupBy(selectAfter.Expr, groupBys) != nil {
-						withCombinator = selectAfter.Expr
-					} else {
-						withIfCombinator, err := p.addIfCombinator(selectAfter.Expr, subGroup.WhereClause)
-						if err != nil {
-							return nil, false, err
-						}
-						withCombinator = withIfCombinator
+				var withCombinator model.Expr
+				if p.isPartOfGroupBy(selectAfter.Expr, groupBys) != nil {
+					withCombinator = selectAfter.Expr
+				} else {
+					withIfCombinator, err := p.addIfCombinator(selectAfter.Expr, subGroup.WhereClause)
+					if err != nil {
+						return nil, false, err
 					}
-					aliasedColumn := model.NewAliasedExpr(withCombinator,
-						fmt.Sprintf("%s%s", subGroup.Prefix, selectAfter.Alias))
-					newAfterSelects = append(newAfterSelects, aliasedColumn)
+					withCombinator = withIfCombinator
 				}
+				aliasedColumn := model.NewAliasedExpr(withCombinator,
+					fmt.Sprintf("%s%s", subGroup.Prefix, selectAfter.Alias))
+				newAfterSelects = append(newAfterSelects, aliasedColumn)
 			}
 		}
 		selectColumns = append(selectsBefore, newAfterSelects...)
