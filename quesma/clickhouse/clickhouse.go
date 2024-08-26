@@ -500,11 +500,6 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}, tableName 
 	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
 	attrValues := getAttributesByArrayName(AttributesValueColumn, attrsMap)
 
-	attributesBytes, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
-	if err != nil {
-		return "", err
-	}
-	nonSchemaStr = string(attributesBytes[1 : len(attributesBytes)-1])
 	nonSchemaStr = "\"attributes\":{"
 	for i := 0; i < len(attrKeys); i++ {
 		if i > 0 {
