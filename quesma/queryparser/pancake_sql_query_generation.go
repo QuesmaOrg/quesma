@@ -9,6 +9,7 @@ import (
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/queryparser/query_util"
+	"strings"
 )
 
 type pancakeSqlQueryGenerator struct {
@@ -192,38 +193,52 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 	return
 }
 
-func (p *pancakeSqlQueryGenerator) generateLeafFilter(layer *pancakeModelLayer, whereClause model.Expr) (addSelectColumns []model.AliasedExpr, err error) {
-	if layer == nil { // no metric aggregations in filter
-		return nil, nil
-	}
-	if layer.nextBucketAggregation != nil {
-		return nil, errors.New("filter layer can't have sub bucket aggregations")
-	}
-
-	for _, metric := range layer.currentMetricAggregations {
-		for columnId, column := range metric.selectedColumns {
-			aliasedName := fmt.Sprintf("%s_col_%d", metric.internalName, columnId)
-			// Add if
-			var columnWithIf model.Expr
-			switch function := column.(type) {
-			case model.FunctionExpr:
-				if function.Name == "count" {
-					columnWithIf = model.NewFunction("countIf", whereClause)
-				} else if len(function.Args) == 1 {
-					// https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators#-if
-					columnWithIf = model.NewFunction(function.Name+"If", function.Args[0], whereClause)
-				} else {
-					return nil, fmt.Errorf("not implemented -iF for func with more than one argument: %s", model.AsString(column))
-				}
-			default:
-				return nil, fmt.Errorf("not implemented -iF for expr: %s", model.AsString(column))
-			}
-
-			aliasedColumn := model.NewAliasedExpr(columnWithIf, aliasedName)
-			addSelectColumns = append(addSelectColumns, aliasedColumn)
+func (p *pancakeSqlQueryGenerator) addIfCombinator(column model.Expr, whereClause model.Expr) (model.Expr, error) {
+	switch function := column.(type) {
+	case model.FunctionExpr:
+		if function.Name == "count" {
+			return model.NewFunction("countIf", whereClause), nil
+		} else if strings.HasSuffix(function.Name, "If") && len(function.Args) > 0 {
+			newArgs := make([]model.Expr, len(function.Args))
+			copy(newArgs, function.Args)
+			newArgs[len(newArgs)-1] = model.And([]model.Expr{newArgs[len(newArgs)-1], whereClause})
+			return model.NewFunction(function.Name, newArgs...), nil
+		} else if len(function.Args) == 1 {
+			// https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators#-if
+			return model.NewFunction(function.Name+"If", function.Args[0], whereClause), nil
+		} else {
+			return nil, fmt.Errorf("not implemented -iF for func with more than one argument: %s", model.AsString(column))
 		}
+	case model.MultiFunctionExpr:
+		if function.Name == "quantiles" && len(function.Args) == 2 {
+			// TODO: fix MultiFunctionExpr type
+			return model.MultiFunctionExpr{Name: "quantilesIf", Args: []model.Expr{
+				function.Args[0], model.NewInfixExpr(function.Args[1], ", ", whereClause)}}, nil
+		} else {
+			return nil, fmt.Errorf("not implemented -iF for multi func: %s", model.AsString(column))
+		}
+	case model.AliasedExpr:
+		// TODO: maybe preserve alias
+		return p.addIfCombinator(function.Expr, whereClause)
+	case model.WindowFunction:
+		newArgs := make([]model.Expr, 0, len(function.Args))
+		for _, arg := range function.Args {
+			newArg, err := p.addIfCombinator(arg, whereClause)
+			if err != nil {
+				return nil, err
+			}
+			newArgs = append(newArgs, newArg)
+		}
+		newWindow := model.WindowFunction{
+			Name:        function.Name,
+			Args:        newArgs,
+			PartitionBy: function.PartitionBy,
+			OrderBy:     function.OrderBy,
+		}
+		return newWindow, nil
+	default:
+		return nil, fmt.Errorf("not implemented -iF for expr: %s %T", model.AsString(column), column)
 	}
-	return
 }
 
 func (p *pancakeSqlQueryGenerator) countRealBucketAggregations(aggregation *pancakeModel) int {
@@ -251,7 +266,14 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	rankWheres := make([]model.Expr, 0)
 	rankOrderBys := make([]model.OrderByExpr, 0)
 	groupBys := make([]model.AliasedExpr, 0)
-	for layerId, layer := range aggregation.layers {
+
+	type addIfCombinator struct {
+		selectNr  int
+		queryType bucket_aggregations.CombinatorAggregationInterface
+	}
+	addIfCombinators := make([]addIfCombinator, 0)
+
+	for _, layer := range aggregation.layers {
 		for _, metric := range layer.currentMetricAggregations {
 			hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
 			addSelectColumns, err := p.generateMetricSelects(metric, groupBys, hasMoreBucketAggregations)
@@ -262,22 +284,8 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		}
 
 		if layer.nextBucketAggregation != nil {
-			if filter, isFilter := layer.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg); isFilter {
-
-				for _, newFilterColumn := range layer.nextBucketAggregation.selectedColumns { // it is just one column
-					aliasName := layer.nextBucketAggregation.InternalNameForCount()
-					aliasedColumn := model.NewAliasedExpr(newFilterColumn, aliasName)
-					selectColumns = append(selectColumns, aliasedColumn)
-				}
-
-				if layerId+1 < len(aggregation.layers) {
-					addSelectColumns, err := p.generateLeafFilter(aggregation.layers[layerId+1], filter.WhereClause)
-					if err != nil {
-						return nil, false, err
-					}
-					selectColumns = append(selectColumns, addSelectColumns...)
-				}
-				break
+			if combinator, isCombinator := layer.nextBucketAggregation.queryType.(bucket_aggregations.CombinatorAggregationInterface); isCombinator {
+				addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), combinator})
 			}
 
 			if layer.nextBucketAggregation.DoesHaveGroupBy() {
@@ -295,6 +303,35 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			rankWheres = append(rankWheres, addRankWheres...)
 			rankOrderBys = append(rankOrderBys, addRankOrderBys...)
 		}
+	}
+
+	// process combinators, e.g. filter, filters, range and dataRange
+	// this change selects by adding -If suffix, e.g. count(*) -> countIf(response_time < 1000)
+	// they may also add more columns with different prefix and where clauses
+	for i := len(addIfCombinators) - 1; i >= 0; i-- { // reverse order is important
+		combinator := addIfCombinators[i]
+		selectsBefore := selectColumns[:combinator.selectNr]
+		selectsAfter := selectColumns[combinator.selectNr:]
+		newAfterSelects := make([]model.AliasedExpr, 0, len(selectsAfter))
+
+		for _, subGroup := range combinator.queryType.CombinatorGroups() {
+			for _, selectAfter := range selectsAfter {
+				var withCombinator model.Expr
+				if p.isPartOfGroupBy(selectAfter.Expr, groupBys) != nil {
+					withCombinator = selectAfter.Expr
+				} else {
+					withIfCombinator, err := p.addIfCombinator(selectAfter.Expr, subGroup.WhereClause)
+					if err != nil {
+						return nil, false, err
+					}
+					withCombinator = withIfCombinator
+				}
+				aliasedColumn := model.NewAliasedExpr(withCombinator,
+					fmt.Sprintf("%s%s", subGroup.Prefix, selectAfter.Alias))
+				newAfterSelects = append(newAfterSelects, aliasedColumn)
+			}
+		}
+		selectColumns = append(selectsBefore, newAfterSelects...)
 	}
 
 	// if we have single layer we can emit simpler query

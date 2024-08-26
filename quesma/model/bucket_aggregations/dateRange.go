@@ -68,6 +68,28 @@ func (interval DateTimeInterval) EndTimestampToSQL() (sqlSelect model.Expr, sele
 	return nil, false
 }
 
+func (interval DateTimeInterval) ToWhereClause(fieldName string) model.Expr {
+	begin, isBegin := interval.BeginTimestampToSQL()
+	end, isEnd := interval.EndTimestampToSQL()
+
+	if isBegin {
+		begin = model.NewInfixExpr(model.NewColumnRef(fieldName), ">=", begin)
+	}
+	if isEnd {
+		end = model.NewInfixExpr(model.NewColumnRef(fieldName), "<", end)
+	}
+
+	if isBegin && isEnd {
+		return model.NewInfixExpr(begin, "AND", end)
+	} else if isBegin {
+		return begin
+	} else if isEnd {
+		return end
+	} else {
+		return model.NewLiteral("TRUE")
+	}
+}
+
 type DateRange struct {
 	ctx             context.Context
 	FieldName       string
@@ -165,4 +187,45 @@ func (query DateRange) parseTimestamp(timestamp any) int64 {
 		return int64(maybeUint64)
 	}
 	return timestamp.(int64)
+}
+
+func (query DateRange) DoesNotHaveGroupBy() bool {
+	return true
+}
+
+func (query DateRange) CombinatorGroups() (result []CombinatorGroup) {
+	for intervalIdx, interval := range query.Intervals {
+		prefix := fmt.Sprintf("range_%d__", intervalIdx)
+		result = append(result, CombinatorGroup{
+			idx:         intervalIdx,
+			Prefix:      prefix,
+			Key:         prefix, // TODO: we need translate date to real time
+			WhereClause: interval.ToWhereClause(query.FieldName),
+		})
+	}
+	return
+}
+
+func (query DateRange) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
+	if len(rows) == 0 || len(rows[0].Cols) == 0 {
+		panic(fmt.Sprintf("need at least one row and column in date_range aggregation response, rows: %d, cols: %d", len(rows), len(rows[0].Cols)))
+	}
+	count := rows[0].Cols[len(rows[0].Cols)-1].Value
+	response := model.JsonMap{
+		"key":       subGroup.Key,
+		"doc_count": count,
+	}
+
+	// TODO: we need translate relative to real time
+	interval := query.Intervals[subGroup.idx]
+	if interval.Begin != UnboundedInterval {
+		response["from"] = interval.Begin
+		response["from_as_string"] = interval.Begin
+	}
+	if interval.End != UnboundedInterval {
+		response["to"] = interval.End
+		response["to_as_string"] = interval.End
+	}
+
+	return response
 }

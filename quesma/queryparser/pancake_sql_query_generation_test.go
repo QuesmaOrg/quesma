@@ -50,19 +50,13 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if i == 29 || i == 30 {
 				t.Skip("Skipped also for previous implementation. New tests, harder, failing for now.")
 			}
-			if Range(test.TestName) {
-				t.Skip("Fix range")
-			}
-			if dateRange(test.TestName) {
-				t.Skip("Fix date range")
-			}
 			if topHits(test.TestName) {
 				t.Skip("Fix top_hits")
 			}
 			if topMetrics(test.TestName) {
 				t.Skip("Fix top metrics")
 			}
-			if percentilesAndTest(test.TestName) {
+			if percentiles(test.TestName) {
 				t.Skip("Fix percentiles")
 			}
 			if filters(test.TestName) {
@@ -112,6 +106,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				if !ok {
 					assert.Fail(t, "Expected pancake query type")
 				}
+			}
+
+			if incorrectResult(test.TestName) {
+				t.Skip("We don't have result yet")
 			}
 
 			expectedJson, err := util.JsonToMap(test.ExpectedResponse)
@@ -167,20 +165,19 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	}
 }
 
-// TODO remove after fix
-func Range(testName string) bool {
-	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range"
-	t2 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Sum, Buckets: Aggregation: Range"
-	t3 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range"
-	t4 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Unique Count, Buckets: Aggregation: Range"
-	t5 := testName == "range bucket aggregation, both keyed and not"
-	return t1 || t2 || t3 || t4 || t5
-}
-
-// TODO remove after fix
-func dateRange(testName string) bool {
-	t1 := testName == "range bucket aggregation, both keyed and not"
-	return t1
+// We generate correct SQL, but result JSON did not match
+func incorrectResult(testName string) bool {
+	t1 := testName == "date_range aggregation" // we use relative time
+	t2 := testName == "complex filters"        // almost, we differ in doc 0 counts
+	// to be deleted after pancakes
+	t3 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
+		"Output more or less works, but is different and worse than what Elastic returns."+
+		"If it starts failing, maybe that's a good thing"
+	// below test is replacing it
+	// testName == "it's the same input as in previous test, but with the original output from Elastic."+
+	//	"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
+	//	"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix"
+	return t1 || t2 || t3
 }
 
 // TODO remove after fix
@@ -200,26 +197,16 @@ func topMetrics(testName string) bool {
 }
 
 // TODO remove after fix
-func percentilesAndTest(testName string) bool {
+func percentiles(testName string) bool {
 	t1 := testName == "Field statistics > summary for numeric fields" // also percentiles
-	// to be deleted after pancakes
-	t2 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
-		"Output more or less works, but is different and worse than what Elastic returns."+
-		"If it starts failing, maybe that's a good thing"
-	// below test is replacing it
-	// testName == "it's the same input as in previous test, but with the original output from Elastic."+
-	//	"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
-	//	"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix"
-	return t1 || t2
+	return t1
 }
 
 // TODO remove after fix
 func filters(testName string) bool {
-	t1 := testName == "filters"
-	t2 := testName == "very long: multiple top_metrics + histogram" // also filters
-	t3 := testName == "complex filters"
-	t4 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" // also filter
-	return t1 || t2 || t3 || t4
+	// this works, but is very suboptimal and didn't update the test case
+	t1 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" // multi level filters
+	return t1
 }
 
 func TestPancakeQueryGeneration_halfpancake(t *testing.T) {

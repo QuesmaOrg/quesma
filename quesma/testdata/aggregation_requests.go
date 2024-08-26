@@ -1261,7 +1261,12 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 553)}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 351)}}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__count", uint64(553)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", uint64(351)),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM "` + TableName + `" WHERE ("FlightDelay"==true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))))`,
 			`SELECT count() FROM "` + TableName + `" WHERE (("FlightDelay"==true ` +
@@ -1273,7 +1278,19 @@ var AggregationTests = []AggregationTestCase{
 				`OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) ` +
 				`AND ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT countIf(("timestamp">=parseDateTime64BestEffort(
+			  '2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort(
+			  '2024-02-09T13:47:16.029Z'))) AS "filter_0__aggr__time_offset_split__count",
+			  countIf(("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z')
+			  AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))) AS
+			  "filter_1__aggr__time_offset_split__count"
+			FROM "logs-generic-default"
+			WHERE ("FlightDelay"==true AND (("timestamp">=parseDateTime64BestEffort(
+			  '2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort(
+			  '2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort(
+			  '2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort(
+			  '2024-02-02T13:47:16.029Z'))))`,
 	},
 	{ // [7]
 		TestName: "top hits, quite complex",
@@ -3850,7 +3867,45 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19768)), model.NewQueryResultCol("doc_count", 7)}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1026))}}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__count", int64(1051)),
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__key_0", int64(1708560000000/86400000)),
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__count", int64(10)),
+				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__1_col_0", 840.921875),
+				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__2_col_0", 841.921875),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", int64(1026)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__key_0", int64(1708560000000/86400000)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__count", int64(0)),
+				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__1_col_0", nil),
+				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__2_col_0", nil),
+			}},
+
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__count", int64(1051)),
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__key_0", int64(1708646400000/86400000)),
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__count", int64(166)),
+				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__1_col_0", 13902.156250),
+				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__2_col_0", 13903.156250),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", int64(1026)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__key_0", int64(1708646400000/86400000)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__count", int64(0)),
+				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__1_col_0", nil),
+				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__2_col_0", nil),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__count", int64(1051)),
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__key_0", int64(1707955200000/86400000)),
+				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__count", int64(0)),
+				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__1_col_0", nil),
+				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__2_col_0", nil),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", int64(1026)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__key_0", int64(1707955200000/86400000)),
+				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__count", int64(7)),
+				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__1_col_0", 465.843750),
+				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__2_col_0", 466.843750),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT * ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -3939,7 +3994,49 @@ var AggregationTests = []AggregationTestCase{
 				`AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')))`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT sum(countIf(("order_date">=parseDateTime64BestEffort(
+			  '2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort(
+			  '2024-02-29T21:57:36.376Z')))) OVER () AS
+			  "filter_0__aggr__time_offset_split__count",
+			  toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
+			  "filter_0__aggr__time_offset_split__0__key_0",
+			  countIf(("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')
+			  AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z'))) AS
+			  "filter_0__aggr__time_offset_split__0__count",
+			  sumOrNullIf("taxful_total_price", ("order_date">=parseDateTime64BestEffort(
+			  '2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort(
+			  '2024-02-29T21:57:36.376Z'))) AS
+			  "filter_0__metric__time_offset_split__0__1_col_0",
+			  sumOrNullIf("taxful_total_price", ("order_date">=parseDateTime64BestEffort(
+			  '2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort(
+			  '2024-02-29T21:57:36.376Z'))) AS
+			  "filter_0__metric__time_offset_split__0__2_col_0",
+			  sum(countIf(("order_date">=parseDateTime64BestEffort(
+			  '2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort(
+			  '2024-02-22T21:57:36.376Z')))) OVER () AS
+			  "filter_1__aggr__time_offset_split__count",
+			  toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
+			  "filter_1__aggr__time_offset_split__0__key_0",
+			  countIf(("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z')
+			  AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AS
+			  "filter_1__aggr__time_offset_split__0__count",
+			  sumOrNullIf("taxful_total_price", ("order_date">=parseDateTime64BestEffort(
+			  '2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort(
+			  '2024-02-22T21:57:36.376Z'))) AS
+			  "filter_1__metric__time_offset_split__0__1_col_0",
+			  sumOrNullIf("taxful_total_price", ("order_date">=parseDateTime64BestEffort(
+			  '2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort(
+			  '2024-02-22T21:57:36.376Z'))) AS
+			  "filter_1__metric__time_offset_split__0__2_col_0"
+			FROM "logs-generic-default"
+			WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND
+			  "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR (
+			  "order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND
+			  "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')))
+			GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
+			  "aggr__time_offset_split__0__key_0"
+			ORDER BY "aggr__time_offset_split__0__key_0" ASC`,
 	},
 	{ // [19]
 		TestName: "random sampler, from Explorer > Field statistics",
@@ -4571,7 +4668,24 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("value", 1),
 			}}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("range_0__aggr__2__count", uint64(1)),
+				model.NewQueryResultCol("range_1__aggr__2__count", uint64(0)),
+				model.NewQueryResultCol("range_2__aggr__2__count", uint64(5)),
+				model.NewQueryResultCol("range_3__aggr__2__count", uint64(6)),
+				model.NewQueryResultCol("range_4__aggr__2__count", uint64(10)),
+			}},
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("range_0__aggr__3__count", uint64(1)),
+				model.NewQueryResultCol("range_1__aggr__3__count", uint64(0)),
+				model.NewQueryResultCol("range_2__aggr__3__count", uint64(5)),
+				model.NewQueryResultCol("range_3__aggr__3__count", uint64(6)),
+				model.NewQueryResultCol("range_4__aggr__3__count", uint64(10)),
+			}}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -4590,7 +4704,29 @@ var AggregationTests = []AggregationTestCase{
 				`count(), count() FROM ` + QuotedTableName + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT countIf(("bytes_gauge">=0 AND "bytes_gauge"<1000)) AS
+			  "range_0__aggr__2__count",
+			  countIf(("bytes_gauge">=1000 AND "bytes_gauge"<2000)) AS
+			  "range_1__aggr__2__count",
+			  countIf("bytes_gauge">=-5.5) AS "range_2__aggr__2__count",
+			  countIf("bytes_gauge"<6.555) AS "range_3__aggr__2__count",
+			  countIf("bytes_gauge" IS NOT NULL) AS "range_4__aggr__2__count"
+			FROM "logs-generic-default"
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
+		ExpectedAdditionalPancakeSQLs: []string{`
+			SELECT countIf(("bytes_gauge">=0 AND "bytes_gauge"<1000)) AS
+			  "range_0__aggr__3__count",
+			  countIf(("bytes_gauge">=1000 AND "bytes_gauge"<2000)) AS
+			  "range_1__aggr__3__count",
+			  countIf("bytes_gauge">=-5.5) AS "range_2__aggr__3__count",
+			  countIf("bytes_gauge"<6.555) AS "range_3__aggr__3__count",
+			  countIf("bytes_gauge" IS NOT NULL) AS "range_4__aggr__3__count"
+			FROM "logs-generic-default"
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
+		},
 	},
 	{ // [22]
 		TestName: "date_range aggregation",
@@ -4728,14 +4864,9 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__2__key_0", 1541),
-				model.NewQueryResultCol("aggr__2__key_1", int64(1713288530)),
-				model.NewQueryResultCol("aggr__2__key_2", 1541),
-				model.NewQueryResultCol("aggr__2__key_3", int64(1711407600)),
-				model.NewQueryResultCol("aggr__2__key_4", int64(1713288530)),
-				model.NewQueryResultCol("aggr__2__key_5", 414),
-				model.NewQueryResultCol("aggr__2__key_6", int64(1713045600)),
-				model.NewQueryResultCol("aggr__2__count", 1541),
+				model.NewQueryResultCol("range_0__aggr__2__count", int64(1541)),
+				model.NewQueryResultCol("range_1__aggr__2__count", int64(1541)),
+				model.NewQueryResultCol("range_2__aggr__2__count", int(414)),
 			}},
 		},
 		ExpectedSQLs: []string{
@@ -4751,28 +4882,16 @@ var AggregationTests = []AggregationTestCase{
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z'))`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT
-			  count(if("timestamp" < now(),1,NULL)) AS "aggr__2__key_0",
-			  toInt64(toUnixTimestamp(now())) AS "aggr__2__key_1",
-			  count(if(("timestamp" >= toStartOfDay(subDate(now(), INTERVAL 3 week))
-			    AND "timestamp" < now()),1,NULL)) AS "aggr__2__key_2",
-			  toInt64(toUnixTimestamp(toStartOfDay(subDate(now(), INTERVAL 3 week)))) AS "aggr__2__key_3",
-			  toInt64(toUnixTimestamp(now())) AS "aggr__2__key_4",
-			  count(if("timestamp" >= '2024-04-14',1,NULL)) AS "aggr__2__key_5",
-			  toInt64(toUnixTimestamp('2024-04-14')) AS "aggr__2__key_6",
-			  count(*) AS "aggr__2__count"
+			SELECT countIf("timestamp"<toInt64(toUnixTimestamp(now()))) AS
+			  "range_0__aggr__2__count",
+			  countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfDay(subDate(now(),
+			  INTERVAL 3 week)))) AND "timestamp"<toInt64(toUnixTimestamp(now())))) AS
+			  "range_1__aggr__2__count",
+			  countIf("timestamp">=toInt64(toUnixTimestamp('2024-04-14'))) AS
+			  "range_2__aggr__2__count"
 			FROM "logs-generic-default"
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z'))
-			GROUP BY
-			  count(if("timestamp" < now(),1,NULL)) AS "aggr__2__key_0",
-			  toInt64(toUnixTimestamp(now())) AS "aggr__2__key_1",
-			  count(if(("timestamp" >= toStartOfDay(subDate(now(), INTERVAL 3 week))
-				AND "timestamp" < now()),1,NULL)) AS "aggr__2__key_2",
-			  toInt64(toUnixTimestamp(toStartOfDay(subDate(now(), INTERVAL 3 week)))) AS "aggr__2__key_3",
-			  toInt64(toUnixTimestamp(now())) AS "aggr__2__key_4",
-			  count(if("timestamp" >= '2024-04-14',1,NULL)) AS "aggr__2__key_5",
-			  toInt64(toUnixTimestamp('2024-04-14')) AS "aggr__2__key_6"`,
+			  "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z'))`,
 	},
 	{ // [23]
 		TestName: "significant terms aggregation: same as terms for now",
