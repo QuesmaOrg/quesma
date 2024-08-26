@@ -33,16 +33,6 @@ func (lm *LogManager) Query(ctx context.Context, query string) (*sql.Rows, error
 	return rows, err
 }
 
-// GetAllColumns - returns all columns for a given table including non-schema fields
-func (lm *LogManager) GetAllColumns(table *Table, query *model.Query) []string {
-	columns, err := table.extractColumns(query, true)
-	if err != nil {
-		logger.Error().Msgf("Failed to extract columns from query: %v", err)
-		return nil
-	}
-	return columns
-}
-
 type PerformanceResult struct {
 	QueryID      string
 	Duration     time.Duration
