@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/model/bucket_aggregations"
 	"quesma/util"
 	"strings"
 )
 
 type pancakeJSONRenderer struct {
+	ctx context.Context
 }
 
 func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.QueryResultRow) (result []model.QueryResultRow) {
@@ -24,7 +26,20 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 		}
 		return []model.QueryResultRow{newRow}
 	}
-	logger.Error().Msgf("no rows in selectMetricRows %s", metricName)
+	logger.ErrorWithCtx(p.ctx).Msgf("no rows in selectMetricRows %s", metricName)
+	return
+}
+
+func (p *pancakeJSONRenderer) selectPrefixRows(prefix string, rows []model.QueryResultRow) (result []model.QueryResultRow) {
+	for _, row := range rows {
+		var newCols []model.QueryResultCol
+		for _, col := range row.Cols {
+			if strings.HasPrefix(col.ColName, prefix) {
+				newCols = append(newCols, model.NewQueryResultCol(strings.TrimPrefix(col.ColName, prefix), col.Value))
+			}
+		}
+		result = append(result, model.QueryResultRow{Index: row.Index, Cols: newCols})
+	}
 	return
 }
 
@@ -106,13 +121,64 @@ func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLa
 	return bucketRows, subAggrRows
 }
 
-func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
+func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
+	layer := remainingLayers[0]
+	switch queryType := layer.nextBucketAggregation.queryType.(type) {
+	case bucket_aggregations.SamplerInterface, bucket_aggregations.FilterAgg:
+		selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), rows)
+		aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
+		subAggr, err := p.layerToJSON(remainingLayers[1:], rows)
+		if err != nil {
+			return nil, err
+		}
+		return util.MergeMaps(p.ctx, aggJson, subAggr, model.KeyAddedByQuesma), nil
+	case bucket_aggregations.CombinatorAggregationInterface:
+		var bucketArray []model.JsonMap
+		for _, subGroup := range queryType.CombinatorGroups() {
+			selectedRowsWithoutPrefix := p.selectPrefixRows(subGroup.Prefix, rows)
+
+			subAggr, err := p.layerToJSON(remainingLayers[1:], selectedRowsWithoutPrefix)
+			if err != nil {
+				return nil, err
+			}
+
+			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), selectedRowsWithoutPrefix)
+			aggJson := queryType.CombinatorTranslateSqlResponseToJson(subGroup, selectedRows)
+
+			bucketArray = append(bucketArray,
+				util.MergeMaps(p.ctx, aggJson, subAggr, model.KeyAddedByQuesma))
+			bucketArray[len(bucketArray)-1]["key"] = subGroup.Key
+		}
+		var bucketsJson any
+		if !layer.nextBucketAggregation.isKeyed {
+			bucketsJson = bucketArray
+		} else {
+			buckets := model.JsonMap{}
+			for _, bucket := range bucketArray {
+				if key, ok := bucket["key"]; ok {
+					delete(bucket, "key")
+					buckets[key.(string)] = bucket
+				} else {
+					return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
+				}
+			}
+			bucketsJson = buckets
+		}
+		return model.JsonMap{
+			"buckets": bucketsJson,
+		}, nil
+	default:
+		return nil, fmt.Errorf("unexpected bucket aggregation type: %T", layer.nextBucketAggregation.queryType)
+	}
+}
+
+func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
 
 	result := model.JsonMap{}
-	if layerIdx >= len(layers) {
+	if len(remainingLayers) == 0 {
 		return result, nil
 	}
-	layer := layers[layerIdx]
+	layer := remainingLayers[0]
 	for _, metric := range layer.currentMetricAggregations {
 		metricRows := p.selectMetricRows(metric.internalName+"_col_", rows)
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
@@ -122,21 +188,18 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 	if layer.nextBucketAggregation != nil {
 		// sampler and filter are special
 		if !layer.nextBucketAggregation.DoesHaveGroupBy() {
-			// TODO: if filters/range/dateRange do something special
-			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.internalName+"count", rows)
-			aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
-			subAggr, err := p.layerToJSON(layerIdx+1, layers, rows)
+			json, err := p.combinatorBucketToJSON(remainingLayers, rows)
 			if err != nil {
 				return nil, err
 			}
-			result[layer.nextBucketAggregation.name] = util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma)
+			result[layer.nextBucketAggregation.name] = json
 			return result, nil
 		}
 
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
 
 		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
-		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, layerIdx+1) // TODO: for date_histogram this layerIdx+1 layer seems correct, is it for all?
+		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, 0)
 
 		if len(buckets) == 0 { // without this we'd generate {"buckets": []} in the response, which Elastic doesn't do.
 			if layer.nextBucketAggregation.metadata != nil {
@@ -146,19 +209,25 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 			return result, nil
 		}
 
-		if layerIdx+1 < len(layers) { // Add subAggregation
+		if len(remainingLayers) > 1 { // Add subAggregation
 			if bucketArrRaw, ok := buckets["buckets"]; ok {
 				bucketArr := bucketArrRaw.([]model.JsonMap)
 
 				if len(bucketArr) == len(subAggrRows) {
+
 					// Simple case, we merge bucketArr[i] with subAggrRows[i] (if lengths are equal, keys must be equal => it's fine to not check them at all)
 					for i, bucket := range bucketArr {
+						if docCount, ok := bucket["doc_count"]; ok {
+							if fmt.Sprintf("%v", docCount) == "0" { // Not sure, but it does the trick
+								continue
+							}
+						}
 						// TODO: Maybe add model.KeyAddedByQuesma if there are more than one pancake
-						subAggr, err := p.layerToJSON(layerIdx+1, layers, subAggrRows[i])
+						subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[i])
 						if err != nil {
 							return nil, err
 						}
-						bucketArr[i] = util.MergeMaps(context.Background(), bucket, subAggr, model.KeyAddedByQuesma)
+						bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr, model.KeyAddedByQuesma)
 					}
 				} else {
 					// A bit harder case. Observation: len(bucketArr) > len(subAggrRows) and set(subAggrRows' keys) is a subset of set(bucketArr's keys)
@@ -166,6 +235,11 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 					// If not, we just keep bucket[i] (i++, subAggrIdx stays the same)
 					subAggrIdx := 0
 					for i, bucket := range bucketArr {
+						if docCount, ok := bucket["doc_count"]; ok {
+							if fmt.Sprintf("%v", docCount) == "0" { // Not sure, but it does the trick
+								continue
+							}
+						}
 						key, exists := bucket["key"]
 						if !exists {
 							return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
@@ -174,11 +248,11 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 						columnNameWithKey := layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
 						subAggrKey, found := p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
 						if found && subAggrKey == key {
-							subAggr, err := p.layerToJSON(layerIdx+1, layers, subAggrRows[subAggrIdx])
+							subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[subAggrIdx])
 							if err != nil {
 								return nil, err
 							}
-							bucketArr[i] = util.MergeMaps(context.Background(), bucket, subAggr, model.KeyAddedByQuesma)
+							bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr, model.KeyAddedByQuesma)
 							subAggrIdx++
 						} else {
 							bucketArr[i] = bucket
@@ -212,5 +286,5 @@ func (p *pancakeJSONRenderer) valueForColumn(rows []model.QueryResultRow, column
 }
 
 func (p *pancakeJSONRenderer) toJSON(agg *pancakeModel, rows []model.QueryResultRow) (model.JsonMap, error) {
-	return p.layerToJSON(0, agg.layers, rows)
+	return p.layerToJSON(agg.layers, rows)
 }

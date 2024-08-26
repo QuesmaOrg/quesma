@@ -4,6 +4,7 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 )
@@ -50,4 +51,24 @@ func (query Filters) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 
 func (query Filters) String() string {
 	return "filters"
+}
+
+func (query Filters) DoesNotHaveGroupBy() bool {
+	return true
+}
+
+func (query Filters) CombinatorGroups() (result []CombinatorGroup) {
+	for filterIdx, filter := range query.Filters {
+		result = append(result, CombinatorGroup{
+			idx:         filterIdx,
+			Prefix:      fmt.Sprintf("filter_%d__", filterIdx),
+			Key:         filter.Name,
+			WhereClause: filter.Sql.WhereClause,
+		})
+	}
+	return
+}
+
+func (query Filters) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
+	return query.TranslateSqlResponseToJson(rows, 0)
 }

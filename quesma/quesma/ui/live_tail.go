@@ -218,7 +218,7 @@ func (qmc *QuesmaManagementConsole) populateQueries(debugKeyValueSlice []queryDe
 
 	buffer.Html(`<div class="right" id="query-right">` + "\n")
 	// TODO revisit after modes are redone
-	if qmc.cfg.Mode == config.DualWriteQueryClickhouse && qmc.cfg.Elasticsearch.Call {
+	if qmc.cfg.Mode == config.DualWriteQueryClickhouse && qmc.cfg.EnableElasticsearchIngest {
 		buffer.Html(`<div class="title-bar">Elasticsearch response` + "\n" + `</div>`)
 		buffer.Html(`<div class="debug-body">`)
 		for _, v := range debugKeyValueSlice {

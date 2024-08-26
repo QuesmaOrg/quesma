@@ -50,7 +50,7 @@ func (interval Interval) ToSQLSelectQuery(columnExpr model.Expr) model.Expr {
 		return model.NewFunction("count")
 	}
 	// count(if(sql, 1, NULL))
-	return model.NewFunction("count", model.NewFunction("if", sql, model.NewLiteral(1), model.NewStringExpr("NULL")))
+	return model.NewFunction("count", model.NewFunction("if", sql, model.NewLiteral(1), model.NewLiteral("NULL")))
 }
 
 func (interval Interval) ToWhereClause(field model.Expr) model.Expr { // returns a condition for the interval, just like we want it in SQL's WHERE
@@ -169,4 +169,26 @@ func (query Range) responseForInterval(interval Interval, value any) model.JsonM
 		response["to"] = interval.End
 	}
 	return response
+}
+
+func (query Range) DoesNotHaveGroupBy() bool {
+	return true
+}
+
+func (query Range) CombinatorGroups() (result []CombinatorGroup) {
+	for intervalIdx, interval := range query.Intervals {
+		result = append(result, CombinatorGroup{
+			idx:         intervalIdx,
+			Prefix:      fmt.Sprintf("range_%d__", intervalIdx),
+			Key:         interval.String(),
+			WhereClause: interval.ToWhereClause(query.Expr),
+		})
+	}
+	return
+}
+
+func (query Range) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
+	interval := query.Intervals[subGroup.idx]
+	count := rows[0].Cols[len(rows[0].Cols)-1].Value
+	return query.responseForInterval(interval, count)
 }

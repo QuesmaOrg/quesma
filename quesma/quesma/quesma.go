@@ -179,7 +179,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 		var elkResponseChan = make(chan elasticResult)
 
-		if r.config.Elasticsearch.Call {
+		if r.config.EnableElasticsearchIngest {
 			elkResponseChan = r.sendHttpRequestToElastic(ctx, req, reqBody, false)
 		}
 
@@ -188,7 +188,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		})
 		var elkRawResponse elasticResult
 		var elkResponse *http.Response
-		if r.config.Elasticsearch.Call {
+		if r.config.EnableElasticsearchIngest {
 			elkRawResponse = <-elkResponseChan
 			elkResponse = elkRawResponse.response
 		} else {

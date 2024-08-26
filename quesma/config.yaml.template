@@ -3,58 +3,43 @@
 #       To make local development easier one might just remove `.template` extension and use this file as is.
 #       `config.yaml` is going to be ignored by git.
 #
-mode: "dual-write-query-clickhouse"
-port: 8080  # public tcp port to listen for incoming traffic
-elasticsearch:
-  url: "http://localhost:9200"
-  call: false
-connectors:
-  my-clickhouse-connector:
-    type: "clickhouse-os" # one of [clickhouse, clickhouse-os, hydrolix]
-#clickhouse:   # this config is going to be removed, but for now let's just comment out
-#  url: "clickhouse://localhost:9000"
-#  disableTLS: true  # required for plaintext connections
-ingestStatistics: true
-internalTelemetryUrl: "https://api.quesma.com/phone-home"
+frontendConnectors:
+  - name: myElasticsearchAPI
+    type: elasticsearch-fe
+    config:
+      listenPort: 8080
+backendConnectors:
+  - name: my-minimal-elasticsearch
+    type: elasticsearch
+    config:
+      url: "http://localhost:9200"
+  - name: my-clickhouse-cloud-data-source
+    type: clickhouse-os
+    config:
+      url: "clickhouse://localhost:9000"
 logging:
   path: "logs"
   level: "info"
-  remoteUrl: "https://api.quesma.com/phone-home"
   disableFileLogging: false
-indexes:
-  logs:
-    timestampField: "reqTimeSec"
-    enabled: true
-  siem:
-    timestampField: "timestamp"
-    enabled: true
-  kibana_sample_data_ecommerce:
-    timestampField: "@timestamp"
-    enabled: true
-  kibana_sample_data_flights:
-    enabled: true
-    mappings:
-      DestLocation: "geo_point"
-      OriginLocation: "geo_point"
-  kibana_sample_data_logs:
-    enabled: true
-    aliases:
-      timestamp:
-        source: "timestamp"
-        target: "@timestamp"
-  kafka-example-topic:
-    enabled: true
-  logs-generic-default:
-    enabled: true
-    fullTextFields: [ "message", "host.name" ]
-  device_logs:
-    enabled: true
-    fullTextFields: [ "message" ]
-  phone_home_logs:
-    enabled: true
-    fullTextFields: [ "message" ]
-  windows_logs:
-    enabled: true
-  phone_home_data:
-    enabled: true
-    fullTextFields: [ "message" ]
+processors:
+  - name: my-quesma-processor
+    type: quesma-v1-processor
+    config:
+      mode: "dual-write-query-clickhouse"
+      enableElasticsearchIngest: true
+      indexes:
+        kibana_sample_data_ecommerce:
+          timestampField: "@timestamp"
+          enabled: true
+        kibana_sample_data_flights:
+          enabled: true
+        kibana_sample_data_logs:
+          enabled: true
+          fullTextFields: [ "message", "agent" ]
+          mappings:
+            message: "text"
+            agent: "text"
+          aliases:
+            timestamp:
+              source: "timestamp"   # field name in ES Query
+              target: "@timestamp"  #  field name in ClickHouse

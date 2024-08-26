@@ -9,6 +9,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -201,17 +202,19 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			return false, err
 		}
 		aggregation.queryType = dateRangeParsed
-		for _, interval := range dateRangeParsed.Intervals {
+		// TODO: keep for reference as relative time, but no longer needed
+		/*
+			for _, interval := range dateRangeParsed.Intervals {
 
-			aggregation.selectedColumns = append(aggregation.selectedColumns, interval.ToSQLSelectQuery(dateRangeParsed.FieldName))
+				aggregation.selectedColumns = append(aggregation.selectedColumns, interval.ToSQLSelectQuery(dateRangeParsed.FieldName))
 
-			if sqlSelect, selectNeeded := interval.BeginTimestampToSQL(); selectNeeded {
-				aggregation.selectedColumns = append(aggregation.selectedColumns, sqlSelect)
-			}
-			if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
-				aggregation.selectedColumns = append(aggregation.selectedColumns, sqlSelect)
-			}
-		}
+				if sqlSelect, selectNeeded := interval.BeginTimestampToSQL(); selectNeeded {
+					aggregation.selectedColumns = append(aggregation.selectedColumns, sqlSelect)
+				}
+				if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
+					aggregation.selectedColumns = append(aggregation.selectedColumns, sqlSelect)
+				}
+			}*/
 
 		delete(queryMap, "date_range")
 		return success, nil
@@ -293,7 +296,12 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		return
 	}
 	if isFilters, filterAggregation := cw.parseFilters(queryMap); isFilters {
+		sort.Slice(filterAggregation.Filters, func(i, j int) bool { // stable order is required for tests and caching
+			return filterAggregation.Filters[i].Name < filterAggregation.Filters[j].Name
+		})
+		aggregation.isKeyed = true
 		aggregation.queryType = filterAggregation
+		delete(queryMap, "filters")
 		return
 	}
 	success = false

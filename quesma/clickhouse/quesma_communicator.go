@@ -33,16 +33,6 @@ func (lm *LogManager) Query(ctx context.Context, query string) (*sql.Rows, error
 	return rows, err
 }
 
-// GetAllColumns - returns all columns for a given table including non-schema fields
-func (lm *LogManager) GetAllColumns(table *Table, query *model.Query) []string {
-	columns, err := table.extractColumns(query, true)
-	if err != nil {
-		logger.Error().Msgf("Failed to extract columns from query: %v", err)
-		return nil
-	}
-	return columns
-}
-
 type PerformanceResult struct {
 	QueryID      string
 	Duration     time.Duration
@@ -59,8 +49,6 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 		return make([]model.QueryResultRow, 0), performanceResult, nil
 	}
 
-	table.applyTableSchema(query)
-
 	rowToScan := make([]interface{}, len(query.SelectCommand.Columns))
 	columns := make([]string, 0, len(query.SelectCommand.Columns))
 
@@ -73,6 +61,12 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 		case model.AliasedExpr:
 			colName = col.Alias
 		case model.LiteralExpr:
+
+			// This should be moved to the SchemaCheck pipeline. It'll require to change a lot of tests.
+			//
+			// It can be removed just after the pancake will be the only way to generate SQL.
+			// Pancake SQL are aliased properly.
+
 			if str, isStr := col.Value.(string); isStr {
 				if unquoted, err := strconv.Unquote(str); err == nil {
 					colName = unquoted

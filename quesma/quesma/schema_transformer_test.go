@@ -571,3 +571,89 @@ func Test_arrayType(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyWildCard(t *testing.T) {
+
+	indexConfig := map[string]config.IndexConfiguration{
+		"kibana_sample_data_ecommerce": {
+			Name:    "kibana_sample_data_ecommerce",
+			Enabled: true,
+		},
+	}
+	cfg := config.QuesmaConfiguration{
+		IndexConfig: indexConfig,
+	}
+
+	lm := clickhouse.NewLogManagerEmpty()
+
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{
+			"test": {Columns: map[string]schema.Column{
+				"a": {Name: "a", Type: "String"},
+				"b": {Name: "b", Type: "String"},
+				"c": {Name: "c", Type: "String"},
+			}},
+		}}
+
+	tableDefinition := clickhouse.Table{
+		Name:   "test",
+		Config: clickhouse.NewDefaultCHConfig(),
+		Cols: map[string]*clickhouse.Column{
+			"a": {Name: "a", Type: clickhouse.NewBaseType("Array(String)")},
+			"b": {Name: "b", Type: clickhouse.NewBaseType("Array(Int64)")},
+			"c": {Name: "c", Type: clickhouse.NewBaseType("Array(String)")},
+		},
+	}
+
+	td, err := lm.GetTableDefinitions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	td.Store(tableDefinition.Name, &tableDefinition)
+
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
+
+	tests := []struct {
+		name     string
+		input    []string
+		expected []string
+	}{
+		{"test1", []string{"a", "b", "c"}, []string{"a", "b", "c"}},
+		{"test2", []string{"*"}, []string{"a", "b", "c"}},
+		{"test3", []string{"a", "*"}, []string{"a", "a", "b", "c"}},
+		{"test4", []string{"count", "*"}, []string{"count", "a", "b", "c"}},
+	}
+
+	toSelectColumn := func(cols []string) (res []model.Expr) {
+		for _, col := range cols {
+			if col == "*" {
+				res = append(res, model.NewWildcardExpr)
+			} else {
+				res = append(res, model.NewColumnRef(col))
+			}
+		}
+		return res
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					Columns: toSelectColumn(tt.input),
+				},
+			}
+
+			actual, err := transform.applyWildcardExpansion(query)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			expectedColumns := toSelectColumn(tt.expected)
+
+			assert.Equal(t, expectedColumns, actual.SelectCommand.Columns)
+		})
+	}
+}

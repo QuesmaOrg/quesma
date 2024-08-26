@@ -150,7 +150,6 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 		if filter, ok := filterRaw.(QueryMap); ok {
 			whereClause := cw.parseQueryMap(filter).WhereClause
 			aggregation.queryType = bucket_aggregations.NewFilterAgg(cw.Ctx, whereClause)
-			aggregation.selectedColumns = []model.Expr{model.NewFunction("countIf", whereClause)}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping", filterRaw, filterRaw)
 		}
@@ -164,30 +163,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 		return nil, err
 	}
 
-	// process "range" with subaggregations
-	_, isRange := aggregation.queryType.(bucket_aggregations.Range)
-	if isRange {
-		// see processRangeAggregation for details how to implement it
-		return nil, errors.New("range is not supported in version")
-	}
-
-	// _, isTerms := aggregation.queryType.(bucket_aggregations.Terms)
-	// if isTerms {
-	// No-op for now
-	//}
-
-	// TODO what happens if there's all: filters, range, and subaggregations at current level?
-	// We probably need to do |ranges| * |filters| * |subaggregations| queries, but we don't do that yet.
-	// Or probably a bit less, if optimized correctly.
-	// Let's wait until we see such a query, maybe range and filters are mutually exclusive.
-
-	_, isFilters := aggregation.queryType.(bucket_aggregations.Filters)
-	if isFilters {
-		return nil, errors.New("filters are not supported in version")
-	}
-
-	aggsHandledSeparately := isRange || isFilters
-	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
+	if aggs, ok := queryMap["aggs"]; ok {
 		subAggregations, err := cw.pancakeParseAggregationNames(aggs.(QueryMap))
 		if err != nil {
 			return aggregation, err
@@ -196,14 +172,12 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 	}
 	delete(queryMap, "aggs") // no-op if no "aggs"
 
-	// if bucketAggrPresent && !aggsHandledSeparately && !isTerms {
-	// No-op for now
-	// }
-
 	for k, v := range queryMap {
 		// should be empty by now. If it's not, it's an unsupported/unrecognized type of aggregation.
 		logger.WarnWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).
 			Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
+		// TODO: remove hard fail. Temporary to make development easier
+		return nil, fmt.Errorf("unsupported aggregation type: (%v: %v), value type: %T", k, v, v)
 	}
 
 	return aggregation, nil

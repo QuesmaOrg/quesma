@@ -101,13 +101,14 @@ type layerAndNextBucket struct {
 
 func (a *pancakeTransformer) optimizeSimpleFilter(previousAggrNames []string, result *layerAndNextBucket, childAgg *pancakeAggregationTreeNode) bool {
 	_, isFilter := result.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg)
-	_, isFilter2 := childAgg.queryType.(bucket_aggregations.FilterAgg)
+	secondFilter, isFilter2 := childAgg.queryType.(bucket_aggregations.FilterAgg)
 
 	if isFilter && isFilter2 && len(childAgg.children) == 0 {
 		metrics, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
 		if err != nil {
 			return false // not a big deal, we can make two pancake queries instead or get error there
 		}
+		metrics.selectedColumns = []model.Expr{model.NewFunction("countIf", secondFilter.WhereClause)}
 		result.layer.currentMetricAggregations = append(result.layer.currentMetricAggregations, metrics)
 		return true
 	}
@@ -212,6 +213,31 @@ func (a *pancakeTransformer) aggregationChildrenToLayers(aggrNames []string, chi
 	return resultLayers, nil
 }
 
+func (a *pancakeTransformer) checkIfSupported(layers []*pancakeModelLayer) error {
+	// for now we support filter only as last bucket aggregation
+	for layerIdx, layer := range layers {
+		if layer.nextBucketAggregation != nil {
+			switch layer.nextBucketAggregation.queryType.(type) {
+			case bucket_aggregations.CombinatorAggregationInterface:
+				for _, followingLayer := range layers[layerIdx+1:] {
+					bucket := followingLayer.nextBucketAggregation
+					if bucket != nil {
+						switch bucket.queryType.(type) {
+						case *bucket_aggregations.DateHistogram:
+							continue // histogram are fine
+						case bucket_aggregations.CombinatorAggregationInterface:
+							continue // we also support nested filters/range/dataRange
+						default:
+							return fmt.Errorf("filter(s)/range/dataRange aggregation must be the last bucket aggregation")
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregationTree) (pancakeResults []*pancakeModel, err error) {
 	if topLevel.children == nil || len(topLevel.children) == 0 {
 		return nil, fmt.Errorf("no top level aggregations found")
@@ -231,16 +257,8 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 			}
 		}
 
-		// for now we support filter only as last bucket aggregation
-		for layerIdx, layer := range layers {
-			if layer.nextBucketAggregation != nil {
-				switch layer.nextBucketAggregation.queryType.(type) {
-				case bucket_aggregations.FilterAgg:
-					if layerIdx+1 < len(layers) && layers[layerIdx+1].nextBucketAggregation != nil {
-						return nil, fmt.Errorf("filter aggregation must be last bucket aggregation")
-					}
-				}
-			}
+		if err := a.checkIfSupported(layers); err != nil {
+			return nil, err
 		}
 
 		pancakeResults = append(pancakeResults, &pancakeModel{

@@ -24,24 +24,40 @@ import (
 	"quesma/util"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
 const (
 	timestampFieldName = "@timestamp" // it's always DateTime64 for now, don't want to waste time changing that, we don't seem to use that anyway
+	// Above this number of columns we will use heuristic
+	// to decide if we should add new columns
+	alwaysAddColumnLimit  = 100
+	AlterColumnUpperLimit = 1000
+)
+
+type (
+	IngestFieldBucketKey struct {
+		indexName string
+		field     string
+	}
+	IngestFieldStatistics map[IngestFieldBucketKey]int64
 )
 
 type (
 	// LogManager should be renamed to Connector  -> TODO !!!
 	LogManager struct {
-		ctx            context.Context
-		cancel         context.CancelFunc
-		chDb           *sql.DB
-		tableDiscovery TableDiscovery
-		cfg            config.QuesmaConfiguration
-		phoneHomeAgent telemetry.PhoneHomeAgent
-		schemaRegistry schema.Registry
+		ctx                       context.Context
+		cancel                    context.CancelFunc
+		chDb                      *sql.DB
+		tableDiscovery            TableDiscovery
+		cfg                       config.QuesmaConfiguration
+		phoneHomeAgent            telemetry.PhoneHomeAgent
+		schemaRegistry            schema.Registry
+		ingestCounter             int64
+		ingestFieldStatistics     IngestFieldStatistics
+		ingestFieldStatisticsLock sync.Mutex
 	}
 	TableMap  = concurrent.Map[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -450,12 +466,13 @@ func getAttributesByArrayName(arrayName string,
 // and removes the attributes that were promoted to columns
 func (lm *LogManager) generateNewColumns(
 	attrsMap map[string][]interface{},
-	table *Table) []string {
+	table *Table,
+	alteredAttributesIndexes []int) []string {
 	var alterCmd []string
 	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
 	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
 	var deleteIndexes []int
-	for i := 0; i < len(attrKeys); i++ {
+	for i := range alteredAttributesIndexes {
 		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" Nullable(%s)", table.Name, attrKeys[i], attrTypes[i])
 		table.Cols[attrKeys[i]] = &Column{Name: attrKeys[i], Type: NewBaseType(attrTypes[i]), Modifiers: "Nullable"}
 		alterCmd = append(alterCmd, alterTable)
@@ -482,8 +499,45 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 	return nonSchemaStr, nil
 }
 
+// This function implements heuristic for deciding if we should add new columns
+func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]interface{}) (bool, []int) {
+	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
+	alterColumnIndexes := make([]int, 0)
+	if len(table.Cols) < alwaysAddColumnLimit {
+		// We promote all non-schema fields to columns
+		// therefore we need to add all attrKeys indexes to alterColumnIndexes
+		for i := 0; i < len(attrKeys); i++ {
+			alterColumnIndexes = append(alterColumnIndexes, i)
+		}
+		return true, alterColumnIndexes
+	}
+	if len(table.Cols) > AlterColumnUpperLimit {
+		return false, nil
+	}
+	lm.ingestFieldStatisticsLock.Lock()
+	if lm.ingestFieldStatistics == nil {
+		lm.ingestFieldStatistics = make(IngestFieldStatistics)
+	}
+	lm.ingestFieldStatisticsLock.Unlock()
+	const percent50 = 0.5
+	for i := 0; i < len(attrKeys); i++ {
+		lm.ingestFieldStatisticsLock.Lock()
+		lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]++
+		counter := atomic.LoadInt64(&lm.ingestCounter)
+		fieldCounter := lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]
+		lm.ingestFieldStatisticsLock.Unlock()
+		if float64(fieldCounter)/float64(counter) > percent50 {
+			alterColumnIndexes = append(alterColumnIndexes, i)
+		}
+	}
+	if len(alterColumnIndexes) > 0 {
+		return true, alterColumnIndexes
+	}
+	return false, nil
+}
+
 func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON, inValidJson types.JSON,
-	config *ChTableConfig, generateNewColumns bool) (string, []string, error) {
+	config *ChTableConfig) (string, []string, error) {
 
 	jsonData, err := json.Marshal(data)
 
@@ -538,8 +592,9 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	// we only want to add fields that are not part of the schema e.g we don't
 	// have columns for them
 	var alterCmd []string
-	if generateNewColumns {
-		alterCmd = lm.generateNewColumns(attrsMap, table)
+	atomic.AddInt64(&lm.ingestCounter, 1)
+	if ok, alteredAttributesIndexes := lm.shouldAlterColumns(table, attrsMap); ok {
+		alterCmd = lm.generateNewColumns(attrsMap, table, alteredAttributesIndexes)
 	}
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
@@ -660,10 +715,6 @@ func (lm *LogManager) executeStatements(ctx context.Context, queries []string) e
 func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName string, jsons []types.JSON,
 	config *ChTableConfig, transformer jsonprocessor.IngestTransformer) ([]string, error) {
 
-	// Below const tells if we should generate new columns for the table
-	// or add them to the attributes map
-	const generateNewColumns = false
-
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
 	for _, jsonValue := range jsons {
@@ -682,7 +733,7 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 			inValidJson, NestedSeparator)
 		// Remove invalid fields from the input JSON
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
-		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson, inValidJson, config, generateNewColumns)
+		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson, inValidJson, config)
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
@@ -749,18 +800,22 @@ func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeA
 func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
-	return &LogManager{chDb: nil, tableDiscovery: newTableDiscoveryWith(cfg, nil, *tables), cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{chDb: nil, tableDiscovery: newTableDiscoveryWith(cfg, nil, *tables),
+		cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(),
+		ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 
 // right now only for tests purposes
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
-	return &LogManager{chDb: db, tableDiscovery: newTableDiscoveryWith(config.QuesmaConfiguration{}, db, *tables), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{chDb: db, tableDiscovery: newTableDiscoveryWith(config.QuesmaConfiguration{}, db, *tables),
+		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 
 func NewLogManagerEmpty() *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
-	return &LogManager{tableDiscovery: NewTableDiscovery(config.QuesmaConfiguration{}, nil), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{tableDiscovery: NewTableDiscovery(config.QuesmaConfiguration{}, nil),
+		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 
 func NewOnlySchemaFieldsCHConfig() *ChTableConfig {

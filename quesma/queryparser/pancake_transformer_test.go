@@ -35,7 +35,7 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 
 		return &pancakeAggregationTreeNode{
 			name:      a,
-			queryType: bucket_aggregations.Range{},
+			queryType: bucket_aggregations.Terms{},
 			children:  children,
 		}
 	}
@@ -52,7 +52,7 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 		return &pancakeModelBucketAggregation{
 			name:         a,
 			internalName: b,
-			queryType:    bucket_aggregations.Range{},
+			queryType:    bucket_aggregations.Terms{},
 		}
 	}
 
@@ -129,6 +129,9 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 
 			pancakes, err := transformer.aggregationTreeToPancakes(*tt.tree)
 			assert.Len(t, pancakes, 1)
+			if len(pancakes) == 0 {
+				return
+			}
 			pan := pancakes[0]
 
 			if err != nil {

@@ -182,7 +182,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
 
 			var err error
-			aggregation, err = pancake.RenderAggregationJson(ResultSets[i])
+			aggregation, err = pancake.RenderAggregationJson(cw.Ctx, ResultSets[i])
 			if err != nil {
 				return nil, err
 			}
