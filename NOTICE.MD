@@ -8,11 +8,11 @@ Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/ClickHouse/clickhouse-go/v2
-Version : v2.27.2
-Time    : 2024-08-20T09:32:44Z
+Version : v2.28.0
+Time    : 2024-08-23T08:21:23Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.27.2/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.28.0/LICENSE:
 
 Copyright 2016-2023 ClickHouse, Inc.
 
@@ -2394,36 +2394,6 @@ SOFTWARE.
 
 
 --------------------------------------------------------------------------------
-#### Module  : github.com/Microsoft/hcsshim
-Version : v0.11.5
-Time    : 2024-05-14T21:58:22Z
-Licence : MIT
-
-Contents of probable licence file $GOMODCACHE/github.com/!microsoft/hcsshim@v0.11.5/LICENSE:
-
-The MIT License (MIT)
-
-Copyright (c) 2015 Microsoft
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
---------------------------------------------------------------------------------
 #### Module  : github.com/andybalholm/brotli
 Version : v1.1.0
 Time    : 2024-01-12T01:31:05Z
@@ -2721,12 +2691,12 @@ Contents of probable licence file $GOMODCACHE/github.com/containerd/containerd@v
 
 
 --------------------------------------------------------------------------------
-#### Module  : github.com/containerd/errdefs
+#### Module  : github.com/containerd/log
 Version : v0.1.0
-Time    : 2024-01-23T06:02:42Z
+Time    : 2023-09-09T00:27:15Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/containerd/errdefs@v0.1.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/containerd/log@v0.1.0/LICENSE:
 
 
                                  Apache License
@@ -2922,12 +2892,12 @@ Contents of probable licence file $GOMODCACHE/github.com/containerd/errdefs@v0.1
 
 
 --------------------------------------------------------------------------------
-#### Module  : github.com/containerd/log
-Version : v0.1.0
-Time    : 2023-09-09T00:27:15Z
+#### Module  : github.com/containerd/platforms
+Version : v0.2.1
+Time    : 2024-06-10T21:45:32Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/containerd/log@v0.1.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/containerd/platforms@v0.2.1/LICENSE:
 
 
                                  Apache License
@@ -3660,11 +3630,11 @@ either expressed or implied, of the FreeBSD Project.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/docker/docker
-Version : v27.0.3+incompatible
-Time    : 2024-06-28T21:16:49Z
+Version : v27.1.1+incompatible
+Time    : 2024-07-23T19:36:28Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/docker/docker@v27.0.3+incompatible/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/docker/docker@v27.1.1+incompatible/LICENSE:
 
 
                                  Apache License
@@ -5201,11 +5171,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/golang/protobuf
-Version : v1.5.4
-Time    : 2024-03-06T06:45:40Z
+Version : v1.5.0
+Time    : 2021-03-18T00:15:31Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/github.com/golang/protobuf@v1.5.4/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/golang/protobuf@v1.5.0/LICENSE:
 
 Copyright 2010 The Go Authors.  All rights reserved.
 
@@ -9328,11 +9298,11 @@ SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/testcontainers/testcontainers-go
-Version : v0.32.0
-Time    : 2024-07-05T16:52:49Z
+Version : v0.33.0
+Time    : 2024-08-20T11:48:12Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/testcontainers/testcontainers-go@v0.32.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/testcontainers/testcontainers-go@v0.33.0/LICENSE:
 
 The MIT License (MIT)
 
@@ -11971,12 +11941,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 --------------------------------------------------------------------------------
-#### Module  : google.golang.org/genproto/googleapis/rpc
-Version : v0.0.0-20231016165738-49dd2c1f3d0b
-Time    : 2023-10-16T16:57:38Z
+#### Module  : google.golang.org/genproto/googleapis/api
+Version : v0.0.0-20240318140521-94a12d6c2237
+Time    : 2024-03-18T14:05:21Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/google.golang.org/genproto/googleapis/rpc@v0.0.0-20231016165738-49dd2c1f3d0b/LICENSE:
+Contents of probable licence file $GOMODCACHE/google.golang.org/genproto/googleapis/api@v0.0.0-20240318140521-94a12d6c2237/LICENSE:
 
 
                                  Apache License
@@ -12183,12 +12153,12 @@ Contents of probable licence file $GOMODCACHE/google.golang.org/genproto/googlea
 
 
 --------------------------------------------------------------------------------
-#### Module  : google.golang.org/grpc
-Version : v1.59.0
-Time    : 2023-10-17T21:58:23Z
+#### Module  : google.golang.org/genproto/googleapis/rpc
+Version : v0.0.0-20240318140521-94a12d6c2237
+Time    : 2024-03-18T14:05:21Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/google.golang.org/grpc@v1.59.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/google.golang.org/genproto/googleapis/rpc@v0.0.0-20240318140521-94a12d6c2237/LICENSE:
 
 
                                  Apache License
@@ -12396,11 +12366,11 @@ Contents of probable licence file $GOMODCACHE/google.golang.org/grpc@v1.59.0/LIC
 
 --------------------------------------------------------------------------------
 #### Module  : google.golang.org/protobuf
-Version : v1.33.0
-Time    : 2024-03-05T19:00:20Z
+Version : v1.27.1
+Time    : 2021-06-28T18:25:36Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/google.golang.org/protobuf@v1.33.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/google.golang.org/protobuf@v1.27.1/LICENSE:
 
 Copyright (c) 2018 The Go Authors. All rights reserved.
 
