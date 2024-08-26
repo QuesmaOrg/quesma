@@ -413,7 +413,7 @@ var AggregationTests = []AggregationTestCase{
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
 			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0",
 			  countIf("FlightDelay"==true) AS "aggr__0__1-bucket__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
 			GROUP BY "OriginCityName" AS "aggr__0__key_0"
@@ -696,7 +696,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  toInt64(toUnixTimestamp64Milli("timestamp") / 10800000) AS
 				  "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
 				GROUP BY "FlightDelayType" AS "aggr__0__key_0",
@@ -975,7 +975,7 @@ var AggregationTests = []AggregationTestCase{
 			  "OriginCityName" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count",
 			  count() AS "aggr__suggestions__order_1"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
 			GROUP BY "OriginCityName" AS "aggr__suggestions__key_0"
@@ -1107,7 +1107,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT countIf("FlightDelay"==true) AS "aggr__0-bucket__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 	},
@@ -1263,12 +1263,12 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
-			`SELECT count() FROM "` + TableName + `" WHERE ("FlightDelay"==true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))))`,
-			`SELECT count() FROM "` + TableName + `" WHERE (("FlightDelay"==true ` +
+			`SELECT count() FROM ` + TableName + ` WHERE ("FlightDelay"==true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))))`,
+			`SELECT count() FROM ` + TableName + ` WHERE (("FlightDelay"==true ` +
 				`AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) ` +
 				`AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')))`,
-			`SELECT count() FROM "` + TableName + `" WHERE (("FlightDelay"==true ` +
+			`SELECT count() FROM ` + TableName + ` WHERE (("FlightDelay"==true ` +
 				`AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) ` +
 				`AND ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))`,
@@ -1752,7 +1752,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT "FlightDelayMin" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND NOT (
 			  "FlightDelayMin"==0))
@@ -2063,7 +2063,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 10800000) AS
 				  "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				WHERE ("host.name" iLIKE '%prometheus%' AND ("@timestamp">=
 				  parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') AND "@timestamp"<=
 				  parseDateTime64BestEffort('2024-02-09T16:36:49.940Z')))
@@ -2608,7 +2608,7 @@ var AggregationTests = []AggregationTestCase{
 			  count() AS "aggr__sample__top_values__order_1"
 			FROM (
 			  SELECT "host.name"
-			  FROM "logs-generic-default"
+			  FROM ` + TableName + `
 			  WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z')
 				AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND
 				"message" iLIKE '%user%')
@@ -2786,7 +2786,7 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0"
 			  , count(*) AS "aggr__0__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort(
 			  '2024-01-23T14:43:19.481Z') AND "@timestamp"<=parseDateTime64BestEffort(
 			  '2024-01-23T14:58:19.481Z')))
@@ -2979,7 +2979,7 @@ var AggregationTests = []AggregationTestCase{
 				  "aggr__stats__order_1",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0", count(*) AS "aggr__stats__series__count"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z')
 				  AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z'))
 				GROUP BY COALESCE("event.dataset", 'unknown') AS "aggr__stats__key_0",
@@ -3104,7 +3104,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT avgOrNull("@timestamp") AS "metric__average_timestamp_col_0", minOrNull(
 			  "@timestamp") AS "metric__earliest_timestamp_col_0", maxOrNull("@timestamp")
 			  AS "metric__latest_timestamp_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND
 			  "host.name" iLIKE '%poseidon%')`,
 	},
@@ -3273,7 +3273,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
 			  "aggr__0__key_0", count(*) AS "aggr__0__count",
 			  sumOrNull("taxful_total_price") AS "metric__0__1_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') AND
 			  "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z'))
 			GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
@@ -3411,7 +3411,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "message" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
 			  count() AS "aggr__0__order_1"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z'))
 			GROUP BY "message" AS "aggr__0__key_0"
@@ -3635,7 +3635,7 @@ var AggregationTests = []AggregationTestCase{
 			  "aggr__0__1-bucket__count",
 			  sumOrNullIf("taxful_total_price", "products.product_name" ILIKE '%watch%') AS
 			  "metric__0__1-bucket__1-metric_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') AND
 			  "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z'))
 			GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) AS
@@ -4075,7 +4075,7 @@ var AggregationTests = []AggregationTestCase{
 			  count(*) AS "aggr__sampler__eventRate__count"
 			FROM (
 			  SELECT "@timestamp"
-			  FROM "logs-generic-default"
+			  FROM ` + TableName + `
 			  WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND
 				toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)
 			  LIMIT 20000)
@@ -4747,7 +4747,7 @@ var AggregationTests = []AggregationTestCase{
 				`count(if(("timestamp" >= toStartOfDay(subDate(now(), INTERVAL 3 week)) AND "timestamp" < now()),1,NULL)), ` +
 				`toInt64(toUnixTimestamp(toStartOfDay(subDate(now(), INTERVAL 3 week)))), ` +
 				`toInt64(toUnixTimestamp(now())), count(if("timestamp" >= '2024-04-14',1,NULL)), toInt64(toUnixTimestamp('2024-04-14')), ` +
-				`count() FROM "logs-generic-default" WHERE ("timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z') ` +
+				`count() FROM ` + TableName + ` WHERE ("timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z'))`,
 		},
 		ExpectedPancakeSQL: `
@@ -4761,7 +4761,7 @@ var AggregationTests = []AggregationTestCase{
 			  count(if("timestamp" >= '2024-04-14',1,NULL)) AS "aggr__2__key_5",
 			  toInt64(toUnixTimestamp('2024-04-14')) AS "aggr__2__key_6",
 			  count(*) AS "aggr__2__count"
-			FROM "logs-generic-default"
+			FROM ` + QuotedTableName + ` 
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z'))
 			GROUP BY
@@ -4901,7 +4901,7 @@ var AggregationTests = []AggregationTestCase{
 			  "message" AS "aggr__2__key_0", 
 			  count(*) AS "aggr__2__count",
 			  count() AS "aggr__2__order_1"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY "message" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
 			LIMIT 5`,
@@ -5013,7 +5013,7 @@ var AggregationTests = []AggregationTestCase{
 			  "aggr__timeseries__key_0", count(*) AS "aggr__timeseries__count",
 			  uniq("host.name") AS
 			  "metric__timeseries__61ca57f2-469d-11e7-af02-69e470af7417_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 79200000) AS
 			  "aggr__timeseries__key_0"
 			ORDER BY "aggr__timeseries__key_0" ASC`,
@@ -5175,7 +5175,7 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
 			GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0"
@@ -5340,7 +5340,7 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 30000) AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T14:29:02.900Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:44:02.900Z'))
 			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 30000) AS
@@ -5558,7 +5558,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__2__parent_count", "message" AS "aggr__0__2__key_0",
 				  count(*) AS "aggr__0__2__count", count() AS "aggr__0__2__order_1"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				GROUP BY floor("rspContentLen"/2000.000000)*2000.000000 AS "aggr__0__key_0",
 				  "message" AS "aggr__0__2__key_0"))
 			WHERE "aggr__0__2__order_1_rank"<=5
@@ -5803,7 +5803,7 @@ var AggregationTests = []AggregationTestCase{
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
 			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0",
 			  countIf("FlightDelay"==true) AS "aggr__0__1-bucket__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY "OriginCityName" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC
 			LIMIT 1001`,
@@ -6092,7 +6092,7 @@ var AggregationTests = []AggregationTestCase{
 				  AS "aggr__3__2__order_1", sumOrNull("memory") AS "metric__3__2__1_col_0",
 				  count(*) AS "aggr__3__count_part", sumOrNull("memory") AS
 				  "aggr__3__order_1_part", sumOrNull("memory") AS "metric__3__1_col_0_part"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T21:15:26.167Z'))
 				GROUP BY "geo.src" AS "aggr__3__key_0", "machine.os" AS "aggr__3__2__key_0"))
@@ -6270,7 +6270,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT "machine.os" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  count(DISTINCT "clientip") AS "aggr__2__order_1", count(DISTINCT "clientip") AS
 			  "metric__2__1_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T06:22:39.037Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-10T21:22:39.037Z'))
 			GROUP BY "machine.os" AS "aggr__2__key_0"
@@ -6889,7 +6889,7 @@ var AggregationTests = []AggregationTestCase{
 			  varSamp("bytes") AS "metric__0__2_col_7",
 			  stddevPop("bytes") AS "metric__0__2_col_8",
 			  stddevSamp("bytes") AS "metric__0__2_col_9"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z'))
 			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
@@ -7022,7 +7022,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "message" AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count", count() AS "aggr__0__1__order_1"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0"))
 			
@@ -7203,7 +7203,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0") AS
 				  "aggr__0__1__2__parent_count", "message" AS "aggr__0__1__2__key_0",
 				  count(*) AS "aggr__0__1__2__count", count() AS "aggr__0__1__2__order_1"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0",
 				  "message" AS "aggr__0__1__2__key_0"))
@@ -7328,7 +7328,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
 				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0",
 				  "FlightDelayMin" AS "aggr__0__1__key_0"))
@@ -7467,7 +7467,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
 				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0",
 				  "FlightDelayMin" AS "aggr__0__1__key_0"))
@@ -7593,7 +7593,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
 				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0",
 				  "FlightDelayMin" AS "aggr__0__1__key_0"))
@@ -7846,7 +7846,7 @@ var AggregationTests = []AggregationTestCase{
 			  count(*) AS "aggr__2__count",
   			  sumOrNull("total") AS "aggr__2__order_1",
   			  sumOrNull("total") AS "metric__2__1_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE NOT ((("abc">=0 AND "abc"<600) OR "type" iLIKE '%def%'))
 			GROUP BY "name" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
@@ -7953,7 +7953,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "DestAirportID" AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count", count() AS "aggr__0__1__order_1"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				GROUP BY "OriginAirportID" AS "aggr__0__key_0",
 				  "DestAirportID" AS "aggr__0__1__key_0"))
 			WHERE ("aggr__0__order_1_rank"<=11 AND "aggr__0__1__order_1_rank"<=4)

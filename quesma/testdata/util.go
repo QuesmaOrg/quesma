@@ -3,6 +3,7 @@
 package testdata
 
 import (
+	"quesma/model"
 	"strconv"
 	"strings"
 )
@@ -36,8 +37,9 @@ func selectFieldsInAnyOrderAsRegex(fields []string) string {
 	return resultRegex[:len(resultRegex)-1] // remove the last "|"
 }
 
-const TableName = "logs-generic-default"
-const QuotedTableName = `"` + TableName + `"`
+const TableName = model.SingleTableNamePlaceHolder
+const QuotedTableName = TableName
+
 const queryparserFacetsSampleSize = "20000" // should be same value as queryparser.facetsSampleSize
 
 // EscapeBrackets is a simple helper function used in sqlmock's tests.

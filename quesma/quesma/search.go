@@ -149,13 +149,13 @@ type AsyncQuery struct {
 	startTime        time.Time
 }
 
-func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.ExecutionPlan, table *clickhouse.Table) {
+func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.ExecutionPlan) error {
 	var err error
 	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
 	if err != nil {
-		logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
+		return fmt.Errorf("error transforming queries: %v", err)
 	}
-
+	return nil
 }
 
 // Deprecated - this method should be examined and potentially removed
@@ -223,7 +223,10 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 		}
 	}
 
-	q.transformQueries(ctx, plan, table)
+	err = q.transformQueries(ctx, plan)
+	if err != nil {
+		return responseBody, err
+	}
 
 	if resp, err := q.checkProperties(ctx, plan, table, queryTranslator); err != nil {
 		return resp, err
@@ -340,6 +343,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if len(q.cfg.IndexConfig[resolvedTableName].Override) > 0 {
 		resolvedTableName = q.cfg.IndexConfig[resolvedTableName].Override
 	}
+
+	// TODO this will be removed
 	table, _ := tables.Load(resolvedTableName)
 	if table == nil {
 		return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)

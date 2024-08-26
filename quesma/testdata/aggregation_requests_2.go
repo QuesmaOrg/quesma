@@ -510,86 +510,86 @@ var AggregationTests2 = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
 			  "aggr__day1__key_0", count(*) AS "aggr__day1__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
 			  "aggr__day1__key_0"
 			ORDER BY "aggr__day1__key_0" ASC`,
 		ExpectedAdditionalPancakeSQLs: []string{
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
 			  "aggr__day2__key_0", count(*) AS "aggr__day2__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
 			  "aggr__day2__key_0"
 			ORDER BY "aggr__day2__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__hour1__key_0", count(*) AS "aggr__hour1__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__hour1__key_0"
 			ORDER BY "aggr__hour1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__hour2__key_0", count(*) AS "aggr__hour2__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__hour2__key_0"
 			ORDER BY "aggr__hour2__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 			  "aggr__minute1__key_0", count(*) AS "aggr__minute1__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 			  "aggr__minute1__key_0"
 			ORDER BY "aggr__minute1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 			  "aggr__minute2__key_0", count(*) AS "aggr__minute2__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 			  "aggr__minute2__key_0"
 			ORDER BY "aggr__minute2__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
 			  "aggr__month1__key_0", count(*) AS "aggr__month1__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
 			  "aggr__month1__key_0"
 			ORDER BY "aggr__month1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
 			  "aggr__month2__key_0", count(*) AS "aggr__month2__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
 			  "aggr__month2__key_0"
 			ORDER BY "aggr__month2__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
 			  "aggr__quarter1__key_0", count(*) AS "aggr__quarter1__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
 			  "aggr__quarter1__key_0"
 			ORDER BY "aggr__quarter1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
 			  "aggr__quarter2__key_0", count(*) AS "aggr__quarter2__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
 			  "aggr__quarter2__key_0"
 			ORDER BY "aggr__quarter2__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
 			  "aggr__week1__key_0", count(*) AS "aggr__week1__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
 			  "aggr__week1__key_0"
 			ORDER BY "aggr__week1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
 			  "aggr__week2__key_0", count(*) AS "aggr__week2__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
 			  "aggr__week2__key_0"
 			ORDER BY "aggr__week2__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
 			  "aggr__year1__key_0", count(*) AS "aggr__year1__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
 			  "aggr__year1__key_0"
 			ORDER BY "aggr__year1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
 			  "aggr__year2__key_0", count(*) AS "aggr__year2__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
 			  "aggr__year2__key_0"
 			ORDER BY "aggr__year2__key_0" ASC`,
@@ -809,7 +809,7 @@ var AggregationTests2 = []AggregationTestCase{
 			  quantiles(0.010000)("timestamp") AS "quantile_1" AS "metric__2__1_col_0",
 			  quantiles(0.020000)("timestamp") AS "quantile_2" AS "metric__2__1_col_1",
 			  sumOrNull("count") AS "metric__2__2_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))
 			GROUP BY "response" AS "aggr__2__key_0"
@@ -1000,19 +1000,19 @@ var AggregationTests2 = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`WITH cte_1 AS (` +
 				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM "logs-generic-default" INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
@@ -1040,7 +1040,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  "aggr__2__8__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
 				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20)
@@ -1314,19 +1314,19 @@ var AggregationTests2 = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`WITH cte_1 AS (` +
 				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", "limbName", count() ` +
-				`FROM "logs-generic-default" INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE ("surname" IS NOT NULL AND "limbName" IS NOT NULL) ` +
 				`GROUP BY "surname", "limbName", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, "limbName" ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
@@ -1353,7 +1353,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count", "limbName" AS "aggr__2__8__key_0",
 				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				GROUP BY "surname" AS "aggr__2__key_0", "limbName" AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
@@ -1543,17 +1543,17 @@ var AggregationTests2 = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`WITH cte_1 AS (` +
 				`SELECT COALESCE("surname",'miss') AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY COALESCE("surname",'miss') ` +
 				`ORDER BY count() DESC, COALESCE("surname",'miss') ` +
 				`LIMIT 200) ` +
 				`SELECT COALESCE("surname",'miss'), COALESCE("limbName",'__missing__'), count() ` +
-				`FROM "logs-generic-default" INNER JOIN "cte_1" ON COALESCE("surname",'miss') = "cte_1_1" ` +
+				`FROM ` + TableName + ` INNER JOIN "cte_1" ON COALESCE("surname",'miss') = "cte_1_1" ` +
 				`GROUP BY COALESCE("surname",'miss'), COALESCE("limbName",'__missing__'), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, COALESCE("surname",'miss'), count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY COALESCE("surname",'miss')`,
 			`SELECT COALESCE("surname",'miss'), count() ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY COALESCE("surname",'miss') ` +
 				`ORDER BY count() DESC, COALESCE("surname",'miss') ` +
 				`LIMIT 200`,
@@ -1580,7 +1580,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  "aggr__2__8__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
 				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				GROUP BY COALESCE("surname", 'miss') AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20)
@@ -1799,19 +1799,19 @@ var AggregationTests2 = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`WITH cte_1 AS (` +
 				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", "limbName", count() ` +
-				`FROM "logs-generic-default" INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE ("surname" IS NOT NULL AND "limbName" IS NOT NULL) ` +
 				`GROUP BY "surname", "limbName", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, "limbName" ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
@@ -1838,7 +1838,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count", "limbName" AS "aggr__2__8__key_0",
 				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				GROUP BY "surname" AS "aggr__2__key_0", "limbName" AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
@@ -2013,7 +2013,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 40000) AS
 				  "aggr__2__3__key_0", count(*) AS "aggr__2__3__count"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				  "aggr__2__key_0",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 40000) AS
@@ -2198,7 +2198,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
 				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0",
 				  count(*) AS "aggr__2__3__count"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
 				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
@@ -2403,7 +2403,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
 				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0",
 				  count(*) AS "aggr__2__3__count"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
 				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
@@ -2621,31 +2621,31 @@ var AggregationTests2 = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`WITH cte_1 AS (` +
 				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM "logs-generic-default" INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"`,
 			`WITH cte_1 AS (` +
 				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", count() ` +
-				`FROM "logs-generic-default" INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
@@ -2674,7 +2674,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  "aggr__2__8__5__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0",
 				  count(*) AS "aggr__2__8__5__count", count() AS "aggr__2__8__5__order_1"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__5__order_1_rank"<=20)
@@ -2896,31 +2896,31 @@ var AggregationTests2 = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`WITH cte_1 AS (` +
 				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM "logs-generic-default" INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"`,
 			`WITH cte_1 AS (` +
 				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", count() ` +
-				`FROM "logs-generic-default" INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM "logs-generic-default" ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
@@ -2949,7 +2949,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  "aggr__2__8__5__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0",
 				  count(*) AS "aggr__2__8__5__count", count() AS "aggr__2__8__5__order_1"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__5__order_1_rank"<=20)

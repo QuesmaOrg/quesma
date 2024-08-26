@@ -300,8 +300,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*model.Query, error) {
 	queryAsMap := body.Clone()
 	currentAggr := aggrQueryBuilder{}
-	currentAggr.SelectCommand.FromClause = model.NewTableRef(cw.Table.FullTableName())
-	currentAggr.TableName = cw.Table.FullTableName()
+	currentAggr.SelectCommand.FromClause = model.NewTableRef(model.SingleTableNamePlaceHolder)
 	currentAggr.ctx = cw.Ctx
 	if queryPartRaw, ok := queryAsMap["query"]; ok {
 		if queryPart, ok := queryPartRaw.(QueryMap); ok {

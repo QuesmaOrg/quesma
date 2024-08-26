@@ -24,7 +24,7 @@ import (
 	"testing"
 )
 
-const testTableName = "logs-generic-default"
+const testTableName = model.SingleTableNamePlaceHolder
 
 var rawRequestBody = []byte(`{
   "field": "client_name",
@@ -104,8 +104,8 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 	}
 	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
 	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
-	expectedQuery1 := `SELECT DISTINCT "client_name" FROM "` + testTableName + `" WHERE ("epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z') AND "epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z')) LIMIT 13`
-	expectedQuery2 := `SELECT DISTINCT "client_name" FROM "` + testTableName + `" WHERE ("epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z') AND "epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z')) LIMIT 13`
+	expectedQuery1 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE ("epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z') AND "epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z')) LIMIT 13`
+	expectedQuery2 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE ("epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z') AND "epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z')) LIMIT 13`
 
 	// Once in a while `AND` conditions could be swapped, so we match both cases
 	mock.ExpectQuery(fmt.Sprintf("%s|%s", regexp.QuoteMeta(expectedQuery1), regexp.QuoteMeta(expectedQuery2))).

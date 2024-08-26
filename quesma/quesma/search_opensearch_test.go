@@ -24,6 +24,7 @@ import (
 )
 
 func TestSearchOpensearch(t *testing.T) {
+
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
 	table := clickhouse.Table{
 		Name:   tableName,
@@ -36,22 +37,20 @@ func TestSearchOpensearch(t *testing.T) {
 		Created: true,
 	}
 
-	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
-			tableName: {
-				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
-				},
-			},
+	s := schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
+
+	s.Tables[tableName] = schema.Schema{
+		Fields: map[schema.FieldName]schema.Field{
+			"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+			"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+			"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+			"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+			"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+			"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
+			"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+			"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+			"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+			"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
 		},
 	}
 

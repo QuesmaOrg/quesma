@@ -7,6 +7,8 @@ import (
 	"quesma/testdata"
 )
 
+const TableName = model.SingleTableNamePlaceHolder
+
 var KunkkaTests = []testdata.AggregationTestCase{
 	{ // [0]
 		TestName: "clients/kunkka/test_0, used to be broken before aggregations merge fix" +
@@ -247,7 +249,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				  countIf("message" iLIKE '%started%') AS "aggr__0__2-bucket___col_0",
 				  sumOrNullIf("multiplier", "message" iLIKE '%started%') AS
 				  "metric__0__2-bucket__2-metric_col_0"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 				  "aggr__0__key_0"))
 			ORDER BY "aggr__0__order_1_rank" ASC`,
@@ -494,7 +496,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			  countIf("message" iLIKE '%started%') AS "aggr__0__2-bucket__count",
 			  sumOrNullIf("multiplier", "message" iLIKE '%started%') AS
 			  "metric__0__2-bucket__2-metric_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,

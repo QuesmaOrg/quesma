@@ -226,7 +226,10 @@ func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.Ex
 
 	doneCh := make(chan AsyncSearchWithError, 1)
 
-	q.transformQueries(ctx, plan, table)
+	err = q.transformQueries(ctx, plan)
+	if err != nil {
+		return responseBody, err
+	}
 
 	if resp, err := q.checkProperties(ctx, plan, table, queryTranslator); err != nil {
 		return resp, err

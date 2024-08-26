@@ -149,7 +149,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }`,
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.Facets, FieldName: "host.name", I1: 10, I2: 5000},
-		[]string{`SELECT "host.name" AS "key", count() AS "doc_count" FROM (SELECT "host.name" FROM "logs-generic-default"  WHERE (("@timestamp".=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%') LIMIT ` + queryparserFacetsSampleSize + `) GROUP BY "host.name" ORDER BY count() DESC`},
+		[]string{`SELECT "host.name" AS "key", count() AS "doc_count" FROM (SELECT "host.name" FROM ` + TableName + `  WHERE (("@timestamp".=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%') LIMIT ` + queryparserFacetsSampleSize + `) GROUP BY "host.name" ORDER BY count() DESC`},
 		true,
 	},
 	{ // [1]
@@ -290,7 +290,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 `, "there should be 97 results, I truncated most of them",
 		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"message"}, FieldName: "message", I1: 0, I2: 100},
 		[]string{
-			`SELECT count() FROM "logs-generic-default" WHERE ((("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
+			`SELECT count() FROM ` + TableName + ` WHERE ((("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z')) AND "message" iLIKE '%user%') AND "message" IS NOT NULL)`,
 			`SELECT "message" FROM ` + QuotedTableName + ` WHERE ((("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') ` +
 				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%') ` +
@@ -536,7 +536,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 	}`,
 		"Truncated most results. TODO Check what's at the end of response, probably count?",
 		model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: 500},
-		[]string{`SELECT ` + selectFieldsInAnyOrderAsRegex([]string{"@timestamp", "message", "host.name", "properties::isreg"}) + ` FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) ORDER BY "@timestamp" desc LIMIT 500`},
+		[]string{`SELECT ` + selectFieldsInAnyOrderAsRegex([]string{"@timestamp", "message", "host.name", "properties::isreg"}) + ` FROM ` + TableName + ` WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) ORDER BY "@timestamp" desc LIMIT 500`},
 		false,
 	},
 	{ // [3]
@@ -831,10 +831,10 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
-			`SELECT count() FROM (SELECT 1 FROM "logs-generic-default" ` +
+			`SELECT count() FROM (SELECT 1 FROM ` + TableName + ` ` +
 				`WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%') LIMIT 1)`,
-			`SELECT m..OrNull("@timestamp") FROM "logs-generic-default" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
-			`SELECT m..OrNull("@timestamp") FROM "logs-generic-default" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+			`SELECT m..OrNull("@timestamp") FROM ` + TableName + ` WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+			`SELECT m..OrNull("@timestamp") FROM ` + TableName + ` WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
 		},
 		true,
 	},
@@ -850,7 +850,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		``,
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: 50},
-		[]string{`SELECT ` + selectFieldsInAnyOrderAsRegex([]string{"@timestamp", "message", "host.name", "properties::isreg"}) + ` FROM "logs-generic-default" LIMIT 50`},
+		[]string{`SELECT ` + selectFieldsInAnyOrderAsRegex([]string{"@timestamp", "message", "host.name", "properties::isreg"}) + ` FROM ` + TableName + ` LIMIT 50`},
 		false,
 	},
 	{ // [7]

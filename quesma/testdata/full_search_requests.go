@@ -8,13 +8,13 @@ import (
 )
 
 func selectCnt(limit int) string {
-	return fmt.Sprintf(`SELECT count() FROM (SELECT 1 FROM %s LIMIT %d)`, QuotedTableName, limit)
+	return fmt.Sprintf(`SELECT count() FROM (SELECT 1 FROM %s LIMIT %d)`, TableName, limit)
 }
 func selectTotalCnt() string {
-	return fmt.Sprintf("SELECT count() FROM %s", QuotedTableName)
+	return fmt.Sprintf("SELECT count() FROM %s", TableName)
 }
 func selectStar(limit int) string {
-	return fmt.Sprintf("SELECT \"message\" FROM %s LIMIT %d", QuotedTableName, limit)
+	return fmt.Sprintf("SELECT \"message\" FROM %s LIMIT %d", TableName, limit)
 }
 
 func resultCount(cnt int) []model.QueryResultRow {
@@ -32,6 +32,8 @@ func resultSelect(cnt int) []model.QueryResultRow {
 	}
 	return result
 }
+
+const IndexName = `"` + TableName + `"`
 
 var FullSearchRequests = []FullSearchTestCase{
 
@@ -89,7 +91,7 @@ var FullSearchRequests = []FullSearchTestCase{
 				"max_score": null,
 				"hits": [
 					{
-						"_index": "logs-generic-default",
+						"_index": ` + IndexName + `,
 						"_id": "1",
 						"_score": 0.0,
 						"_source": {
@@ -130,7 +132,7 @@ var FullSearchRequests = []FullSearchTestCase{
 				"max_score": null,
 				"hits": [
 					{
-						"_index": "logs-generic-default",
+						"_index": ` + IndexName + `,
 						"_id": "1",
 						"_score": 0.0,
 						"_source": {
@@ -141,7 +143,7 @@ var FullSearchRequests = []FullSearchTestCase{
 						}
 					},
 					{
-						"_index": "logs-generic-default",
+						"_index": ` + IndexName + `,
 						"_id": "2",
 						"_score": 0.0,
 						"_source": {
@@ -181,7 +183,7 @@ var FullSearchRequests = []FullSearchTestCase{
 				"max_score": null,
 				"hits": [
 					{
-						"_index": "logs-generic-default",
+						"_index": ` + IndexName + `,
 						"_id": "1",
 						"_score": 0.0,
 						"_source": {
@@ -192,7 +194,7 @@ var FullSearchRequests = []FullSearchTestCase{
 						}
 					},
 					{
-						"_index": "logs-generic-default",
+						"_index": ` + IndexName + `,
 						"_id": "2",
 						"_score": 0.0,
 						"_source": {
@@ -232,7 +234,7 @@ var FullSearchRequests = []FullSearchTestCase{
 				"max_score": null,
 				"hits": [
 					{
-						"_index": "logs-generic-default",
+						"_index": ` + IndexName + `,
 						"_id": "1",
 						"_score": 0.0,
 						"_source": {
@@ -243,7 +245,7 @@ var FullSearchRequests = []FullSearchTestCase{
 						}
 					},
 					{
-						"_index": "logs-generic-default",
+						"_index": ` + IndexName + `,
 						"_id": "2",
 						"_score": 0.0,
 						"_source": {
@@ -283,7 +285,7 @@ var FullSearchRequests = []FullSearchTestCase{
 				"max_score": null,
 				"hits": [
 					{
-						"_index": "logs-generic-default",
+						"_index": ` + IndexName + `,
 						"_id": "1",
 						"_score": 0.0,
 						"_source": {
@@ -294,7 +296,7 @@ var FullSearchRequests = []FullSearchTestCase{
 						}
 					},
 					{
-						"_index": "logs-generic-default",
+						"_index": ` + IndexName + `,
 						"_id": "2",
 						"_score": 0.0,
 						"_source": {
@@ -334,7 +336,7 @@ var FullSearchRequests = []FullSearchTestCase{
 				"max_score": null,
 				"hits": [
 					{
-						"_index": "logs-generic-default",
+						"_index": ` + IndexName + `,
 						"_id": "1",
 						"_score": 0.0,
 						"_source": {

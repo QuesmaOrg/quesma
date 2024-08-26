@@ -27,8 +27,8 @@ import (
 	"testing"
 )
 
-const tableName = "logs-generic-default"
-const tableNameQuoted = `"` + tableName + `"`
+const tableName = model.SingleTableNamePlaceHolder
+const tableNameQuoted = tableName
 
 // Simple unit tests, testing only "aggs" part of the request json query
 var aggregationTests = []struct {
@@ -788,6 +788,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			},
 		},
 	}
+
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {

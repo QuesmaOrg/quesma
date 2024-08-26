@@ -5,7 +5,6 @@ package queryparser
 import (
 	"errors"
 	"fmt"
-	"quesma/clickhouse"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/queryparser/query_util"
@@ -238,7 +237,7 @@ func (p *pancakeSqlQueryGenerator) countRealBucketAggregations(aggregation *panc
 	return bucketAggregationCount
 }
 
-func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeModel, table *clickhouse.Table) (*model.SelectCommand, bool, error) {
+func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeModel) (*model.SelectCommand, bool, error) {
 	if aggregation == nil {
 		return nil, false, errors.New("aggregation is nil in generateQuery")
 	}
@@ -321,7 +320,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			Columns:     p.aliasedExprArrayToExpr(selectColumns),
 			GroupBy:     p.aliasedExprArrayToExpr(groupBys),
 			WhereClause: aggregation.whereClause,
-			FromClause:  model.NewTableRef(table.FullTableName()),
+			FromClause:  model.NewTableRef(model.SingleTableNamePlaceHolder),
 			OrderBy:     orderBy,
 			Limit:       limit,
 			SampleLimit: aggregation.sampleLimit,
@@ -333,7 +332,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		Columns:     p.aliasedExprArrayToExpr(selectColumns),
 		GroupBy:     p.aliasedExprArrayToExpr(groupBys),
 		WhereClause: aggregation.whereClause,
-		FromClause:  model.NewTableRef(table.FullTableName()),
+		FromClause:  model.NewTableRef(model.SingleTableNamePlaceHolder),
 		SampleLimit: aggregation.sampleLimit,
 	}
 
@@ -352,19 +351,19 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	return &finalQuery, true, nil
 }
 
-func (p *pancakeSqlQueryGenerator) generateQuery(aggregation *pancakeModel, table *clickhouse.Table) (*model.Query, error) {
+func (p *pancakeSqlQueryGenerator) generateQuery(aggregation *pancakeModel) (*model.Query, error) {
 	if aggregation == nil {
 		return nil, errors.New("aggregation is nil in generateQuery")
 	}
 
-	resultSelectCommand, isFullPancake, err := p.generateSelectCommand(aggregation, table)
+	resultSelectCommand, isFullPancake, err := p.generateSelectCommand(aggregation)
 	if err != nil {
 		return nil, err
 	}
 
 	resultQuery := &model.Query{
 		SelectCommand: *resultSelectCommand,
-		TableName:     table.FullTableName(),
+		TableName:     model.SingleTableNamePlaceHolder,
 		Type:          PancakeQueryType{pancakeAggregation: aggregation},
 		OptimizeHints: model.NewQueryExecutionHints(),
 	}

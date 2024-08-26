@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const TableName = model.SingleTableNamePlaceHolder
+
 var AggregationTests = []testdata.AggregationTestCase{
 	{ // [0]
 		TestName: "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Unique Count, Buckets: Aggregation: Range",
@@ -834,7 +836,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  count(*) AS "aggr__2__count",
 			  count() AS "aggr__2__order_1",
 			  maxOrNull("timestamp") AS "metric__2__1_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z'))
 			GROUP BY "response" AS "aggr__2__key_0"
@@ -1037,7 +1039,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  count(*) AS "aggr__2__count",
 			  count() AS "aggr__2__order_1",
 			  minOrNull("timestamp") AS "metric__2__1_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z'))
 			GROUP BY "response" AS "aggr__2__key_0"
@@ -1272,7 +1274,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  quantiles(0.750000)("timestamp") AS "quantile_75" AS "metric__2__1_col_4",
 			  quantiles(0.950000)("timestamp") AS "quantile_95" AS "metric__2__1_col_5",
 			  quantiles(0.990000)("timestamp") AS "quantile_99" AS "metric__2__1_col_6"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))
 			GROUP BY "response" AS "aggr__2__key_0"
@@ -1450,7 +1452,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  countIf("AvgTicketPrice"<=0.000000)/count(*)*100 AS "metric__2__1_col_0",
 			  countIf("AvgTicketPrice"<=50000.000000)/count(*)*100 AS "metric__2__1_col_1"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS
 			  "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
@@ -1566,7 +1568,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT maxOrNull(toHour("timestamp")) AS "metric__maxAgg_col_0",
 			  minOrNull(toHour("timestamp")) AS "metric__minAgg_col_0"
-			FROM "logs-generic-default"`,
+			FROM ` + TableName + ``,
 	},
 	{ // [9]
 		TestName: "Histogram with simple script. Reproduce: Visualize -> Line -> Metrics: Count, Buckets: X-Asis Histogram",
@@ -1694,7 +1696,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT toHour("timestamp") AS "aggr__2__key_0", count(*) AS "aggr__2__count"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toHour("timestamp") AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
