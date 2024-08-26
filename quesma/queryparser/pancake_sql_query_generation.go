@@ -285,7 +285,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 
 		if layer.nextBucketAggregation != nil {
 			switch layer.nextBucketAggregation.queryType.(type) {
-			case bucket_aggregations.FilterAgg, bucket_aggregations.SubGroupInterface:
+			case bucket_aggregations.FilterAgg, bucket_aggregations.CombinatorAggregationInterface:
 				addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), layer.nextBucketAggregation})
 			}
 
@@ -323,8 +323,8 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 				aliasedColumn := model.NewAliasedExpr(withIfCombinator, selectAfter.Alias)
 				newAfterSelects = append(newAfterSelects, aliasedColumn)
 			}
-		case bucket_aggregations.SubGroupInterface:
-			for _, subGroup := range combinatorQuery.SubGroups() {
+		case bucket_aggregations.CombinatorAggregationInterface:
+			for _, subGroup := range combinatorQuery.CombinatorGroups() {
 				for _, selectAfter := range selectsAfter {
 					var withCombinator model.Expr
 					if p.isPartOfGroupBy(selectAfter.Expr, groupBys) != nil {

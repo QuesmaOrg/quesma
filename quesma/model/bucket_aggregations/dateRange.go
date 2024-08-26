@@ -193,9 +193,9 @@ func (query DateRange) DoesNotHaveGroupBy() bool {
 	return true
 }
 
-func (query DateRange) SubGroups() (result []SubGroup) {
+func (query DateRange) CombinatorGroups() (result []CombinatorGroup) {
 	for intervalIdx, interval := range query.Intervals {
-		result = append(result, SubGroup{
+		result = append(result, CombinatorGroup{
 			idx:         intervalIdx,
 			Prefix:      fmt.Sprintf("range_%d__", intervalIdx),
 			Key:         fmt.Sprintf("range_%d__", intervalIdx), // TODO: we need translate date to real time
@@ -205,7 +205,7 @@ func (query DateRange) SubGroups() (result []SubGroup) {
 	return
 }
 
-func (query DateRange) SubGroupTranslateSqlResponseToJson(subGroup SubGroup, rows []model.QueryResultRow) model.JsonMap {
+func (query DateRange) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
 	count := rows[0].Cols[len(rows[0].Cols)-1].Value
 	response := model.JsonMap{
 		"key":       subGroup.Key,

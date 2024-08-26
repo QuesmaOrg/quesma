@@ -131,9 +131,9 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 			return nil, err
 		}
 		return util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma), nil
-	case bucket_aggregations.SubGroupInterface:
+	case bucket_aggregations.CombinatorAggregationInterface:
 		var bucketArray []model.JsonMap
-		for _, subGroup := range queryType.SubGroups() {
+		for _, subGroup := range queryType.CombinatorGroups() {
 			selectedRowsWithoutPrefix := p.selectPrefixRows(subGroup.Prefix, rows)
 
 			subAggr, err := p.layerToJSON(remainingLayers[1:], selectedRowsWithoutPrefix)
@@ -142,7 +142,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 			}
 
 			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), selectedRowsWithoutPrefix)
-			aggJson := queryType.SubGroupTranslateSqlResponseToJson(subGroup, selectedRows)
+			aggJson := queryType.CombinatorTranslateSqlResponseToJson(subGroup, selectedRows)
 
 			bucketArray = append(bucketArray,
 				util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma))

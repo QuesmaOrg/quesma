@@ -175,9 +175,9 @@ func (query Range) DoesNotHaveGroupBy() bool {
 	return true
 }
 
-func (query Range) SubGroups() (result []SubGroup) {
+func (query Range) CombinatorGroups() (result []CombinatorGroup) {
 	for intervalIdx, interval := range query.Intervals {
-		result = append(result, SubGroup{
+		result = append(result, CombinatorGroup{
 			idx:         intervalIdx,
 			Prefix:      fmt.Sprintf("range_%d__", intervalIdx),
 			Key:         interval.String(),
@@ -187,7 +187,7 @@ func (query Range) SubGroups() (result []SubGroup) {
 	return
 }
 
-func (query Range) SubGroupTranslateSqlResponseToJson(subGroup SubGroup, rows []model.QueryResultRow) model.JsonMap {
+func (query Range) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
 	interval := query.Intervals[subGroup.idx]
 	count := rows[0].Cols[len(rows[0].Cols)-1].Value
 	return query.responseForInterval(interval, count)

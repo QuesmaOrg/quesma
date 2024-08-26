@@ -218,14 +218,14 @@ func (a *pancakeTransformer) checkIfSupported(layers []*pancakeModelLayer) error
 	for layerIdx, layer := range layers {
 		if layer.nextBucketAggregation != nil {
 			switch layer.nextBucketAggregation.queryType.(type) {
-			case bucket_aggregations.FilterAgg, bucket_aggregations.SubGroupInterface:
+			case bucket_aggregations.FilterAgg, bucket_aggregations.CombinatorAggregationInterface:
 				for _, followingLayer := range layers[layerIdx+1:] {
 					bucket := followingLayer.nextBucketAggregation
 					if bucket != nil {
 						switch bucket.queryType.(type) {
 						case *bucket_aggregations.DateHistogram:
 							continue // histogram are fine
-						case bucket_aggregations.FilterAgg, bucket_aggregations.SubGroupInterface:
+						case bucket_aggregations.FilterAgg, bucket_aggregations.CombinatorAggregationInterface:
 							continue // we also support nested filters/range/dataRange
 						default:
 							return fmt.Errorf("filter(s)/range/dataRange aggregation must be the last bucket aggregation")

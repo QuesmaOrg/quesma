@@ -57,9 +57,9 @@ func (query Filters) DoesNotHaveGroupBy() bool {
 	return true
 }
 
-func (query Filters) SubGroups() (result []SubGroup) {
+func (query Filters) CombinatorGroups() (result []CombinatorGroup) {
 	for filterIdx, filter := range query.Filters {
-		result = append(result, SubGroup{
+		result = append(result, CombinatorGroup{
 			idx:         filterIdx,
 			Prefix:      fmt.Sprintf("filter_%d__", filterIdx),
 			Key:         filter.Name,
@@ -69,6 +69,6 @@ func (query Filters) SubGroups() (result []SubGroup) {
 	return
 }
 
-func (query Filters) SubGroupTranslateSqlResponseToJson(subGroup SubGroup, rows []model.QueryResultRow) model.JsonMap {
+func (query Filters) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
 	return query.TranslateSqlResponseToJson(rows, 0)
 }
