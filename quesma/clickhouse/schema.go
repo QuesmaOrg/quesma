@@ -16,6 +16,7 @@ const (
 	AttributesValueColumn = "attributes_string_value"
 	AttributesValueType   = "attributes_string_type"
 	attributesColumnType  = "Array(String)"
+	AttributesColumn      = "attributes"
 )
 
 type (
@@ -321,6 +322,7 @@ func NewDefaultStringAttribute() Attribute {
 		KeysArrayName:   AttributesKeyColumn,
 		ValuesArrayName: AttributesValueColumn,
 		TypesArrayName:  AttributesValueType,
+		MapName:         AttributesColumn,
 		Type:            NewBaseType("String"),
 	}
 }

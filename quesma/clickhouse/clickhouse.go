@@ -65,6 +65,7 @@ type (
 		KeysArrayName   string
 		ValuesArrayName string
 		TypesArrayName  string
+		MapName         string
 		Type            BaseType
 	}
 	ChTableConfig struct {
@@ -241,6 +242,11 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 			if !ok {
 				attributesStr += fmt.Sprintf("%s\"%s\" Array(%s),\n", util.Indent(1), a.ValuesArrayName, a.Type.String())
 				table.Cols[a.ValuesArrayName] = &Column{Name: a.ValuesArrayName, Type: a.Type}
+			}
+			_, ok = table.Cols[a.MapName]
+			if !ok {
+				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapName)
+				table.Cols[a.MapName] = &Column{Name: a.MapName, Type: CompoundType{Name: "Array", BaseType: NewBaseType("String")}}
 			}
 		}
 	}
@@ -486,16 +492,27 @@ func (lm *LogManager) generateNewColumns(
 	return alterCmd
 }
 
-func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, error) {
+func generateNonSchemaFieldsString(attrsMap map[string][]interface{}, tableName string) (string, error) {
 	var nonSchemaStr string
 	if len(attrsMap) <= 0 {
 		return nonSchemaStr, nil
 	}
+	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
+	attrValues := getAttributesByArrayName(AttributesValueColumn, attrsMap)
+
 	attributesBytes, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
 	if err != nil {
 		return "", err
 	}
 	nonSchemaStr = string(attributesBytes[1 : len(attributesBytes)-1])
+	nonSchemaStr = "\"attributes\":{"
+	for i := 0; i < len(attrKeys); i++ {
+		if i > 0 {
+			nonSchemaStr += ","
+		}
+		nonSchemaStr += fmt.Sprintf("\"%s\":\"%s\"", attrKeys[i], attrValues[i])
+	}
+	nonSchemaStr = nonSchemaStr + "}"
 	return nonSchemaStr, nil
 }
 
@@ -602,7 +619,7 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	// addInvalidJsonFieldsToAttributes returns a new map with invalid fields added
 	// this map is then used to generate non-schema fields string
 	attrsMapWithInvalidFields := addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
-	nonSchemaStr, err := generateNonSchemaFieldsString(attrsMapWithInvalidFields)
+	nonSchemaStr, err := generateNonSchemaFieldsString(attrsMapWithInvalidFields, table.Name)
 
 	if err != nil {
 		return "", nil, err
