@@ -38,7 +38,6 @@ func selectFieldsInAnyOrderAsRegex(fields []string) string {
 }
 
 const TableName = model.SingleTableNamePlaceHolder
-const QuotedTableName = TableName
 
 const queryparserFacetsSampleSize = "20000" // should be same value as queryparser.facetsSampleSize
 

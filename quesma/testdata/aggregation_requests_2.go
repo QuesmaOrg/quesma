@@ -449,61 +449,61 @@ var AggregationTests2 = []AggregationTestCase{
 			}}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT count() FROM ` + TableName,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000`,
 		},
@@ -753,12 +753,12 @@ var AggregationTests2 = []AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
+			`SELECT count() FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))`,
 			`WITH cte_1 AS ` +
 				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
 				`AND "response" IS NOT NULL) ` +
@@ -768,7 +768,7 @@ var AggregationTests2 = []AggregationTestCase{
 				`SELECT "response", ` +
 				"quantiles(0.010000)(\"timestamp\") AS \"quantile_1\", " +
 				"quantiles(0.020000)(\"timestamp\") AS \"quantile_2\" " +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
@@ -777,7 +777,7 @@ var AggregationTests2 = []AggregationTestCase{
 				`ORDER BY cte_1_cnt DESC, "response"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
 				`AND "response" IS NOT NULL) ` +
@@ -785,14 +785,14 @@ var AggregationTests2 = []AggregationTestCase{
 				`ORDER BY count() DESC, "response" ` +
 				`LIMIT 3) ` +
 				`SELECT "response", sumOrNull("count") ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
 				`AND "response" IS NOT NULL) ` +
 				`GROUP BY "response", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "response"`,
-			`SELECT "response", count() FROM ` + QuotedTableName + ` ` +
+			`SELECT "response", count() FROM ` + TableName + ` ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
 				`AND "response" IS NOT NULL) ` +
@@ -2173,11 +2173,11 @@ var AggregationTests2 = []AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
 			`SELECT floor("bytes"/100.000000)*100.000000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
 				`GROUP BY floor("bytes"/100.000000)*100.000000 ` +
@@ -2378,11 +2378,11 @@ var AggregationTests2 = []AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
 			`SELECT floor("bytes"/100.000000)*100.000000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
 				`GROUP BY floor("bytes"/100.000000)*100.000000 ` +

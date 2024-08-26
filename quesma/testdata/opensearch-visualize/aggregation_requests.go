@@ -133,15 +133,15 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName + ` WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
+			`SELECT count() FROM ` + testdata.TableName + ` WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
 			`SELECT count(DISTINCT "ftd_session_time") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z') AND "ftd_session_time"<1000)`,
 			`SELECT count(DISTINCT "ftd_session_time") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z') AND "ftd_session_time">=-100)`,
 			`SELECT count(if("ftd_session_time"<1000.000000,1,NULL)), count(if("ftd_session_time">=-100.000000,1,NULL)), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
 		},
 		ExpectedPancakeSQL: "TODO",
@@ -475,19 +475,19 @@ var AggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z')`,
 			`SELECT sumOrNull("properties.entry_time") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
 				`AND ("epoch_time_original">=0 AND "epoch_time_original"<1000))`,
 			`SELECT sumOrNull("properties.entry_time") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
 				`AND "epoch_time_original">=1000)`,
 			`SELECT count(if(("epoch_time_original">=0.000000 AND "epoch_time_original"<1000.000000),1,NULL)), ` +
 				`count(if("epoch_time_original">=1000.000000,1,NULL)), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z')`,
 		},
 		ExpectedPancakeSQL: "TODO",
@@ -624,20 +624,20 @@ var AggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z')`,
 			`SELECT quantiles(0.500000)("properties::entry_time") AS "quantile_50" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
 				`AND ("properties::exoestimation_connection_speedinkbps">=0 AND "properties::exoestimation_connection_speedinkbps"<1000))`,
 			`SELECT quantiles(0.500000)("properties::entry_time") AS "quantile_50" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
 				`AND ("properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000))`,
 			`SELECT count(if(("properties::exoestimation_connection_speedinkbps">=0.000000 AND "properties::exoestimation_connection_speedinkbps"<1000.000000),1,NULL)), ` +
 				`count(if(("properties::exoestimation_connection_speedinkbps">=1000.000000 AND "properties::exoestimation_connection_speedinkbps"<2000.000000),1,NULL)), ` +
 				`count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z')`,
 		},
 		ExpectedPancakeSQL: "TODO",
@@ -800,12 +800,12 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
+			`SELECT count() FROM ` + testdata.TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z'))`,
 			`WITH cte_1 AS ` +
 				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')) ` +
 				`AND "response" IS NOT NULL) ` +
@@ -813,7 +813,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY count() DESC, "response" ` +
 				`LIMIT 3) ` +
 				`SELECT "response", maxOrNull("timestamp") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')) ` +
@@ -821,7 +821,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY "response", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "response"`,
 			`SELECT "response", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')) ` +
 				`AND "response" IS NOT NULL) ` +
@@ -1003,12 +1003,12 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
+			`SELECT count() FROM ` + testdata.TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z'))`,
 			`WITH cte_1 AS ` +
 				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')) ` +
 				`AND "response" IS NOT NULL) ` +
@@ -1016,7 +1016,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY count() DESC, "response" ` +
 				`LIMIT 3) ` +
 				`SELECT "response", minOrNull("timestamp") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')) ` +
@@ -1024,7 +1024,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY "response", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "response"`,
 			`SELECT "response", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')) ` +
 				`AND "response" IS NOT NULL) ` +
@@ -1226,12 +1226,12 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
+			`SELECT count() FROM ` + testdata.TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))`,
 			`WITH cte_1 AS ` +
 				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
 				`AND "response" IS NOT NULL) ` +
@@ -1246,14 +1246,14 @@ var AggregationTests = []testdata.AggregationTestCase{
 				"quantiles(0.750000)(\"timestamp\") AS \"quantile_75\", " +
 				"quantiles(0.950000)(\"timestamp\") AS \"quantile_95\", " +
 				"quantiles(0.990000)(\"timestamp\") AS \"quantile_99\" " +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
 				`AND "response" IS NOT NULL) ` +
 				`GROUP BY "response", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "response"`,
-			`SELECT "response", count() FROM ` + testdata.QuotedTableName + ` ` +
+			`SELECT "response", count() FROM ` + testdata.TableName + ` ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
 				`AND "response" IS NOT NULL) ` +
@@ -1435,15 +1435,15 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.TableName,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 3600000), ` +
 				`countIf("AvgTicketPrice"<=0.000000)/count(*)*100, ` +
 				`countIf("AvgTicketPrice"<=50000.000000)/count(*)*100 ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000)`,
 		},
@@ -1561,9 +1561,9 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName,
-			`SELECT maxOrNull(toHour("timestamp")) FROM ` + testdata.QuotedTableName,
-			`SELECT minOrNull(toHour("timestamp")) FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.TableName,
+			`SELECT maxOrNull(toHour("timestamp")) FROM ` + testdata.TableName,
+			`SELECT minOrNull(toHour("timestamp")) FROM ` + testdata.TableName,
 		},
 		ExpectedPancakeSQL: `
 			SELECT maxOrNull(toHour("timestamp")) AS "metric__maxAgg_col_0",
@@ -1689,8 +1689,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName,
-			`SELECT toHour("timestamp"), count() FROM ` + testdata.QuotedTableName + " " +
+			`SELECT count() FROM ` + testdata.TableName,
+			`SELECT toHour("timestamp"), count() FROM ` + testdata.TableName + " " +
 				`GROUP BY toHour("timestamp") ` +
 				`ORDER BY toHour("timestamp")`,
 		},

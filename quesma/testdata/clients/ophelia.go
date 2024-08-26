@@ -304,19 +304,19 @@ var OpheliaTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`WHERE ("surname" IS NOT NULL AND "organName" IS NOT NULL) ` +
@@ -325,20 +325,20 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
@@ -846,33 +846,33 @@ var OpheliaTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`WHERE "surname" IS NOT NULL ` +
@@ -880,27 +880,27 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"), ` +
 				`cte_3 AS ` +
 				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", "organName" AS "cte_3_3", count() AS "cte_3_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("surname" IS NOT NULL AND "organName" IS NOT NULL) ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName" ` +
 				`ORDER BY count() DESC, "organName" ` +
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND "organName" = "cte_3_3" ` +
@@ -909,27 +909,27 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, "organName"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"), ` +
 				`cte_3 AS ` +
 				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", "organName" AS "cte_3_3", count() AS "cte_3_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("surname" IS NOT NULL AND "organName" IS NOT NULL) ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName" ` +
 				`ORDER BY count() DESC, "organName" ` +
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", sumOrNull("some") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND "organName" = "cte_3_3" ` +
@@ -938,20 +938,20 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, "organName"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`WHERE ("surname" IS NOT NULL AND "organName" IS NOT NULL) ` +
@@ -960,20 +960,20 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
@@ -1461,57 +1461,57 @@ var OpheliaTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM (SELECT 1 ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`LIMIT 10000)`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100) ` +
 				`SELECT "surname", sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`GROUP BY "surname", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt, cte_2_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"), ` +
 				`cte_3 AS ` +
 				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", COALESCE("organName",'__missing__') AS "cte_3_3", count() AS "cte_3_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("organName",'__missing__') ` +
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND COALESCE("organName",'__missing__') = "cte_3_3" ` +
@@ -1519,24 +1519,24 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, COALESCE("organName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"), ` +
 				`cte_3 AS ` +
 				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", COALESCE("organName",'__missing__') AS "cte_3_3", count() AS "cte_3_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("organName",'__missing__') ` +
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), sumOrNull("some") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND COALESCE("organName",'__missing__') = "cte_3_3" ` +
@@ -1544,18 +1544,18 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, COALESCE("organName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), cte_1_cnt, cte_2_cnt ` +
@@ -1563,18 +1563,18 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100) ` +
 				`SELECT "surname", COALESCE(COALESCE("limbName",'__missing__'),'__missing__'), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`GROUP BY "surname", COALESCE(COALESCE("limbName",'__missing__'),'__missing__'), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100`,
@@ -1582,24 +1582,24 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			``,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"), ` +
 				`cte_3 AS ` +
 				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", COALESCE("organName",'__missing__') AS "cte_3_3", count() AS "cte_3_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("organName",'__missing__') ` +
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), "doctorName", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND COALESCE("organName",'__missing__') = "cte_3_3" ` +
@@ -1608,18 +1608,18 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 6 BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), cte_1_cnt, cte_2_cnt ` +
@@ -1627,18 +1627,18 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100`,
@@ -2013,33 +2013,33 @@ var OpheliaTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", avgOrNull("total") AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY avgOrNull("total") DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", avgOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", avgOrNull("total") AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY avgOrNull("total") DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", sumOrNull("total") AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY sumOrNull("total") ASC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`WHERE "surname" IS NOT NULL ` +
@@ -2047,20 +2047,20 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", avgOrNull("total") AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY avgOrNull("total") DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", sumOrNull("total") AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY sumOrNull("total") ASC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`WHERE ("surname" IS NOT NULL AND "organName" IS NOT NULL) ` +
@@ -2069,20 +2069,20 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", avgOrNull("total") AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY avgOrNull("total") DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", sumOrNull("total") ASC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY avgOrNull("total") DESC, "surname" ` +
@@ -2567,20 +2567,20 @@ var OpheliaTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY "surname" DESC ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", sumOrNull("total") AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY sumOrNull("total") ASC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`WHERE "surname" IS NOT NULL ` +
@@ -2588,14 +2588,14 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY "surname" DESC, cte_1_cnt DESC, COALESCE("limbName",'__missing__')`, // FIXME bug, should be cte_2_cnt DESC!
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY "surname" DESC ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", sumOrNull("total") AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY sumOrNull("total") ASC, COALESCE("limbName",'__missing__') ` +
@@ -2603,13 +2603,13 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`cte_3 AS ` +
 				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", ` +
 				`"organName" AS "cte_3_3", count() AS "cte_3_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("surname" IS NOT NULL AND "organName" IS NOT NULL) ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName" ` +
 				`ORDER BY COALESCE("limbName",'__missing__'), "organName" DESC ` +
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", "organName", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND "organName" = "cte_3_3" ` +
@@ -2619,20 +2619,20 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 2 BY "surname", COALESCE("limbName",'__missing__'), "organName"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY "surname" DESC ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", sumOrNull("total") AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY sumOrNull("total") ASC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`WHERE ("surname" IS NOT NULL AND "organName" IS NOT NULL) ` +
@@ -2641,20 +2641,20 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY "surname" DESC ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
 				`ORDER BY "surname" DESC, cte_1_cnt DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY "surname" DESC ` +
@@ -3187,53 +3187,53 @@ var OpheliaTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`GROUP BY "surname", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt, cte_2_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"), ` +
 				`cte_3 AS ` +
 				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", "organName" AS "cte_3_3", count() AS "cte_3_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName" ` +
 				`ORDER BY count() DESC, "organName" ` +
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND "organName" = "cte_3_3" ` +
@@ -3241,24 +3241,24 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, "organName"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"), ` +
 				`cte_3 AS ` +
 				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", "organName" AS "cte_3_3", count() AS "cte_3_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName" ` +
 				`ORDER BY count() DESC, "organName" ` +
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", sumOrNull("some") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND "organName" = "cte_3_3" ` +
@@ -3266,18 +3266,18 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, "organName"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", cte_1_cnt, cte_2_cnt ` +
@@ -3285,18 +3285,18 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200`,
@@ -3785,57 +3785,57 @@ var OpheliaTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM (SELECT 1 ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`LIMIT 10000)`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100) ` +
 				`SELECT "surname", sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`GROUP BY "surname", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt, cte_2_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"), ` +
 				`cte_3 AS ` +
 				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", COALESCE("organName",'__missing__') AS "cte_3_3", count() AS "cte_3_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("organName",'__missing__') ` +
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND COALESCE("organName",'__missing__') = "cte_3_3" ` +
@@ -3843,24 +3843,24 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, COALESCE("organName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"), ` +
 				`cte_3 AS ` +
 				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", COALESCE("organName",'__missing__') AS "cte_3_3", count() AS "cte_3_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("organName",'__missing__') ` +
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), sumOrNull("some") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND COALESCE("organName",'__missing__') = "cte_3_3" ` +
@@ -3868,42 +3868,42 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, COALESCE("organName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", "limbName" AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", "limbName" ` +
 				`ORDER BY count() DESC, "surname", count() DESC, "limbName" ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", "limbName", sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND "limbName" = "cte_2_2" ` +
 				`GROUP BY "surname", "limbName", cte_1_cnt, cte_2_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, "limbName"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", "limbName" AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", "limbName" ` +
 				`ORDER BY count() DESC, "surname", count() DESC, "limbName" ` +
 				`LIMIT 20 BY "surname"), ` +
 				`cte_3 AS ` +
 				`(SELECT "surname" AS "cte_3_1", "limbName" AS "cte_3_2", "organName" AS "cte_3_3", count() AS "cte_3_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", "limbName", "organName" ` +
 				`ORDER BY count() DESC, "surname", count() DESC, "limbName", count() DESC, "organName" ` +
 				`LIMIT 1 BY "surname", "limbName") ` +
 				`SELECT "surname", "limbName", "organName", sumOrNull("total") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND "limbName" = "cte_2_2" ` +
 				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND "limbName" = "cte_3_2" AND "organName" = "cte_3_3" ` +
@@ -3911,24 +3911,24 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, "limbName", cte_3_cnt DESC, "organName"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", "limbName" AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", "limbName" ` +
 				`ORDER BY count() DESC, "surname", count() DESC, "limbName" ` +
 				`LIMIT 20 BY "surname"), ` +
 				`cte_3 AS ` +
 				`(SELECT "surname" AS "cte_3_1", "limbName" AS "cte_3_2", "organName" AS "cte_3_3", count() AS "cte_3_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", "limbName", "organName" ` +
 				`ORDER BY count() DESC, "surname", count() DESC, "limbName", count() DESC, "organName" ` +
 				`LIMIT 1 BY "surname", "limbName") ` +
 				`SELECT "surname", "limbName", "organName", sumOrNull("some") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND "limbName" = "cte_2_2" ` +
 				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND "limbName" = "cte_3_2" AND "organName" = "cte_3_3" ` +
@@ -3936,18 +3936,18 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, "limbName", cte_3_cnt DESC, "organName"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", "limbName" AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", "limbName" ` +
 				`ORDER BY count() DESC, "surname", count() DESC, "limbName" ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", "limbName", "organName", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND "limbName" = "cte_2_2" ` +
 				`GROUP BY "surname", "limbName", "organName", cte_1_cnt, cte_2_cnt ` +
@@ -3955,18 +3955,18 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 1 BY "surname", "limbName"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", "limbName", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`GROUP BY "surname", "limbName", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, "limbName" ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200`,
@@ -3974,24 +3974,24 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			``,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"), ` +
 				`cte_3 AS ` +
 				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", COALESCE("organName",'__missing__') AS "cte_3_3", count() AS "cte_3_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("organName",'__missing__') ` +
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), "doctorName", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND COALESCE("organName",'__missing__') = "cte_3_3" ` +
@@ -4000,18 +4000,18 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 6 BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
 				`cte_2 AS ` +
 				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), cte_1_cnt, cte_2_cnt ` +
@@ -4019,18 +4019,18 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')`,
 			`WITH cte_1 AS ` +
 				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100`,

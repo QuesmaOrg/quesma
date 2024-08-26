@@ -130,11 +130,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z'))`,
 			`NoDBQuery`,
 			`SELECT "day_of_week_i", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z')) ` +
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
@@ -273,14 +273,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`SELECT "day_of_week_i", avgOrNull("day_of_week_i") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
 			`SELECT "day_of_week_i", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
 		},
@@ -409,11 +409,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`NoDBQuery`,
 			`SELECT "day_of_week_i", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
 		},
@@ -563,15 +563,15 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`NoDBQuery`,
 			`SELECT "day_of_week_i", maxOrNull("products.base_price") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
 			`SELECT "day_of_week_i", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
 		},
@@ -707,10 +707,10 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`SELECT floor("bytes"/200.000000)*200.000000, count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
 		},
@@ -918,16 +918,16 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
 				`sumOrNull(toHour("timestamp")) ` +
-				"FROM " + testdata.QuotedTableName + " " +
+				"FROM " + testdata.TableName + " " +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
 				"count() " +
-				"FROM " + testdata.QuotedTableName + " " +
+				"FROM " + testdata.TableName + " " +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
@@ -1185,11 +1185,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`NoDBQuery`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
@@ -1339,10 +1339,10 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`SELECT floor("bytes"/200.000000)*200.000000, count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
 		},
@@ -1495,10 +1495,10 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`SELECT floor("bytes"/200.000000)*200.000000, count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
 		},
@@ -1706,16 +1706,16 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
 				`sumOrNull(toHour("timestamp")) ` +
-				"FROM " + testdata.QuotedTableName + " " +
+				"FROM " + testdata.TableName + " " +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
 				"count() " +
-				"FROM " + testdata.QuotedTableName + " " +
+				"FROM " + testdata.TableName + " " +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
@@ -1973,11 +1973,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`NoDBQuery`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
@@ -2105,10 +2105,10 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
@@ -2266,14 +2266,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), maxOrNull("bytes") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
@@ -2744,14 +2744,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), "bytes", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000), "bytes" ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000), "bytes"`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
@@ -2915,12 +2915,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') AND ` +
 				`"timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z'))`,
 			`NoDBQuery`,
 			`SELECT "clientip", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z')) ` +
 				`AND "clientip" IS NOT NULL) ` +
@@ -3119,23 +3119,23 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`WITH cte_1 AS ` +
 				`(SELECT "clientip" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "clientip" IS NOT NULL ` +
 				`GROUP BY "clientip" ` +
 				`ORDER BY "clientip" DESC ` +
 				`LIMIT 5) ` +
 				`SELECT "clientip", count(DISTINCT "geo.coordinates") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "clientip" = "cte_1_1" ` +
 				`WHERE "clientip" IS NOT NULL ` +
 				`GROUP BY "clientip", cte_1_cnt ` +
 				`ORDER BY "clientip" DESC`,
 			`SELECT "clientip", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "clientip" IS NOT NULL ` +
 				`GROUP BY "clientip" ` +
 				`ORDER BY "clientip" DESC ` +
@@ -3368,29 +3368,29 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`WITH cte_1 AS ` +
 				`(SELECT floor("bytes"/200.000000)*200.000000 AS "cte_1_1", "clientip" AS "cte_1_2", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "clientip" IS NOT NULL ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip" ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000, "clientip" DESC ` +
 				`LIMIT 2 BY floor("bytes"/200.000000)*200.000000) ` +
 				`SELECT floor("bytes"/200.000000)*200.000000, "clientip", sumOrNull("bytes") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON floor("bytes"/200.000000)*200.000000 = "cte_1_1" AND "clientip" = "cte_1_2" ` +
 				`WHERE "clientip" IS NOT NULL ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip", cte_1_cnt ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000, "clientip" DESC`,
 			`SELECT floor("bytes"/200.000000)*200.000000, "clientip", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "clientip" IS NOT NULL ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip" ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000, "clientip" DESC ` +
 				`LIMIT 2 BY floor("bytes"/200.000000)*200.000000`,
 			`SELECT floor("bytes"/200.000000)*200.000000, count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
 		},
@@ -3519,12 +3519,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') AND ` +
 				`"timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z'))`,
 			`NoDBQuery`,
 			`SELECT "Cancelled", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z')) ` +
 				`AND "Cancelled" IS NOT NULL) ` +
@@ -3700,16 +3700,16 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
 				`minOrNull("memory") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
 				"count() " +
-				"FROM " + testdata.QuotedTableName + " " +
+				"FROM " + testdata.TableName + " " +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
@@ -3952,16 +3952,16 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`SELECT "bytes", maxOrNull("memory") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "bytes" ` +
 				`ORDER BY "bytes"`,
 			`NoDBQuery`,
 			`NoDBQuery`,
 			`SELECT "bytes", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "bytes" ` +
 				`ORDER BY "bytes"`,
 			`NoDBQuery`,
@@ -4538,12 +4538,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z'))`,
 			`NoDBQuery`,
 			`SELECT "extension", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z')) ` +
 				`AND "extension" IS NOT NULL) ` +
@@ -4711,23 +4711,23 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`WITH cte_1 AS ` +
 				`(SELECT "extension" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "extension" IS NOT NULL ` +
 				`GROUP BY "extension" ` +
 				`ORDER BY count() DESC, "extension" ` +
 				`LIMIT 5) ` +
 				`SELECT "extension", avgOrNull("machine.ram") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`INNER JOIN "cte_1" ON "extension" = "cte_1_1" ` +
 				`WHERE "extension" IS NOT NULL ` +
 				`GROUP BY "extension", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "extension"`,
 			`SELECT "extension", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "extension" IS NOT NULL ` +
 				`GROUP BY "extension" ` +
 				`ORDER BY count() DESC, "extension" ` +
@@ -5325,25 +5325,25 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`SELECT floor("bytes"/200.000000)*200.000000, ` +
 				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
 				`avgOrNull("memory") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "bytes">=0 AND "bytes"<1000 ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
 				`ORDER BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
 			`SELECT floor("bytes"/200.000000)*200.000000, ` +
 				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
 				`count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "bytes">=0 AND "bytes"<1000 ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
 				`ORDER BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
 			`SELECT floor("bytes"/200.000000)*200.000000, ` +
 				`count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "bytes">=0 AND "bytes"<1000 ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
@@ -5351,27 +5351,27 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT floor("bytes"/200.000000)*200.000000, ` +
 				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
 				`avgOrNull("memory") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
 				`ORDER BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
 			`SELECT floor("bytes"/200.000000)*200.000000, ` +
 				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
 				`count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
 				`ORDER BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
 			`SELECT floor("bytes"/200.000000)*200.000000, ` +
 				`count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
 			`SELECT count(if("bytes">=0 AND "bytes"<1000,1,NULL)), ` +
 				`count(if("bytes">=1000 AND "bytes"<2000,1,NULL)), ` +
 				`count() ` +
-				`FROM ` + testdata.QuotedTableName,
+				`FROM ` + testdata.TableName,
 		},
 		ExpectedPancakeSQL: "TODO",
 	},

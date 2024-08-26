@@ -282,7 +282,7 @@ var NewLogicTestCases = []AggregationTestCase{
 				`sumOrNull(sumOrNull_total) OVER (PARTITION BY "surname", COALESCE("limbName",'__missing__')) AS "metric_2_8_1", ` +
 				`sumOrNull("total") AS "sumOrNull_total", ` +
 				`"organName", sum(count()) OVER (PARTITION BY "surname", COALESCE("limbName",'__missing__'), "organName") ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName") ` +
 				`SELECT "surname", sum(count()) OVER (PARTITION BY "surname"), "metric_2_1", ` +
 				`COALESCE("limbName",'__missing__'), sum(count()) OVER (PARTITION BY "surname", COALESCE("limbName",'__missing__')), ` +
