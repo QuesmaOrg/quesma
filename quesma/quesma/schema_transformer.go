@@ -322,7 +322,6 @@ func (s *SchemaCheckPass) applyMapTransformations(query *model.Query) (*model.Qu
 	return query, nil
 }
 
-
 func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*model.Query, error) {
 
 	if query.TableName == model.SingleTableNamePlaceHolder {
@@ -345,6 +344,8 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*mode
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
+	return query, nil
+}
 
 func (s *SchemaCheckPass) applyWildcardExpansion(query *model.Query) (*model.Query, error) {
 	fromTable := getFromTable(query.TableName)
