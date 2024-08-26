@@ -117,9 +117,11 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		for _, usersPercent := range usersPercents {
 			percentAsFloat := metricsAggr.Percentiles[usersPercent]
 			query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewAliasedExpr(
-				model.MultiFunctionExpr{
-					Name: "quantiles",
-					Args: []model.Expr{model.NewLiteral(percentAsFloat), getFirstExpression()}},
+				model.FunctionExpr{
+					// Rare function that has two brackets: quantiles(0.5)(x)
+					// https://clickhouse.com/docs/en/sql-reference/aggregate-functions/reference/quantiles
+					Name: fmt.Sprintf("quantiles(%f)", percentAsFloat),
+					Args: []model.Expr{getFirstExpression()}},
 				fmt.Sprintf("quantile_%s", usersPercent),
 			))
 

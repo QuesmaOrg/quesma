@@ -74,16 +74,6 @@ func (e FunctionExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitFunction(e)
 }
 
-// MultiFunctionExpr represents call of a function with multiple arguments lists, e.g. `quantile(level)(expr)`
-type MultiFunctionExpr struct {
-	Name string
-	Args []Expr
-}
-
-func (e MultiFunctionExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitMultiFunction(e)
-}
-
 type LiteralExpr struct {
 	Value any
 }
@@ -261,7 +251,6 @@ func (e JoinExpr) Accept(v ExprVisitor) interface{} {
 
 type ExprVisitor interface {
 	VisitFunction(e FunctionExpr) interface{}
-	VisitMultiFunction(e MultiFunctionExpr) interface{}
 	VisitLiteral(l LiteralExpr) interface{}
 	VisitInfix(e InfixExpr) interface{}
 	VisitColumnRef(e ColumnRef) interface{}
