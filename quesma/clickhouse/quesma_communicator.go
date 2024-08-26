@@ -59,8 +59,6 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 		return make([]model.QueryResultRow, 0), performanceResult, nil
 	}
 
-	table.applyTableSchema(query)
-
 	rowToScan := make([]interface{}, len(query.SelectCommand.Columns))
 	columns := make([]string, 0, len(query.SelectCommand.Columns))
 
