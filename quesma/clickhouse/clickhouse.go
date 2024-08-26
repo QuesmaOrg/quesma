@@ -24,6 +24,7 @@ import (
 	"quesma/util"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -32,7 +33,8 @@ const (
 	timestampFieldName = "@timestamp" // it's always DateTime64 for now, don't want to waste time changing that, we don't seem to use that anyway
 	// Above this number of columns we will use heuristic
 	// to decide if we should add new columns
-	alwaysAddColumnLimit = 100
+	alwaysAddColumnLimit  = 100
+	AlterColumnUpperLimit = 1000
 )
 
 type (
@@ -46,15 +48,16 @@ type (
 type (
 	// LogManager should be renamed to Connector  -> TODO !!!
 	LogManager struct {
-		ctx                   context.Context
-		cancel                context.CancelFunc
-		chDb                  *sql.DB
-		tableDiscovery        TableDiscovery
-		cfg                   config.QuesmaConfiguration
-		phoneHomeAgent        telemetry.PhoneHomeAgent
-		schemaRegistry        schema.Registry
-		ingestCounter         int64
-		ingestFieldStatistics IngestFieldStatistics
+		ctx                       context.Context
+		cancel                    context.CancelFunc
+		chDb                      *sql.DB
+		tableDiscovery            TableDiscovery
+		cfg                       config.QuesmaConfiguration
+		phoneHomeAgent            telemetry.PhoneHomeAgent
+		schemaRegistry            schema.Registry
+		ingestCounter             int64
+		ingestFieldStatistics     IngestFieldStatistics
+		ingestFieldStatisticsLock sync.Mutex
 	}
 	TableMap  = concurrent.Map[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -508,14 +511,21 @@ func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]int
 		}
 		return true, alterColumnIndexes
 	}
+	if len(table.Cols) > AlterColumnUpperLimit {
+		return false, nil
+	}
+	lm.ingestFieldStatisticsLock.Lock()
 	if lm.ingestFieldStatistics == nil {
 		lm.ingestFieldStatistics = make(IngestFieldStatistics)
 	}
+	lm.ingestFieldStatisticsLock.Unlock()
 	const percent50 = 0.5
 	for i := 0; i < len(attrKeys); i++ {
+		lm.ingestFieldStatisticsLock.Lock()
 		lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]++
 		counter := atomic.LoadInt64(&lm.ingestCounter)
 		fieldCounter := lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]
+		lm.ingestFieldStatisticsLock.Unlock()
 		if float64(fieldCounter)/float64(counter) > percent50 {
 			alterColumnIndexes = append(alterColumnIndexes, i)
 		}
