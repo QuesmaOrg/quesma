@@ -284,9 +284,8 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		}
 
 		if layer.nextBucketAggregation != nil {
-			switch queryType := layer.nextBucketAggregation.queryType.(type) {
-			case bucket_aggregations.CombinatorAggregationInterface:
-				addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), queryType})
+			if combinator, isCombinator := layer.nextBucketAggregation.queryType.(bucket_aggregations.CombinatorAggregationInterface); isCombinator {
+				addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), combinator})
 			}
 
 			if layer.nextBucketAggregation.DoesHaveGroupBy() {

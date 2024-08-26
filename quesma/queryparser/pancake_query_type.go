@@ -3,6 +3,7 @@
 package queryparser
 
 import (
+	"context"
 	"quesma/logger"
 	"quesma/model"
 )
@@ -39,8 +40,8 @@ func (p PancakeQueryType) ReturnTotalCount() *pancakeModelMetricAggregation {
 	return nil
 }
 
-func (p PancakeQueryType) RenderAggregationJson(rows []model.QueryResultRow) (model.JsonMap, error) {
-	renderer := &pancakeJSONRenderer{}
+func (p PancakeQueryType) RenderAggregationJson(ctx context.Context, rows []model.QueryResultRow) (model.JsonMap, error) {
+	renderer := &pancakeJSONRenderer{ctx: ctx}
 	res, err := renderer.toJSON(p.pancakeAggregation, rows)
 	if err != nil {
 		logger.Error().Err(err).Msg("Error rendering JSON. Returning empty.")

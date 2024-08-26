@@ -13,6 +13,7 @@ import (
 )
 
 type pancakeJSONRenderer struct {
+	ctx context.Context
 }
 
 func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.QueryResultRow) (result []model.QueryResultRow) {
@@ -25,7 +26,7 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 		}
 		return []model.QueryResultRow{newRow}
 	}
-	logger.Error().Msgf("no rows in selectMetricRows %s", metricName)
+	logger.ErrorWithCtx(p.ctx).Msgf("no rows in selectMetricRows %s", metricName)
 	return
 }
 
@@ -130,7 +131,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 		if err != nil {
 			return nil, err
 		}
-		return util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma), nil
+		return util.MergeMaps(p.ctx, aggJson, subAggr, model.KeyAddedByQuesma), nil
 	case bucket_aggregations.CombinatorAggregationInterface:
 		var bucketArray []model.JsonMap
 		for _, subGroup := range queryType.CombinatorGroups() {
@@ -145,7 +146,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 			aggJson := queryType.CombinatorTranslateSqlResponseToJson(subGroup, selectedRows)
 
 			bucketArray = append(bucketArray,
-				util.MergeMaps(context.Background(), aggJson, subAggr, model.KeyAddedByQuesma))
+				util.MergeMaps(p.ctx, aggJson, subAggr, model.KeyAddedByQuesma))
 			bucketArray[len(bucketArray)-1]["key"] = subGroup.Key
 		}
 		var bucketsJson any
@@ -226,7 +227,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						if err != nil {
 							return nil, err
 						}
-						bucketArr[i] = util.MergeMaps(context.Background(), bucket, subAggr, model.KeyAddedByQuesma)
+						bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr, model.KeyAddedByQuesma)
 					}
 				} else {
 					// A bit harder case. Observation: len(bucketArr) > len(subAggrRows) and set(subAggrRows' keys) is a subset of set(bucketArr's keys)
@@ -251,7 +252,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 							if err != nil {
 								return nil, err
 							}
-							bucketArr[i] = util.MergeMaps(context.Background(), bucket, subAggr, model.KeyAddedByQuesma)
+							bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr, model.KeyAddedByQuesma)
 							subAggrIdx++
 						} else {
 							bucketArr[i] = bucket
