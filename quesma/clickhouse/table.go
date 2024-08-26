@@ -65,36 +65,6 @@ func (t *Table) createTableOurFieldsString() []string {
 	return rows
 }
 
-func (t *Table) extractColumns(query *model.Query, addNonSchemaFields bool) ([]string, error) {
-
-	N := len(query.SelectCommand.Columns)
-	if query.SelectCommand.IsWildcard() {
-		N = len(t.Cols)
-	}
-	cols := make([]string, 0, N)
-	if query.SelectCommand.IsWildcard() {
-		for _, col := range t.Cols {
-			cols = append(cols, col.Name)
-		}
-	} else {
-		for _, selectColumn := range query.SelectCommand.Columns {
-			switch selectCol := selectColumn.(type) {
-			case model.ColumnRef:
-				colName := selectCol.ColumnName
-				_, ok := t.Cols[colName]
-				if !ok {
-					return nil, fmt.Errorf("column %s not found in table %s", selectCol, t.Name)
-				}
-
-				cols = append(cols, colName)
-			default:
-				cols = append(cols, model.AsString(selectCol))
-			}
-		}
-	}
-	return cols, nil
-}
-
 func (t *Table) createTableString() string {
 	s := "CREATE TABLE IF NOT EXISTS " + t.FullTableName() + " (\n"
 	rows := make([]string, 0)

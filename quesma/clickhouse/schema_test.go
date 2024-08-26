@@ -6,7 +6,6 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"quesma/model"
-	"strconv"
 	"testing"
 )
 
@@ -80,73 +79,6 @@ func assertSlicesEqual(t *testing.T, expected, actual []string) {
 	assert.Equal(t, len(expected), len(actual))
 	for i := range actual {
 		assert.Contains(t, expected, actual[i])
-	}
-}
-
-func Test_extractColumns(t *testing.T) {
-	configs := []*ChTableConfig{
-		NewChTableConfigNoAttrs(),
-		NewChTableConfigFourAttrs(),
-	}
-	for configIdx, config := range configs {
-		for i, tt := range tables {
-			table, err := NewTable(tt.createTableStr, config)
-			assert.NoError(t, err)
-			addOurFieldsToCreateTableQuery(tt.createTableStr, config, table)
-
-			// add attributes to expected values if we're in Attrs config case
-			if len(config.attributes) > 0 {
-				for _, a := range config.attributes {
-					tt.allFields = append(tt.allFields, a.KeysArrayName, a.ValuesArrayName)
-					tt.exampleFieldValue[a.KeysArrayName] = []string{"a", "b"}
-					switch a.Type {
-					case NewBaseType("String"):
-						tt.exampleFieldValue[a.ValuesArrayName] = []string{"a", "b"}
-					case NewBaseType("Int64"):
-						tt.exampleFieldValue[a.ValuesArrayName] = []int64{1, 2}
-					case NewBaseType("Bool"):
-						tt.exampleFieldValue[a.ValuesArrayName] = []bool{true, false}
-					case NewBaseType("DateTime64"):
-						tt.exampleFieldValue[a.ValuesArrayName] = []string{"2020-01-01 00:00:00", "2025-01-01 00:00:00"}
-					}
-				}
-			}
-
-			for j, q := range queries {
-				t.Run("Test_extractColumns, case config["+strconv.Itoa(configIdx)+"], createTableStr["+strconv.Itoa(i)+"], queries["+strconv.Itoa(j)+"]", func(t *testing.T) {
-					colNames, err := table.extractColumns(q.query, false)
-					var containsNonExistent bool
-					for _, expr := range q.query.SelectCommand.Columns {
-						if expr == model.NewColumnRef("non-existent") {
-							containsNonExistent = true
-						}
-					}
-					if containsNonExistent {
-						assert.Error(t, err)
-						return
-					} else {
-						assert.NoError(t, err)
-					}
-
-					// assert column names are OK
-					if len(q.answer) >= 1 && q.answer[0] == "all" {
-						assertSlicesEqual(t, tt.allFields, colNames)
-					} else {
-						assertSlicesEqual(t, q.answer, colNames)
-					}
-
-					// assert types are OK (we can assign some example value to it)
-					// we can't just check types as all of them are of type reflect.Value, not string, int, etc.
-					rowToScan := make([]interface{}, len(colNames))
-					for k, colName := range colNames {
-						if rowToScan[k] != nil { // nil = we have tuple, we don't support tuples yet
-							rowToScan[k] = tt.exampleFieldValue[colName]
-							assert.Equal(t, tt.exampleFieldValue[colName], rowToScan[k])
-						}
-					}
-				})
-			}
-		}
 	}
 }
 
