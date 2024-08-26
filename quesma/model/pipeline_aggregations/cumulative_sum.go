@@ -17,27 +17,27 @@ import (
 // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-pipeline-cumulative-sum-aggregation.html
 
 type CumulativeSum struct {
-	ctx     context.Context
-	Parent  string
-	IsCount bool // count is a special case, `bucketsPath` is not a path to another aggregation, but path-to-aggregation>_count
+	ctx context.Context
+	PipelineAggregation
 }
 
 func NewCumulativeSum(ctx context.Context, bucketsPath string) CumulativeSum {
-	isCount := bucketsPath == BucketsPathCount
-	return CumulativeSum{ctx: ctx, Parent: bucketsPath, IsCount: isCount}
+	return CumulativeSum{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
-
-const BucketsPathCount = "_count" // special name for `buckets_path` parameter, normally it's some other aggregation's name
 
 func (query CumulativeSum) AggregationType() model.AggregationType {
 	return model.PipelineAggregation
+}
+
+func (query CumulativeSum) PipelineAggregationType() model.AggregationType {
+	return model.BucketAggregation
 }
 
 func (query CumulativeSum) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	return translateSqlResponseToJsonCommon(query.ctx, rows, query.String())
 }
 
-func (query CumulativeSum) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
+func (query CumulativeSum) CalculateResultWhenMissing(parentRows []model.QueryResultRow) []model.QueryResultRow {
 	resultRows := make([]model.QueryResultRow, 0, len(parentRows))
 	if len(parentRows) == 0 {
 		return resultRows

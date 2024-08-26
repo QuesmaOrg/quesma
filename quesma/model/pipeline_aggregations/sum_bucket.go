@@ -12,16 +12,20 @@ import (
 )
 
 type SumBucket struct {
-	ctx    context.Context
-	Parent string
+	ctx context.Context
+	PipelineAggregation
 }
 
 func NewSumBucket(ctx context.Context, bucketsPath string) SumBucket {
-	return SumBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
+	return SumBucket{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query SumBucket) AggregationType() model.AggregationType {
 	return model.PipelineAggregation
+}
+
+func (query SumBucket) PipelineAggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 func (query SumBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
@@ -39,7 +43,7 @@ func (query SumBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 	return model.JsonMap{}
 }
 
-func (query SumBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
+func (query SumBucket) CalculateResultWhenMissing(parentRows []model.QueryResultRow) []model.QueryResultRow {
 	resultRows := make([]model.QueryResultRow, 0)
 	if len(parentRows) == 0 {
 		return resultRows // maybe null?

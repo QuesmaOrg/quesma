@@ -6,9 +6,11 @@ import (
 	"cmp"
 	"context"
 	"github.com/jinzhu/copier"
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/queryparser/query_util"
@@ -755,7 +757,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 	ctx := context.Background()
 
-	// logger.InitSimpleLoggerForTests()
+	logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -890,8 +892,8 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
 			acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
 				"sum_other_doc_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
-			// pp.Println("ACTUAL diff", actualMinusExpected)
-			// pp.Println("EXPECTED diff", expectedMinusActual)
+			pp.Println("ACTUAL diff", actualMinusExpected)
+			pp.Println("EXPECTED diff", expectedMinusActual)
 			// pp.Println("ACTUAL", response.Aggregations)
 			// pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))

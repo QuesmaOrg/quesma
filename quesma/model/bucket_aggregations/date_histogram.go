@@ -4,6 +4,8 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/kibana"
 	"quesma/logger"
@@ -54,7 +56,7 @@ func (query *DateHistogram) AggregationType() model.AggregationType {
 }
 
 func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-
+	fmt.Println("DH, rows:", rows)
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in date_histogram aggregation response, len(rows[0].Cols): "+
@@ -83,6 +85,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 			"key_as_string": intervalStart,
 		})
 	}
+	pp.Println("response DH:", response)
 	return model.JsonMap{
 		"buckets": response,
 	}

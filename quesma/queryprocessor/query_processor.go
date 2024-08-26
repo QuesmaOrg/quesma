@@ -4,6 +4,7 @@ package queryprocessor
 
 import (
 	"context"
+	"fmt"
 	"quesma/model"
 	"reflect"
 )
@@ -53,7 +54,7 @@ func (qp *QueryProcessor) SplitResultSetIntoBuckets(ResultSet []model.QueryResul
 	if len(ResultSet) == 0 {
 		return [][]model.QueryResultRow{{}}
 	}
-
+	fmt.Println("SplitResultSetIntoBuckets, ResultSet", ResultSet)
 	lastRow := ResultSet[0]
 	buckets := [][]model.QueryResultRow{{lastRow}}
 	for _, row := range ResultSet[1:] {
@@ -64,5 +65,6 @@ func (qp *QueryProcessor) SplitResultSetIntoBuckets(ResultSet []model.QueryResul
 		}
 		lastRow = row
 	}
+	fmt.Println("SplitResultSetIntoBuckets, result:", buckets)
 	return buckets
 }

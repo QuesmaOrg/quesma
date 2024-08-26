@@ -12,23 +12,27 @@ import (
 )
 
 type AverageBucket struct {
-	ctx    context.Context
-	Parent string
+	ctx context.Context
+	PipelineAggregation
 }
 
 func NewAverageBucket(ctx context.Context, bucketsPath string) AverageBucket {
-	return AverageBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
+	return AverageBucket{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query AverageBucket) AggregationType() model.AggregationType {
 	return model.PipelineAggregation
 }
 
+func (query AverageBucket) PipelineAggregationType() model.AggregationType {
+	return model.MetricsAggregation
+}
+
 func (query AverageBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	return translateSqlResponseToJsonCommon(query.ctx, rows, query.String())
 }
 
-func (query AverageBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
+func (query AverageBucket) CalculateResultWhenMissing(parentRows []model.QueryResultRow) []model.QueryResultRow {
 	resultRows := make([]model.QueryResultRow, 0)
 	if len(parentRows) == 0 {
 		return resultRows // maybe null?
@@ -41,6 +45,7 @@ func (query AverageBucket) CalculateResultWhenMissing(qwa *model.Query, parentRo
 		logger.WarnWithCtx(query.ctx).Msgf("parentFieldsCnt is less than 0: %d", parentFieldsCnt)
 	}
 	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
+		fmt.Println("parentRowsOneBucket", parentRowsOneBucket)
 		resultRows = append(resultRows, query.calculateSingleAvgBucket(parentRowsOneBucket))
 	}
 	return resultRows
@@ -48,6 +53,7 @@ func (query AverageBucket) CalculateResultWhenMissing(qwa *model.Query, parentRo
 
 // we're sure len(parentRows) > 0
 func (query AverageBucket) calculateSingleAvgBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
+	fmt.Println("calculateSingleAvgBucket, parentRows", parentRows)
 	if len(parentRows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no parent rows, should NEVER happen")
 		return model.QueryResultRow{}

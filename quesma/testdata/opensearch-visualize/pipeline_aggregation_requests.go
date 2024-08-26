@@ -127,7 +127,18 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 0.0),
+				model.NewQueryResultCol("aggr__2__count", 282),
+				model.NewQueryResultCol("aggr__2__order_1", 0.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 1.0),
+				model.NewQueryResultCol("aggr__2__count", 300),
+				model.NewQueryResultCol("aggr__2__order_1", 1.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName + ` ` +
@@ -139,7 +150,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
+			  "day_of_week_i" AS "aggr__2__order_1"
+			FROM "logs-generic-default"
+			WHERE ("order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND
+			  "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z'))
+			GROUP BY "day_of_week_i" AS "aggr__2__key_0"
+			ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC`,
 	},
 	{ // [1]
 		TestName: "Cumulative sum with other aggregation. Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Average), Buckets: Histogram",
@@ -271,7 +289,20 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 0.0),
+				model.NewQueryResultCol("aggr__2__count", 282),
+				model.NewQueryResultCol("aggr__2__order_1", 0.0),
+				model.NewQueryResultCol("metric__2__1-metric_col_0", 0.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 1.0),
+				model.NewQueryResultCol("aggr__2__count", 300),
+				model.NewQueryResultCol("aggr__2__order_1", 1.0),
+				model.NewQueryResultCol("metric__2__1-metric_col_0", 1.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.TableName,
 			`NoDBQuery`,
@@ -284,7 +315,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
+			  "day_of_week_i" AS "aggr__2__order_1", avgOrNull("day_of_week_i") AS
+			  "metric__2__1-metric_col_0"
+			FROM "logs-generic-default"
+			GROUP BY "day_of_week_i" AS "aggr__2__key_0"
+			ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC`,
 	},
 	{ // [2]
 		TestName: "Cumulative sum to other cumulative sum. Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Cumulative Sum (Aggregation: Count)), Buckets: Histogram",
@@ -407,7 +444,18 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 0.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(282)),
+				model.NewQueryResultCol("aggr__2__order_1", 0.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 1.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(300)),
+				model.NewQueryResultCol("aggr__2__order_1", 1.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.TableName,
 			`NoDBQuery`,
@@ -417,7 +465,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
+			  "day_of_week_i" AS "aggr__2__order_1"
+			FROM "logs-generic-default"
+			GROUP BY "day_of_week_i" AS "aggr__2__key_0"
+			ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC`,
 	},
 	{ // [3]
 		TestName: "Cumulative sum - quite complex, a graph of pipelines. Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Cumulative Sum (Aggregation: Max)), Buckets: Histogram",
@@ -704,7 +757,23 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 0.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(106)),
+				model.NewQueryResultCol("aggr__2__order_1", 0.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 200.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(39)),
+				model.NewQueryResultCol("aggr__2__order_1", 200.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 400.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(21)),
+				model.NewQueryResultCol("aggr__2__order_1", 400.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
@@ -714,7 +783,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count",
+			  floor("bytes"/200.000000)*200.000000 AS "aggr__2__order_1"
+			FROM "logs-generic-default"
+			GROUP BY floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0"
+			ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC`,
 	},
 	{ // [5]
 		TestName: "Derivative with other aggregation. Reproduce: Visualize -> Vertical Bar: Metrics: Derivative (Aggregation: Sum), Buckets: Date Histogram",
@@ -915,7 +990,38 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715196000000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715196000000/600000)),
+				model.NewQueryResultCol("metric__2__1-metric_col_0", 19.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715196600000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715196600000/600000)),
+				model.NewQueryResultCol("metric__2__1-metric_col_0", 19.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715198400000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715198400000/600000)),
+				model.NewQueryResultCol("metric__2__1-metric_col_0", 20.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715199000000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(4)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715199000000/600000)),
+				model.NewQueryResultCol("metric__2__1-metric_col_0", 32.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715199600000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(3)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715199600000/600000)),
+				model.NewQueryResultCol("metric__2__1-metric_col_0", 27.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
@@ -931,7 +1037,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count",
+			  toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__order_1",
+			  sumOrNull(toHour("timestamp")) AS "metric__2__1-metric_col_0"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC`,
 	},
 	{ // [6]
 		TestName: "Derivative to cumulative sum. Reproduce: Visualize -> Vertical Bar: Metrics: Derivative (Aggregation: Cumulative Sum (Aggregation: Count)), Buckets: Date Histogram",
@@ -1336,7 +1449,23 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 0.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(106)),
+				model.NewQueryResultCol("aggr__2__order_1", 0.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 200.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(39)),
+				model.NewQueryResultCol("aggr__2__order_1", 100.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 800.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(21)),
+				model.NewQueryResultCol("aggr__2__order_1", 800.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
@@ -1346,7 +1475,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count",
+			  floor("bytes"/200.000000)*200.000000 AS "aggr__2__order_1"
+			FROM "logs-generic-default"
+			GROUP BY floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0"
+			ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC`,
 	},
 	{ // [8]
 		TestName: "Simplest Serial Diff (count), lag=2. Don't know how to reproduce in OpenSearch, but you can click out:" +
@@ -1492,7 +1627,23 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 0.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(106)),
+				model.NewQueryResultCol("aggr__2__order_1", 0.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 200.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(39)),
+				model.NewQueryResultCol("aggr__2__order_1", 100.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 800.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(21)),
+				model.NewQueryResultCol("aggr__2__order_1", 800.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
@@ -1502,7 +1653,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count",
+			  floor("bytes"/200.000000)*200.000000 AS "aggr__2__order_1"
+			FROM "logs-generic-default"
+			GROUP BY floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0"
+			ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC`,
 	},
 	{ // [9]
 		TestName: "Serial diff with other aggregation. Reproduce: Visualize -> Vertical Bar: Metrics: Serial Diff (Aggregation: Sum), Buckets: Date Histogram",
@@ -1703,7 +1860,38 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715196000000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715196000000/600000)),
+				model.NewQueryResultCol("metric__2__1-metric_col_0", 19.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715196600000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715196600000/600000)),
+				model.NewQueryResultCol("metric__2__1-metric_col_0", 19.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715198400000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715198400000/600000)),
+				model.NewQueryResultCol("metric__2__1-metric_col_0", 20.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715199000000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(4)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715199000000/600000)),
+				model.NewQueryResultCol("metric__2__1-metric_col_0", 32.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715199600000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(3)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715199600000/600000)),
+				model.NewQueryResultCol("metric__2__1-metric_col_0", 27.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
@@ -1719,7 +1907,15 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count",
+			  toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__order_1",
+			  sumOrNull(toHour("timestamp")) AS "metric__2__1-metric_col_0"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+			  "aggr__2__key_0"
+			ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC`,
 	},
 	{ // [10]
 		TestName: "Serial Diff to cumulative sum. Reproduce: Visualize -> Vertical Bar: Metrics: Serial Diff (Aggregation: Cumulative Sum (Aggregation: Count)), Buckets: Date Histogram",
@@ -2102,7 +2298,23 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1715403000000/600000)),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", int64(1715403000000/600000)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1715403600000/600000)),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(2)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", int64(1715403600000/600000)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1715404200000/600000)),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", int64(1715404200000/600000)),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
@@ -2112,7 +2324,15 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+			  "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count",
+			  toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+			  "aggr__1-bucket__order_1"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+			  "aggr__1-bucket__key_0"
+			ORDER BY "aggr__1-bucket__order_1", "aggr__1-bucket__key_0" ASC`,
 	},
 	{ // [12]
 		TestName: "avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Histogram, Metric: Max)",
@@ -2263,7 +2483,26 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1715403000000/600000)),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", int64(1715403000000/600000)),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 8047.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1715413800000/600000)),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(4)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", int64(1715413800000/600000)),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 9261.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1715414400000/600000)),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(2)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", int64(1715414400000/600000)),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 9199.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
@@ -2277,7 +2516,16 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+			  "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count",
+			  toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+			  "aggr__1-bucket__order_1",
+			  maxOrNull("bytes") AS "metric__1-bucket__1-metric_col_0"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+			  "aggr__1-bucket__key_0"
+			ORDER BY "aggr__1-bucket__order_1", "aggr__1-bucket__key_0" ASC`,
 	},
 	/* TODO need fix for date_range and subaggregations. Same one, as already merged ~1-2 weeks ago for range. It's WIP.
 	{ // [13]
@@ -2741,7 +2989,40 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715818800000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715818800000/600000)),
+				model.NewQueryResultCol("aggr__2__1-bucket__key_0", 4202.0),
+				model.NewQueryResultCol("aggr__2__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__1-bucket__order_1", 4202.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715863800000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(9)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715863800000/600000)),
+				model.NewQueryResultCol("aggr__2__1-bucket__key_0", 0.0),
+				model.NewQueryResultCol("aggr__2__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__1-bucket__order_1", 0.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715863800000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(9)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715863800000/600000)),
+				model.NewQueryResultCol("aggr__2__1-bucket__key_0", 293.0),
+				model.NewQueryResultCol("aggr__2__1-bucket__count", uint64(2)),
+				model.NewQueryResultCol("aggr__2__1-bucket__order_1", 293.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1715863800000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(9)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1715863800000/600000)),
+				model.NewQueryResultCol("aggr__2__1-bucket__key_0", 1997.0),
+				model.NewQueryResultCol("aggr__2__1-bucket__count", uint64(3)),
+				model.NewQueryResultCol("aggr__2__1-bucket__order_1", 1997.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
@@ -2755,7 +3036,33 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+			  "aggr__2__1-bucket__key_0", "aggr__2__1-bucket__count",
+			  "aggr__2__1-bucket__order_1"
+			FROM (
+			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+				"aggr__2__1-bucket__key_0", "aggr__2__1-bucket__count",
+				"aggr__2__1-bucket__order_1",
+				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1",
+				"aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
+				"aggr__2__1-bucket__order_1", "aggr__2__1-bucket__key_0" ASC) AS
+				"aggr__2__1-bucket__order_1_rank"
+			  FROM (
+				SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+				  "aggr__2__key_0",
+				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
+				  "aggr__2__count",
+				  toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+				  "aggr__2__order_1", "bytes" AS "aggr__2__1-bucket__key_0",
+				  count(*) AS "aggr__2__1-bucket__count",
+				  "bytes" AS "aggr__2__1-bucket__order_1",
+				  count(*) AS "aggr__2__count_part"
+				FROM "logs-generic-default"
+				GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+				  "aggr__2__key_0", "bytes" AS "aggr__2__1-bucket__key_0"))
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__1-bucket__order_1_rank" ASC`,
 	},
 	{ // [15]
 		TestName: "Simplest min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Count)",
@@ -2912,7 +3219,33 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "252.102.14.111"),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "252.102.14.111"),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "250.85.17.229"),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "250.85.17.229"),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "249.69.222.185"),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "249.69.222.185"),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "247.240.202.244"),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(3)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "247.240.202.244"),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "247.126.133.102"),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "247.126.133.102"),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName + ` ` +
@@ -2928,7 +3261,15 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY "clientip" DESC ` +
 				`LIMIT 5`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "clientip" AS "aggr__1-bucket__key_0",
+			  count(*) AS "aggr__1-bucket__count", "clientip" AS "aggr__1-bucket__order_1"
+			FROM "logs-generic-default"
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z'))
+			GROUP BY "clientip" AS "aggr__1-bucket__key_0"
+			ORDER BY "aggr__1-bucket__order_1" DESC, "aggr__1-bucket__key_0" ASC
+			LIMIT 6`,
 	},
 	{ // [16]
 		TestName: "min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Unique Count)",
@@ -3116,7 +3457,38 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "255.205.14.152"),
+				model.NewQueryResultCol("aggr__1-bucket__count", 1),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "255.205.14.152"),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "255.174.89.45"),
+				model.NewQueryResultCol("aggr__1-bucket__count", 1),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "255.174.89.45"),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "253.69.5.67"),
+				model.NewQueryResultCol("aggr__1-bucket__count", 1),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "253.69.5.67"),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "252.177.62.191"),
+				model.NewQueryResultCol("aggr__1-bucket__count", 1),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "252.177.62.191"),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "251.250.144.158"),
+				model.NewQueryResultCol("aggr__1-bucket__count", 1),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "251.250.144.158"),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 1),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
@@ -3141,7 +3513,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY "clientip" DESC ` +
 				`LIMIT 5`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "clientip" AS "aggr__1-bucket__key_0",
+			  count(*) AS "aggr__1-bucket__count", "clientip" AS "aggr__1-bucket__order_1",
+			  uniq("geo.coordinates") AS "metric__1-bucket__1-metric_col_0"
+			FROM "logs-generic-default"
+			GROUP BY "clientip" AS "aggr__1-bucket__key_0"
+			ORDER BY "aggr__1-bucket__order_1" DESC, "aggr__1-bucket__key_0" ASC
+			LIMIT 6`,
 	},
 	{ // [17]
 		TestName: "complex min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Sum), Buckets: Split Series: Histogram",
@@ -3365,7 +3744,44 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 0.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(73)),
+				model.NewQueryResultCol("aggr__2__order_1", 0.0),
+				model.NewQueryResultCol("aggr__2__1-bucket__key_0", "255.205.14.152"),
+				model.NewQueryResultCol("aggr__2__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__1-bucket__order_1", "255.205.14.152"),
+				model.NewQueryResultCol("metric__2__1-bucket__1-metric_col_0", 13.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 0.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(73)),
+				model.NewQueryResultCol("aggr__2__order_1", 0.0),
+				model.NewQueryResultCol("aggr__2__1-bucket__key_0", "252.177.62.191"),
+				model.NewQueryResultCol("aggr__2__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__1-bucket__order_1", "252.177.62.191"),
+				model.NewQueryResultCol("metric__2__1-bucket__1-metric_col_0", 7.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 200.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(25)),
+				model.NewQueryResultCol("aggr__2__order_1", 200.0),
+				model.NewQueryResultCol("aggr__2__1-bucket__key_0", "246.106.125.113"),
+				model.NewQueryResultCol("aggr__2__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__1-bucket__order_1", "246.106.125.113"),
+				model.NewQueryResultCol("metric__2__1-bucket__1-metric_col_0", 7.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 200.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(25)),
+				model.NewQueryResultCol("aggr__2__order_1", 200.0),
+				model.NewQueryResultCol("aggr__2__1-bucket__key_0", "236.212.255.77"),
+				model.NewQueryResultCol("aggr__2__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__1-bucket__order_1", "236.212.255.77"),
+				model.NewQueryResultCol("metric__2__1-bucket__1-metric_col_0", 18.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
@@ -3394,7 +3810,34 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+			  "aggr__2__1-bucket__key_0", "aggr__2__1-bucket__count",
+			  "aggr__2__1-bucket__order_1", "metric__2__1-bucket__1-metric_col_0"
+			FROM (
+			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+				"aggr__2__1-bucket__key_0", "aggr__2__1-bucket__count",
+				"aggr__2__1-bucket__order_1", "metric__2__1-bucket__1-metric_col_0",
+				dense_rank() OVER (PARTITION BY 1 ORDER BY "aggr__2__order_1",
+				"aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
+				"aggr__2__1-bucket__order_1" DESC, "aggr__2__1-bucket__key_0" ASC) AS
+				"aggr__2__1-bucket__order_1_rank"
+			  FROM (
+				SELECT floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0",
+				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
+				  "aggr__2__count",
+				  floor("bytes"/200.000000)*200.000000 AS "aggr__2__order_1",
+				  "clientip" AS "aggr__2__1-bucket__key_0",
+				  count(*) AS "aggr__2__1-bucket__count",
+				  "clientip" AS "aggr__2__1-bucket__order_1",
+				  sumOrNull("bytes") AS "metric__2__1-bucket__1-metric_col_0",
+				  count(*) AS "aggr__2__count_part"
+				FROM "logs-generic-default"
+				GROUP BY floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0",
+				  "clientip" AS "aggr__2__1-bucket__key_0"))
+			WHERE "aggr__2__1-bucket__order_1_rank"<=3
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__1-bucket__order_1_rank" ASC`,
 	},
 	{ // [18]
 		TestName: "Simplest max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Terms, Metric: Count)",
@@ -3516,7 +3959,18 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", true),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(260)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", true),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", false),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1923)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", false),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName + ` ` +
@@ -3532,7 +3986,15 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY "Cancelled" DESC ` +
 				`LIMIT 5`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "Cancelled" AS "aggr__1-bucket__key_0",
+			  count(*) AS "aggr__1-bucket__count", "Cancelled" AS "aggr__1-bucket__order_1"
+			FROM "logs-generic-default"
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z'))
+			GROUP BY "Cancelled" AS "aggr__1-bucket__key_0"
+			ORDER BY "aggr__1-bucket__order_1" DESC, "aggr__1-bucket__key_0" ASC
+			LIMIT 6`,
 	},
 	{ // [19]
 		TestName: "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)",
@@ -3623,7 +4085,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					"value": 121360.0
 				},
 				"2": {
-					"dunno": "check in opensearch and add this"
+					"value": 121360.0
 				},
 				"1-bucket": {
 					"buckets": [
@@ -3697,7 +4159,26 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1716231600000/600000)),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", int64(1716231600000/600000)),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", nil),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1716276600000/600000)),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(4)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", int64(1716276600000/600000)),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 121360.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1716277200000/600000)),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", int64(1716277200000/600000)),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", nil),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
@@ -3713,7 +4194,16 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+			  "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count",
+			  toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+			  "aggr__1-bucket__order_1",
+			  minOrNull("memory") AS "metric__1-bucket__1-metric_col_0"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+			  "aggr__1-bucket__key_0"
+			ORDER BY "aggr__1-bucket__order_1", "aggr__1-bucket__key_0" ASC`,
 	},
 	{ // [20]
 		TestName: "Different pipeline aggrs with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max/Sum Bucket/etc. (Aggregation: Histogram, Metric: Max)",
@@ -3950,7 +4440,38 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 			{}, // NoDBQuery
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", 0.0),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(5)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", 0.0),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", nil),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", 200.0),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(6)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", 200.0),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", nil),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", 400.0),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(7)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", 400.0),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", nil),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", 5296.0),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", 5296.0),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 211840.2),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", 16837.0),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", 16837.0),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", float64(452)),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.TableName,
 			`NoDBQuery`,
@@ -3966,7 +4487,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY "bytes"`,
 			`NoDBQuery`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "bytes" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count",
+			  "bytes" AS "aggr__1-bucket__order_1",
+			  maxOrNull("memory") AS "metric__1-bucket__1-metric_col_0"
+			FROM "logs-generic-default"
+			GROUP BY "bytes" AS "aggr__1-bucket__key_0"
+			ORDER BY "aggr__1-bucket__order_1", "aggr__1-bucket__key_0" ASC`,
 	},
 	/* waits for probably a simple filters fix
 	{ // [21]
@@ -4535,7 +5062,33 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "zip"),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(225)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "zip"),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "rpm"),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(76)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "rpm"),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "gz"),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(348)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "gz"),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "deb"),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(224)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "deb"),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "css"),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(298)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "css"),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName + ` ` +
@@ -4551,7 +5104,15 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY "extension" DESC ` +
 				`LIMIT 5`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "extension" AS "aggr__1-bucket__key_0",
+			  count(*) AS "aggr__1-bucket__count", "extension" AS "aggr__1-bucket__order_1"
+			FROM "logs-generic-default"
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z'))
+			GROUP BY "extension" AS "aggr__1-bucket__key_0"
+			ORDER BY "aggr__1-bucket__order_1" DESC, "aggr__1-bucket__key_0" ASC
+			LIMIT 6`,
 	},
 	{ // [24]
 		TestName: "sum_bucket. Reproduce: Visualize -> Horizontal Bar: Metrics: Sum Bucket (Bucket: Significant Terms, Metric: Average)",
@@ -4708,7 +5269,26 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "deb"),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(224)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "deb"),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 12539770587.428572),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "zip"),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(225)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "zip"),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 12464949530.168888),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "rpm"),
+				model.NewQueryResultCol("aggr__1-bucket__count", uint64(76)),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "rpm"),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 12786004614.736841),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
@@ -4733,7 +5313,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY count() DESC, "extension" ` +
 				`LIMIT 5`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "extension" AS "aggr__1-bucket__key_0",
+			  count(*) AS "aggr__1-bucket__count", count() AS "aggr__1-bucket__order_1",
+			  avgOrNull("machine.ram") AS "metric__1-bucket__1-metric_col_0"
+			FROM "logs-generic-default"
+			GROUP BY "extension" AS "aggr__1-bucket__key_0"
+			ORDER BY "aggr__1-bucket__order_1" DESC, "aggr__1-bucket__key_0" ASC
+			LIMIT 6`,
 	},
 	{ // [25]
 		TestName: "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram",

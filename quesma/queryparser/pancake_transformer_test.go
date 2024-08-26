@@ -3,6 +3,7 @@
 package queryparser
 
 import (
+	"context"
 	"github.com/stretchr/testify/assert"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -125,7 +126,7 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			transformer := newPancakeTransformer()
+			transformer := newPancakeTransformer(context.Background())
 
 			pancakes, err := transformer.aggregationTreeToPancakes(*tt.tree)
 			assert.Len(t, pancakes, 1)
@@ -167,7 +168,7 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 func Test_pancakeNameCollision(t *testing.T) {
 	namesA := []string{"nested", "name"}
 	namesB := []string{"nested__name"}
-	p := newPancakeTransformer()
+	p := newPancakeTransformer(context.Background())
 	bucketInternalNameA := p.generateBucketInternalName(namesA)
 	bucketInternalNameB := p.generateBucketInternalName(namesB)
 	assert.NotEqual(t, bucketInternalNameA, bucketInternalNameB)
@@ -183,7 +184,7 @@ func Test_pancakeNameCollisionHard(t *testing.T) {
 	namesC := []string{"a", "b__c"}
 	namesD := []string{"a__b__c"}
 	names := [][]string{namesA, namesB, namesC, namesD}
-	p := newPancakeTransformer()
+	p := newPancakeTransformer(context.Background())
 	for i, v1 := range names {
 		for j, v2 := range names {
 			bucketInternalNameFirst := p.generateBucketInternalName(v1)

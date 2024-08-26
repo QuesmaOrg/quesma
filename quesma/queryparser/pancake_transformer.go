@@ -3,7 +3,9 @@
 package queryparser
 
 import (
+	"context"
 	"fmt"
+	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"reflect"
@@ -14,11 +16,13 @@ import (
 // 2. Translate aggregation tree into pancake model.
 type pancakeTransformer struct {
 	usedNames map[string][]string
+	ctx       context.Context
 }
 
-func newPancakeTransformer() pancakeTransformer {
+func newPancakeTransformer(ctx context.Context) pancakeTransformer {
 	return pancakeTransformer{
 		usedNames: make(map[string][]string),
+		ctx:       ctx,
 	}
 }
 
@@ -48,6 +52,42 @@ func (a *pancakeTransformer) generateBucketInternalName(aggrNames []string) stri
 	return a.generateUniqueInternalName(origName, aggrNames)
 }
 
+func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelLayer) {
+	for i, layer := range layers {
+		for _, pipeline := range layer.currentPipelineAggregations {
+			fmt.Println("connectPipelineAggregations, pipeline.queryType", pipeline)
+			parentBucketLayer, err := a.findParentBucketLayer(layers[i:], pipeline.queryType)
+			if err != nil {
+				logger.WarnWithCtx(a.ctx).Err(err).Msg("could not find parent bucket layer")
+				continue
+			}
+			fmt.Println("HOHO powiazalem pipelinowe")
+			parentBucketLayer.childrenPipelineAggregations = append(parentBucketLayer.childrenPipelineAggregations, pipeline)
+		}
+	}
+}
+
+// returns nil if no parent bucket layer found
+func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, queryType model.QueryType) (
+	parentBucketLayer *pancakeModelLayer, err error) {
+	//fmt.Printf("findParentBucketLayer: %+v, %+v\nd: %s\n", layers, queryType, layers[0].nextBucketAggregation.name)
+
+	pipeline, ok := queryType.(model.PipelineQueryType)
+	if !ok {
+		return nil, fmt.Errorf("query type is not pipeline aggregation")
+	}
+
+	layer := layers[0]
+	for i, aggrName := range pipeline.GetPathToParent() {
+		layer = layers[i]
+		fmt.Println("ide sciezka", aggrName, layer.nextBucketAggregation.name)
+		if layer.nextBucketAggregation == nil || layer.nextBucketAggregation.name != aggrName {
+			return nil, fmt.Errorf("could not find parent bucket layer")
+		}
+	}
+	return layer, nil
+}
+
 func (a *pancakeTransformer) metricAggregationTreeNodeToModel(previousAggrNames []string, metric *pancakeAggregationTreeNode) (metricModel *pancakeModelMetricAggregation, err error) {
 	if metric == nil {
 		return nil, fmt.Errorf("metric aggregation is nil")
@@ -67,6 +107,24 @@ func (a *pancakeTransformer) metricAggregationTreeNodeToModel(previousAggrNames 
 		selectedColumns: metric.selectedColumns,
 
 		metadata: metric.metadata,
+	}, nil
+}
+
+func (a *pancakeTransformer) pipelineAggregationToLayer(previousAggrNames []string, pipeline *pancakeAggregationTreeNode) (layer *pancakeModelPipelineAggregation, err error) {
+	if pipeline == nil {
+		return nil, fmt.Errorf("pipeline aggregation is nil")
+	}
+
+	pipelineQueryType, ok := pipeline.queryType.(model.PipelineQueryType)
+	if !ok {
+		return nil, fmt.Errorf("pipeline aggregation %s is not pipeline aggregation, type: %s", pipeline.name, pipeline.queryType.AggregationType().String())
+	}
+
+	return &pancakeModelPipelineAggregation{
+		name:         pipeline.name,
+		internalName: fmt.Sprintf("pipeline__%s", strings.Join(append(previousAggrNames, pipeline.name), "__")),
+		queryType:    pipelineQueryType,
+		metadata:     pipeline.metadata,
 	}, nil
 }
 
@@ -168,6 +226,16 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 				}
 				result = append(result, layerAndNextBucket{layer: layer, nextBucketAggregation: childAgg})
 			}
+
+		case model.PipelineAggregation:
+			pipeline, err := a.pipelineAggregationToLayer(previousAggrNames, childAgg)
+			if err != nil {
+				fmt.Println("WTF?", err)
+			}
+
+			fmt.Println("pipeline", pipeline)
+			result[0].layer.currentPipelineAggregations = append(result[0].layer.currentPipelineAggregations, pipeline)
+
 		default:
 			return nil, fmt.Errorf("unsupported aggregation type in pancake, name: %s, type: %s",
 				childAgg.name, childAgg.queryType.AggregationType().String())
@@ -260,6 +328,8 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		if err := a.checkIfSupported(layers); err != nil {
 			return nil, err
 		}
+
+		a.connectPipelineAggregations(layers)
 
 		pancakeResults = append(pancakeResults, &pancakeModel{
 			layers:      layers,

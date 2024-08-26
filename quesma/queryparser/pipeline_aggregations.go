@@ -3,6 +3,7 @@
 package queryparser
 
 import (
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/pipeline_aggregations"
@@ -219,6 +220,7 @@ func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggr
 		logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a string, but %T, value: %v", bucketsPathRaw, bucketsPathRaw)
 		return
 	}
+	fmt.Println("buckets path:", bucketsPath)
 	return bucketsPath, true
 }
 
@@ -231,7 +233,7 @@ func (b *aggrQueryBuilder) finishBuildingAggregationPipeline(aggregationType mod
 		query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewCountFunc())
 	case pipeline_aggregations.CumulativeSum:
 		query.NoDBQuery = true
-		if aggrType.IsCount {
+		if aggrType.IsCount() {
 			if len(query.Aggregators) < 2 {
 				logger.WarnWithCtx(b.ctx).Msg("cumulative_sum with count as parent, but no parent aggregation found")
 			}
@@ -241,7 +243,7 @@ func (b *aggrQueryBuilder) finishBuildingAggregationPipeline(aggregationType mod
 		}
 	case pipeline_aggregations.Derivative:
 		query.NoDBQuery = true
-		if aggrType.IsCount {
+		if aggrType.IsCount() {
 			query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewCountFunc())
 			if len(query.Aggregators) < 2 {
 				logger.WarnWithCtx(b.ctx).Msg("derivative with count as parent, but no parent aggregation found")
@@ -252,7 +254,7 @@ func (b *aggrQueryBuilder) finishBuildingAggregationPipeline(aggregationType mod
 		}
 	case pipeline_aggregations.SerialDiff:
 		query.NoDBQuery = true
-		if aggrType.IsCount {
+		if aggrType.IsCount() {
 			query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewCountFunc())
 			if len(query.Aggregators) < 2 {
 				logger.WarnWithCtx(b.ctx).Msg("serial diff with count as parent, but no parent aggregation found")

@@ -4,26 +4,13 @@ package pipeline_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
-	"strings"
 )
 
-func parseBucketsPathIntoParentAggregationName(ctx context.Context, bucketsPath string) (parentAggregationName string) {
-	const delimiter = ">"
-	withoutUnnecessarySuffix, _ := strings.CutSuffix(bucketsPath, delimiter+BucketsPathCount)
-	lastDelimiterIdx := strings.LastIndex(withoutUnnecessarySuffix, delimiter)
-	if lastDelimiterIdx+1 < len(withoutUnnecessarySuffix) {
-		parentAggregationName = withoutUnnecessarySuffix[lastDelimiterIdx+1:]
-	} else {
-		logger.WarnWithCtx(ctx).Msgf("invalid bucketsPath: %s, withoutUnnecessarySuffix: %s. Using empty string as parent.", bucketsPath, withoutUnnecessarySuffix)
-		parentAggregationName = ""
-	}
-	return
-}
-
-func getKey(ctx context.Context, row model.QueryResultRow, query *model.Query) any {
+func getKey(ctx context.Context, row model.QueryResultRow) any {
 	if len(row.Cols) < 2 {
 		logger.WarnWithCtx(ctx).Msgf("row has less than 2 columns: %v", row)
 		return nil
@@ -38,6 +25,7 @@ func translateSqlResponseToJsonCommon(ctx context.Context, rows []model.QueryRes
 		logger.WarnWithCtx(ctx).Msgf("no rows returned for %s aggregation", aggregationName)
 		return model.JsonMap{}
 	}
+	fmt.Println("TRANSLATE IN DERIVATIVE, ROWS", rows)
 	if len(rows) > 1 {
 		logger.WarnWithCtx(ctx).Msgf("More than one row returned for %s aggregation", aggregationName)
 	}
