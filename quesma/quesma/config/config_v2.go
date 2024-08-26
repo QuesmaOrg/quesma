@@ -19,6 +19,12 @@ const (
 	HydrolixBackendConnectorName      = "hydrolix"
 )
 
+type ProcessorType string
+
+const (
+	QuesmaV1Processor ProcessorType = "quesma-v1-processor"
+)
+
 type QuesmaNewConfiguration struct {
 	BackendConnectors          []BackendConnector   `koanf:"backendConnectors"`
 	FrontendConnectors         []FrontendConnector  `koanf:"frontendConnectors"`
@@ -48,7 +54,7 @@ type BackendConnector struct {
 
 type Processor struct {
 	Name   string              `koanf:"name"`
-	Type   string              `koanf:"type"`
+	Type   ProcessorType       `koanf:"type"`
 	Config QuesmaConfiguration `koanf:"config"`
 }
 
@@ -169,7 +175,7 @@ func (c *QuesmaNewConfiguration) getProcessorConfig() (*Processor, error) {
 	if len(c.Processors) != 1 {
 		return nil, errors.New("exactly one processor must be defined at this moment")
 	}
-	if c.Processors[0].Type == "quesma-v1-processor" {
+	if c.Processors[0].Type == QuesmaV1Processor {
 		return &c.Processors[0], nil
 	} else {
 		return nil, errors.New("processor type not recognized, only `quesma-v1-processor` is supported at this moment")
