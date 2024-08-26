@@ -244,7 +244,6 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
-
 	},
 	{ // [1]
 		TestName: "it's the same input as in previous test, but with the original output from Elastic." +

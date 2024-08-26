@@ -399,7 +399,6 @@ func (p *pancakeSqlQueryGenerator) generateQuery(aggregation *pancakeModel) (*mo
 
 	resultQuery := &model.Query{
 		SelectCommand: *resultSelectCommand,
-		TableName:     model.SingleTableNamePlaceHolder,
 		Type:          PancakeQueryType{pancakeAggregation: aggregation},
 		OptimizeHints: model.NewQueryExecutionHints(),
 	}
