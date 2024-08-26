@@ -28,7 +28,6 @@ import (
 )
 
 const tableName = model.SingleTableNamePlaceHolder
-const tableNameQuoted = tableName
 
 // Simple unit tests, testing only "aggs" part of the request json query
 var aggregationTests = []struct {
@@ -53,8 +52,8 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`SELECT maxOrNull("AvgTicketPrice") FROM ` + tableNameQuoted,
-			`SELECT minOrNull("AvgTicketPrice") FROM ` + tableNameQuoted,
+			`SELECT maxOrNull("AvgTicketPrice") FROM ` + tableName,
+			`SELECT minOrNull("AvgTicketPrice") FROM ` + tableName,
 		},
 	},
 	{ // [1]
@@ -123,33 +122,33 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT "OriginCityName", count() ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "OriginCityName" IS NOT NULL ` +
 				`GROUP BY "OriginCityName" ` +
 				`ORDER BY "OriginCityName" ASC ` +
 				`LIMIT 1000`,
 			`WITH cte_1 AS ` +
 				`(SELECT "OriginCityName" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "OriginCityName" IS NOT NULL ` +
 				`GROUP BY "OriginCityName" ` +
 				`ORDER BY "OriginCityName" ASC ` +
 				`LIMIT 1000) ` +
 				`SELECT "OriginCityName", count() ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`INNER JOIN "cte_1" ON "OriginCityName" = "cte_1_1" ` +
 				`WHERE ("OriginCityName" IS NOT NULL AND "FlightDelay"==true) ` +
 				`GROUP BY "OriginCityName", cte_1_cnt ` +
 				`ORDER BY "OriginCityName" ASC`,
 			`WITH cte_1 AS ` +
 				`(SELECT "OriginCityName" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "OriginCityName" IS NOT NULL ` +
 				`GROUP BY "OriginCityName" ` +
 				`ORDER BY "OriginCityName" ASC ` +
 				`LIMIT 1000) ` +
 				`SELECT "OriginCityName", count() ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`INNER JOIN "cte_1" ON "OriginCityName" = "cte_1_1" ` +
 				`WHERE ("OriginCityName" IS NOT NULL AND "Cancelled"==true) ` +
 				`GROUP BY "OriginCityName", cte_1_cnt ` +
@@ -188,20 +187,20 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT "FlightDelayType", count() ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "FlightDelayType" IS NOT NULL ` +
 				`GROUP BY "FlightDelayType" ` +
 				`ORDER BY count() DESC, "FlightDelayType" ` +
 				`LIMIT 10`,
 			`WITH cte_1 AS ` +
 				`(SELECT "FlightDelayType" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "FlightDelayType" IS NOT NULL ` +
 				`GROUP BY "FlightDelayType" ` +
 				`ORDER BY count() DESC, "FlightDelayType" ` +
 				`LIMIT 10) ` +
 				`SELECT "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000), count() ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`INNER JOIN "cte_1" ON "FlightDelayType" = "cte_1_1" ` +
 				`WHERE "FlightDelayType" IS NOT NULL ` +
 				`GROUP BY "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000), cte_1_cnt ` +
@@ -239,7 +238,7 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "FlightDelay"==true`,
+			`SELECT count() FROM ` + tableName + ` WHERE "FlightDelay"==true`,
 		},
 	},
 	{ // [4]
@@ -275,9 +274,9 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+			`SELECT count() FROM ` + tableName + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
-			`SELECT count() FROM ` + tableNameQuoted + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') ` +
+			`SELECT count() FROM ` + tableName + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))`,
 		},
 	},
@@ -296,7 +295,7 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`SELECT "FlightDelayMin", count() FROM ` + tableNameQuoted + ` GROUP BY "FlightDelayMin" ORDER BY "FlightDelayMin"`,
+			`SELECT "FlightDelayMin", count() FROM ` + tableName + ` GROUP BY "FlightDelayMin" ORDER BY "FlightDelayMin"`,
 		},
 	},
 	{ // [6]
@@ -346,13 +345,13 @@ var aggregationTests = []struct {
 		[]string{
 			`WITH cte_1 AS ` +
 				`(SELECT "OriginAirportID" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "OriginAirportID" IS NOT NULL ` +
 				`GROUP BY "OriginAirportID" ` +
 				`ORDER BY count() DESC, "OriginAirportID" ` +
 				`LIMIT 10000) ` +
 				`SELECT "OriginAirportID", "DestAirportID", count() ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`INNER JOIN "cte_1" ON "OriginAirportID" = "cte_1_1" ` +
 				`WHERE ("OriginAirportID" IS NOT NULL AND "DestAirportID" IS NOT NULL) ` +
 				`GROUP BY "OriginAirportID", "DestAirportID", cte_1_cnt ` +
@@ -360,14 +359,14 @@ var aggregationTests = []struct {
 				`LIMIT 10000 BY "OriginAirportID"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "OriginAirportID" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "OriginAirportID" IS NOT NULL ` +
 				`GROUP BY "OriginAirportID" ` +
 				`ORDER BY count() DESC, "OriginAirportID" ` +
 				`LIMIT 10000), ` +
 				`cte_2 AS ` +
 				`(SELECT "OriginAirportID" AS "cte_2_1", "DestAirportID" AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE ("OriginAirportID" IS NOT NULL AND "DestAirportID" IS NOT NULL) ` +
 				`GROUP BY "OriginAirportID", "DestAirportID" ` +
 				`ORDER BY count() DESC, "DestAirportID" ` +
@@ -375,7 +374,7 @@ var aggregationTests = []struct {
 				`SELECT "OriginAirportID", "DestAirportID", "DestLocation" ` +
 				`FROM (SELECT "OriginAirportID", "DestAirportID", "DestLocation", ROW_NUMBER() ` +
 				`OVER (PARTITION BY "OriginAirportID", "DestAirportID") AS "row_number" ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE ("OriginAirportID" IS NOT NULL AND "DestAirportID" IS NOT NULL)) ` +
 				`INNER JOIN "cte_1" ON "OriginAirportID" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "OriginAirportID" = "cte_2_1" AND "DestAirportID" = "cte_2_2" ` +
@@ -384,7 +383,7 @@ var aggregationTests = []struct {
 				`ORDER BY cte_1_cnt DESC, "OriginAirportID", cte_2_cnt DESC, "DestAirportID"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "OriginAirportID" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "OriginAirportID" IS NOT NULL ` +
 				`GROUP BY "OriginAirportID" ` +
 				`ORDER BY count() DESC, "OriginAirportID" ` +
@@ -392,14 +391,14 @@ var aggregationTests = []struct {
 				`SELECT "OriginAirportID", "OriginLocation", "Origin" ` +
 				`FROM (SELECT "OriginAirportID", "OriginLocation", "Origin", ROW_NUMBER() ` +
 				`OVER (PARTITION BY "OriginAirportID") AS "row_number" ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "OriginAirportID" IS NOT NULL) ` +
 				`INNER JOIN "cte_1" ON "OriginAirportID" = "cte_1_1" ` +
 				`WHERE ("OriginAirportID" IS NOT NULL AND "row_number"<=1) ` +
 				`GROUP BY "OriginAirportID", "OriginLocation", "Origin", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "OriginAirportID"`,
 			`SELECT "OriginAirportID", count() ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "OriginAirportID" IS NOT NULL ` +
 				`GROUP BY "OriginAirportID" ` +
 				`ORDER BY count() DESC, "OriginAirportID" ` +
@@ -439,19 +438,19 @@ var aggregationTests = []struct {
 		[]string{
 			`WITH cte_1 AS ` +
 				`(SELECT "category" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "category" IS NOT NULL ` +
 				`GROUP BY "category" ` +
 				`ORDER BY count() DESC, "category" ` +
 				`LIMIT 10) ` +
 				`SELECT "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000), count() ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`INNER JOIN "cte_1" ON "category" = "cte_1_1" ` +
 				`WHERE "category" IS NOT NULL ` +
 				`GROUP BY "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000)`,
 			`SELECT "category", count() ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "category" IS NOT NULL ` +
 				`GROUP BY "category" ` +
 				`ORDER BY count() DESC, "category" ` +
@@ -471,7 +470,7 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`SELECT sumOrNull("taxful_total_price") FROM ` + tableNameQuoted,
+			`SELECT sumOrNull("taxful_total_price") FROM ` + tableName,
 		},
 	},
 	{ // [9]
@@ -490,7 +489,7 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`SELECT quantiles(0.500000)("taxful_total_price") AS "quantile_50" FROM ` + tableNameQuoted,
+			`SELECT quantiles(0.500000)("taxful_total_price") AS "quantile_50" FROM ` + tableName,
 		},
 	},
 	{ // [10]
@@ -506,7 +505,7 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`SELECT avgOrNull("total_quantity") FROM ` + tableNameQuoted,
+			`SELECT avgOrNull("total_quantity") FROM ` + tableName,
 		},
 	},
 	{ // [11]
@@ -571,13 +570,13 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "taxful_total_price" > '250'`,
+			`SELECT count() FROM ` + tableName + ` WHERE "taxful_total_price" > '250'`,
 			`SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000), ` +
 				`maxOrNull("order_date") AS "windowed_order_date", maxOrNull("order_date") AS "windowed_order_date" ` +
 				`FROM (SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
 				`ORDER BY "order_date" ASC) AS "row_number", "taxful_total_price" ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "taxful_total_price" > '250') ` +
 				`WHERE ("taxful_total_price" > '250' AND "row_number"<=10) ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
@@ -587,13 +586,13 @@ var aggregationTests = []struct {
 				`FROM (SELECT "taxful_total_price", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
 				`ORDER BY "order_date" ASC) AS "row_number" ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "taxful_total_price" > '250') ` +
 				`WHERE ("taxful_total_price" > '250' AND "row_number"<=10) ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000), count() ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "taxful_total_price" > '250' ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000)`,
@@ -622,12 +621,12 @@ var aggregationTests = []struct {
 			}`,
 		[]string{
 			`SELECT "OriginCityName", count() ` +
-				`FROM ` + tableNameQuoted + ` ` +
+				`FROM ` + tableName + ` ` +
 				`WHERE "OriginCityName" IS NOT NULL ` +
 				`GROUP BY "OriginCityName" ` +
 				`ORDER BY count() DESC, "OriginCityName" ` +
 				`LIMIT 10`,
-			`SELECT count(DISTINCT "OriginCityName") FROM ` + tableNameQuoted,
+			`SELECT count(DISTINCT "OriginCityName") FROM ` + tableName,
 		},
 	},
 	{ // [13]
@@ -650,10 +649,10 @@ var aggregationTests = []struct {
 				  "size": 0
 			}`,
 		[]string{
-			`SELECT floor("bytes"/1782.000000)*1782.000000, count() FROM ` + tableNameQuoted + ` ` +
+			`SELECT floor("bytes"/1782.000000)*1782.000000, count() FROM ` + tableName + ` ` +
 				`GROUP BY floor("bytes"/1782.000000)*1782.000000 ` +
 				`ORDER BY floor("bytes"/1782.000000)*1782.000000`,
-			`SELECT count() FROM ` + tableNameQuoted,
+			`SELECT count() FROM ` + tableName,
 		},
 	},
 }
