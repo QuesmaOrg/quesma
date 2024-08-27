@@ -87,7 +87,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 				util.AssertContainsSqlEqual(t, tt.WantedSql, model.AsString(query.SelectCommand.WhereClause))
 			}
 			if simpleListQuery != nil {
-				assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), simpleListQuery.SelectCommand.FromClause)
+				assert.Equal(t, model.NewTableRef(testdata.TableName), simpleListQuery.SelectCommand.FromClause)
 				assert.Equal(t, []model.Expr{model.NewWildcardExpr}, simpleListQuery.SelectCommand.Columns)
 			}
 		})
@@ -156,7 +156,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 				assert.Contains(t, whereClause, wantedSQL, "query contains wanted sql")
 			}
 			if simpleListQuery != nil {
-				assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), simpleListQuery.SelectCommand.FromClause)
+				assert.Equal(t, model.NewTableRef(testdata.TableName), simpleListQuery.SelectCommand.FromClause)
 				assert.Equal(t, []model.Expr{model.NewWildcardExpr}, simpleListQuery.SelectCommand.Columns)
 			}
 		})
@@ -220,7 +220,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			}
 
 			if simpleListQuery != nil {
-				assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), simpleListQuery.SelectCommand.FromClause)
+				assert.Equal(t, model.NewTableRef(testdata.TableName), simpleListQuery.SelectCommand.FromClause)
 				assert.Equal(t, []model.Expr{model.NewWildcardExpr}, simpleListQuery.SelectCommand.Columns)
 			}
 		})

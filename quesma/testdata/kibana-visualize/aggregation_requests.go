@@ -7,6 +7,8 @@ import (
 	"quesma/testdata"
 )
 
+const TableName = model.SingleTableNamePlaceHolder
+
 var AggregationTests = []testdata.AggregationTestCase{
 	{ // [0]
 		TestName: "Multi_terms without subaggregations. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)",
@@ -269,18 +271,18 @@ var AggregationTests = []testdata.AggregationTestCase{
 
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z'))`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), ` +
 				`"severity", "source", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z')) ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), ` + `"severity", "source" ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), ` + `"severity", "source"`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z')) ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) ` +
@@ -307,7 +309,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  "aggr__0__1__parent_count", "severity" AS "aggr__0__1__key_0",
 				  "source" AS "aggr__0__1__key_1", count(*) AS "aggr__0__1__count",
 				  count() AS "aggr__0__1__order_2"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				WHERE ("@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z')
 				  AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z'))
 				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
@@ -502,13 +504,13 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.TableName,
 			`SELECT "message", "host.name", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "message", "host.name", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) ` +
 				`ORDER BY "message", "host.name", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000)`,
 			`SELECT "message", "host.name", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "message", "host.name" ` +
 				`ORDER BY "message", "host.name"`,
 		},
@@ -533,7 +535,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  "aggr__0__order_2",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				  "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				GROUP BY "message" AS "aggr__0__key_0", "host.name" AS "aggr__0__key_1",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				  "aggr__0__1__key_0"))
@@ -808,21 +810,21 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.TableName,
 			`SELECT "severity", "source", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), count(DISTINCT "severity") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "severity", "source", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) ` +
 				`ORDER BY "severity", "source", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000)`,
 			`SELECT "severity", "source", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "severity", "source", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) ` +
 				`ORDER BY "severity", "source", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000)`,
 			`SELECT "severity", "source", count(DISTINCT "severity") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "severity", "source" ` +
 				`ORDER BY "severity", "source"`,
 			`SELECT "severity", "source", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "severity", "source" ` +
 				`ORDER BY "severity", "source"`,
 		},
@@ -850,7 +852,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				  "aggr__0__1__key_0", count(*) AS "aggr__0__1__count",
 				  uniq("severity") AS "metric__0__1__2_col_0"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				GROUP BY "severity" AS "aggr__0__key_0", "source" AS "aggr__0__key_1",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				  "aggr__0__1__key_0"))
@@ -1073,13 +1075,13 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.TableName,
 			`SELECT "Cancelled", "AvgTicketPrice", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "Cancelled", "AvgTicketPrice", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) ` +
 				`ORDER BY "Cancelled", "AvgTicketPrice", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000)`,
 			`SELECT "Cancelled", "AvgTicketPrice", count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY "Cancelled", "AvgTicketPrice" ` +
 				`ORDER BY "Cancelled", "AvgTicketPrice"`,
 		},
@@ -1104,7 +1106,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  "aggr__0__order_2",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				  "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
-				FROM "logs-generic-default"
+				FROM ` + TableName + `
 				GROUP BY "Cancelled" AS "aggr__0__key_0",
 				  "AvgTicketPrice" AS "aggr__0__key_1",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS

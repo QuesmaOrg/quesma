@@ -84,16 +84,16 @@ var OpensearchSearchTests = []SearchTestCase{
 		},
 		WantedQueryType: model.ListAllFields,
 		WantedRegexes: []string{
-			"SELECT count() FROM " + QuotedTableName + ` ` +
+			"SELECT count() FROM " + TableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z'))`,
 			`SELECT toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM ` + TableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z')) ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000)`,
-			`SELECT.*"-@bytes".*FROM ` + QuotedTableName + ` ` +
+			`SELECT.*"-@bytes".*FROM ` + TableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z')) ` +
 				`ORDER BY "-@timestamp" DESC LIMIT 500`,
@@ -176,10 +176,10 @@ var OpensearchSearchTests = []SearchTestCase{
 		},
 		WantedQueryType: model.Facets,
 		WantedRegexes: []string{
-			"SELECT count() FROM " + QuotedTableName + ` ` +
+			"SELECT count() FROM " + TableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z'))`,
-			`SELECT toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000), count() FROM ` + QuotedTableName + ` ` +
+			`SELECT toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000), count() FROM ` + TableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z')) ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000) ` +

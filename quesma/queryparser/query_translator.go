@@ -23,7 +23,7 @@ type JsonMap = map[string]interface{}
 
 type ClickhouseQueryTranslator struct {
 	ClickhouseLM *clickhouse.LogManager
-	Table        *clickhouse.Table
+	Table        *clickhouse.Table // TODO this will be removed
 	Ctx          context.Context
 
 	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
@@ -486,7 +486,7 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 			[]model.Expr{model.NewCountFunc()},
 			nil,
 			nil,
-			model.NewTableRef(cw.Table.FullTableName()),
+			model.NewTableRef(model.SingleTableNamePlaceHolder),
 			whereClause,
 			[]model.Expr{},
 			0,
@@ -494,13 +494,12 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 			false,
 			nil,
 		),
-		TableName: cw.Table.FullTableName(),
-		Type:      typical_queries.NewCount(cw.Ctx),
+		Type: typical_queries.NewCount(cw.Ctx),
 	}
 }
 
 func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query *model.SimpleQuery, limit int) *model.Query {
-	return query_util.BuildHitsQuery(cw.Ctx, cw.Table.FullTableName(), fieldName, query, limit)
+	return query_util.BuildHitsQuery(cw.Ctx, model.SingleTableNamePlaceHolder, fieldName, query, limit)
 }
 
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, whereClause model.Expr, limit int) *model.Query {
@@ -509,7 +508,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, wh
 			[]model.Expr{model.NewColumnRef(fieldName)},
 			nil,
 			nil,
-			model.NewTableRef(cw.Table.FullTableName()),
+			model.NewTableRef(model.SingleTableNamePlaceHolder),
 			whereClause,
 			[]model.Expr{},
 			limit,
@@ -517,7 +516,6 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, wh
 			true,
 			nil,
 		),
-		TableName: cw.Table.FullTableName(),
 	}
 }
 
@@ -533,7 +531,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 			[]model.Expr{model.NewColumnRef(fieldName)},
 			nil,
 			nil,
-			model.NewTableRef(cw.Table.FullTableName()),
+			model.NewTableRef(model.SingleTableNamePlaceHolder),
 			whereClause,
 			[]model.Expr{},
 			limit,
@@ -541,7 +539,6 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 			false,
 			nil,
 		),
-		TableName: cw.Table.FullTableName(),
 	}
 }
 
@@ -559,7 +556,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 			[]model.Expr{model.NewColumnRef(fieldName), model.NewCountFunc()},
 			[]model.Expr{model.NewColumnRef(fieldName)},
 			[]model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)},
-			model.NewTableRef(cw.Table.FullTableName()),
+			model.NewTableRef(model.SingleTableNamePlaceHolder),
 			simpleQuery.WhereClause,
 			[]model.Expr{},
 			0,
@@ -567,8 +564,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 			false,
 			nil,
 		),
-		TableName: cw.Table.FullTableName(),
-		Type:      typ,
+		Type: typ,
 	}
 }
 

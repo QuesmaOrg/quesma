@@ -114,6 +114,12 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		}
 	}
 
+	// Here we add physical table name.
+	// This is a temporary solution, we should resolve table name later
+	for _, query := range queries {
+		query.TableName = cw.Table.Name
+	}
+
 	plan := &model.ExecutionPlan{
 		Queries:               queries,
 		QueryRowsTransformers: queryResultTransformers,

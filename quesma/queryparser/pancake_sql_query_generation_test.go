@@ -19,6 +19,8 @@ import (
 	"testing"
 )
 
+const TableName = model.SingleTableNamePlaceHolder
+
 func TestPancakeQueryGeneration(t *testing.T) {
 
 	// logger.InitSimpleLoggerForTests()
@@ -259,7 +261,7 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
   "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
   count() AS "aggr__0__order_1"
-FROM "logs-generic-default"
+FROM ` + TableName + `
 GROUP BY "host.name" AS "aggr__0__key_0"
 ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC
 LIMIT 4`, // -- we added one more as filtering nulls happens during rendering
@@ -290,7 +292,7 @@ SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
   "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
   count() AS "aggr__0__order_1",
   avgOrNull("bytes_gauge") AS "metric__0__2_col_0"
-FROM "logs-generic-default"
+FROM ` + TableName + `
 GROUP BY "host.name" AS "aggr__0__key_0"
 ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC
 LIMIT 4`, // we increased limit by 1 to allow filtering of nulls druing json rendering

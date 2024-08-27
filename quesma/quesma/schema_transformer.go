@@ -322,6 +322,31 @@ func (s *SchemaCheckPass) applyMapTransformations(query *model.Query) (*model.Qu
 	return query, nil
 }
 
+func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*model.Query, error) {
+
+	if query.TableName == model.SingleTableNamePlaceHolder {
+		logger.Warn().Msg("applyPhysicalFromExpression: physical table name is not set")
+	}
+
+	// TODO compute physical from expression based on single table or union or whatever ....
+	physicalFromExpression := model.NewTableRef(query.TableName)
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
+		if e.Name == model.SingleTableNamePlaceHolder {
+			return physicalFromExpression
+		}
+		return e
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+}
+
 func (s *SchemaCheckPass) applyWildcardExpansion(query *model.Query) (*model.Query, error) {
 	fromTable := getFromTable(query.TableName)
 
@@ -368,6 +393,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			TransformationName string
 			Transformation     func(*model.Query) (*model.Query, error)
 		}{
+			{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 			{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
 			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
@@ -378,6 +404,9 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		for _, transformation := range transformationChain {
 			inputQuery := query.SelectCommand.String()
 			query, err = transformation.Transformation(query)
+			if err != nil {
+				return nil, err
+			}
 			if query.SelectCommand.String() != inputQuery {
 
 				query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, transformation.TransformationName)
@@ -385,9 +414,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 				logger.Info().Msgf(transformation.TransformationName+" triggered, input query: %s", inputQuery)
 				logger.Info().Msgf(transformation.TransformationName+" triggered, output query: %s", query.SelectCommand.String())
 			}
-			if err != nil {
-				return nil, err
-			}
+
 		}
 		queries[k] = query
 	}

@@ -7,6 +7,8 @@ import (
 	"quesma/testdata"
 )
 
+const TableName = model.SingleTableNamePlaceHolder
+
 var KunkkaTests = []testdata.AggregationTestCase{
 	{ // [0]
 		TestName: "clients/kunkka/test_0, used to be broken before aggregations merge fix" +
@@ -211,23 +213,23 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM (SELECT 1 FROM ` + testdata.QuotedTableName + ` LIMIT 10000)`,
+			`SELECT count() FROM (SELECT 1 FROM ` + testdata.TableName + ` LIMIT 10000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("spent") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "message" iLIKE '%started%' ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "message" iLIKE '%started%' ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 		},
@@ -238,7 +240,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			  countIf("message" iLIKE '%started%') AS "aggr__0__2-bucket__count",
 			  sumOrNullIf("multiplier", "message" iLIKE '%started%') AS
 			  "metric__0__2-bucket__2-metric_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
@@ -458,23 +460,23 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM (SELECT 1 FROM ` + testdata.QuotedTableName + ` LIMIT 10000)`,
+			`SELECT count() FROM (SELECT 1 FROM ` + testdata.TableName + ` LIMIT 10000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("spent") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "message" iLIKE '%started%' ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "message" iLIKE '%started%' ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 		},
@@ -485,7 +487,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			  countIf("message" iLIKE '%started%') AS "aggr__0__2-bucket__count",
 			  sumOrNullIf("multiplier", "message" iLIKE '%started%') AS
 			  "metric__0__2-bucket__2-metric_col_0"
-			FROM "logs-generic-default"
+			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
@@ -1166,147 +1168,147 @@ var KunkkaTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "isOK"==false`,
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z')))`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("earned") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%abc%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%abc%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%bcd%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%bcd%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%cde%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%cde%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%abc%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%abc%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z')))`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("earned") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%abc%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%abc%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%bcd%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%bcd%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%cde%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%cde%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%abc%') ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
+				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
 				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
 				`AND "message" iLIKE '%abc%') ` +

@@ -12,8 +12,12 @@ type TransformationPipeline struct {
 }
 
 func (o *TransformationPipeline) Transform(queries []*model.Query) ([]*model.Query, error) {
+	var err error
 	for _, transformer := range o.transformers {
-		queries, _ = transformer.Transform(queries)
+		queries, err = transformer.Transform(queries)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return queries, nil
 }

@@ -14,7 +14,6 @@ import (
 	"quesma/concurrent"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/queryparser"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
@@ -30,43 +29,7 @@ import (
 
 const defaultAsyncSearchTimeout = 1000
 
-func TestNoAsciiTableName(t *testing.T) {
-	requestBody := ([]byte)(`{
-		"query": {
-			"match_all": {}
-		}
-	}`)
-	tableName := `table-namea$한Иb}~`
-	lm := clickhouse.NewLogManagerEmpty()
-	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
-				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
-				},
-			},
-		},
-	}
-	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: clickhouse.NewEmptyTable(tableName), Ctx: ctx, SchemaRegistry: s}
-	simpleQuery, queryInfo, _ := queryTranslator.ParseQueryAsyncSearch(string(requestBody))
-	assert.True(t, simpleQuery.CanParse)
-	assert.Equal(t, "", simpleQuery.WhereClauseAsString())
-	assert.Equal(t, model.ListAllFields, queryInfo.Typ)
-	const Limit = 1000
-	query := queryTranslator.BuildNRowsQuery("*", &simpleQuery, Limit)
-	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s" LIMIT %d`, tableName, Limit), query.SelectCommand.String())
-}
-
-const tableName = `logs-generic-default`
+const tableName = model.SingleTableNamePlaceHolder
 
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
 
@@ -486,7 +449,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 				}
 
 				// count, present in all tests
-				mock.ExpectQuery(`SELECT count\(\) FROM ` + strconv.Quote(tableName)).WillReturnRows(sqlmock.NewRows([]string{"count"}))
+				mock.ExpectQuery(`SELECT count\(\) FROM ` + tableName).WillReturnRows(sqlmock.NewRows([]string{"count"}))
 				// Don't care about the query's SQL in this test, it's thoroughly tested in different tests, thus ""
 				mock.ExpectQuery("").WillReturnRows(returnedBuckets)
 
@@ -531,24 +494,39 @@ func TestNumericFacetsQueries(t *testing.T) {
 }
 
 func TestSearchTrackTotalCount(t *testing.T) {
+
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
-	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
-				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-				},
-			},
+	s := schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
+
+	s.Tables[tableName] = schema.Schema{
+		Fields: map[schema.FieldName]schema.Field{
+			"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+			"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+			"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+			"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+			"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+			"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
+			"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+			"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+			"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
 		},
 	}
+
+	var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
+		Name:   tableName,
+		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*clickhouse.Column{
+			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
+			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
+			"message": {
+				Name:            "message",
+				Type:            clickhouse.NewBaseType("String"),
+				IsFullTextMatch: true,
+			},
+		},
+		Created: true,
+	})
+
 	test := func(t *testing.T, handlerName string, testcase testdata.FullSearchTestCase) {
 		db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 		defer db.Close()
@@ -567,11 +545,15 @@ func TestSearchTrackTotalCount(t *testing.T) {
 
 		var response []byte
 		var err error
+
 		if handlerName == "handleSearch" {
 			response, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(testcase.QueryRequestJson))
 		} else if handlerName == "handleAsyncSearch" {
 			response, err = queryRunner.handleAsyncSearch(
 				ctx, tableName, types.MustJSON(testcase.QueryRequestJson), defaultAsyncSearchTimeout, true)
+		}
+		if err != nil {
+			t.Fatal(err)
 		}
 		assert.NoError(t, err)
 
@@ -601,8 +583,11 @@ func TestSearchTrackTotalCount(t *testing.T) {
 			expectedResponseMap, []string{}, true, true)
 		acceptableDifference := []string{"took", "_shards", "timed_out"}
 
-		assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
-		assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
+		pp.Println("expected", expectedResponseMap)
+		pp.Println("actual", responsePart)
+
+		assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference), "actualMinusExpected: %v", actualMinusExpected)
+		assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference), "expectedMinusActual: %v", expectedMinusActual)
 	}
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}

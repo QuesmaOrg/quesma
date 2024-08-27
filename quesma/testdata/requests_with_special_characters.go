@@ -146,18 +146,18 @@ var AggregationTestsWithSpecialCharactersInFieldNames = []AggregationTestCase{
 		}`,
 		ExpectedResults: [][]model.QueryResultRow{}, // checking only the SQLs is enough for now
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE "message\$\*\%\:\;" IS NOT NULL`,
+			`SELECT count() FROM ` + TableName + ` WHERE "message\$\*\%\:\;" IS NOT NULL`,
 			`SELECT toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000), ` +
 				`minOrNull("-@bytes") AS "windowed_-@bytes", ` +
 				`minOrNull("-@timestamp") AS "windowed_-@timestamp" ` +
 				`FROM (SELECT "-@bytes", "-@timestamp", ROW_NUMBER() ` +
 				`OVER (PARTITION BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000) ORDER BY "-@timestamp" DESC) ` +
-				`AS "row_number", "message\$\*\%\:\;" FROM ` + QuotedTableName + ` WHERE "message\$\*\%\:\;" IS NOT NULL) ` +
+				`AS "row_number", "message\$\*\%\:\;" FROM ` + TableName + ` WHERE "message\$\*\%\:\;" IS NOT NULL) ` +
 				`WHERE ("message\$\*\%\:\;" IS NOT NULL ` +
 				`AND "row_number"<=1) ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000), count() FROM ` + QuotedTableName + ` ` +
+			`SELECT toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000), count() FROM ` + TableName + ` ` +
 				`WHERE "message\$\*\%\:\;\" IS NOT NULL ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000)`,
