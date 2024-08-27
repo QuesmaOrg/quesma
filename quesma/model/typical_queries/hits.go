@@ -125,9 +125,9 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 	}
 
 	// TODO: highlight and field checks
-	for _, alias := range query.table.AliasList() {
-		if v, ok := hit.Fields[alias.TargetFieldName]; ok {
-			hit.Fields[alias.SourceFieldName] = v
+	for fieldName, target := range query.table.Aliases() {
+		if v, ok := hit.Fields[target]; ok {
+			hit.Fields[fieldName] = v
 		}
 	}
 }

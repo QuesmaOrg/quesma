@@ -165,15 +165,8 @@ func (t *Table) AliasFields(ctx context.Context) []*Column {
 	return aliasFields
 }
 
-func (t *Table) AliasList() []config.FieldAlias {
-	result := make([]config.FieldAlias, 0)
-	for key, val := range t.aliases {
-		result = append(result, config.FieldAlias{
-			SourceFieldName: key,
-			TargetFieldName: val,
-		})
-	}
-	return result
+func (t *Table) Aliases() map[string]string {
+	return t.aliases
 }
 
 func (t *Table) GetAttributesList() []Attribute {

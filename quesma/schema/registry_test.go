@@ -194,7 +194,11 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				IndexConfig: map[string]config.IndexConfiguration{
 					"some_table": {Enabled: true,
 						TypeMappings: map[string]string{"message": "keyword"},
-						Aliases:      map[string]config.FieldAlias{"message_alias": {SourceFieldName: "message_alias", TargetFieldName: "message"}},
+						SchemaOverrides: &config.SchemaConfiguration{
+							Fields: map[config.FieldName]config.FieldConfiguration{
+								"message_alias": {Type: "alias", TargetColumnName: "message"},
+							},
+						},
 					},
 				},
 			},

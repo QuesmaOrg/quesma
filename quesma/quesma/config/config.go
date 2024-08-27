@@ -77,13 +77,6 @@ func (c *RelationalDbConfiguration) IsNonEmpty() bool {
 	return !c.IsEmpty()
 }
 
-type FieldAlias struct {
-	// TargetFieldName is the field name in the ClickHouse Table
-	TargetFieldName string `koanf:"target"`
-	// SourceFieldName is the field name in received in the ES Query
-	SourceFieldName string `koanf:"source"`
-}
-
 func (c *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) bool {
 	if indexConfig, found := c.IndexConfig[indexName]; found {
 		return indexConfig.HasFullTextField(fieldName)
@@ -91,12 +84,16 @@ func (c *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) 
 	return false
 }
 
-func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]FieldAlias {
-	//if indexConfig, found := c.IndexConfig[indexName]; found {
-	//	return indexConfig.Aliases
-	//}
-	// why e'd need that
-	return map[string]FieldAlias{}
+func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
+	aliases := make(map[string]string)
+	if indexConfig, found := c.IndexConfig[indexName]; found {
+		if indexConfig.SchemaOverrides != nil {
+			for fieldName, FieldConf := range indexConfig.SchemaOverrides.Fields {
+				aliases[fieldName.AsString()] = FieldConf.TargetColumnName
+			}
+		}
+	}
+	return aliases
 }
 
 func MatchName(pattern, name string) bool {
@@ -195,9 +192,6 @@ func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, r
 	if len(indexName.FullTextFields) > 0 {
 		fmt.Printf("index configuration %s contains deprecated field 'fullTextFields'", indexName.Name)
 	}
-	//if len(indexName.Aliases) > 0 {
-	//	fmt.Printf("index configuration %s contains deprecated field 'aliases'", indexName.Name)
-	//}
 	if len(indexName.IgnoredFields) > 0 {
 		fmt.Printf("index configuration %s contains deprecated field 'ignoredFields'", indexName.Name)
 	}
