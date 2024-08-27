@@ -207,6 +207,14 @@ func TestSearchHandler(t *testing.T) {
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 			for _, wantedRegex := range tt.WantedRegexes {
+
+				// This test reuses test cases suited for query generator
+				// In this case pipeline transformations are triggered by query runner.
+				// So we should have a different expectation here.
+
+				// HACK. we change expectations here
+				wantedRegex = strings.ReplaceAll(wantedRegex, model.FullTextFieldNamePlaceHolder, "message")
+
 				mock.ExpectQuery(testdata.EscapeWildcard(testdata.EscapeBrackets(wantedRegex))).
 					WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}

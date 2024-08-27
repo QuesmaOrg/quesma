@@ -1029,7 +1029,7 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		[]string{
-			`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z')))`,
+			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z')))`,
 		},
 		model.ListAllFields,
 		//[]model.Query{
@@ -1269,10 +1269,10 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"message" = 'ingest-agent-policies'`},
+		[]string{fullTextFieldName + ` = 'ingest-agent-policies'`},
 		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(`"message" = 'ingest-agent-policies'`)},
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" = 'ingest-agent-policies'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ` + fullTextFieldName + ` = 'ingest-agent-policies'`},
 	},
 	{ // [11]
 		"Simple wildcard",
@@ -1505,9 +1505,9 @@ var TestsSearch = []SearchTestCase{
 		  }
 		`,
 		[]string{
-			`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
-			`(("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+			`((` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
 				`AND "data_stream.namespace" IS NOT NULL)`,
 		},
@@ -1518,7 +1518,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{
 			`SELECT count() ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE ("message" iLIKE '%user%' ` +
+				`WHERE (` + fullTextFieldName + ` iLIKE '%user%' ` +
 				`AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z') ` +
 				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z')))`,
 		},
@@ -1756,10 +1756,10 @@ var TestsSearch = []SearchTestCase{
 			"timeout": "1000ms"
 		}`,
 		[]string{
-			`(("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+			`((` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
 				`AND "namespace" IS NOT NULL)`,
-			`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
 		},
 		model.Facets,
@@ -1769,7 +1769,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{
 			`SELECT "namespace", count() ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE (("message" iLIKE '%user%' ` +
+				`WHERE ((` + fullTextFieldName + ` iLIKE '%user%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
 				`AND "namespace" IS NOT NULL) ` +
@@ -1778,7 +1778,7 @@ var TestsSearch = []SearchTestCase{
 				`LIMIT 10`,
 			`SELECT count(DISTINCT "namespace") ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE ("message" iLIKE '%user%' ` +
+				`WHERE (` + fullTextFieldName + ` iLIKE '%user%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
 		},
@@ -1931,10 +1931,10 @@ var TestsSearch = []SearchTestCase{
 			"timeout": "1000ms"
 		}`,
 		[]string{
-			`(("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+			`((` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
 				`AND "namespace" IS NOT NULL)`,
-			`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
 		},
 		model.Facets,

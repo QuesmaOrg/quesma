@@ -390,6 +390,8 @@ func (s *SchemaCheckPass) applyWildcardExpansion(query *model.Query) (*model.Que
 func (s *SchemaCheckPass) applyFullTextField(query *model.Query) (*model.Query, error) {
 	fromTable := getFromTable(query.TableName)
 
+	// FIXME we should use the schema registry here
+	//
 	table := s.logManager.FindTable(fromTable)
 	if table == nil {
 		logger.Error().Msgf("Table %s not found", fromTable)
@@ -416,7 +418,7 @@ func (s *SchemaCheckPass) applyFullTextField(query *model.Query) (*model.Query, 
 			if col.ColumnName == model.FullTextFieldNamePlaceHolder {
 
 				if len(fullTextFields) == 0 {
-					return model.NewLiteral("TRUE")
+					return model.NewLiteral(false)
 				}
 
 				var expressions []model.Expr
