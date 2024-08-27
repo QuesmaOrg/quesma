@@ -170,7 +170,7 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 			str := fmt.Sprintf("%s AS (%s)", cteName(i), AsString(cte))
 			CTEsStrings = append(CTEsStrings, str)
 		}
-		sb.WriteString(fmt.Sprintf(" %s ", strings.Join(CTEsStrings, ", ")))
+		sb.WriteString(fmt.Sprintf("%s ", strings.Join(CTEsStrings, ", ")))
 	}
 
 	sb.WriteString("SELECT ")
