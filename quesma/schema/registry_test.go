@@ -76,7 +76,13 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			name: "schema inferred, with type mappings not backed by db (deprecated)",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
-					"some_table": {Enabled: true, TypeMappings: map[string]string{"message": "keyword"}},
+					"some_table": {Enabled: true,
+						SchemaOverrides: &config.SchemaConfiguration{
+							Fields: map[config.FieldName]config.FieldConfiguration{
+								"message": {Type: "keyword"},
+							},
+						},
+					},
 				},
 			},
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
@@ -97,9 +103,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			name: "schema inferred, with type mappings not backed by db",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
-					"some_table": {Enabled: true, SchemaConfiguration: &config.SchemaConfiguration{
+					"some_table": {Enabled: true, SchemaOverrides: &config.SchemaConfiguration{
 						Fields: map[config.FieldName]config.FieldConfiguration{
-							"message": {Name: "message", Type: "keyword"},
+							"message": {Type: "keyword"},
 						},
 					}},
 				},
@@ -122,9 +128,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			name: "schema explicitly configured, nothing in db",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
-					"some_table": {Enabled: true, SchemaConfiguration: &config.SchemaConfiguration{
+					"some_table": {Enabled: true, SchemaOverrides: &config.SchemaConfiguration{
 						Fields: map[config.FieldName]config.FieldConfiguration{
-							"message": {Name: "message", Type: "keyword"},
+							"message": {Type: "keyword"},
 						},
 					}},
 				},
@@ -138,9 +144,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			name: "schema inferred, with mapping overrides",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
-					"some_table": {Enabled: true, SchemaConfiguration: &config.SchemaConfiguration{
+					"some_table": {Enabled: true, SchemaOverrides: &config.SchemaConfiguration{
 						Fields: map[config.FieldName]config.FieldConfiguration{
-							"message": {Name: "message", Type: "keyword"},
+							"message": {Type: "keyword"},
 						},
 					}},
 				},
@@ -164,10 +170,10 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			name: "schema inferred, with aliases",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
-					"some_table": {Enabled: true, SchemaConfiguration: &config.SchemaConfiguration{
+					"some_table": {Enabled: true, SchemaOverrides: &config.SchemaConfiguration{
 						Fields: map[config.FieldName]config.FieldConfiguration{
-							"message":       {Name: "message", Type: "keyword"},
-							"message_alias": {Name: "message_alias", Type: "alias", AliasedField: "message"},
+							"message":       {Type: "keyword"},
+							"message_alias": {Type: "alias", TargetColumnName: "message"},
 						},
 					}},
 				},

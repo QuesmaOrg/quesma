@@ -107,6 +107,9 @@ func NewSchemaRegistry(tableProvider TableProvider, configuration config.QuesmaC
 }
 
 func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguration config.IndexConfiguration, fields map[FieldName]Field) {
+	if indexConfiguration.SchemaOverrides == nil {
+		return
+	}
 	for fieldName, field := range indexConfiguration.SchemaOverrides.Fields {
 		if field.Type.AsString() == config.TypeAlias {
 			continue
