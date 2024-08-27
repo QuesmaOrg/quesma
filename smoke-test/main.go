@@ -245,7 +245,7 @@ func waitForLogsInClickhouse(tableName string, timeout time.Duration, expectColu
 
 	res := waitFor("clickhouse", func() bool {
 
-		connection, err := sql.Open("clickhouse", clickhouseUrl)
+		connection, err := sql.Open("chhttp", clickhouseUrl)
 		if err != nil {
 			panic(err)
 		}
