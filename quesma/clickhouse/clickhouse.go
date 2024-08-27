@@ -458,7 +458,7 @@ func getAttributesByArrayName(arrayName string,
 	for k, v := range attrsMap {
 		if k == arrayName {
 			for _, val := range v {
-				attributes = append(attributes, fmt.Sprintf("%s", val))
+				attributes = append(attributes, fmt.Sprintf("%v", val))
 			}
 		}
 	}
