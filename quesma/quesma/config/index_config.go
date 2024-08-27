@@ -10,11 +10,9 @@ import (
 
 type IndexConfiguration struct {
 	Name    string `koanf:"name"`
-	Enabled bool   `koanf:"enabled"`
+	Enabled bool   `koanf:"enabled"` // TODO rename to `Disabled` to reduce already polluted config
 	// TODO to be deprecated
 	FullTextFields []string `koanf:"fullTextFields"`
-	// TODO to be deprecated
-	Aliases map[string]FieldAlias `koanf:"aliases"`
 	// TODO to be deprecated
 	TypeMappings map[string]string `koanf:"mappings"`
 	// TODO to be deprecated
@@ -23,9 +21,9 @@ type IndexConfiguration struct {
 	TimestampField *string `koanf:"timestampField"`
 	// this is hidden from the user right now
 	// deprecated
-	SchemaConfiguration *SchemaConfiguration              `koanf:"static-schema"`
-	EnabledOptimizers   map[string]OptimizerConfiguration `koanf:"optimizers"`
-	Override            string                            `koanf:"override"`
+	SchemaOverrides   *SchemaConfiguration              `koanf:"schemaOverrides"`
+	EnabledOptimizers map[string]OptimizerConfiguration `koanf:"optimizers"`
+	Override          string                            `koanf:"override"`
 }
 
 func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
@@ -42,14 +40,6 @@ func (c IndexConfiguration) GetTimestampField() (tsField string) {
 func (c IndexConfiguration) String() string {
 	var extraString string
 	extraString = ""
-	if len(c.Aliases) > 0 {
-		extraString += "; aliases: "
-		var aliases []string
-		for _, alias := range c.Aliases {
-			aliases = append(aliases, fmt.Sprintf("%s <- %s", alias.SourceFieldName, alias.TargetFieldName))
-		}
-		extraString += strings.Join(aliases, ", ")
-	}
 	if len(c.IgnoredFields) > 0 {
 		extraString += "; ignored fields: "
 		var fields []string
@@ -58,10 +48,10 @@ func (c IndexConfiguration) String() string {
 		}
 		extraString += strings.Join(fields, ", ")
 	}
-	var str = fmt.Sprintf("\n\t\t%s, enabled: %t, static-schema: %v, override: %s",
+	var str = fmt.Sprintf("\n\t\t%s, disabled: %t, schema overrides: %s, override: %s",
 		c.Name,
 		c.Enabled,
-		c.SchemaConfiguration,
+		c.SchemaOverrides.String(),
 		c.Override,
 	)
 

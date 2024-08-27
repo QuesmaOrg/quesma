@@ -21,8 +21,8 @@ type Table struct {
 	Config       *ChTableConfig
 	Created      bool // do we need to create it during first insert
 	indexes      []IndexStatement
-	aliases      map[string]string //deprecated
-	// we should use aliases directly from configuration, not store them here
+	aliases      map[string]string //deprecated TODO looks like we've reached the point where this becomes a problem
+	//we should use aliases directly from configuration, not store them here
 	Comment          string // this human-readable comment
 	CreateTableQuery string
 	TimestampColumn  *string
@@ -123,16 +123,18 @@ func (t *Table) applyIndexConfig(configuration config.QuesmaConfiguration) {
 		c.IsFullTextMatch = configuration.IsFullTextMatchField(t.Name, c.Name)
 	}
 
-	aliasFields := configuration.AliasFields(t.Name)
-	if len(aliasFields) > 0 {
-		t.aliases = make(map[string]string)
-		for _, alias := range aliasFields {
-			if _, ok := t.Cols[alias.TargetFieldName]; !ok {
-				logger.Warn().Msgf("target field '%s' for field '%s' not found in table '%s'",
-					alias.TargetFieldName, alias.SourceFieldName, t.Name)
-				continue
+	t.aliases = make(map[string]string)
+	if indexConf, ok := configuration.IndexConfig[t.Name]; ok {
+		if indexConf.SchemaOverrides != nil {
+			for fieldName, fieldConf := range indexConf.SchemaOverrides.Fields {
+				if fieldConf.Type == config.TypeAlias {
+					t.aliases[fieldName.AsString()] = fieldConf.TargetColumnName
+					if _, ok := t.Cols[fieldConf.TargetColumnName]; !ok {
+						logger.Warn().Msgf("target column '%s' for field '%s' not found in table '%s'",
+							fieldConf.TargetColumnName, fieldName.AsString(), t.Name)
+					}
+				}
 			}
-			t.aliases[alias.SourceFieldName] = alias.TargetFieldName
 		}
 	}
 	if v, ok := configuration.IndexConfig[t.Name]; ok {

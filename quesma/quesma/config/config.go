@@ -15,7 +15,6 @@ import (
 	"quesma/elasticsearch/elasticsearch_field_types"
 	"quesma/index"
 	"quesma/network"
-	"slices"
 	"strings"
 )
 
@@ -93,9 +92,10 @@ func (c *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) 
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]FieldAlias {
-	if indexConfig, found := c.IndexConfig[indexName]; found {
-		return indexConfig.Aliases
-	}
+	//if indexConfig, found := c.IndexConfig[indexName]; found {
+	//	return indexConfig.Aliases
+	//}
+	// why e'd need that
 	return map[string]FieldAlias{}
 }
 
@@ -126,10 +126,10 @@ func Load() QuesmaConfiguration {
 	for name, idxConfig := range config.IndexConfig {
 		idxConfig.Name = name
 		config.IndexConfig[name] = idxConfig
-		if idxConfig.SchemaConfiguration != nil {
-			for fieldName, configuration := range idxConfig.SchemaConfiguration.Fields {
-				configuration.Name = fieldName
-				idxConfig.SchemaConfiguration.Fields[fieldName] = configuration
+		if idxConfig.SchemaOverrides != nil {
+			for fieldName, configuration := range idxConfig.SchemaOverrides.Fields {
+				//configuration.Name = fieldName
+				idxConfig.SchemaOverrides.Fields[fieldName] = configuration
 			}
 		}
 	}
@@ -195,9 +195,9 @@ func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, r
 	if len(indexName.FullTextFields) > 0 {
 		fmt.Printf("index configuration %s contains deprecated field 'fullTextFields'", indexName.Name)
 	}
-	if len(indexName.Aliases) > 0 {
-		fmt.Printf("index configuration %s contains deprecated field 'aliases'", indexName.Name)
-	}
+	//if len(indexName.Aliases) > 0 {
+	//	fmt.Printf("index configuration %s contains deprecated field 'aliases'", indexName.Name)
+	//}
 	if len(indexName.IgnoredFields) > 0 {
 		fmt.Printf("index configuration %s contains deprecated field 'ignoredFields'", indexName.Name)
 	}
@@ -348,40 +348,40 @@ Quesma Configuration:
 }
 
 func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfiguration, err error) error {
-	if config.SchemaConfiguration == nil {
+	if config.SchemaOverrides == nil {
 		return err
 	}
 
 	fmt.Println("schema configuration is not yet in use!")
 
-	for fieldName, fieldConfig := range config.SchemaConfiguration.Fields {
+	for fieldName, fieldConfig := range config.SchemaOverrides.Fields {
 		if fieldConfig.Type == "" {
 			err = multierror.Append(err, fmt.Errorf("field %s in index %s has no type", fieldName, config.Name))
 		} else if !elasticsearch_field_types.IsValid(fieldConfig.Type.AsString()) {
 			err = multierror.Append(err, fmt.Errorf("field %s in index %s has invalid type %s", fieldName, config.Name, fieldConfig.Type))
 		}
 
-		if slices.Contains(config.SchemaConfiguration.Ignored, fieldName.AsString()) {
-			err = multierror.Append(err, fmt.Errorf("field %s in index %s is both enabled and ignored", fieldName, config.Name))
-		}
+		//if slices.Contains(config.SchemaOverrides.Ignored, fieldName.AsString()) {
+		//	err = multierror.Append(err, fmt.Errorf("field %s in index %s is both enabled and ignored", fieldName, config.Name))
+		//}
 
-		if field, found := config.SchemaConfiguration.Fields[fieldName]; found && field.Type.AsString() == elasticsearch_field_types.FieldTypeAlias && field.AliasedField == "" {
-			err = multierror.Append(err, fmt.Errorf("field %s in index %s is aliased to an empty field", fieldName, config.Name))
-		}
+		//if field, found := config.SchemaOverrides.Fields[fieldName]; found && field.Type.AsString() == elasticsearch_field_types.FieldTypeAlias && field.AliasedField == "" {
+		//	err = multierror.Append(err, fmt.Errorf("field %s in index %s is aliased to an empty field", fieldName, config.Name))
+		//}
 
-		if countPrimaryKeys(config) > 1 {
-			err = multierror.Append(err, fmt.Errorf("index %s has more than one primary key", config.Name))
-		}
+		//if countPrimaryKeys(config) > 1 {
+		//	err = multierror.Append(err, fmt.Errorf("index %s has more than one primary key", config.Name))
+		//}
 	}
 
 	return err
 }
 
-func countPrimaryKeys(config IndexConfiguration) (count int) {
-	for _, configuration := range config.SchemaConfiguration.Fields {
-		if configuration.IsPrimaryKey {
-			count++
-		}
-	}
-	return count
-}
+//func countPrimaryKeys(config IndexConfiguration) (count int) {
+//	for _, configuration := range config.SchemaOverrides.Fields {
+//		if configuration.IsPrimaryKey {
+//			count++
+//		}
+//	}
+//	return count
+//}
