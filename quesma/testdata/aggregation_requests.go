@@ -2806,6 +2806,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0"
 			  , count(*) AS "aggr__0__count"
 			FROM ` + TableName + `
+
 			WHERE (` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort(
 			  '2024-01-23T14:43:19.481Z') AND "@timestamp"<=parseDateTime64BestEffort(
 			  '2024-01-23T14:58:19.481Z')))

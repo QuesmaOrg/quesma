@@ -10,6 +10,7 @@ import (
 const TableName = model.SingleTableNamePlaceHolder
 const fullTextFieldName = `"` + model.FullTextFieldNamePlaceHolder + `"`
 
+
 var KunkkaTests = []testdata.AggregationTestCase{
 	{ // [0]
 		TestName: "clients/kunkka/test_0, used to be broken before aggregations merge fix" +
