@@ -31,8 +31,8 @@ func TestAlterTable(t *testing.T) {
 		`{"Test1":1,"Test2":2}`,
 	}
 	expectedInsert := []string{
-		"{\"attributes_string_key\":[],\"attributes_string_type\":[],\"attributes_string_value\":[],\"Test1\":1}",
-		"{\"attributes_string_key\":[],\"attributes_string_type\":[],\"attributes_string_value\":[],\"Test1\":1,\"Test2\":2}",
+		"{\"attributes\":{},\"Test1\":1}",
+		"{\"attributes\":{},\"Test1\":1,\"Test2\":2}",
 	}
 	alters := []string{
 		"ALTER TABLE \"\" ADD COLUMN IF NOT EXISTS \"Test1\" Nullable(Int64)",
