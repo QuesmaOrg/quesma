@@ -125,7 +125,6 @@ func Load() QuesmaConfiguration {
 		config.IndexConfig[name] = idxConfig
 		if idxConfig.SchemaOverrides != nil {
 			for fieldName, configuration := range idxConfig.SchemaOverrides.Fields {
-				//configuration.Name = fieldName
 				idxConfig.SchemaOverrides.Fields[fieldName] = configuration
 			}
 		}
