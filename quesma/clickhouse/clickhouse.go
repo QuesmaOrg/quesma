@@ -492,7 +492,7 @@ func (lm *LogManager) generateNewColumns(
 	return alterCmd
 }
 
-func generateNonSchemaFieldsString(attrsMap map[string][]interface{}, tableName string) (string, error) {
+func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, error) {
 	var nonSchemaStr string
 	if len(attrsMap) <= 0 {
 		return nonSchemaStr, nil
@@ -614,7 +614,7 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	// addInvalidJsonFieldsToAttributes returns a new map with invalid fields added
 	// this map is then used to generate non-schema fields string
 	attrsMapWithInvalidFields := addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
-	nonSchemaStr, err := generateNonSchemaFieldsString(attrsMapWithInvalidFields, table.Name)
+	nonSchemaStr, err := generateNonSchemaFieldsString(attrsMapWithInvalidFields)
 
 	if err != nil {
 		return "", nil, err
