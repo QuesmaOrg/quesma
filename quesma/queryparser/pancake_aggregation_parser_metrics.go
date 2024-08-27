@@ -58,11 +58,12 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 			model.NewFunction("sumOrNull", expr))
 
 	case "top_hits":
-		// see other buildMetricsAggregation(), we don't implement it now
-		return nil, errors.New("top_hits is not implemented yet in version una")
+		innerFieldsAsSelect := make([]model.Expr, len(metricsAggr.Fields))
+		copy(innerFieldsAsSelect, metricsAggr.Fields)
+		return innerFieldsAsSelect, nil
 	case "top_metrics":
 		// see other buildMetricsAggregation(), we don't implement it now
-		return nil, errors.New("top_hits is not implemented yet in version una")
+		return nil, errors.New("top_metrics is not implemented yet in version una")
 	case "percentile_ranks":
 		result = make([]model.Expr, 0, len(metricsAggr.CutValues))
 		for _, cutValueAsString := range metricsAggr.CutValues {
@@ -138,7 +139,8 @@ func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) mo
 	case "quantile":
 		return metrics_aggregations.NewQuantile(ctx, util.MapKeysSortedByValue(metricsAggr.Percentiles), metricsAggr.Keyed, metricsAggr.FieldType)
 	case "top_hits":
-		return metrics_aggregations.NewTopHits(ctx)
+		// TODO: add sort here too
+		return metrics_aggregations.NewTopHits(ctx, metricsAggr.Size)
 	case "top_metrics":
 		return metrics_aggregations.NewTopMetrics(ctx, metricsAggr.sortByExists())
 	case "value_count":

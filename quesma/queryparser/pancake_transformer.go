@@ -8,6 +8,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"quesma/model/metrics_aggregations"
 	"reflect"
 	"sort"
 	"strings"
@@ -292,6 +293,35 @@ func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, 
 	return layer, nil
 }
 
+func (a *pancakeTransformer) createTopHitPancakes(pancake *pancakeModel) (result []*pancakeModel) {
+	for layerIdx, layer := range pancake.layers {
+		metricsWithoutTopHits := make([]*pancakeModelMetricAggregation, 0, len(layer.currentMetricAggregations))
+		for _, metric := range layer.currentMetricAggregations {
+			if _, isTopHits := metric.queryType.(metrics_aggregations.TopHits); isTopHits {
+				newLayers := make([]*pancakeModelLayer, layerIdx+1)
+				for i := range newLayers {
+					newLayers[i] = &pancakeModelLayer{
+						currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
+						nextBucketAggregation:     pancake.layers[i].nextBucketAggregation,
+					}
+				}
+
+				newPancake := pancakeModel{
+					layers:      newLayers,
+					whereClause: pancake.whereClause,
+					sampleLimit: pancake.sampleLimit,
+					optTopHits:  metric,
+				}
+				result = append(result, &newPancake)
+			} else {
+				metricsWithoutTopHits = append(metricsWithoutTopHits, metric)
+			}
+		}
+		layer.currentMetricAggregations = metricsWithoutTopHits
+	}
+	return
+}
+
 func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregationTree) (pancakeResults []*pancakeModel, err error) {
 	if topLevel.children == nil || len(topLevel.children) == 0 {
 		return nil, fmt.Errorf("no top level aggregations found")
@@ -317,11 +347,17 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 
 		a.connectPipelineAggregations(layers)
 
-		pancakeResults = append(pancakeResults, &pancakeModel{
+		newPancake := pancakeModel{
 			layers:      layers,
 			whereClause: topLevel.whereClause,
 			sampleLimit: sampleLimit,
-		})
+		}
+
+		pancakeResults = append(pancakeResults, &newPancake)
+
+		if additionalTopHitPancakes := a.createTopHitPancakes(&newPancake); len(additionalTopHitPancakes) > 0 {
+			pancakeResults = append(pancakeResults, additionalTopHitPancakes...)
+		}
 	}
 
 	return

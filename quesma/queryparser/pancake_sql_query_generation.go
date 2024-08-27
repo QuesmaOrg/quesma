@@ -251,9 +251,9 @@ func (p *pancakeSqlQueryGenerator) countRealBucketAggregations(aggregation *panc
 	return bucketAggregationCount
 }
 
-func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeModel) (*model.SelectCommand, bool, error) {
+func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeModel) (resultQuery *model.SelectCommand, optimizerName string, err error) {
 	if aggregation == nil {
-		return nil, false, errors.New("aggregation is nil in generateQuery")
+		return nil, "", errors.New("aggregation is nil in generateQuery")
 	}
 
 	bucketAggregationCount := p.countRealBucketAggregations(aggregation)
@@ -276,7 +276,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
 			addSelectColumns, err := p.generateMetricSelects(metric, groupBys, hasMoreBucketAggregations)
 			if err != nil {
-				return nil, false, err
+				return nil, "", err
 			}
 			selectColumns = append(selectColumns, addSelectColumns...)
 		}
@@ -293,7 +293,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			addSelectColumns, addGroupBys, addRankColumns, addRankWheres, addRankOrderBys, err :=
 				p.generateBucketSqlParts(layer.nextBucketAggregation, groupBys, hasMoreBucketAggregations)
 			if err != nil {
-				return nil, false, err
+				return nil, "", err
 			}
 			selectColumns = append(selectColumns, addSelectColumns...)
 			groupBys = append(groupBys, addGroupBys...)
@@ -320,7 +320,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 				} else {
 					withIfCombinator, err := p.addIfCombinator(selectAfter.Expr, subGroup.WhereClause)
 					if err != nil {
-						return nil, false, err
+						return nil, "", err
 					}
 					withCombinator = withIfCombinator
 				}
@@ -352,7 +352,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			orderBy = rankColumns[0].Expr.(model.WindowFunction).OrderBy
 		}
 
-		query := model.SelectCommand{
+		resultQuery = &model.SelectCommand{
 			Columns:     p.aliasedExprArrayToExpr(selectColumns),
 			GroupBy:     p.aliasedExprArrayToExpr(groupBys),
 			WhereClause: aggregation.whereClause,
@@ -361,30 +361,46 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			Limit:       limit,
 			SampleLimit: aggregation.sampleLimit,
 		}
-		return &query, false, nil
+		optimizerName = PancakeOptimizerName + "(half)"
+	} else {
+		windowCte := model.SelectCommand{
+			Columns:     p.aliasedExprArrayToExpr(selectColumns),
+			GroupBy:     p.aliasedExprArrayToExpr(groupBys),
+			WhereClause: aggregation.whereClause,
+			FromClause:  model.NewTableRef(model.SingleTableNamePlaceHolder),
+			SampleLimit: aggregation.sampleLimit,
+		}
+
+		rankCte := model.SelectCommand{
+			Columns:    append(p.aliasedExprArrayToLiteralExpr(selectColumns), p.aliasedExprArrayToExpr(rankColumns)...),
+			FromClause: windowCte,
+		}
+
+		resultQuery = &model.SelectCommand{
+			Columns:     p.aliasedExprArrayToLiteralExpr(selectColumns),
+			FromClause:  rankCte,
+			WhereClause: model.And(rankWheres),
+			OrderBy:     rankOrderBys,
+		}
+		optimizerName = PancakeOptimizerName
 	}
 
-	windowCte := model.SelectCommand{
-		Columns:     p.aliasedExprArrayToExpr(selectColumns),
-		GroupBy:     p.aliasedExprArrayToExpr(groupBys),
-		WhereClause: aggregation.whereClause,
-		FromClause:  model.NewTableRef(model.SingleTableNamePlaceHolder),
-		SampleLimit: aggregation.sampleLimit,
+	if aggregation.optTopHits != nil {
+		topHits := aggregation.optTopHits
+
+		newSelects := make([]model.Expr, 0, len(selectColumns)+len(topHits.selectedColumns))
+		for _, selectColumn := range selectColumns {
+			aliasedColumnName := model.NewLiteral(fmt.Sprintf("%s.%s", "", selectColumn.AliasRef().Value))
+			newSelects = append(newSelects, aliasedColumnName)
+		}
+
+		// TODO: create top_hits
+		//topHitJoin := model.SelectCommand{}
+		//resultQuery = &topHitJoin
+		optimizerName = PancakeOptimizerName + "(with top_hits)"
 	}
 
-	rankCte := model.SelectCommand{
-		Columns:    append(p.aliasedExprArrayToLiteralExpr(selectColumns), p.aliasedExprArrayToExpr(rankColumns)...),
-		FromClause: windowCte,
-	}
-
-	finalQuery := model.SelectCommand{
-		Columns:     p.aliasedExprArrayToLiteralExpr(selectColumns),
-		FromClause:  rankCte,
-		WhereClause: model.And(rankWheres),
-		OrderBy:     rankOrderBys,
-	}
-
-	return &finalQuery, true, nil
+	return
 }
 
 func (p *pancakeSqlQueryGenerator) generateQuery(aggregation *pancakeModel) (*model.Query, error) {
@@ -392,7 +408,7 @@ func (p *pancakeSqlQueryGenerator) generateQuery(aggregation *pancakeModel) (*mo
 		return nil, errors.New("aggregation is nil in generateQuery")
 	}
 
-	resultSelectCommand, isFullPancake, err := p.generateSelectCommand(aggregation)
+	resultSelectCommand, optimizerName, err := p.generateSelectCommand(aggregation)
 	if err != nil {
 		return nil, err
 	}
@@ -403,11 +419,7 @@ func (p *pancakeSqlQueryGenerator) generateQuery(aggregation *pancakeModel) (*mo
 		OptimizeHints: model.NewQueryExecutionHints(),
 	}
 
-	if isFullPancake {
-		resultQuery.OptimizeHints.OptimizationsPerformed = append(resultQuery.OptimizeHints.OptimizationsPerformed, PancakeOptimizerName)
-	} else {
-		resultQuery.OptimizeHints.OptimizationsPerformed = append(resultQuery.OptimizeHints.OptimizationsPerformed, PancakeOptimizerName+"(half)")
-	}
+	resultQuery.OptimizeHints.OptimizationsPerformed = append(resultQuery.OptimizeHints.OptimizationsPerformed, optimizerName)
 
 	return resultQuery, nil
 }

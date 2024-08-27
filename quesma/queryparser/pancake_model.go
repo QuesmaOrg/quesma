@@ -18,6 +18,8 @@ type pancakeModel struct {
 
 	whereClause model.Expr
 	sampleLimit int
+
+	optTopHits *pancakeModelMetricAggregation
 }
 
 type pancakeModelLayer struct {

@@ -189,8 +189,8 @@ func incorrectResult(testName string) bool {
 // TODO remove after fix
 func topHits(testName string) bool {
 	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range" // also range
-	t2 := testName == "top hits, quite complex"
-	return t1 || t2
+	// t2 := testName == "top hits, quite complex"
+	return t1
 }
 
 // TODO remove after fix

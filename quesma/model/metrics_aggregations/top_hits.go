@@ -12,11 +12,12 @@ import (
 )
 
 type TopHits struct {
-	ctx context.Context
+	ctx  context.Context
+	size int
 }
 
-func NewTopHits(ctx context.Context) TopHits {
-	return TopHits{ctx: ctx}
+func NewTopHits(ctx context.Context, size int) TopHits {
+	return TopHits{ctx: ctx, size: size}
 }
 
 func (query TopHits) AggregationType() model.AggregationType {
