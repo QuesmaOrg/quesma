@@ -55,9 +55,6 @@ processors:
           enabled: true
           schemaOverrides:
             fields:
-              "@timestamp":
-                type: date
-                isTimestampField: true
               timestamp:
                 type: alias
                 targetColumnName: "@timestamp"

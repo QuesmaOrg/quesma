@@ -146,6 +146,7 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameF
 			fType = "Nullable(DateTime64)"
 		case schema.TypeDate.Name:
 			fType = "Nullable(Date)"
+			// TODO if someone sets this in schemaOverrides AND this is a timestamp field, we end up with "Sorting key contains nullable columns, but merge tree setting `allow_nullable_key` is disabled"
 		case schema.TypeFloat.Name:
 			fType = "Nullable(Float64)"
 		case schema.TypeBoolean.Name:
