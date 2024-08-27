@@ -246,7 +246,7 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 			_, ok = table.Cols[a.MapName]
 			if !ok {
 				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapName)
-				table.Cols[a.MapName] = &Column{Name: a.MapName, Type: CompoundType{Name: "Array", BaseType: NewBaseType("String")}}
+				table.Cols[a.MapName] = &Column{Name: a.MapName, Type: CompoundType{Name: "Map", BaseType: NewBaseType("String, String")}}
 			}
 		}
 	}

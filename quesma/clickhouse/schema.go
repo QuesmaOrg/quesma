@@ -332,6 +332,7 @@ func NewDefaultInt64Attribute() Attribute {
 		KeysArrayName:   "attributes_int64_key",
 		ValuesArrayName: "attributes_int64_value",
 		TypesArrayName:  "attributes_int64_type",
+		MapName:         AttributesColumn,
 		Type:            NewBaseType("Int64"),
 	}
 }
@@ -341,6 +342,7 @@ func NewDefaultFloat64Attribute() Attribute {
 		KeysArrayName:   "attributes_float64_key",
 		ValuesArrayName: "attributes_float64_value",
 		TypesArrayName:  "attributes_float64_type",
+		MapName:         AttributesColumn,
 		Type:            NewBaseType("Float64"),
 	}
 }
@@ -350,6 +352,7 @@ func NewDefaultBoolAttribute() Attribute {
 		KeysArrayName:   "attributes_bool_key",
 		ValuesArrayName: "attributes_bool_value",
 		TypesArrayName:  "attributes_bool_type",
+		MapName:         AttributesColumn,
 		Type:            NewBaseType("Bool"),
 	}
 }
