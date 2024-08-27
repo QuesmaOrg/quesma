@@ -16,9 +16,7 @@ type IndexConfiguration struct {
 	// TODO to be deprecated
 	IgnoredFields map[string]bool `koanf:"ignoredFields"`
 	// TODO to be deprecated
-	TimestampField *string `koanf:"timestampField"`
-	// this is hidden from the user right now
-	// deprecated
+	TimestampField    *string                           `koanf:"timestampField"`
 	SchemaOverrides   *SchemaConfiguration              `koanf:"schemaOverrides"`
 	EnabledOptimizers map[string]OptimizerConfiguration `koanf:"optimizers"`
 	Override          string                            `koanf:"override"`
