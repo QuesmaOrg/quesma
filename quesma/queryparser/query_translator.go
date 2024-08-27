@@ -493,6 +493,7 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 			sampleLimit,
 			false,
 			nil,
+			nil,
 		),
 		Type: typical_queries.NewCount(cw.Ctx),
 	}
@@ -514,6 +515,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, wh
 			limit,
 			0,
 			true,
+			nil,
 			nil,
 		),
 	}
@@ -537,6 +539,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 			limit,
 			0,
 			false,
+			nil,
 			nil,
 		),
 	}
@@ -562,6 +565,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 			0,
 			facetsSampleSize,
 			false,
+			nil,
 			nil,
 		),
 		Type: typ,
