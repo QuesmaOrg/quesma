@@ -14,8 +14,6 @@ type IndexConfiguration struct {
 	// TODO to be deprecated
 	FullTextFields []string `koanf:"fullTextFields"`
 	// TODO to be deprecated
-	TypeMappings map[string]string `koanf:"mappings"`
-	// TODO to be deprecated
 	IgnoredFields map[string]bool `koanf:"ignoredFields"`
 	// TODO to be deprecated
 	TimestampField *string `koanf:"timestampField"`

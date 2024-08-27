@@ -54,7 +54,13 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			name: "schema inferred, with type mappings (deprecated)",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
-					"some_table": {Enabled: true, TypeMappings: map[string]string{"message": "keyword"}},
+					"some_table": {Enabled: true,
+						SchemaOverrides: &config.SchemaConfiguration{
+							Fields: map[config.FieldName]config.FieldConfiguration{
+								"message": {Type: "keyword"},
+							},
+						},
+					},
 				},
 			},
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
@@ -199,10 +205,10 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
 					"some_table": {Enabled: true,
-						TypeMappings: map[string]string{"message": "keyword"},
 						SchemaOverrides: &config.SchemaConfiguration{
 							Fields: map[config.FieldName]config.FieldConfiguration{
 								"message_alias": {Type: "alias", TargetColumnName: "message"},
+								"message":       {Type: "keyword"},
 							},
 						},
 					},
@@ -228,7 +234,13 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			name: "schema inferred, requesting nonexistent schema",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
-					"some_table": {Enabled: true, TypeMappings: map[string]string{"message": "keyword"}},
+					"some_table": {Enabled: true,
+						SchemaOverrides: &config.SchemaConfiguration{
+							Fields: map[config.FieldName]config.FieldConfiguration{
+								"message": {Type: "keyword"},
+							},
+						},
+					},
 				},
 			},
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
