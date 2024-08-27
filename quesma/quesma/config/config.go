@@ -354,6 +354,7 @@ func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfigurat
 			err = multierror.Append(err, fmt.Errorf("field %s in index %s has invalid type %s", fieldName, config.Name, fieldConfig.Type))
 		}
 
+		// TODO This validation will be fixed on further field config cleanup
 		//if slices.Contains(config.SchemaOverrides.Ignored, fieldName.AsString()) {
 		//	err = multierror.Append(err, fmt.Errorf("field %s in index %s is both enabled and ignored", fieldName, config.Name))
 		//}
