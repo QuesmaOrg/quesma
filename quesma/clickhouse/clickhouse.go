@@ -500,7 +500,7 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}, tableName 
 	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
 	attrValues := getAttributesByArrayName(AttributesValueColumn, attrsMap)
 
-	nonSchemaStr = "\"attributes\":{"
+	nonSchemaStr = "\"" + AttributesColumn + "\":{"
 	for i := 0; i < len(attrKeys); i++ {
 		if i > 0 {
 			nonSchemaStr += ","
