@@ -245,6 +245,7 @@ func waitForLogsInClickhouse(tableName string, timeout time.Duration, expectColu
 
 	res := waitFor("clickhouse", func() bool {
 
+		// driver name has changed in https://github.com/mailru/go-clickhouse/pull/154/
 		connection, err := sql.Open("chhttp", clickhouseUrl)
 		if err != nil {
 			panic(err)
