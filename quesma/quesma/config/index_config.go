@@ -46,7 +46,7 @@ func (c IndexConfiguration) String() string {
 		}
 		extraString += strings.Join(fields, ", ")
 	}
-	var str = fmt.Sprintf("\n\t\t%s, disabled: %t, schema overrides: %s, override: %s",
+	var str = fmt.Sprintf("\n\t\t%s, enabled: %t, schema overrides: %s, override: %s",
 		c.Name,
 		c.Enabled,
 		c.SchemaOverrides.String(),
