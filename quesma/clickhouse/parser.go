@@ -146,7 +146,9 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameF
 			fType = "Nullable(DateTime64)"
 		case schema.TypeDate.Name:
 			fType = "Nullable(Date)"
-			// TODO if someone sets `type: date` to a field in schemaOverrides AND this is a timestamp field for which we have dedicated logic (use DateTime64 + add DEFAULT now64())
+			// TODO: This (and Nullable(DateTime64) above) can be problematic for ingest when when set by user explicitly. We should either not use Nullable in this case
+			// or add some validation logic so that its handled properly.
+			// Example if someone sets `type: date` to a field in schemaOverrides AND this is a timestamp field for which we have dedicated logic (use DateTime64 + add DEFAULT now64())
 			// Ingest will FAIL creating table with "Sorting key contains nullable columns, but merge tree setting `allow_nullable_key` is disabled"
 		case schema.TypeFloat.Name:
 			fType = "Nullable(Float64)"

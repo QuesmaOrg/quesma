@@ -21,8 +21,8 @@ type Table struct {
 	Config       *ChTableConfig
 	Created      bool // do we need to create it during first insert
 	indexes      []IndexStatement
-	aliases      map[string]string //deprecated TODO looks like we've reached the point where this becomes a problem
-	//we should use aliases directly from configuration, not store them here
+	aliases      map[string]string //deprecated
+	// TODO: we should use aliases directly from configuration, not store them here
 	Comment          string // this human-readable comment
 	CreateTableQuery string
 	TimestampColumn  *string
