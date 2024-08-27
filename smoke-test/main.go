@@ -127,7 +127,7 @@ func main() {
 		println("   Kibana: OK")
 		waitForDataViews(5 * time.Minute)
 		println("   Data Views: OK")
-		waitForLogsInClickhouse("logs-generic-default", time.Minute, []string{"@timestamp", "attributes_string_key", "attributes_string_value", "host::name", "message", "service::name", "severity", "source"})
+		waitForLogsInClickhouse("logs-generic-default", time.Minute, []string{"@timestamp", "attributes", "attributes_string_key", "attributes_string_value", "host::name", "message", "service::name", "severity", "source"})
 		println("   Logs in Clickhouse: OK")
 		waitForAsyncQuery(time.Minute)
 		println("   AsyncQuery: OK")
