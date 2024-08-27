@@ -31,34 +31,44 @@ processors:
       indexes:
         kibana_sample_data_ecommerce:
           enabled: true
-          mappings:
-            products.manufacturer: "text"
-            products.product_name: "text"
-            geoip.location: "geo_point"
-            category: "text"
-            manufacturer: "text"
+          schemaOverrides:
+            fields:
+              "geoip.location":
+                type: geo_point
+              "products.manufacturer":
+                type: text
+              "products.product_name":
+                type: text
+              category:
+                type: text
+              manufacturer:
+                type: text
         kibana_sample_data_flights:
           enabled: true
-          mappings:
-            DestLocation: "geo_point"
-            OriginLocation: "geo_point"
+          schemaOverrides:
+            fields:
+              "DestLocation":
+                type: geo_point
+              "OriginLocation":
+                type: geo_point
         logs-generic-default:
           enabled: true
-          static-schema:
+          schemaOverrides:
             fields:
+              "@timestamp":
+                type: date
+                isTimestampField: true
+              timestamp:
+                type: alias
+                targetColumnName: "@timestamp"
               message:
-                type: "text"
-              host.name:
-                type: "keyword"
+                type: text
               service.name:
                 type: "keyword"
               source:
                 type: "keyword"
               severity:
                 type: "keyword"
-              severity_alias:
-                type: "alias"
-                aliased-field: "severity"
           fullTextFields: [ "message", "host.name" ]
 
 
