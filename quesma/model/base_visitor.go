@@ -19,6 +19,7 @@ type BaseExprVisitor struct {
 	OverrideVisitParenExpr      func(b *BaseExprVisitor, e ParenExpr) interface{}
 	OverrideVisitLambdaExpr     func(b *BaseExprVisitor, e LambdaExpr) interface{}
 	OverrideVisitJoinExpr       func(b *BaseExprVisitor, e JoinExpr) interface{}
+	OverrideVisitCTE            func(b *BaseExprVisitor, e CTE) interface{}
 }
 
 func NewBaseVisitor() *BaseExprVisitor {
@@ -166,8 +167,14 @@ func (v *BaseExprVisitor) VisitSelectCommand(query SelectCommand) interface{} {
 			ctes = append(ctes, cte.Accept(v).(*SelectCommand))
 		}
 	}
+	var namedCTEs []*CTE
+	if query.NamedCTEs != nil {
+		for _, cte := range query.NamedCTEs {
+			namedCTEs = append(namedCTEs, cte.Accept(v).(*CTE))
+		}
+	}
 
-	return NewSelectCommand(columns, groupBy, orderBy, from, where, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes)
+	return NewSelectCommand(columns, groupBy, orderBy, from, where, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes, namedCTEs)
 }
 
 func (v *BaseExprVisitor) VisitParenExpr(p ParenExpr) interface{} {
@@ -193,4 +200,11 @@ func (v *BaseExprVisitor) VisitJoinExpr(j JoinExpr) interface{} {
 		return v.OverrideVisitJoinExpr(v, j)
 	}
 	return NewJoinExpr(j.Lhs.Accept(v).(Expr), j.Rhs.Accept(v).(Expr), j.JoinType, j.On.Accept(v).(Expr))
+}
+
+func (v *BaseExprVisitor) VisitCTE(e CTE) interface{} {
+	if v.OverrideVisitCTE != nil {
+		return v.OverrideVisitCTE(v, e)
+	}
+	return NewCTE(e.Name, e.SelectCommand.Accept(v).(*SelectCommand))
 }

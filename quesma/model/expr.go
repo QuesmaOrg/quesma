@@ -249,6 +249,19 @@ func (e JoinExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitJoinExpr(e)
 }
 
+type CTE struct {
+	Name          string
+	SelectCommand *SelectCommand
+}
+
+func NewCTE(name string, selectCommand *SelectCommand) *CTE {
+	return &CTE{Name: name, SelectCommand: selectCommand}
+}
+
+func (e CTE) Accept(v ExprVisitor) interface{} {
+	return v.VisitCTE(e)
+}
+
 type ExprVisitor interface {
 	VisitFunction(e FunctionExpr) interface{}
 	VisitLiteral(l LiteralExpr) interface{}
@@ -266,4 +279,5 @@ type ExprVisitor interface {
 	VisitParenExpr(e ParenExpr) interface{}
 	VisitLambdaExpr(e LambdaExpr) interface{}
 	VisitJoinExpr(e JoinExpr) interface{}
+	VisitCTE(e CTE) interface{}
 }
