@@ -670,7 +670,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.Si
 			return model.NewSimpleQuery(nil, false)
 		}
 	} else {
-		fields = cw.Table.GetFulltextFields()
+		fields = []string{model.FullTextFieldNamePlaceHolder}
 	}
 	alwaysFalseStmt := model.NewLiteral("false")
 	if len(fields) == 0 {
@@ -784,7 +784,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.S
 	if fieldsRaw, ok := queryMap["fields"]; ok {
 		fields = cw.extractFields(fieldsRaw.([]interface{}))
 	} else {
-		fields = cw.Table.GetFulltextFields()
+		fields = []string{model.FullTextFieldNamePlaceHolder}
 	}
 
 	query := queryMap["query"].(string) // query: (Required, string)
@@ -1083,7 +1083,7 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 			continue
 		}
 		if fieldStr == "*" {
-			return cw.Table.GetFulltextFields()
+			return []string{model.FullTextFieldNamePlaceHolder}
 		}
 		fieldStr = cw.ResolveField(cw.Ctx, fieldStr)
 		result = append(result, fieldStr)
