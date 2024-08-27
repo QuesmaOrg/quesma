@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/mailru/go-clickhouse"
+	_ "github.com/mailru/go-clickhouse/v2"
 )
 
 const (
