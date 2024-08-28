@@ -664,8 +664,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
 		"test": {
-			Name:    "kibana_sample_data_ecommerce",
-			Enabled: true,
+			Name: "kibana_sample_data_ecommerce",
 		},
 	}
 	cfg := config.QuesmaConfiguration{
@@ -832,8 +831,7 @@ func TestFullTextFields(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
 		"test": {
-			Name:    "kibana_sample_data_ecommerce",
-			Enabled: true,
+			Name: "kibana_sample_data_ecommerce",
 		},
 	}
 	cfg := config.QuesmaConfiguration{

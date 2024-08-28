@@ -398,6 +398,7 @@ func (s *SchemaCheckPass) applyFullTextField(query *model.Query) (*model.Query, 
 		return query, nil
 	}
 	fullTextFields := table.GetFulltextFields()
+	sort.Strings(fullTextFields)
 
 	visitor := model.NewBaseVisitor()
 
