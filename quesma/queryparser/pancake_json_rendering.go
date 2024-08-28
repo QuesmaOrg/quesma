@@ -155,7 +155,9 @@ func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLa
 
 func (p *pancakeJSONRenderer) processPip(result model.JsonMap, layer *pancakeModelLayer,
 	pipeline *pancakeModelPipelineAggregation, rows []model.QueryResultRow) model.JsonMap {
-	pp.Println("processPip, pipeline, name:", pipeline.internalName, "rows", rows)
+
+	pp.Println("processPip, pipeline, name:", pipeline.internalName)
+	fmt.Println("rows", rows)
 	processedRows := pipeline.queryType.CalculateResultWhenMissing(p.selectPipelineRows(pipeline.queryType, rows))
 	fmt.Println("processedRows", processedRows)
 	result[pipeline.name] = pipeline.queryType.TranslateSqlResponseToJson(processedRows, 0) // TODO: fill level?
@@ -236,31 +238,38 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 	}
 }
 
-func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
+var a = 1
 
+func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
+	a++
 	result := model.JsonMap{}
 	if len(remainingLayers) == 0 {
+		pp.Println("layerToJSON 0 remainingLayers")
 		return result, nil
 	}
+	pp.Println("== WCHODZE layerToJSON", a, "len(remainingLayers):", len(remainingLayers))
+	fmt.Println("rows:", rows, "layer.nextBucketAggregation", remainingLayers[0].nextBucketAggregation)
 	layer := remainingLayers[0]
 	for _, metric := range layer.currentMetricAggregations {
-		pp.Println("layerToJSON, metric")
+		pp.Println("metric (layerToJSON)")
 		metricRows := p.selectMetricRows(metric.internalName+"_col_", rows)
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
 		// TODO: maybe add metadata also here? probably not needed
 	}
 
+	// pipeline aggregations of metric type behave just like metric
 	for _, pipeline := range layer.childrenPipelineAggregations {
-		// TODO: !!
-		if pipeline.internalName == "pipeline__2__1" {
-			continue
+		// TODO: simplify by add method pipeline type (metric or bucket)
+		typ := pipeline.queryType.PipelineAggregationType()
+		pp.Println("pipeline (start layerToJSON)", pipeline.internalName, "type?", typ.String())
+		if typ == model.MetricsAggregation {
+			result = p.processPip(result, layer, pipeline, rows)
 		}
-		pp.Println("1", pipeline.internalName, pipeline.parentColumnName(p.ctx))
-		result = p.processPip(result, layer, pipeline, rows)
+		//pp.Println("1", pipeline.internalName, pipeline.parentColumnName(p.ctx))
+		//
 	}
 	// od razu
-
-	fmt.Println("rows na poczatku", rows)
+	fmt.Println("layerToJSON start, len(remainingLayers):", len(remainingLayers), "rows na poczatku", rows, "ILE PIPELINE?", len(layer.childrenPipelineAggregations))
 
 	if layer.nextBucketAggregation != nil {
 		// sampler and filter are special
@@ -273,16 +282,19 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			return result, nil
 		}
 
-		fmt.Printf("nextBucketAggr: %+v\n\n, wchodzimy? %d %d", layer.nextBucketAggregation, len(remainingLayers))
-		if len(remainingLayers) > 1 {
-			nextLayer := remainingLayers[1]
-			for _, pipeline := range nextLayer.childrenPipelineAggregations {
-				fmt.Println("pipeline iteration...")
-				//result[pipeline.name] = pipeline.queryType.TranslateSqlResponseToJson(rows, 0) // TODO: fill level?
-				p.pipelineAggregationFullToShortName[pipeline.internalName] = pipeline.name
-				p.pipelineAggregationToResultBucketPointer[pipeline.internalName] = &result
+		fmt.Printf("nextBucketAggr: %+v\n\n, wchodzimy? %d\n", layer.nextBucketAggregation, len(remainingLayers))
+		// DOTO useless? remove?
+		/*
+			if len(remainingLayers) > 1 {
+				nextLayer := remainingLayers[1]
+				for _, pipeline := range nextLayer.childrenPipelineAggregations {
+					fmt.Println("pipeline iteration..., pipeline.name:", pipeline.internalName)
+					//result[pipeline.name] = pipeline.queryType.TranslateSqlResponseToJson(rows, 0) // TODO: fill level?
+					p.pipelineAggregationFullToShortName[pipeline.internalName] = pipeline.name
+					p.pipelineAggregationToResultBucketPointer[pipeline.internalName] = &result
+				}
 			}
-		}
+		*/
 
 		bucketRows, subAggrRows, rowIndexes := p.splitBucketRows(layer.nextBucketAggregation, rows)
 		bucketRows, subAggrRows, rowIndexes = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows, rowIndexes)
@@ -297,11 +309,11 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		if len(remainingLayers) > 1 {
 			nextLayer := remainingLayers[1]
 			for _, childPipeline := range nextLayer.childrenPipelineAggregations {
-				if childPipeline.internalName == "pipeline__2__1" { // TODO: fix
+				if childPipeline.queryType.PipelineAggregationType() != model.BucketAggregation {
 					continue
 				}
 				var oldColumnArr []any
-				fmt.Printf("child pipeline: %+v\ncur aggr: %+v\n", childPipeline, layer.nextBucketAggregation.queryType)
+				fmt.Printf("child pipeline w layer.nextbucket: %+v\ncur aggr: %+v\n", childPipeline, layer.nextBucketAggregation.queryType)
 				needToAddProperMetricColumn := !childPipeline.queryType.IsCount() // If count, last column of bucketRows is already count we need.
 				if needToAddProperMetricColumn {
 					fmt.Println("-- rendering: adding Column, bucket rows:", bucketRows)
@@ -309,24 +321,32 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 					fmt.Println("== rendering: added Column, bucket rows:", bucketRows)
 				}
 
-				// hmm TODO: find a nicer way
+				// hmm TODO: find a nicer way + fix style
 				if histogram, ok := layer.nextBucketAggregation.queryType.(bucket_aggregations.Histogram); ok {
 					bucketRowsTransformed := histogram.NewRowsTransformer().Transform(p.ctx, bucketRows)
+					p.processPip2(nextLayer, childPipeline, bucketRowsTransformed, &pipelineRows, &pipelineNames, &pipelineTypes)
+				} else if dateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.DateHistogram); ok {
+					bucketRowsTransformed := dateHistogram.NewRowsTransformer().Transform(p.ctx, bucketRows)
 					p.processPip2(nextLayer, childPipeline, bucketRowsTransformed, &pipelineRows, &pipelineNames, &pipelineTypes)
 				} else {
 					p.processPip2(nextLayer, childPipeline, bucketRows, &pipelineRows, &pipelineNames, &pipelineTypes)
 				}
 
-				pipelineNames = append(pipelineNames, childPipeline.name)
-				pipelineTypes = append(pipelineTypes, childPipeline.queryType.PipelineAggregationType())
 				if needToAddProperMetricColumn {
 					bucketRows = p.restoreLastColumn(bucketRows, oldColumnArr)
 				}
 			}
 		}
 
-		bucketRows, subAggrRows, _ = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
+		bucketRows, subAggrRows, rowIndexes = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows, rowIndexes)
 		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, 0)
+
+		fmt.Println("-- IMPORTANT, len(pipelineRows):", len(pipelineRows), "pipelineRows:", pipelineRows, "agg:", layer.nextBucketAggregation.internalName)
+		if len(pipelineRows) == 2 {
+			fmt.Println("pipelineRows[0]:", pipelineRows[0])
+			fmt.Println("pipelineRows[1]:", pipelineRows[1])
+		}
+		pp.Println("pipelineNames:", pipelineNames)
 
 		if len(buckets) == 0 { // without this we'd generate {"buckets": []} in the response, which Elastic doesn't do.
 			if layer.nextBucketAggregation.metadata != nil {
@@ -347,7 +367,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 					// Simple case, we merge bucketArr[i] with subAggrRows[i] (if lengths are equal, keys must be equal => it's fine to not check them at all)
 					for i, bucket := range bucketArr {
 						if docCount, ok := bucket["doc_count"]; ok {
-							if fmt.Sprintf("%v", docCount) == "0" { // Not sure, but it does the trick
+							// Not sure, but it does the trick. If count == 0, but there are still some pipelines, we can't continue, need add pipeline results.
+							// TODO: Maybe only continue if filtering on pipelineTypes passes > 0 times, not sure
+							if len(pipelineRows) == 0 && fmt.Sprintf("%v", docCount) == "0" {
 								continue
 							}
 						}
@@ -357,10 +379,12 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 							return nil, err
 						}
 						bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr, model.KeyAddedByQuesma)
+						// TODO add only if bucket
 						for j, singlePipelineRows := range pipelineRows {
-							if pipelineTypes[j] == model.BucketAggregation {
-								bucketArr[i][pipelineNames[j]] = model.JsonMap{"value": singlePipelineRows[i].LastColValue()}
-							}
+							fmt.Println("iterate over pipelineRows, name:", pipelineNames[j], len(pipelineNames[j]), len(singlePipelineRows), singlePipelineRows, "len(pipelineRows)", len(pipelineRows))
+							//if pipelineTypes[j] == model.BucketAggregation {
+							bucketArr[i][pipelineNames[j]] = model.JsonMap{"value": singlePipelineRows[i].LastColValue()}
+							//}
 						}
 					}
 				} else {
@@ -370,7 +394,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 					subAggrIdx := 0
 					for i, bucket := range bucketArr {
 						if docCount, ok := bucket["doc_count"]; ok {
-							if fmt.Sprintf("%v", docCount) == "0" { // Not sure, but it does the trick
+							// Not sure, but it does the trick. If count == 0, but there are still some pipelines, we can't continue, need add pipeline results.
+							// TODO: Maybe only continue if filtering on pipelineTypes passes > 0 times, not sure
+							if len(pipelineRows) == 0 && fmt.Sprintf("%v", docCount) == "0" {
 								continue
 							}
 						}
@@ -393,9 +419,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						}
 
 						for j, singlePipelineRows := range pipelineRows {
-							if pipelineTypes[j] == model.BucketAggregation {
-								bucketArr[i][pipelineNames[j]] = model.JsonMap{"value": singlePipelineRows[i].LastColValue()}
-							}
+							//if pipelineTypes[j] == model.BucketAggregation {
+							bucketArr[i][pipelineNames[j]] = model.JsonMap{"value": singlePipelineRows[i].LastColValue()}
+							//}
 						}
 					}
 				}
