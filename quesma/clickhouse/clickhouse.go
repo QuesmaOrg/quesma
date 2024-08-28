@@ -23,6 +23,7 @@ import (
 	"quesma/telemetry"
 	"quesma/util"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -450,6 +451,35 @@ func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalid
 	return newAttrsMap
 }
 
+func stringify(v interface{}, isInsideArray bool) string {
+	switch v := v.(type) {
+	case string:
+		if isInsideArray {
+			return fmt.Sprintf("\"%s\"", v)
+		} else {
+			return fmt.Sprintf("%v", v)
+		}
+	case int, int8, int16, int32, int64:
+		return fmt.Sprintf("%d", v)
+	case uint, uint8, uint16, uint32, uint64:
+		return fmt.Sprintf("%d", v)
+	case float32:
+		return strconv.FormatFloat(float64(v), 'f', -1, 32)
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case []interface{}:
+		var parts []string
+		for _, elem := range v {
+			isInsideArray = true
+			parts = append(parts, stringify(elem, isInsideArray))
+			isInsideArray = false
+		}
+		return fmt.Sprintf("[%s]", strings.Join(parts, ","))
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
 // This function takes an attributesMap and arrayName and returns
 // the values of the array named arrayName from the attributesMap
 func getAttributesByArrayName(arrayName string,
@@ -458,7 +488,7 @@ func getAttributesByArrayName(arrayName string,
 	for k, v := range attrsMap {
 		if k == arrayName {
 			for _, val := range v {
-				attributes = append(attributes, fmt.Sprintf("%v", val))
+				attributes = append(attributes, stringify(val, false))
 			}
 		}
 	}

@@ -64,7 +64,6 @@ func EscapeBrackets(s string) string {
 }
 
 func TestIngestValidation(t *testing.T) {
-	t.Skip("TODO")
 	// Trying to ingest a field with a different type than the one defined in the table
 	// will end with populating attributes_string_key with the field name and attributes_string_value with the field value
 	inputJson := []string{
@@ -111,17 +110,17 @@ func TestIngestValidation(t *testing.T) {
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"string_array_field":["DHRFZN","HLVJDR"]}`, tableName),
 
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"int_array_field":"[81,"oops",69,83,77,65]"}}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_string_key":["string_array_field"],"attributes_string_type":["Array(String)"],"attributes_string_value":[["DHRFZN",15,"HLVJDR"]]}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"string_array_field":"["DHRFZN",15,"HLVJDR"]"}}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int32_field":15}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_field":7.5}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_field":15}`, tableName),
 
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int32_field":2147483647}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_string_key":["int32_field"],"attributes_string_type":["Int64"],"attributes_string_value":[2147483648]}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"int32_field":"2147483648"}}`, tableName),
 
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_string_key":["uint8_field"],"attributes_string_type":["Int64"],"attributes_string_value":[-1]}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"uint8_field":"-1"}}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"uint8_field":255}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_string_key":["uint8_field"],"attributes_string_type":["Int64"],"attributes_string_value":[1000]}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"uint8_field":"1000"}}`, tableName),
 	}
 	tableMap := concurrent.NewMapWith(tableName, &Table{
 		Name:   tableName,
