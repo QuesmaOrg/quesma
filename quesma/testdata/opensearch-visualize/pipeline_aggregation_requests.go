@@ -4209,19 +4209,16 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1716231600000/600000)),
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
-				model.NewQueryResultCol("aggr__1-bucket__order_1", int64(1716231600000/600000)),
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", nil),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1716276600000/600000)),
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(4)),
-				model.NewQueryResultCol("aggr__1-bucket__order_1", int64(1716276600000/600000)),
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 121360.0),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1716277200000/600000)),
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
-				model.NewQueryResultCol("aggr__1-bucket__order_1", int64(1716277200000/600000)),
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", nil),
 			}},
 		},
@@ -4243,13 +4240,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
 			  "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count",
-			  toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
-			  "aggr__1-bucket__order_1",
 			  minOrNull("memory") AS "metric__1-bucket__1-metric_col_0"
 			FROM "logs-generic-default"
 			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
 			  "aggr__1-bucket__key_0"
-			ORDER BY "aggr__1-bucket__order_1", "aggr__1-bucket__key_0" ASC`,
+			ORDER BY "aggr__1-bucket__key_0" ASC`,
 	},
 	{ // [20]
 		TestName: "Different pipeline aggrs with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max/Sum Bucket/etc. (Aggregation: Histogram, Metric: Max)",
