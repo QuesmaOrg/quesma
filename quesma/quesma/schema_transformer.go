@@ -407,7 +407,7 @@ func (s *SchemaCheckPass) applyFullTextField(query *model.Query) (*model.Query, 
 
 		// full text field should be used only in where clause
 		if e.ColumnName == model.FullTextFieldNamePlaceHolder {
-			err = fmt.Errorf("Full text field name placeholder %s found in query. ", model.FullTextFieldNamePlaceHolder)
+			err = fmt.Errorf("full text field name placeholder found in query")
 		}
 		return e
 	}
