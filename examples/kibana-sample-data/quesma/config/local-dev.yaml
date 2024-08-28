@@ -60,6 +60,8 @@ processors:
                 targetColumnName: "@timestamp"
               message:
                 type: text
+              "host.name":
+                type: "keyword"
               service.name:
                 type: "keyword"
               source:
