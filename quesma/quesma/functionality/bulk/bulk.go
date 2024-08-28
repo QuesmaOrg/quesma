@@ -116,7 +116,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 		}
 
 		indexConfig, found := cfg.IndexConfig[index]
-		if !found || !indexConfig.Enabled {
+		if !found || indexConfig.Disabled {
 			// Bulk entry for Elastic - forward the request as-is
 			opBytes, err := rawOp.Bytes()
 			if err != nil {

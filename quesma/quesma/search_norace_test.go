@@ -41,7 +41,7 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+			cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 			logChan := logger.InitOnlyChannelLoggerForTests()
 			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 			go managementConsole.RunOnlyChannelProcessor()
@@ -109,7 +109,7 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	defer db.Close()
 
 	lm := clickhouse.NewLogManagerWithConnection(db, table)
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	logChan := logger.InitOnlyChannelLoggerForTests()
 	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 	go managementConsole.RunOnlyChannelProcessor()

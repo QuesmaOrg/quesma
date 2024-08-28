@@ -15,22 +15,18 @@ func TestIndexConfiguration_FullTextField(t *testing.T) {
 	indexConfig := map[string]IndexConfiguration{
 		"none": {
 			Name:           "none",
-			Enabled:        true,
 			FullTextFields: []string{},
 		},
 		"foo-bar": {
 			Name:           "foo-bar",
-			Enabled:        true,
 			FullTextFields: []string{"sometext"},
 		},
 		"bar-logs": {
 			Name:           "bar-logs",
-			Enabled:        true,
 			FullTextFields: []string{},
 		},
 		"logs-generic-default": {
 			Name:           "logs-generic-default",
-			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
 		},
 	}
@@ -93,15 +89,15 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 		enabled        bool
 		fullTextFields []string
 	}{
-		{"logs-generic-default", true, []string{"message", "host.name"}},
-		{"device-logs", true, []string{"message"}},
+		{"logs-generic-default", false, []string{"message", "host.name"}},
+		{"device-logs", false, []string{"message"}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ic := findIndexConfig(tt.name)
 			assert.NotNil(t, ic)
-			assert.Equal(t, tt.enabled, ic.Enabled)
+			assert.Equal(t, tt.enabled, ic.Disabled)
 			assert.Equal(t, tt.fullTextFields, ic.FullTextFields)
 		})
 	}

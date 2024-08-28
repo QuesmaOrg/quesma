@@ -31,7 +31,6 @@ func Test_ipRangeTransform(t *testing.T) {
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_logs": {
 			Name:           "kibana_sample_data_logs",
-			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				config.FieldName(IpFieldName): {Type: "ip"},
@@ -41,7 +40,6 @@ func Test_ipRangeTransform(t *testing.T) {
 		// instead of "clientip"
 		"kibana_sample_data_logs_nested": {
 			Name:           "kibana_sample_data_logs_nested",
-			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				"nested.clientip": {Type: "ip"},
@@ -49,7 +47,6 @@ func Test_ipRangeTransform(t *testing.T) {
 		},
 		"kibana_sample_data_flights": {
 			Name:           "kibana_sample_data_flights",
-			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				config.FieldName(IpFieldName): {Type: "ip"},
@@ -387,8 +384,7 @@ func Test_arrayType(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_ecommerce": {
-			Name:    "kibana_sample_data_ecommerce",
-			Enabled: true,
+			Name: "kibana_sample_data_ecommerce",
 		},
 	}
 	cfg := config.QuesmaConfiguration{
@@ -582,8 +578,7 @@ func TestApplyWildCard(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_ecommerce": {
-			Name:    "kibana_sample_data_ecommerce",
-			Enabled: true,
+			Name: "kibana_sample_data_ecommerce",
 		},
 	}
 	cfg := config.QuesmaConfiguration{

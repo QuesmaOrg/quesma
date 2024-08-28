@@ -24,7 +24,9 @@ func RunConfigured(ctx context.Context, cfg QuesmaConfiguration, indexName strin
 			logger.InfoWithCtx(ctx).Msgf("index '%s' is not configured, skipping", indexName)
 			return
 		}
-		if matchingConfig.Enabled {
+		if matchingConfig.Disabled {
+			logger.InfoWithCtx(ctx).Msgf("index '%s' is disabled, ignoring", indexName)
+		} else {
 			insertCounter.Add(1)
 			if insertCounter.Load()%50 == 1 {
 				logger.DebugWithCtx(ctx).Msgf("%s  --> clickhouse, body(shortened): %s, ctr: %d", indexName, body.ShortString(), insertCounter.Load())
@@ -33,8 +35,6 @@ func RunConfigured(ctx context.Context, cfg QuesmaConfiguration, indexName strin
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msg("Can't write to Clickhouse: " + err.Error())
 			}
-		} else {
-			logger.InfoWithCtx(ctx).Msgf("index '%s' is disabled, ignoring", indexName)
 		}
 	}
 }

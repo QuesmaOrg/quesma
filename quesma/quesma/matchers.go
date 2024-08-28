@@ -32,7 +32,7 @@ func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) mux.Reques
 			}
 			if idx%2 == 0 {
 				indexConfig, found := configuration.IndexConfig[extractIndexName(s)]
-				if found && indexConfig.Enabled {
+				if found && !indexConfig.Disabled {
 					return true
 				}
 			}
@@ -65,7 +65,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.Request
 			for _, pattern := range indexPatterns {
 				for _, indexName := range configuration.IndexConfig {
 					if config.MatchName(elasticsearch.NormalizePattern(pattern), indexName.Name) {
-						if configuration.IndexConfig[indexName.Name].Enabled {
+						if !configuration.IndexConfig[indexName.Name].Disabled {
 							return true
 						}
 					}
@@ -77,7 +77,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.Request
 				pattern := elasticsearch.NormalizePattern(indexPattern)
 				if config.MatchName(pattern, index.Name) {
 					if indexConfig, exists := configuration.IndexConfig[index.Name]; exists {
-						return indexConfig.Enabled
+						return !indexConfig.Disabled
 					}
 				}
 			}

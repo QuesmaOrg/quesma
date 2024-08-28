@@ -35,7 +35,7 @@ var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.Get
 
 func TestAsyncSearchHandler(t *testing.T) {
 	// logger.InitSimpleLoggerForTests()
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	table := concurrent.NewMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
@@ -112,7 +112,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 }
 
 func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	table := clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
@@ -180,7 +180,7 @@ var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
 })
 
 func TestSearchHandler(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
@@ -222,7 +222,7 @@ func TestSearchHandler(t *testing.T) {
 
 // TODO this test gives wrong results??
 func TestSearchHandlerNoAttrsConfig(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
@@ -262,7 +262,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 }
 
 func TestAsyncSearchFilter(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
@@ -305,7 +305,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 // (testing of creating response is lacking), because of `sqlmock` limitation.
 // It can't return uint64, thus creating response code panics because of that.
 func TestHandlingDateTimeFields(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
@@ -401,7 +401,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 // (top 10 values, "other" value, min/max).
 // Both `_search`, and `_async_search` handlers are tested.
 func TestNumericFacetsQueries(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
@@ -495,7 +495,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 
 func TestSearchTrackTotalCount(t *testing.T) {
 
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
 
 	s.Tables[tableName] = schema.Schema{
