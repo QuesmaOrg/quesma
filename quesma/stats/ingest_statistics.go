@@ -128,7 +128,7 @@ func (s *Statistics) process(cfg config.QuesmaConfiguration, index string,
 
 func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
 	s.process(cfg, index, jsonData, false, nestedSeparator)
-	if statistics, ok := (*s)[index]; ok {
+	if statistics, ok := (*s)[index]; ok && statistics.Requests < STATISTICS_LIMIT {
 		statistics.Requests++
 	}
 }
