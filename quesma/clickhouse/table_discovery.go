@@ -156,11 +156,6 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]string, d
 	for table, columns := range tables {
 		if indexConfig, found := td.cfg.IndexConfig[table]; found {
 			if indexConfig.Enabled {
-				for colName := range columns {
-					if _, exists := indexConfig.Aliases[colName]; exists {
-						logger.Error().Msgf("column [%s] clashes with an existing alias, table [%s]", colName, table)
-					}
-				}
 				comment := td.tableComment(databaseName, table)
 				createTableQuery := td.createTableQuery(databaseName, table)
 				configuredTables[table] = discoveredTable{table, columns, indexConfig, comment, createTableQuery}

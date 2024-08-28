@@ -15,7 +15,6 @@ import (
 	"quesma/elasticsearch/elasticsearch_field_types"
 	"quesma/index"
 	"quesma/network"
-	"slices"
 	"strings"
 )
 
@@ -78,13 +77,6 @@ func (c *RelationalDbConfiguration) IsNonEmpty() bool {
 	return !c.IsEmpty()
 }
 
-type FieldAlias struct {
-	// TargetFieldName is the field name in the ClickHouse Table
-	TargetFieldName string `koanf:"target"`
-	// SourceFieldName is the field name in received in the ES Query
-	SourceFieldName string `koanf:"source"`
-}
-
 func (c *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) bool {
 	if indexConfig, found := c.IndexConfig[indexName]; found {
 		return indexConfig.HasFullTextField(fieldName)
@@ -92,11 +84,16 @@ func (c *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) 
 	return false
 }
 
-func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]FieldAlias {
+func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
+	aliases := make(map[string]string)
 	if indexConfig, found := c.IndexConfig[indexName]; found {
-		return indexConfig.Aliases
+		if indexConfig.SchemaOverrides != nil {
+			for fieldName, FieldConf := range indexConfig.SchemaOverrides.Fields {
+				aliases[fieldName.AsString()] = FieldConf.TargetColumnName
+			}
+		}
 	}
-	return map[string]FieldAlias{}
+	return aliases
 }
 
 func MatchName(pattern, name string) bool {
@@ -126,10 +123,9 @@ func Load() QuesmaConfiguration {
 	for name, idxConfig := range config.IndexConfig {
 		idxConfig.Name = name
 		config.IndexConfig[name] = idxConfig
-		if idxConfig.SchemaConfiguration != nil {
-			for fieldName, configuration := range idxConfig.SchemaConfiguration.Fields {
-				configuration.Name = fieldName
-				idxConfig.SchemaConfiguration.Fields[fieldName] = configuration
+		if idxConfig.SchemaOverrides != nil {
+			for fieldName, configuration := range idxConfig.SchemaOverrides.Fields {
+				idxConfig.SchemaOverrides.Fields[fieldName] = configuration
 			}
 		}
 	}
@@ -194,9 +190,6 @@ func (c *QuesmaConfiguration) Validate() error {
 func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, result error) error {
 	if len(indexName.FullTextFields) > 0 {
 		fmt.Printf("index configuration %s contains deprecated field 'fullTextFields'", indexName.Name)
-	}
-	if len(indexName.Aliases) > 0 {
-		fmt.Printf("index configuration %s contains deprecated field 'aliases'", indexName.Name)
 	}
 	if len(indexName.IgnoredFields) > 0 {
 		fmt.Printf("index configuration %s contains deprecated field 'ignoredFields'", indexName.Name)
@@ -348,40 +341,42 @@ Quesma Configuration:
 }
 
 func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfiguration, err error) error {
-	if config.SchemaConfiguration == nil {
+	if config.SchemaOverrides == nil {
 		return err
 	}
 
-	fmt.Println("schema configuration is not yet in use!")
-
-	for fieldName, fieldConfig := range config.SchemaConfiguration.Fields {
+	for fieldName, fieldConfig := range config.SchemaOverrides.Fields {
 		if fieldConfig.Type == "" {
-			err = multierror.Append(err, fmt.Errorf("field %s in index %s has no type", fieldName, config.Name))
+			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has no type", fieldName, config.Name))
 		} else if !elasticsearch_field_types.IsValid(fieldConfig.Type.AsString()) {
-			err = multierror.Append(err, fmt.Errorf("field %s in index %s has invalid type %s", fieldName, config.Name, fieldConfig.Type))
+			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has invalid type %s", fieldName, config.Name, fieldConfig.Type))
+		}
+		if fieldConfig.Type == TypeAlias && fieldConfig.TargetColumnName == "" {
+			err = multierror.Append(err, fmt.Errorf("field [%s] of type alias in index [%s] cannot have `targetColumnName` property unset", fieldName, config.Name))
 		}
 
-		if slices.Contains(config.SchemaConfiguration.Ignored, fieldName.AsString()) {
-			err = multierror.Append(err, fmt.Errorf("field %s in index %s is both enabled and ignored", fieldName, config.Name))
-		}
+		// TODO This validation will be fixed on further field config cleanup
+		//if slices.Contains(config.SchemaOverrides.Ignored, fieldName.AsString()) {
+		//	err = multierror.Append(err, fmt.Errorf("field %s in index %s is both enabled and ignored", fieldName, config.Name))
+		//}
 
-		if field, found := config.SchemaConfiguration.Fields[fieldName]; found && field.Type.AsString() == elasticsearch_field_types.FieldTypeAlias && field.AliasedField == "" {
-			err = multierror.Append(err, fmt.Errorf("field %s in index %s is aliased to an empty field", fieldName, config.Name))
-		}
+		//if field, found := config.SchemaOverrides.Fields[fieldName]; found && field.Type.AsString() == elasticsearch_field_types.FieldTypeAlias && field.AliasedField == "" {
+		//	err = multierror.Append(err, fmt.Errorf("field %s in index %s is aliased to an empty field", fieldName, config.Name))
+		//}
 
-		if countPrimaryKeys(config) > 1 {
-			err = multierror.Append(err, fmt.Errorf("index %s has more than one primary key", config.Name))
-		}
+		//if countPrimaryKeys(config) > 1 {
+		//	err = multierror.Append(err, fmt.Errorf("index %s has more than one primary key", config.Name))
+		//}
 	}
 
 	return err
 }
 
-func countPrimaryKeys(config IndexConfiguration) (count int) {
-	for _, configuration := range config.SchemaConfiguration.Fields {
-		if configuration.IsPrimaryKey {
-			count++
-		}
-	}
-	return count
-}
+//func countPrimaryKeys(config IndexConfiguration) (count int) {
+//	for _, configuration := range config.SchemaOverrides.Fields {
+//		if configuration.IsPrimaryKey {
+//			count++
+//		}
+//	}
+//	return count
+//}

@@ -74,10 +74,6 @@ func (s *schemaRegistry) populateSchemaFromDynamicConfiguration(indexName string
 	}
 }
 
-func deprecatedConfigInUse(indexConfig config.IndexConfiguration) bool {
-	return indexConfig.SchemaConfiguration == nil
-}
-
 func (s *schemaRegistry) AllSchemas() map[TableName]Schema {
 	if schemas, err := s.loadSchemas(); err != nil {
 		logger.Error().Msgf("error loading schemas: %v", err)
@@ -111,56 +107,33 @@ func NewSchemaRegistry(tableProvider TableProvider, configuration config.QuesmaC
 }
 
 func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguration config.IndexConfiguration, fields map[FieldName]Field) {
-	if deprecatedConfigInUse(indexConfiguration) {
-		for fieldName, fieldType := range indexConfiguration.TypeMappings {
-			if resolvedType, valid := ParseQuesmaType(fieldType); valid {
-				if resolvedType.Equal(TypePoint) {
-					// TODO replace with notion of ephemeral types (see other identical TODOs)
-					fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(strings.Replace(fieldName, ".", "::", -1)), Type: resolvedType}
-				} else {
-					fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(fieldName), Type: resolvedType}
-				}
-			} else {
-				logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", fieldType)
-			}
+	if indexConfiguration.SchemaOverrides == nil {
+		return
+	}
+	for fieldName, field := range indexConfiguration.SchemaOverrides.Fields {
+		if field.Type.AsString() == config.TypeAlias {
+			continue
 		}
-	} else {
-		for _, field := range indexConfiguration.SchemaConfiguration.Fields {
-			if field.Type.AsString() == config.TypeAlias {
-				continue
-			}
-			if resolvedType, valid := ParseQuesmaType(field.Type.AsString()); valid {
-				// TODO replace with notion of ephemeral types (see other identical TODOs)
-				if resolvedType.Equal(TypePoint) {
-					fields[FieldName(field.Name.AsString())] = Field{PropertyName: FieldName(field.Name.AsString()), InternalPropertyName: FieldName(strings.Replace(field.Name.AsString(), ".", "::", -1)), Type: resolvedType}
-				} else {
-					fields[FieldName(field.Name.AsString())] = Field{PropertyName: FieldName(field.Name.AsString()), InternalPropertyName: FieldName(field.Name.AsString()), Type: resolvedType}
-				}
+		if resolvedType, valid := ParseQuesmaType(field.Type.AsString()); valid {
+			// TODO replace with notion of ephemeral types (see other identical TODOs)
+			if resolvedType.Equal(TypePoint) {
+				fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(strings.Replace(fieldName.AsString(), ".", "::", -1)), Type: resolvedType}
 			} else {
-				logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", field.Type.AsString())
+				fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(fieldName), Type: resolvedType}
 			}
+		} else {
+			logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", field.Type.AsString())
 		}
 	}
 }
 
-func (s *schemaRegistry) populateAliases(indexConfiguration config.IndexConfiguration, fields map[FieldName]Field, aliases map[FieldName]FieldName) {
-	if deprecatedConfigInUse(indexConfiguration) {
-		for aliasName, aliasConfig := range indexConfiguration.Aliases {
-			if _, exists := fields[FieldName(aliasConfig.TargetFieldName)]; exists {
-				aliases[FieldName(aliasName)] = FieldName(aliasConfig.TargetFieldName)
-			} else {
-				logger.Debug().Msgf("alias field %s not found, possibly not yet loaded", aliasConfig.SourceFieldName)
-			}
-		}
-	} else {
-		for _, field := range indexConfiguration.SchemaConfiguration.Fields {
-			if field.Type.AsString() == config.TypeAlias {
-				if _, exists := fields[FieldName(field.AliasedField)]; exists {
-					aliases[FieldName(field.Name)] = FieldName(field.AliasedField)
-				} else {
-					logger.Debug().Msgf("alias field %s not found, possibly not yet loaded", field.AliasedField)
-				}
-			}
+func (s *schemaRegistry) populateAliases(indexConfiguration config.IndexConfiguration, _ map[FieldName]Field, aliases map[FieldName]FieldName) {
+	if indexConfiguration.SchemaOverrides == nil {
+		return
+	}
+	for fieldName, fieldConf := range indexConfiguration.SchemaOverrides.Fields {
+		if fieldConf.Type.AsString() == config.TypeAlias && fieldConf.TargetColumnName != "" {
+			aliases[FieldName(fieldName)] = FieldName(fieldConf.TargetColumnName)
 		}
 	}
 }

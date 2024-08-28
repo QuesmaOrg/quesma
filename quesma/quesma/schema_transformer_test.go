@@ -33,7 +33,9 @@ func Test_ipRangeTransform(t *testing.T) {
 			Name:           "kibana_sample_data_logs",
 			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
-			TypeMappings:   map[string]string{IpFieldName: "ip"},
+			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
+				config.FieldName(IpFieldName): {Type: "ip"},
+			}},
 		},
 		// Identical to kibana_sample_data_logs, but with "nested.clientip"
 		// instead of "clientip"
@@ -41,14 +43,18 @@ func Test_ipRangeTransform(t *testing.T) {
 			Name:           "kibana_sample_data_logs_nested",
 			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
-			TypeMappings:   map[string]string{"nested.clientip": "ip"},
+			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
+				"nested.clientip": {Type: "ip"},
+			}},
 		},
 		"kibana_sample_data_flights": {
 			Name:           "kibana_sample_data_flights",
 			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
-			TypeMappings: map[string]string{IpFieldName: "ip",
-				"DestLocation": "geo_point"},
+			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
+				config.FieldName(IpFieldName): {Type: "ip"},
+				"DestLocation":                {Type: "geo_point"},
+			}},
 		},
 	}
 	cfg := config.QuesmaConfiguration{
