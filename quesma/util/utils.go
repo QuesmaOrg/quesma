@@ -755,3 +755,38 @@ func InitSqlMockWithPrettyPrint(t *testing.T, matchExpectationsInOrder bool) (*s
 	mock.MatchExpectationsInOrder(matchExpectationsInOrder)
 	return db, mock
 }
+
+func stringifyHelper(v interface{}, isInsideArray bool) string {
+	switch v := v.(type) {
+	case string:
+		if isInsideArray {
+			return fmt.Sprintf("\"%s\"", v)
+		} else {
+			return fmt.Sprintf("%v", v)
+		}
+	case int, int8, int16, int32, int64:
+		return fmt.Sprintf("%d", v)
+	case uint, uint8, uint16, uint32, uint64:
+		return fmt.Sprintf("%d", v)
+	case float32:
+		return strconv.FormatFloat(float64(v), 'f', -1, 32)
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case []interface{}:
+		var parts []string
+		for _, elem := range v {
+			isInsideArray = true
+			parts = append(parts, stringifyHelper(elem, isInsideArray))
+			isInsideArray = false
+		}
+		return fmt.Sprintf("[%s]", strings.Join(parts, ","))
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+// This functions returns a string from an interface{}.
+func Stringify(v interface{}) string {
+	isInsideArray := false
+	return stringifyHelper(v, isInsideArray)
+}
