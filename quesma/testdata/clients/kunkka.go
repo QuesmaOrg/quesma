@@ -8,6 +8,7 @@ import (
 )
 
 const TableName = model.SingleTableNamePlaceHolder
+const fullTextFieldName = `"` + model.FullTextFieldNamePlaceHolder + `"`
 
 var KunkkaTests = []testdata.AggregationTestCase{
 	{ // [0]
@@ -220,12 +221,12 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
 				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "message" iLIKE '%started%' ` +
+				`WHERE ` + fullTextFieldName + ` iLIKE '%started%' ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
 				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "message" iLIKE '%started%' ` +
+				`WHERE ` + fullTextFieldName + ` iLIKE '%started%' ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
@@ -237,8 +238,8 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__0__key_0", count(*) AS "aggr__0__count",
 			  sumOrNull("spent") AS "metric__0__1_col_0",
-			  countIf("message" iLIKE '%started%') AS "aggr__0__2-bucket__count",
-			  sumOrNullIf("multiplier", "message" iLIKE '%started%') AS
+			  countIf(` + fullTextFieldName + ` iLIKE '%started%') AS "aggr__0__2-bucket__count",
+			  sumOrNullIf("multiplier", ` + fullTextFieldName + ` iLIKE '%started%') AS
 			  "metric__0__2-bucket__2-metric_col_0"
 			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
@@ -484,8 +485,8 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__0__key_0", count(*) AS "aggr__0__count",
 			  sumOrNull("spent") AS "metric__0__1_col_0",
-			  countIf("message" iLIKE '%started%') AS "aggr__0__2-bucket__count",
-			  sumOrNullIf("multiplier", "message" iLIKE '%started%') AS
+			  countIf(` + fullTextFieldName + ` iLIKE '%started%') AS "aggr__0__2-bucket__count",
+			  sumOrNullIf("multiplier", ` + fullTextFieldName + ` iLIKE '%started%') AS
 			  "metric__0__2-bucket__2-metric_col_0"
 			FROM ` + TableName + `
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS

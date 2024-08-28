@@ -5,6 +5,7 @@ package testdata
 import "quesma/model"
 
 // TestsSearchNoFullTextFields - test cases for search queries for a table with no full text fields
+// Query generator do not check for full text fields, so it can generate queries with full text search
 var TestsSearchNoFullTextFields = []SearchTestCase{
 	{
 		Name: "((quick AND fox) OR (brown AND fox) OR fox) AND NOT news",
@@ -101,7 +102,7 @@ var TestsSearchNoFullTextFields = []SearchTestCase{
 			}
 		}`,
 		WantedSql: []string{
-			`(((((false AND false) OR (false AND false)) OR false) AND NOT (false)) AND ("timestamp">='2024-03-26T09:56:02.241Z' AND "timestamp"<='2024-04-10T08:56:02.241Z'))`,
+			`((((("__quesma_fulltext_field_name" iLIKE '%quick%' AND "__quesma_fulltext_field_name" iLIKE '%fox%') OR ("__quesma_fulltext_field_name" iLIKE '%brown%' AND "__quesma_fulltext_field_name" iLIKE '%fox%')) OR "__quesma_fulltext_field_name" iLIKE '%fox%') AND NOT ("__quesma_fulltext_field_name" iLIKE '%news%')) AND ("timestamp">='2024-03-26T09:56:02.241Z' AND "timestamp"<='2024-04-10T08:56:02.241Z'))`,
 		},
 		WantedQueryType: model.ListAllFields,
 		//WantedQuery: []model.Query{

@@ -15,6 +15,8 @@ func groupBySQL(fieldName string, typ clickhouse.DateTimeType, groupByInterval t
 	return model.AsString(clickhouse.TimestampGroupBy(model.NewColumnRef(fieldName), typ, groupByInterval))
 }
 
+const fullTextFieldName = `"` + model.FullTextFieldNamePlaceHolder + `"`
+
 // TODO change some tests to size > 0, and track_total_hits different values
 var AggregationTests = []AggregationTestCase{
 	{ // [0]
@@ -2606,12 +2608,12 @@ var AggregationTests = []AggregationTestCase{
 				`FROM ` + TableName + ` ` +
 				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
-				`AND "message" iLIKE '%user%') LIMIT 3)`,
+				`AND ` + fullTextFieldName + ` iLIKE '%user%') LIMIT 3)`,
 			`SELECT "host.name" AS "key", count() AS "doc_count" ` +
 				`FROM (SELECT "host.name" FROM ` + TableName + ` ` +
 				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
-				`AND "message" iLIKE '%user%') ` +
+				`AND ` + fullTextFieldName + ` iLIKE '%user%') ` +
 				`LIMIT 20000) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC`,
@@ -2628,7 +2630,7 @@ var AggregationTests = []AggregationTestCase{
 			  FROM ` + TableName + `
 			  WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z')
 				AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND
-				"message" iLIKE '%user%')
+				` + fullTextFieldName + ` iLIKE '%user%')
 			  LIMIT 8000)
 			GROUP BY "host.name" AS "aggr__sample__top_values__key_0"
 			ORDER BY "aggr__sample__top_values__order_1" DESC,
@@ -2784,17 +2786,17 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE ("message" iLIKE '%user%' ` +
+				`WHERE (` + fullTextFieldName + ` iLIKE '%user%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z')))`,
 			`SELECT "@timestamp" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
+				`WHERE (` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
 				`LIMIT 5`,
 			`SELECT ` + timestampGroupByClause + `, count() ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE ("message" iLIKE '%user%' ` +
+				`WHERE (` + fullTextFieldName + ` iLIKE '%user%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
 				`GROUP BY ` + timestampGroupByClause + ` ` +
@@ -2804,7 +2806,8 @@ var AggregationTests = []AggregationTestCase{
 			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0"
 			  , count(*) AS "aggr__0__count"
 			FROM ` + TableName + `
-			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort(
+
+			WHERE (` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort(
 			  '2024-01-23T14:43:19.481Z') AND "@timestamp"<=parseDateTime64BestEffort(
 			  '2024-01-23T14:58:19.481Z')))
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
@@ -3109,20 +3112,20 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT avgOrNull("@timestamp") ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+				`WHERE ((` + fullTextFieldName + ` iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
 			`SELECT minOrNull("@timestamp") ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+				`WHERE ((` + fullTextFieldName + ` iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
 			`SELECT maxOrNull("@timestamp") ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+				`WHERE ((` + fullTextFieldName + ` iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT avgOrNull("@timestamp") AS "metric__average_timestamp_col_0", minOrNull(
 			  "@timestamp") AS "metric__earliest_timestamp_col_0", maxOrNull("@timestamp")
 			  AS "metric__latest_timestamp_col_0"
 			FROM ` + TableName + `
-			WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND
+			WHERE ((` + fullTextFieldName + ` iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND
 			  "host.name" iLIKE '%poseidon%')`,
 	},
 	{ // [15]

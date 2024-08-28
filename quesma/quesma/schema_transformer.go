@@ -3,6 +3,7 @@
 package quesma
 
 import (
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -386,6 +387,67 @@ func (s *SchemaCheckPass) applyWildcardExpansion(query *model.Query) (*model.Que
 	return query, nil
 }
 
+func (s *SchemaCheckPass) applyFullTextField(query *model.Query) (*model.Query, error) {
+	fromTable := getFromTable(query.TableName)
+
+	// FIXME we should use the schema registry here
+	//
+	table := s.logManager.FindTable(fromTable)
+	if table == nil {
+		logger.Error().Msgf("Table %s not found", fromTable)
+		return query, nil
+	}
+	fullTextFields := table.GetFulltextFields()
+
+	visitor := model.NewBaseVisitor()
+
+	var err error
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		// full text field should be used only in where clause
+		if e.ColumnName == model.FullTextFieldNamePlaceHolder {
+			err = fmt.Errorf("full text field name placeholder found in query")
+		}
+		return e
+	}
+
+	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
+		col, ok := e.Left.(model.ColumnRef)
+		if ok {
+			if col.ColumnName == model.FullTextFieldNamePlaceHolder {
+
+				if len(fullTextFields) == 0 {
+					return model.NewLiteral(false)
+				}
+
+				var expressions []model.Expr
+
+				for _, field := range fullTextFields {
+					expressions = append(expressions, model.NewInfixExpr(model.NewColumnRef(field), e.Op, e.Right))
+				}
+
+				res := model.Or(expressions)
+				return res
+			}
+		}
+
+		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	for k, query := range queries {
 		var err error
@@ -394,6 +456,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			Transformation     func(*model.Query) (*model.Query, error)
 		}{
 			{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
+			{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 			{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
 			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},

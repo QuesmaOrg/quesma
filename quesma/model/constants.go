@@ -3,5 +3,6 @@
 package model
 
 const (
-	SingleTableNamePlaceHolder = "__quesma_table_name"
+	SingleTableNamePlaceHolder   = "__quesma_table_name"
+	FullTextFieldNamePlaceHolder = "__quesma_fulltext_field_name"
 )
