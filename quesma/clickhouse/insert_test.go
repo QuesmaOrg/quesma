@@ -180,7 +180,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					// check if CREATE TABLE string is OK
 					queryByLine := strings.Split(query, "\n")
 					if len(tableConfig.attributes) > 0 {
-						//assert.Equal(t, len(tt.createTableLines)+2*len(tableConfig.attributes)+1, len(queryByLine))
+						assert.Equal(t, len(tt.createTableLines)+2*len(tableConfig.attributes)+2, len(queryByLine))
 						for _, line := range tt.createTableLines {
 							assert.True(t, slices.Contains(tt.createTableLines, line) || slices.Contains(tt.createTableLinesAttrs, line))
 						}
@@ -212,7 +212,11 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					// and that schema in memory is what it should be (predefined, if it was predefined, new if it was new)
 					resolvedTable, _ := lm.lm.tableDiscovery.TableDefinitions().Load(tableName)
 					if logManagerEmpty {
-						//assert.Equal(t, 6+2*len(tableConfig.attributes), len(resolvedTable.Cols))
+						if len(tableConfig.attributes) > 0 {
+							assert.Equal(t, 6+2*len(tableConfig.attributes)+1, len(resolvedTable.Cols))
+						} else {
+							assert.Equal(t, 6+2*len(tableConfig.attributes), len(resolvedTable.Cols))
+						}
 					} else if lm.lm.tableDiscovery.TableDefinitions().Size() > 0 {
 						assert.Equal(t, 4, len(resolvedTable.Cols))
 					} else {
