@@ -113,29 +113,29 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 				columnMap[k] = c
 			}
 
-			for _, a := range qmc.cfg.AliasFields(table.Name) {
+			for alias, target := range qmc.cfg.AliasFields(table.Name) {
 
 				// check for collisions
-				if field, collide := columnMap[a.SourceFieldName]; collide {
+				if field, collide := columnMap[alias]; collide {
 					field.warning = util.Pointer("alias declared with the same name")
-					columnMap[a.SourceFieldName] = field
+					columnMap[alias] = field
 					continue
 				}
 
 				// check if target exists
 				c := tableColumn{}
-				c.name = a.SourceFieldName
-				if aliasedField, ok := columnMap[a.TargetFieldName]; ok {
-					c.typeName = fmt.Sprintf("alias of '%s', %s", a.TargetFieldName, aliasedField.typeName)
+				c.name = alias
+				if aliasedField, ok := columnMap[target]; ok {
+					c.typeName = fmt.Sprintf("alias of '%s', %s", target, aliasedField.typeName)
 					c.isFullTextSearch = aliasedField.isFullTextSearch
 					c.isAttribute = aliasedField.isAttribute
 				} else {
-					c.warning = util.Pointer("alias points to non-existing field '" + a.TargetFieldName + "'")
+					c.warning = util.Pointer("alias points to non-existing field '" + target + "'")
 					c.typeName = "dangling alias"
 				}
 
-				columnNames = append(columnNames, a.SourceFieldName)
-				columnMap[a.SourceFieldName] = c
+				columnNames = append(columnNames, alias)
+				columnMap[alias] = c
 			}
 
 			// columns added by Quesma, not visible for the user
