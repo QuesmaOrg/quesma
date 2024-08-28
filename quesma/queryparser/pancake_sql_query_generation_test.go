@@ -66,18 +66,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Need fix with date keys in pipeline aggregations.")
 			}
 
-			if i == 67 || i == 68 || i == 71 || i == 75 {
-				t.Skip("pipeline to pipeline needs fixing")
-			}
-
-			if i != 84 { // 66
-				//t.Skip()
-			}
-
-			if test.TestName != "Simplest cumulative_sum (count). Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Count), Buckets: Histogram" {
-				//t.Skip()
-			}
-
 			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram" {
 				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
 			}

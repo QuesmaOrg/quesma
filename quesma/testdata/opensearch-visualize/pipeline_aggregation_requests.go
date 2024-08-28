@@ -446,12 +446,10 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 0.0),
 				model.NewQueryResultCol("aggr__2__count", uint64(282)),
-				model.NewQueryResultCol("aggr__2__order_1", 0.0),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 1.0),
 				model.NewQueryResultCol("aggr__2__count", uint64(300)),
-				model.NewQueryResultCol("aggr__2__order_1", 1.0),
 			}},
 		},
 		ExpectedSQLs: []string{
@@ -464,11 +462,10 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY "day_of_week_i"`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
-			  "day_of_week_i" AS "aggr__2__order_1"
+			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count"
 			FROM "logs-generic-default"
 			GROUP BY "day_of_week_i" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC`,
+			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [3]
 		TestName: "Cumulative sum - quite complex, a graph of pipelines. Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Cumulative Sum (Aggregation: Max)), Buckets: Histogram",
@@ -612,7 +609,18 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 0.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(282)),
+				model.NewQueryResultCol("metric__2__1-metric-metric_col_0", 1080.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 1.0),
+				model.NewQueryResultCol("aggr__2__count", uint64(300)),
+				model.NewQueryResultCol("metric__2__1-metric-metric_col_0", 200.0),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.TableName,
 			`NoDBQuery`,
@@ -626,7 +634,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
+			  maxOrNull("products.base_price") AS "metric__2__1-metric-metric_col_0"
+			FROM "logs-generic-default"
+			GROUP BY "day_of_week_i" AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [4]
 		TestName: "Simplest Derivative (count). Reproduce: Visualize -> Vertical Bar: Metrics: Derivative (Aggregation: Count), Buckets: Histogram",
@@ -1284,7 +1297,48 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714869000000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714869600000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(0)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714878600000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(0)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714879200000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714879800000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(6)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714880400000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714881000000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714881600000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(0)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714882200000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714882800000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(0)),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.TableName,
 			`NoDBQuery`,
@@ -1294,7 +1348,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+			  "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [7]
 		TestName: "Simplest Serial Diff (count), lag=default (1). Reproduce: Visualize -> Vertical Bar: Metrics: Serial Diff (Aggregation: Count), Buckets: Histogram",
@@ -2140,7 +2200,48 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714869000000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714869600000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(0)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714878600000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(0)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714879200000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714879800000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(6)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714880400000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714881000000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714881600000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(0)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714882200000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714882800000/600000)),
+				model.NewQueryResultCol("aggr__2__count", uint64(0)),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.TableName,
 			`NoDBQuery`,
@@ -2150,7 +2251,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count"
+			FROM "logs-generic-default"
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
+			  "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [11]
 		TestName: "Simplest avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Histogram, Metric: Count)",
