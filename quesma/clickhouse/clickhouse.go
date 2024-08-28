@@ -473,7 +473,15 @@ func (lm *LogManager) generateNewColumns(
 	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
 	var deleteIndexes []int
 	for i := range alteredAttributesIndexes {
-		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" Nullable(%s)", table.Name, attrKeys[i], attrTypes[i])
+
+		t := ""
+		if strings.Contains(attrTypes[i], "Array") {
+			t = attrTypes[i]
+		} else {
+			t = fmt.Sprintf("Nullable(%s)", attrTypes[i])
+		}
+		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, attrKeys[i], t)
+
 		table.Cols[attrKeys[i]] = &Column{Name: attrKeys[i], Type: NewBaseType(attrTypes[i]), Modifiers: "Nullable"}
 		alterCmd = append(alterCmd, alterTable)
 		deleteIndexes = append(deleteIndexes, i)
@@ -519,7 +527,7 @@ func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]int
 		lm.ingestFieldStatistics = make(IngestFieldStatistics)
 	}
 	lm.ingestFieldStatisticsLock.Unlock()
-	const percent50 = 0.5
+	const percent50 = 0.0
 	for i := 0; i < len(attrKeys); i++ {
 		lm.ingestFieldStatisticsLock.Lock()
 		lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]++
@@ -595,6 +603,9 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	atomic.AddInt64(&lm.ingestCounter, 1)
 	if ok, alteredAttributesIndexes := lm.shouldAlterColumns(table, attrsMap); ok {
 		alterCmd = lm.generateNewColumns(attrsMap, table, alteredAttributesIndexes)
+		if len(alterCmd) > 0 {
+			fmt.Println("XXXX ALTER TABLE", alterCmd)
+		}
 	}
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
@@ -670,10 +681,24 @@ func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string,
 	return lm.GenerateSqlStatements(ctx, tableName, jsonData, tableConfig, transformer)
 }
 
+type IngestAddIndexNameTransformer struct {
+	indexName string
+}
+
+func (t *IngestAddIndexNameTransformer) Transform(json types.JSON) (types.JSON, error) {
+	json["__quesma_index"] = t.indexName
+	// fmt.Println("XXX __quesma_index", t.indexName)
+	return json, nil
+}
+
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
-	statements, err := lm.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter)
+
+	t := jsonprocessor.IngestTransformerPipeline{transformer, &IngestAddIndexNameTransformer{indexName: tableName}}
+
+	targetTable := "catch_all_logs"
+	statements, err := lm.processInsertQuery(ctx, targetTable, jsonData, t, tableFormatter)
 	if err != nil {
 		return err
 	}
@@ -703,6 +728,14 @@ func (lm *LogManager) execute(ctx context.Context, query string) error {
 
 func (lm *LogManager) executeStatements(ctx context.Context, queries []string) error {
 	for _, q := range queries {
+		s := q
+		if len(s) > 100 {
+			s = s[:100]
+		}
+		if strings.Contains(s, "ALTER") {
+			fmt.Println("XXXX EXECUTE:", s)
+		}
+
 		err := lm.execute(ctx, q)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error executing query: %v", err)

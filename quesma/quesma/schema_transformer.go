@@ -330,7 +330,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*mode
 	}
 
 	// TODO compute physical from expression based on single table or union or whatever ....
-	physicalFromExpression := model.NewTableRef(query.TableName)
+	physicalFromExpression := model.NewTableRef("catch_all_logs")
 
 	visitor := model.NewBaseVisitor()
 
@@ -345,6 +345,15 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*mode
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
+
+	w := model.NewInfixExpr(model.NewColumnRef("__quesma_index"), "=", model.NewLiteral(fmt.Sprintf("'%s'", query.IndexPattern)))
+
+	if query.SelectCommand.WhereClause != nil {
+		query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause, w})
+	} else {
+		query.SelectCommand.WhereClause = w
+	}
+
 	return query, nil
 }
 

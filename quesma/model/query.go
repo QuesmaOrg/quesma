@@ -45,8 +45,9 @@ type (
 		OptimizeHints         *QueryOptimizeHints   // it can be optional
 		TransformationHistory TransformationHistory // it can be optional
 
-		Type      QueryType
-		TableName string
+		Type         QueryType
+		TableName    string
+		IndexPattern string
 
 		Highlighter Highlighter
 		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations

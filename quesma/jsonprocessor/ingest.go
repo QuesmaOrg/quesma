@@ -26,12 +26,12 @@ func IngestTransformerFor(table string, cfg config.QuesmaConfiguration) IngestTr
 
 	transformers = append(transformers, &ingestTransformer{separator: "::"})
 
-	return ingestTransformerPipeline(transformers)
+	return IngestTransformerPipeline(transformers)
 }
 
-type ingestTransformerPipeline []IngestTransformer
+type IngestTransformerPipeline []IngestTransformer
 
-func (pipe ingestTransformerPipeline) Transform(document types.JSON) (types.JSON, error) {
+func (pipe IngestTransformerPipeline) Transform(document types.JSON) (types.JSON, error) {
 	for _, transformer := range pipe {
 		var err error
 		document, err = transformer.Transform(document)
