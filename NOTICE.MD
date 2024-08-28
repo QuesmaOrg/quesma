@@ -8,11 +8,11 @@ Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/ClickHouse/clickhouse-go/v2
-Version : v2.28.0
-Time    : 2024-08-23T08:21:23Z
+Version : v2.28.1
+Time    : 2024-08-27T08:06:34Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.28.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.28.1/LICENSE:
 
 Copyright 2016-2023 ClickHouse, Inc.
 
