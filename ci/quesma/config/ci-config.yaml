@@ -21,13 +21,8 @@ processors:
       enableElasticsearchIngest: true
       indexes:
         kibana_sample_data_ecommerce:
-          enabled: true
         kibana_sample_data_flights:
-          enabled: true
         kibana_sample_data_logs:
-          enabled: true
         logs-generic-default:
-          enabled: true
           fullTextFields: [ "message" ]
         windows_logs:   # Used for EQL e2e tests
-          enabled: true

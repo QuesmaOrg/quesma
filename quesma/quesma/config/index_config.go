@@ -9,8 +9,8 @@ import (
 )
 
 type IndexConfiguration struct {
-	Name    string `koanf:"name"`
-	Enabled bool   `koanf:"enabled"` // TODO rename to `Disabled` to reduce already polluted config
+	Name     string `koanf:"name"`
+	Disabled bool   `koanf:"disabled"`
 	// TODO to be deprecated
 	FullTextFields []string `koanf:"fullTextFields"`
 	// TODO to be deprecated
@@ -44,9 +44,9 @@ func (c IndexConfiguration) String() string {
 		}
 		extraString += strings.Join(fields, ", ")
 	}
-	var str = fmt.Sprintf("\n\t\t%s, enabled: %t, schema overrides: %s, override: %s",
+	var str = fmt.Sprintf("\n\t\t%s, disabled: %t, schema overrides: %s, override: %s",
 		c.Name,
-		c.Enabled,
+		c.Disabled,
 		c.SchemaOverrides.String(),
 		c.Override,
 	)

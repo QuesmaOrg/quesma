@@ -261,7 +261,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 	buffer.Html(`Name Pattern`)
 	buffer.Html(`</th>`)
 	buffer.Html(`<th>`)
-	buffer.Html(`Enabled?`)
+	buffer.Html(`Disabled?`)
 	buffer.Html(`</th>`)
 	buffer.Html(`<th>`)
 	buffer.Html(`Full Text Search Fields`)
@@ -275,7 +275,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 		buffer.Text(cfg.Name)
 		buffer.Html(`</td>`)
 		buffer.Html(`<td>`)
-		if cfg.Enabled {
+		if cfg.Disabled {
 			buffer.Text("true")
 		} else {
 			buffer.Text("false")

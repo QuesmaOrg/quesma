@@ -155,12 +155,12 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]string, d
 	var explicitlyDisabledTables, notConfiguredTables []string
 	for table, columns := range tables {
 		if indexConfig, found := td.cfg.IndexConfig[table]; found {
-			if indexConfig.Enabled {
+			if indexConfig.Disabled {
+				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
+			} else {
 				comment := td.tableComment(databaseName, table)
 				createTableQuery := td.createTableQuery(databaseName, table)
 				configuredTables[table] = discoveredTable{table, columns, indexConfig, comment, createTableQuery}
-			} else {
-				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 			}
 		} else {
 			notConfiguredTables = append(notConfiguredTables, table)
