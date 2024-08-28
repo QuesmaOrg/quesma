@@ -99,7 +99,6 @@ func (s *Statistics) process(cfg *config.QuesmaConfiguration, index string,
 	// TODO as proper eviction strategy requires some time
 	// to be implemented, we limit the number of requests for now
 	if statistics.Requests >= STATISTICS_LIMIT {
-		cfg.IngestStatistics = false
 		return
 	}
 
