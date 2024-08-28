@@ -62,7 +62,7 @@ processors:
                 type: text
               "host.name":
                 type: "keyword"
-              service.name:
+              "service.name":
                 type: "keyword"
               source:
                 type: "keyword"
