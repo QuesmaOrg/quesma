@@ -40,7 +40,6 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	tsField := "@timestamp"
 	indexConfig := config.IndexConfiguration{
 		Name:           "logs-generic-default",
-		Enabled:        true,
 		FullTextFields: []string{"message"},
 		TimestampField: &tsField,
 	}
@@ -108,8 +107,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(config.QuesmaConfiguration{}, nil), schema.StaticRegistry{})
 	lm.AddTableIfDoesntExist(&table)
 	indexConfig := config.IndexConfiguration{
-		Name:    "logs-generic-default",
-		Enabled: true,
+		Name: "logs-generic-default",
 	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
@@ -175,8 +173,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	indexConfig := config.IndexConfiguration{
-		Name:    "logs-generic-default",
-		Enabled: true,
+		Name: "logs-generic-default",
 	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 

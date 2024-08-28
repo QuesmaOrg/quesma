@@ -30,11 +30,9 @@ processors:
       indexes:
         kibana_sample_data_ecommerce:
           timestampField: "@timestamp"
-          enabled: true
         kibana_sample_data_flights:
-          enabled: true
+          disabled: false  # Just to have example that its possible
         kibana_sample_data_logs:
-          enabled: true
           fullTextFields: [ "message", "agent" ]
           mappings:
             message: "text"

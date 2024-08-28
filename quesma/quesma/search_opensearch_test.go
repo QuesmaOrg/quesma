@@ -25,7 +25,7 @@ import (
 
 func TestSearchOpensearch(t *testing.T) {
 
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	table := clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
@@ -179,7 +179,7 @@ func TestHighlighter(t *testing.T) {
 		],
 		"version": true
 	}`
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	table := clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),

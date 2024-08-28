@@ -333,7 +333,7 @@ func matchedExact(config config.QuesmaConfiguration) mux.RequestMatcher {
 			return false
 		}
 		indexConfig, exists := config.IndexConfig[req.Params["index"]]
-		return exists && indexConfig.Enabled
+		return exists && !indexConfig.Disabled
 	})
 }
 

@@ -30,7 +30,6 @@ processors:
       enableElasticsearchIngest: false
       indexes:
         kibana_sample_data_ecommerce:
-          enabled: true
           schemaOverrides:
             fields:
               "geoip.location":
@@ -44,7 +43,6 @@ processors:
               manufacturer:
                 type: text
         kibana_sample_data_flights:
-          enabled: true
           schemaOverrides:
             fields:
               "DestLocation":
@@ -52,7 +50,6 @@ processors:
               "OriginLocation":
                 type: geo_point
         logs-generic-default:
-          enabled: true
           schemaOverrides:
             fields:
               timestamp:
