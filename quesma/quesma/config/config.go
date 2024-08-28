@@ -345,13 +345,14 @@ func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfigurat
 		return err
 	}
 
-	fmt.Println("schema configuration is not yet in use!")
-
 	for fieldName, fieldConfig := range config.SchemaOverrides.Fields {
 		if fieldConfig.Type == "" {
-			err = multierror.Append(err, fmt.Errorf("field %s in index %s has no type", fieldName, config.Name))
+			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has no type", fieldName, config.Name))
 		} else if !elasticsearch_field_types.IsValid(fieldConfig.Type.AsString()) {
-			err = multierror.Append(err, fmt.Errorf("field %s in index %s has invalid type %s", fieldName, config.Name, fieldConfig.Type))
+			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has invalid type %s", fieldName, config.Name, fieldConfig.Type))
+		}
+		if fieldConfig.Type == TypeAlias && fieldConfig.TargetColumnName == "" {
+			err = multierror.Append(err, fmt.Errorf("field [%s] of type alias in index [%s] cannot have `targetColumnName` property unset", fieldName, config.Name))
 		}
 
 		// TODO This validation will be fixed on further field config cleanup
