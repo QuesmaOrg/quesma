@@ -38,7 +38,7 @@ type (
 		processor               engine
 		publicTcpPort           network.Port
 		quesmaManagementConsole *ui.QuesmaManagementConsole
-		config                  config.QuesmaConfiguration
+		config                  *config.QuesmaConfiguration
 		telemetryAgent          telemetry.PhoneHomeAgent
 	}
 	engine interface {
@@ -108,7 +108,7 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, elkResponse elasticResu
 	console.PushPrimaryInfo(&ui.QueryDebugPrimarySource{Id: id, QueryResp: body, PrimaryTook: elkResponse.took})
 }
 
-func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, inspect bool) *Quesma {
+func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, inspect bool) *Quesma {
 	return &Quesma{
 		processor:               proxy.NewTcpProxy(config.PublicTcpPort, config.Elasticsearch.Url.Host, inspect),
 		publicTcpPort:           config.PublicTcpPort,
@@ -118,7 +118,7 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.Qu
 }
 
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, schemaLoader clickhouse.TableDiscovery,
-	indexManager elasticsearch.IndexManagement, schemaRegistry schema.Registry, config config.QuesmaConfiguration,
+	indexManager elasticsearch.IndexManagement, schemaRegistry schema.Registry, config *config.QuesmaConfiguration,
 	quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsRepository ab_testing.Sender) *Quesma {
 	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, schemaRegistry, abResultsRepository)
 
@@ -141,7 +141,7 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 }
 
 type router struct {
-	config                  config.QuesmaConfiguration
+	config                  *config.QuesmaConfiguration
 	requestPreprocessors    processorChain
 	quesmaManagementConsole *ui.QuesmaManagementConsole
 	phoneHomeAgent          telemetry.PhoneHomeAgent

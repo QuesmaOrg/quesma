@@ -167,7 +167,7 @@ func TestIngestValidation(t *testing.T) {
 		db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 		lm := NewLogManagerEmpty()
 		lm.chDb = db
-		lm.tableDiscovery = newTableDiscoveryWith(config.QuesmaConfiguration{}, nil, *tableMap)
+		lm.tableDiscovery = newTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
 
 		defer db.Close()
 

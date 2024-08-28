@@ -41,7 +41,7 @@ func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.Fie
 		fields[colName][fieldTypeName] = fieldCapability
 	}
 }
-func handleFieldCapsIndex(cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, indexes []string) ([]byte, error) {
+func handleFieldCapsIndex(cfg *config.QuesmaConfiguration, schemaRegistry schema.Registry, indexes []string) ([]byte, error) {
 	fields := make(map[string]map[string]model.FieldCapability)
 	for _, resolvedIndex := range indexes {
 		if len(resolvedIndex) == 0 {
@@ -100,7 +100,7 @@ func EmptyFieldCapsResponse() []byte {
 	}
 }
 
-func HandleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, index string, lm *clickhouse.LogManager) ([]byte, error) {
+func HandleFieldCaps(ctx context.Context, cfg *config.QuesmaConfiguration, schemaRegistry schema.Registry, index string, lm *clickhouse.LogManager) ([]byte, error) {
 	if len(cfg.IndexConfig[index].Override) > 0 {
 		index = cfg.IndexConfig[index].Override
 	}

@@ -152,7 +152,7 @@ func logManagersNonEmpty(cfg *ChTableConfig) []logManagerHelper {
 			},
 			Created: created,
 		})
-		lms = append(lms, logManagerHelper{NewLogManager(full, config.QuesmaConfiguration{}), created})
+		lms = append(lms, logManagerHelper{NewLogManager(full, &config.QuesmaConfiguration{}), created})
 	}
 	return lms
 }
@@ -303,7 +303,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 			lm := NewLogManagerEmpty()
 			lm.chDb = db
-			lm.tableDiscovery = newTableDiscoveryWith(config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
+			lm.tableDiscovery = newTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
 			defer db.Close()
 
 			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))

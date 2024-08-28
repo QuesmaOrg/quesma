@@ -69,7 +69,7 @@ func Test_ipRangeTransform(t *testing.T) {
 				"nested::clientip": {Name: "nested::clientip", Type: "ip"},
 			}},
 		}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: clickhouse.NewLogManagerEmpty()}
 
 	expectedQueries := []*model.Query{
@@ -420,7 +420,7 @@ func Test_arrayType(t *testing.T) {
 	}
 	td.Store("kibana_sample_data_ecommerce", &tableDefinition)
 
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
 
 	tests := []struct {
@@ -612,7 +612,7 @@ func TestApplyWildCard(t *testing.T) {
 	}
 	td.Store(tableDefinition.Name, &tableDefinition)
 
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
 
 	tests := []struct {

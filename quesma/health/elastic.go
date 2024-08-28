@@ -13,10 +13,10 @@ import (
 )
 
 type ElasticHealthChecker struct {
-	cfg config.QuesmaConfiguration
+	cfg *config.QuesmaConfiguration
 }
 
-func NewElasticHealthChecker(cfg config.QuesmaConfiguration) Checker {
+func NewElasticHealthChecker(cfg *config.QuesmaConfiguration) Checker {
 	return &ElasticHealthChecker{cfg: cfg}
 }
 

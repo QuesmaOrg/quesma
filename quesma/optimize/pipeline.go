@@ -19,11 +19,11 @@ type OptimizeTransformer interface {
 
 // OptimizePipeline - a transformer that optimizes queries
 type OptimizePipeline struct {
-	config        config.QuesmaConfiguration
+	config        *config.QuesmaConfiguration
 	optimizations []OptimizeTransformer
 }
 
-func NewOptimizePipeline(config config.QuesmaConfiguration) model.QueryTransformer {
+func NewOptimizePipeline(config *config.QuesmaConfiguration) model.QueryTransformer {
 
 	return &OptimizePipeline{
 		config: config,
