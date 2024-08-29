@@ -24,8 +24,8 @@ func (query MinBucket) AggregationType() model.AggregationType {
 	return model.PipelineAggregation
 }
 
-func (query MinBucket) PipelineAggregationType() model.AggregationType {
-	return model.MetricsAggregation
+func (query MinBucket) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineMetricsAggregation
 }
 
 func (query MinBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

@@ -26,8 +26,8 @@ func (query SerialDiff) AggregationType() model.AggregationType {
 	return model.PipelineAggregation
 }
 
-func (query SerialDiff) PipelineAggregationType() model.AggregationType {
-	return model.BucketAggregation
+func (query SerialDiff) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineBucketAggregation
 }
 
 func (query SerialDiff) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

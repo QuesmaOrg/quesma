@@ -24,8 +24,8 @@ func (query AverageBucket) AggregationType() model.AggregationType {
 	return model.PipelineAggregation
 }
 
-func (query AverageBucket) PipelineAggregationType() model.AggregationType {
-	return model.MetricsAggregation
+func (query AverageBucket) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineMetricsAggregation
 }
 
 func (query AverageBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
@@ -45,7 +45,6 @@ func (query AverageBucket) CalculateResultWhenMissing(parentRows []model.QueryRe
 		logger.WarnWithCtx(query.ctx).Msgf("parentFieldsCnt is less than 0: %d", parentFieldsCnt)
 	}
 	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
-		fmt.Println("parentRowsOneBucket", parentRowsOneBucket)
 		resultRows = append(resultRows, query.calculateSingleAvgBucket(parentRowsOneBucket))
 	}
 	return resultRows
@@ -53,7 +52,6 @@ func (query AverageBucket) CalculateResultWhenMissing(parentRows []model.QueryRe
 
 // we're sure len(parentRows) > 0
 func (query AverageBucket) calculateSingleAvgBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
-	fmt.Println("calculateSingleAvgBucket, parentRows", parentRows)
 	if len(parentRows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no parent rows, should NEVER happen")
 		return model.QueryResultRow{}

@@ -63,10 +63,9 @@ type pancakeModelBucketAggregation struct {
 }
 
 type pancakeModelPipelineAggregation struct {
-	name            string // as originally appeared in Query DSL
-	internalName    string // full name with path, e.g. metric__byCountry__byCity__population or aggr__byCountry
-	queryType       model.PipelineQueryType
-	selectedColumns []model.Expr
+	name         string // as originally appeared in Query DSL
+	internalName string // full name with path, e.g. metric__byCountry__byCity__population or aggr__byCountry
+	queryType    model.PipelineQueryType
 
 	metadata model.JsonMap
 }

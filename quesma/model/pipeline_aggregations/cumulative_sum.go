@@ -29,8 +29,8 @@ func (query CumulativeSum) AggregationType() model.AggregationType {
 	return model.PipelineAggregation
 }
 
-func (query CumulativeSum) PipelineAggregationType() model.AggregationType {
-	return model.BucketAggregation
+func (query CumulativeSum) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineBucketAggregation
 }
 
 func (query CumulativeSum) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

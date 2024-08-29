@@ -24,8 +24,8 @@ func (query MaxBucket) AggregationType() model.AggregationType {
 	return model.PipelineAggregation
 }
 
-func (query MaxBucket) PipelineAggregationType() model.AggregationType {
-	return model.MetricsAggregation
+func (query MaxBucket) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineMetricsAggregation
 }
 
 // FIXME I think we should return all rows, not just 1

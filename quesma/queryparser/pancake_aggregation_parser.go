@@ -5,7 +5,6 @@ package queryparser
 import (
 	"errors"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -140,10 +139,8 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 	}
 
 	// 2. Pipeline aggregation => always leaf (for now)
-	pipelineAggr, isPipeline := cw.parsePipelineAggregations(queryMap)
-	if isPipeline {
+	if pipelineAggr, isPipeline := cw.parsePipelineAggregations(queryMap); isPipeline {
 		aggregation.queryType = pipelineAggr
-		pp.Println("pipelineAggr", pipelineAggr)
 		return aggregation, nil
 	}
 

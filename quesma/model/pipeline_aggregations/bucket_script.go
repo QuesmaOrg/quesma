@@ -20,8 +20,8 @@ func (query BucketScript) AggregationType() model.AggregationType {
 	return model.PipelineAggregation
 }
 
-func (query BucketScript) PipelineAggregationType() model.AggregationType {
-	return model.MetricsAggregation // TODO check, not sure
+func (query BucketScript) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineMetricsAggregation // TODO check, not sure
 }
 
 func (query BucketScript) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

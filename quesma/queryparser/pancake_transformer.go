@@ -181,9 +181,7 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 
 	result = make([]layerAndNextBucket, 1)
 
-	result[0].layer = &pancakeModelLayer{
-		currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
-	}
+	result[0].layer = newPancakeModelLayer()
 
 	// we need sort aggregation to generate consistent results, otherwise:
 	// - tests are flaky
@@ -265,10 +263,8 @@ func (a *pancakeTransformer) aggregationChildrenToLayers(aggrNames []string, chi
 				for i, childLayer := range childLayers {
 					newLayer := res.layer
 					if i > 0 { // remove metrics
-						newLayer = &pancakeModelLayer{
-							currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
-							nextBucketAggregation:     res.layer.nextBucketAggregation,
-						}
+						newLayer = newPancakeModelLayer()
+						newLayer.nextBucketAggregation = res.layer.nextBucketAggregation
 					}
 
 					resultLayers = append(resultLayers, append([]*pancakeModelLayer{newLayer}, childLayer...))

@@ -24,8 +24,8 @@ func (query SumBucket) AggregationType() model.AggregationType {
 	return model.PipelineAggregation
 }
 
-func (query SumBucket) PipelineAggregationType() model.AggregationType {
-	return model.MetricsAggregation
+func (query SumBucket) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineMetricsAggregation
 }
 
 func (query SumBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

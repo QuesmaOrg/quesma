@@ -25,8 +25,8 @@ func (query Derivative) AggregationType() model.AggregationType {
 	return model.PipelineAggregation
 }
 
-func (query Derivative) PipelineAggregationType() model.AggregationType {
-	return model.BucketAggregation
+func (query Derivative) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineBucketAggregation
 }
 
 func (query Derivative) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

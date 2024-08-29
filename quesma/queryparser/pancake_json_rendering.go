@@ -161,8 +161,6 @@ func (p *pancakeJSONRenderer) processPip(result model.JsonMap, layer *pancakeMod
 	processedRows := pipeline.queryType.CalculateResultWhenMissing(p.selectPipelineRows(pipeline.queryType, rows))
 	fmt.Println("processedRows", processedRows)
 	result[pipeline.name] = pipeline.queryType.TranslateSqlResponseToJson(processedRows, 0) // TODO: fill level?
-	p.pipelineAggregationFullToShortName[pipeline.internalName] = pipeline.name
-	p.pipelineAggregationToResultBucketPointer[pipeline.internalName] = &result
 
 	for _, pipelineChild := range layer.findPipelineChildren(pipeline) {
 		result = p.processPip(result, layer, pipelineChild, processedRows)
@@ -172,7 +170,7 @@ func (p *pancakeJSONRenderer) processPip(result model.JsonMap, layer *pancakeMod
 }
 
 func (p *pancakeJSONRenderer) processPip2(layer *pancakeModelLayer, pipeline *pancakeModelPipelineAggregation, bucketRows []model.QueryResultRow,
-	pipelineRows *[][]model.QueryResultRow, pipelineNames *[]string, pipelineTypes *[]model.AggregationType) {
+	pipelineRows *[][]model.QueryResultRow, pipelineNames *[]string, pipelineTypes *[]model.PipelineAggregationType) {
 
 	thisPipelineRows := p.pipelineToJSON(pipeline, bucketRows)
 
@@ -261,8 +259,8 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 	for _, pipeline := range layer.childrenPipelineAggregations {
 		// TODO: simplify by add method pipeline type (metric or bucket)
 		typ := pipeline.queryType.PipelineAggregationType()
-		pp.Println("pipeline (start layerToJSON)", pipeline.internalName, "type?", typ.String())
-		if typ == model.MetricsAggregation {
+		pp.Println("pipeline (start layerToJSON)", pipeline.internalName, "type?", typ)
+		if typ == model.PipelineMetricsAggregation {
 			result = p.processPip(result, layer, pipeline, rows)
 		}
 		//pp.Println("1", pipeline.internalName, pipeline.parentColumnName(p.ctx))
@@ -305,11 +303,11 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 
 		var pipelineRows [][]model.QueryResultRow
 		var pipelineNames []string
-		var pipelineTypes []model.AggregationType
+		var pipelineTypes []model.PipelineAggregationType
 		if len(remainingLayers) > 1 {
 			nextLayer := remainingLayers[1]
 			for _, childPipeline := range nextLayer.childrenPipelineAggregations {
-				if childPipeline.queryType.PipelineAggregationType() != model.BucketAggregation {
+				if childPipeline.queryType.PipelineAggregationType() != model.PipelineBucketAggregation {
 					continue
 				}
 				var oldColumnArr []any
@@ -338,7 +336,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			}
 		}
 
-		bucketRows, subAggrRows, rowIndexes = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows, rowIndexes)
+		bucketRows, subAggrRows, _ = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows, rowIndexes)
 		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, 0)
 
 		fmt.Println("-- IMPORTANT, len(pipelineRows):", len(pipelineRows), "pipelineRows:", pipelineRows, "agg:", layer.nextBucketAggregation.internalName)
@@ -454,23 +452,18 @@ func (p *pancakeJSONRenderer) valueForColumn(rows []model.QueryResultRow, column
 func (p *pancakeJSONRenderer) pipelineToJSON(pipeline *pancakeModelPipelineAggregation, rows []model.QueryResultRow) []model.QueryResultRow {
 	fmt.Println("hoho, pipelineToJSON", rows)
 	fmt.Println("wynik:", pipeline.queryType.TranslateSqlResponseToJson(rows, 0))
-	pp.Println(p.pipelineAggregationToResultBucketPointer)
+	//pp.Println(p.pipelineAggregationToResultBucketPointer)
 	//ptr := p.pipelineAggregationToResultBucketPointer[pipeline.internalName]
 
 	pp.Println("ptr", pipeline.internalName)
 
-	a, ok := pipeline.queryType.(model.PipelineQueryType)
-	if !ok {
-		fmt.Println("WTF")
-		panic(nil)
-	}
-	b := a.CalculateResultWhenMissing(rows)
-	if pipeline.queryType.PipelineAggregationType() == model.MetricsAggregation {
+	b := pipeline.queryType.CalculateResultWhenMissing(rows)
+	if pipeline.queryType.PipelineAggregationType() == model.PipelineMetricsAggregation {
 		pp.Println("DODAJE DO RESPONSE")
 		//(*ptr)[pipeline.name] = pipeline.queryType.TranslateSqlResponseToJson(b, 0)
 	}
-	fmt.Println("KK rows po calculate:", a.CalculateResultWhenMissing(rows), "pipeline jest metryczna?",
-		pipeline.queryType.PipelineAggregationType() == model.MetricsAggregation, "jak tak, to właśnie dodałem do response, jak nie to nie :/")
+	//fmt.Println("KK rows po calculate:", pipeline.queryType.CalculateResultWhenMissing(rows), "pipeline jest metryczna?",
+	//	pipeline.queryType.PipelineAggregationType() == model.MetricsAggregation, "jak tak, to właśnie dodałem do response, jak nie to nie :/")
 	return b
 }
 

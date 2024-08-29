@@ -4,7 +4,6 @@ package pipeline_aggregations
 
 import (
 	"context"
-	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
@@ -25,7 +24,6 @@ func translateSqlResponseToJsonCommon(ctx context.Context, rows []model.QueryRes
 		logger.WarnWithCtx(ctx).Msgf("no rows returned for %s aggregation", aggregationName)
 		return model.JsonMap{}
 	}
-	fmt.Println("TRANSLATE IN DERIVATIVE, ROWS,", rows, "aggr name:", aggregationName)
 	if len(rows) > 1 {
 		logger.WarnWithCtx(ctx).Msgf("More than one row returned for %s aggregation", aggregationName)
 	}
@@ -34,7 +32,6 @@ func translateSqlResponseToJsonCommon(ctx context.Context, rows []model.QueryRes
 
 // calculateResultWhenMissingCommonForDiffAggregations is common for derivative/serial diff aggregations
 func calculateResultWhenMissingCommonForDiffAggregations(ctx context.Context, parentRows []model.QueryResultRow, lag int) []model.QueryResultRow {
-	fmt.Println("calculateResultWhenMissingCommonForDiffAggregations, rows:", parentRows, "lag:", lag)
 	resultRows := make([]model.QueryResultRow, 0, len(parentRows))
 	if len(parentRows) == 0 {
 		return resultRows
@@ -61,8 +58,6 @@ func calculateResultWhenMissingCommonForDiffAggregations(ctx context.Context, pa
 		}
 	}
 	if firstNonNilIndex == -1 {
-
-		fmt.Println("empty resultRows")
 		return resultRows
 	}
 
@@ -114,6 +109,5 @@ func calculateResultWhenMissingCommonForDiffAggregations(ctx context.Context, pa
 			resultRows = append(resultRows, resultRow)
 		}
 	}
-	fmt.Println("calculateResultWhenMissingCommonForDiffAggregations, result rows:", resultRows, "lag:", lag)
 	return resultRows
 }
