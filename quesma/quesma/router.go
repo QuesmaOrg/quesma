@@ -332,7 +332,8 @@ func matchedExact(config config.QuesmaConfiguration) mux.RequestMatcher {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])
 			return false
 		}
-		return true
+		indexConfig, exists := config.IndexConfig[req.Params["index"]]
+		return exists && indexConfig.Enabled
 	})
 }
 

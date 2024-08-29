@@ -700,18 +700,30 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
 	err := lm.ProcessInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter)
 
 	if err != nil {
+		fmt.Println("XXX ORIGAN ERROR: ", err)
 		return err
 	}
 
 	// this one is for data and schema
 
-	t := jsonprocessor.IngestTransformerPipeline{transformer, &IngestAddIndexNameTransformer{indexName: tableName}}
-	targetTable := "catch_all_logs"
+	var catchAll = false
+	if catchAll {
 
-	err = lm.ProcessInsertQueryInternal(ctx, targetTable, jsonData, t, tableFormatter)
+		t := jsonprocessor.IngestTransformerPipeline{transformer, &IngestAddIndexNameTransformer{indexName: tableName}}
+		targetTable := "catch_all_logs"
 
-	if err != nil {
-		return err
+		err = lm.ProcessInsertQueryInternal(ctx, targetTable, jsonData, t, tableFormatter)
+
+		if err != nil {
+
+			// code: 44, message: Cannot add column ecs::version: column with this name already exists
+			if strings.Contains("code: 44", err.Error()) {
+				fmt.Println("XXX IGNORED ERROR: ", err)
+				return nil
+			}
+
+			return err
+		}
 	}
 	return nil
 }
@@ -754,13 +766,15 @@ func (lm *LogManager) executeStatements(ctx context.Context, queries []string) e
 		if len(s) > 100 {
 			s = s[:100]
 		}
-		if strings.Contains(s, "ALTER") {
+		if strings.Contains(q, "ALTER") || strings.Contains(q, "CREATE") {
 			fmt.Println("XXXX EXECUTE:", s)
 		}
 
 		err := lm.execute(ctx, q)
 		if err != nil {
+			//fmt.Println("XXX ERR", q, err)
 			logger.ErrorWithCtx(ctx).Msgf("error executing query: %v", err)
+
 			return err
 		}
 	}
