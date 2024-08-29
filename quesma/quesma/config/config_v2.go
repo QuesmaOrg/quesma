@@ -292,20 +292,25 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	}
 	if p1.Type == QuesmaV1ProcessorIngest || p1.Type == QuesmaV1ProcessorQuery {
 		conf.Mode = DualWriteQueryClickhouse
-	}
 
-	if v1processor := c.getProcessorByName(p1.Name); v1processor == nil {
-		conf.IndexConfig = v1processor.Config.IndexConfig
-		for indexName, indexConfig := range v1processor.Config.IndexConfig {
-			indexConfig.Name = indexName
-			conf.IndexConfig[indexName] = indexConfig
+		if v1processor := c.getProcessorByName(p1.Name); v1processor == nil {
+			conf.IndexConfig = v1processor.Config.IndexConfig
+			for indexName, indexConfig := range v1processor.Config.IndexConfig {
+				indexConfig.Name = indexName
+				conf.IndexConfig[indexName] = indexConfig
+			}
+		} else {
+			errAcc = multierror.Append(errAcc, err)
 		}
-	} else {
-		errAcc = multierror.Append(errAcc, err)
 	}
 
 	if errAcc != nil {
-		log.Fatalf("config validation failed: %v", errAcc)
+		var multiErr *multierror.Error
+		if errors.As(errAcc, &multiErr) {
+			if len(multiErr.Errors) > 0 {
+				log.Fatalf("Internal config rewrite failed: %v", multiErr)
+			}
+		}
 	}
 	return conf
 }
