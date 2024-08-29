@@ -58,7 +58,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if topMetrics(test.TestName) {
 				t.Skip("Fix top metrics")
 			}
-			if percentiles(test.TestName) {
+			if !percentiles(test.TestName) {
 				t.Skip("Fix percentiles")
 			}
 			if filters(test.TestName) {
