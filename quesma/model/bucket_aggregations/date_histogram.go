@@ -4,6 +4,7 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/kibana"
 	"quesma/logger"
@@ -23,17 +24,18 @@ const (
 )
 
 type DateHistogram struct {
-	ctx               context.Context
-	field             model.Expr // name of the field, e.g. timestamp
-	interval          string
-	minDocCount       int
-	intervalType      DateHistogramIntervalType
-	fieldDateTimeType clickhouse.DateTimeType
+	ctx                     context.Context
+	field                   model.Expr // name of the field, e.g. timestamp
+	interval                string
+	timezoneOffsetInSeconds int64 // 0 means either no offset, or time_zone is UTC
+	minDocCount             int
+	intervalType            DateHistogramIntervalType
+	fieldDateTimeType       clickhouse.DateTimeType
 }
 
-func NewDateHistogram(ctx context.Context, field model.Expr, interval string,
+func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone string,
 	minDocCount int, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
-	return &DateHistogram{ctx: ctx, field: field, interval: interval,
+	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezoneOffsetInSeconds: countTimezoneOffset(timezone, field),
 		minDocCount: minDocCount, intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
 }
 
@@ -75,6 +77,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 			intervalInMilliseconds := query.intervalAsDuration().Milliseconds()
 			key = query.getKey(row) * intervalInMilliseconds
 		}
+		key -= query.timezoneOffsetInSeconds * 1000
 
 		intervalStart := time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000")
 		response = append(response, model.JsonMap{
@@ -134,7 +137,36 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 		logger.ErrorWithCtx(query.ctx).Msgf("invalid date type for DateHistogram %+v. Using DateTime64 as default.", query)
 		dateTimeType = defaultDateTimeType
 	}
-	return clickhouse.TimestampGroupBy(query.field, dateTimeType, interval)
+
+	fmt.Println("TimestampGroupByWithTimezone jestem tu", query.timezoneOffsetInSeconds)
+	// If no timezone, or timezone is default (UTC), we just return TimestampGroupBy(...)
+	if query.timezoneOffsetInSeconds == 0 {
+		return clickhouse.TimestampGroupBy(query.field, dateTimeType, interval)
+	}
+
+	// offset in a proper unit: seconds for toUnixTimestamp; milliseconds for toUnixTimestamp64Milli
+	createAExp := func(innerFuncName string, interval, offset int64) model.Expr {
+		unixTsWithOffset := model.NewInfixExpr(
+			model.NewFunction(innerFuncName, query.field),
+			"+",
+			model.NewLiteral(offset))
+		toUnixTsFunc := model.NewInfixExpr(
+			model.NewParenExpr(unixTsWithOffset),
+			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
+			model.NewLiteral(interval))
+		return model.NewFunction("toInt64", toUnixTsFunc)
+	}
+
+	switch dateTimeType {
+	case clickhouse.DateTime64:
+		// as string: fmt.Sprintf("toInt64(toUnixTimestamp(`%s`)/%f)", timestampFieldName, groupByInterval.Seconds())
+		return createAExp("toUnixTimestamp64Milli", interval.Milliseconds(), query.timezoneOffsetInSeconds*1000)
+	case clickhouse.DateTime:
+		return createAExp("toUnixTimestamp", interval.Milliseconds()/1000, query.timezoneOffsetInSeconds)
+	default:
+		logger.Error().Msgf("invalid timestamp fieldname: %s", query.field)
+		return model.NewLiteral("invalid") // maybe create new type InvalidExpr?
+	}
 }
 
 func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
@@ -228,4 +260,22 @@ func (query *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFr
 
 func (query *DateHistogramRowsTransformer) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
+}
+
+func countTimezoneOffset(timezone string, field model.Expr) int64 {
+	location, err := time.LoadLocation(timezone)
+	fmt.Println("location", location)
+	if err != nil {
+		logger.Error().Msgf("invalid timestamp timezone: %s (field: %v). Using default: no offset.", timezone, model.AsString(field))
+		return 0
+	}
+
+	utc := time.Now().UTC()
+	ourTimezone := utc.In(location)
+
+	_, offset1 := utc.Zone()
+	_, offset2 := ourTimezone.Zone()
+	offsetInSeconds := int64(offset2 - offset1)
+	fmt.Println(offsetInSeconds)
+	return offsetInSeconds
 }

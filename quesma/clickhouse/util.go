@@ -156,3 +156,51 @@ func TimestampGroupBy(timestampField model.Expr, typ DateTimeType, groupByInterv
 		return model.NewLiteral("invalid") // maybe create new type InvalidExpr?
 	}
 }
+
+func TimestampGroupByWithTimezone(timestampField model.Expr, typ DateTimeType,
+	groupByInterval time.Duration, timezone string) model.Expr {
+	fmt.Println("TimestampGroupByWithTimezone jestem tu", timezone)
+	// If no timezone, or timezone is default (UTC), we just return TimestampGroupBy(...)
+	if timezone == "" {
+		return TimestampGroupBy(timestampField, typ, groupByInterval)
+	}
+
+	location, err := time.LoadLocation(timezone)
+	fmt.Println("location", location)
+	if err != nil {
+		logger.Error().Msgf("invalid timestamp timezone: %s (field: %v)", timezone, model.AsString(timestampField))
+		return model.NewLiteral("invalid timezone")
+	}
+
+	utc := time.Now().UTC()
+	ourTimezone := utc.In(location)
+
+	_, offset1 := utc.Zone()
+	_, offset2 := ourTimezone.Zone()
+	offsetInSeconds := offset2 - offset1
+	fmt.Println(offsetInSeconds)
+
+	// offset in a proper unit: seconds for toUnixTimestamp; milliseconds for toUnixTimestamp64Milli
+	createAExp := func(innerFuncName string, interval int64, offset int) model.Expr {
+		unixTsWithOffset := model.NewInfixExpr(
+			model.NewFunction(innerFuncName, timestampField),
+			"+",
+			model.NewLiteral(offset))
+		toUnixTsFunc := model.NewInfixExpr(
+			model.NewParenExpr(unixTsWithOffset),
+			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
+			model.NewLiteral(interval))
+		return model.NewFunction("toInt64", toUnixTsFunc)
+	}
+
+	switch typ {
+	case DateTime64:
+		// as string: fmt.Sprintf("toInt64(toUnixTimestamp(`%s`)/%f)", timestampFieldName, groupByInterval.Seconds())
+		return createAExp("toUnixTimestamp64Milli", groupByInterval.Milliseconds(), offsetInSeconds*1000)
+	case DateTime:
+		return createAExp("toUnixTimestamp", groupByInterval.Milliseconds()/1000, offsetInSeconds)
+	default:
+		logger.Error().Msgf("invalid timestamp fieldname: %s", timestampFieldName)
+		return model.NewLiteral("invalid") // maybe create new type InvalidExpr?
+	}
+}
