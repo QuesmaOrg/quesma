@@ -760,7 +760,7 @@ func stringifyHelper(v interface{}, isInsideArray bool) string {
 	switch v := v.(type) {
 	case string:
 		if isInsideArray {
-			return fmt.Sprintf("\"%s\"", v)
+			return fmt.Sprintf("\\\"%s\\\"", v)
 		} else {
 			return fmt.Sprintf("%v", v)
 		}
