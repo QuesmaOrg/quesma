@@ -30,7 +30,7 @@ type ClickhouseQueryTranslator struct {
 
 	SchemaRegistry    schema.Registry
 	IncomingIndexName string
-	Config            config.QuesmaConfiguration
+	Config            *config.QuesmaConfiguration
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()

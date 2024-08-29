@@ -30,7 +30,7 @@ import (
 	"time"
 )
 
-func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {
+func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {
 
 	// some syntactic sugar
 	method := mux.IsHTTPMethod
@@ -326,7 +326,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 }
 
 // check whether exact index name is enabled
-func matchedExact(config config.QuesmaConfiguration) mux.RequestMatcher {
+func matchedExact(config *config.QuesmaConfiguration) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		if elasticsearch.IsInternalIndex(req.Params["index"]) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])

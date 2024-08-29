@@ -59,8 +59,8 @@ func TestSearchOpensearch(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
-			cw := queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
+			managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			cw := queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s, Config: &cfg}
 
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
@@ -74,7 +74,7 @@ func TestSearchOpensearch(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, err2 := queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 			assert.NoError(t, err2)
 
@@ -211,7 +211,7 @@ func TestHighlighter(t *testing.T) {
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+	managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"message$*%:;", "host.name", "@timestamp"}). // careful, it's not always in this order, order is nondeterministic
 															AddRow("abcd", "abcd", "abcd").
@@ -220,7 +220,7 @@ func TestHighlighter(t *testing.T) {
 															AddRow("text-to-highlight", "text-to-highlight", "text-to-highlight").
 															AddRow("text", "text", "text"))
 
-	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
+	queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 	response, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(query))
 	assert.NoError(t, err)
 	if err != nil {

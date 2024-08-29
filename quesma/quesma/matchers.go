@@ -22,7 +22,7 @@ func matchedAgainstAsyncId() mux.RequestMatcher {
 	})
 }
 
-func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) mux.RequestMatcher {
+func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		idx := 0
 		for _, s := range strings.Split(req.Body, "\n") {
@@ -44,7 +44,7 @@ func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) mux.Reques
 	})
 }
 
-func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.RequestMatcher {
+func matchedAgainstPattern(configuration *config.QuesmaConfiguration) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
 		if elasticsearch.IsInternalIndex(indexPattern) {

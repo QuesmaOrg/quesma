@@ -12,7 +12,7 @@ import (
 	"quesma/stats"
 )
 
-func Write(ctx context.Context, tableName string, body types.JSON, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) error {
+func Write(ctx context.Context, tableName string, body types.JSON, lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration) error {
 	stats.GlobalStatistics.Process(cfg, tableName, body, clickhouse.NestedSeparator)
 
 	defer recovery.LogPanic()

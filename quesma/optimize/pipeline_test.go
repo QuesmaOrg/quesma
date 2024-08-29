@@ -57,7 +57,7 @@ func Test_cacheQueries(t *testing.T) {
 					TableName:     tt.tableName,
 				},
 			}
-			pipeline := NewOptimizePipeline(cfg)
+			pipeline := NewOptimizePipeline(&cfg)
 			optimized, err := pipeline.Transform(queries)
 			if err != nil {
 				t.Fatalf("error optimizing query: %v", err)
@@ -210,7 +210,7 @@ func Test_dateTrunc(t *testing.T) {
 					SelectCommand: tt.query,
 				},
 			}
-			pipeline := NewOptimizePipeline(cfg)
+			pipeline := NewOptimizePipeline(&cfg)
 			optimized, err := pipeline.Transform(queries)
 
 			if err != nil {
@@ -447,7 +447,7 @@ func Test_materialized_view_replace(t *testing.T) {
 					SelectCommand: tt.query,
 				},
 			}
-			pipeline := NewOptimizePipeline(cfg)
+			pipeline := NewOptimizePipeline(&cfg)
 			optimized, err := pipeline.Transform(queries)
 
 			if err != nil {
