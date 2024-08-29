@@ -698,7 +698,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 	}
 	td.Store(tableDefinition.Name, &tableDefinition)
 
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
 
 	tests := []struct {
@@ -865,7 +865,7 @@ func TestFullTextFields(t *testing.T) {
 	}
 	td.Store(tableDefinition.Name, &tableDefinition)
 
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
 
 	tests := []struct {
