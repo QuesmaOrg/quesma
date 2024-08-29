@@ -534,54 +534,6 @@ func Indent(indentLvl int) string {
 	return strings.Repeat("\t", indentLvl)
 }
 
-// Returns Kind of type from passed string
-// Example : KindFromString("Int")
-func KindFromString(typeName string) (reflect.Kind, error) {
-	switch typeName {
-	case "Int64", "Int":
-		return reflect.Int, nil
-	case "Float64":
-		return reflect.Float64, nil
-	case "String":
-		return reflect.String, nil
-	default:
-		return reflect.Invalid, fmt.Errorf("unsupported type: %s", typeName)
-	}
-}
-
-// Checks whether passed value is a float type
-// with zeros after decimal point
-// Example: 1.00 will return true
-// Example: 1.54 will return false
-func IsInt(value interface{}) bool {
-	// Get the type of the value
-	valueType := reflect.TypeOf(value)
-
-	// Check if the type is float64
-	if valueType.Kind() == reflect.Float64 {
-		// Convert the float value to string
-		stringValue := fmt.Sprintf("%f", value)
-		// Split the string by decimal point
-		parts := strings.Split(stringValue, ".")
-		if len(parts) == 2 && len(parts[1]) > 0 {
-			// Check if the decimal part contains only zeros
-			for _, digit := range parts[1] {
-				if digit != '0' {
-					return false
-				}
-			}
-		}
-		return true
-	}
-	return valueType.Kind() == reflect.Int || valueType.Kind() == reflect.Int64 || valueType.Kind() == reflect.Int32
-}
-
-// Function returns a type - kind for specific value
-// passed as a parameter
-func ValueKind(value interface{}) reflect.Kind {
-	return reflect.TypeOf(value).Kind()
-}
-
 // Returns a == b, but it's better in 1 way: equal(1, 1.0) == true, equal(1.0, 1) == true
 // Useful in comparing JSONs, where we can have 1 and 1.0, and we want them to be equal.
 func equal(a, b any) bool {
@@ -802,4 +754,39 @@ func InitSqlMockWithPrettyPrint(t *testing.T, matchExpectationsInOrder bool) (*s
 	})
 	mock.MatchExpectationsInOrder(matchExpectationsInOrder)
 	return db, mock
+}
+
+func stringifyHelper(v interface{}, isInsideArray bool) string {
+	switch v := v.(type) {
+	case string:
+		if isInsideArray {
+			return fmt.Sprintf("\\\"%s\\\"", v)
+		} else {
+			return fmt.Sprintf("%v", v)
+		}
+	case int, int8, int16, int32, int64:
+		return fmt.Sprintf("%d", v)
+	case uint, uint8, uint16, uint32, uint64:
+		return fmt.Sprintf("%d", v)
+	case float32:
+		return strconv.FormatFloat(float64(v), 'f', -1, 32)
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case []interface{}:
+		var parts []string
+		for _, elem := range v {
+			isInsideArray = true
+			parts = append(parts, stringifyHelper(elem, isInsideArray))
+			isInsideArray = false
+		}
+		return fmt.Sprintf("[%s]", strings.Join(parts, ","))
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+// This functions returns a string from an interface{}.
+func Stringify(v interface{}) string {
+	isInsideArray := false
+	return stringifyHelper(v, isInsideArray)
 }

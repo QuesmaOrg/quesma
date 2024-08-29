@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/mailru/go-clickhouse"
+	_ "github.com/mailru/go-clickhouse/v2"
 )
 
 const (
@@ -127,7 +127,7 @@ func main() {
 		println("   Kibana: OK")
 		waitForDataViews(5 * time.Minute)
 		println("   Data Views: OK")
-		waitForLogsInClickhouse("logs-generic-default", time.Minute, []string{"@timestamp", "attributes_string_key", "attributes_string_value", "host::name", "message", "service::name", "severity", "source"})
+		waitForLogsInClickhouse("logs-generic-default", time.Minute, []string{"@timestamp", "attributes", "attributes_string_key", "attributes_string_value", "host::name", "message", "service::name", "severity", "source"})
 		println("   Logs in Clickhouse: OK")
 		waitForAsyncQuery(time.Minute)
 		println("   AsyncQuery: OK")
@@ -245,7 +245,8 @@ func waitForLogsInClickhouse(tableName string, timeout time.Duration, expectColu
 
 	res := waitFor("clickhouse", func() bool {
 
-		connection, err := sql.Open("clickhouse", clickhouseUrl)
+		// driver name has changed in https://github.com/mailru/go-clickhouse/pull/154/
+		connection, err := sql.Open("chhttp", clickhouseUrl)
 		if err != nil {
 			panic(err)
 		}

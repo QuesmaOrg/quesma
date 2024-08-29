@@ -65,6 +65,7 @@ type (
 		KeysArrayName   string
 		ValuesArrayName string
 		TypesArrayName  string
+		MapName         string
 		Type            BaseType
 	}
 	ChTableConfig struct {
@@ -241,6 +242,11 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 			if !ok {
 				attributesStr += fmt.Sprintf("%s\"%s\" Array(%s),\n", util.Indent(1), a.ValuesArrayName, a.Type.String())
 				table.Cols[a.ValuesArrayName] = &Column{Name: a.ValuesArrayName, Type: a.Type}
+			}
+			_, ok = table.Cols[a.MapName]
+			if !ok {
+				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapName)
+				table.Cols[a.MapName] = &Column{Name: a.MapName, Type: CompoundType{Name: "Map", BaseType: NewBaseType("String, String")}}
 			}
 		}
 	}
@@ -452,7 +458,7 @@ func getAttributesByArrayName(arrayName string,
 	for k, v := range attrsMap {
 		if k == arrayName {
 			for _, val := range v {
-				attributes = append(attributes, fmt.Sprintf("%s", val))
+				attributes = append(attributes, util.Stringify(val))
 			}
 		}
 	}
@@ -491,11 +497,17 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 	if len(attrsMap) <= 0 {
 		return nonSchemaStr, nil
 	}
-	attributesBytes, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
-	if err != nil {
-		return "", err
+	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
+	attrValues := getAttributesByArrayName(AttributesValueColumn, attrsMap)
+
+	nonSchemaStr = "\"" + AttributesColumn + "\":{"
+	for i := 0; i < len(attrKeys); i++ {
+		if i > 0 {
+			nonSchemaStr += ","
+		}
+		nonSchemaStr += fmt.Sprintf("\"%s\":\"%s\"", attrKeys[i], attrValues[i])
 	}
-	nonSchemaStr = string(attributesBytes[1 : len(attributesBytes)-1])
+	nonSchemaStr = nonSchemaStr + "}"
 	return nonSchemaStr, nil
 }
 

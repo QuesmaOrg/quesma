@@ -60,6 +60,11 @@ func (t *Table) createTableOurFieldsString() []string {
 			if !ok {
 				rows = append(rows, fmt.Sprintf("%s\"%s\" Array(%s)", util.Indent(1), a.ValuesArrayName, a.Type.String()))
 			}
+			_, ok = t.Cols[a.MapName]
+			if !ok {
+				rows = append(rows, fmt.Sprintf("%s\"%s\" Map(String,String)", util.Indent(1), a.MapName))
+			}
+
 		}
 	}
 	return rows
