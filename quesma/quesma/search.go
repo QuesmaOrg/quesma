@@ -346,11 +346,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	// TODO this will be removed
 	table, _ := tables.Load(resolvedTableName)
-
-	if table == nil {
-		table, _ = tables.Load("catch_all_logs")
-	}
-
 	if table == nil {
 		return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
 	}

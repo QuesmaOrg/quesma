@@ -695,10 +695,32 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
 
-	t := jsonprocessor.IngestTransformerPipeline{transformer, &IngestAddIndexNameTransformer{indexName: tableName}}
+	// this one is for schema management only
 
+	err := lm.ProcessInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter)
+
+	if err != nil {
+		return err
+	}
+
+	// this one is for data and schema
+
+	t := jsonprocessor.IngestTransformerPipeline{transformer, &IngestAddIndexNameTransformer{indexName: tableName}}
 	targetTable := "catch_all_logs"
-	statements, err := lm.processInsertQuery(ctx, targetTable, jsonData, t, tableFormatter)
+
+	err = lm.ProcessInsertQueryInternal(ctx, targetTable, jsonData, t, tableFormatter)
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (lm *LogManager) ProcessInsertQueryInternal(ctx context.Context, tableName string,
+	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	tableFormatter TableColumNameFormatter) error {
+
+	statements, err := lm.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter)
 	if err != nil {
 		return err
 	}
