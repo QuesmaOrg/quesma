@@ -9,6 +9,7 @@ import (
 	"github.com/knadh/koanf/providers/env"
 	"log"
 	"quesma/network"
+	"reflect"
 	"slices"
 	"strings"
 )
@@ -117,11 +118,41 @@ func (c *QuesmaNewConfiguration) validate() error {
 	return errAcc
 }
 
+// unsafe to use!
+func (c *QuesmaNewConfiguration) getBothProcessorsConfiguredInPipelines() (*Processor, *Processor) {
+	return c.getProcessorByName(c.Pipelines[0].Processors[0]), c.getProcessorByName(c.Pipelines[1].Processors[0])
+}
+
 func (c *QuesmaNewConfiguration) validatePipelines() error {
 	if len(c.Pipelines) != 2 {
 		return errors.New("exactly two pipelines (one for query, one for ingest) must be defined at this moment")
 	}
+	p1, p2 := c.getBothProcessorsConfiguredInPipelines()
+	if (p1.Type == QuesmaV1ProcessorNoOp && p2.Type != QuesmaV1ProcessorNoOp) || (p1.Type != QuesmaV1ProcessorNoOp && p2.Type == QuesmaV1ProcessorNoOp) {
+		return errors.New("pipeline with noop processor cannot work along with pipeline containing a processor of a different kind")
+	}
+	if p1.Type == QuesmaV1ProcessorQuery {
+		if p2.Type != QuesmaV1ProcessorIngest {
+			return errors.New("pipeline with query processor requires having the second pipeline with ingest processor")
+		}
+	}
+	if p1.Type == QuesmaV1ProcessorIngest {
+		if p2.Type != QuesmaV1ProcessorQuery {
+			return errors.New("pipeline with ingest processor requires having the second pipeline with query processor")
+		}
+	}
+	if (p1.Type == QuesmaV1ProcessorIngest && p2.Type == QuesmaV1ProcessorQuery) ||
+		(p1.Type == QuesmaV1ProcessorQuery && p2.Type == QuesmaV1ProcessorIngest) {
+		if !reflect.DeepEqual(p1.Config, p2.Config) {
+			return errors.New("ingest and query processors must have the same configuration due to current limitations")
+		}
+	}
+
 	return nil
+}
+
+func (c *QuesmaNewConfiguration) getProcessors() []Processor {
+	return c.Processors
 }
 
 func (c *QuesmaNewConfiguration) validateFrontendConnector(fc FrontendConnector) error {
@@ -255,11 +286,15 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	// Now determine Quesma final state with following heuristic
 	// if 2 pipelines with noop processor -> switch to proxy mode, ditch the whole config
 	// if one query, one ingest pipeline with noop processor -> switch to "dual-write-query-clickhouse" mode
-	// * just ingest processor -
-	//
+	p1, p2 := c.getBothProcessorsConfiguredInPipelines()
+	if p1.Type == QuesmaV1ProcessorNoOp && p2.Type == QuesmaV1ProcessorNoOp {
+		conf.Mode = ProxyInspect
+	}
+	if p1.Type == QuesmaV1ProcessorIngest || p1.Type == QuesmaV1ProcessorQuery {
+		conf.Mode = DualWriteQueryClickhouse
+	}
 
-	if v1processor, err := c.getProcessorConfig(); err == nil {
-		conf.Mode = v1processor.Config.Mode
+	if v1processor := c.getProcessorByName(p1.Name); v1processor == nil {
 		conf.IndexConfig = v1processor.Config.IndexConfig
 		for indexName, indexConfig := range v1processor.Config.IndexConfig {
 			indexConfig.Name = indexName
@@ -323,9 +358,6 @@ func (c *QuesmaNewConfiguration) getRelationalDBConf() (*RelationalDbConfigurati
 }
 
 func (c *QuesmaNewConfiguration) getProcessorConfig() (*Processor, error) {
-	if len(c.Processors) != 1 {
-		return nil, errors.New("exactly one processor must be defined at this moment")
-	}
 	if slices.Contains(getAllowedProcessorTypes(), c.Processors[0].Type) {
 		return &c.Processors[0], nil
 	} else {
