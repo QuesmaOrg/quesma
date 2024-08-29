@@ -118,7 +118,7 @@ func (t *Table) GetDateTimeTypeFromExpr(ctx context.Context, expr model.Expr) Da
 }
 
 // applyIndexConfig applies full text search and alias configuration to the table
-func (t *Table) applyIndexConfig(configuration config.QuesmaConfiguration) {
+func (t *Table) applyIndexConfig(configuration *config.QuesmaConfiguration) {
 	for _, c := range t.Cols {
 		c.IsFullTextMatch = configuration.IsFullTextMatchField(t.Name, c.Name)
 	}

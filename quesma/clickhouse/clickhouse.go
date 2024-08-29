@@ -52,7 +52,7 @@ type (
 		cancel                    context.CancelFunc
 		chDb                      *sql.DB
 		tableDiscovery            TableDiscovery
-		cfg                       config.QuesmaConfiguration
+		cfg                       *config.QuesmaConfiguration
 		phoneHomeAgent            telemetry.PhoneHomeAgent
 		schemaRegistry            schema.Registry
 		ingestCounter             int64
@@ -792,12 +792,12 @@ func (lm *LogManager) Ping() error {
 	return lm.chDb.Ping()
 }
 
-func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery, schemaRegistry schema.Registry) *LogManager {
+func NewEmptyLogManager(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery, schemaRegistry schema.Registry) *LogManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry}
 }
 
-func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager {
+func NewLogManager(tables *TableMap, cfg *config.QuesmaConfiguration) *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
 	return &LogManager{chDb: nil, tableDiscovery: newTableDiscoveryWith(cfg, nil, *tables),
@@ -807,14 +807,15 @@ func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager
 
 // right now only for tests purposes
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
-	return &LogManager{chDb: db, tableDiscovery: newTableDiscoveryWith(config.QuesmaConfiguration{}, db, *tables),
+	return &LogManager{chDb: db, tableDiscovery: newTableDiscoveryWith(&config.QuesmaConfiguration{}, db, *tables),
 		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 
 func NewLogManagerEmpty() *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
-	return &LogManager{tableDiscovery: NewTableDiscovery(config.QuesmaConfiguration{}, nil),
+	cfg := &config.QuesmaConfiguration{}
+	return &LogManager{tableDiscovery: NewTableDiscovery(cfg, nil), cfg: cfg,
 		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 

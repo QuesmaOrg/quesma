@@ -41,7 +41,7 @@ func Test_matchedAgainstConfig(t *testing.T) {
 
 			req := &mux.Request{Params: map[string]string{"index": tt.index}, Body: tt.body}
 
-			assert.Equalf(t, tt.want, matchedExact(tt.config).Matches(req), "matchedAgainstConfig(%v), index: %s", tt.config, tt.index)
+			assert.Equalf(t, tt.want, matchedExact(&tt.config).Matches(req), "matchedAgainstConfig(%v), index: %s", tt.config, tt.index)
 		})
 	}
 }
@@ -132,7 +132,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 
 			req := &mux.Request{Params: map[string]string{"index": tt.pattern}, Body: tt.body}
 
-			assert.Equalf(t, tt.want, matchedAgainstPattern(tt.configuration).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
+			assert.Equalf(t, tt.want, matchedAgainstPattern(&tt.configuration).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
 		})
 	}
 }
@@ -183,7 +183,7 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			req := &mux.Request{Body: tt.body}
-			assert.Equalf(t, tt.want, matchedAgainstBulkBody(tt.config).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
+			assert.Equalf(t, tt.want, matchedAgainstBulkBody(&tt.config).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
 		})
 	}
 }

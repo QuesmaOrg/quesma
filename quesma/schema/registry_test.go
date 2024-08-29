@@ -257,7 +257,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := schema.NewSchemaRegistry(tt.tableDiscovery, tt.cfg, clickhouse.SchemaTypeAdapter{})
+			s := schema.NewSchemaRegistry(tt.tableDiscovery, &tt.cfg, clickhouse.SchemaTypeAdapter{})
 			resultSchema, resultFound := s.FindSchema(tt.tableName)
 			if resultFound != tt.found {
 				t.Errorf("FindSchema() got1 = %v, want %v", resultFound, tt.found)
@@ -286,7 +286,7 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 		}},
 	}}
 
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 
 	expectedSchema := schema.NewSchema(map[schema.FieldName]schema.Field{
 		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},

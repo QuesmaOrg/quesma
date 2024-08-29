@@ -79,7 +79,7 @@ func (s *Statistics) getValueStatisticsPtr(keyStatistics *KeyStatistics, nonSche
 	}
 }
 
-func (s *Statistics) process(cfg config.QuesmaConfiguration, index string,
+func (s *Statistics) process(cfg *config.QuesmaConfiguration, index string,
 	jsonData types.JSON, nonSchemaFields bool, nestedSeparator string) {
 	// TODO reading cfg.IngestStatistics is not thread safe
 	if !cfg.IngestStatistics {
@@ -99,7 +99,6 @@ func (s *Statistics) process(cfg config.QuesmaConfiguration, index string,
 	// TODO as proper eviction strategy requires some time
 	// to be implemented, we limit the number of requests for now
 	if statistics.Requests >= STATISTICS_LIMIT {
-		cfg.IngestStatistics = false
 		return
 	}
 
@@ -126,14 +125,14 @@ func (s *Statistics) process(cfg config.QuesmaConfiguration, index string,
 	}
 }
 
-func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
+func (s *Statistics) Process(cfg *config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
 	s.process(cfg, index, jsonData, false, nestedSeparator)
 	if statistics, ok := (*s)[index]; ok && statistics.Requests < STATISTICS_LIMIT {
 		statistics.Requests++
 	}
 }
 
-func (s *Statistics) UpdateNonSchemaValues(cfg config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
+func (s *Statistics) UpdateNonSchemaValues(cfg *config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
 	s.process(cfg, index, jsonData, true, nestedSeparator)
 }
 

@@ -11,7 +11,7 @@ import (
 
 var insertCounter = atomic.Int32{}
 
-func RunConfigured(ctx context.Context, cfg QuesmaConfiguration, indexName string, body types.JSON, action func() error) {
+func RunConfigured(ctx context.Context, cfg *QuesmaConfiguration, indexName string, body types.JSON, action func() error) {
 	if len(cfg.IndexConfig) == 0 {
 		logger.InfoWithCtx(ctx).Msgf("%s  --> clickhouse, body(shortened): %s", indexName, body.ShortString())
 		err := action()
@@ -41,7 +41,7 @@ func RunConfigured(ctx context.Context, cfg QuesmaConfiguration, indexName strin
 
 var matchCounter = atomic.Int32{}
 
-func findMatchingConfig(indexPattern string, cfg QuesmaConfiguration) (IndexConfiguration, bool) {
+func findMatchingConfig(indexPattern string, cfg *QuesmaConfiguration) (IndexConfiguration, bool) {
 	matchCounter.Add(1)
 	for _, indexConfig := range cfg.IndexConfig {
 		if matchCounter.Load()%100 == 1 {

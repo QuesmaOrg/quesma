@@ -55,7 +55,7 @@ type QueryRunner struct {
 	AsyncRequestStorage     *concurrent.Map[string, AsyncRequestResult]
 	AsyncQueriesContexts    *concurrent.Map[string, *AsyncQueryContext]
 	logManager              *clickhouse.LogManager
-	cfg                     config.QuesmaConfiguration
+	cfg                     *config.QuesmaConfiguration
 	im                      elasticsearch.IndexManagement
 	quesmaManagementConsole *ui.QuesmaManagementConsole
 
@@ -69,11 +69,11 @@ type QueryRunner struct {
 	ABResultsSender          ab_testing.Sender
 }
 
-func (q *QueryRunner) EnableQueryOptimization(cfg config.QuesmaConfiguration) {
+func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
 	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
 }
 
-func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry, abResultsRepository ab_testing.Sender) *QueryRunner {
+func NewQueryRunner(lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry, abResultsRepository ab_testing.Sender) *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,

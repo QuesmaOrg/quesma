@@ -18,7 +18,7 @@ const (
 	sourceNone          = "none"
 )
 
-func ResolveSources(indexPattern string, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement) (string, []string, []string) {
+func ResolveSources(indexPattern string, cfg *config.QuesmaConfiguration, im elasticsearch.IndexManagement) (string, []string, []string) {
 	if elasticsearch.IsIndexPattern(indexPattern) {
 		matchesElastic := []string{}
 		matchesClickhouse := []string{}

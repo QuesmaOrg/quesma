@@ -15,7 +15,7 @@ type (
 		UpdateDynamicConfiguration(name TableName, table Table)
 	}
 	schemaRegistry struct {
-		configuration           config.QuesmaConfiguration
+		configuration           *config.QuesmaConfiguration
 		dataSourceTableProvider TableProvider
 		dataSourceTypeAdapter   typeAdapter
 		dynamicConfiguration    map[string]Table
@@ -97,7 +97,7 @@ func (s *schemaRegistry) UpdateDynamicConfiguration(name TableName, table Table)
 	s.dynamicConfiguration[name.AsString()] = table
 }
 
-func NewSchemaRegistry(tableProvider TableProvider, configuration config.QuesmaConfiguration, dataSourceTypeAdapter typeAdapter) Registry {
+func NewSchemaRegistry(tableProvider TableProvider, configuration *config.QuesmaConfiguration, dataSourceTypeAdapter typeAdapter) Registry {
 	return &schemaRegistry{
 		configuration:           configuration,
 		dataSourceTableProvider: tableProvider,

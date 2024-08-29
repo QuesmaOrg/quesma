@@ -35,7 +35,7 @@ func Test3AggregationParserNewLogic(t *testing.T) {
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), &config.QuesmaConfiguration{})
 
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{

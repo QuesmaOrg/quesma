@@ -44,7 +44,7 @@ func TestAlterTable(t *testing.T) {
 	}
 	fieldsMap := concurrent.NewMapWith("tableName", table)
 
-	lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{})
+	lm := NewLogManager(fieldsMap, &config.QuesmaConfiguration{})
 	for i := range rowsToInsert {
 		insert, alter, err := lm.BuildIngestSQLStatements("tableName", types.MustJSON(rowsToInsert[i]), nil, chConfig)
 		assert.Equal(t, expectedInsert[i], insert)
@@ -84,7 +84,7 @@ func TestAlterTableHeuristic(t *testing.T) {
 	}
 	const tableName = "tableName"
 	fieldsMap := concurrent.NewMapWith(tableName, table)
-	lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{})
+	lm := NewLogManager(fieldsMap, &config.QuesmaConfiguration{})
 
 	rowsToInsert := make([]string, 0)
 	previousRow := ``

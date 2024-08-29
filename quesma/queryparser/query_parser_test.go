@@ -46,7 +46,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	cfg.IndexConfig[indexConfig.Name] = indexConfig
 
-	lm := clickhouse.NewEmptyLogManager(cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(config.QuesmaConfiguration{}, nil), schema.StaticRegistry{})
+	lm := clickhouse.NewEmptyLogManager(&cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil), schema.StaticRegistry{})
 	lm.AddTableIfDoesntExist(table)
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
@@ -66,7 +66,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s, Config: &cfg}
 
 	for i, tt := range testdata.TestsSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
@@ -104,7 +104,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 		},
 		Created: true,
 	}
-	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(config.QuesmaConfiguration{}, nil), schema.StaticRegistry{})
+	lm := clickhouse.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil), schema.StaticRegistry{})
 	lm.AddTableIfDoesntExist(&table)
 	indexConfig := config.IndexConfiguration{
 		Name: "logs-generic-default",
@@ -130,7 +130,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s, Config: &cfg}
 
 	for i, tt := range testdata.TestsSearchNoFullTextFields {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
@@ -196,8 +196,8 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			},
 		},
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), &config.QuesmaConfiguration{})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s, Config: &cfg}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
@@ -401,7 +401,7 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), &config.QuesmaConfiguration{})
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
@@ -486,7 +486,7 @@ func Test_parseSortFields(t *testing.T) {
 		ENGINE = Memory`,
 		clickhouse.NewChTableConfigNoAttrs(),
 	)
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), &config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
