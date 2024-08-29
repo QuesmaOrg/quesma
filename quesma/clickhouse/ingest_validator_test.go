@@ -96,31 +96,31 @@ func TestIngestValidation(t *testing.T) {
 		`{"uint8_field":1000}`,
 	}
 	expectedInsertJsons := []string{
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"string_field":"10"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"string_field":["Int64","10"]}}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"string_field":"10"}`, tableName),
 
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int_field":15}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int_field":15}`, tableName),
 
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"int_field":"15"}}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"int_field":"1.5"}}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"string_field":"15"}}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"string_field":"1.5"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"int_field":["String","15"]}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"int_field":["String","1.5"]}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"string_field":["Int64","15"]}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"string_field":["Float64","1.5"]}}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int_array_field":[81,85,69,83,77,65]}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"string_array_field":["DHRFZN","HLVJDR"]}`, tableName),
 
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"int_array_field":"[81,\\"oops\\",69,83,77,65]"}}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"string_array_field":"[\\"DHRFZN\\",15,\\"HLVJDR\\"]"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"int_array_field":["Array(Int64)","[81,\\"oops\\",69,83,77,65]"]}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"string_array_field":["Array(String)","[\\"DHRFZN\\",15,\\"HLVJDR\\"]"]}}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int32_field":15}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_field":7.5}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_field":15}`, tableName),
 
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int32_field":2147483647}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"int32_field":"2147483648"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"int32_field":["Int64","2147483648"]}}`, tableName),
 
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"uint8_field":"-1"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"uint8_field":["Int64","-1"]}}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"uint8_field":255}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"uint8_field":"1000"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes":{"uint8_field":["Int64","1000"]}}`, tableName),
 	}
 	tableMap := concurrent.NewMapWith(tableName, &Table{
 		Name:   tableName,

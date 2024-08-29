@@ -62,7 +62,7 @@ func (t *Table) createTableOurFieldsString() []string {
 			}
 			_, ok = t.Cols[a.MapName]
 			if !ok {
-				rows = append(rows, fmt.Sprintf("%s\"%s\" Map(String,String)", util.Indent(1), a.MapName))
+				rows = append(rows, fmt.Sprintf("%s\"%s\" Map(String,Array(String))", util.Indent(1), a.MapName))
 			}
 
 		}

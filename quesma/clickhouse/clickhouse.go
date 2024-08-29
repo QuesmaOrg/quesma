@@ -245,7 +245,7 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 			}
 			_, ok = table.Cols[a.MapName]
 			if !ok {
-				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapName)
+				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,Array(String)),\n", util.Indent(1), a.MapName)
 				table.Cols[a.MapName] = &Column{Name: a.MapName, Type: CompoundType{Name: "Map", BaseType: NewBaseType("String, String")}}
 			}
 		}
@@ -499,13 +499,14 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 	}
 	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
 	attrValues := getAttributesByArrayName(AttributesValueColumn, attrsMap)
+	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
 
 	nonSchemaStr = "\"" + AttributesColumn + "\":{"
 	for i := 0; i < len(attrKeys); i++ {
 		if i > 0 {
 			nonSchemaStr += ","
 		}
-		nonSchemaStr += fmt.Sprintf("\"%s\":\"%s\"", attrKeys[i], attrValues[i])
+		nonSchemaStr += fmt.Sprintf("\"%s\":[\"%s\",\"%s\"]", attrKeys[i], attrTypes[i], attrValues[i])
 	}
 	nonSchemaStr = nonSchemaStr + "}"
 	return nonSchemaStr, nil
