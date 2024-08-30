@@ -53,10 +53,13 @@ type SchemaCheckPass struct {
 // TableMap is indexed by table name, not db.table name
 func getFromTable(fromTable string) string {
 	// cut db name from table name if exists
-	if idx := strings.IndexByte(fromTable, '.'); idx >= 0 {
-		fromTable = fromTable[idx:]
-		fromTable = strings.Trim(fromTable, ".")
-	}
+	/*
+		if idx := strings.IndexByte(fromTable, '.'); idx >= 0 {
+			fromTable = fromTable[idx:]
+			fromTable = strings.Trim(fromTable, ".")
+		}
+
+	*/
 	return strings.Trim(fromTable, "\"")
 }
 
@@ -347,6 +350,15 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*mode
 		return e
 	}
 
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+		if catch_all_logs.Enabled {
+			if e.ColumnName == "timestamp" || e.ColumnName == "epoch_time" || e.ColumnName == `"epoch_time"` {
+				return model.NewColumnRef("@timestamp")
+			}
+		}
+		return e
+	}
+
 	visitor.OverrideVisitSelectCommand = func(b *model.BaseExprVisitor, selectStm model.SelectCommand) interface{} {
 		var columns, groupBy []model.Expr
 		var orderBy []model.OrderByExpr
@@ -372,12 +384,12 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*mode
 		if catch_all_logs.Enabled {
 
 			pattern := query.IndexPattern
-			strings.ReplaceAll(pattern, "*", "%")
+			pattern = strings.ReplaceAll(pattern, "*", "%")
 
 			indexWhere := model.NewInfixExpr(model.NewColumnRef(catch_all_logs.IndexNameColumn), "ILIKE", model.NewLiteral(fmt.Sprintf("'%s'", pattern)))
 
 			if selectStm.WhereClause != nil {
-				where = model.And([]model.Expr{selectStm.WhereClause, indexWhere})
+				where = model.And([]model.Expr{selectStm.WhereClause.Accept(b).(model.Expr), indexWhere})
 			} else {
 				where = indexWhere
 			}
@@ -510,6 +522,29 @@ func (s *SchemaCheckPass) applyFullTextField(query *model.Query) (*model.Query, 
 
 }
 
+func (s *SchemaCheckPass) checkDottedColumns(query *model.Query) (*model.Query, error) {
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		if strings.Contains(e.ColumnName, ".") {
+			fmt.Println("XXX Dotted column found: ", e.ColumnName)
+			return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
+		}
+
+		return e
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	for k, query := range queries {
 		var err error
@@ -525,6 +560,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 			{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
 			{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
+			{TransformationName: "DottedColumns", Transformation: s.checkDottedColumns},
 		}
 		for _, transformation := range transformationChain {
 			inputQuery := query.SelectCommand.String()

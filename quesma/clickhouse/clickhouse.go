@@ -413,12 +413,12 @@ func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name strin
 
 	query, err := lm.buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, tableFormatter)
 	if err != nil {
-		return err
+		return fmt.Errorf("CreateTableFromInsertQuery buildCreateTableQueryNoOurFields failed: %v", err)
 	}
 
 	err = lm.ProcessCreateTableQuery(ctx, query, config)
 	if err != nil {
-		return err
+		return fmt.Errorf("CreateTableFromInsertQuery ProcessCreateTableQuery failed: %v", err)
 	}
 	return nil
 }
@@ -473,6 +473,14 @@ func (lm *LogManager) generateNewColumns(
 	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
 	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
 	var deleteIndexes []int
+
+	// THIS is a HACK
+	// to avoid altering table.Cols map
+	newColumns := make(map[string]*Column)
+	for k, v := range table.Cols {
+		newColumns[k] = v
+	}
+
 	for i := range alteredAttributesIndexes {
 
 		t := ""
@@ -483,10 +491,14 @@ func (lm *LogManager) generateNewColumns(
 		}
 		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, attrKeys[i], t)
 
-		table.Cols[attrKeys[i]] = &Column{Name: attrKeys[i], Type: NewBaseType(attrTypes[i]), Modifiers: "Nullable"}
+		newColumns[attrKeys[i]] = &Column{Name: attrKeys[i], Type: NewBaseType(attrTypes[i]), Modifiers: "Nullable"}
 		alterCmd = append(alterCmd, alterTable)
 		deleteIndexes = append(deleteIndexes, i)
 	}
+
+	//
+	table.Cols = newColumns
+
 	for i := len(deleteIndexes) - 1; i >= 0; i-- {
 		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn][:deleteIndexes[i]], attrsMap[AttributesKeyColumn][deleteIndexes[i]+1:]...)
 		attrsMap[AttributesValueType] = append(attrsMap[AttributesValueType][:deleteIndexes[i]], attrsMap[AttributesValueType][deleteIndexes[i]+1:]...)
@@ -648,7 +660,7 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 		config = NewOnlySchemaFieldsCHConfig()
 		err := lm.CreateTableFromInsertQuery(ctx, tableName, jsonData, config, tableFormatter)
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error ProcessInsertQuery, can't create table: %v", err)
+			logger.ErrorWithCtx(ctx).Msgf("error GetOrCreateTableConfig, can't create table: %v", err)
 			return nil, err
 		}
 		return config, nil
@@ -761,7 +773,7 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
 				return nil
 			}
 
-			return err
+			return fmt.Errorf("error insert processing catch_all_logs: %v", err)
 		}
 	}
 	return nil
@@ -795,12 +807,21 @@ func subtractInputJson(inputDoc types.JSON, anotherDoc types.JSON) types.JSON {
 func (lm *LogManager) execute(ctx context.Context, query string) error {
 	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()
 
-	if strings.Contains(query, "ALTER") || strings.Contains(query, "CREATE") {
-		fmt.Println("XXX EXECUTE:", query)
+	if strings.HasPrefix(query, "ALTER") || strings.HasPrefix(query, "CREATE") {
+		fmt.Println("XXX DDL EXECUTE:", query)
 	}
 
 	_, err := lm.chDb.ExecContext(ctx, query)
+	if err != nil {
+		fmt.Println("XXX ERROR QUERY:", query)
+		fmt.Println("XXX ERROR QUERY err:", err)
+
+		logger.ErrorWithCtx(ctx).Msgf("error executing query: %v", err)
+
+		return err
+	}
 	span.End(err)
+
 	return err
 }
 
@@ -808,9 +829,6 @@ func (lm *LogManager) executeStatements(ctx context.Context, queries []string) e
 	for _, q := range queries {
 		err := lm.execute(ctx, q)
 		if err != nil {
-			//fmt.Println("XXX ERR", q, err)
-			logger.ErrorWithCtx(ctx).Msgf("error executing query: %v", err)
-
 			return err
 		}
 	}
@@ -837,9 +855,9 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 		stats.GlobalStatistics.UpdateNonSchemaValues(lm.cfg, tableName,
 			inValidJson, NestedSeparator)
 
-		if len(inValidJson) > 0 { // Remove invalid fields from the input JSON
-			fmt.Println("XXX removed fields", tableName, inValidJson)
-		}
+		//if len(inValidJson) > 0 { // Remove invalid fields from the input JSON
+		//	fmt.Println("XXX removed fields", tableName, inValidJson)
+		//}
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
 		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson, inValidJson, config)
 		alterCmd = append(alterCmd, alter...)

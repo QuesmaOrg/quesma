@@ -6,6 +6,7 @@ import (
 	"context"
 	"quesma/quesma/mux"
 	"quesma/tracing"
+	"strings"
 )
 
 type (
@@ -40,3 +41,16 @@ func (t TraceIdPreprocessor) PreprocessRequest(ctx context.Context, req *mux.Req
 }
 
 var _ RequestPreprocessor = TraceIdPreprocessor{}
+
+
+
+
+type MangleIndexNamePreprocessor struct {
+}
+
+func (t *MangleIndexNamePreprocessor) PreprocessRequest(ctx context.Context, req *mux.Request) (context.Context, *mux.Request, error) {
+
+	req.Params["index"] = strings.ReplaceAll(req.Params["index"], ".", "__")
+
+	return ctx, req, nil
+}

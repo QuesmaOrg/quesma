@@ -80,6 +80,9 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 	routerInstance.
 		registerPreprocessor(NewTraceIdPreprocessor())
 
+	// ??
+	// routerInstance.registerPreprocessor(&MangleIndexNamePreprocessor{})
+
 	agent.FailedRequestsCollector(func() int64 {
 		return routerInstance.failedRequests.Load()
 	})

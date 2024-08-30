@@ -3,6 +3,7 @@
 package quesma
 
 import (
+	"fmt"
 	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/quesma/config"
@@ -31,6 +32,11 @@ func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) mux.Reques
 				continue
 			}
 			if idx%2 == 0 {
+				indexName := extractIndexName(s)
+				if !strings.HasPrefix(indexName, ".") {
+					fmt.Println("XXX BULK index name", indexName)
+				}
+
 				indexConfig, found := configuration.IndexConfig[extractIndexName(s)]
 				if found && indexConfig.Enabled {
 					return true
