@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"math"
+	"quesma/catch_all_logs"
 	"quesma/concurrent"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
@@ -33,8 +34,8 @@ const (
 	timestampFieldName = "@timestamp" // it's always DateTime64 for now, don't want to waste time changing that, we don't seem to use that anyway
 	// Above this number of columns we will use heuristic
 	// to decide if we should add new columns
-	alwaysAddColumnLimit  = 100
-	AlterColumnUpperLimit = 1000
+	alwaysAddColumnLimit  = 100000
+	AlterColumnUpperLimit = 1000000
 )
 
 type (
@@ -527,7 +528,12 @@ func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]int
 		lm.ingestFieldStatistics = make(IngestFieldStatistics)
 	}
 	lm.ingestFieldStatisticsLock.Unlock()
-	const percent50 = 0.0
+	var percent50 = 0.0
+
+	if catch_all_logs.Enabled {
+		percent50 = 0.0
+	}
+
 	for i := 0; i < len(attrKeys); i++ {
 		lm.ingestFieldStatisticsLock.Lock()
 		lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]++
@@ -592,7 +598,11 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	if len(config.attributes) <= 0 {
 		return "", nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
 	}
-	attrsMap, _ := BuildAttrsMap(mDiff, config)
+	attrsMap, err := BuildAttrsMap(mDiff, config)
+
+	if err != nil {
+		fmt.Println("XXX buildAttrMap failed", err)
+	}
 
 	// generateNewColumns is called on original attributes map
 	// before adding invalid fields to it
@@ -603,9 +613,6 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	atomic.AddInt64(&lm.ingestCounter, 1)
 	if ok, alteredAttributesIndexes := lm.shouldAlterColumns(table, attrsMap); ok {
 		alterCmd = lm.generateNewColumns(attrsMap, table, alteredAttributesIndexes)
-		if len(alterCmd) > 0 {
-			fmt.Println("XXXX ALTER TABLE", alterCmd)
-		}
 	}
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
@@ -686,8 +693,25 @@ type IngestAddIndexNameTransformer struct {
 }
 
 func (t *IngestAddIndexNameTransformer) Transform(json types.JSON) (types.JSON, error) {
-	json["__quesma_index"] = t.indexName
-	// fmt.Println("XXX __quesma_index", t.indexName)
+	json[catch_all_logs.IndexNameColumn] = t.indexName
+	return json, nil
+}
+
+type IngestFillNilForMissingFieldsTransformer struct {
+	table *Table
+}
+
+func (t *IngestFillNilForMissingFieldsTransformer) Transform(json types.JSON) (types.JSON, error) {
+	for _, col := range t.table.Cols {
+
+		if col.Name == "@timestamp" || strings.HasSuffix(col.Name, "attributes_") {
+			continue
+		}
+
+		if _, ok := json[col.Name]; !ok {
+			json[col.Name] = nil
+		}
+	}
 	return json, nil
 }
 
@@ -700,22 +724,37 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
 	err := lm.ProcessInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter)
 
 	if err != nil {
-		fmt.Println("XXX ORIGAN ERROR: ", err)
 		return err
 	}
 
 	// this one is for data and schema
 
-	var catchAll = false
-	if catchAll {
+	if catch_all_logs.Enabled {
 
-		t := jsonprocessor.IngestTransformerPipeline{transformer, &IngestAddIndexNameTransformer{indexName: tableName}}
-		targetTable := "catch_all_logs"
+		pipeline := jsonprocessor.IngestTransformerPipeline{}
 
-		err = lm.ProcessInsertQueryInternal(ctx, targetTable, jsonData, t, tableFormatter)
+		pipeline = append(pipeline, &IngestAddIndexNameTransformer{indexName: tableName})
+		pipeline = append(pipeline, transformer)
+
+		/*
+			// we normalize the JSON to the table schema
+			// so JSON contains all the fields that are in the schema
+			tableD, err := lm.GetTableDefinitions()
+			if err == nil {
+				table, ok := tableD.Load(tableName)
+				if ok {
+					pipeline = append(pipeline, &IngestFillNilForMissingFieldsTransformer{table: table})
+				}
+			} else {
+				fmt.Println("XXX not table", tableName)
+			}
+		*/
+
+		targetTable := catch_all_logs.TableName
+
+		err = lm.ProcessInsertQueryInternal(ctx, targetTable, jsonData, pipeline, tableFormatter)
 
 		if err != nil {
-
 			// code: 44, message: Cannot add column ecs::version: column with this name already exists
 			if strings.Contains("code: 44", err.Error()) {
 				fmt.Println("XXX IGNORED ERROR: ", err)
@@ -755,6 +794,11 @@ func subtractInputJson(inputDoc types.JSON, anotherDoc types.JSON) types.JSON {
 // and creates span for it
 func (lm *LogManager) execute(ctx context.Context, query string) error {
 	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()
+
+	if strings.Contains(query, "ALTER") || strings.Contains(query, "CREATE") {
+		fmt.Println("XXX EXECUTE:", query)
+	}
+
 	_, err := lm.chDb.ExecContext(ctx, query)
 	span.End(err)
 	return err
@@ -762,14 +806,6 @@ func (lm *LogManager) execute(ctx context.Context, query string) error {
 
 func (lm *LogManager) executeStatements(ctx context.Context, queries []string) error {
 	for _, q := range queries {
-		s := q
-		if len(s) > 100 {
-			s = s[:100]
-		}
-		if strings.Contains(q, "ALTER") || strings.Contains(q, "CREATE") {
-			fmt.Println("XXXX EXECUTE:", s)
-		}
-
 		err := lm.execute(ctx, q)
 		if err != nil {
 			//fmt.Println("XXX ERR", q, err)
@@ -800,7 +836,10 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 
 		stats.GlobalStatistics.UpdateNonSchemaValues(lm.cfg, tableName,
 			inValidJson, NestedSeparator)
-		// Remove invalid fields from the input JSON
+
+		if len(inValidJson) > 0 { // Remove invalid fields from the input JSON
+			fmt.Println("XXX removed fields", tableName, inValidJson)
+		}
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
 		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson, inValidJson, config)
 		alterCmd = append(alterCmd, alter...)

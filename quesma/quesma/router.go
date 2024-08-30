@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
@@ -303,6 +304,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		}
 		columns := elasticsearch.ParseMappings("", mappings.(map[string]interface{}))
 
+		fmt.Println("XXX MAPPINGS ARE", index, columns)
 		sr.UpdateDynamicConfiguration(schema.TableName(index), schema.Table{Columns: columns})
 
 		return putIndexResult(index)

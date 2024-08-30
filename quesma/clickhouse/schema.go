@@ -265,7 +265,8 @@ func NewType(value any) Type {
 		return CompoundType{Name: "Array", BaseType: NewType(valueCasted[0])}
 	}
 
-	panic(fmt.Sprintf("Unsupported type '%T' of value: %v.", value, value))
+	return BaseType{Name: "String", goType: reflect.TypeOf("")}
+	//panic(fmt.Sprintf("Unsupported type '%T' of value: %v.", value, value))
 }
 
 func NewTable(createTableQuery string, config *ChTableConfig) (*Table, error) {

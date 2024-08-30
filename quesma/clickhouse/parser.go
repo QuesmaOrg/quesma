@@ -297,6 +297,9 @@ func BuildAttrsMap(m SchemaMap, config *ChTableConfig) (map[string][]interface{}
 	result := make(map[string][]interface{}) // check if works
 	for _, name := range sortedKeys(m) {
 		value := m[name]
+		if value == nil {
+			fmt.Println("XXXXX BuildAttrsMapVALUE NIL ", name)
+		}
 		matched := false
 		for _, a := range config.attributes {
 			if a.Type.canConvert(value) {

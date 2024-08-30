@@ -4,6 +4,7 @@ package quesma
 
 import (
 	"fmt"
+	"quesma/catch_all_logs"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -330,7 +331,12 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*mode
 	}
 
 	// TODO compute physical from expression based on single table or union or whatever ....
-	physicalFromExpression := model.NewTableRef("catch_all_logs")
+	var physicalFromExpression model.Expr
+	if catch_all_logs.Enabled {
+		physicalFromExpression = model.NewTableRef(catch_all_logs.TableName)
+	} else {
+		physicalFromExpression = model.NewTableRef(query.TableName)
+	}
 
 	visitor := model.NewBaseVisitor()
 
@@ -341,17 +347,64 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*mode
 		return e
 	}
 
+	visitor.OverrideVisitSelectCommand = func(b *model.BaseExprVisitor, selectStm model.SelectCommand) interface{} {
+		var columns, groupBy []model.Expr
+		var orderBy []model.OrderByExpr
+		from := selectStm.FromClause
+		where := selectStm.WhereClause
+
+		for _, expr := range selectStm.Columns {
+			columns = append(columns, expr.Accept(b).(model.Expr))
+		}
+		for _, expr := range selectStm.GroupBy {
+			groupBy = append(groupBy, expr.Accept(b).(model.Expr))
+		}
+		for _, expr := range selectStm.OrderBy {
+			orderBy = append(orderBy, expr.Accept(b).(model.OrderByExpr))
+		}
+		if selectStm.FromClause != nil {
+			from = selectStm.FromClause.Accept(b).(model.Expr)
+		}
+		if selectStm.WhereClause != nil {
+			where = selectStm.WhereClause.Accept(b).(model.Expr)
+		}
+
+		if catch_all_logs.Enabled {
+
+			pattern := query.IndexPattern
+			strings.ReplaceAll(pattern, "*", "%")
+
+			indexWhere := model.NewInfixExpr(model.NewColumnRef(catch_all_logs.IndexNameColumn), "ILIKE", model.NewLiteral(fmt.Sprintf("'%s'", pattern)))
+
+			if selectStm.WhereClause != nil {
+				where = model.And([]model.Expr{selectStm.WhereClause, indexWhere})
+			} else {
+				where = indexWhere
+			}
+		}
+
+		var ctes []*model.SelectCommand
+		if selectStm.CTEs != nil {
+			ctes = make([]*model.SelectCommand, 0)
+			for _, cte := range selectStm.CTEs {
+				ctes = append(ctes, cte.Accept(b).(*model.SelectCommand))
+			}
+		}
+		var namedCTEs []*model.CTE
+		if selectStm.NamedCTEs != nil {
+			for _, cte := range selectStm.NamedCTEs {
+				namedCTEs = append(namedCTEs, cte.Accept(b).(*model.CTE))
+			}
+		}
+
+		return model.NewSelectCommand(columns, groupBy, orderBy, from, where, selectStm.LimitBy, selectStm.Limit, selectStm.SampleLimit, selectStm.IsDistinct, ctes, namedCTEs)
+	}
+
 	expr := query.SelectCommand.Accept(visitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
-	}
-
-	w := model.NewInfixExpr(model.NewColumnRef("__quesma_index"), "=", model.NewLiteral(fmt.Sprintf("'%s'", query.IndexPattern)))
-
-	if query.SelectCommand.WhereClause != nil {
-		query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause, w})
 	} else {
-		query.SelectCommand.WhereClause = w
+
 	}
 
 	return query, nil

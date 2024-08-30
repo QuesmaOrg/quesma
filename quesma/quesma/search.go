@@ -378,7 +378,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	plan.StartTime = startTime
 	plan.Name = model.MainExecutionPlan
 
-	// Some flags may trigger alternative execution plans, this is primary for dev
+	// Some catch_all_logs may trigger alternative execution plans, this is primary for dev
 	alternativePlan, alternativePlanExecutor := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedTableName, plan, queryTranslator, body, table, optAsync != nil)
 
 	var optComparePlansCh chan<- executionPlanResult
