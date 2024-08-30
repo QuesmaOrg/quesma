@@ -1,7 +1,11 @@
 installationId: "just-Quesma-smoke-test-instance"
 frontendConnectors:
-  - name: elasticsearchFakedAPI
-    type: elasticsearch-fe
+  - name: elasticsearch-API-for-kibana
+    type: elasticsearch-fe-query
+    config:
+      listenPort: 8080
+  - name: elasticsearch-API-for-filebeat
+    type: elasticsearch-fe-ingest
     config:
       listenPort: 8080
 backendConnectors:
@@ -9,20 +13,37 @@ backendConnectors:
     type: elasticsearch
     config:
       url: "http://elasticsearch:9200"
-  - name: my-clickhouse-cloud-data-source
+  - name: my-clickhouse-data-source
     type: clickhouse-os
     config:
       url: "clickhouse://clickhouse:9000"
 processors:
-  - name: elasticsearch-to-clickhouse-processor
-    type: quesma-v1-processor
+  - name: p1
+    type: quesma-v1-processor-query
     config:
-      mode: "dual-write-query-clickhouse"
-      enableElasticsearchIngest: true
       indexes:
         kibana_sample_data_ecommerce:
         kibana_sample_data_flights:
         kibana_sample_data_logs:
         logs-generic-default:
           fullTextFields: [ "message" ]
-        windows_logs:   # Used for EQL e2e tests
+        windows_logs:
+  - name: p2
+    type: quesma-v1-processor-ingest
+    config:
+      indexes:
+        kibana_sample_data_ecommerce:
+        kibana_sample_data_flights:
+        kibana_sample_data_logs:
+        logs-generic-default:
+          fullTextFields: [ "message" ]
+        windows_logs:
+pipelines:
+  - name: p-query
+    frontendConnectors: [ elasticsearch-API-for-kibana ]
+    processors: [ p1 ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]
+  - name: p-ingest
+    frontendConnectors: [ elasticsearch-API-for-filebeat ]
+    processors: [ p2 ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]
