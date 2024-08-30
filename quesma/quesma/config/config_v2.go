@@ -15,11 +15,12 @@ import (
 )
 
 const (
-	ElasticsearchFrontedConnectorName = "elasticsearch-fe"
-	ElasticsearchBackendConnectorName = "elasticsearch"
-	ClickHouseOSBackendConnectorName  = "clickhouse-os"
-	ClickHouseBackendConnectorName    = "clickhouse"
-	HydrolixBackendConnectorName      = "hydrolix"
+	ElasticsearchFrontendQueryConnectorName  = "elasticsearch-fe-query"
+	ElasticsearchFrontendIngestConnectorName = "elasticsearch-fe-ingest"
+	ElasticsearchBackendConnectorName        = "elasticsearch"
+	ClickHouseOSBackendConnectorName         = "clickhouse-os"
+	ClickHouseBackendConnectorName           = "clickhouse"
+	HydrolixBackendConnectorName             = "hydrolix"
 )
 
 type ProcessorType string
@@ -108,7 +109,7 @@ func (c *QuesmaNewConfiguration) validate() error {
 		errAcc = multierror.Append(errAcc, c.validatePipeline(pipeline))
 	}
 	for _, fc := range c.FrontendConnectors {
-		errAcc = multierror.Append(errAcc, c.validateFrontendConnector(fc))
+		errAcc = multierror.Append(errAcc, c.validateFrontendConnectors(fc))
 	}
 	for _, pr := range c.Processors {
 		errAcc = multierror.Append(errAcc, c.validateProcessor(pr))
@@ -119,35 +120,100 @@ func (c *QuesmaNewConfiguration) validate() error {
 }
 
 // unsafe to use!
-func (c *QuesmaNewConfiguration) getBothProcessorsConfiguredInPipelines() (*Processor, *Processor) {
-	return c.getProcessorByName(c.Pipelines[0].Processors[0]), c.getProcessorByName(c.Pipelines[1].Processors[0])
+func (c *QuesmaNewConfiguration) getProcessorsConfiguredInPipelines() (processors []*Processor) {
+	for _, p := range c.Pipelines {
+		processors = append(processors, c.getProcessorByName(p.Processors[0]))
+	}
+	return processors
+}
+
+func (c *QuesmaNewConfiguration) getFrontendConnectorByName(name string) *FrontendConnector {
+	for _, fc := range c.FrontendConnectors {
+		if fc.Name == name {
+			return &fc
+		}
+	}
+	return nil
 }
 
 func (c *QuesmaNewConfiguration) validatePipelines() error {
-	if len(c.Pipelines) != 2 {
-		return errors.New("exactly two pipelines (one for query, one for ingest) must be defined at this moment")
+	var isSinglePipeline, isDualPipeline bool // currently only supported options
+	if len(c.Pipelines) == 0 {
+		return errors.New("no pipelines defined, exitting")
 	}
-	p1, p2 := c.getBothProcessorsConfiguredInPipelines()
-	if (p1.Type == QuesmaV1ProcessorNoOp && p2.Type != QuesmaV1ProcessorNoOp) || (p1.Type != QuesmaV1ProcessorNoOp && p2.Type == QuesmaV1ProcessorNoOp) {
-		return errors.New("pipeline with noop processor cannot work along with pipeline containing a processor of a different kind")
+	if len(c.Pipelines) == 1 {
+		isSinglePipeline = true
 	}
-	if p1.Type == QuesmaV1ProcessorQuery {
-		if p2.Type != QuesmaV1ProcessorIngest {
-			return errors.New("pipeline with query processor requires having the second pipeline with ingest processor")
+	if len(c.Pipelines) == 2 {
+		isDualPipeline = true
+	}
+	if len(c.Pipelines) > 2 {
+		return errors.New("only one or two pipelines are supported at this moment")
+	}
+	if isSinglePipeline { // for single pipelines we can support only querying
+		if fc := c.getFrontendConnectorByName(c.Pipelines[0].FrontendConnectors[0]); fc != nil {
+			if fc.Type != ElasticsearchFrontendQueryConnectorName {
+				return errors.New("single pipeline Quesma can only be used for querying, but the frontend connector is not of query type")
+			}
+			proc := c.getProcessorByName(c.Pipelines[0].Processors[0])
+			if proc.Type != QuesmaV1ProcessorQuery && proc.Type != QuesmaV1ProcessorNoOp {
+				return errors.New("single pipeline Quesma can only be used for querying, but the processor is not of query type")
+			}
+			declaredBackendConnectors := c.Pipelines[0].BackendConnectors
+			if proc.Type == QuesmaV1ProcessorNoOp {
+				if len(declaredBackendConnectors) != 1 {
+					return errors.New("noop processor supports only one backend connector")
+				}
+				if conn := c.getBackendConnectorByName(declaredBackendConnectors[0]); conn.Type != ElasticsearchBackendConnectorName {
+					return errors.New("noop processor can be connected only to elasticsearch backend connector")
+				}
+				if proc.Type == QuesmaV1ProcessorQuery {
+					if len(declaredBackendConnectors) != 2 {
+						return errors.New("query processor requires two backend connectors")
+					}
+					var backendConnectorTypes []string
+					for _, con := range declaredBackendConnectors {
+						backendConnectorTypes = append(backendConnectorTypes, c.getBackendConnectorByName(con).Type)
+					}
+					if !slices.Contains(backendConnectorTypes, ElasticsearchBackendConnectorName) {
+						return errors.New("query processor requires having one elasticsearch backend connector")
+					}
+					if !slices.Contains(backendConnectorTypes, ClickHouseBackendConnectorName) &&
+						!slices.Contains(backendConnectorTypes, ClickHouseOSBackendConnectorName) &&
+						!slices.Contains(backendConnectorTypes, HydrolixBackendConnectorName) {
+						return errors.New("query processor requires having one Clickhouse-compatible backend connector")
+					}
+				}
+			}
+		} else {
+			return errors.New(fmt.Sprintf("frontend connector named [%s] referred in piepeline[%s] not found in configuration", fc.Name, c.Pipelines[0].Name))
 		}
 	}
-	if p1.Type == QuesmaV1ProcessorIngest {
-		if p2.Type != QuesmaV1ProcessorQuery {
-			return errors.New("pipeline with ingest processor requires having the second pipeline with query processor")
+	if isDualPipeline {
+		fc1, fc2 := c.getFrontendConnectorByName(c.Pipelines[0].FrontendConnectors[0]), c.getFrontendConnectorByName(c.Pipelines[1].FrontendConnectors[0])
+		if !((fc1.Type == ElasticsearchFrontendQueryConnectorName && fc2.Type == ElasticsearchFrontendIngestConnectorName) ||
+			(fc2.Type == ElasticsearchFrontendQueryConnectorName && fc1.Type == ElasticsearchFrontendIngestConnectorName)) {
+			return errors.New("when declaring two fronted connector types, one must be of query type and the other of ingest type")
 		}
-	}
-	if (p1.Type == QuesmaV1ProcessorIngest && p2.Type == QuesmaV1ProcessorQuery) ||
-		(p1.Type == QuesmaV1ProcessorQuery && p2.Type == QuesmaV1ProcessorIngest) {
-		if !reflect.DeepEqual(p1.Config, p2.Config) {
+		var queryPipeline, ingestPipeline Pipeline
+		if fc1.Type == ElasticsearchFrontendQueryConnectorName {
+			queryPipeline, ingestPipeline = c.Pipelines[0], c.Pipelines[1]
+		} else {
+			queryPipeline, ingestPipeline = c.Pipelines[1], c.Pipelines[0]
+		}
+		ingestProcessor := c.getProcessorByName(ingestPipeline.Processors[0])
+		if ingestProcessor.Type != QuesmaV1ProcessorIngest {
+			return errors.New("ingest pipeline must have ingest processor")
+		}
+		queryProcessor := c.getProcessorByName(queryPipeline.Processors[0])
+		if queryProcessor.Type != QuesmaV1ProcessorQuery &&
+			queryProcessor.Type != QuesmaV1ProcessorNoOp {
+			return errors.New("query pipeline must have query or noop processor")
+		}
+		if !reflect.DeepEqual(ingestProcessor.Config, queryProcessor.Config) {
 			return errors.New("ingest and query processors must have the same configuration due to current limitations")
 		}
 	}
-
 	return nil
 }
 
@@ -155,9 +221,9 @@ func (c *QuesmaNewConfiguration) getProcessors() []Processor {
 	return c.Processors
 }
 
-func (c *QuesmaNewConfiguration) validateFrontendConnector(fc FrontendConnector) error {
-	if fc.Type != ElasticsearchFrontedConnectorName {
-		return errors.New(fmt.Sprintf("frontend connector %s - type not recognized, only `elasticsearch-fe` is supported at this moment", fc.Name))
+func (c *QuesmaNewConfiguration) validateFrontendConnectors(fc FrontendConnector) error {
+	if fc.Type != ElasticsearchFrontendIngestConnectorName && fc.Type != ElasticsearchFrontendQueryConnectorName {
+		return errors.New(fmt.Sprintf("frontend connector's %s type not recognized, only `%s` and `%s` are supported at this moment", fc.Name, ElasticsearchFrontendIngestConnectorName, ElasticsearchFrontendQueryConnectorName))
 	}
 	return nil
 }
