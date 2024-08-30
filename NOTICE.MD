@@ -570,11 +570,11 @@ Contents of probable licence file $GOMODCACHE/github.com/coreos/go-semver@v0.3.1
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/elastic/go-elasticsearch/v8
-Version : v8.14.0
-Time    : 2024-06-06T14:59:07Z
+Version : v8.15.0
+Time    : 2024-08-29T14:33:33Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/elastic/go-elasticsearch/v8@v8.14.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/elastic/go-elasticsearch/v8@v8.15.0/LICENSE:
 
                                  Apache License
                            Version 2.0, January 2004
