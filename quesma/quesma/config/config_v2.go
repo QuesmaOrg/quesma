@@ -214,6 +214,12 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 	}
 	if isDualPipeline {
 		fc1, fc2 := c.getFrontendConnectorByName(c.Pipelines[0].FrontendConnectors[0]), c.getFrontendConnectorByName(c.Pipelines[1].FrontendConnectors[0])
+		if fc1 == nil {
+			return fmt.Errorf(fmt.Sprintf("frontend connector named [%s] not found in configuration", c.Pipelines[0].FrontendConnectors[0]))
+		}
+		if fc2 == nil {
+			return fmt.Errorf(fmt.Sprintf("frontend connector named [%s] not found in configuration", c.Pipelines[1].FrontendConnectors[0]))
+		}
 		if !((fc1.Type == ElasticsearchFrontendQueryConnectorName && fc2.Type == ElasticsearchFrontendIngestConnectorName) ||
 			(fc2.Type == ElasticsearchFrontendQueryConnectorName && fc1.Type == ElasticsearchFrontendIngestConnectorName)) {
 			return fmt.Errorf("when declaring two fronted connector types, one must be of query type and the other of ingest type")
