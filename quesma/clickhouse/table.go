@@ -52,9 +52,13 @@ func (t *Table) createTableOurFieldsString() []string {
 	}
 	if len(t.Config.attributes) > 0 {
 		for _, a := range t.Config.attributes {
-			_, ok := t.Cols[a.MapName]
+			_, ok := t.Cols[a.MapValueName]
 			if !ok {
-				rows = append(rows, fmt.Sprintf("%s\"%s\" Map(String,String)", util.Indent(1), a.MapName))
+				rows = append(rows, fmt.Sprintf("%s\"%s\" Map(String,String)", util.Indent(1), a.MapValueName))
+			}
+			_, ok = t.Cols[a.MapMetadataName]
+			if !ok {
+				rows = append(rows, fmt.Sprintf("%s\"%s\" Map(String,String)", util.Indent(1), a.MapMetadataName))
 			}
 
 		}
