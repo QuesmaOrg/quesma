@@ -56,14 +56,6 @@ var insertTests = []struct {
 			`COMMENT 'created by Quesma'`,
 		},
 		[]string{
-			`"attributes_float64_value" Array(Float64),`,
-			`"attributes_float64_key" Array(String),`,
-			`"attributes_string_value" Array(Float64),`,
-			`"attributes_string_key" Array(String),`,
-			`"attributes_int64_value" Array(Float64),`,
-			`"attributes_int64_key" Array(String),`,
-			`"attributes_bool_value" Array(Float64),`,
-			`"attributes_bool_key" Array(String),`,
 			`"attributes" Map(String,String),`,
 			``,
 		},
@@ -90,14 +82,6 @@ var insertTests = []struct {
 			`COMMENT 'created by Quesma'`,
 		},
 		[]string{
-			`"attributes_float64_value" Array(Float64),`,
-			`"attributes_float64_key" Array(String),`,
-			`"attributes_string_value" Array(Float64),`,
-			`"attributes_string_key" Array(String),`,
-			`"attributes_int64_value" Array(Float64),`,
-			`"attributes_int64_key" Array(String),`,
-			`"attributes_bool_value" Array(Float64),`,
-			`"attributes_bool_key" Array(String),`,
 			`"attributes" Map(String,String),`,
 			``,
 		},
@@ -180,7 +164,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					// check if CREATE TABLE string is OK
 					queryByLine := strings.Split(query, "\n")
 					if len(tableConfig.attributes) > 0 {
-						assert.Equal(t, len(tt.createTableLines)+2*len(tableConfig.attributes)+2, len(queryByLine))
+						assert.Equal(t, len(tt.createTableLines)+len(tableConfig.attributes)-2, len(queryByLine))
 						for _, line := range tt.createTableLines {
 							assert.True(t, slices.Contains(tt.createTableLines, line) || slices.Contains(tt.createTableLinesAttrs, line))
 						}
@@ -213,7 +197,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					resolvedTable, _ := lm.lm.tableDiscovery.TableDefinitions().Load(tableName)
 					if logManagerEmpty {
 						if len(tableConfig.attributes) > 0 {
-							assert.Equal(t, 6+2*len(tableConfig.attributes)+1, len(resolvedTable.Cols))
+							assert.Equal(t, len(tableConfig.attributes)+3, len(resolvedTable.Cols))
 						} else {
 							assert.Equal(t, 6+2*len(tableConfig.attributes), len(resolvedTable.Cols))
 						}
