@@ -92,12 +92,7 @@ func LoadV2Config() QuesmaNewConfiguration {
 		log.Fatalf("error unmarshalling config: %v", err)
 	}
 	if err := v2config.validate(); err != nil {
-		var multiErr *multierror.Error
-		if errors.As(err, &multiErr) {
-			if len(multiErr.Errors) > 0 {
-				log.Fatalf("Config validation failed: %v", multiErr)
-			}
-		}
+		log.Fatalf("Config validation failed: %v", err)
 	}
 	return v2config
 }
@@ -105,7 +100,7 @@ func LoadV2Config() QuesmaNewConfiguration {
 // validate at this level verifies the basic assumptions behind pipelines/processors/connectors,
 // many of which being just stubs for future impl
 func (c *QuesmaNewConfiguration) validate() error {
-	var _, errAcc error
+	var errAcc error
 	for _, pipeline := range c.Pipelines {
 		errAcc = multierror.Append(errAcc, c.validatePipeline(pipeline))
 	}
@@ -118,7 +113,14 @@ func (c *QuesmaNewConfiguration) validate() error {
 	}
 	errAcc = multierror.Append(errAcc, c.validatePipelines())
 
-	return errAcc
+	var multiErr *multierror.Error
+	if errors.As(errAcc, &multiErr) {
+		if len(multiErr.Errors) > 0 {
+			log.Fatalf("Config validation failed: %v", multiErr)
+			return multiErr
+		}
+	}
+	return nil
 }
 
 // unsafe to use!
