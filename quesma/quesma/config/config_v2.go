@@ -17,10 +17,11 @@ import (
 const (
 	ElasticsearchFrontendQueryConnectorName  = "elasticsearch-fe-query"
 	ElasticsearchFrontendIngestConnectorName = "elasticsearch-fe-ingest"
-	ElasticsearchBackendConnectorName        = "elasticsearch"
-	ClickHouseOSBackendConnectorName         = "clickhouse-os"
-	ClickHouseBackendConnectorName           = "clickhouse"
-	HydrolixBackendConnectorName             = "hydrolix"
+
+	ElasticsearchBackendConnectorName = "elasticsearch"
+	ClickHouseOSBackendConnectorName  = "clickhouse-os"
+	ClickHouseBackendConnectorName    = "clickhouse"
+	HydrolixBackendConnectorName      = "hydrolix"
 )
 
 type ProcessorType string
@@ -109,8 +110,9 @@ func (c *QuesmaNewConfiguration) validate() error {
 		errAcc = multierror.Append(errAcc, c.validatePipeline(pipeline))
 	}
 	for _, fc := range c.FrontendConnectors {
-		errAcc = multierror.Append(errAcc, c.validateFrontendConnectors(fc))
+		errAcc = multierror.Append(errAcc, c.validateFrontendConnector(fc))
 	}
+	errAcc = multierror.Append(errAcc, c.validateFrontendConnectors())
 	for _, pr := range c.Processors {
 		errAcc = multierror.Append(errAcc, c.validateProcessor(pr))
 	}
@@ -136,10 +138,25 @@ func (c *QuesmaNewConfiguration) getFrontendConnectorByName(name string) *Fronte
 	return nil
 }
 
+func (c *QuesmaNewConfiguration) validateFrontendConnectors() error {
+	if len(c.FrontendConnectors) == 0 {
+		return errors.New("no frontend connectors defined")
+	}
+	if len(c.FrontendConnectors) > 2 {
+		return errors.New("only one or two frontend connectors are supported at this moment")
+	}
+	if len(c.FrontendConnectors) == 2 {
+		if c.FrontendConnectors[0].Config.ListenPort != c.FrontendConnectors[1].Config.ListenPort {
+			return errors.New("both frontend connectors must listen on the same port")
+		}
+	}
+	return nil
+}
+
 func (c *QuesmaNewConfiguration) validatePipelines() error {
 	var isSinglePipeline, isDualPipeline bool // currently only supported options
 	if len(c.Pipelines) == 0 {
-		return errors.New("no pipelines defined, exitting")
+		return errors.New("no pipelines defined, must define at least one")
 	}
 	if len(c.Pipelines) == 1 {
 		isSinglePipeline = true
@@ -217,11 +234,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 	return nil
 }
 
-func (c *QuesmaNewConfiguration) getProcessors() []Processor {
-	return c.Processors
-}
-
-func (c *QuesmaNewConfiguration) validateFrontendConnectors(fc FrontendConnector) error {
+func (c *QuesmaNewConfiguration) validateFrontendConnector(fc FrontendConnector) error {
 	if fc.Type != ElasticsearchFrontendIngestConnectorName && fc.Type != ElasticsearchFrontendQueryConnectorName {
 		return errors.New(fmt.Sprintf("frontend connector's %s type not recognized, only `%s` and `%s` are supported at this moment", fc.Name, ElasticsearchFrontendIngestConnectorName, ElasticsearchFrontendQueryConnectorName))
 	}
@@ -300,10 +313,6 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 	return errAcc
 }
 
-func (c *QuesmaNewConfiguration) getBackendConnectors() []BackendConnector {
-	return c.BackendConnectors
-}
-
 func (c *QuesmaNewConfiguration) getBackendConnectorByName(name string) *BackendConnector {
 	for _, b := range c.BackendConnectors {
 		if b.Name == name {
@@ -352,14 +361,14 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	// Now determine Quesma final state with following heuristic
 	// if 2 pipelines with noop processor -> switch to proxy mode, ditch the whole config
 	// if one query, one ingest pipeline with noop processor -> switch to "dual-write-query-clickhouse" mode
-	p1, p2 := c.getBothProcessorsConfiguredInPipelines()
-	if p1.Type == QuesmaV1ProcessorNoOp && p2.Type == QuesmaV1ProcessorNoOp {
-		conf.Mode = ProxyInspect
-	}
-	if p1.Type == QuesmaV1ProcessorIngest || p1.Type == QuesmaV1ProcessorQuery {
+	procList := c.getProcessorsConfiguredInPipelines()
+	if len(procList) == 1 {
+		if procList[0].Type == QuesmaV1ProcessorNoOp {
+			conf.Mode = ProxyInspect
+		}
+	} else { // per validation its sage to assume there are two pipelines
 		conf.Mode = DualWriteQueryClickhouse
-
-		if v1processor := c.getProcessorByName(p1.Name); v1processor == nil {
+		if v1processor := procList[0]; v1processor != nil {
 			conf.IndexConfig = v1processor.Config.IndexConfig
 			for indexName, indexConfig := range v1processor.Config.IndexConfig {
 				indexConfig.Name = indexName
@@ -382,14 +391,8 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 }
 
 func (c *QuesmaNewConfiguration) getPublicTcpPort() (network.Port, error) {
-	if len(c.FrontendConnectors) != 1 {
-		return 0, errors.New("exactly one frontend connector must be defined at this moment")
-	}
-	if c.FrontendConnectors[0].Type == ElasticsearchFrontedConnectorName {
-		return c.FrontendConnectors[0].Config.ListenPort, nil
-	} else {
-		return 0, errors.New("frontend connector type not recognized, only `elasticsearch-fe` is supported at this moment")
-	}
+	// per validation, there's always at least one frontend connector, and even if there's a second one, it must listen on the same port
+	return c.FrontendConnectors[0].Config.ListenPort, nil
 }
 
 func (c *QuesmaNewConfiguration) getElasticsearchBackendConnector() *BackendConnector {
@@ -426,14 +429,6 @@ func (c *QuesmaNewConfiguration) getRelationalDBConf() (*RelationalDbConfigurati
 		return &backendConn.Config, typ, nil
 	}
 	return nil, "", errors.New("exactly one backend connector of type `clickhouse`, `clickhouse-os` or `hydrolix` must be configured")
-}
-
-func (c *QuesmaNewConfiguration) getProcessorConfig() (*Processor, error) {
-	if slices.Contains(getAllowedProcessorTypes(), c.Processors[0].Type) {
-		return &c.Processors[0], nil
-	} else {
-		return nil, errors.New("processor type not recognized")
-	}
 }
 
 func getAllowedProcessorTypes() []ProcessorType {
