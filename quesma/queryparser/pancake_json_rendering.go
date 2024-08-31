@@ -122,7 +122,8 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregat
 // We accomplish that by increasing limit by one during SQL query and then filtering out during JSON rendering.
 // So we either filter out empty or last one if there is none.
 // This can't be replaced by WHERE in generic case.
-func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLayer, bucketRows []model.QueryResultRow,
+func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLayer,
+	bucketRows []model.QueryResultRow,
 	subAggrRows [][]model.QueryResultRow, rowIndexes []int) ([]model.QueryResultRow, [][]model.QueryResultRow, []int) {
 	// We are filter out null
 	if layer.nextBucketAggregation.filterOurEmptyKeyBucket {
@@ -169,7 +170,8 @@ func (p *pancakeJSONRenderer) processPip(result model.JsonMap, layer *pancakeMod
 	return result
 }
 
-func (p *pancakeJSONRenderer) processPip2(layer *pancakeModelLayer, pipeline *pancakeModelPipelineAggregation, bucketRows []model.QueryResultRow,
+func (p *pancakeJSONRenderer) processPip2(layer *pancakeModelLayer,
+	pipeline *pancakeModelPipelineAggregation, bucketRows []model.QueryResultRow,
 	pipelineRows *[][]model.QueryResultRow, pipelineNames *[]string, pipelineTypes *[]model.PipelineAggregationType) {
 
 	thisPipelineRows := p.pipelineToJSON(pipeline, bucketRows)
@@ -304,36 +306,10 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		var pipelineRows [][]model.QueryResultRow
 		var pipelineNames []string
 		var pipelineTypes []model.PipelineAggregationType
-		if len(remainingLayers) > 1 {
-			nextLayer := remainingLayers[1]
-			for _, childPipeline := range nextLayer.childrenPipelineAggregations {
-				if childPipeline.queryType.PipelineAggregationType() != model.PipelineBucketAggregation {
-					continue
-				}
-				var oldColumnArr []any
-				fmt.Printf("child pipeline w layer.nextbucket: %+v\ncur aggr: %+v\n", childPipeline, layer.nextBucketAggregation.queryType)
-				needToAddProperMetricColumn := !childPipeline.queryType.IsCount() // If count, last column of bucketRows is already count we need.
-				if needToAddProperMetricColumn {
-					fmt.Println("-- rendering: adding Column, bucket rows:", bucketRows)
-					bucketRows, oldColumnArr = p.addColumn(childPipeline.parentColumnName(p.ctx), bucketRows, rows, rowIndexes)
-					fmt.Println("== rendering: added Column, bucket rows:", bucketRows)
-				}
 
-				// hmm TODO: find a nicer way + fix style
-				if histogram, ok := layer.nextBucketAggregation.queryType.(bucket_aggregations.Histogram); ok {
-					bucketRowsTransformed := histogram.NewRowsTransformer().Transform(p.ctx, bucketRows)
-					p.processPip2(nextLayer, childPipeline, bucketRowsTransformed, &pipelineRows, &pipelineNames, &pipelineTypes)
-				} else if dateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.DateHistogram); ok {
-					bucketRowsTransformed := dateHistogram.NewRowsTransformer().Transform(p.ctx, bucketRows)
-					p.processPip2(nextLayer, childPipeline, bucketRowsTransformed, &pipelineRows, &pipelineNames, &pipelineTypes)
-				} else {
-					p.processPip2(nextLayer, childPipeline, bucketRows, &pipelineRows, &pipelineNames, &pipelineTypes)
-				}
-
-				if needToAddProperMetricColumn {
-					bucketRows = p.restoreLastColumn(bucketRows, oldColumnArr)
-				}
-			}
+		hasSubaggregations := len(remainingLayers) > 1
+		if hasSubaggregations {
+			p.processPi()
 		}
 
 		bucketRows, subAggrRows, _ = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows, rowIndexes)
@@ -515,4 +491,37 @@ func (p *pancakeJSONRenderer) restoreLastColumn(rows []model.QueryResultRow, val
 
 func (p *pancakeJSONRenderer) toJSON(agg *pancakeModel, rows []model.QueryResultRow) (model.JsonMap, error) {
 	return p.layerToJSON(agg.layers, rows)
+}
+
+// TODO change place in the file
+func (p *pancakeJSONRenderer) processPi() {
+	nextLayer := remainingLayers[1]
+	for _, childPipeline := range nextLayer.childrenPipelineAggregations {
+		if childPipeline.queryType.PipelineAggregationType() != model.PipelineBucketAggregation {
+			continue
+		}
+		var oldColumnArr []any
+		fmt.Printf("child pipeline w layer.nextbucket: %+v\ncur aggr: %+v\n", childPipeline, layer.nextBucketAggregation.queryType)
+		needToAddProperMetricColumn := !childPipeline.queryType.IsCount() // If count, last column of bucketRows is already count we need.
+		if needToAddProperMetricColumn {
+			fmt.Println("-- rendering: adding Column, bucket rows:", bucketRows)
+			bucketRows, oldColumnArr = p.addColumn(childPipeline.parentColumnName(p.ctx), bucketRows, rows, rowIndexes)
+			fmt.Println("== rendering: added Column, bucket rows:", bucketRows)
+		}
+
+		// hmm TODO: find a nicer way + fix style
+		if histogram, ok := layer.nextBucketAggregation.queryType.(bucket_aggregations.Histogram); ok {
+			bucketRowsTransformed := histogram.NewRowsTransformer().Transform(p.ctx, bucketRows)
+			p.processPip2(nextLayer, childPipeline, bucketRowsTransformed, &pipelineRows, &pipelineNames, &pipelineTypes)
+		} else if dateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.DateHistogram); ok {
+			bucketRowsTransformed := dateHistogram.NewRowsTransformer().Transform(p.ctx, bucketRows)
+			p.processPip2(nextLayer, childPipeline, bucketRowsTransformed, &pipelineRows, &pipelineNames, &pipelineTypes)
+		} else {
+			p.processPip2(nextLayer, childPipeline, bucketRows, &pipelineRows, &pipelineNames, &pipelineTypes)
+		}
+
+		if needToAddProperMetricColumn {
+			bucketRows = p.restoreLastColumn(bucketRows, oldColumnArr)
+		}
+	}
 }
