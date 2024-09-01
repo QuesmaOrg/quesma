@@ -58,9 +58,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if topMetrics(test.TestName) {
 				t.Skip("Fix top metrics")
 			}
-			if !percentiles(test.TestName) {
-				t.Skip("Fix percentiles")
-			}
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
 			}
@@ -196,12 +193,6 @@ func topMetrics(testName string) bool {
 	t3 := testName == "simplest top_metrics, with sort"
 	t4 := testName == "very long: multiple top_metrics + histogram" // also top_metrics
 	return t1 || t2 || t3 || t4
-}
-
-// TODO remove after fix
-func percentiles(testName string) bool {
-	t1 := testName == "Field statistics > summary for numeric fields" // also percentiles
-	return t1
 }
 
 // TODO remove after fix
