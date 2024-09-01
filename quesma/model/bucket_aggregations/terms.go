@@ -47,15 +47,27 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 		response = append(response, bucket)
 	}
 
-	sumOtherDocCount := 0
-	if query.isPancake(rows[0]) { // TODO: remove this after change to pancake-only
-		sumOtherDocCount = int(util.ExtractInt64(query.parentCount(rows[0]))) - query.sumDocCounts(rows)
-	}
-	return model.JsonMap{
-		// TODO fix significant_terms, it has different fields. Low priority, works now though.
-		"sum_other_doc_count":         sumOtherDocCount,
-		"doc_count_error_upper_bound": 0,
-		"buckets":                     response,
+	if !query.significant {
+		sumOtherDocCount := 0
+		if query.isPancake(rows[0]) { // TODO: remove this after change to pancake-only
+			sumOtherDocCount = int(util.ExtractInt64(query.parentCount(rows[0]))) - query.sumDocCounts(rows)
+		}
+
+		return model.JsonMap{
+			"sum_other_doc_count":         sumOtherDocCount,
+			"doc_count_error_upper_bound": 0,
+			"buckets":                     response,
+		}
+	} else {
+		var parentDocCount int64
+		if query.isPancake(rows[0]) { // TODO: remove this after change to pancake-only
+			parentDocCount = util.ExtractInt64(query.parentCount(rows[0]))
+		}
+		return model.JsonMap{
+			"buckets":   response,
+			"doc_count": parentDocCount,
+			"bg_count":  parentDocCount,
+		}
 	}
 }
 

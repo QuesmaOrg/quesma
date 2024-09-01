@@ -803,7 +803,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"score": 94
 						}
 					],
-					"sum_other_doc_count": 2336
+					"doc_count": 5000,
+					"bg_count": 5000
 				}
 			},
 			"hits": {
@@ -982,7 +983,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			},
 			"aggregations": {
 				"2": {
-					"bg_count": 14074,
+					"bg_count": 5300,
 					"buckets": [
 						{
 							"1": {
@@ -1005,8 +1006,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"score": 94
 						}
 					],
-					"sum_other_doc_count": 2636,
-					"doc_count_error_upper_bound": 0
+					"doc_count": 5300
 				}
 			},
 			"hits": {
@@ -1188,6 +1188,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"aggregations": {
 				"2": {
 					"bg_count": 2786,
+					"doc_count": 2786,
 					"buckets": [
 						{
 							"1": {
@@ -1234,9 +1235,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"key": "200",
 							"score": 2570
 						}
-					],
-					"sum_other_doc_count": 216,
-					"doc_count_error_upper_bound": 0
+					]
 				}
 			},
 			"hits": {
