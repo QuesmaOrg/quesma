@@ -233,17 +233,7 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 	}
 	if len(config.attributes) > 0 {
 		for _, a := range config.attributes {
-			_, ok := table.Cols[a.KeysArrayName]
-			if !ok {
-				attributesStr += fmt.Sprintf("%s\"%s\" Array(String),\n", util.Indent(1), a.KeysArrayName)
-				table.Cols[a.KeysArrayName] = &Column{Name: a.KeysArrayName, Type: CompoundType{Name: "Array", BaseType: NewBaseType("String")}}
-			}
-			_, ok = table.Cols[a.ValuesArrayName]
-			if !ok {
-				attributesStr += fmt.Sprintf("%s\"%s\" Array(%s),\n", util.Indent(1), a.ValuesArrayName, a.Type.String())
-				table.Cols[a.ValuesArrayName] = &Column{Name: a.ValuesArrayName, Type: a.Type}
-			}
-			_, ok = table.Cols[a.MapName]
+			_, ok := table.Cols[a.MapName]
 			if !ok {
 				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapName)
 				table.Cols[a.MapName] = &Column{Name: a.MapName, Type: CompoundType{Name: "Map", BaseType: NewBaseType("String, String")}}
