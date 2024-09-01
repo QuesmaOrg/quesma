@@ -685,6 +685,7 @@ var AggregationTests2 = []AggregationTestCase{
 			"aggregations": {
 				"2": {
 					"bg_count": 2786,
+					"doc_count": 2786,
 					"buckets": [
 						{
 							"1": {
@@ -709,9 +710,7 @@ var AggregationTests2 = []AggregationTestCase{
 							"key": "200",
 							"score": 2570
 						}
-					],
-					"sum_other_doc_count": 2786,
-					"doc_count_error_upper_bound": 0
+					]
 				}
 			},
 			"hits": {

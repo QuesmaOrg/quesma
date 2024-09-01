@@ -4956,7 +4956,8 @@ var AggregationTests = []AggregationTestCase{
 				},
 				"aggregations": {
 					"2": {
-						"bg_count": 14074,
+						"bg_count": 825,
+						"doc_count": 825,
 						"buckets": [
 							{
 								"bg_count": 619,
@@ -4970,9 +4971,7 @@ var AggregationTests = []AggregationTestCase{
 								"key": "zip",
 								"score": 206
 							}
-						],
-						"sum_other_doc_count": 0,
-						"doc_count_error_upper_bound": 0
+						]
 					}
 				},
 				"hits": {
