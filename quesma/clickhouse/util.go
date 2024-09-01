@@ -165,40 +165,40 @@ func TimestampGroupByWithTimezone(timestampField model.Expr, typ DateTimeType,
 		return TimestampGroupBy(timestampField, typ, groupByInterval)
 	}
 
-	location, err := time.LoadLocation(timezone)
-	fmt.Println("location", location)
-	if err != nil {
-		logger.Error().Msgf("invalid timestamp timezone: %s (field: %v)", timezone, model.AsString(timestampField))
-		return model.NewLiteral("invalid timezone")
-	}
+	createAExp := func(innerFuncName string, interval, offsetMultiplier int64) model.Expr {
+		var offset model.Expr
+		offset = model.NewFunction(
+			"timeZoneOffset",
+			model.NewFunction(
+				"toTimezone",
+				timestampField, model.NewLiteral("'"+timezone+"'"),
+			),
+		)
+		if offsetMultiplier != 1 {
+			offset = model.NewInfixExpr(offset, "*", model.NewLiteral(offsetMultiplier))
+		}
 
-	utc := time.Now().UTC()
-	ourTimezone := utc.In(location)
-
-	_, offset1 := utc.Zone()
-	_, offset2 := ourTimezone.Zone()
-	offsetInSeconds := offset2 - offset1
-	fmt.Println(offsetInSeconds)
-
-	// offset in a proper unit: seconds for toUnixTimestamp; milliseconds for toUnixTimestamp64Milli
-	createAExp := func(innerFuncName string, interval int64, offset int) model.Expr {
 		unixTsWithOffset := model.NewInfixExpr(
 			model.NewFunction(innerFuncName, timestampField),
 			"+",
-			model.NewLiteral(offset))
-		toUnixTsFunc := model.NewInfixExpr(
+			offset,
+		)
+
+		groupByExpr := model.NewInfixExpr(
 			model.NewParenExpr(unixTsWithOffset),
 			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
-			model.NewLiteral(interval))
-		return model.NewFunction("toInt64", toUnixTsFunc)
+			model.NewLiteral(interval),
+		)
+
+		return model.NewFunction("toInt64", groupByExpr)
 	}
 
 	switch typ {
 	case DateTime64:
 		// as string: fmt.Sprintf("toInt64(toUnixTimestamp(`%s`)/%f)", timestampFieldName, groupByInterval.Seconds())
-		return createAExp("toUnixTimestamp64Milli", groupByInterval.Milliseconds(), offsetInSeconds*1000)
+		return createAExp("toUnixTimestamp64Milli", groupByInterval.Milliseconds(), 1000)
 	case DateTime:
-		return createAExp("toUnixTimestamp", groupByInterval.Milliseconds()/1000, offsetInSeconds)
+		return createAExp("toUnixTimestamp", groupByInterval.Milliseconds()/1000, 1)
 	default:
 		logger.Error().Msgf("invalid timestamp fieldname: %s", timestampFieldName)
 		return model.NewLiteral("invalid") // maybe create new type InvalidExpr?
