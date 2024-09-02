@@ -12,23 +12,27 @@ import (
 	"quesma/queryparser"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
+	"quesma/schema"
 	"quesma/tracing"
 	"strconv"
 	"time"
 )
 
 func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *clickhouse.LogManager,
-	qmc *ui.QuesmaManagementConsole) ([]byte, error) {
+	schemaRegistry schema.Registry, qmc *ui.QuesmaManagementConsole) ([]byte, error) {
 	if resolvedTableName := lm.ResolveTableName(index); resolvedTableName == "" {
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
 		logger.Error().Msg(errorMsg)
 		return nil, fmt.Errorf(errorMsg)
 	} else {
-		return handleTermsEnumRequest(ctx, body, &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: lm.FindTable(resolvedTableName), Ctx: context.Background()}, qmc)
+		return handleTermsEnumRequest(ctx, body, &queryparser.ClickhouseQueryTranslator{
+			ClickhouseLM: lm, Table: lm.FindTable(resolvedTableName), SchemaRegistry: schemaRegistry, Ctx: context.Background(),
+		}, qmc)
 	}
 }
 
-func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparser.ClickhouseQueryTranslator, qmc *ui.QuesmaManagementConsole) (result []byte, err error) {
+func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparser.ClickhouseQueryTranslator,
+	qmc *ui.QuesmaManagementConsole) (result []byte, err error) {
 	startTime := time.Now()
 
 	// defaults as in:
@@ -48,6 +52,7 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparse
 		logger.ErrorWithCtx(ctx).Msgf("error reading terms enum API request body: field is not present")
 		return json.Marshal(emptyTermsEnumResponse())
 	}
+	field = qt.ResolveField(ctx, field)
 
 	size := defaultSize
 	if sizeRaw, ok := body["size"]; ok {
@@ -80,7 +85,7 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparse
 	}
 
 	where := qt.ParseAutocomplete(indexFilter, field, prefixString, caseInsensitive)
-	selectQuery := qt.BuildAutocompleteQuery(field, where.WhereClause, size)
+	selectQuery := qt.BuildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
 	dbQueryCtx, cancel := context.WithCancel(ctx)
 	// TODO this will be used to cancel goroutine that is executing the query
 	_ = cancel
