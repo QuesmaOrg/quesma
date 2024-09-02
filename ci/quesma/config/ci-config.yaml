@@ -24,5 +24,8 @@ processors:
         kibana_sample_data_flights:
         kibana_sample_data_logs:
         logs-generic-default:
-          fullTextFields: [ "message" ]
+          schemaOverrides:
+            fields:
+              "message":
+                type: text
         windows_logs:   # Used for EQL e2e tests
