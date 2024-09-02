@@ -15,14 +15,14 @@ import (
 
 // 2. Translate aggregation tree into pancake model.
 type pancakeTransformer struct {
-	usedNames map[string][]string
 	ctx       context.Context
+	usedNames map[string][]string
 }
 
 func newPancakeTransformer(ctx context.Context) pancakeTransformer {
 	return pancakeTransformer{
-		usedNames: make(map[string][]string),
 		ctx:       ctx,
+		usedNames: make(map[string][]string),
 	}
 }
 
@@ -50,42 +50,6 @@ func (a *pancakeTransformer) generateMetricInternalName(aggrNames []string) stri
 func (a *pancakeTransformer) generateBucketInternalName(aggrNames []string) string {
 	origName := fmt.Sprintf("aggr__%s__", strings.Join(aggrNames, "__"))
 	return a.generateUniqueInternalName(origName, aggrNames)
-}
-
-func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelLayer) {
-	for i, layer := range layers {
-		for _, pipeline := range layer.currentPipelineAggregations {
-			fmt.Println("connectPipelineAggregations, pipeline.queryType", pipeline)
-			parentBucketLayer, err := a.findParentBucketLayer(layers[i:], pipeline.queryType)
-			if err != nil {
-				logger.WarnWithCtx(a.ctx).Err(err).Msg("could not find parent bucket layer")
-				continue
-			}
-			fmt.Println("HOHO powiazalem pipelinowe")
-			parentBucketLayer.childrenPipelineAggregations = append(parentBucketLayer.childrenPipelineAggregations, pipeline)
-		}
-	}
-}
-
-// returns nil if no parent bucket layer found
-func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, queryType model.QueryType) (
-	parentBucketLayer *pancakeModelLayer, err error) {
-	//fmt.Printf("findParentBucketLayer: %+v, %+v\nd: %s\n", layers, queryType, layers[0].nextBucketAggregation.name)
-
-	pipeline, ok := queryType.(model.PipelineQueryType)
-	if !ok {
-		return nil, fmt.Errorf("query type is not pipeline aggregation")
-	}
-
-	layer := layers[0]
-	for i, aggrName := range pipeline.GetPathToParent() {
-		layer = layers[i]
-		fmt.Println("ide sciezka", aggrName, layer.nextBucketAggregation.name)
-		if layer.nextBucketAggregation == nil || layer.nextBucketAggregation.name != aggrName {
-			return nil, fmt.Errorf("could not find parent bucket layer")
-		}
-	}
-	return layer, nil
 }
 
 func (a *pancakeTransformer) metricAggregationTreeNodeToModel(previousAggrNames []string, metric *pancakeAggregationTreeNode) (metricModel *pancakeModelMetricAggregation, err error) {
@@ -228,10 +192,9 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 		case model.PipelineAggregation:
 			pipeline, err := a.pipelineAggregationToLayer(previousAggrNames, childAgg)
 			if err != nil {
-				fmt.Println("WTF?", err)
+				return nil, err
 			}
 
-			fmt.Println("pipeline", pipeline)
 			result[0].layer.currentPipelineAggregations = append(result[0].layer.currentPipelineAggregations, pipeline)
 
 		default:
@@ -300,6 +263,38 @@ func (a *pancakeTransformer) checkIfSupported(layers []*pancakeModelLayer) error
 		}
 	}
 	return nil
+}
+
+func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelLayer) {
+	for i, layer := range layers {
+		for _, pipeline := range layer.currentPipelineAggregations {
+			parentBucketLayer, err := a.findParentBucketLayer(layers[i:], pipeline.queryType)
+			if err != nil {
+				logger.WarnWithCtx(a.ctx).Err(err).Msg("could not find parent bucket layer")
+				continue
+			}
+			parentBucketLayer.childrenPipelineAggregations = append(parentBucketLayer.childrenPipelineAggregations, pipeline)
+		}
+	}
+}
+
+// returns nil if no parent bucket layer found
+func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, queryType model.QueryType) (
+	parentBucketLayer *pancakeModelLayer, err error) {
+
+	pipeline, ok := queryType.(model.PipelineQueryType)
+	if !ok {
+		return nil, fmt.Errorf("query type is not pipeline aggregation")
+	}
+
+	layer := layers[0]
+	for i, aggrName := range pipeline.GetPathToParent() {
+		layer = layers[i]
+		if layer.nextBucketAggregation == nil || layer.nextBucketAggregation.name != aggrName {
+			return nil, fmt.Errorf("could not find parent bucket layer")
+		}
+	}
+	return layer, nil
 }
 
 func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregationTree) (pancakeResults []*pancakeModel, err error) {

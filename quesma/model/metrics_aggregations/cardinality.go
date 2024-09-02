@@ -4,7 +4,6 @@ package metrics_aggregations
 
 import (
 	"context"
-	"fmt"
 	"quesma/model"
 )
 
@@ -21,7 +20,6 @@ func (query Cardinality) AggregationType() model.AggregationType {
 }
 
 func (query Cardinality) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	fmt.Println("cardinality hoho", rows)
 	return metricsTranslateSqlResponseToJson(query.ctx, rows, level)
 }
 

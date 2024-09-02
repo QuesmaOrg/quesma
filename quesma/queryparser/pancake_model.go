@@ -5,7 +5,6 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -100,6 +99,7 @@ func (p pancakeModelBucketAggregation) DoesHaveGroupBy() bool {
 	return !noGroupBy
 }
 
+// FIXME it's probably too hacky
 func (p pancakeModelPipelineAggregation) parentColumnName(ctx context.Context) string {
 	// At start p.internalName = e.g. pipeline__2__1
 	prefix := strings.TrimSuffix(p.internalName, p.name) // First remove this aggregation name (1)
@@ -113,13 +113,11 @@ func (p pancakeModelPipelineAggregation) parentColumnName(ctx context.Context) s
 }
 
 func (p *pancakeModelLayer) findPipelineChildren(pipeline *pancakeModelPipelineAggregation) []*pancakeModelPipelineAggregation {
-	var result []*pancakeModelPipelineAggregation
-	for _, child := range p.childrenPipelineAggregations {
-		pp.Println("child.queryType.GetParent()", child.queryType.GetParent(), pipeline.name, pipeline.internalName, child.internalName)
-		if child.queryType.GetParent() == pipeline.name {
-			result = append(result, child)
+	children := make([]*pancakeModelPipelineAggregation, 0)
+	for _, maybeChild := range p.childrenPipelineAggregations {
+		if maybeChild.queryType.GetParent() == pipeline.name {
+			children = append(children, maybeChild)
 		}
 	}
-	pp.Println("findPipelineChildren, pipeline:", pipeline.internalName, "result:", result)
-	return result
+	return children
 }

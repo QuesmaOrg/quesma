@@ -10,15 +10,15 @@ import (
 
 type SerialDiff struct {
 	ctx context.Context
-	PipelineAggregation
 	lag int
+	PipelineAggregation
 }
 
 func NewSerialDiff(ctx context.Context, bucketsPath string, lag int) SerialDiff {
 	return SerialDiff{
 		ctx:                 ctx,
-		PipelineAggregation: newPipelineAggregation(ctx, bucketsPath),
 		lag:                 lag,
+		PipelineAggregation: newPipelineAggregation(ctx, bucketsPath),
 	}
 }
 

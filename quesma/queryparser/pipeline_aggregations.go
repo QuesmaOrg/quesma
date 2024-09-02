@@ -3,7 +3,6 @@
 package queryparser
 
 import (
-	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/pipeline_aggregations"
@@ -220,7 +219,6 @@ func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggr
 		logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a string, but %T, value: %v", bucketsPathRaw, bucketsPathRaw)
 		return
 	}
-	fmt.Println("buckets path:", bucketsPath)
 	return bucketsPath, true
 }
 
