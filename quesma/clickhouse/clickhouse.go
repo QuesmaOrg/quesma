@@ -487,15 +487,17 @@ func (lm *LogManager) generateNewColumns(
 	for i := range alteredAttributesIndexes {
 
 		columnType := ""
+		modifiers := ""
 		// Array and Map are not Nullable
 		if strings.Contains(attrTypes[i], "Array") || strings.Contains(attrTypes[i], "Map") {
 			columnType = attrTypes[i]
 		} else {
+			modifiers = "Nullable"
 			columnType = fmt.Sprintf("Nullable(%s)", attrTypes[i])
 		}
 		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, attrKeys[i], columnType)
 
-		newColumns[attrKeys[i]] = &Column{Name: attrKeys[i], Type: NewBaseType(attrTypes[i]), Modifiers: "Nullable"}
+		newColumns[attrKeys[i]] = &Column{Name: attrKeys[i], Type: NewBaseType(attrTypes[i]), Modifiers: modifiers}
 		alterCmd = append(alterCmd, alterTable)
 		deleteIndexes = append(deleteIndexes, i)
 	}
