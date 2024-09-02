@@ -241,6 +241,10 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		if queryProcessor == nil {
 			return fmt.Errorf(fmt.Sprintf("query processor named [%s] not found in configuration", ingestPipeline.Processors[0]))
 		}
+		if (queryProcessor.Type == QuesmaV1ProcessorNoOp && ingestProcessor.Type != QuesmaV1ProcessorNoOp) ||
+			(ingestProcessor.Type == QuesmaV1ProcessorNoOp && queryProcessor.Type != QuesmaV1ProcessorNoOp) {
+			return fmt.Errorf("at this moment, noop processor is allowed only if used in both pipelines")
+		}
 		if queryProcessor.Type != QuesmaV1ProcessorQuery &&
 			queryProcessor.Type != QuesmaV1ProcessorNoOp {
 			return fmt.Errorf("query pipeline must have query or noop processor")
