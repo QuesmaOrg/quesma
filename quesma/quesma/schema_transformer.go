@@ -545,6 +545,63 @@ func (s *SchemaCheckPass) checkDottedColumns(query *model.Query) (*model.Query, 
 
 }
 
+func (s *SchemaCheckPass) applyNullForNotExistingColumns(query *model.Query) (*model.Query, error) {
+
+	fromTable := getFromTable(query.TableName)
+
+	// FIXME we should use the schema registry here
+	//
+	table := s.logManager.FindTable(fromTable)
+	if table == nil {
+		logger.Error().Msgf("Table catch_all_logs not found", fromTable)
+		return query, nil
+	}
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		if strings.Contains(e.ColumnName, "__quesma_index_name") {
+			return e
+		}
+
+		if _, ok := table.Cols[e.ColumnName]; !ok {
+			fmt.Println("XXX Column not found in catch_all_logs: ", e.ColumnName)
+			//return model.NewLiteral("NULL") // it will not work "Array transformation" expects column ref
+		}
+		return e
+	}
+
+	query.SelectCommand.Accept(visitor)
+
+	expr := query.SelectCommand.Accept(visitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+
+	return query, nil
+
+}
+
+func (s *SchemaCheckPass) applyDebug(query *model.Query) (*model.Query, error) {
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitSelectCommand = func(b *model.BaseExprVisitor, e model.SelectCommand) interface{} {
+
+		for i, e := range e.OrderBy {
+			fmt.Println("XXX ORDER BY: ", i, model.AsString(e))
+		}
+
+		return e
+	}
+
+	query.SelectCommand.Accept(visitor)
+
+	return query, nil
+
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	for k, query := range queries {
 		var err error
@@ -561,6 +618,9 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
 			{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 			{TransformationName: "DottedColumns", Transformation: s.checkDottedColumns},
+			{TransformationName: "NullNotExisting", Transformation: s.applyNullForNotExistingColumns},
+
+			{TransformationName: "Debug", Transformation: s.applyDebug},
 		}
 		for _, transformation := range transformationChain {
 			inputQuery := query.SelectCommand.String()
