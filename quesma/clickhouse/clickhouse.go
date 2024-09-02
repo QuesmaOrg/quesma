@@ -65,7 +65,8 @@ type (
 		KeysArrayName   string
 		ValuesArrayName string
 		TypesArrayName  string
-		MapName         string
+		MapValueName    string
+		MapMetadataName string
 		Type            BaseType
 	}
 	ChTableConfig struct {
@@ -233,10 +234,15 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 	}
 	if len(config.attributes) > 0 {
 		for _, a := range config.attributes {
-			_, ok := table.Cols[a.MapName]
+			_, ok := table.Cols[a.MapValueName]
 			if !ok {
-				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapName)
-				table.Cols[a.MapName] = &Column{Name: a.MapName, Type: CompoundType{Name: "Map", BaseType: NewBaseType("String, String")}}
+				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapValueName)
+				table.Cols[a.MapValueName] = &Column{Name: a.MapValueName, Type: CompoundType{Name: "Map", BaseType: NewBaseType("String, String")}}
+			}
+			_, ok = table.Cols[a.MapMetadataName]
+			if !ok {
+				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapMetadataName)
+				table.Cols[a.MapMetadataName] = &Column{Name: a.MapMetadataName, Type: CompoundType{Name: "Map", BaseType: NewBaseType("String, String")}}
 			}
 		}
 	}
@@ -489,15 +495,30 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 	}
 	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
 	attrValues := getAttributesByArrayName(AttributesValueColumn, attrsMap)
+	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
 
-	nonSchemaStr = "\"" + AttributesColumn + "\":{"
-	for i := 0; i < len(attrKeys); i++ {
-		if i > 0 {
+	attributesColumns := []string{AttributesColumn, AttributesMetadataColumn}
+
+	for columnIndex, column := range attributesColumns {
+		var value string
+		if columnIndex > 0 {
 			nonSchemaStr += ","
 		}
-		nonSchemaStr += fmt.Sprintf("\"%s\":\"%s\"", attrKeys[i], attrValues[i])
+		nonSchemaStr += "\"" + column + "\":{"
+		for i := 0; i < len(attrKeys); i++ {
+			if columnIndex > 0 {
+				value = attrTypes[i]
+			} else {
+				value = attrValues[i]
+			}
+			if i > 0 {
+				nonSchemaStr += ","
+			}
+			nonSchemaStr += fmt.Sprintf("\"%s\":\"%s\"", attrKeys[i], value)
+		}
+		nonSchemaStr = nonSchemaStr + "}"
+
 	}
-	nonSchemaStr = nonSchemaStr + "}"
 	return nonSchemaStr, nil
 }
 
