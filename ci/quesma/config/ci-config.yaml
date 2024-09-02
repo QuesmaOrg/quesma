@@ -26,7 +26,10 @@ processors:
         kibana_sample_data_flights:
         kibana_sample_data_logs:
         logs-generic-default:
-          fullTextFields: [ "message" ]
+          schemaOverrides:
+            fields:
+              "message":
+                type: text
         windows_logs:
   - name: p2
     type: quesma-v1-processor-ingest
@@ -41,8 +44,7 @@ processors:
               "message":
                 type: text
         windows_logs:   # Used for EQL e2e tests
-          fullTextFields: [ "message" ]
-        windows_logs:
+
 pipelines:
   - name: p-query
     frontendConnectors: [ elasticsearch-API-for-kibana ]
