@@ -19,9 +19,8 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
 			"message": {
-				Name:            "message",
-				Type:            clickhouse.NewBaseType("String"),
-				IsFullTextMatch: true,
+				Name: "message",
+				Type: clickhouse.NewBaseType("String"),
 			},
 		},
 		Created: true,

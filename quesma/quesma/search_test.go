@@ -36,6 +36,7 @@ var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.Get
 func TestAsyncSearchHandler(t *testing.T) {
 	// logger.InitSimpleLoggerForTests()
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
+
 	table := concurrent.NewMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
@@ -45,9 +46,8 @@ func TestAsyncSearchHandler(t *testing.T) {
 				Type: clickhouse.NewBaseType("DateTime64"),
 			},
 			"message": {
-				Name:            "message",
-				Type:            clickhouse.NewBaseType("String"),
-				IsFullTextMatch: true,
+				Name: "message",
+				Type: clickhouse.NewBaseType("String"),
 			},
 			"host.name": {
 				Name: "host.name",
@@ -62,18 +62,18 @@ func TestAsyncSearchHandler(t *testing.T) {
 	})
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			model.SingleTableNamePlaceHolder: {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeKeyword},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeKeyword},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeKeyword},
 					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
 					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeKeyword},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeKeyword},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeKeyword},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeKeyword},
 				},
 			},
 		},
@@ -118,7 +118,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
 			"-@timestamp":  {Name: "-@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String"), IsFullTextMatch: true},
+			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String")},
 			"-@bytes":      {Name: "-@bytes", Type: clickhouse.NewBaseType("Int64")},
 		},
 		Created: true,
@@ -171,9 +171,8 @@ var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
 		// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 		// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
 		"message": {
-			Name:            "message",
-			Type:            clickhouse.NewBaseType("String"),
-			IsFullTextMatch: true,
+			Name: "message",
+			Type: clickhouse.NewBaseType("String"),
 		},
 	},
 	Created: true,
@@ -183,18 +182,18 @@ func TestSearchHandler(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			model.SingleTableNamePlaceHolder: {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeKeyword},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeKeyword},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeKeyword},
 					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
 					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeKeyword},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeKeyword},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeKeyword},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeKeyword},
 				},
 			},
 		},
@@ -527,9 +526,8 @@ func TestSearchTrackTotalCount(t *testing.T) {
 			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
 			"message": {
-				Name:            "message",
-				Type:            clickhouse.NewBaseType("String"),
-				IsFullTextMatch: true,
+				Name: "message",
+				Type: clickhouse.NewBaseType("String"),
 			},
 		},
 		Created: true,

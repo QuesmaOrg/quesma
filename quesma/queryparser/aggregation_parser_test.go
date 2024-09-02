@@ -761,7 +761,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 			"order_date":  {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
-			"message":     {Name: "message", Type: clickhouse.NewBaseType("String"), IsFullTextMatch: true},
+			"message":     {Name: "message", Type: clickhouse.NewBaseType("String")},
 			"bytes_gauge": {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
 		},
 		Name:   tableName,
