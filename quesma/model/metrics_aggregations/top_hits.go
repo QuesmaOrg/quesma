@@ -13,11 +13,11 @@ import (
 
 type TopHits struct {
 	ctx  context.Context
-	size int
+	Size int
 }
 
 func NewTopHits(ctx context.Context, size int) TopHits {
-	return TopHits{ctx: ctx, size: size}
+	return TopHits{ctx: ctx, Size: size}
 }
 
 func (query TopHits) AggregationType() model.AggregationType {

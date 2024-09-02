@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"quesma/model/metrics_aggregations"
 	"quesma/queryparser/query_util"
+	"strconv"
 	"strings"
 )
 
@@ -386,12 +388,91 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	}
 
 	if aggregation.optTopHits != nil {
+		// TODO: we assume some group bys
 		topHits := aggregation.optTopHits
+		var topHitsQueryType metrics_aggregations.TopHits
+		if queryType, ok := topHits.queryType.(metrics_aggregations.TopHits); ok {
+			topHitsQueryType = queryType
+		} else {
+			return nil, "", fmt.Errorf("expected top_hits query type, got: %T", topHits.queryType)
+		}
 
-		newSelects := make([]model.Expr, 0, len(selectColumns)+len(topHits.selectedColumns))
+		topHitsSourceName := "quesma_top_hits"
+
+		namedCte := []*model.CTE{
+			{
+				Name:          topHitsSourceName,
+				SelectCommand: resultQuery,
+			},
+		}
+
+		// TODO: add combinators if there exist
+		whereClause := aggregation.whereClause
+
+		groupTableName := "group_table"
+		hitTableName := "hit_table"
+
+		convertColumnRefToHitTable := func(expr model.Expr) model.Expr {
+			switch exprTyped := expr.(type) {
+			case model.ColumnRef:
+				// TODO: Need better type, this should not be NewLiteral, but ColumnRefWithTable
+				return model.NewLiteral(strconv.Quote(hitTableName) + "." + strconv.Quote(exprTyped.ColumnName))
+			}
+			return expr
+		}
+
+		var joinExprs []model.Expr
+		var partitionByExprs []model.Expr
+		for _, groupBy := range groupBys {
+			partitionByExprs = append(partitionByExprs,
+				model.NewLiteral(strconv.Quote(groupTableName)+"."+strconv.Quote(groupBy.Alias)))
+			joinExprs = append(joinExprs, model.NewInfixExpr(
+				model.NewLiteral(strconv.Quote(groupTableName)+"."+strconv.Quote(groupBy.Alias)),
+				"=",
+				convertColumnRefToHitTable(groupBy.Expr)))
+		}
+
+		fromClause := model.NewJoinExpr(
+			model.NewAliasedExpr(model.NewLiteral(topHitsSourceName), groupTableName),
+			model.NewAliasedExpr(model.NewTableRef(model.SingleTableNamePlaceHolder), hitTableName),
+			"LEFT OUTER JOIN",
+			model.And(joinExprs))
+
+		newSelects := make([]model.AliasedExpr, 0, len(selectColumns)+len(topHits.selectedColumns))
 		for _, selectColumn := range selectColumns {
-			aliasedColumnName := model.NewLiteral(fmt.Sprintf("%s.%s", "", selectColumn.AliasRef().Value))
-			newSelects = append(newSelects, aliasedColumnName)
+			aliasedColumnLiteral := model.NewLiteral(fmt.Sprintf("%s.%s", strconv.Quote(groupTableName), selectColumn.AliasRef().Value))
+			aliasedColumn := model.NewAliasedExpr(aliasedColumnLiteral, selectColumn.Alias)
+			newSelects = append(newSelects, aliasedColumn)
+		}
+
+		for topHitsIdx, selectedTopHits := range topHits.selectedColumns {
+			aliasedColumnName := fmt.Sprintf("top_hits_%d", topHitsIdx+1)
+			withConvertedHitTable := convertColumnRefToHitTable(selectedTopHits)
+			aliasedColumn := model.NewAliasedExpr(withConvertedHitTable, aliasedColumnName)
+			newSelects = append(newSelects, aliasedColumn)
+		}
+
+		// TODO: we need to implement order by here
+		newSelects = append(newSelects, model.NewAliasedExpr(
+			model.NewWindowFunction("ROW_NUMBER", []model.Expr{}, partitionByExprs, []model.OrderByExpr{}),
+			"top_hits_rank"))
+
+		outerQuery := model.SelectCommand{
+			Columns: p.aliasedExprArrayToExpr(newSelects),
+			// rank by hits
+			FromClause:  fromClause,
+			WhereClause: whereClause,
+			NamedCTEs:   namedCte,
+		}
+
+		// TODO: Simplify
+		resultQuery = &model.SelectCommand{
+			Columns:    p.aliasedExprArrayToLiteralExpr(newSelects),
+			FromClause: outerQuery,
+			WhereClause: model.NewInfixExpr(
+				model.NewLiteral("top_hits_rank"),
+				"<=",
+				model.NewLiteral(strconv.Itoa(topHitsQueryType.Size))),
 		}
 
 		// TODO: create top_hits
