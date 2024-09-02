@@ -4550,85 +4550,85 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT count(*) AS "aggr__sample__count",
-			  quantiles(0.050000)("bytes_gauge") AS "quantile_5" AS
+			  quantiles(0.050000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_0",
-			  quantiles(0.100000)("bytes_gauge") AS "quantile_10" AS
+			  quantiles(0.100000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_1",
-			  quantiles(0.150000)("bytes_gauge") AS "quantile_15" AS
+			  quantiles(0.150000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_2",
-			  quantiles(0.200000)("bytes_gauge") AS "quantile_20" AS
+			  quantiles(0.200000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_3",
-			  quantiles(0.250000)("bytes_gauge") AS "quantile_25" AS
+			  quantiles(0.250000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_4",
-			  quantiles(0.300000)("bytes_gauge") AS "quantile_30" AS
+			  quantiles(0.300000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_5",
-			  quantiles(0.350000)("bytes_gauge") AS "quantile_35" AS
+			  quantiles(0.350000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_6",
-			  quantiles(0.400000)("bytes_gauge") AS "quantile_40" AS
+			  quantiles(0.400000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_7",
-			  quantiles(0.450000)("bytes_gauge") AS "quantile_45" AS
+			  quantiles(0.450000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_8",
-			  quantiles(0.500000)("bytes_gauge") AS "quantile_50" AS
+			  quantiles(0.500000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_9",
-			  quantiles(0.550000)("bytes_gauge") AS "quantile_55" AS
+			  quantiles(0.550000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_10",
-			  quantiles(0.600000)("bytes_gauge") AS "quantile_60" AS
+			  quantiles(0.600000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_11",
-			  quantiles(0.650000)("bytes_gauge") AS "quantile_65" AS
+			  quantiles(0.650000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_12",
-			  quantiles(0.700000)("bytes_gauge") AS "quantile_70" AS
+			  quantiles(0.700000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_13",
-			  quantiles(0.750000)("bytes_gauge") AS "quantile_75" AS
+			  quantiles(0.750000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_14",
-			  quantiles(0.800000)("bytes_gauge") AS "quantile_80" AS
+			  quantiles(0.800000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_15",
-			  quantiles(0.850000)("bytes_gauge") AS "quantile_85" AS
+			  quantiles(0.850000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_16",
-			  quantiles(0.900000)("bytes_gauge") AS "quantile_90" AS
+			  quantiles(0.900000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_17",
-			  quantiles(0.950000)("bytes_gauge") AS "quantile_95" AS
+			  quantiles(0.950000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_18",
-			  quantiles(0.999999)("bytes_gauge") AS "quantile_100" AS
+			  quantiles(0.999999)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_col_19",
-			  quantiles(0.050000)("bytes_gauge") AS "quantile_5" AS
+			  quantiles(0.050000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_0",
-			  quantiles(0.100000)("bytes_gauge") AS "quantile_10" AS
+			  quantiles(0.100000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_1",
-			  quantiles(0.150000)("bytes_gauge") AS "quantile_15" AS
+			  quantiles(0.150000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_2",
-			  quantiles(0.200000)("bytes_gauge") AS "quantile_20" AS
+			  quantiles(0.200000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_3",
-			  quantiles(0.250000)("bytes_gauge") AS "quantile_25" AS
+			  quantiles(0.250000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_4",
-			  quantiles(0.300000)("bytes_gauge") AS "quantile_30" AS
+			  quantiles(0.300000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_5",
-			  quantiles(0.350000)("bytes_gauge") AS "quantile_35" AS
+			  quantiles(0.350000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_6",
-			  quantiles(0.400000)("bytes_gauge") AS "quantile_40" AS
+			  quantiles(0.400000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_7",
-			  quantiles(0.450000)("bytes_gauge") AS "quantile_45" AS
+			  quantiles(0.450000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_8",
-			  quantiles(0.500000)("bytes_gauge") AS "quantile_50" AS
+			  quantiles(0.500000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_9",
-			  quantiles(0.550000)("bytes_gauge") AS "quantile_55" AS
+			  quantiles(0.550000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_10",
-			  quantiles(0.600000)("bytes_gauge") AS "quantile_60" AS
+			  quantiles(0.600000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_11",
-			  quantiles(0.650000)("bytes_gauge") AS "quantile_65" AS
+			  quantiles(0.650000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_12",
-			  quantiles(0.700000)("bytes_gauge") AS "quantile_70" AS
+			  quantiles(0.700000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_13",
-			  quantiles(0.750000)("bytes_gauge") AS "quantile_75" AS
+			  quantiles(0.750000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_14",
-			  quantiles(0.800000)("bytes_gauge") AS "quantile_80" AS
+			  quantiles(0.800000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_15",
-			  quantiles(0.850000)("bytes_gauge") AS "quantile_85" AS
+			  quantiles(0.850000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_16",
-			  quantiles(0.900000)("bytes_gauge") AS "quantile_90" AS
+			  quantiles(0.900000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_17",
-			  quantiles(0.950000)("bytes_gauge") AS "quantile_95" AS
+			  quantiles(0.950000)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_18",
-			  quantiles(0.999999)("bytes_gauge") AS "quantile_100" AS
+			  quantiles(0.999999)("bytes_gauge") AS
 			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_19",
 			  countIf("bytes_gauge" IS NOT NULL) AS
 			  "aggr__sample__bytes_gauge_field_stats__count",
