@@ -57,7 +57,7 @@ var insertTests = []struct {
 		},
 		[]string{
 			`"attributes_values" Map(String,String),`,
-			`"attributes_metadata_values" Map(String,String),`,
+			`"attributes_metadata" Map(String,String),`,
 			``,
 		},
 	},
@@ -84,7 +84,7 @@ var insertTests = []struct {
 		},
 		[]string{
 			`"attributes_values" Map(String,String),`,
-			`"attributes_metadata_values" Map(String,String),`,
+			`"attributes_metadata" Map(String,String),`,
 			``,
 		},
 	},
@@ -101,7 +101,7 @@ var expectedInserts = [][]string{
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "service::name" Nullable(String)`),
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "source" Nullable(String)`),
-		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_values":{},"attributes_metadata_values":{},"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","service::name":"frontend","severity":"debug","source":"rhel"}`),
+		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_values":{},"attributes_metadata":{},"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","service::name":"frontend","severity":"debug","source":"rhel"}`),
 	},
 	[]string{
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
@@ -110,7 +110,7 @@ var expectedInserts = [][]string{
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random1" Nullable(Array(String))`),
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random2" Nullable(String)`),
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
-		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_values":{},"attributes_metadata_values":{},"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
+		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_values":{},"attributes_metadata":{},"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
 	},
 }
 

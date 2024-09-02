@@ -17,7 +17,7 @@ const (
 	AttributesValueType      = "attributes_string_type"
 	attributesColumnType     = "Array(String)"
 	AttributesColumn         = "attributes_values"
-	AttributesMetadataColumn = "attributes_metadata_values"
+	AttributesMetadataColumn = "attributes_metadata"
 )
 
 type (
