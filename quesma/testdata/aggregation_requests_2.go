@@ -2946,4 +2946,518 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__5__order_1_rank"<=20)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__5__order_1_rank" ASC`,
 	},
+	{ // [53]
+		TestName: "terms order by quantile, simplest - only one percentile",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"aggs": {
+								"2": {
+									"percentiles": {
+										"field": "docker.cpu.total.pct",
+										"percents": [
+								  			75
+										]
+									}
+								}
+							},
+							"terms": {
+								"field": "container.name",
+								"order": {
+									"2.75": "desc"
+								},
+								"shard_size": 25,
+								"size": 5
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "@timestamp",
+						"fixed_interval": "12h",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "docker.container.created",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"bool": {
+								"minimum_should_match": 1,
+								"should": [
+									{
+										"term": {
+				  							"data_stream.dataset": {
+												"value": "docker.cpu"
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"range": {
+								"@timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-08-18T07:54:12.291Z",
+									"lte": "2024-09-02T07:54:12.291Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1720352002293,
+			"expiration_time_in_millis": 1720352062445,
+			"id": "FnpTUXdfTTZLUlBtQVo1YzBTVFBseEEcM19IaHdFWG5RN1d1eV9VaUcxenYwdzo0MTc0MA==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"doc_count": 5,
+								"key": 1706021670000,
+								"key_as_string": "2024-01-23T14:54:30.000",
+								"1": {
+									"buckets": [
+										{
+											"key": "x",
+											"doc_count": 2,
+											"2": {
+												"values": [
+													{
+														"key": 75,
+														"value": 349.95000000000005
+													},
+												]
+											}
+										},
+ 										{
+											"key": "y",
+											"doc_count": 1
+											"2": {
+												"values": [
+													{
+														"key": 75,
+														"value": 100.2
+													},
+												]
+											}
+										},
+									]
+								}
+							},
+							{
+								"doc_count": 5,
+								"key": 1706021680000,
+								"key_as_string": "2024-01-23T14:54:40.000",
+								"1": {
+									"buckets": [
+										{
+											"key": "a",
+											"doc_count": 3,
+											"2": {
+												"values": [
+													{
+														"key": 75,
+														"value": 5
+													},
+												]
+											}
+										}
+									]
+								}
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 50427
+					}
+				},
+				"timed_out": false,
+				"took": 554
+			},
+			"start_time_in_millis": 1720352001739
+		}`,
+		ExpectedResults: nil, // we don't handle it in pre-pancake logic
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 34290),
+				model.NewQueryResultCol("aggr__2__key_0", "miss"),
+				model.NewQueryResultCol("aggr__2__count", int64(1036)),
+				model.NewQueryResultCol("aggr__2__order_1", 1036),
+				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
+				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
+				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
+				model.NewQueryResultCol("aggr__2__8__order_1", 21),
+			}},
+		},
+		ExpectedSQLs: nil, // we don't handle it in pre-pancake logic
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
+			  "aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
+			  "aggr__2__8__count", "aggr__2__8__order_1"
+			FROM (
+			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
+				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
+				"aggr__2__8__count", "aggr__2__8__order_1",
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
+				AS "aggr__2__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
+				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__order_1_rank"
+			  FROM (
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
+				  COALESCE("surname", 'miss') AS "aggr__2__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
+				  "aggr__2__8__parent_count",
+				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
+				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
+				FROM ` + TableName + `
+				GROUP BY COALESCE("surname", 'miss') AS "aggr__2__key_0",
+				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0"))
+			WHERE ("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20)
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
+	},
+	{ // [54]
+		TestName: "terms order by quantile - more percentiles",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"aggs": {
+								"2": {
+									"percentiles": {
+										"field": "docker.cpu.total.pct",
+										"keyed": "true",
+										"percents": [
+								  			10, 75, 99
+										]
+									}
+								}
+							},
+							"terms": {
+								"field": "container.name",
+								"order": {
+									"2.75": "desc"
+								},
+								"shard_size": 25,
+								"size": 5
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "@timestamp",
+						"fixed_interval": "12h",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "docker.container.created",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"bool": {
+								"minimum_should_match": 1,
+								"should": [
+									{
+										"term": {
+				  							"data_stream.dataset": {
+												"value": "docker.cpu"
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"range": {
+								"@timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-08-18T07:54:12.291Z",
+									"lte": "2024-09-02T07:54:12.291Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1720352002293,
+			"expiration_time_in_millis": 1720352062445,
+			"id": "FnpTUXdfTTZLUlBtQVo1YzBTVFBseEEcM19IaHdFWG5RN1d1eV9VaUcxenYwdzo0MTc0MA==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"doc_count": 5,
+								"key": 1706021670000,
+								"key_as_string": "2024-01-23T14:54:30.000",
+								"1": {
+									"buckets": [
+										{
+											"key": "x",
+											"doc_count": 2,
+											"2": {
+												"values": {
+													"75.0"
+														"value": 349.95000000000005
+													},
+												]
+											}
+										},
+ 										{
+											"key": "y",
+											"doc_count": 1
+											"2": {
+												"values": [
+													{
+														"key": 75,
+														"value": 100.2
+													},
+												]
+											}
+										},
+									]
+								}
+							},
+							{
+								"doc_count": 5,
+								"key": 1706021680000,
+								"key_as_string": "2024-01-23T14:54:40.000",
+								"1": {
+									"buckets": [
+										{
+											"key": "a",
+											"doc_count": 3,
+											"2": {
+												"values": [
+													{
+														"key": 75,
+														"value": 5
+													},
+												]
+											}
+										}
+									]
+								}
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 50427
+					}
+				},
+				"timed_out": false,
+				"took": 554
+			},
+			"start_time_in_millis": 1720352001739
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "miss"),
+					model.NewQueryResultCol("limbName", "__missing__"),
+					model.NewQueryResultCol("count()", 21),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "miss"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "__missing__"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "miss"),
+					model.NewQueryResultCol("count()", 1036),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("count()", 34),
+				}},
+			},
+		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 34290),
+				model.NewQueryResultCol("aggr__2__key_0", "miss"),
+				model.NewQueryResultCol("aggr__2__count", int64(1036)),
+				model.NewQueryResultCol("aggr__2__order_1", 1036),
+				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
+				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
+				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
+				model.NewQueryResultCol("aggr__2__8__order_1", 21),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 34290),
+				model.NewQueryResultCol("aggr__2__key_0", "miss"),
+				model.NewQueryResultCol("aggr__2__count", int64(1036)),
+				model.NewQueryResultCol("aggr__2__order_1", 1036),
+				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
+				model.NewQueryResultCol("aggr__2__8__count", int64(24)),
+				model.NewQueryResultCol("aggr__2__8__order_1", 24),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 34290),
+				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count", int64(34)),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
+				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 34290),
+				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count", int64(34)),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
+				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+		},
+		ExpectedSQLs: []string{
+			`WITH cte_1 AS (` +
+				`SELECT COALESCE("surname",'miss') AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + TableName + ` ` +
+				`GROUP BY COALESCE("surname",'miss') ` +
+				`ORDER BY count() DESC, COALESCE("surname",'miss') ` +
+				`LIMIT 200) ` +
+				`SELECT COALESCE("surname",'miss'), COALESCE("limbName",'__missing__'), count() ` +
+				`FROM ` + TableName + ` INNER JOIN "cte_1" ON COALESCE("surname",'miss') = "cte_1_1" ` +
+				`GROUP BY COALESCE("surname",'miss'), COALESCE("limbName",'__missing__'), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, COALESCE("surname",'miss'), count() DESC, COALESCE("limbName",'__missing__') ` +
+				`LIMIT 20 BY COALESCE("surname",'miss')`,
+			`SELECT COALESCE("surname",'miss'), count() ` +
+				`FROM ` + TableName + ` ` +
+				`GROUP BY COALESCE("surname",'miss') ` +
+				`ORDER BY count() DESC, COALESCE("surname",'miss') ` +
+				`LIMIT 200`,
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
+			  "aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
+			  "aggr__2__8__count", "aggr__2__8__order_1"
+			FROM (
+			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
+				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
+				"aggr__2__8__count", "aggr__2__8__order_1",
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
+				AS "aggr__2__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
+				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__order_1_rank"
+			  FROM (
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
+				  COALESCE("surname", 'miss') AS "aggr__2__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
+				  "aggr__2__8__parent_count",
+				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
+				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
+				FROM ` + TableName + `
+				GROUP BY COALESCE("surname", 'miss') AS "aggr__2__key_0",
+				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0"))
+			WHERE ("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20)
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
+	},
 }
