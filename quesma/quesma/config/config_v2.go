@@ -408,6 +408,8 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	if len(procList) == 1 {
 		if procList[0].Type == QuesmaV1ProcessorNoOp {
 			conf.Mode = ProxyInspect
+		} else {
+			conf.Mode = DualWriteQueryClickhouse
 		}
 	} else if len(procList) == 2 {
 		if procList[0].Type == QuesmaV1ProcessorNoOp && procList[1].Type == QuesmaV1ProcessorNoOp {
