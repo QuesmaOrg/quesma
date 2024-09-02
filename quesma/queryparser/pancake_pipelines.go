@@ -45,8 +45,9 @@ func (p pancakePipelinesProcessor) calculateThisLayerMetricPipelines(layer *panc
 		}
 
 		thisPipelineResults := p.processSingleMetricPipeline(layer, pipeline, rows)
-		resultPerPipeline = util.Merge(p.ctx, resultPerPipeline, thisPipelineResults,
-			fmt.Sprintf("calculateThisLayerMetricPipelines, pipeline: %s", pipeline.internalName))
+
+		errorMsg := fmt.Sprintf("calculateThisLayerMetricPipelines, pipeline: %s", pipeline.internalName)
+		resultPerPipeline = util.Merge(p.ctx, resultPerPipeline, thisPipelineResults, errorMsg)
 	}
 
 	return
@@ -63,13 +64,17 @@ func (p pancakePipelinesProcessor) processSingleMetricPipeline(layer *pancakeMod
 
 	for _, pipelineChild := range layer.findPipelineChildren(pipeline) {
 		childResults := p.processSingleMetricPipeline(layer, pipelineChild, resultRows)
-		resultPerPipeline = util.Merge(p.ctx, resultPerPipeline, childResults,
-			fmt.Sprintf("processSingleMetricPipeline, pipeline: %s, pipelineChild: %s", pipeline.internalName, pipelineChild.internalName))
+
+		errorMsg := fmt.Sprintf("processSingleMetricPipeline, pipeline: %s, pipelineChild: %s", pipeline.internalName, pipelineChild.internalName)
+		resultPerPipeline = util.Merge(p.ctx, resultPerPipeline, childResults, errorMsg)
 	}
 
 	return
 }
 
+// input parameters: bucketRows is a subset of rows (it both has <= columns, and <= rows).
+// If e.g. rowIndexes = [2, 5], then bucketRows = [rows[2], rows[5]] (with maybe some columns removed)
+// We need rows and rowIndexes to fetch proper metric column from rows.
 func (p pancakePipelinesProcessor) calculateThisLayerBucketPipelines(layer, nextLayer *pancakeModelLayer, bucketRows []model.QueryResultRow,
 	rows []model.QueryResultRow, rowIndexes []int) (resultRowsPerPipeline map[string][]model.QueryResultRow) {
 
@@ -84,7 +89,7 @@ func (p pancakePipelinesProcessor) calculateThisLayerBucketPipelines(layer, next
 		needToAddProperMetricColumn := !childPipeline.queryType.IsCount() // If count, last column of bucketRows is already count we need.
 		if needToAddProperMetricColumn {
 			columnName := childPipeline.parentColumnName(p.ctx)
-			bucketRows, oldColumnArr = p.addColumn(columnName, bucketRows, rows, rowIndexes)
+			bucketRows, oldColumnArr = p.addProperPipelineColumn(columnName, bucketRows, rows, rowIndexes)
 		}
 
 		var bucketRowsTransformedIfNeeded []model.QueryResultRow
@@ -107,7 +112,7 @@ func (p pancakePipelinesProcessor) calculateThisLayerBucketPipelines(layer, next
 		}
 
 		if needToAddProperMetricColumn {
-			bucketRows = p.restoreLastColumn(bucketRows, oldColumnArr)
+			bucketRows = p.restoreOriginalColumn(bucketRows, oldColumnArr)
 		}
 	}
 
@@ -135,7 +140,13 @@ func (p pancakePipelinesProcessor) processSingleBucketPipeline(layer *pancakeMod
 	return
 }
 
-func (p pancakePipelinesProcessor) addColumn(parentColumnName string, selectedRows, allRows []model.QueryResultRow,
+// returns:
+//   - newSelectedRows: same as selectedRows, but with one column different if needed (value for this column is taken from
+//     allRows, which has >= columns than selectedRows, and should have the column we need)
+//   - oldColumnArray:  old value of the exchanged column, to be restored in restoreOriginalColumn after processing
+//
+// Use restoreOriginalColumn after processing to restore original values.
+func (p pancakePipelinesProcessor) addProperPipelineColumn(parentColumnName string, selectedRows, allRows []model.QueryResultRow,
 	selectedRowsIndexes []int) (newSelectedRows []model.QueryResultRow, oldColumnArray []any) {
 
 	if len(allRows) == 0 {
@@ -167,7 +178,8 @@ func (p pancakePipelinesProcessor) addColumn(parentColumnName string, selectedRo
 	return
 }
 
-func (p pancakePipelinesProcessor) restoreLastColumn(rows []model.QueryResultRow, valuesToRestore []any) []model.QueryResultRow {
+// used after addProperPipelineColumn
+func (p pancakePipelinesProcessor) restoreOriginalColumn(rows []model.QueryResultRow, valuesToRestore []any) []model.QueryResultRow {
 	for i, row := range rows {
 		row.Cols[len(row.Cols)-1].Value = valuesToRestore[i]
 	}

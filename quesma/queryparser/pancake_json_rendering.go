@@ -51,6 +51,8 @@ func (p *pancakeJSONRenderer) selectPrefixRows(prefix string, rows []model.Query
 	return
 }
 
+// rowIndexes - which row in the original result set corresponds to the first row of the bucket
+// It's needed for pipeline aggregations, as we might need to take some other columns from the original row to calculate them.
 func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregation, rows []model.QueryResultRow) (
 	buckets []model.QueryResultRow, subAggrs [][]model.QueryResultRow, rowIndexes []int) {
 
@@ -102,8 +104,10 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregat
 // We accomplish that by increasing limit by one during SQL query and then filtering out during JSON rendering.
 // So we either filter out empty or last one if there is none.
 // This can't be replaced by WHERE in generic case.
-func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLayer,
-	bucketRows []model.QueryResultRow,
+//
+// rowIndexes - which row in the original result set corresponds to the first row of the bucket
+// It's needed for pipeline aggregations, as we might need to take some other columns from the original row to calculate them.
+func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLayer, bucketRows []model.QueryResultRow,
 	subAggrRows [][]model.QueryResultRow, rowIndexes []int) ([]model.QueryResultRow, [][]model.QueryResultRow, []int) {
 	// We are filter out null
 	if layer.nextBucketAggregation.filterOurEmptyKeyBucket {
