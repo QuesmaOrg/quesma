@@ -474,12 +474,36 @@ func (lm *LogManager) generateNewColumns(
 	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
 	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
 	var deleteIndexes []int
+
+	// HACK Alert:
+	// We must avoid altering the table.Cols map and reading at the same time.
+	// This should be protected by a lock or a copy of the table should be used.
+	//
+	newColumns := make(map[string]*Column)
+	for k, v := range table.Cols {
+		newColumns[k] = v
+	}
+
 	for i := range alteredAttributesIndexes {
-		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" Nullable(%s)", table.Name, attrKeys[i], attrTypes[i])
-		table.Cols[attrKeys[i]] = &Column{Name: attrKeys[i], Type: NewBaseType(attrTypes[i]), Modifiers: "Nullable"}
+
+		columnType := ""
+		modifiers := ""
+		// Array and Map are not Nullable
+		if strings.Contains(attrTypes[i], "Array") || strings.Contains(attrTypes[i], "Map") {
+			columnType = attrTypes[i]
+		} else {
+			modifiers = "Nullable"
+			columnType = fmt.Sprintf("Nullable(%s)", attrTypes[i])
+		}
+		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, attrKeys[i], columnType)
+
+		newColumns[attrKeys[i]] = &Column{Name: attrKeys[i], Type: NewBaseType(attrTypes[i]), Modifiers: modifiers}
 		alterCmd = append(alterCmd, alterTable)
 		deleteIndexes = append(deleteIndexes, i)
 	}
+
+	table.Cols = newColumns
+
 	for i := len(deleteIndexes) - 1; i >= 0; i-- {
 		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn][:deleteIndexes[i]], attrsMap[AttributesKeyColumn][deleteIndexes[i]+1:]...)
 		attrsMap[AttributesValueType] = append(attrsMap[AttributesValueType][:deleteIndexes[i]], attrsMap[AttributesValueType][deleteIndexes[i]+1:]...)
@@ -723,6 +747,12 @@ func subtractInputJson(inputDoc types.JSON, anotherDoc types.JSON) types.JSON {
 // and creates span for it
 func (lm *LogManager) execute(ctx context.Context, query string) error {
 	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()
+
+	// We log every DDL query
+	if strings.HasPrefix(query, "ALTER") || strings.HasPrefix(query, "CREATE") {
+		logger.InfoWithCtx(ctx).Msgf("DDL query execution: %s", query)
+	}
+
 	_, err := lm.chDb.ExecContext(ctx, query)
 	span.End(err)
 	return err
