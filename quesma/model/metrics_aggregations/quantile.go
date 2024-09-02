@@ -4,11 +4,11 @@ package metrics_aggregations
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/util"
 	"strconv"
 	"strings"
 	"time"
@@ -54,12 +54,7 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 		// error handling is moved to processResult
 		percentile, percentileAsString, percentileIsNanOrInvalid := query.processResult(res.ColName, res.Value)
 
-		percentileNameToReturn := query.percentileNames[percentileIdx]
-		// percentileName can't be an integer (doesn't work in Kibana that way), so we need to add .0 if it's missing
-		dotIndex := strings.Index(percentileNameToReturn, ".")
-		if dotIndex == -1 {
-			percentileNameToReturn += ".0"
-		}
+		percentileNameToReturn := query.createPercentileNameToReturn(query.percentileNames[percentileIdx])
 
 		if percentileIsNanOrInvalid {
 			valueMap[percentileNameToReturn] = nil
@@ -77,8 +72,8 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 		}
 	} else {
 		var values []model.JsonMap
-		keysSorted := util.MapKeysSorted(valueMap)
-		for _, key := range keysSorted {
+		for _, percentileName := range query.percentileNames {
+			key := query.createPercentileNameToReturn(percentileName)
 			value := valueMap[key]
 			keyAsFloat, _ := strconv.ParseFloat(key, 64)
 			responseValue := model.JsonMap{
@@ -97,7 +92,7 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 }
 
 func (query Quantile) String() string {
-	return "quantile"
+	return fmt.Sprintf("quantile (keyed=%v, percentileNames=%v)", query.keyed, query.percentileNames)
 }
 
 // processResult processes the result of a single quantile value from Clickhouse, and handles all errors encountered.
@@ -160,4 +155,14 @@ func (query Quantile) processResult(colName string, percentileReturnedByClickhou
 
 var emptyPercentilesResult = model.JsonMap{
 	"values": 0,
+}
+
+// Kibana requires .0 at the end of the percentile name if it's an integer.
+func (query Quantile) createPercentileNameToReturn(percentileName string) string {
+	// percentileName can't be an integer (doesn't work in Kibana that way), so we need to add .0 if it's missing
+	dotIndex := strings.Index(percentileName, ".")
+	if dotIndex == -1 {
+		percentileName += ".0"
+	}
+	return percentileName
 }

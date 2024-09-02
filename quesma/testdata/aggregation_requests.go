@@ -4304,7 +4304,7 @@ var AggregationTests = []AggregationTestCase{
 						"doc_count": 1634,
 						"bytes_gauge_top": {
 							"doc_count_error_upper_bound": 0,
-							"sum_other_doc_count": 1549,
+							"sum_other_doc_count": 1570,
 							"buckets": [
 								{
 									"key": 0,
@@ -4443,7 +4443,82 @@ var AggregationTests = []AggregationTestCase{
 			},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1634))}}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", int64(1634)),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_0", []float64{349.95000000000005}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_1", []float64{1600.2}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_2", []float64{2104.85}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_3", []float64{2653.6000000000004}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_4", []float64{3118.75}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_5", []float64{3599.7}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_6", []float64{4142.75}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_7", []float64{4605.4}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_8", []float64{5090.650000000001}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_9", []float64{5574.5}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_10", []float64{6127.450000000001}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_11", []float64{6562.799999999999}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_12", []float64{7006.25}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_13", []float64{7493.5}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_14", []float64{8078.75}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_15", []float64{8537.800000000001}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_16", []float64{9021.3}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_17", []float64{9609.4}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_18", []float64{10931.049999999983}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_col_19", []float64{19742}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_0", []float64{349.95000000000005}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_1", []float64{1600.2}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_2", []float64{2104.85}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_3", []float64{2653.6000000000004}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_4", []float64{3118.75}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_5", []float64{3599.7}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_6", []float64{4142.75}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_7", []float64{4605.4}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_8", []float64{5090.650000000001}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_9", []float64{5574.5}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_10", []float64{6127.450000000001}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_11", []float64{6562.799999999999}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_12", []float64{7006.25}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_13", []float64{7493.5}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_14", []float64{8078.75}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_15", []float64{8537.800000000001}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_16", []float64{9021.3}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_17", []float64{9609.4}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_18", []float64{10931.049999999983}),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_percentiles_keyed_true_col_19", []float64{19742}),
+				model.NewQueryResultCol("aggr__sample__bytes_gauge_field_stats__count", 1634),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_field_stats__actual_stats_col_0", 1634),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_field_stats__actual_stats_col_1", 0),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_field_stats__actual_stats_col_2", 19742),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_field_stats__actual_stats_col_3", 5750.900856793146),
+				model.NewQueryResultCol("metric__sample__bytes_gauge_field_stats__actual_stats_col_4", 9396972),
+			}},
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__sample__count", int64(1634)),
+					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__parent_count", int64(1634)),
+					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__key_0", int64(0)),
+					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__count", int64(53)),
+					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__order_1", int64(53)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__sample__count", int64(1634)),
+					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__parent_count", int64(1634)),
+					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__key_0", int64(15035)),
+					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__count", int64(7)),
+					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__order_1", int64(7)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__sample__count", int64(1634)),
+					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__parent_count", int64(1634)),
+					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__key_0", int64(3350)),
+					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__count", int64(4)),
+					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__order_1", int64(4)),
+				}},
+			},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + TableName + ` ` +
@@ -4473,7 +4548,123 @@ var AggregationTests = []AggregationTestCase{
 				`WHERE toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 ` +
 				`AND toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT count(*) AS "aggr__sample__count",
+			  quantiles(0.050000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_0",
+			  quantiles(0.100000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_1",
+			  quantiles(0.150000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_2",
+			  quantiles(0.200000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_3",
+			  quantiles(0.250000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_4",
+			  quantiles(0.300000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_5",
+			  quantiles(0.350000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_6",
+			  quantiles(0.400000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_7",
+			  quantiles(0.450000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_8",
+			  quantiles(0.500000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_9",
+			  quantiles(0.550000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_10",
+			  quantiles(0.600000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_11",
+			  quantiles(0.650000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_12",
+			  quantiles(0.700000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_13",
+			  quantiles(0.750000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_14",
+			  quantiles(0.800000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_15",
+			  quantiles(0.850000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_16",
+			  quantiles(0.900000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_17",
+			  quantiles(0.950000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_18",
+			  quantiles(0.999999)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_col_19",
+			  quantiles(0.050000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_0",
+			  quantiles(0.100000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_1",
+			  quantiles(0.150000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_2",
+			  quantiles(0.200000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_3",
+			  quantiles(0.250000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_4",
+			  quantiles(0.300000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_5",
+			  quantiles(0.350000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_6",
+			  quantiles(0.400000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_7",
+			  quantiles(0.450000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_8",
+			  quantiles(0.500000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_9",
+			  quantiles(0.550000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_10",
+			  quantiles(0.600000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_11",
+			  quantiles(0.650000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_12",
+			  quantiles(0.700000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_13",
+			  quantiles(0.750000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_14",
+			  quantiles(0.800000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_15",
+			  quantiles(0.850000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_16",
+			  quantiles(0.900000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_17",
+			  quantiles(0.950000)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_18",
+			  quantiles(0.999999)("bytes_gauge") AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_19",
+			  countIf("bytes_gauge" IS NOT NULL) AS
+			  "aggr__sample__bytes_gauge_field_stats__count",
+			  countIf("bytes_gauge" IS NOT NULL) AS
+			  "metric__sample__bytes_gauge_field_stats__actual_stats_col_0",
+			  minOrNullIf("bytes_gauge", "bytes_gauge" IS NOT NULL) AS
+			  "metric__sample__bytes_gauge_field_stats__actual_stats_col_1",
+			  maxOrNullIf("bytes_gauge", "bytes_gauge" IS NOT NULL) AS
+			  "metric__sample__bytes_gauge_field_stats__actual_stats_col_2",
+			  avgOrNullIf("bytes_gauge", "bytes_gauge" IS NOT NULL) AS
+			  "metric__sample__bytes_gauge_field_stats__actual_stats_col_3",
+			  sumOrNullIf("bytes_gauge", "bytes_gauge" IS NOT NULL) AS
+			  "metric__sample__bytes_gauge_field_stats__actual_stats_col_4"
+			FROM (
+			  SELECT "bytes_gauge"
+			  FROM __quesma_table_name
+			  WHERE (toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 AND
+				toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12)
+			  LIMIT 20000)`,
+		ExpectedAdditionalPancakeSQLs: []string{
+			`SELECT sum(count(*)) OVER () AS "aggr__sample__count",
+			  sum(count(*)) OVER () AS "aggr__sample__bytes_gauge_top__parent_count",
+			  "bytes_gauge" AS "aggr__sample__bytes_gauge_top__key_0",
+			  count(*) AS "aggr__sample__bytes_gauge_top__count",
+			  count() AS "aggr__sample__bytes_gauge_top__order_1"
+			FROM (
+			  SELECT "bytes_gauge"
+			  FROM __quesma_table_name
+			  WHERE (toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 AND
+				toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12)
+			  LIMIT 20000)
+			GROUP BY "bytes_gauge" AS "aggr__sample__bytes_gauge_top__key_0"
+			ORDER BY "aggr__sample__bytes_gauge_top__order_1" DESC,
+			  "aggr__sample__bytes_gauge_top__key_0" ASC
+			LIMIT 11`,
+		},
 	},
 	{ // [21]
 		TestName: "range bucket aggregation, both keyed and not",

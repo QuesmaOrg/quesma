@@ -33,15 +33,12 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 		result = make([]model.Expr, 0, len(usersPercents))
 		for _, usersPercent := range usersPercents {
 			percentAsFloat := metricsAggr.Percentiles[usersPercent]
-			result = append(result, model.NewAliasedExpr(
-				model.FunctionExpr{
-					// Rare function that has two brackets: quantiles(0.5)(x)
-					// https://clickhouse.com/docs/en/sql-reference/aggregate-functions/reference/quantiles
-					Name: fmt.Sprintf("quantiles(%f)", percentAsFloat),
-					Args: []model.Expr{getFirstExpression()}},
-				fmt.Sprintf("quantile_%s", usersPercent),
-			))
-
+			result = append(result, model.FunctionExpr{
+				// Rare function that has two brackets: quantiles(0.5)(x)
+				// https://clickhouse.com/docs/en/sql-reference/aggregate-functions/reference/quantiles
+				Name: fmt.Sprintf("quantiles(%f)", percentAsFloat),
+				Args: []model.Expr{getFirstExpression()}},
+			)
 		}
 	case "cardinality":
 		// In ElasticSearch it is approximate algorithm
