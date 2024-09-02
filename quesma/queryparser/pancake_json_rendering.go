@@ -449,7 +449,6 @@ func (p *pancakeJSONRenderer) calculateThisLayerBucketPipelines(layer, nextLayer
 	resultRowsPerPipeline = make(map[string][]model.QueryResultRow)
 
 	for _, childPipeline := range nextLayer.childrenPipelineAggregations {
-		pp.Printf("%+v\n", childPipeline)
 		if childPipeline.queryType.PipelineAggregationType() != model.PipelineBucketAggregation {
 			continue
 		}
@@ -471,7 +470,7 @@ func (p *pancakeJSONRenderer) calculateThisLayerBucketPipelines(layer, nextLayer
 			bucketRowsTransformedIfNeeded = bucketRows
 		}
 
-		childResults := p.processPip2(layer, childPipeline, bucketRowsTransformedIfNeeded)
+		childResults := p.processPip2(nextLayer, childPipeline, bucketRowsTransformedIfNeeded)
 		for pipelineName, pipelineResults := range childResults {
 			if _, alreadyExists := resultRowsPerPipeline[pipelineName]; alreadyExists { // sanity check
 				logger.ErrorWithCtx(p.ctx).Msgf("pipeline %s already exists in resultsPerPipeline", pipelineName)
