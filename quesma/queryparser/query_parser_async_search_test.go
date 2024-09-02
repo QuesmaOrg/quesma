@@ -4,9 +4,11 @@ package queryparser
 
 import (
 	"context"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/schema"
 	"quesma/testdata"
@@ -14,6 +16,7 @@ import (
 )
 
 func TestQueryParserAsyncSearch(t *testing.T) {
+	logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
@@ -45,11 +48,11 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 	}
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
-	for _, tt := range testdata.TestsAsyncSearch {
-		t.Run(tt.Name, func(t *testing.T) {
+	for i, tt := range testdata.TestsAsyncSearch {
+		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
 			query, queryInfo, _ := cw.ParseQueryAsyncSearch(tt.QueryJson)
 			assert.True(t, query.CanParse)
-			assert.Equal(t, tt.WantedParseResult, queryInfo)
+			assert.Equal(t, tt.WantedHitsInfo, queryInfo)
 		})
 	}
 }

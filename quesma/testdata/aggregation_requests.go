@@ -2897,22 +2897,7 @@ var AggregationTests = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1706010201964
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(262))}}},
-			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "hephaestus"), model.NewQueryResultCol("doc_count", uint64(30))}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "poseidon"), model.NewQueryResultCol("doc_count", uint64(29))}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "jupiter"), model.NewQueryResultCol("doc_count", uint64(28))}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "selen"), model.NewQueryResultCol("doc_count", uint64(26))}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "demeter"), model.NewQueryResultCol("doc_count", uint64(24))}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "iris"), model.NewQueryResultCol("doc_count", uint64(24))}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "pan"), model.NewQueryResultCol("doc_count", uint64(24))}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "hades"), model.NewQueryResultCol("doc_count", uint64(22))}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "hermes"), model.NewQueryResultCol("doc_count", uint64(22))}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "persephone"), model.NewQueryResultCol("doc_count", uint64(21))}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "below-top-10"), model.NewQueryResultCol("doc_count", uint64(12))}},
-			},
-		},
+		ExpectedResults: nil, // we no more have results for this test in non-pancake style
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sample__count", 262),
@@ -2995,21 +2980,7 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sample__top_values__order_1", 21),
 			}},
 		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM (SELECT 1 ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
-				`AND ` + fullTextFieldName + ` iLIKE '%user%') LIMIT 3)`,
-			`SELECT "host.name" AS "key", count() AS "doc_count" ` +
-				`FROM (SELECT "host.name" FROM ` + TableName + ` ` +
-				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
-				`AND ` + fullTextFieldName + ` iLIKE '%user%') ` +
-				`LIMIT 20000) ` +
-				`GROUP BY "host.name" ` +
-				`ORDER BY count() DESC`,
-		},
+		ExpectedSQLs: nil, // we no more have results for this test in non-pancake style
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__sample__count",
 			  sum(count("host.name")) OVER () AS "metric__sample__sample_count_col_0",

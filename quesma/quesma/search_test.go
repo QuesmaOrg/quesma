@@ -86,7 +86,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 
 	for i, tt := range testdata.TestsAsyncSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
-			if i != 0 {
+			if i != -1 {
 				t.Skip()
 			}
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
@@ -95,7 +95,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 			managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
 			for _, wantedRegex := range tt.WantedRegexes {
-				if tt.WantedParseResult.Typ == model.ListAllFields {
+				if tt.WantedHitsInfo.Type == model.AllFields {
 					// Normally we always want to escape, but in ListAllFields (SELECT *) we have (permutation1|permutation2|...)
 					// and we don't want to escape those ( and ) characters. So we don't escape [:WHERE], and escape [WHERE:]
 					// Hackish, but fastest way to get it done.
@@ -211,9 +211,6 @@ func TestSearchHandler(t *testing.T) {
 	}
 	for i, tt := range testdata.TestsSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
-			if i != 19 {
-				t.Skip()
-			}
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 			defer db.Close()
 

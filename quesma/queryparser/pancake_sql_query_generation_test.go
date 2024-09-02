@@ -63,7 +63,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
 			}
 
-			if test.TestName != "facets, int64 as key, 3 (<10) values" {
+			if test.TestName == "facets, int64 as key, 3 (<10) values" {
 				t.Skip()
 			}
 

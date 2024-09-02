@@ -161,13 +161,13 @@ var FacetsTests = []AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
+			`SELECT count() FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
-			`SELECT maxOrNull("AvgTicketPrice") FROM ` + QuotedTableName + ` ` +
+			`SELECT maxOrNull("AvgTicketPrice") FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
-			`SELECT minOrNull("AvgTicketPrice") FROM ` + QuotedTableName + ` ` +
+			`SELECT minOrNull("AvgTicketPrice") FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 		},

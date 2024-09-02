@@ -100,7 +100,6 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 	var args = []struct {
 		elasticResponseJson string
 		ourQueryResult      []model.QueryResultRow
-		queryType           model.SearchQueryType
 	}{
 		{
 			`
@@ -159,7 +158,6 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 					model.NewQueryResultCol("@timestamp", "2024-01-30T14:48:19.761Z"),
 				}},
 			},
-			model.ListByField,
 		},
 	}
 	s := schema.StaticRegistry{
@@ -181,8 +179,8 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 		},
 	}
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background(), SchemaRegistry: s}
-	for i, tt := range args {
-		t.Run(tt.queryType.String(), func(t *testing.T) {
+	for i := range args {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			hitQuery := query_util.BuildHitsQuery(
 				context.Background(), "test", "*",
 				&model.SimpleQuery{FieldName: "*"}, model.WeNeedUnlimitedCount,

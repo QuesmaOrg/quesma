@@ -270,7 +270,6 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 	if sort, ok := queryAsMap["sort"]; ok {
 		parsedQuery.OrderBy = cw.parseSortFields(sort)
 	}
-
 	return parsedQuery, cw.parseHits(queryAsMap), highlighter
 }
 
@@ -1144,7 +1143,7 @@ func (cw *ClickhouseQueryTranslator) parseHits(queryMap QueryMap) model.HitsInfo
 		case string:
 			fieldName = field.(string)
 		case QueryMap:
-			if fieldNameRaw, ok := queryMap["field"]; ok {
+			if fieldNameRaw, ok := field.(QueryMap)["field"]; ok {
 				if fieldName, ok = fieldNameRaw.(string); !ok {
 					logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected string", fieldNameRaw, fieldNameRaw)
 					continue
@@ -1157,14 +1156,15 @@ func (cw *ClickhouseQueryTranslator) parseHits(queryMap QueryMap) model.HitsInfo
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected string/map", field, field)
 			continue
 		}
-
+		fmt.Println(fieldName)
 		resolvedField := cw.ResolveField(cw.Ctx, fieldName)
+		fmt.Println(resolvedField)
 		if resolvedField == "*" {
 			return model.NewHitsInfo(model.AllFields, []string{}, size, trackTotalHits)
 		}
 		requestedFields = append(requestedFields, resolvedField)
 	}
-
+	fmt.Println(requestedFields)
 	return model.NewHitsInfo(model.SomeFields, requestedFields, size, trackTotalHits)
 }
 
