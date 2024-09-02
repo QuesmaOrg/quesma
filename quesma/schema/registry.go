@@ -149,7 +149,7 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 				if quesmaType, resolved := s.dataSourceTypeAdapter.Convert(column.Type); resolved {
 					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: quesmaType}
 				} else {
-					logger.Debug().Msgf("type %s not supported, falling back to text", column.Type)
+					logger.Debug().Msgf("type %s not supported, falling back to keyword", column.Type)
 					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: TypeKeyword}
 				}
 			} else {
