@@ -4,8 +4,12 @@
 #       `config.yaml` is going to be ignored by git.
 #
 frontendConnectors:
-  - name: myElasticsearchAPI
-    type: elasticsearch-fe
+  - name: elasticsearch-fe-query-conn
+    type: elasticsearch-fe-query
+    config:
+      listenPort: 8080
+  - name: elasticsearch-fe-ingest-conn
+    type: elasticsearch-fe-ingest
     config:
       listenPort: 8080
 backendConnectors:
@@ -13,7 +17,7 @@ backendConnectors:
     type: elasticsearch
     config:
       url: "http://localhost:9200"
-  - name: my-clickhouse-cloud-data-source
+  - name: my-clickhouse-local-data-source
     type: clickhouse-os
     config:
       url: "clickhouse://localhost:9000"
@@ -22,8 +26,8 @@ logging:
   level: "info"
   disableFileLogging: false
 processors:
-  - name: my-quesma-processor
-    type: quesma-v1-processor
+  - name: query-processor
+    type: quesma-v1-processor-query
     config:
       mode: "dual-write-query-clickhouse"
       enableElasticsearchIngest: true
@@ -41,3 +45,31 @@ processors:
             timestamp:
               source: "timestamp"   # field name in ES Query
               target: "@timestamp"  #  field name in ClickHouse
+  - name: ingest-processor
+    type: quesma-v1-processor-ingest
+    config:
+      mode: "dual-write-query-clickhouse"
+      enableElasticsearchIngest: true
+      indexes:
+        kibana_sample_data_ecommerce:
+          timestampField: "@timestamp"
+        kibana_sample_data_flights:
+          disabled: false  # Just to have example that its possible
+        kibana_sample_data_logs:
+          fullTextFields: [ "message", "agent" ]
+          mappings:
+            message: "text"
+            agent: "text"
+          aliases:
+            timestamp:
+              source: "timestamp"   # field name in ES Query
+              target: "@timestamp"  #  field name in ClickHouse
+pipelines:
+  - name: my-quesma-query-pipeline
+    frontendConnectors: [ elasticsearch-fe-query-conn ]
+    processors: [ query-processor ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-local-data-source ]
+  - name: my-quesma-ingest-pipeline
+    frontendConnectors: [ elasticsearch-fe-ingest-conn ]
+    processors: [ ingest-processor ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-local-data-source ]
