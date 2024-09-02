@@ -28,16 +28,6 @@ type Table struct {
 	TimestampColumn  *string
 }
 
-func (t *Table) GetFulltextFields() []string {
-	var res = make([]string, 0)
-	for _, col := range t.Cols {
-		if col.IsFullTextMatch {
-			res = append(res, col.Name)
-		}
-	}
-	return res
-}
-
 func (t *Table) createTableOurFieldsString() []string {
 	rows := make([]string, 0)
 	if t.Config.hasTimestamp {
@@ -120,9 +110,6 @@ func (t *Table) GetDateTimeTypeFromExpr(ctx context.Context, expr model.Expr) Da
 
 // applyIndexConfig applies full text search and alias configuration to the table
 func (t *Table) applyIndexConfig(configuration *config.QuesmaConfiguration) {
-	for _, c := range t.Cols {
-		c.IsFullTextMatch = configuration.IsFullTextMatchField(t.Name, c.Name)
-	}
 
 	t.aliases = make(map[string]string)
 	if indexConf, ok := configuration.IndexConfig[t.Name]; ok {
@@ -157,10 +144,9 @@ func (t *Table) AliasFields(ctx context.Context) []*Column {
 			continue
 		}
 		aliasFields = append(aliasFields, &Column{
-			Name:            key,
-			Type:            col.Type,
-			Modifiers:       col.Modifiers,
-			IsFullTextMatch: col.IsFullTextMatch,
+			Name:      key,
+			Type:      col.Type,
+			Modifiers: col.Modifiers,
 		})
 	}
 	return aliasFields

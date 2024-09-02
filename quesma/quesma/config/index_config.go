@@ -4,7 +4,6 @@ package config
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 )
 
@@ -20,10 +19,6 @@ type IndexConfiguration struct {
 	SchemaOverrides   *SchemaConfiguration              `koanf:"schemaOverrides"`
 	EnabledOptimizers map[string]OptimizerConfiguration `koanf:"optimizers"`
 	Override          string                            `koanf:"override"`
-}
-
-func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
-	return slices.Contains(c.FullTextFields, fieldName)
 }
 
 func (c IndexConfiguration) GetTimestampField() (tsField string) {
