@@ -5228,7 +5228,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					"value": 37790724732.3343
 				},
 				"1-bucket": {
-					"bg_count": 14074,
 					"buckets": [
 						{
 							"1-metric": {
@@ -5258,8 +5257,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"score": 76
 						}
 					],
-					"sum_other_doc_count": 1340,
-					"doc_count_error_upper_bound": 0
+					"doc_count": 1865,
+					"bg_count": 1865
 				}
 			},
 			"hits": {
