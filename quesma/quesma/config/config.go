@@ -181,9 +181,6 @@ func (c *QuesmaConfiguration) Validate() error {
 //
 //lint:ignore U1000 Ignore unused function temporarily for debugging
 func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, result error) error {
-	if len(indexName.IgnoredFields) > 0 {
-		fmt.Printf("index configuration %s contains deprecated field 'ignoredFields'", indexName.Name)
-	}
 	if indexName.TimestampField != nil {
 		fmt.Printf("index configuration %s contains deprecated field 'timestampField'", indexName.Name)
 	}
@@ -338,7 +335,7 @@ func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfigurat
 	for fieldName, fieldConfig := range config.SchemaOverrides.Fields {
 		if fieldConfig.Type == "" {
 			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has no type", fieldName, config.Name))
-		} else if !elasticsearch_field_types.IsValid(fieldConfig.Type.AsString()) {
+		} else if !elasticsearch_field_types.IsValid(fieldConfig.Type.AsString()) && fieldConfig.Type != TypeAlias && fieldConfig.Type != TypeIgnored {
 			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has invalid type %s", fieldName, config.Name, fieldConfig.Type))
 		}
 		if fieldConfig.Type == TypeAlias && fieldConfig.TargetColumnName == "" {

@@ -208,8 +208,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 		var columnsMap = make(map[string]*Column)
 		partiallyResolved := false
 		for col, colType := range resTable.columnTypes {
-
-			if _, isIgnored := resTable.config.IgnoredFields[col]; isIgnored {
+			if schemaOverride, found := resTable.config.SchemaOverrides.Fields[config.FieldName(col)]; found && schemaOverride.Type.AsString() == config.TypeIgnored {
 				logger.Warn().Msgf("table %s, column %s is ignored", tableName, col)
 				continue
 			}

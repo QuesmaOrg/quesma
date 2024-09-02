@@ -8,6 +8,7 @@ import (
 )
 
 const TypeAlias = "alias"
+const TypeIgnored = "ignored"
 
 type (
 	SchemaConfiguration struct {
@@ -51,6 +52,16 @@ func (sc *SchemaConfiguration) String() string {
 		builder.WriteString(fmt.Sprintf("\t%s: %+v\n", fieldName, fieldConfig))
 	}
 	return builder.String()
+}
+
+func (sc *SchemaConfiguration) IgnoredFields() []FieldName {
+	var ignoredFields []FieldName
+	for fieldName, fieldConfig := range sc.Fields {
+		if fieldConfig.Type == TypeIgnored {
+			ignoredFields = append(ignoredFields, fieldName)
+		}
+	}
+	return ignoredFields
 }
 
 func NewEmptySchemaConfiguration() SchemaConfiguration {
