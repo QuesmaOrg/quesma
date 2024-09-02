@@ -507,7 +507,11 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 		nonSchemaStr += "\"" + column + "\":{"
 		for i := 0; i < len(attrKeys); i++ {
 			if columnIndex > 0 {
-				value = attrTypes[i]
+				// We are versioning metadata fields
+				// At the moment we store only types
+				// but that might change in the future
+				const metadataVersionPrefix = "v1"
+				value = metadataVersionPrefix + ";" + attrTypes[i]
 			} else {
 				value = attrValues[i]
 			}
