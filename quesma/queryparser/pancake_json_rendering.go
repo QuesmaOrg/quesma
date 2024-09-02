@@ -5,7 +5,6 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -14,7 +13,15 @@ import (
 )
 
 type pancakeJSONRenderer struct {
-	ctx context.Context
+	ctx                context.Context
+	pipelinesProcessor pancakePipelinesProcessor
+}
+
+func newPancakeJSONRenderer(ctx context.Context) *pancakeJSONRenderer {
+	return &pancakeJSONRenderer{
+		ctx:                ctx,
+		pipelinesProcessor: pancakePipelinesProcessor{ctx: ctx},
+	}
 }
 
 func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.QueryResultRow) (result []model.QueryResultRow) {
@@ -40,23 +47,6 @@ func (p *pancakeJSONRenderer) selectPrefixRows(prefix string, rows []model.Query
 			}
 		}
 		result = append(result, model.QueryResultRow{Index: row.Index, Cols: newCols})
-	}
-	return
-}
-
-func (p *pancakeJSONRenderer) selectPipelineRows(pipeline model.PipelineQueryType, rows []model.QueryResultRow) (result []model.QueryResultRow) {
-	isCount := pipeline.IsCount()
-	for _, row := range rows {
-		newRow := model.QueryResultRow{Index: row.Index}
-		for _, col := range row.Cols {
-			if !isCount && strings.HasSuffix(col.ColName, "count") {
-				continue
-			}
-			if !strings.HasSuffix(col.ColName, "order_1") {
-				newRow.Cols = append(newRow.Cols, col)
-			}
-		}
-		result = append(result, newRow)
 	}
 	return
 }
@@ -144,43 +134,6 @@ func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLa
 	return bucketRows, subAggrRows, rowIndexes
 }
 
-func (p *pancakeJSONRenderer) calculateThisLayerMetricPipelines(layer *pancakeModelLayer,
-	rows []model.QueryResultRow) (resultPerPipeline map[string]model.JsonMap) {
-
-	resultPerPipeline = make(map[string]model.JsonMap)
-
-	for _, pipeline := range layer.childrenPipelineAggregations {
-		typ := pipeline.queryType.PipelineAggregationType()
-		if typ != model.PipelineMetricsAggregation {
-			continue
-		}
-
-		thisPipelineResults := p.processSingleMetricPipeline(layer, pipeline, rows)
-		resultPerPipeline = util.Merge(p.ctx, resultPerPipeline, thisPipelineResults,
-			fmt.Sprintf("calculateThisLayerMetricPipelines, pipeline: %s", pipeline.internalName))
-	}
-
-	return
-}
-
-func (p *pancakeJSONRenderer) processSingleMetricPipeline(layer *pancakeModelLayer,
-	pipeline *pancakeModelPipelineAggregation, rows []model.QueryResultRow) (resultPerPipeline map[string]model.JsonMap) {
-
-	resultPerPipeline = make(map[string]model.JsonMap)
-
-	pipelineRows := p.selectPipelineRows(pipeline.queryType, rows)
-	resultRows := pipeline.queryType.CalculateResultWhenMissing(pipelineRows)
-	resultPerPipeline[pipeline.name] = pipeline.queryType.TranslateSqlResponseToJson(resultRows, 0) // TODO: fill level?
-
-	for _, pipelineChild := range layer.findPipelineChildren(pipeline) {
-		childResults := p.processSingleMetricPipeline(layer, pipelineChild, resultRows)
-		resultPerPipeline = util.Merge(p.ctx, resultPerPipeline, childResults,
-			fmt.Sprintf("processSingleMetricPipeline, pipeline: %s, pipelineChild: %s", pipeline.internalName, pipelineChild.internalName))
-	}
-
-	return
-}
-
 func (p *pancakeJSONRenderer) processPip2(layer *pancakeModelLayer,
 	pipeline *pancakeModelPipelineAggregation, bucketRows []model.QueryResultRow) (resultRowsPerPipeline map[string][]model.QueryResultRow) {
 
@@ -262,9 +215,6 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		return result, nil
 	}
 
-	pp.Println("layerToJSON start, rows:")
-	fmt.Println(rows)
-
 	layer := remainingLayers[0]
 
 	for _, metric := range layer.currentMetricAggregations {
@@ -274,7 +224,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 	}
 
 	// pipeline aggregations of metric type behave just like metric
-	for metricPipelineAggrName, metricPipelineAggrResult := range p.calculateThisLayerMetricPipelines(layer, rows) {
+	for metricPipelineAggrName, metricPipelineAggrResult := range p.pipelinesProcessor.calculateThisLayerMetricPipelines(layer, rows) {
 		result[metricPipelineAggrName] = metricPipelineAggrResult
 		// TODO: maybe add metadata also here? probably not needed
 	}
@@ -303,12 +253,10 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			return result, nil
 		}
 
-		fmt.Println("rows tu", rows)
 		hasSubaggregations := len(remainingLayers) > 1
 		if hasSubaggregations {
 			nextLayer := remainingLayers[1]
-			pipelineBucketsPerAggregation := p.calculateThisLayerBucketPipelines(layer, nextLayer, bucketRows, rows, rowIndexes)
-			fmt.Println("pipelineBucketsPerAggregation", pipelineBucketsPerAggregation)
+			pipelineBucketsPerAggregation := p.pipelinesProcessor.calculateThisLayerBucketPipelines(layer, nextLayer, bucketRows, rows, rowIndexes)
 
 			// Add subAggregations (both normal and pipeline)
 			bucketArrRaw, ok := buckets["buckets"]
@@ -394,94 +342,6 @@ func (p *pancakeJSONRenderer) valueForColumn(rows []model.QueryResultRow, column
 	return nil, false
 }
 
-func (p *pancakeJSONRenderer) addColumn(
-	parentColumnName string, selectedRows, allRows []model.QueryResultRow, selectedRowsIndexes []int) (
-	newSelectedRows []model.QueryResultRow, oldColumnArray []any) {
-
-	if len(allRows) == 0 {
-		return
-	}
-
-	fmt.Println("hoho, addColumn", parentColumnName)
-	for _, col := range allRows[0].Cols {
-		fmt.Println("col:", col.ColName)
-	}
-
-	colIdx := -1
-	for i, col := range allRows[0].Cols {
-		if col.ColName == parentColumnName {
-			colIdx = i
-			break
-		}
-	}
-
-	oldColumnArray = make([]any, 0, len(selectedRows))
-	newSelectedRows = selectedRows
-	if colIdx == -1 {
-		logger.WarnWithCtx(p.ctx).Msgf("could not find parent column %s", parentColumnName)
-		for _, row := range selectedRows {
-			oldColumnArray = append(oldColumnArray, row.LastColValue())
-		}
-	} else {
-		for i := range selectedRows {
-			oldColumnArray = append(oldColumnArray, selectedRows[i].LastColValue())
-			newSelectedRows[i].Cols[len(newSelectedRows[i].Cols)-1].Value = allRows[selectedRowsIndexes[i]].Cols[colIdx].Value
-		}
-	}
-
-	return
-}
-
-func (p *pancakeJSONRenderer) restoreLastColumn(rows []model.QueryResultRow, valuesToRestore []any) []model.QueryResultRow {
-	for i, row := range rows {
-		row.Cols[len(row.Cols)-1].Value = valuesToRestore[i]
-	}
-	return rows
-}
-
 func (p *pancakeJSONRenderer) toJSON(agg *pancakeModel, rows []model.QueryResultRow) (model.JsonMap, error) {
 	return p.layerToJSON(agg.layers, rows)
-}
-
-func (p *pancakeJSONRenderer) calculateThisLayerBucketPipelines(layer, nextLayer *pancakeModelLayer, bucketRows []model.QueryResultRow,
-	rows []model.QueryResultRow, rowIndexes []int) (resultRowsPerPipeline map[string][]model.QueryResultRow) {
-
-	resultRowsPerPipeline = make(map[string][]model.QueryResultRow)
-
-	for _, childPipeline := range nextLayer.childrenPipelineAggregations {
-		if childPipeline.queryType.PipelineAggregationType() != model.PipelineBucketAggregation {
-			continue
-		}
-
-		var oldColumnArr []any
-		needToAddProperMetricColumn := !childPipeline.queryType.IsCount() // If count, last column of bucketRows is already count we need.
-		if needToAddProperMetricColumn {
-			columnName := childPipeline.parentColumnName(p.ctx)
-			bucketRows, oldColumnArr = p.addColumn(columnName, bucketRows, rows, rowIndexes)
-		}
-
-		var bucketRowsTransformedIfNeeded []model.QueryResultRow
-		switch queryType := layer.nextBucketAggregation.queryType.(type) {
-		case bucket_aggregations.Histogram:
-			bucketRowsTransformedIfNeeded = queryType.NewRowsTransformer().Transform(p.ctx, bucketRows)
-		case *bucket_aggregations.DateHistogram:
-			bucketRowsTransformedIfNeeded = queryType.NewRowsTransformer().Transform(p.ctx, bucketRows)
-		default:
-			bucketRowsTransformedIfNeeded = bucketRows
-		}
-
-		childResults := p.processPip2(nextLayer, childPipeline, bucketRowsTransformedIfNeeded)
-		for pipelineName, pipelineResults := range childResults {
-			if _, alreadyExists := resultRowsPerPipeline[pipelineName]; alreadyExists { // sanity check
-				logger.ErrorWithCtx(p.ctx).Msgf("pipeline %s already exists in resultsPerPipeline", pipelineName)
-			}
-			resultRowsPerPipeline[pipelineName] = pipelineResults
-		}
-
-		if needToAddProperMetricColumn {
-			bucketRows = p.restoreLastColumn(bucketRows, oldColumnArr)
-		}
-	}
-
-	return
 }
