@@ -45,9 +45,8 @@ func TestAsyncSearchHandler(t *testing.T) {
 				Type: clickhouse.NewBaseType("DateTime64"),
 			},
 			"message": {
-				Name:            "message",
-				Type:            clickhouse.NewBaseType("String"),
-				IsFullTextMatch: true,
+				Name: "message",
+				Type: clickhouse.NewBaseType("String"),
 			},
 			"host.name": {
 				Name: "host.name",
@@ -118,7 +117,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
 			"-@timestamp":  {Name: "-@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String"), IsFullTextMatch: true},
+			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String")},
 			"-@bytes":      {Name: "-@bytes", Type: clickhouse.NewBaseType("Int64")},
 		},
 		Created: true,
@@ -171,9 +170,8 @@ var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
 		// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 		// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
 		"message": {
-			Name:            "message",
-			Type:            clickhouse.NewBaseType("String"),
-			IsFullTextMatch: true,
+			Name: "message",
+			Type: clickhouse.NewBaseType("String"),
 		},
 	},
 	Created: true,
@@ -527,9 +525,8 @@ func TestSearchTrackTotalCount(t *testing.T) {
 			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
 			"message": {
-				Name:            "message",
-				Type:            clickhouse.NewBaseType("String"),
-				IsFullTextMatch: true,
+				Name: "message",
+				Type: clickhouse.NewBaseType("String"),
 			},
 		},
 		Created: true,

@@ -77,13 +77,6 @@ func (c *RelationalDbConfiguration) IsNonEmpty() bool {
 	return !c.IsEmpty()
 }
 
-func (c *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) bool {
-	if indexConfig, found := c.IndexConfig[indexName]; found {
-		return indexConfig.HasFullTextField(fieldName)
-	}
-	return false
-}
-
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
 	aliases := make(map[string]string)
 	if indexConfig, found := c.IndexConfig[indexName]; found {
@@ -188,9 +181,6 @@ func (c *QuesmaConfiguration) Validate() error {
 //
 //lint:ignore U1000 Ignore unused function temporarily for debugging
 func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, result error) error {
-	if len(indexName.FullTextFields) > 0 {
-		fmt.Printf("index configuration %s contains deprecated field 'fullTextFields'", indexName.Name)
-	}
 	if len(indexName.IgnoredFields) > 0 {
 		fmt.Printf("index configuration %s contains deprecated field 'ignoredFields'", indexName.Name)
 	}

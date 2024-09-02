@@ -31,7 +31,7 @@ func TestSearchOpensearch(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
 			"-@timestamp":  {Name: "-@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String"), IsFullTextMatch: true},
+			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String")},
 			"-@bytes":      {Name: "-@bytes", Type: clickhouse.NewBaseType("Int64")},
 		},
 		Created: true,
@@ -184,7 +184,7 @@ func TestHighlighter(t *testing.T) {
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
-			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String"), IsFullTextMatch: true},
+			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String")},
 			"host.name":    {Name: "host.name", Type: clickhouse.NewBaseType("String")},
 			"@timestamp":   {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},

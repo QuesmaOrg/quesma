@@ -40,7 +40,6 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	tsField := "@timestamp"
 	indexConfig := config.IndexConfiguration{
 		Name:           "logs-generic-default",
-		FullTextFields: []string{"message"},
 		TimestampField: &tsField,
 	}
 
