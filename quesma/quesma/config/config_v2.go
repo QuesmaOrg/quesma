@@ -234,8 +234,8 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		if ingestProcessor == nil {
 			return fmt.Errorf(fmt.Sprintf("ingest processor named [%s] not found in configuration", ingestPipeline.Processors[0]))
 		}
-		if ingestProcessor.Type != QuesmaV1ProcessorIngest {
-			return fmt.Errorf("ingest pipeline must have ingest-type processor")
+		if ingestProcessor.Type != QuesmaV1ProcessorIngest && ingestProcessor.Type != QuesmaV1ProcessorNoOp {
+			return fmt.Errorf("ingest pipeline must have ingest-type or noop processor")
 		}
 		queryProcessor := c.getProcessorByName(queryPipeline.Processors[0])
 		if queryProcessor == nil {
@@ -405,8 +405,13 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		if procList[0].Type == QuesmaV1ProcessorNoOp {
 			conf.Mode = ProxyInspect
 		}
+	} else if len(procList) == 2 {
+		if procList[0].Type == QuesmaV1ProcessorNoOp && procList[1].Type == QuesmaV1ProcessorNoOp {
+			conf.Mode = ProxyInspect
+		} else {
+			conf.Mode = DualWriteQueryClickhouse
+		}
 	}
-	conf.Mode = DualWriteQueryClickhouse
 	if v1processor := procList[0]; v1processor != nil {
 		conf.IndexConfig = v1processor.Config.IndexConfig
 		for indexName, indexConfig := range v1processor.Config.IndexConfig {
