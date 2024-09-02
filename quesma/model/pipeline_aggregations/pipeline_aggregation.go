@@ -11,7 +11,6 @@ import (
 const BucketsPathCount = "_count" // special name for `buckets_path` parameter, normally it's some other aggregation's name
 
 type PipelineAggregation struct {
-	// TODO change name to ParentMetricAggregationName? Not 100% sure it must be metric.
 	// Deprecated: used only in old logic, can be removed later.
 	Parent       string
 	PathToParent []string

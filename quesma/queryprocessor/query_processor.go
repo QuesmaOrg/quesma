@@ -53,6 +53,7 @@ func (qp *QueryProcessor) SplitResultSetIntoBuckets(ResultSet []model.QueryResul
 	if len(ResultSet) == 0 {
 		return [][]model.QueryResultRow{{}}
 	}
+
 	lastRow := ResultSet[0]
 	buckets := [][]model.QueryResultRow{{lastRow}}
 	for _, row := range ResultSet[1:] {

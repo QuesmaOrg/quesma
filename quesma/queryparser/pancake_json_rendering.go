@@ -134,30 +134,6 @@ func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLa
 	return bucketRows, subAggrRows, rowIndexes
 }
 
-func (p *pancakeJSONRenderer) processPip2(layer *pancakeModelLayer,
-	pipeline *pancakeModelPipelineAggregation, bucketRows []model.QueryResultRow) (resultRowsPerPipeline map[string][]model.QueryResultRow) {
-
-	resultRowsPerPipeline = make(map[string][]model.QueryResultRow)
-
-	currentPipelineResults := pipeline.queryType.CalculateResultWhenMissing(bucketRows)
-	fmt.Println("aa", pipeline, bucketRows, currentPipelineResults)
-	fmt.Println("bb ile dzieci?", layer.findPipelineChildren(pipeline))
-	resultRowsPerPipeline[pipeline.name] = currentPipelineResults
-
-	for _, pipelineChild := range layer.findPipelineChildren(pipeline) {
-		fmt.Println("hoho wchodze")
-		childPipelineResults := p.processPip2(layer, pipelineChild, currentPipelineResults)
-		for name, results := range childPipelineResults {
-			if _, alreadyExists := resultRowsPerPipeline[name]; alreadyExists { // sanity check
-				logger.ErrorWithCtx(p.ctx).Msgf("pipeline %s already exists in resultsPerPipeline", name)
-			}
-			resultRowsPerPipeline[name] = results
-		}
-	}
-
-	return
-}
-
 func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
 	layer := remainingLayers[0]
 	switch queryType := layer.nextBucketAggregation.queryType.(type) {
