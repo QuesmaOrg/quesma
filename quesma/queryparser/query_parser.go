@@ -1139,11 +1139,11 @@ func (cw *ClickhouseQueryTranslator) parseHits(queryMap QueryMap) model.HitsInfo
 		var fieldName string
 		// 2 cases are possible: a) just a string b) {"field": fieldName}
 		// Any other is invalid and a warning
-		switch field.(type) {
+		switch field := field.(type) {
 		case string:
-			fieldName = field.(string)
+			fieldName = field
 		case QueryMap:
-			if fieldNameRaw, ok := field.(QueryMap)["field"]; ok {
+			if fieldNameRaw, ok := field["field"]; ok {
 				if fieldName, ok = fieldNameRaw.(string); !ok {
 					logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected string", fieldNameRaw, fieldNameRaw)
 					continue
@@ -1293,17 +1293,6 @@ func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName
 		}
 
 		return fieldName
-	}
-}
-func (cw *ClickhouseQueryTranslator) parseSizeExists(queryMap QueryMap) (size int, ok bool) {
-	sizeRaw, exists := queryMap["size"]
-	if !exists {
-		return model.DefaultSizeListQuery, false
-	} else if sizeAsFloat, ok := sizeRaw.(float64); ok {
-		return int(sizeAsFloat), true
-	} else {
-		logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected float64", sizeRaw, sizeRaw)
-		return model.DefaultSizeListQuery, false
 	}
 }
 
