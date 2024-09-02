@@ -183,20 +183,10 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]strin
 	for table, columns := range tables {
 		comment := td.tableComment(databaseName, table)
 		createTableQuery := td.createTableQuery(databaseName, table)
-		var maybeTimestampField string
-		if td.cfg.Hydrolix.IsNonEmpty() {
-			maybeTimestampField = td.tableTimestampField(databaseName, table, Hydrolix)
-		} else {
-			maybeTimestampField = td.tableTimestampField(databaseName, table, ClickHouse)
-		}
-		if maybeTimestampField != "" {
-			configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{TimestampField: &maybeTimestampField}, comment, createTableQuery}
-		} else {
-			configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{}, comment, createTableQuery}
-		}
+		configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{}, comment, createTableQuery}
 	}
-	for tableName, conf := range configuredTables {
-		autoDiscoResults.WriteString(fmt.Sprintf("{table: %s, timestampField: %s}, ", tableName, conf.config.GetTimestampField()))
+	for tableName := range configuredTables {
+		autoDiscoResults.WriteString(fmt.Sprintf("{table: %s}, ", tableName))
 	}
 	logger.Info().Msgf("Table auto-discovery results -> %d tables found: [%s]", len(configuredTables), strings.TrimSuffix(autoDiscoResults.String(), ", "))
 	return

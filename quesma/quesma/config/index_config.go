@@ -14,9 +14,7 @@ type IndexConfiguration struct {
 	// TODO to be deprecated
 	FullTextFields []string `koanf:"fullTextFields"`
 	// TODO to be deprecated
-	IgnoredFields map[string]bool `koanf:"ignoredFields"`
-	// TODO to be deprecated
-	TimestampField    *string                           `koanf:"timestampField"`
+	IgnoredFields     map[string]bool                   `koanf:"ignoredFields"`
 	SchemaOverrides   *SchemaConfiguration              `koanf:"schemaOverrides"`
 	EnabledOptimizers map[string]OptimizerConfiguration `koanf:"optimizers"`
 	Override          string                            `koanf:"override"`
@@ -24,13 +22,6 @@ type IndexConfiguration struct {
 
 func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
 	return slices.Contains(c.FullTextFields, fieldName)
-}
-
-func (c IndexConfiguration) GetTimestampField() (tsField string) {
-	if c.TimestampField != nil {
-		tsField = *c.TimestampField
-	}
-	return
 }
 
 func (c IndexConfiguration) String() string {
@@ -55,11 +46,7 @@ func (c IndexConfiguration) String() string {
 		str = fmt.Sprintf("%s, fullTextFields: %s", str, strings.Join(c.FullTextFields, ", "))
 	}
 
-	if c.TimestampField != nil {
-		return fmt.Sprintf("%s, timestampField: %s", str, *c.TimestampField)
-	} else {
-		return str
-	}
+	return str
 }
 
 func (c IndexConfiguration) GetOptimizerConfiguration(optimizerName string) (map[string]string, bool) {

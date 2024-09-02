@@ -194,9 +194,6 @@ func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, r
 	if len(indexName.IgnoredFields) > 0 {
 		fmt.Printf("index configuration %s contains deprecated field 'ignoredFields'", indexName.Name)
 	}
-	if indexName.TimestampField != nil {
-		fmt.Printf("index configuration %s contains deprecated field 'timestampField'", indexName.Name)
-	}
 	return result
 }
 

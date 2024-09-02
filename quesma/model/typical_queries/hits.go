@@ -133,10 +133,7 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 }
 
 func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) string {
-	tsFieldName, err := query.table.GetTimestampFieldName()
-	if err != nil {
-		return defaultID
-	}
+	tsFieldName := model.TimestampFieldName
 
 	var pseudoUniqueId string
 
