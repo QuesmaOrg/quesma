@@ -393,7 +393,8 @@ func (s *SchemaCheckPass) applyFullTextField(query *model.Query) (*model.Query, 
 	index, ok := s.schemaRegistry.FindSchema(schema.TableName(fromTable))
 
 	if !ok {
-		return nil, fmt.Errorf("schema not found for table %s", fromTable)
+		logger.Warn().Msgf("schema not found for table %s", fromTable)
+		return query, nil
 	}
 
 	var fullTextFields []string
