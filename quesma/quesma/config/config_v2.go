@@ -173,7 +173,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		fcName := c.Pipelines[0].FrontendConnectors[0]
 		if fc := c.getFrontendConnectorByName(fcName); fc != nil {
 			if fc.Type != ElasticsearchFrontendQueryConnectorName {
-				return fmt.Errorf("single pipeline Quesma can only be used for querying, but the frontend connector is not of query type")
+				return fmt.Errorf("single-pipeline Quesma can only be used for querying, but the frontend connector is not of query type")
 			}
 			proc := c.getProcessorByName(c.Pipelines[0].Processors[0])
 			if proc == nil {
@@ -209,7 +209,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				}
 			}
 		} else {
-			return fmt.Errorf(fmt.Sprintf("frontend connector named [%s] referred in piepeline[%s] not found in configuration", fcName, c.Pipelines[0].Name))
+			return fmt.Errorf(fmt.Sprintf("frontend connector named [%s] referred in pipeline [%s] not found in configuration", fcName, c.Pipelines[0].Name))
 		}
 	}
 	if isDualPipeline {
@@ -235,7 +235,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 			return fmt.Errorf(fmt.Sprintf("ingest processor named [%s] not found in configuration", ingestPipeline.Processors[0]))
 		}
 		if ingestProcessor.Type != QuesmaV1ProcessorIngest {
-			return fmt.Errorf("ingest pipeline must have ingest processor")
+			return fmt.Errorf("ingest pipeline must have ingest-type processor")
 		}
 		queryProcessor := c.getProcessorByName(queryPipeline.Processors[0])
 		if queryProcessor == nil {
@@ -256,7 +256,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 
 func (c *QuesmaNewConfiguration) validateFrontendConnector(fc FrontendConnector) error {
 	if fc.Type != ElasticsearchFrontendIngestConnectorName && fc.Type != ElasticsearchFrontendQueryConnectorName {
-		return fmt.Errorf(fmt.Sprintf("frontend connector's %s type not recognized, only `%s` and `%s` are supported at this moment", fc.Name, ElasticsearchFrontendIngestConnectorName, ElasticsearchFrontendQueryConnectorName))
+		return fmt.Errorf(fmt.Sprintf("frontend connector's [%s] type not recognized, only `%s` and `%s` are supported at this moment", fc.Name, ElasticsearchFrontendIngestConnectorName, ElasticsearchFrontendQueryConnectorName))
 	}
 	return nil
 }
@@ -429,7 +429,8 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 }
 
 func (c *QuesmaNewConfiguration) getPublicTcpPort() (network.Port, error) {
-	// per validation, there's always at least one frontend connector, and even if there's a second one, it must listen on the same port
+	// per validation, there's always at least one frontend connector,
+	// even if there's a second one, it has to listen on the same port
 	return c.FrontendConnectors[0].Config.ListenPort, nil
 }
 
