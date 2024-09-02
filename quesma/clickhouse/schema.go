@@ -5,6 +5,7 @@ package clickhouse
 import (
 	"fmt"
 	"math"
+	"quesma/logger"
 	"quesma/util"
 	"reflect"
 	"strings"
@@ -266,7 +267,11 @@ func NewType(value any) Type {
 		return CompoundType{Name: "Array", BaseType: NewType(valueCasted[0])}
 	}
 
-	panic(fmt.Sprintf("Unsupported type '%T' of value: %v.", value, value))
+	logger.Warn().Msgf("Unsupported type '%T' of value: %v.", value, value)
+
+	// value can be nil, so should return something reasonable here
+	return BaseType{Name: "String", goType: reflect.TypeOf("")}
+
 }
 
 func NewTable(createTableQuery string, config *ChTableConfig) (*Table, error) {
