@@ -4646,8 +4646,8 @@ var AggregationTests = []AggregationTestCase{
 			  SELECT "bytes_gauge"
 			  FROM __quesma_table_name
 			  WHERE (toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 AND
-							toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12)
-						  LIMIT 20000)`,
+				toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12)
+			  LIMIT 20000)`,
 		ExpectedAdditionalPancakeSQLs: []string{
 			`SELECT sum(count(*)) OVER () AS "aggr__sample__count",
 			  sum(count(*)) OVER () AS "aggr__sample__bytes_gauge_top__parent_count",

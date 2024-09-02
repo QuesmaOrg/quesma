@@ -30,7 +30,6 @@ func (query Quantile) AggregationType() model.AggregationType {
 }
 
 func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	fmt.Printf("poczatek quantile: %+v %+v\n", query, rows)
 	valueMap := make(model.JsonMap)
 	valueAsStringMap := make(model.JsonMap)
 
@@ -158,6 +157,7 @@ var emptyPercentilesResult = model.JsonMap{
 	"values": 0,
 }
 
+// Kibana requires .0 at the end of the percentile name if it's an integer.
 func (query Quantile) createPercentileNameToReturn(percentileName string) string {
 	// percentileName can't be an integer (doesn't work in Kibana that way), so we need to add .0 if it's missing
 	dotIndex := strings.Index(percentileName, ".")
