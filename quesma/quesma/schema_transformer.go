@@ -5,6 +5,7 @@ package quesma
 import (
 	"fmt"
 	"quesma/clickhouse"
+	"quesma/end_user_errors"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/config"
@@ -457,6 +458,42 @@ func (s *SchemaCheckPass) applyFullTextField(query *model.Query) (*model.Query, 
 
 }
 
+func (s *SchemaCheckPass) checkForNotMissingColumn(query *model.Query) (*model.Query, error) {
+
+	fromTable := getFromTable(query.TableName)
+
+	table := s.logManager.FindTable(fromTable)
+	if table == nil {
+		logger.Error().Msgf("Table %s not found", fromTable)
+		return query, nil
+	}
+
+	var err error
+
+	visitor := model.NewBaseVisitor()
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		if err != nil {
+			return e
+		}
+
+		if _, ok := table.Cols[e.ColumnName]; !ok {
+			err = end_user_errors.ErrNoSuchTableColumn.New(fmt.Errorf("no such column: %s table: %s", e.ColumnName, fromTable)).Details("Column: '%s', Table: '%s'", e.ColumnName, fromTable)
+			return e
+		}
+		return e
+	}
+
+	query.SelectCommand.Accept(visitor)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return query, nil
+
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	for k, query := range queries {
 		var err error
@@ -472,6 +509,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 			{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
 			{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
+			{TransformationName: "CheckForNotMissingColumn", Transformation: s.checkForNotMissingColumn},
 		}
 		for _, transformation := range transformationChain {
 			inputQuery := query.SelectCommand.String()

@@ -153,7 +153,7 @@ func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.Executio
 	var err error
 	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
 	if err != nil {
-		return fmt.Errorf("error transforming queries: %v", err)
+		return fmt.Errorf("error transforming queries: %w", err)
 	}
 	return nil
 }
