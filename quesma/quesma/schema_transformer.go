@@ -556,10 +556,8 @@ func (s *SchemaCheckPass) checkDottedColumns(query *model.Query) (*model.Query, 
 
 func (s *SchemaCheckPass) applyNullForNotExistingColumns(query *model.Query) (*model.Query, error) {
 
-	fromTable := getFromTable(query.TableName)
+	fromTable := getFromTable(catch_all_logs.TableName)
 
-	// FIXME we should use the schema registry here
-	//
 	table := s.logManager.FindTable(fromTable)
 	if table == nil {
 		logger.Error().Msgf("Table catch_all_logs not found", fromTable)
@@ -569,10 +567,6 @@ func (s *SchemaCheckPass) applyNullForNotExistingColumns(query *model.Query) (*m
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-
-		if strings.Contains(e.ColumnName, "__quesma_index_name") {
-			return e
-		}
 
 		if _, ok := table.Cols[e.ColumnName]; !ok {
 			fmt.Println("XXX Column not found in catch_all_logs: ", e.ColumnName)
@@ -597,10 +591,6 @@ func (s *SchemaCheckPass) applyDebug(query *model.Query) (*model.Query, error) {
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitSelectCommand = func(b *model.BaseExprVisitor, e model.SelectCommand) interface{} {
-
-		for i, e := range e.OrderBy {
-			fmt.Println("XXX ORDER BY: ", i, model.AsString(e))
-		}
 
 		return e
 	}
