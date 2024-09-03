@@ -5,6 +5,7 @@ package queryparser
 import (
 	"errors"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/queryparser/query_util"
@@ -119,6 +120,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 
 	for columnId, column := range bucketAggregation.selectedColumns {
 		aliasedColumn := model.NewAliasedExpr(column, bucketAggregation.InternalNameForKey(columnId))
+		fmt.Println("eee", aliasedColumn)
 		addSelectColumns = append(addSelectColumns, aliasedColumn)
 		addGroupBys = append(addGroupBys, aliasedColumn)
 	}
@@ -144,6 +146,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 			direction := orderBy.Direction
 
 			rankColumn := p.isPartOfGroupBy(orderBy.Expr, append(groupByColumns, addGroupBys...))
+			fmt.Println("RANK COLUM!", rankColumn)
 			if rankColumn != nil { // rank is part of group by
 				if direction == model.DefaultOrder {
 					direction = model.AscOrder // primarily needed for tests
@@ -295,6 +298,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			if err != nil {
 				return nil, false, err
 			}
+			pp.Println("add", addSelectColumns)
 			selectColumns = append(selectColumns, addSelectColumns...)
 			groupBys = append(groupBys, addGroupBys...)
 			rankColumns = append(rankColumns, addRankColumns...)

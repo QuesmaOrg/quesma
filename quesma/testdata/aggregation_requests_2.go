@@ -12,8 +12,6 @@ import (
 
 var AggregationTests2 = []AggregationTestCase{
 	{ // [42]
-		// FIXME results for this test are not 100% correct for day/week intervals (maybe others too)
-		// see https://github.com/QuesmaOrg/quesma/issues/307
 		TestName: "histogram with all possible calendar_intervals",
 		QueryRequestJson: `
 		{
