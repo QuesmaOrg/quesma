@@ -16,7 +16,7 @@ const (
 	AttributesKeyColumn      = "attributes_string_key"
 	AttributesValueColumn    = "attributes_string_value"
 	AttributesValueType      = "attributes_string_type"
-	attributesColumnType     = "Array(String)"
+	attributesColumnType     = "Map(String, String)"
 	AttributesColumn         = "attributes_values"
 	AttributesMetadataColumn = "attributes_metadata"
 )
