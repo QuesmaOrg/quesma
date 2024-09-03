@@ -60,14 +60,13 @@ processors:
               message:
                 type: text
               "host.name":
-                type: "keyword"
+                type: text
               "service.name":
                 type: "keyword"
               source:
                 type: "keyword"
               severity:
                 type: "keyword"
-          fullTextFields: [ "message", "host.name" ]
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
@@ -101,14 +100,13 @@ processors:
               message:
                 type: text
               "host.name":
-                type: "keyword"
+                type: text
               "service.name":
                 type: "keyword"
               source:
                 type: "keyword"
               severity:
                 type: "keyword"
-          fullTextFields: [ "message", "host.name" ]
 pipelines:
   - name: my-pipeline-elasticsearch-query-clickhouse
     frontendConnectors: [ elastic-query ]
