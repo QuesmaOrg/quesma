@@ -19,7 +19,6 @@ type IndexConfiguration struct {
 	Override          string                            `koanf:"override"`
 }
 
-
 func (c IndexConfiguration) String() string {
 	var extraString string
 	extraString = ""
