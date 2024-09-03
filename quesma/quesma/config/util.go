@@ -11,21 +11,23 @@ import (
 
 var insertCounter = atomic.Int32{}
 
-func RunConfigured(ctx context.Context, cfg *QuesmaConfiguration, indexName string, body types.JSON, action func() error) {
+func RunConfigured(ctx context.Context, cfg *QuesmaConfiguration, indexName string, body types.JSON, action func() error) error {
 	if len(cfg.IndexConfig) == 0 {
 		logger.InfoWithCtx(ctx).Msgf("%s  --> clickhouse, body(shortened): %s", indexName, body.ShortString())
 		err := action()
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg("Can't write to index: " + err.Error())
 		}
+		return err
 	} else {
 		matchingConfig, ok := findMatchingConfig(indexName, cfg)
 		if !ok {
 			logger.InfoWithCtx(ctx).Msgf("index '%s' is not configured, skipping", indexName)
-			return
+			return nil
 		}
 		if matchingConfig.Disabled {
 			logger.InfoWithCtx(ctx).Msgf("index '%s' is disabled, ignoring", indexName)
+			return nil
 		} else {
 			insertCounter.Add(1)
 			if insertCounter.Load()%50 == 1 {
@@ -35,6 +37,7 @@ func RunConfigured(ctx context.Context, cfg *QuesmaConfiguration, indexName stri
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msg("Can't write to Clickhouse: " + err.Error())
 			}
+			return err
 		}
 	}
 }
