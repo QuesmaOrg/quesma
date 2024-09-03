@@ -13,11 +13,13 @@ import (
 )
 
 const (
-	AttributesKeyColumn      = "attributes_string_key"
-	AttributesValueColumn    = "attributes_string_value"
-	AttributesValueType      = "attributes_string_type"
-	attributesColumnType     = "Map(String, String)"
-	AttributesColumn         = "attributes_values"
+	// FIXME: Remnants of old way of storing attributes
+	DeprecatedAttributesKeyColumn   = "attributes_string_key"
+	DeprecatedAttributesValueColumn = "attributes_string_value"
+	DeprecatedAttributesValueType   = "attributes_string_type"
+
+	attributesColumnType     = "Map(String, String)" // ClickHouse type of AttributesValuesColumn, AttributesMetadataColumn
+	AttributesValuesColumn   = "attributes_values"
 	AttributesMetadataColumn = "attributes_metadata"
 )
 
@@ -324,10 +326,10 @@ func (config *ChTableConfig) CreateTablePostFieldsString() string {
 
 func NewDefaultStringAttribute() Attribute {
 	return Attribute{
-		KeysArrayName:   AttributesKeyColumn,
-		ValuesArrayName: AttributesValueColumn,
-		TypesArrayName:  AttributesValueType,
-		MapValueName:    AttributesColumn,
+		KeysArrayName:   DeprecatedAttributesKeyColumn,
+		ValuesArrayName: DeprecatedAttributesValueColumn,
+		TypesArrayName:  DeprecatedAttributesValueType,
+		MapValueName:    AttributesValuesColumn,
 		MapMetadataName: AttributesMetadataColumn,
 		Type:            NewBaseType("String"),
 	}
@@ -338,7 +340,7 @@ func NewDefaultInt64Attribute() Attribute {
 		KeysArrayName:   "attributes_int64_key",
 		ValuesArrayName: "attributes_int64_value",
 		TypesArrayName:  "attributes_int64_type",
-		MapValueName:    AttributesColumn,
+		MapValueName:    AttributesValuesColumn,
 		MapMetadataName: AttributesMetadataColumn,
 		Type:            NewBaseType("Int64"),
 	}
@@ -349,7 +351,7 @@ func NewDefaultFloat64Attribute() Attribute {
 		KeysArrayName:   "attributes_float64_key",
 		ValuesArrayName: "attributes_float64_value",
 		TypesArrayName:  "attributes_float64_type",
-		MapValueName:    AttributesColumn,
+		MapValueName:    AttributesValuesColumn,
 		MapMetadataName: AttributesMetadataColumn,
 		Type:            NewBaseType("Float64"),
 	}
@@ -360,7 +362,7 @@ func NewDefaultBoolAttribute() Attribute {
 		KeysArrayName:   "attributes_bool_key",
 		ValuesArrayName: "attributes_bool_value",
 		TypesArrayName:  "attributes_bool_type",
-		MapValueName:    AttributesColumn,
+		MapValueName:    AttributesValuesColumn,
 		MapMetadataName: AttributesMetadataColumn,
 		Type:            NewBaseType("Bool"),
 	}

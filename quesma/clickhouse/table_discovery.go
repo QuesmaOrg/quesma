@@ -213,7 +213,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				logger.Warn().Msgf("table %s, column %s is ignored", tableName, col)
 				continue
 			}
-			if col != AttributesColumn && col != AttributesMetadataColumn {
+			if col != AttributesValuesColumn && col != AttributesMetadataColumn {
 				column := resolveColumn(col, colType)
 				if column != nil {
 					columnsMap[col] = column
@@ -407,17 +407,17 @@ func isNullableType(colType string) bool {
 }
 
 func containsAttributes(cols map[string]string) bool {
-	hasAttributesColumn := false
+	hasAttributesValuesColumn := false
 	hasAttributesMetadataColumn := false
 	for col, colType := range cols {
-		if col == AttributesColumn && colType == attributesColumnType {
-			hasAttributesColumn = true
+		if col == AttributesValuesColumn && colType == attributesColumnType {
+			hasAttributesValuesColumn = true
 		}
 		if col == AttributesMetadataColumn && colType == attributesColumnType {
 			hasAttributesMetadataColumn = true
 		}
 	}
-	return hasAttributesColumn && hasAttributesMetadataColumn
+	return hasAttributesValuesColumn && hasAttributesMetadataColumn
 }
 
 func removePrecision(str string) string {
