@@ -174,7 +174,14 @@ func (v *BaseExprVisitor) VisitSelectCommand(query SelectCommand) interface{} {
 		}
 	}
 
-	return NewSelectCommand(columns, groupBy, orderBy, from, where, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes, namedCTEs)
+	var limitBy []Expr
+	if query.LimitBy != nil {
+		for _, expr := range query.LimitBy {
+			limitBy = append(limitBy, expr.Accept(v).(Expr))
+		}
+	}
+
+	return NewSelectCommand(columns, groupBy, orderBy, from, where, limitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes, namedCTEs)
 }
 
 func (v *BaseExprVisitor) VisitParenExpr(p ParenExpr) interface{} {
