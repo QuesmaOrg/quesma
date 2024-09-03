@@ -34,7 +34,8 @@ const (
 	// Above this number of columns we will use heuristic
 	// to decide if we should add new columns
 	alwaysAddColumnLimit  = 100
-	AlterColumnUpperLimit = 1000
+	alterColumnUpperLimit = 1000
+	fieldFrequency        = 10
 )
 
 type (
@@ -562,7 +563,7 @@ func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]int
 		}
 		return true, alterColumnIndexes
 	}
-	if len(table.Cols) > AlterColumnUpperLimit {
+	if len(table.Cols) > alterColumnUpperLimit {
 		return false, nil
 	}
 	lm.ingestFieldStatisticsLock.Lock()
@@ -570,14 +571,23 @@ func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]int
 		lm.ingestFieldStatistics = make(IngestFieldStatistics)
 	}
 	lm.ingestFieldStatisticsLock.Unlock()
-	const percent50 = 0.5
 	for i := 0; i < len(attrKeys); i++ {
 		lm.ingestFieldStatisticsLock.Lock()
 		lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]++
 		counter := atomic.LoadInt64(&lm.ingestCounter)
 		fieldCounter := lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]
+		// reset statistics every alwaysAddColumnLimit
+		// for now alwaysAddColumnLimit is used in two contexts
+		// for defining column limit and for resetting statistics
+		if counter >= alwaysAddColumnLimit {
+			atomic.StoreInt64(&lm.ingestCounter, 0)
+			lm.ingestFieldStatistics = make(IngestFieldStatistics)
+		}
 		lm.ingestFieldStatisticsLock.Unlock()
-		if float64(fieldCounter)/float64(counter) > percent50 {
+		// if field is present more or equal fieldFrequency
+		// during each alwaysAddColumnLimit iteration
+		// promote it to column
+		if fieldCounter >= fieldFrequency {
 			alterColumnIndexes = append(alterColumnIndexes, i)
 		}
 	}
