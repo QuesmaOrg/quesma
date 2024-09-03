@@ -450,6 +450,68 @@ func (s *SchemaCheckPass) applyFullTextField(query *model.Query) (*model.Query, 
 
 }
 
+func (s *SchemaCheckPass) applyTimestampField(query *model.Query) (*model.Query, error) {
+
+	fromTable := getFromTable(query.TableName)
+
+	table := s.logManager.FindTable(fromTable)
+	if table == nil {
+		logger.Error().Msgf("Table %s not found", fromTable)
+		return query, nil
+	}
+
+	// check if table has a canonical timestamp field, that fine
+	if _, ok := table.Cols[model.TimestampFieldName]; ok {
+		return query, nil
+	}
+
+	schemaInstance, exists := s.schemaRegistry.FindSchema(schema.TableName(fromTable))
+	if !exists {
+		logger.Error().Msgf("Schema fot table %s not found", fromTable)
+		return query, nil
+	}
+
+	var timestampColumnName string
+
+	// check if the schema has a timestamp field configured
+	if column, ok := schemaInstance.Fields[model.TimestampFieldName]; ok {
+		timestampColumnName = column.InternalPropertyName.AsString()
+	}
+
+	// if not found, check if the table has a timestamp field discovered somehow
+	if timestampColumnName == "" && table.DiscoveredTimestampFieldName != nil {
+		timestampColumnName = *table.DiscoveredTimestampFieldName
+	}
+
+	// no timestamp field found, we should return an error here
+	// Maybe we should return error for end user to fix the configuration
+	if timestampColumnName == "" {
+		return nil, fmt.Errorf("no timestamp field found for table %s", fromTable)
+	}
+
+	// if the timestamp field is a canonical one, we don't need to do anything
+	if timestampColumnName == model.TimestampFieldName {
+		return query, nil
+	}
+
+	visitor := model.NewBaseVisitor()
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		// full text field should be used only in where clause
+		if e.ColumnName == model.TimestampFieldName {
+			return model.NewColumnRef(timestampColumnName)
+		}
+		return e
+	}
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	for k, query := range queries {
 		var err error
@@ -458,6 +520,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			Transformation     func(*model.Query) (*model.Query, error)
 		}{
 			{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
+			{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
 			{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 			{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},

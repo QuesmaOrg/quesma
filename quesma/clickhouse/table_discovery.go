@@ -160,7 +160,8 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]string, d
 			} else {
 				comment := td.tableComment(databaseName, table)
 				createTableQuery := td.createTableQuery(databaseName, table)
-				configuredTables[table] = discoveredTable{table, columns, indexConfig, comment, createTableQuery}
+				// we assume here that @timestamp field is always present in the table, or it's explicitly configured
+				configuredTables[table] = discoveredTable{table, columns, indexConfig, comment, createTableQuery, ""}
 			}
 		} else {
 			notConfiguredTables = append(notConfiguredTables, table)
@@ -183,7 +184,14 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]strin
 	for table, columns := range tables {
 		comment := td.tableComment(databaseName, table)
 		createTableQuery := td.createTableQuery(databaseName, table)
-		configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{}, comment, createTableQuery}
+		var maybeTimestampField string
+		if td.cfg.Hydrolix.IsNonEmpty() {
+			maybeTimestampField = td.tableTimestampField(databaseName, table, Hydrolix)
+		} else {
+			maybeTimestampField = td.tableTimestampField(databaseName, table, ClickHouse)
+		}
+		configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField}
+
 	}
 	for tableName := range configuredTables {
 		autoDiscoResults.WriteString(fmt.Sprintf("{table: %s}, ", tableName))
@@ -214,6 +222,11 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 			}
 		}
 
+		var timestampFieldName *string
+		if resTable.timestampFieldName != "" {
+			timestampFieldName = &resTable.timestampFieldName
+		}
+
 		if !partiallyResolved {
 			table := Table{
 				Created:      true,
@@ -226,7 +239,8 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 					castUnsupportedAttrValueTypesToString: true,
 					preferCastingToOthers:                 true,
 				},
-				CreateTableQuery: resTable.createTableQuery,
+				CreateTableQuery:             resTable.createTableQuery,
+				DiscoveredTimestampFieldName: timestampFieldName,
 			}
 			if containsAttributes(resTable.columnTypes) {
 				table.Config.attributes = []Attribute{NewDefaultStringAttribute()}

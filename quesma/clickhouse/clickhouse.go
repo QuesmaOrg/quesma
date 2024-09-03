@@ -137,11 +137,12 @@ func (lm *LogManager) Stop() {
 }
 
 type discoveredTable struct {
-	name             string
-	columnTypes      map[string]string
-	config           config.IndexConfiguration
-	comment          string
-	createTableQuery string
+	name               string
+	columnTypes        map[string]string
+	config             config.IndexConfiguration
+	comment            string
+	createTableQuery   string
+	timestampFieldName string
 }
 
 func (lm *LogManager) ReloadTables() {
