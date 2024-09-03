@@ -577,6 +577,8 @@ func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]int
 		counter := atomic.LoadInt64(&lm.ingestCounter)
 		fieldCounter := lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]
 		// reset statistics every alwaysAddColumnLimit
+		// for now alwaysAddColumnLimit is used in two contexts
+		// for defining column limit and for resetting statistics
 		if counter >= alwaysAddColumnLimit {
 			atomic.StoreInt64(&lm.ingestCounter, 0)
 			lm.ingestFieldStatistics = make(IngestFieldStatistics)
