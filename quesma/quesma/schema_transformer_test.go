@@ -395,6 +395,7 @@ func Test_arrayType(t *testing.T) {
 	tableDiscovery :=
 		fixedTableProvider{tables: map[string]schema.Table{
 			"kibana_sample_data_ecommerce": {Columns: map[string]schema.Column{
+				"@timestamp":         {Name: "@timestamp", Type: "DateTime64"},
 				"products::name":     {Name: "products::name", Type: "keyword"},
 				"products::quantity": {Name: "products::quantity", Type: "long"},
 				"products::sku":      {Name: "products::sku", Type: "keyword"},
@@ -406,6 +407,7 @@ func Test_arrayType(t *testing.T) {
 		Name:   "kibana_sample_data_ecommerce",
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
+			"@timestamp":         {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 			"products::name":     {Name: "products::name", Type: clickhouse.NewBaseType("Array(String)")},
 			"products::quantity": {Name: "products::quantity", Type: clickhouse.NewBaseType("Array(Int64)")},
 			"products::sku":      {Name: "products::sku", Type: clickhouse.NewBaseType("Array(String)")},

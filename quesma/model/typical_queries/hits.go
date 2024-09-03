@@ -29,6 +29,7 @@ type Hits struct {
 	addScore       bool // true <=> we add hit.Score field to the response (whose value is always 1)
 	addVersion     bool // true <=> we add hit.Version field to the response (whose value is always 1)
 	indexName      string
+	useDefaultID   bool
 }
 
 func NewHits(ctx context.Context, table *clickhouse.Table, highlighter *model.Highlighter,
@@ -132,7 +133,17 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 	}
 }
 
+func (query Hits) WithoutTimestampField() Hits {
+	query.useDefaultID = true
+	return query
+}
+
 func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) string {
+
+	if query.useDefaultID {
+		return defaultID
+	}
+
 	tsFieldName := model.TimestampFieldName
 
 	var pseudoUniqueId string

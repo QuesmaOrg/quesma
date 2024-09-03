@@ -7,6 +7,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/model/typical_queries"
 	"quesma/quesma/config"
 	"quesma/schema"
 	"sort"
@@ -483,14 +484,29 @@ func (s *SchemaCheckPass) applyTimestampField(query *model.Query) (*model.Query,
 		timestampColumnName = *table.DiscoveredTimestampFieldName
 	}
 
-	// no timestamp field found, we should return an error here
-	// Maybe we should return error for end user to fix the configuration
+	var replacementExpr model.Expr
+
 	if timestampColumnName == "" {
-		return nil, fmt.Errorf("no timestamp field found for table %s", fromTable)
+
+		// check if the query has hits type, so '_id' generation should not be based on timestamp
+		//
+		// This is a mess. `query.Type` holds a pointer to Hits, but Hits do not have pointer receivers to mutate the state.
+		if hits, ok := query.Type.(*typical_queries.Hits); ok {
+			newHits := hits.WithoutTimestampField()
+			query.Type = &newHits
+		}
+
+		// no timestamp field found, replace with NULL if any
+		replacementExpr = model.NewLiteral("NULL")
+	} else {
+		// if the target column is not the canonical timestamp field, replace it
+		if timestampColumnName != model.TimestampFieldName {
+			replacementExpr = model.NewColumnRef(timestampColumnName)
+		}
 	}
 
-	// if the timestamp field is a canonical one, we don't need to do anything
-	if timestampColumnName == model.TimestampFieldName {
+	// no replacement needed
+	if replacementExpr == nil {
 		return query, nil
 	}
 
@@ -499,7 +515,7 @@ func (s *SchemaCheckPass) applyTimestampField(query *model.Query) (*model.Query,
 
 		// full text field should be used only in where clause
 		if e.ColumnName == model.TimestampFieldName {
-			return model.NewColumnRef(timestampColumnName)
+			return replacementExpr
 		}
 		return e
 	}
