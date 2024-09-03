@@ -112,7 +112,7 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 		return
 	}
 	for fieldName, field := range indexConfiguration.SchemaOverrides.Fields {
-		if field.Type.AsString() == config.TypeAlias || field.Type.AsString() == config.TypeIgnored {
+		if field.Type.AsString() == config.TypeAlias || field.Ignored {
 			continue
 		}
 		if resolvedType, valid := ParseQuesmaType(field.Type.AsString()); valid {
@@ -166,7 +166,7 @@ func (s *schemaRegistry) removeIgnoredFields(indexConfiguration config.IndexConf
 		return
 	}
 	for fieldName, field := range indexConfiguration.SchemaOverrides.Fields {
-		if field.Type.AsString() == config.TypeIgnored {
+		if field.Ignored {
 			delete(fields, FieldName(fieldName))
 			delete(aliases, FieldName(fieldName))
 		}

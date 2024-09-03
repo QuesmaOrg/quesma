@@ -8,7 +8,6 @@ import (
 )
 
 const TypeAlias = "alias"
-const TypeIgnored = "ignored"
 
 type (
 	SchemaConfiguration struct {
@@ -18,6 +17,7 @@ type (
 		Type FieldType `koanf:"type"`
 		//IsTimestampField bool      `koanf:"isTimestampField"`
 		TargetColumnName string `koanf:"targetColumnName"` // if FieldType == TypeAlias then this is the target column name
+		Ignored          bool   `koanf:"ignored"`
 	}
 	FieldName string
 	FieldType string
@@ -57,7 +57,7 @@ func (sc *SchemaConfiguration) String() string {
 func (sc *SchemaConfiguration) IgnoredFields() []FieldName {
 	var ignoredFields []FieldName
 	for fieldName, fieldConfig := range sc.Fields {
-		if fieldConfig.Type == TypeIgnored {
+		if fieldConfig.Ignored {
 			ignoredFields = append(ignoredFields, fieldName)
 		}
 	}

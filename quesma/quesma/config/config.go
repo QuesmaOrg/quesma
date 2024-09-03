@@ -333,9 +333,9 @@ func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfigurat
 	}
 
 	for fieldName, fieldConfig := range config.SchemaOverrides.Fields {
-		if fieldConfig.Type == "" {
+		if fieldConfig.Type == "" && !fieldConfig.Ignored {
 			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has no type", fieldName, config.Name))
-		} else if !elasticsearch_field_types.IsValid(fieldConfig.Type.AsString()) && fieldConfig.Type != TypeAlias && fieldConfig.Type != TypeIgnored {
+		} else if !elasticsearch_field_types.IsValid(fieldConfig.Type.AsString()) && !fieldConfig.Ignored {
 			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has invalid type %s", fieldName, config.Name, fieldConfig.Type))
 		}
 		if fieldConfig.Type == TypeAlias && fieldConfig.TargetColumnName == "" {
