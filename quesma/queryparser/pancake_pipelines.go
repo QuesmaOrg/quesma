@@ -80,7 +80,7 @@ func (p pancakePipelinesProcessor) calcSingleMetricPipeline(layer *pancakeModelL
 // If e.g. rowIndexes = [2, 5], then bucketRows = [rows[2], rows[5]] (with maybe some columns removed)
 // We need rows and rowIndexes to fetch proper metric column from rows.
 func (p pancakePipelinesProcessor) currentPipelineBucketAggregations(layer, nextLayer *pancakeModelLayer, bucketRows []model.QueryResultRow,
-	rows []model.QueryResultRow, rowIndexes []int) (resultRowsPerPipeline map[string][]model.QueryResultRow) {
+	subAggrRows [][]model.QueryResultRow) (resultRowsPerPipeline map[string][]model.QueryResultRow) {
 
 	resultRowsPerPipeline = make(map[string][]model.QueryResultRow)
 
@@ -89,10 +89,9 @@ func (p pancakePipelinesProcessor) currentPipelineBucketAggregations(layer, next
 			continue
 		}
 
-		var oldColumnArr []any
 		needToAddProperMetricColumn := !childPipeline.queryType.IsCount() // If count, last column of bucketRows is already count we need.
 		if needToAddProperMetricColumn {
-			bucketRows, oldColumnArr = p.addProperPipelineColumn(childPipeline.parentInternalName, bucketRows, rows, rowIndexes)
+			bucketRows = p.addProperPipelineColumn(childPipeline.parentInternalName, bucketRows, subAggrRows)
 		}
 
 		var bucketRowsTransformedIfNeeded []model.QueryResultRow
@@ -112,10 +111,6 @@ func (p pancakePipelinesProcessor) currentPipelineBucketAggregations(layer, next
 				logger.ErrorWithCtx(p.ctx).Msgf("pipeline %s already exists in resultsPerPipeline", pipelineName)
 			}
 			resultRowsPerPipeline[pipelineName] = pipelineResults
-		}
-
-		if needToAddProperMetricColumn {
-			bucketRows = p.restoreOriginalColumn(bucketRows, oldColumnArr)
 		}
 	}
 
@@ -149,42 +144,35 @@ func (p pancakePipelinesProcessor) calcSinglePipelineBucket(layer *pancakeModelL
 //   - oldColumnArray:  old value of the exchanged column, to be restored in restoreOriginalColumn after processing
 //
 // Use restoreOriginalColumn after processing to restore original values.
-func (p pancakePipelinesProcessor) addProperPipelineColumn(parentColumnName string, selectedRows, allRows []model.QueryResultRow,
-	selectedRowsIndexes []int) (newSelectedRows []model.QueryResultRow, oldColumnArray []any) {
+func (p pancakePipelinesProcessor) addProperPipelineColumn(parentColumnName string, bucketRows []model.QueryResultRow,
+	subAggrRows [][]model.QueryResultRow) (newBucketRows []model.QueryResultRow) {
 
-	if len(allRows) == 0 {
+	if len(subAggrRows) == 0 {
+		return
+	}
+	if len(subAggrRows[0]) == 0 {
+		logger.ErrorWithCtx(p.ctx).Msg("subAggrRows[0] is empty, something is very wrong")
 		return
 	}
 
 	colIdx := -1
-	for i, col := range allRows[0].Cols {
+	for i, col := range subAggrRows[0][0].Cols {
+		// all subAggrRows have the same columns, so we may just look at [0][0] for simplicity
 		if col.ColName == parentColumnName {
 			colIdx = i
 			break
 		}
 	}
 
-	oldColumnArray = make([]any, 0, len(selectedRows))
-	newSelectedRows = selectedRows
+	newBucketRows = bucketRows
 	if colIdx == -1 {
 		logger.WarnWithCtx(p.ctx).Msgf("could not find parent column %s", parentColumnName)
-		for _, row := range selectedRows {
-			oldColumnArray = append(oldColumnArray, row.LastColValue())
-		}
-	} else {
-		for i := range selectedRows {
-			oldColumnArray = append(oldColumnArray, selectedRows[i].LastColValue())
-			newSelectedRows[i].Cols[len(newSelectedRows[i].Cols)-1].Value = allRows[selectedRowsIndexes[i]].Cols[colIdx].Value
-		}
+		return
 	}
 
+	for i := range bucketRows {
+		// for given i, subAggrRows[i][0, 1, ...] have the same value of the metric we need, so we may just look at [0]
+		newBucketRows[i].Cols[len(newBucketRows[i].Cols)-1].Value = subAggrRows[i][0].Cols[colIdx].Value
+	}
 	return
-}
-
-// used after addProperPipelineColumn
-func (p pancakePipelinesProcessor) restoreOriginalColumn(rows []model.QueryResultRow, valuesToRestore []any) []model.QueryResultRow {
-	for i, row := range rows {
-		row.Cols[len(row.Cols)-1].Value = valuesToRestore[i]
-	}
-	return rows
 }

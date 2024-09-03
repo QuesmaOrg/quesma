@@ -54,10 +54,10 @@ func (p *pancakeJSONRenderer) selectPrefixRows(prefix string, rows []model.Query
 // rowIndexes - which row in the original result set corresponds to the first row of the bucket
 // It's needed for pipeline aggregations, as we might need to take some other columns from the original row to calculate them.
 func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregation, rows []model.QueryResultRow) (
-	buckets []model.QueryResultRow, subAggrs [][]model.QueryResultRow, rowIndexes []int) {
+	buckets []model.QueryResultRow, subAggrs [][]model.QueryResultRow) {
 
 	if len(rows) == 0 {
-		return buckets, subAggrs, rowIndexes
+		return buckets, subAggrs
 	}
 	bucketKeyName := bucket.InternalNameForKeyPrefix()
 	bucketCountName := bucket.InternalNameForCount()
@@ -84,7 +84,6 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregat
 		if isNewBucket {
 			buckets = append(buckets, model.QueryResultRow{Index: indexName})
 			subAggrs = append(subAggrs, []model.QueryResultRow{})
-			rowIndexes = append(rowIndexes, rowIdx)
 			lastIdx := len(buckets) - 1
 			for _, cols := range row.Cols {
 				if strings.HasPrefix(cols.ColName, bucketKeyName) || strings.HasPrefix(cols.ColName, bucketCountName) ||
@@ -97,7 +96,7 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregat
 		subAggrs[lastIdx] = append(subAggrs[lastIdx], row)
 	}
 
-	return buckets, subAggrs, rowIndexes
+	return buckets, subAggrs
 }
 
 // In some queries we want to filter out null values or empty
@@ -108,7 +107,7 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregat
 // rowIndexes - which row in the original result set corresponds to the first row of the bucket
 // It's needed for pipeline aggregations, as we might need to take some other columns from the original row to calculate them.
 func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLayer, bucketRows []model.QueryResultRow,
-	subAggrRows [][]model.QueryResultRow, rowIndexes []int) ([]model.QueryResultRow, [][]model.QueryResultRow, []int) {
+	subAggrRows [][]model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
 	// We are filter out null
 	if layer.nextBucketAggregation.filterOurEmptyKeyBucket {
 		nullRowToDelete := -1
@@ -128,14 +127,12 @@ func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLa
 		if nullRowToDelete != -1 {
 			bucketRows = append(bucketRows[:nullRowToDelete], bucketRows[nullRowToDelete+1:]...)
 			subAggrRows = append(subAggrRows[:nullRowToDelete], subAggrRows[nullRowToDelete+1:]...)
-			rowIndexes = append(rowIndexes[:nullRowToDelete], rowIndexes[nullRowToDelete+1:]...)
 		} else if layer.nextBucketAggregation.limit != 0 && len(bucketRows) > layer.nextBucketAggregation.limit {
 			bucketRows = bucketRows[:layer.nextBucketAggregation.limit]
 			subAggrRows = subAggrRows[:layer.nextBucketAggregation.limit]
-			rowIndexes = rowIndexes[:layer.nextBucketAggregation.limit]
 		}
 	}
-	return bucketRows, subAggrRows, rowIndexes
+	return bucketRows, subAggrRows
 }
 
 func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
@@ -220,8 +217,8 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			return result, nil
 		}
 
-		bucketRows, subAggrRows, rowIndexes := p.splitBucketRows(layer.nextBucketAggregation, rows)
-		bucketRows, subAggrRows, rowIndexes = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows, rowIndexes)
+		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
+		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
 
 		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, 0)
 
@@ -236,7 +233,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		hasSubaggregations := len(remainingLayers) > 1
 		if hasSubaggregations {
 			nextLayer := remainingLayers[1]
-			pipelineBucketsPerAggregation := p.pipeline.currentPipelineBucketAggregations(layer, nextLayer, bucketRows, rows, rowIndexes)
+			pipelineBucketsPerAggregation := p.pipeline.currentPipelineBucketAggregations(layer, nextLayer, bucketRows, subAggrRows)
 
 			// Add subAggregations (both normal and pipeline)
 			bucketArrRaw, ok := buckets["buckets"]
