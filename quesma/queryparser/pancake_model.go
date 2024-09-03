@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"regexp"
 	"strings"
 )
 
@@ -104,6 +105,11 @@ func (p pancakeModelBucketAggregation) InternalNameForOrderBy(id int) string {
 	return fmt.Sprintf("%sorder_%d", p.internalName, id)
 }
 
+func (p pancakeModelBucketAggregation) isInternalNameOrderByColumn(internalName string) bool {
+	matched, _ := regexp.MatchString(`.*order_[0-9]+`, internalName)
+	return matched
+}
+
 func (p pancakeModelBucketAggregation) InternalNameForCount() string {
 	return fmt.Sprintf("%scount", p.internalName)
 }
@@ -111,6 +117,10 @@ func (p pancakeModelBucketAggregation) InternalNameForCount() string {
 // Used by terms aggregation to get the total count, so we can calculate sum_other_doc_count
 func (p pancakeModelBucketAggregation) InternalNameForParentCount() string {
 	return fmt.Sprintf("%sparent_count", p.internalName)
+}
+
+func (p pancakeModelBucketAggregation) isInternalNameCountColumn(internalName string) bool {
+	return strings.HasSuffix(internalName, "count")
 }
 
 func (p pancakeModelBucketAggregation) DoesHaveGroupBy() bool {

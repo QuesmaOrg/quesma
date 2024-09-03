@@ -9,23 +9,25 @@ import (
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/util"
-	"strings"
 )
 
 type pancakePipelinesProcessor struct {
 	ctx context.Context
 }
 
-func (p pancakePipelinesProcessor) selectPipelineRows(pipeline model.PipelineQueryType, rows []model.QueryResultRow) (result []model.QueryResultRow) {
+func (p pancakePipelinesProcessor) selectPipelineRows(pipeline model.PipelineQueryType, rows []model.QueryResultRow,
+	bucketAggregation *pancakeModelBucketAggregation) (
+	result []model.QueryResultRow) {
+
 	isCount := pipeline.IsCount()
 	for _, row := range rows {
 		newRow := model.QueryResultRow{Index: row.Index}
 		for _, col := range row.Cols {
-			if !isCount && strings.HasSuffix(col.ColName, "count") {
+			if !isCount && bucketAggregation.isInternalNameCountColumn(col.ColName) {
 				continue
 			}
-			fmt.Println(col.ColName)
-			if !strings.HasSuffix(col.ColName, "order_1") { // TODO: of course order_0, order_2, etc. should also be removed
+			if !bucketAggregation.isInternalNameOrderByColumn(col.ColName) {
+				// we don't need order by (and actually it would break if we included them)
 				newRow.Cols = append(newRow.Cols, col)
 			}
 		}
@@ -60,7 +62,7 @@ func (p pancakePipelinesProcessor) calcSingleMetricPipeline(layer *pancakeModelL
 
 	resultPerPipeline = make(map[string]model.JsonMap)
 
-	pipelineRows := p.selectPipelineRows(pipeline.queryType, rows)
+	pipelineRows := p.selectPipelineRows(pipeline.queryType, rows, layer.nextBucketAggregation)
 	resultRows := pipeline.queryType.CalculateResultWhenMissing(pipelineRows)
 	resultPerPipeline[pipeline.name] = pipeline.queryType.TranslateSqlResponseToJson(resultRows, 0) // TODO: fill level?
 
