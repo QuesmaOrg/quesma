@@ -184,6 +184,7 @@ func TestSearchHandler(t *testing.T) {
 		Tables: map[schema.TableName]schema.Schema{
 			model.SingleTableNamePlaceHolder: {
 				Fields: map[schema.FieldName]schema.Field{
+					"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.TypeDate},
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
 					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeKeyword},
 					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeKeyword},

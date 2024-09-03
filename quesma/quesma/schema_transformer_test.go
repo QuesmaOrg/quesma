@@ -443,7 +443,7 @@ func Test_arrayType(t *testing.T) {
 				TableName: "kibana_sample_data_ecommerce",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
-					Columns:    []model.Expr{model.NewColumnRef("order_date"), model.NewColumnRef("products::name"), model.NewColumnRef("products::quantity"), model.NewColumnRef("products::sku")},
+					Columns:    []model.Expr{model.NewColumnRef("@timestamp"), model.NewColumnRef("order_date"), model.NewColumnRef("products::name"), model.NewColumnRef("products::quantity"), model.NewColumnRef("products::sku")},
 				},
 			},
 		},
