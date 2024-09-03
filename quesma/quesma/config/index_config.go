@@ -13,8 +13,6 @@ type IndexConfiguration struct {
 	// TODO to be deprecated
 	FullTextFields []string `koanf:"fullTextFields"`
 	// TODO to be deprecated
-	IgnoredFields map[string]bool `koanf:"ignoredFields"`
-	// TODO to be deprecated
 	TimestampField    *string                           `koanf:"timestampField"`
 	SchemaOverrides   *SchemaConfiguration              `koanf:"schemaOverrides"`
 	EnabledOptimizers map[string]OptimizerConfiguration `koanf:"optimizers"`
@@ -29,16 +27,6 @@ func (c IndexConfiguration) GetTimestampField() (tsField string) {
 }
 
 func (c IndexConfiguration) String() string {
-	var extraString string
-	extraString = ""
-	if len(c.IgnoredFields) > 0 {
-		extraString += "; ignored fields: "
-		var fields []string
-		for field := range c.IgnoredFields {
-			fields = append(fields, field)
-		}
-		extraString += strings.Join(fields, ", ")
-	}
 	var str = fmt.Sprintf("\n\t\t%s, disabled: %t, schema overrides: %s, override: %s",
 		c.Name,
 		c.Disabled,

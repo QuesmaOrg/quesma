@@ -17,6 +17,7 @@ type (
 		Type FieldType `koanf:"type"`
 		//IsTimestampField bool      `koanf:"isTimestampField"`
 		TargetColumnName string `koanf:"targetColumnName"` // if FieldType == TypeAlias then this is the target column name
+		Ignored          bool   `koanf:"ignored"`
 	}
 	FieldName string
 	FieldType string
@@ -51,6 +52,16 @@ func (sc *SchemaConfiguration) String() string {
 		builder.WriteString(fmt.Sprintf("\t%s: %+v\n", fieldName, fieldConfig))
 	}
 	return builder.String()
+}
+
+func (sc *SchemaConfiguration) IgnoredFields() []FieldName {
+	var ignoredFields []FieldName
+	for fieldName, fieldConfig := range sc.Fields {
+		if fieldConfig.Ignored {
+			ignoredFields = append(ignoredFields, fieldName)
+		}
+	}
+	return ignoredFields
 }
 
 func NewEmptySchemaConfiguration() SchemaConfiguration {

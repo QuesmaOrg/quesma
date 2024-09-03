@@ -5,26 +5,44 @@ package jsonprocessor
 import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
+	"strings"
 )
 
 type IngestTransformer interface {
 	Transform(document types.JSON) (types.JSON, error)
 }
 
-type ingestTransformer struct {
+type flattenMapTransformer struct {
 	separator string
 }
 
-func (t *ingestTransformer) Transform(document types.JSON) (types.JSON, error) {
+func (t *flattenMapTransformer) Transform(document types.JSON) (types.JSON, error) {
 	return FlattenMap(document, t.separator), nil
 }
 
-// right now all transformers are the same, but we can add more in the future
-func IngestTransformerFor(table string, cfg *config.QuesmaConfiguration) IngestTransformer {
+type removeFieldsTransformer struct {
+	fields []config.FieldName
+}
 
+func (t *removeFieldsTransformer) Transform(document types.JSON) (types.JSON, error) {
+	for _, field := range t.fields {
+		delete(document, field.AsString())
+		delete(document, strings.Replace(field.AsString(), ".", "::", -1))
+	}
+	return document, nil
+}
+
+func IngestTransformerFor(table string, cfg *config.QuesmaConfiguration) IngestTransformer {
 	var transformers []IngestTransformer
 
-	transformers = append(transformers, &ingestTransformer{separator: "::"})
+	transformers = append(transformers, &flattenMapTransformer{separator: "::"})
+
+	if indexConfig, found := cfg.IndexConfig[table]; found && indexConfig.SchemaOverrides != nil {
+		// FIXME: don't get ignored fields from schema config, but store
+		// them in the schema registry - that way we don't have to manually replace '.' with '::'
+		// in removeFieldsTransformer's Transform method
+		transformers = append(transformers, &removeFieldsTransformer{fields: indexConfig.SchemaOverrides.IgnoredFields()})
+	}
 
 	return ingestTransformerPipeline(transformers)
 }
