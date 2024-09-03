@@ -13,14 +13,14 @@ import (
 )
 
 type pancakeJSONRenderer struct {
-	ctx                context.Context
-	pipelinesProcessor pancakePipelinesProcessor
+	ctx      context.Context
+	pipeline pancakePipelinesProcessor
 }
 
 func newPancakeJSONRenderer(ctx context.Context) *pancakeJSONRenderer {
 	return &pancakeJSONRenderer{
-		ctx:                ctx,
-		pipelinesProcessor: pancakePipelinesProcessor{ctx: ctx},
+		ctx:      ctx,
+		pipeline: pancakePipelinesProcessor{ctx: ctx},
 	}
 }
 
@@ -204,7 +204,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 	}
 
 	// pipeline aggregations of metric type behave just like metric
-	for metricPipelineAggrName, metricPipelineAggrResult := range p.pipelinesProcessor.calculateThisLayerMetricPipelines(layer, rows) {
+	for metricPipelineAggrName, metricPipelineAggrResult := range p.pipeline.currentPipelineMetricAggregations(layer, rows) {
 		result[metricPipelineAggrName] = metricPipelineAggrResult
 		// TODO: maybe add metadata also here? probably not needed
 	}
@@ -236,7 +236,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		hasSubaggregations := len(remainingLayers) > 1
 		if hasSubaggregations {
 			nextLayer := remainingLayers[1]
-			pipelineBucketsPerAggregation := p.pipelinesProcessor.calculateThisLayerBucketPipelines(layer, nextLayer, bucketRows, rows, rowIndexes)
+			pipelineBucketsPerAggregation := p.pipeline.currentPipelineBucketAggregations(layer, nextLayer, bucketRows, rows, rowIndexes)
 
 			// Add subAggregations (both normal and pipeline)
 			bucketArrRaw, ok := buckets["buckets"]
