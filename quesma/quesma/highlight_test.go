@@ -96,9 +96,8 @@ func TestParseHighLight(t *testing.T) {
 
 `
 	col := clickhouse.Column{
-		Name:            columnName,
-		Type:            clickhouse.NewBaseType("String"),
-		IsFullTextMatch: true,
+		Name: columnName,
+		Type: clickhouse.NewBaseType("String"),
 	}
 
 	cols := make(map[string]*clickhouse.Column)
@@ -110,7 +109,7 @@ func TestParseHighLight(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), nil, schema.StaticRegistry{})
+	lm := clickhouse.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), nil, schema.StaticRegistry{})
 
 	cw := queryparser.ClickhouseQueryTranslator{
 		ClickhouseLM: lm,

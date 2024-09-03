@@ -89,7 +89,7 @@ type (
 		debugInfoMessages         map[string]queryDebugInfo
 		debugLastMessages         []string
 		responseMatcherChannel    chan queryDebugInfo
-		cfg                       config.QuesmaConfiguration
+		cfg                       *config.QuesmaConfiguration
 		requestsStore             *stats.RequestStatisticStore
 		requestsSource            chan *recordRequests
 		startedAt                 time.Time
@@ -106,7 +106,7 @@ type (
 	}
 )
 
-func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan logger.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent, schemasProvider SchemasProvider) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan logger.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent, schemasProvider SchemasProvider) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 10),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 10),
@@ -114,7 +114,7 @@ func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *c
 		debugInfoMessages:         make(map[string]queryDebugInfo),
 		debugLastMessages:         make([]string, 0),
 		responseMatcherChannel:    make(chan queryDebugInfo, 5),
-		cfg:                       config,
+		cfg:                       cfg,
 		requestsStore:             stats.NewRequestStatisticStore(),
 		requestsSource:            make(chan *recordRequests, 100),
 		startedAt:                 time.Now(),

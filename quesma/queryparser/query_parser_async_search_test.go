@@ -19,14 +19,13 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
 			"message": {
-				Name:            "message",
-				Type:            clickhouse.NewBaseType("String"),
-				IsFullTextMatch: true,
+				Name: "message",
+				Type: clickhouse.NewBaseType("String"),
 			},
 		},
 		Created: true,
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), &config.QuesmaConfiguration{})
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
@@ -58,7 +57,7 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 // TODO this test doesn't work for now, as it's left for next (last) PR
 func TestQueryParserAggregation(t *testing.T) {
 	table := clickhouse.NewEmptyTable("tablename")
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith("tablename", table), config.QuesmaConfiguration{})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith("tablename", table), &config.QuesmaConfiguration{})
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			"tablename": {

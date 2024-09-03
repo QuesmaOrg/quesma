@@ -22,7 +22,7 @@ type SenderCoordinator struct {
 	enabled bool
 }
 
-func NewSenderCoordinator(cfg config.QuesmaConfiguration) *SenderCoordinator {
+func NewSenderCoordinator(cfg *config.QuesmaConfiguration) *SenderCoordinator {
 
 	ctx, cancel := context.WithCancel(context.Background())
 

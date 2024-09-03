@@ -130,7 +130,7 @@ type agent struct {
 	cancel context.CancelFunc
 
 	clickHouseDb *sql.DB
-	config       config.QuesmaConfiguration
+	config       *config.QuesmaConfiguration
 	clientId     string
 
 	instanceId string
@@ -175,7 +175,7 @@ func hostname() string {
 	return name
 }
 
-func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *sql.DB, clientId string) PhoneHomeAgent {
+func NewPhoneHomeAgent(configuration *config.QuesmaConfiguration, clickHouseDb *sql.DB, clientId string) PhoneHomeAgent {
 
 	// TODO
 	// this is a question, maybe we should inherit context from the caller

@@ -76,11 +76,10 @@ func TestFieldCaps(t *testing.T) {
   ]
 }
 `)
-	resp, err := handleFieldCapsIndex(config.QuesmaConfiguration{
+	resp, err := handleFieldCapsIndex(&config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
 			"logs-generic-default": {
-				Name:    "logs-generic-default",
-				Enabled: true,
+				Name: "logs-generic-default",
 			},
 		},
 	}, schema.StaticRegistry{
@@ -141,8 +140,8 @@ func TestFieldCapsWithAliases(t *testing.T) {
     "logs-generic-default"
   ]
 }`)
-	resp, err := handleFieldCapsIndex(config.QuesmaConfiguration{
-		IndexConfig: map[string]config.IndexConfiguration{"logs-generic-default": {Name: "logs-generic-default", Enabled: true}},
+	resp, err := handleFieldCapsIndex(&config.QuesmaConfiguration{
+		IndexConfig: map[string]config.IndexConfiguration{"logs-generic-default": {Name: "logs-generic-default"}},
 	}, schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
@@ -181,15 +180,13 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 			"foo.bar2": {Name: "foo.bar2", Type: clickhouse.BaseType{Name: "String"}},
 		},
 	})
-	resp, err := handleFieldCapsIndex(config.QuesmaConfiguration{
+	resp, err := handleFieldCapsIndex(&config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
 			"logs-1": {
-				Name:    "logs-1",
-				Enabled: true,
+				Name: "logs-1",
 			},
 			"logs-2": {
-				Name:    "logs-2",
-				Enabled: true,
+				Name: "logs-2",
 			},
 		},
 	}, schema.StaticRegistry{
@@ -290,19 +287,16 @@ func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
 			"foo.bar": {Name: "foo.bar", Type: clickhouse.BaseType{Name: "Boolean"}},
 		},
 	})
-	resp, err := handleFieldCapsIndex(config.QuesmaConfiguration{
+	resp, err := handleFieldCapsIndex(&config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
 			"logs-1": {
-				Name:    "logs-1",
-				Enabled: true,
+				Name: "logs-1",
 			},
 			"logs-2": {
-				Name:    "logs-2",
-				Enabled: true,
+				Name: "logs-2",
 			},
 			"logs-3": {
-				Name:    "logs-3",
-				Enabled: true,
+				Name: "logs-3",
 			},
 		},
 	}, schema.StaticRegistry{

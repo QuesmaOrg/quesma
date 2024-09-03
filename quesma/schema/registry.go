@@ -15,7 +15,7 @@ type (
 		UpdateDynamicConfiguration(name TableName, table Table)
 	}
 	schemaRegistry struct {
-		configuration           config.QuesmaConfiguration
+		configuration           *config.QuesmaConfiguration
 		dataSourceTableProvider TableProvider
 		dataSourceTypeAdapter   typeAdapter
 		dynamicConfiguration    map[string]Table
@@ -97,7 +97,7 @@ func (s *schemaRegistry) UpdateDynamicConfiguration(name TableName, table Table)
 	s.dynamicConfiguration[name.AsString()] = table
 }
 
-func NewSchemaRegistry(tableProvider TableProvider, configuration config.QuesmaConfiguration, dataSourceTypeAdapter typeAdapter) Registry {
+func NewSchemaRegistry(tableProvider TableProvider, configuration *config.QuesmaConfiguration, dataSourceTypeAdapter typeAdapter) Registry {
 	return &schemaRegistry{
 		configuration:           configuration,
 		dataSourceTableProvider: tableProvider,
@@ -149,8 +149,8 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 				if quesmaType, resolved := s.dataSourceTypeAdapter.Convert(column.Type); resolved {
 					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: quesmaType}
 				} else {
-					logger.Debug().Msgf("type %s not supported, falling back to text", column.Type)
-					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: TypeText}
+					logger.Debug().Msgf("type %s not supported, falling back to keyword", column.Type)
+					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: TypeKeyword}
 				}
 			} else {
 				fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: existing.Type}

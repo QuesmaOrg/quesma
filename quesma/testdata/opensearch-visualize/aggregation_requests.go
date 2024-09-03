@@ -803,7 +803,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"score": 94
 						}
 					],
-					"sum_other_doc_count": 2336
+					"doc_count": 5000,
+					"bg_count": 5000
 				}
 			},
 			"hits": {
@@ -982,7 +983,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			},
 			"aggregations": {
 				"2": {
-					"bg_count": 14074,
+					"bg_count": 5300,
 					"buckets": [
 						{
 							"1": {
@@ -1005,8 +1006,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"score": 94
 						}
 					],
-					"sum_other_doc_count": 2636,
-					"doc_count_error_upper_bound": 0
+					"doc_count": 5300
 				}
 			},
 			"hits": {
@@ -1188,6 +1188,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"aggregations": {
 				"2": {
 					"bg_count": 2786,
+					"doc_count": 2786,
 					"buckets": [
 						{
 							"1": {
@@ -1234,9 +1235,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"key": "200",
 							"score": 2570
 						}
-					],
-					"sum_other_doc_count": 216,
-					"doc_count_error_upper_bound": 0
+					]
 				}
 			},
 			"hits": {
@@ -1324,13 +1323,13 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  "response" AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
 			  count() AS "aggr__2__order_1",
-			  quantiles(0.010000)("timestamp") AS "quantile_1" AS "metric__2__1_col_0",
-			  quantiles(0.020000)("timestamp") AS "quantile_2" AS "metric__2__1_col_1",
-			  quantiles(0.250000)("timestamp") AS "quantile_25" AS "metric__2__1_col_2",
-			  quantiles(0.500000)("timestamp") AS "quantile_50" AS "metric__2__1_col_3",
-			  quantiles(0.750000)("timestamp") AS "quantile_75" AS "metric__2__1_col_4",
-			  quantiles(0.950000)("timestamp") AS "quantile_95" AS "metric__2__1_col_5",
-			  quantiles(0.990000)("timestamp") AS "quantile_99" AS "metric__2__1_col_6"
+			  quantiles(0.010000)("timestamp") AS "metric__2__1_col_0",
+			  quantiles(0.020000)("timestamp") AS "metric__2__1_col_1",
+			  quantiles(0.250000)("timestamp") AS "metric__2__1_col_2",
+			  quantiles(0.500000)("timestamp") AS "metric__2__1_col_3",
+			  quantiles(0.750000)("timestamp") AS "metric__2__1_col_4",
+			  quantiles(0.950000)("timestamp") AS "metric__2__1_col_5",
+			  quantiles(0.990000)("timestamp") AS "metric__2__1_col_6"
 			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))

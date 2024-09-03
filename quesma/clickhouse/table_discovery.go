@@ -39,7 +39,7 @@ type TableDiscovery interface {
 }
 
 type tableDiscovery struct {
-	cfg                               config.QuesmaConfiguration
+	cfg                               *config.QuesmaConfiguration
 	dbConnPool                        *sql.DB
 	tableVerifier                     tableVerifier
 	tableDefinitions                  *atomic.Pointer[TableMap]
@@ -49,7 +49,7 @@ type tableDiscovery struct {
 	ReloadTablesError                 error
 }
 
-func NewTableDiscovery(cfg config.QuesmaConfiguration, dbConnPool *sql.DB) TableDiscovery {
+func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
 	result := &tableDiscovery{
@@ -83,7 +83,7 @@ func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema
 	return tables
 }
 
-func newTableDiscoveryWith(cfg config.QuesmaConfiguration, dbConnPool *sql.DB, tables TableMap) TableDiscovery {
+func newTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB, tables TableMap) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(&tables)
 	result := &tableDiscovery{
@@ -155,12 +155,12 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]string, d
 	var explicitlyDisabledTables, notConfiguredTables []string
 	for table, columns := range tables {
 		if indexConfig, found := td.cfg.IndexConfig[table]; found {
-			if indexConfig.Enabled {
+			if indexConfig.Disabled {
+				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
+			} else {
 				comment := td.tableComment(databaseName, table)
 				createTableQuery := td.createTableQuery(databaseName, table)
 				configuredTables[table] = discoveredTable{table, columns, indexConfig, comment, createTableQuery}
-			} else {
-				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 			}
 		} else {
 			notConfiguredTables = append(notConfiguredTables, table)
@@ -202,7 +202,7 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]strin
 	return
 }
 
-func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg config.QuesmaConfiguration) {
+func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg *config.QuesmaConfiguration) {
 	tableMap := NewTableMap()
 	for tableName, resTable := range configuredTables {
 		var columnsMap = make(map[string]*Column)

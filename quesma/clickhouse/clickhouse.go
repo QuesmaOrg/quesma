@@ -35,7 +35,8 @@ const (
 	// Above this number of columns we will use heuristic
 	// to decide if we should add new columns
 	alwaysAddColumnLimit  = 100000
-	AlterColumnUpperLimit = 1000000
+	alterColumnUpperLimit = 1000000
+	fieldFrequency        = 10
 )
 
 type (
@@ -53,7 +54,7 @@ type (
 		cancel                    context.CancelFunc
 		chDb                      *sql.DB
 		tableDiscovery            TableDiscovery
-		cfg                       config.QuesmaConfiguration
+		cfg                       *config.QuesmaConfiguration
 		phoneHomeAgent            telemetry.PhoneHomeAgent
 		schemaRegistry            schema.Registry
 		ingestCounter             int64
@@ -66,6 +67,8 @@ type (
 		KeysArrayName   string
 		ValuesArrayName string
 		TypesArrayName  string
+		MapValueName    string
+		MapMetadataName string
 		Type            BaseType
 	}
 	ChTableConfig struct {
@@ -233,15 +236,15 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 	}
 	if len(config.attributes) > 0 {
 		for _, a := range config.attributes {
-			_, ok := table.Cols[a.KeysArrayName]
+			_, ok := table.Cols[a.MapValueName]
 			if !ok {
-				attributesStr += fmt.Sprintf("%s\"%s\" Array(String),\n", util.Indent(1), a.KeysArrayName)
-				table.Cols[a.KeysArrayName] = &Column{Name: a.KeysArrayName, Type: CompoundType{Name: "Array", BaseType: NewBaseType("String")}}
+				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapValueName)
+				table.Cols[a.MapValueName] = &Column{Name: a.MapValueName, Type: CompoundType{Name: "Map", BaseType: NewBaseType("String, String")}}
 			}
-			_, ok = table.Cols[a.ValuesArrayName]
+			_, ok = table.Cols[a.MapMetadataName]
 			if !ok {
-				attributesStr += fmt.Sprintf("%s\"%s\" Array(%s),\n", util.Indent(1), a.ValuesArrayName, a.Type.String())
-				table.Cols[a.ValuesArrayName] = &Column{Name: a.ValuesArrayName, Type: a.Type}
+				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapMetadataName)
+				table.Cols[a.MapMetadataName] = &Column{Name: a.MapMetadataName, Type: CompoundType{Name: "Map", BaseType: NewBaseType("String, String")}}
 			}
 		}
 	}
@@ -453,7 +456,7 @@ func getAttributesByArrayName(arrayName string,
 	for k, v := range attrsMap {
 		if k == arrayName {
 			for _, val := range v {
-				attributes = append(attributes, fmt.Sprintf("%s", val))
+				attributes = append(attributes, util.Stringify(val))
 			}
 		}
 	}
@@ -474,8 +477,10 @@ func (lm *LogManager) generateNewColumns(
 	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
 	var deleteIndexes []int
 
-	// THIS is a HACK
-	// to avoid altering table.Cols map
+	// HACK Alert:
+	// We must avoid altering the table.Cols map and reading at the same time.
+	// This should be protected by a lock or a copy of the table should be used.
+	//
 	newColumns := make(map[string]*Column)
 	for k, v := range table.Cols {
 		newColumns[k] = v
@@ -483,20 +488,23 @@ func (lm *LogManager) generateNewColumns(
 
 	for i := range alteredAttributesIndexes {
 
-		t := ""
-		if strings.Contains(attrTypes[i], "Array") {
-			t = attrTypes[i]
+		columnType := ""
+		modifiers := ""
+		// Array and Map are not Nullable
+		if strings.Contains(attrTypes[i], "Array") || strings.Contains(attrTypes[i], "Map") {
+			columnType = attrTypes[i]
 		} else {
-			t = fmt.Sprintf("Nullable(%s)", attrTypes[i])
+			modifiers = "Nullable"
+			columnType = fmt.Sprintf("Nullable(%s)", attrTypes[i])
 		}
-		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, attrKeys[i], t)
+		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, attrKeys[i], columnType)
 
-		newColumns[attrKeys[i]] = &Column{Name: attrKeys[i], Type: NewBaseType(attrTypes[i]), Modifiers: "Nullable"}
+		newColumns[attrKeys[i]] = &Column{Name: attrKeys[i], Type: NewBaseType(attrTypes[i]), Modifiers: modifiers}
+
 		alterCmd = append(alterCmd, alterTable)
 		deleteIndexes = append(deleteIndexes, i)
 	}
 
-	//
 	table.Cols = newColumns
 
 	for i := len(deleteIndexes) - 1; i >= 0; i-- {
@@ -512,11 +520,36 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 	if len(attrsMap) <= 0 {
 		return nonSchemaStr, nil
 	}
-	attributesBytes, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
-	if err != nil {
-		return "", err
+	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
+	attrValues := getAttributesByArrayName(AttributesValueColumn, attrsMap)
+	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
+
+	attributesColumns := []string{AttributesColumn, AttributesMetadataColumn}
+
+	for columnIndex, column := range attributesColumns {
+		var value string
+		if columnIndex > 0 {
+			nonSchemaStr += ","
+		}
+		nonSchemaStr += "\"" + column + "\":{"
+		for i := 0; i < len(attrKeys); i++ {
+			if columnIndex > 0 {
+				// We are versioning metadata fields
+				// At the moment we store only types
+				// but that might change in the future
+				const metadataVersionPrefix = "v1"
+				value = metadataVersionPrefix + ";" + attrTypes[i]
+			} else {
+				value = attrValues[i]
+			}
+			if i > 0 {
+				nonSchemaStr += ","
+			}
+			nonSchemaStr += fmt.Sprintf("\"%s\":\"%s\"", attrKeys[i], value)
+		}
+		nonSchemaStr = nonSchemaStr + "}"
+
 	}
-	nonSchemaStr = string(attributesBytes[1 : len(attributesBytes)-1])
 	return nonSchemaStr, nil
 }
 
@@ -532,7 +565,7 @@ func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]int
 		}
 		return true, alterColumnIndexes
 	}
-	if len(table.Cols) > AlterColumnUpperLimit {
+	if len(table.Cols) > alterColumnUpperLimit {
 		return false, nil
 	}
 	lm.ingestFieldStatisticsLock.Lock()
@@ -540,19 +573,24 @@ func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]int
 		lm.ingestFieldStatistics = make(IngestFieldStatistics)
 	}
 	lm.ingestFieldStatisticsLock.Unlock()
-	var percent50 = 0.0
-
-	if catch_all_logs.Enabled {
-		percent50 = 0.0
-	}
 
 	for i := 0; i < len(attrKeys); i++ {
 		lm.ingestFieldStatisticsLock.Lock()
 		lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]++
 		counter := atomic.LoadInt64(&lm.ingestCounter)
 		fieldCounter := lm.ingestFieldStatistics[IngestFieldBucketKey{indexName: table.Name, field: attrKeys[i]}]
+		// reset statistics every alwaysAddColumnLimit
+		// for now alwaysAddColumnLimit is used in two contexts
+		// for defining column limit and for resetting statistics
+		if counter >= alwaysAddColumnLimit {
+			atomic.StoreInt64(&lm.ingestCounter, 0)
+			lm.ingestFieldStatistics = make(IngestFieldStatistics)
+		}
 		lm.ingestFieldStatisticsLock.Unlock()
-		if float64(fieldCounter)/float64(counter) > percent50 {
+		// if field is present more or equal fieldFrequency
+		// during each alwaysAddColumnLimit iteration
+		// promote it to column
+		if fieldCounter >= fieldFrequency {
 			alterColumnIndexes = append(alterColumnIndexes, i)
 		}
 	}
@@ -807,8 +845,10 @@ func subtractInputJson(inputDoc types.JSON, anotherDoc types.JSON) types.JSON {
 func (lm *LogManager) execute(ctx context.Context, query string) error {
 	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()
 
+	// We log every DDL query
 	if strings.HasPrefix(query, "ALTER") || strings.HasPrefix(query, "CREATE") {
-		fmt.Println("XXX DDL EXECUTE:", query)
+		logger.InfoWithCtx(ctx).Msgf("DDL query execution: %s", query)
+
 	}
 
 	_, err := lm.chDb.ExecContext(ctx, query)
@@ -918,12 +958,12 @@ func (lm *LogManager) Ping() error {
 	return lm.chDb.Ping()
 }
 
-func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery, schemaRegistry schema.Registry) *LogManager {
+func NewEmptyLogManager(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery, schemaRegistry schema.Registry) *LogManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry}
 }
 
-func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager {
+func NewLogManager(tables *TableMap, cfg *config.QuesmaConfiguration) *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
 	return &LogManager{chDb: nil, tableDiscovery: newTableDiscoveryWith(cfg, nil, *tables),
@@ -933,14 +973,15 @@ func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager
 
 // right now only for tests purposes
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
-	return &LogManager{chDb: db, tableDiscovery: newTableDiscoveryWith(config.QuesmaConfiguration{}, db, *tables),
+	return &LogManager{chDb: db, tableDiscovery: newTableDiscoveryWith(&config.QuesmaConfiguration{}, db, *tables),
 		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 
 func NewLogManagerEmpty() *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
-	return &LogManager{tableDiscovery: NewTableDiscovery(config.QuesmaConfiguration{}, nil),
+	cfg := &config.QuesmaConfiguration{}
+	return &LogManager{tableDiscovery: NewTableDiscovery(cfg, nil), cfg: cfg,
 		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 

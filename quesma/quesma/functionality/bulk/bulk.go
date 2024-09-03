@@ -64,7 +64,7 @@ type (
 )
 
 func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *clickhouse.LogManager,
-	cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []BulkItem, err error) {
+	cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []BulkItem, err error) {
 	defer recovery.LogPanic()
 
 	bulkSize := len(bulk) / 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
@@ -87,7 +87,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *cli
 	return results, nil
 }
 
-func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bulkSize int, cfg config.QuesmaConfiguration) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
+func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bulkSize int, cfg *config.QuesmaConfiguration) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
 	results := make([]BulkItem, bulkSize)
 
 	clickhouseDocumentsToInsert := make(map[string][]BulkRequestEntry, bulkSize)
@@ -116,7 +116,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 		}
 
 		indexConfig, found := cfg.IndexConfig[index]
-		if !found || !indexConfig.Enabled {
+		if !found || indexConfig.Disabled {
 			// Bulk entry for Elastic - forward the request as-is
 			opBytes, err := rawOp.Bytes()
 			if err != nil {
@@ -149,7 +149,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 	return results, clickhouseDocumentsToInsert, elasticRequestBody, elasticBulkEntries, err
 }
 
-func sendToElastic(elasticRequestBody []byte, cfg config.QuesmaConfiguration, elasticBulkEntries []BulkRequestEntry) error {
+func sendToElastic(elasticRequestBody []byte, cfg *config.QuesmaConfiguration, elasticBulkEntries []BulkRequestEntry) error {
 	if len(elasticRequestBody) == 0 {
 		// Fast path - no need to contact Elastic!
 		return nil
@@ -186,7 +186,7 @@ func sendToElastic(elasticRequestBody []byte, cfg config.QuesmaConfiguration, el
 	return nil
 }
 
-func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, phoneHomeAgent telemetry.PhoneHomeAgent, cfg config.QuesmaConfiguration, lm *clickhouse.LogManager) {
+func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, phoneHomeAgent telemetry.PhoneHomeAgent, cfg *config.QuesmaConfiguration, lm *clickhouse.LogManager) {
 	for indexName, documents := range clickhouseDocumentsToInsert {
 		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 

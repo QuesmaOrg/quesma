@@ -24,7 +24,7 @@ func TestResolveSources(t *testing.T) {
 			name: "Index only in Clickhouse,pattern:",
 			args: args{
 				indexPattern: "test",
-				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"test": {Enabled: true}}},
+				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"test": {}}},
 				im:           NewFixedIndexManagement(),
 			},
 			want: sourceClickhouse,
@@ -33,7 +33,7 @@ func TestResolveSources(t *testing.T) {
 			name: "Index only in Clickhouse,pattern:",
 			args: args{
 				indexPattern: "*",
-				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"test": {Enabled: true}}},
+				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"test": {}}},
 				im:           NewFixedIndexManagement(),
 			},
 			want: sourceClickhouse,
@@ -60,7 +60,7 @@ func TestResolveSources(t *testing.T) {
 			name: "Indexes both in Elasticsearch and Clickhouse",
 			args: args{
 				indexPattern: "*",
-				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"kibana-sample-data-logs": {Enabled: true}}},
+				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"kibana-sample-data-logs": {}}},
 				im:           NewFixedIndexManagement("logs-generic-default"),
 			},
 			want: sourceBoth,
@@ -69,7 +69,7 @@ func TestResolveSources(t *testing.T) {
 			name: "Indexes both in Elasticsearch and Clickhouse, but explicitly disabled",
 			args: args{
 				indexPattern: "*",
-				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"logs-generic-default": {Enabled: false}}},
+				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"logs-generic-default": {Disabled: true}}},
 				im:           NewFixedIndexManagement("logs-generic-default"),
 			},
 			want: sourceElasticsearch,
@@ -86,7 +86,7 @@ func TestResolveSources(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name+tt.args.indexPattern, func(t *testing.T) {
-			got, _, _ := ResolveSources(tt.args.indexPattern, tt.args.cfg, tt.args.im)
+			got, _, _ := ResolveSources(tt.args.indexPattern, &tt.args.cfg, tt.args.im)
 			assert.Equalf(t, tt.want, got, "ResolveSources(%v, %v, %v)", tt.args.indexPattern, tt.args.cfg, tt.args.im)
 		})
 	}

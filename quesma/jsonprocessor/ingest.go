@@ -20,7 +20,7 @@ func (t *ingestTransformer) Transform(document types.JSON) (types.JSON, error) {
 }
 
 // right now all transformers are the same, but we can add more in the future
-func IngestTransformerFor(table string, cfg config.QuesmaConfiguration) IngestTransformer {
+func IngestTransformerFor(table string, cfg *config.QuesmaConfiguration) IngestTransformer {
 
 	var transformers []IngestTransformer
 

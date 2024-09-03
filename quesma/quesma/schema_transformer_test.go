@@ -31,7 +31,6 @@ func Test_ipRangeTransform(t *testing.T) {
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_logs": {
 			Name:           "kibana_sample_data_logs",
-			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				config.FieldName(IpFieldName): {Type: "ip"},
@@ -41,7 +40,6 @@ func Test_ipRangeTransform(t *testing.T) {
 		// instead of "clientip"
 		"kibana_sample_data_logs_nested": {
 			Name:           "kibana_sample_data_logs_nested",
-			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				"nested.clientip": {Type: "ip"},
@@ -49,7 +47,6 @@ func Test_ipRangeTransform(t *testing.T) {
 		},
 		"kibana_sample_data_flights": {
 			Name:           "kibana_sample_data_flights",
-			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				config.FieldName(IpFieldName): {Type: "ip"},
@@ -72,7 +69,7 @@ func Test_ipRangeTransform(t *testing.T) {
 				"nested::clientip": {Name: "nested::clientip", Type: "ip"},
 			}},
 		}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: clickhouse.NewLogManagerEmpty()}
 
 	expectedQueries := []*model.Query{
@@ -387,8 +384,7 @@ func Test_arrayType(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_ecommerce": {
-			Name:    "kibana_sample_data_ecommerce",
-			Enabled: true,
+			Name: "kibana_sample_data_ecommerce",
 		},
 	}
 	cfg := config.QuesmaConfiguration{
@@ -424,7 +420,7 @@ func Test_arrayType(t *testing.T) {
 	}
 	td.Store("kibana_sample_data_ecommerce", &tableDefinition)
 
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
 
 	tests := []struct {
@@ -435,17 +431,17 @@ func Test_arrayType(t *testing.T) {
 		{
 			name: "simple array",
 			query: &model.Query{
-				TableName: "kibana_sample_data_logs",
+				TableName: "kibana_sample_data_ecommerce",
 				SelectCommand: model.SelectCommand{
-					FromClause: model.NewTableRef("kibana_sample_data_logs"),
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns:    []model.Expr{model.NewWildcardExpr},
 				},
 			},
 			expected: &model.Query{
-				TableName: "kibana_sample_data_logs",
+				TableName: "kibana_sample_data_ecommerce",
 				SelectCommand: model.SelectCommand{
-					FromClause: model.NewTableRef("kibana_sample_data_logs"),
-					Columns:    []model.Expr{model.NewWildcardExpr},
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns:    []model.Expr{model.NewColumnRef("order_date"), model.NewColumnRef("products::name"), model.NewColumnRef("products::quantity"), model.NewColumnRef("products::sku")},
 				},
 			},
 		},
@@ -582,8 +578,7 @@ func TestApplyWildCard(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_ecommerce": {
-			Name:    "kibana_sample_data_ecommerce",
-			Enabled: true,
+			Name: "kibana_sample_data_ecommerce",
 		},
 	}
 	cfg := config.QuesmaConfiguration{
@@ -617,7 +612,7 @@ func TestApplyWildCard(t *testing.T) {
 	}
 	td.Store(tableDefinition.Name, &tableDefinition)
 
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
 
 	tests := []struct {
@@ -660,6 +655,318 @@ func TestApplyWildCard(t *testing.T) {
 			expectedColumns := toSelectColumn(tt.expected)
 
 			assert.Equal(t, expectedColumns, actual.SelectCommand.Columns)
+		})
+	}
+}
+
+func TestApplyPhysicalFromExpression(t *testing.T) {
+
+	indexConfig := map[string]config.IndexConfiguration{
+		"test": {
+			Name: "kibana_sample_data_ecommerce",
+		},
+	}
+	cfg := config.QuesmaConfiguration{
+		IndexConfig: indexConfig,
+	}
+
+	lm := clickhouse.NewLogManagerEmpty()
+
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{
+			"test": {Columns: map[string]schema.Column{
+				"a": {Name: "a", Type: "String"},
+				"b": {Name: "b", Type: "String"},
+				"c": {Name: "c", Type: "String"},
+			}},
+		}}
+
+	tableDefinition := clickhouse.Table{
+		Name:   "test",
+		Config: clickhouse.NewDefaultCHConfig(),
+		Cols: map[string]*clickhouse.Column{
+			"a": {Name: "a", Type: clickhouse.NewBaseType("Array(String)")},
+			"b": {Name: "b", Type: clickhouse.NewBaseType("Array(Int64)")},
+			"c": {Name: "c", Type: clickhouse.NewBaseType("Array(String)")},
+		},
+	}
+
+	td, err := lm.GetTableDefinitions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	td.Store(tableDefinition.Name, &tableDefinition)
+
+	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
+
+	tests := []struct {
+		name     string
+		input    model.SelectCommand
+		expected model.SelectCommand
+	}{
+		{
+			"single table",
+			model.SelectCommand{
+				FromClause: model.NewTableRef(model.SingleTableNamePlaceHolder),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewFunction("count"),
+				},
+			},
+			model.SelectCommand{
+				FromClause: model.NewTableRef("test"),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewFunction("count"),
+				},
+			},
+		},
+
+		{
+			"cte with fixed table name",
+			model.SelectCommand{
+				FromClause: model.NewTableRef(model.SingleTableNamePlaceHolder),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewFunction("count"),
+				},
+				NamedCTEs: []*model.CTE{
+					{
+						Name: "cte_1",
+						SelectCommand: &model.SelectCommand{
+							FromClause: model.NewTableRef("other_table"),
+							Columns: []model.Expr{
+								model.NewColumnRef("a"),
+							},
+						},
+					},
+				},
+			},
+			model.SelectCommand{
+				FromClause: model.NewTableRef("test"),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewFunction("count"),
+				},
+				NamedCTEs: []*model.CTE{
+					{
+						Name: "cte_1",
+						SelectCommand: &model.SelectCommand{
+							FromClause: model.NewTableRef("other_table"),
+							Columns: []model.Expr{
+								model.NewColumnRef("a"),
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			"cte with  table name",
+			model.SelectCommand{
+				FromClause: model.NewTableRef(model.SingleTableNamePlaceHolder),
+				Columns: []model.Expr{
+					model.NewColumnRef("order_date"),
+					model.NewFunction("count"),
+				},
+				NamedCTEs: []*model.CTE{
+					{
+						Name: "cte_1",
+						SelectCommand: &model.SelectCommand{
+							FromClause: model.NewTableRef(model.SingleTableNamePlaceHolder),
+							Columns: []model.Expr{
+								model.NewColumnRef("order_date"),
+							},
+						},
+					},
+				},
+			},
+			model.SelectCommand{
+				FromClause: model.NewTableRef("test"),
+				Columns: []model.Expr{
+					model.NewColumnRef("order_date"),
+					model.NewFunction("count"),
+				},
+				NamedCTEs: []*model.CTE{
+					{
+						Name: "cte_1",
+						SelectCommand: &model.SelectCommand{
+							FromClause: model.NewTableRef("test"),
+							Columns: []model.Expr{
+								model.NewColumnRef("order_date"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := &model.Query{
+				TableName:     "test",
+				SelectCommand: tt.input,
+			}
+
+			expectedAsString := model.AsString(tt.expected)
+
+			actual, err := transform.applyPhysicalFromExpression(query)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			actualAsString := model.AsString(actual.SelectCommand)
+
+			assert.Equal(t, expectedAsString, actualAsString)
+		})
+	}
+}
+
+func TestFullTextFields(t *testing.T) {
+
+	lm := clickhouse.NewLogManagerEmpty()
+
+	tests := []struct {
+		name           string
+		fullTextFields []string
+		input          model.SelectCommand
+		expected       model.SelectCommand
+	}{
+		{
+			"no full text field column",
+			[]string{},
+			model.SelectCommand{
+				FromClause: model.NewTableRef("test"),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewFunction("count"),
+				},
+				WhereClause: model.NewInfixExpr(model.NewColumnRef(model.FullTextFieldNamePlaceHolder), "=", model.NewLiteral("foo")),
+			},
+			model.SelectCommand{
+				FromClause: model.NewTableRef("test"),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewFunction("count"),
+				},
+				WhereClause: model.NewLiteral(false),
+			},
+		},
+
+		{
+			"single column",
+			[]string{"b"},
+			model.SelectCommand{
+				FromClause: model.NewTableRef("test"),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewFunction("count"),
+				},
+				WhereClause: model.NewInfixExpr(model.NewColumnRef(model.FullTextFieldNamePlaceHolder), "=", model.NewLiteral("foo")),
+			},
+			model.SelectCommand{
+				FromClause: model.NewTableRef("test"),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewFunction("count"),
+				},
+				WhereClause: model.NewInfixExpr(model.NewColumnRef("b"), "=", model.NewLiteral("foo")),
+			},
+		},
+
+		{
+			"two columns",
+			[]string{"a", "b"},
+			model.SelectCommand{
+				FromClause: model.NewTableRef("test"),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewFunction("count"),
+				},
+				WhereClause: model.NewInfixExpr(model.NewColumnRef(model.FullTextFieldNamePlaceHolder), "=", model.NewLiteral("foo")),
+			},
+			model.SelectCommand{
+				FromClause: model.NewTableRef("test"),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewFunction("count"),
+				},
+				WhereClause: model.Or([]model.Expr{
+					model.NewInfixExpr(model.NewColumnRef("a"), "=", model.NewLiteral("foo")),
+					model.NewInfixExpr(model.NewColumnRef("b"), "=", model.NewLiteral("foo")),
+				}),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := &model.Query{
+				TableName:     "test",
+				SelectCommand: tt.input,
+			}
+
+			columns := []string{"a", "b", "c"}
+
+			var schemaColumns []schema.Column
+
+			for _, col := range columns {
+				schemaColumns = append(schemaColumns, schema.Column{Name: col, Type: "String"})
+			}
+
+			columnMap := make(map[string]schema.Column)
+			for _, col := range schemaColumns {
+				columnMap[col.Name] = col
+			}
+
+			schemaTable := schema.Table{
+				Columns: columnMap,
+			}
+
+			tableDiscovery :=
+				fixedTableProvider{tables: map[string]schema.Table{
+					"test": schemaTable,
+				}}
+
+			fieldOverrides := make(map[config.FieldName]config.FieldConfiguration)
+
+			for _, fullTextField := range tt.fullTextFields {
+				fieldOverrides[config.FieldName(fullTextField)] = config.FieldConfiguration{
+					Type: "text",
+				}
+			}
+
+			indexConfig := map[string]config.IndexConfiguration{
+				"test": {
+					Name: "test",
+					SchemaOverrides: &config.SchemaConfiguration{
+						Fields: fieldOverrides,
+					},
+				},
+			}
+
+			cfg := config.QuesmaConfiguration{
+				IndexConfig: indexConfig,
+			}
+
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
+
+			expectedAsString := model.AsString(tt.expected)
+
+			actual, err := transform.applyFullTextField(query)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			actualAsString := model.AsString(actual.SelectCommand)
+
+			assert.Equal(t, expectedAsString, actualAsString)
 		})
 	}
 }

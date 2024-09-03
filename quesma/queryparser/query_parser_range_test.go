@@ -102,7 +102,7 @@ func Test_parseRange(t *testing.T) {
 				t.Fatal(err)
 			}
 			assert.NoError(t, err)
-			lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
+			lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), &config.QuesmaConfiguration{})
 			cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
 
 			simpleQuery := cw.parseRange(test.rangePartOfQuery)

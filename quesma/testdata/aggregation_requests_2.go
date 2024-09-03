@@ -685,6 +685,7 @@ var AggregationTests2 = []AggregationTestCase{
 			"aggregations": {
 				"2": {
 					"bg_count": 2786,
+					"doc_count": 2786,
 					"buckets": [
 						{
 							"1": {
@@ -709,9 +710,7 @@ var AggregationTests2 = []AggregationTestCase{
 							"key": "200",
 							"score": 2570
 						}
-					],
-					"sum_other_doc_count": 2786,
-					"doc_count_error_upper_bound": 0
+					]
 				}
 			},
 			"hits": {
@@ -806,8 +805,8 @@ var AggregationTests2 = []AggregationTestCase{
 			  "response" AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
 			  count() AS "aggr__2__order_1",
-			  quantiles(0.010000)("timestamp") AS "quantile_1" AS "metric__2__1_col_0",
-			  quantiles(0.020000)("timestamp") AS "quantile_2" AS "metric__2__1_col_1",
+			  quantiles(0.010000)("timestamp") AS "metric__2__1_col_0",
+			  quantiles(0.020000)("timestamp") AS "metric__2__1_col_1",
 			  sumOrNull("count") AS "metric__2__2_col_0"
 			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') AND

@@ -4,13 +4,12 @@ package config
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 )
 
 type IndexConfiguration struct {
-	Name    string `koanf:"name"`
-	Enabled bool   `koanf:"enabled"` // TODO rename to `Disabled` to reduce already polluted config
+	Name     string `koanf:"name"`
+	Disabled bool   `koanf:"disabled"`
 	// TODO to be deprecated
 	FullTextFields []string `koanf:"fullTextFields"`
 	// TODO to be deprecated
@@ -20,10 +19,6 @@ type IndexConfiguration struct {
 	SchemaOverrides   *SchemaConfiguration              `koanf:"schemaOverrides"`
 	EnabledOptimizers map[string]OptimizerConfiguration `koanf:"optimizers"`
 	Override          string                            `koanf:"override"`
-}
-
-func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
-	return slices.Contains(c.FullTextFields, fieldName)
 }
 
 func (c IndexConfiguration) GetTimestampField() (tsField string) {
@@ -44,9 +39,9 @@ func (c IndexConfiguration) String() string {
 		}
 		extraString += strings.Join(fields, ", ")
 	}
-	var str = fmt.Sprintf("\n\t\t%s, enabled: %t, schema overrides: %s, override: %s",
+	var str = fmt.Sprintf("\n\t\t%s, disabled: %t, schema overrides: %s, override: %s",
 		c.Name,
-		c.Enabled,
+		c.Disabled,
 		c.SchemaOverrides.String(),
 		c.Override,
 	)

@@ -668,7 +668,7 @@ func TestAggregationParser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), &config.QuesmaConfiguration{})
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
@@ -761,13 +761,14 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 			"order_date":  {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
-			"message":     {Name: "message", Type: clickhouse.NewBaseType("String"), IsFullTextMatch: true},
+			"message":     {Name: "message", Type: clickhouse.NewBaseType("String")},
 			"bytes_gauge": {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
 		},
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
+	cfg := &config.QuesmaConfiguration{}
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), cfg)
 
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
@@ -788,7 +789,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 		},
 	}
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s, Config: cfg}
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {

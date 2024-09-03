@@ -12,7 +12,7 @@ import (
 	"quesma/stats"
 )
 
-func Write(ctx context.Context, tableName string, body types.JSON, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) error {
+func Write(ctx context.Context, tableName string, body types.JSON, lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration) error {
 	stats.GlobalStatistics.Process(cfg, tableName, body, clickhouse.NestedSeparator)
 
 	defer recovery.LogPanic()
@@ -20,7 +20,7 @@ func Write(ctx context.Context, tableName string, body types.JSON, lm *clickhous
 		return nil
 	}
 
-	config.RunConfigured(ctx, cfg, tableName, body, func() error {
+	return config.RunConfigured(ctx, cfg, tableName, body, func() error {
 		if len(cfg.IndexConfig[tableName].Override) > 0 {
 			tableName = cfg.IndexConfig[tableName].Override
 		}
@@ -28,5 +28,4 @@ func Write(ctx context.Context, tableName string, body types.JSON, lm *clickhous
 		transformer := jsonprocessor.IngestTransformerFor(tableName, cfg)
 		return lm.ProcessInsertQuery(ctx, tableName, types.NDJSON{body}, transformer, nameFormatter)
 	})
-	return nil
 }

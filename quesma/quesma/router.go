@@ -31,7 +31,7 @@ import (
 	"time"
 )
 
-func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {
+func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {
 
 	// some syntactic sugar
 	method := mux.IsHTTPMethod
@@ -61,12 +61,18 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
-			return nil, err
+			return &mux.Result{
+				Body:       string(queryparser.BadRequestParseError(err)),
+				StatusCode: http.StatusBadRequest,
+			}, nil
 		}
 
 		err = doc.Write(ctx, req.Params["index"], body, lm, cfg)
 		if err != nil {
-			return nil, err
+			return &mux.Result{
+				Body:       string(queryparser.BadRequestParseError(err)),
+				StatusCode: http.StatusBadRequest,
+			}, nil
 		}
 
 		return indexDocResult(req.Params["index"], http.StatusOK)
@@ -266,7 +272,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 				return nil, errors.New("invalid request body, expecting JSON")
 			}
 
-			if responseBody, err := terms_enum.HandleTermsEnum(ctx, req.Params["index"], body, lm, console); err != nil {
+			if responseBody, err := terms_enum.HandleTermsEnum(ctx, req.Params["index"], body, lm, sr, console); err != nil {
 				return nil, err
 			} else {
 				return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
@@ -330,7 +336,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 }
 
 // check whether exact index name is enabled
-func matchedExact(config config.QuesmaConfiguration) mux.RequestMatcher {
+func matchedExact(config *config.QuesmaConfiguration) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		if elasticsearch.IsInternalIndex(req.Params["index"]) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])
@@ -338,7 +344,7 @@ func matchedExact(config config.QuesmaConfiguration) mux.RequestMatcher {
 		}
 		fmt.Println("XXX match: ", req.Params["index"])
 		indexConfig, exists := config.IndexConfig[req.Params["index"]]
-		return exists && indexConfig.Enabled
+		return exists && !indexConfig.Disabled
 	})
 }
 

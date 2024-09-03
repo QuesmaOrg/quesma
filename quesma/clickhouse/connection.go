@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-func initDBConnection(c config.QuesmaConfiguration, tlsConfig *tls.Config) *sql.DB {
+func initDBConnection(c *config.QuesmaConfiguration, tlsConfig *tls.Config) *sql.DB {
 
 	options := clickhouse.Options{Addr: []string{c.ClickHouse.Url.Host}}
 	if c.ClickHouse.User != "" || c.ClickHouse.Password != "" || c.ClickHouse.Database != "" {
@@ -51,7 +51,7 @@ func initDBConnection(c config.QuesmaConfiguration, tlsConfig *tls.Config) *sql.
 
 }
 
-func InitDBConnectionPool(c config.QuesmaConfiguration) *sql.DB {
+func InitDBConnectionPool(c *config.QuesmaConfiguration) *sql.DB {
 
 	db := initDBConnection(c, &tls.Config{})
 
@@ -95,7 +95,7 @@ func InitDBConnectionPool(c config.QuesmaConfiguration) *sql.DB {
 // RunClickHouseConnectionDoctor is very blunt and verbose function which aims to print some helpful information
 // in case of misconfigured ClickHouse connection. In the future, we might rethink how do we manage this and perhaps
 // move some parts to InitDBConnectionPool, but for now this should already provide some useful feedback.
-func RunClickHouseConnectionDoctor(c config.QuesmaConfiguration) {
+func RunClickHouseConnectionDoctor(c *config.QuesmaConfiguration) {
 	timeout := 1 * time.Second
 	defaultNativeProtocolPort := "9000"
 	defaultNativeProtocolPortEncrypted := "9440"

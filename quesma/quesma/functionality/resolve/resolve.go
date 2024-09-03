@@ -9,7 +9,7 @@ import (
 	"slices"
 )
 
-func HandleResolve(pattern string, sr schema.Registry, cfg config.QuesmaConfiguration) (elasticsearch.Sources, error) {
+func HandleResolve(pattern string, sr schema.Registry, cfg *config.QuesmaConfiguration) (elasticsearch.Sources, error) {
 	// In the _resolve endpoint we want to combine the results from both schema.Registry and Elasticsearch
 
 	normalizedPattern := elasticsearch.NormalizePattern(pattern)

@@ -45,10 +45,10 @@ func TestStatistics_process(t *testing.T) {
 	cfg := config.QuesmaConfiguration{
 		IngestStatistics: true,
 	}
-	stats.Process(cfg, "index1", types.MustJSON(string(marshal1)), "::")
-	stats.Process(cfg, "index1", types.MustJSON(string(marshal2)), "::")
-	stats.Process(cfg, "index1", types.MustJSON(string(marshal3)), "::")
-	stats.Process(cfg, "index1", types.MustJSON(string(marshal3)), "::")
+	stats.Process(&cfg, "index1", types.MustJSON(string(marshal1)), "::")
+	stats.Process(&cfg, "index1", types.MustJSON(string(marshal2)), "::")
+	stats.Process(&cfg, "index1", types.MustJSON(string(marshal3)), "::")
+	stats.Process(&cfg, "index1", types.MustJSON(string(marshal3)), "::")
 
 	ingestStats := (*stats)["index1"]
 

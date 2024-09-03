@@ -29,14 +29,14 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 			"order_date":  {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
-			"message":     {Name: "message", Type: clickhouse.NewBaseType("String"), IsFullTextMatch: true},
+			"message":     {Name: "message", Type: clickhouse.NewBaseType("String")},
 			"bytes_gauge": {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
 		},
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), &config.QuesmaConfiguration{})
 	schemaRegistry := schema.StaticRegistry{}
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: schemaRegistry}
@@ -57,9 +57,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 			if topMetrics(test.TestName) {
 				t.Skip("Fix top metrics")
-			}
-			if percentiles(test.TestName) {
-				t.Skip("Fix percentiles")
 			}
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
@@ -199,12 +196,6 @@ func topMetrics(testName string) bool {
 }
 
 // TODO remove after fix
-func percentiles(testName string) bool {
-	t1 := testName == "Field statistics > summary for numeric fields" // also percentiles
-	return t1
-}
-
-// TODO remove after fix
 func filters(testName string) bool {
 	// this works, but is very suboptimal and didn't update the test case
 	t1 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" // multi level filters
@@ -220,14 +211,14 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 			"order_date":  {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
-			"message":     {Name: "message", Type: clickhouse.NewBaseType("String"), IsFullTextMatch: true},
+			"message":     {Name: "message", Type: clickhouse.NewBaseType("String")},
 			"bytes_gauge": {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
 		},
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), &config.QuesmaConfiguration{})
 	schemaRegistry := schema.StaticRegistry{}
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: schemaRegistry}

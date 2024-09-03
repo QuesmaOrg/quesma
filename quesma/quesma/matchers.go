@@ -23,7 +23,7 @@ func matchedAgainstAsyncId() mux.RequestMatcher {
 	})
 }
 
-func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) mux.RequestMatcher {
+func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		idx := 0
 		for _, s := range strings.Split(req.Body, "\n") {
@@ -38,7 +38,7 @@ func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) mux.Reques
 				}
 
 				indexConfig, found := configuration.IndexConfig[extractIndexName(s)]
-				if found && indexConfig.Enabled {
+				if found && !indexConfig.Disabled {
 					return true
 				}
 			}
@@ -50,7 +50,7 @@ func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) mux.Reques
 	})
 }
 
-func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.RequestMatcher {
+func matchedAgainstPattern(configuration *config.QuesmaConfiguration) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
 		if elasticsearch.IsInternalIndex(indexPattern) {
@@ -71,7 +71,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.Request
 			for _, pattern := range indexPatterns {
 				for _, indexName := range configuration.IndexConfig {
 					if config.MatchName(elasticsearch.NormalizePattern(pattern), indexName.Name) {
-						if configuration.IndexConfig[indexName.Name].Enabled {
+						if !configuration.IndexConfig[indexName.Name].Disabled {
 							return true
 						}
 					}
@@ -83,7 +83,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.Request
 				pattern := elasticsearch.NormalizePattern(indexPattern)
 				if config.MatchName(pattern, index.Name) {
 					if indexConfig, exists := configuration.IndexConfig[index.Name]; exists {
-						return indexConfig.Enabled
+						return !indexConfig.Disabled
 					}
 				}
 			}

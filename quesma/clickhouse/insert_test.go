@@ -56,14 +56,8 @@ var insertTests = []struct {
 			`COMMENT 'created by Quesma'`,
 		},
 		[]string{
-			`"attributes_float64_value" Array(Float64),`,
-			`"attributes_float64_key" Array(String),`,
-			`"attributes_string_value" Array(Float64),`,
-			`"attributes_string_key" Array(String),`,
-			`"attributes_int64_value" Array(Float64),`,
-			`"attributes_int64_key" Array(String),`,
-			`"attributes_bool_value" Array(Float64),`,
-			`"attributes_bool_key" Array(String),`,
+			`"attributes_values" Map(String,String),`,
+			`"attributes_metadata" Map(String,String),`,
 			``,
 		},
 	},
@@ -89,14 +83,8 @@ var insertTests = []struct {
 			`COMMENT 'created by Quesma'`,
 		},
 		[]string{
-			`"attributes_float64_value" Array(Float64),`,
-			`"attributes_float64_key" Array(String),`,
-			`"attributes_string_value" Array(Float64),`,
-			`"attributes_string_key" Array(String),`,
-			`"attributes_int64_value" Array(Float64),`,
-			`"attributes_int64_key" Array(String),`,
-			`"attributes_bool_value" Array(Float64),`,
-			`"attributes_bool_key" Array(String),`,
+			`"attributes_values" Map(String,String),`,
+			`"attributes_metadata" Map(String,String),`,
 			``,
 		},
 	},
@@ -113,16 +101,16 @@ var expectedInserts = [][]string{
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "service::name" Nullable(String)`),
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "source" Nullable(String)`),
-		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":[],"attributes_string_type":[],"attributes_string_value":[],"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","service::name":"frontend","severity":"debug","source":"rhel"}`),
+		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_values":{},"attributes_metadata":{},"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","service::name":"frontend","severity":"debug","source":"rhel"}`),
 	},
 	[]string{
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
 	},
 	[]string{
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random1" Nullable(Array(String))`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random1" Array(String)`),
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random2" Nullable(String)`),
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
-		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":[],"attributes_string_type":[],"attributes_string_value":[],"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
+		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_values":{},"attributes_metadata":{},"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
 	},
 }
 
@@ -152,7 +140,7 @@ func logManagersNonEmpty(cfg *ChTableConfig) []logManagerHelper {
 			},
 			Created: created,
 		})
-		lms = append(lms, logManagerHelper{NewLogManager(full, config.QuesmaConfiguration{}), created})
+		lms = append(lms, logManagerHelper{NewLogManager(full, &config.QuesmaConfiguration{}), created})
 	}
 	return lms
 }
@@ -178,7 +166,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					// check if CREATE TABLE string is OK
 					queryByLine := strings.Split(query, "\n")
 					if len(tableConfig.attributes) > 0 {
-						assert.Equal(t, len(tt.createTableLines)+2*len(tableConfig.attributes)+1, len(queryByLine))
+						assert.Equal(t, len(tt.createTableLines)+len(tableConfig.attributes)-1, len(queryByLine))
 						for _, line := range tt.createTableLines {
 							assert.True(t, slices.Contains(tt.createTableLines, line) || slices.Contains(tt.createTableLinesAttrs, line))
 						}
@@ -210,7 +198,11 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					// and that schema in memory is what it should be (predefined, if it was predefined, new if it was new)
 					resolvedTable, _ := lm.lm.tableDiscovery.TableDefinitions().Load(tableName)
 					if logManagerEmpty {
-						assert.Equal(t, 6+2*len(tableConfig.attributes), len(resolvedTable.Cols))
+						if len(tableConfig.attributes) > 0 {
+							assert.Equal(t, len(tableConfig.attributes)+4, len(resolvedTable.Cols))
+						} else {
+							assert.Equal(t, 6+2*len(tableConfig.attributes), len(resolvedTable.Cols))
+						}
 					} else if lm.lm.tableDiscovery.TableDefinitions().Size() > 0 {
 						assert.Equal(t, 4, len(resolvedTable.Cols))
 					} else {
@@ -303,7 +295,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 			lm := NewLogManagerEmpty()
 			lm.chDb = db
-			lm.tableDiscovery = newTableDiscoveryWith(config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
+			lm.tableDiscovery = newTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
 			defer db.Close()
 
 			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))

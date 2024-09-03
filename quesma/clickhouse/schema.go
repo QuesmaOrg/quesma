@@ -5,6 +5,7 @@ package clickhouse
 import (
 	"fmt"
 	"math"
+	"quesma/logger"
 	"quesma/util"
 	"reflect"
 	"strings"
@@ -12,10 +13,12 @@ import (
 )
 
 const (
-	AttributesKeyColumn   = "attributes_string_key"
-	AttributesValueColumn = "attributes_string_value"
-	AttributesValueType   = "attributes_string_type"
-	attributesColumnType  = "Array(String)"
+	AttributesKeyColumn      = "attributes_string_key"
+	AttributesValueColumn    = "attributes_string_value"
+	AttributesValueType      = "attributes_string_type"
+	attributesColumnType     = "Array(String)"
+	AttributesColumn         = "attributes_values"
+	AttributesMetadataColumn = "attributes_metadata"
 )
 
 type (
@@ -46,11 +49,10 @@ type (
 		Cols []*Column
 	}
 	Column struct {
-		Name            string
-		Type            Type
-		Modifiers       string
-		Codec           Codec // TODO currently not used, it's part of Modifiers
-		IsFullTextMatch bool  // this comes from config
+		Name      string
+		Type      Type
+		Modifiers string
+		Codec     Codec // TODO currently not used, it's part of Modifiers
 	}
 	DateTimeType int
 )
@@ -265,8 +267,10 @@ func NewType(value any) Type {
 		return CompoundType{Name: "Array", BaseType: NewType(valueCasted[0])}
 	}
 
+	logger.Warn().Msgf("Unsupported type '%T' of value: %v.", value, value)
+
+	// value can be nil, so should return something reasonable here
 	return BaseType{Name: "String", goType: reflect.TypeOf("")}
-	//panic(fmt.Sprintf("Unsupported type '%T' of value: %v.", value, value))
 }
 
 func NewTable(createTableQuery string, config *ChTableConfig) (*Table, error) {
@@ -322,6 +326,8 @@ func NewDefaultStringAttribute() Attribute {
 		KeysArrayName:   AttributesKeyColumn,
 		ValuesArrayName: AttributesValueColumn,
 		TypesArrayName:  AttributesValueType,
+		MapValueName:    AttributesColumn,
+		MapMetadataName: AttributesMetadataColumn,
 		Type:            NewBaseType("String"),
 	}
 }
@@ -331,6 +337,8 @@ func NewDefaultInt64Attribute() Attribute {
 		KeysArrayName:   "attributes_int64_key",
 		ValuesArrayName: "attributes_int64_value",
 		TypesArrayName:  "attributes_int64_type",
+		MapValueName:    AttributesColumn,
+		MapMetadataName: AttributesMetadataColumn,
 		Type:            NewBaseType("Int64"),
 	}
 }
@@ -340,6 +348,8 @@ func NewDefaultFloat64Attribute() Attribute {
 		KeysArrayName:   "attributes_float64_key",
 		ValuesArrayName: "attributes_float64_value",
 		TypesArrayName:  "attributes_float64_type",
+		MapValueName:    AttributesColumn,
+		MapMetadataName: AttributesMetadataColumn,
 		Type:            NewBaseType("Float64"),
 	}
 }
@@ -349,6 +359,8 @@ func NewDefaultBoolAttribute() Attribute {
 		KeysArrayName:   "attributes_bool_key",
 		ValuesArrayName: "attributes_bool_value",
 		TypesArrayName:  "attributes_bool_type",
+		MapValueName:    AttributesColumn,
+		MapMetadataName: AttributesMetadataColumn,
 		Type:            NewBaseType("Bool"),
 	}
 }

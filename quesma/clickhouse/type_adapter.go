@@ -16,7 +16,7 @@ func (c SchemaTypeAdapter) Convert(s string) (schema.Type, bool) {
 	}
 	switch {
 	case strings.HasPrefix(s, "Unknown"):
-		return schema.TypeText, true // TODO
+		return schema.TypeUnknown, true
 	case strings.HasPrefix(s, "Tuple"):
 		return schema.TypeObject, true
 	}

@@ -21,7 +21,7 @@ func TestHtmlPages(t *testing.T) {
 	xssBytes := []byte(xss)
 	id := "b1c4a89e-4905-5e3c-b57f-dc92627d011e"
 	logChan := make(chan logger.LogWithLevel, 5)
-	qmc := NewQuesmaManagementConsole(config.QuesmaConfiguration{}, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
+	qmc := NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 	qmc.PushPrimaryInfo(&QueryDebugPrimarySource{Id: id, QueryResp: xssBytes})
 	qmc.PushSecondaryInfo(&QueryDebugSecondarySource{Id: id,
 		Path:                   xss,
@@ -57,8 +57,7 @@ func TestHtmlPages(t *testing.T) {
 	})
 
 	t.Run("statistics got no XSS", func(t *testing.T) {
-		cfg := config.QuesmaConfiguration{}
-		stats.GlobalStatistics.Process(cfg, xss, types.MustJSON("{}"), clickhouse.NestedSeparator)
+		stats.GlobalStatistics.Process(&config.QuesmaConfiguration{}, xss, types.MustJSON("{}"), clickhouse.NestedSeparator)
 		response := string(qmc.generateStatistics())
 		assert.NotContains(t, response, xss)
 	})
@@ -95,14 +94,14 @@ func TestHtmlSchemaPage(t *testing.T) {
 
 	cfg := config.QuesmaConfiguration{}
 
-	cfg.IndexConfig = map[string]config.IndexConfiguration{xss: {Name: xss, Enabled: true}}
+	cfg.IndexConfig = map[string]config.IndexConfiguration{xss: {Name: xss}}
 
 	tables := concurrent.NewMap[string, *clickhouse.Table]()
 	tables.Store(table.Name, table)
 
-	logManager := clickhouse.NewLogManager(tables, cfg)
+	logManager := clickhouse.NewLogManager(tables, &cfg)
 
-	qmc := NewQuesmaManagementConsole(cfg, logManager, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
+	qmc := NewQuesmaManagementConsole(&cfg, logManager, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 
 	t.Run("schema got no XSS and no panic", func(t *testing.T) {
 		response := string(qmc.generateTables())

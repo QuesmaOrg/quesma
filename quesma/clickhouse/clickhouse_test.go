@@ -47,7 +47,7 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	})
 
 	f := func(t1, t2 TableMap) {
-		lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{})
+		lm := NewLogManager(fieldsMap, &config.QuesmaConfiguration{})
 		j, alter, err := lm.BuildIngestSQLStatements("tableName", types.MustJSON(rowToInsert), nil, hasOthersConfig)
 		assert.NoError(t, err)
 		assert.Equal(t, 0, len(alter))
@@ -661,6 +661,8 @@ func TestCreateTableString_1(t *testing.T) {
 		`"attributes_string_value" Array(String),`,
 		`"attributes_bool_key" Array(String),`,
 		`"attributes_bool_value" Array(Bool),`,
+		`"attributes_values" Map(String,String),`,
+		`"attributes_metadata" Map(String,String),`,
 		`INDEX body_idx body TYPE tokenbf_v1(10240, 3, 0) GRANULARITY 4,`,
 		`INDEX severity_idx severity TYPE set(25) GRANULARITY 4`,
 		`)`,
@@ -725,7 +727,9 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 		`"uuid" UUID,`,
 		`"others" JSON,`,
 		`"attributes_int64_key" Array(String),`,
-		`"attributes_int64_value" Array(Int64)`,
+		`"attributes_int64_value" Array(Int64),`,
+		`"attributes_values" Map(String,String),`,
+		`"attributes_metadata" Map(String,String)`,
 		`"@timestamp" DateTime64(3) DEFAULT now64(),`,
 		`"epoch_time" DateTime('Asia/Kolkata') CODEC(DoubleDelta, LZ4),`,
 		`"estimated_connection_speedinkbps" Float64 CODEC(DoubleDelta, LZ4),`,
@@ -800,7 +804,7 @@ func TestLogManager_GetTable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
 			tableDefinitions.Store(&tt.predefinedTables)
-			lm := NewLogManager(&tt.predefinedTables, config.QuesmaConfiguration{})
+			lm := NewLogManager(&tt.predefinedTables, &config.QuesmaConfiguration{})
 			assert.Equalf(t, tt.found, lm.FindTable(tt.tableNamePattern) != nil, "GetTable(%v)", tt.tableNamePattern)
 		})
 	}
@@ -878,7 +882,7 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
 			tableDefinitions.Store(tt.tables)
-			lm := &LogManager{tableDiscovery: newTableDiscoveryWith(config.QuesmaConfiguration{}, nil, *tt.tables)}
+			lm := &LogManager{tableDiscovery: newTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tt.tables)}
 			indexes, err := lm.ResolveIndexes(context.Background(), tt.patterns)
 			assert.NoError(t, err)
 			assert.Equalf(t, tt.resolved, indexes, tt.patterns, "ResolveIndexes(%v)", tt.patterns)

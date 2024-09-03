@@ -20,19 +20,19 @@ func Test_matchedAgainstConfig(t *testing.T) {
 		{
 			name:   "index enabled",
 			index:  "index",
-			config: indexConfig("index", true),
+			config: indexConfig("index", false),
 			want:   true,
 		},
 		{
 			name:   "index disabled",
 			index:  "index",
-			config: indexConfig("index", false),
+			config: indexConfig("index", true),
 			want:   false,
 		},
 		{
 			name:   "index not configured",
 			index:  "index",
-			config: indexConfig("logs", false),
+			config: indexConfig("logs", true),
 			want:   false,
 		},
 	}
@@ -41,7 +41,7 @@ func Test_matchedAgainstConfig(t *testing.T) {
 
 			req := &mux.Request{Params: map[string]string{"index": tt.index}, Body: tt.body}
 
-			assert.Equalf(t, tt.want, matchedExact(tt.config).Matches(req), "matchedAgainstConfig(%v), index: %s", tt.config, tt.index)
+			assert.Equalf(t, tt.want, matchedExact(&tt.config).Matches(req), "matchedAgainstConfig(%v), index: %s", tt.config, tt.index)
 		})
 	}
 }
@@ -57,61 +57,61 @@ func Test_matchedAgainstPattern(t *testing.T) {
 		{
 			name:          "multiple indexes, one matches configuration",
 			pattern:       "logs-1,logs-2,foo-*,index",
-			configuration: indexConfig("index", true),
+			configuration: indexConfig("index", false),
 			want:          true,
 		},
 		{
 			name:          "multiple indexes, one internal",
 			pattern:       "index,.kibana",
-			configuration: indexConfig("index", true),
+			configuration: indexConfig("index", false),
 			want:          false,
 		},
 		{
 			name:          "index explicitly enabled",
 			pattern:       "index",
-			configuration: indexConfig("index", true),
+			configuration: indexConfig("index", false),
 			want:          true,
 		},
 		{
 			name:          "index explicitly disabled",
 			pattern:       "index",
-			configuration: indexConfig("index", false),
+			configuration: indexConfig("index", true),
 			want:          false,
 		},
 		{
 			name:          "index enabled, * pattern",
 			pattern:       "*",
-			configuration: indexConfig("logs-generic-default", true),
+			configuration: indexConfig("logs-generic-default", false),
 			want:          true,
 		},
 		{
 			name:          "index enabled, _all pattern",
 			pattern:       "_all",
-			configuration: indexConfig("logs-generic-default", true),
+			configuration: indexConfig("logs-generic-default", false),
 			want:          true,
 		},
 		{
 			name:          "index enabled, multiple patterns",
 			pattern:       "logs-*-*, logs-*",
-			configuration: indexConfig("logs-generic-default", true),
+			configuration: indexConfig("logs-generic-default", false),
 			want:          true,
 		},
 		{
 			name:          "index enabled, multiple patterns",
 			pattern:       "logs-*-*, logs-generic-default",
-			configuration: indexConfig("logs-generic-default", true),
+			configuration: indexConfig("logs-generic-default", false),
 			want:          true,
 		},
 		{
 			name:          "index disabled, wide pattern",
 			pattern:       "logs-*-*",
-			configuration: indexConfig("logs-generic-default", false),
+			configuration: indexConfig("logs-generic-default", true),
 			want:          false,
 		},
 		{
 			name:          "index enabled, narrow pattern",
 			pattern:       "logs-generic-*",
-			configuration: indexConfig("logs-generic-default", true),
+			configuration: indexConfig("logs-generic-default", false),
 			want:          true,
 		},
 		{
@@ -123,7 +123,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 		{
 			name:          "traces-apm*, not configured",
 			pattern:       "traces-apm*",
-			configuration: indexConfig("logs-generic-default", true),
+			configuration: indexConfig("logs-generic-default", false),
 			want:          false,
 		},
 	}
@@ -132,13 +132,13 @@ func Test_matchedAgainstPattern(t *testing.T) {
 
 			req := &mux.Request{Params: map[string]string{"index": tt.pattern}, Body: tt.body}
 
-			assert.Equalf(t, tt.want, matchedAgainstPattern(tt.configuration).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
+			assert.Equalf(t, tt.want, matchedAgainstPattern(&tt.configuration).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
 		})
 	}
 }
 
-func indexConfig(name string, enabled bool) config.QuesmaConfiguration {
-	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {Name: name, Enabled: enabled}}}
+func indexConfig(name string, disabled bool) config.QuesmaConfiguration {
+	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {Name: name, Disabled: disabled}}}
 }
 
 func Test_matchedAgainstBulkBody(t *testing.T) {
@@ -151,31 +151,31 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 		{
 			name:   "single index, config present",
 			body:   `{"create":{"_index":"logs-generic-default"}}`,
-			config: indexConfig("logs-generic-default", true),
+			config: indexConfig("logs-generic-default", false),
 			want:   true,
 		},
 		{
 			name:   "single index, table not present",
 			body:   `{"create":{"_index":"logs-generic-default"}}`,
-			config: indexConfig("foo", true),
+			config: indexConfig("foo", false),
 			want:   false,
 		},
 		{
 			name:   "multiple indexes, table present",
 			body:   `{"create":{"_index":"logs-generic-default"}}` + "\n{}\n" + `{"create":{"_index":"logs-generic-default"}}`,
-			config: indexConfig("logs-generic-default", true),
+			config: indexConfig("logs-generic-default", false),
 			want:   true,
 		},
 		{
 			name:   "multiple indexes, some tables not present",
 			body:   `{"create":{"_index":"logs-generic-default"}}` + "\n{}\n" + `{"create":{"_index":"non-existent"}}`,
-			config: indexConfig("logs-generic-default", true),
+			config: indexConfig("logs-generic-default", false),
 			want:   true,
 		},
 		{
 			name:   "multiple indexes, all tables not present",
 			body:   `{"create":{"_index":"not-there"}}` + "\n{}\n" + `{"create":{"_index":"non-existent"}}`,
-			config: indexConfig("logs-generic-default", true),
+			config: indexConfig("logs-generic-default", false),
 			want:   false,
 		},
 	}
@@ -183,7 +183,7 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			req := &mux.Request{Body: tt.body}
-			assert.Equalf(t, tt.want, matchedAgainstBulkBody(tt.config).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
+			assert.Equalf(t, tt.want, matchedAgainstBulkBody(&tt.config).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
 		})
 	}
 }

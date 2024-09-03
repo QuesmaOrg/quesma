@@ -21,11 +21,10 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 	var menuEntries []menuEntry
 
 	type tableColumn struct {
-		name             string
-		typeName         string
-		isAttribute      bool
-		isFullTextSearch bool
-		warning          *string
+		name        string
+		typeName    string
+		isAttribute bool
+		warning     *string
 	}
 
 	buffer := newBufferWithHead()
@@ -107,7 +106,6 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 				}
 
 				c.isAttribute = false
-				c.isFullTextSearch = table.Cols[k].IsFullTextMatch
 
 				columnNames = append(columnNames, k)
 				columnMap[k] = c
@@ -127,7 +125,6 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 				c.name = alias
 				if aliasedField, ok := columnMap[target]; ok {
 					c.typeName = fmt.Sprintf("alias of '%s', %s", target, aliasedField.typeName)
-					c.isFullTextSearch = aliasedField.isFullTextSearch
 					c.isAttribute = aliasedField.isAttribute
 				} else {
 					c.warning = util.Pointer("alias points to non-existing field '" + target + "'")
@@ -191,9 +188,6 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 				buffer.Html(`<td class="columnType">`)
 
 				buffer.Text(column.typeName)
-				if column.isFullTextSearch {
-					buffer.Html(` <i>(Full text match)</i>`)
-				}
 
 				if column.warning != nil {
 					buffer.Html(` <span class="columnWarningText">WARNING: `)
@@ -261,7 +255,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 	buffer.Html(`Name Pattern`)
 	buffer.Html(`</th>`)
 	buffer.Html(`<th>`)
-	buffer.Html(`Enabled?`)
+	buffer.Html(`Disabled?`)
 	buffer.Html(`</th>`)
 	buffer.Html(`<th>`)
 	buffer.Html(`Full Text Search Fields`)
@@ -275,7 +269,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 		buffer.Text(cfg.Name)
 		buffer.Html(`</td>`)
 		buffer.Html(`<td>`)
-		if cfg.Enabled {
+		if cfg.Disabled {
 			buffer.Text("true")
 		} else {
 			buffer.Text("false")

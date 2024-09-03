@@ -30,7 +30,7 @@ type ClickhouseQueryTranslator struct {
 
 	SchemaRegistry    schema.Registry
 	IncomingIndexName string
-	Config            config.QuesmaConfiguration
+	Config            *config.QuesmaConfiguration
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()
@@ -503,13 +503,13 @@ func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query *mo
 	return query_util.BuildHitsQuery(cw.Ctx, model.SingleTableNamePlaceHolder, fieldName, query, limit)
 }
 
-func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, whereClause model.Expr, limit int) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, tableName string, whereClause model.Expr, limit int) *model.Query {
 	return &model.Query{
 		SelectCommand: *model.NewSelectCommand(
 			[]model.Expr{model.NewColumnRef(fieldName)},
 			nil,
 			nil,
-			model.NewTableRef(model.SingleTableNamePlaceHolder),
+			model.NewTableRef(tableName),
 			whereClause,
 			[]model.Expr{},
 			limit,
