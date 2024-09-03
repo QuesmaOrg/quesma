@@ -2980,8 +2980,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"field": "@timestamp",
 						"fixed_interval": "12h",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				}
 			},
@@ -3065,22 +3064,22 @@ var AggregationTests2 = []AggregationTestCase{
 													{
 														"key": 75,
 														"value": 349.95000000000005
-													},
+													}
 												]
 											}
 										},
  										{
 											"key": "y",
-											"doc_count": 1
+											"doc_count": 1,
 											"2": {
 												"values": [
 													{
 														"key": 75,
 														"value": 100.2
-													},
+													}
 												]
 											}
-										},
+										}
 									]
 								}
 							},
@@ -3098,7 +3097,7 @@ var AggregationTests2 = []AggregationTestCase{
 													{
 														"key": 75,
 														"value": 5
-													},
+													}
 												]
 											}
 										}
@@ -3124,44 +3123,63 @@ var AggregationTests2 = []AggregationTestCase{
 		ExpectedResults: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__2__parent_count", 34290),
-				model.NewQueryResultCol("aggr__2__key_0", "miss"),
-				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
-				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
-				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
-				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 21),
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706021670000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "x"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(2)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 349.95000000000005),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{349.95000000000005}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706021670000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "y"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(1)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 100.2),
+				model.NewQueryResultCol("metric__0__1__2_col_0", 100.2),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706021680000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "a"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(3)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 5),
+				model.NewQueryResultCol("metric__0__1__2_col_0", 5),
 			}},
 		},
 		ExpectedSQLs: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeSQL: `
-			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-			  "aggr__2__8__count", "aggr__2__8__order_1"
+			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
+			  "aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
+			  "metric__0__1__2_col_0"
 			FROM (
-			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-				"aggr__2__8__count", "aggr__2__8__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
-				"aggr__2__8__order_1_rank"
+			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
+				"aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
+				"metric__0__1__2_col_0",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__order_1_rank"
 			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-				  COALESCE("surname", 'miss') AS "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__8__parent_count",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
-				FROM ` + TableName + `
-				GROUP BY COALESCE("surname", 'miss') AS "aggr__2__key_0",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0"))
-			WHERE ("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20)
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
+				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
+				  "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
+				  "aggr__0__1__parent_count", "container.name" AS "aggr__0__1__key_0",
+				  count(*) AS "aggr__0__1__count",
+				  quantiles(0.750000)("docker.cpu.total.pct") AS "aggr__0__1__order_1",
+				  quantiles(0.750000)("docker.cpu.total.pct") AS "metric__0__1__2_col_0"
+				FROM __quesma_table_name
+				WHERE ("data_stream.dataset"='docker.cpu' AND ("@timestamp">=
+				  parseDateTime64BestEffort('2024-08-18T07:54:12.291Z') AND "@timestamp"<=
+				  parseDateTime64BestEffort('2024-09-02T07:54:12.291Z')))
+				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
+				  "aggr__0__key_0", "container.name" AS "aggr__0__1__key_0"))
+			WHERE "aggr__0__1__order_1_rank"<=6
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [54]
 		TestName: "terms order by quantile - more percentiles",
