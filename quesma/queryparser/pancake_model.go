@@ -3,9 +3,7 @@
 package queryparser
 
 import (
-	"context"
 	"fmt"
-	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"strings"
@@ -63,10 +61,31 @@ type pancakeModelBucketAggregation struct {
 
 type pancakeModelPipelineAggregation struct {
 	name         string // as originally appeared in Query DSL
-	internalName string // full name with path, e.g. metric__byCountry__byCity__population or aggr__byCountry
-	queryType    model.PipelineQueryType
+	internalName string // full name with path, e.g. pipeline__byCountry__byCity__population
+
+	// full name with path, e.g. metric__byCountry__byCity__population
+	// (at least for now it's always metric - not 100% sure it's the only possibility)
+	parentInternalName string
+	queryType          model.PipelineQueryType
 
 	metadata model.JsonMap
+}
+
+func newPancakeModelPipelineAggregation(name string, previousAggrNames []string, pipelineQueryType model.PipelineQueryType,
+	metadata model.JsonMap) *pancakeModelPipelineAggregation {
+
+	internalNamePrefix := strings.Join(previousAggrNames, "__")
+	internalName := fmt.Sprintf("%s__%s", internalNamePrefix, name)
+	parentInternalName := fmt.Sprintf("metric__%s__%s_col_0", internalNamePrefix,
+		strings.Join(append(pipelineQueryType.GetPathToParent(), pipelineQueryType.GetParent()), "__"))
+
+	return &pancakeModelPipelineAggregation{
+		name:               name,
+		internalName:       internalName,
+		parentInternalName: parentInternalName,
+		queryType:          pipelineQueryType,
+		metadata:           metadata,
+	}
 }
 
 const pancakeBucketAggregationNoLimit = 0
@@ -97,19 +116,6 @@ func (p pancakeModelBucketAggregation) InternalNameForParentCount() string {
 func (p pancakeModelBucketAggregation) DoesHaveGroupBy() bool {
 	_, noGroupBy := p.queryType.(bucket_aggregations.NoGroupByInterface)
 	return !noGroupBy
-}
-
-// FIXME it's probably too hacky
-func (p pancakeModelPipelineAggregation) parentColumnName(ctx context.Context) string {
-	// At start p.internalName = e.g. pipeline__2__1
-	prefix := strings.TrimSuffix(p.internalName, p.name) // First remove this aggregation name (1)
-	suffix := strings.Join(append(p.queryType.GetPathToParent(), p.queryType.GetParent()), "__") + "_col_0"
-	fullPath := prefix + suffix
-	if !strings.HasPrefix(fullPath, "pipeline") {
-		logger.WarnWithCtx(ctx).Msgf("prefix %s does not start with 'pipeline'", fullPath)
-		return ""
-	}
-	return "metric" + fullPath[8:]
 }
 
 func (p *pancakeModelLayer) findPipelineChildren(pipeline *pancakeModelPipelineAggregation) []*pancakeModelPipelineAggregation {

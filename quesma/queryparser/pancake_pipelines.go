@@ -24,10 +24,12 @@ func (p pancakePipelinesProcessor) selectPipelineRows(pipeline model.PipelineQue
 			if !isCount && strings.HasSuffix(col.ColName, "count") {
 				continue
 			}
+			fmt.Println(col.ColName)
 			if !strings.HasSuffix(col.ColName, "order_1") { // TODO: of course order_0, order_2, etc. should also be removed
 				newRow.Cols = append(newRow.Cols, col)
 			}
 		}
+		fmt.Println()
 		result = append(result, newRow)
 	}
 	return
@@ -88,8 +90,7 @@ func (p pancakePipelinesProcessor) currentPipelineBucketAggregations(layer, next
 		var oldColumnArr []any
 		needToAddProperMetricColumn := !childPipeline.queryType.IsCount() // If count, last column of bucketRows is already count we need.
 		if needToAddProperMetricColumn {
-			columnName := childPipeline.parentColumnName(p.ctx)
-			bucketRows, oldColumnArr = p.addProperPipelineColumn(columnName, bucketRows, rows, rowIndexes)
+			bucketRows, oldColumnArr = p.addProperPipelineColumn(childPipeline.parentInternalName, bucketRows, rows, rowIndexes)
 		}
 
 		var bucketRowsTransformedIfNeeded []model.QueryResultRow

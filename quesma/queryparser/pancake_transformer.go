@@ -84,12 +84,7 @@ func (a *pancakeTransformer) pipelineAggregationToLayer(previousAggrNames []stri
 		return nil, fmt.Errorf("pipeline aggregation %s is not pipeline aggregation, type: %s", pipeline.name, pipeline.queryType.AggregationType().String())
 	}
 
-	return &pancakeModelPipelineAggregation{
-		name:         pipeline.name,
-		internalName: fmt.Sprintf("pipeline__%s", strings.Join(append(previousAggrNames, pipeline.name), "__")),
-		queryType:    pipelineQueryType,
-		metadata:     pipeline.metadata,
-	}, nil
+	return newPancakeModelPipelineAggregation(pipeline.name, previousAggrNames, pipelineQueryType, pipeline.metadata), nil
 }
 
 func (a *pancakeTransformer) bucketAggregationToLayer(previousAggrNames []string, bucket *pancakeAggregationTreeNode) (layer *pancakeModelBucketAggregation, err error) {
