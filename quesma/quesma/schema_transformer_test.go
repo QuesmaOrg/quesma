@@ -8,7 +8,6 @@ import (
 	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/schema"
-	"slices"
 	"strconv"
 	"testing"
 )
@@ -434,17 +433,17 @@ func Test_arrayType(t *testing.T) {
 		{
 			name: "simple array",
 			query: &model.Query{
-				TableName: "kibana_sample_data_logs",
+				TableName: "kibana_sample_data_ecommerce",
 				SelectCommand: model.SelectCommand{
-					FromClause: model.NewTableRef("kibana_sample_data_logs"),
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns:    []model.Expr{model.NewWildcardExpr},
 				},
 			},
 			expected: &model.Query{
-				TableName: "kibana_sample_data_logs",
+				TableName: "kibana_sample_data_ecommerce",
 				SelectCommand: model.SelectCommand{
-					FromClause: model.NewTableRef("kibana_sample_data_logs"),
-					Columns:    []model.Expr{model.NewWildcardExpr},
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns:    []model.Expr{model.NewColumnRef("order_date"), model.NewColumnRef("products::name"), model.NewColumnRef("products::quantity"), model.NewColumnRef("products::sku")},
 				},
 			},
 		},
@@ -831,44 +830,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 
 func TestFullTextFields(t *testing.T) {
 
-	indexConfig := map[string]config.IndexConfiguration{
-		"test": {
-			Name: "kibana_sample_data_ecommerce",
-		},
-	}
-	cfg := config.QuesmaConfiguration{
-		IndexConfig: indexConfig,
-	}
-
 	lm := clickhouse.NewLogManagerEmpty()
-
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{
-			"test": {Columns: map[string]schema.Column{
-				"a": {Name: "a", Type: "String"},
-				"b": {Name: "b", Type: "String"},
-				"c": {Name: "c", Type: "String"},
-			}},
-		}}
-
-	tableDefinition := clickhouse.Table{
-		Name:   "test",
-		Config: clickhouse.NewDefaultCHConfig(),
-		Cols: map[string]*clickhouse.Column{
-			"a": {Name: "a", Type: clickhouse.NewBaseType("Array(String)")},
-			"b": {Name: "b", Type: clickhouse.NewBaseType("Array(Int64)")},
-			"c": {Name: "c", Type: clickhouse.NewBaseType("Array(String)")},
-		},
-	}
-
-	td, err := lm.GetTableDefinitions()
-	if err != nil {
-		t.Fatal(err)
-	}
-	td.Store(tableDefinition.Name, &tableDefinition)
-
-	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
 
 	tests := []struct {
 		name           string
@@ -950,10 +912,51 @@ func TestFullTextFields(t *testing.T) {
 				SelectCommand: tt.input,
 			}
 
-			// every run we reset the full text fields in table definition
-			for _, column := range tableDefinition.Cols {
-				column.IsFullTextMatch = slices.Contains(tt.fullTextFields, column.Name)
+			columns := []string{"a", "b", "c"}
+
+			var schemaColumns []schema.Column
+
+			for _, col := range columns {
+				schemaColumns = append(schemaColumns, schema.Column{Name: col, Type: "String"})
 			}
+
+			columnMap := make(map[string]schema.Column)
+			for _, col := range schemaColumns {
+				columnMap[col.Name] = col
+			}
+
+			schemaTable := schema.Table{
+				Columns: columnMap,
+			}
+
+			tableDiscovery :=
+				fixedTableProvider{tables: map[string]schema.Table{
+					"test": schemaTable,
+				}}
+
+			fieldOverrides := make(map[config.FieldName]config.FieldConfiguration)
+
+			for _, fullTextField := range tt.fullTextFields {
+				fieldOverrides[config.FieldName(fullTextField)] = config.FieldConfiguration{
+					Type: "text",
+				}
+			}
+
+			indexConfig := map[string]config.IndexConfiguration{
+				"test": {
+					Name: "test",
+					SchemaOverrides: &config.SchemaConfiguration{
+						Fields: fieldOverrides,
+					},
+				},
+			}
+
+			cfg := config.QuesmaConfiguration{
+				IndexConfig: indexConfig,
+			}
+
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
 
 			expectedAsString := model.AsString(tt.expected)
 

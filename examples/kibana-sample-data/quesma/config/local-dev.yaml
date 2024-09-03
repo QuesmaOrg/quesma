@@ -1,7 +1,11 @@
 # Default for local-dev.yml
 frontendConnectors:
-  - name: myElasticsearchAPI
-    type: elasticsearch-fe
+  - name: elastic-ingest
+    type: elasticsearch-fe-ingest
+    config:
+      listenPort: 8080
+  - name: elastic-query
+    type: elasticsearch-fe-query
     config:
       listenPort: 8080
 backendConnectors:
@@ -23,11 +27,9 @@ logging:
   remoteUrl: "https://api.quesma.com/phone-home"
   disableFileLogging: false
 processors:
-  - name: my-quesma-processor
-    type: quesma-v1-processor
+  - name: my-query-processor
+    type: quesma-v1-processor-query
     config:
-      mode: "dual-write-query-clickhouse"
-      enableElasticsearchIngest: false
       indexes:
         kibana_sample_data_ecommerce:
           schemaOverrides:
@@ -58,13 +60,59 @@ processors:
               message:
                 type: text
               "host.name":
-                type: "keyword"
+                type: text
               "service.name":
                 type: "keyword"
               source:
                 type: "keyword"
               severity:
                 type: "keyword"
-          fullTextFields: [ "message", "host.name" ]
-
-
+  - name: my-ingest-processor
+    type: quesma-v1-processor-ingest
+    config:
+      indexes:
+        kibana_sample_data_ecommerce:
+          schemaOverrides:
+            fields:
+              "geoip.location":
+                type: geo_point
+              "products.manufacturer":
+                type: text
+              "products.product_name":
+                type: text
+              category:
+                type: text
+              manufacturer:
+                type: text
+        kibana_sample_data_flights:
+          schemaOverrides:
+            fields:
+              "DestLocation":
+                type: geo_point
+              "OriginLocation":
+                type: geo_point
+        logs-generic-default:
+          schemaOverrides:
+            fields:
+              timestamp:
+                type: alias
+                targetColumnName: "@timestamp"
+              message:
+                type: text
+              "host.name":
+                type: text
+              "service.name":
+                type: "keyword"
+              source:
+                type: "keyword"
+              severity:
+                type: "keyword"
+pipelines:
+  - name: my-pipeline-elasticsearch-query-clickhouse
+    frontendConnectors: [ elastic-query ]
+    processors: [ my-query-processor ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]
+  - name: my-pipeline-elasticsearch-ingest-to-clickhouse
+    frontendConnectors: [ elastic-ingest ]
+    processors: [ my-ingest-processor ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]

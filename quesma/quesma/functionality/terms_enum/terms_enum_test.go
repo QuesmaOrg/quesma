@@ -3,6 +3,7 @@
 package terms_enum
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -59,7 +60,7 @@ var rawRequestBody = []byte(`{
 
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, "test")
 
-func TestHandleTermsEnumRequest(t *testing.T) {
+func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 	table := &clickhouse.Table{
 		Name:   testTableName,
 		Config: clickhouse.NewDefaultCHConfig(),
@@ -86,9 +87,9 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(testTableName, table))
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"tablename": {
+			testTableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"client_name":       {PropertyName: "client_name", InternalPropertyName: "client_name", Type: schema.TypeObject},
 					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
 					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
 					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
@@ -98,6 +99,9 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
 					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
 					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+				},
+				Aliases: map[schema.FieldName]schema.FieldName{
+					"client.name": "client_name",
 				},
 			},
 		},
@@ -111,7 +115,7 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 	mock.ExpectQuery(fmt.Sprintf("%s|%s", regexp.QuoteMeta(expectedQuery1), regexp.QuoteMeta(expectedQuery2))).
 		WillReturnRows(sqlmock.NewRows([]string{"client_name"}).AddRow("client_a").AddRow("client_b"))
 
-	resp, err := handleTermsEnumRequest(ctx, types.MustJSON(string(rawRequestBody)), qt, managementConsole)
+	resp, err := handleTermsEnumRequest(ctx, types.MustJSON(string(requestBody)), qt, managementConsole)
 	assert.NoError(t, err)
 
 	var responseModel model.TermsEnumResponse
@@ -125,4 +129,15 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal("there were unfulfilled expections:", err)
 	}
+}
+
+func TestHandleTermsEnumRequest(t *testing.T) {
+	testHandleTermsEnumRequest(t, rawRequestBody)
+}
+
+// Basic test.
+// "client.name" should be replaced by "client_name", and results should stay the same
+func TestIfHandleTermsEnumUsesSchema(t *testing.T) {
+	requestBodyWithAliasedField := bytes.ReplaceAll(rawRequestBody, []byte(`"field": "client_name"`), []byte(`"field": "client.name"`))
+	testHandleTermsEnumRequest(t, requestBodyWithAliasedField)
 }

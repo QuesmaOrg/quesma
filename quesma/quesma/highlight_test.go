@@ -96,9 +96,8 @@ func TestParseHighLight(t *testing.T) {
 
 `
 	col := clickhouse.Column{
-		Name:            columnName,
-		Type:            clickhouse.NewBaseType("String"),
-		IsFullTextMatch: true,
+		Name: columnName,
+		Type: clickhouse.NewBaseType("String"),
 	}
 
 	cols := make(map[string]*clickhouse.Column)

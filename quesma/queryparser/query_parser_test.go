@@ -39,7 +39,6 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	indexConfig := config.IndexConfiguration{
 		Name:           "logs-generic-default",
-		FullTextFields: []string{"message"},
 	}
 
 	cfg.IndexConfig[indexConfig.Name] = indexConfig

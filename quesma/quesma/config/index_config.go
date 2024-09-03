@@ -4,7 +4,6 @@ package config
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 )
 
@@ -20,9 +19,6 @@ type IndexConfiguration struct {
 	Override          string                            `koanf:"override"`
 }
 
-func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
-	return slices.Contains(c.FullTextFields, fieldName)
-}
 
 func (c IndexConfiguration) String() string {
 	var extraString string

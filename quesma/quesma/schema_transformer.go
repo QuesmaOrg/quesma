@@ -391,14 +391,21 @@ func (s *SchemaCheckPass) applyWildcardExpansion(query *model.Query) (*model.Que
 func (s *SchemaCheckPass) applyFullTextField(query *model.Query) (*model.Query, error) {
 	fromTable := getFromTable(query.TableName)
 
-	// FIXME we should use the schema registry here
-	//
-	table := s.logManager.FindTable(fromTable)
-	if table == nil {
-		logger.Error().Msgf("Table %s not found", fromTable)
+	index, ok := s.schemaRegistry.FindSchema(schema.TableName(fromTable))
+
+	if !ok {
+		logger.Warn().Msgf("schema not found for table %s", fromTable)
 		return query, nil
 	}
-	fullTextFields := table.GetFulltextFields()
+
+	var fullTextFields []string
+
+	for _, field := range index.Fields {
+		if field.Type.IsFullText() {
+			fullTextFields = append(fullTextFields, field.InternalPropertyName.AsString())
+		}
+	}
+
 	// sort the fields to ensure deterministic results
 	sort.Strings(fullTextFields)
 

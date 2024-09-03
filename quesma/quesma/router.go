@@ -60,12 +60,18 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
-			return nil, err
+			return &mux.Result{
+				Body:       string(queryparser.BadRequestParseError(err)),
+				StatusCode: http.StatusBadRequest,
+			}, nil
 		}
 
 		err = doc.Write(ctx, req.Params["index"], body, lm, cfg)
 		if err != nil {
-			return nil, err
+			return &mux.Result{
+				Body:       string(queryparser.BadRequestParseError(err)),
+				StatusCode: http.StatusBadRequest,
+			}, nil
 		}
 
 		return indexDocResult(req.Params["index"], http.StatusOK)
