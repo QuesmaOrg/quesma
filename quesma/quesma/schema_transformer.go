@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"quesma/catch_all_logs"
 	"quesma/clickhouse"
+	"quesma/end_user_errors"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/config"
@@ -564,20 +565,31 @@ func (s *SchemaCheckPass) applyNullForNotExistingColumns(query *model.Query) (*m
 		return query, nil
 	}
 
+	var err error
+
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 
+		if err != nil {
+			return e
+		}
+
 		if _, ok := table.Cols[e.ColumnName]; !ok {
 			fmt.Println("XXX Column not found in catch_all_logs: ", e.ColumnName)
-			//return model.NewLiteral("NULL") // it will not work "Array transformation" expects column ref
+			err = end_user_errors.ErrNoSuchTableColumn.New(fmt.Errorf("no such column: %s table: %s", e.ColumnName, fromTable)).Details("Column: '%s', table: '%s'", e.ColumnName, fromTable)
+			return e
 		}
+
 		return e
 	}
 
-	query.SelectCommand.Accept(visitor)
-
 	expr := query.SelectCommand.Accept(visitor)
+
+	if err != nil {
+		return nil, err
+	}
+
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}

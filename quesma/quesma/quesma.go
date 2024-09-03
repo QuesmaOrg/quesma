@@ -238,7 +238,9 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 				// if error is an error with user-friendly message, we should use it
 				var endUserError *end_user_errors.EndUserError
+				fmt.Println("XXX err", err)
 				if errors.As(err, &endUserError) {
+					fmt.Println("XXX is end_user", err)
 					msg = endUserError.EndUserErrorMessage()
 					reason = endUserError.Reason()
 
@@ -247,7 +249,6 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 						result = mux.BadReqeustResult()
 					}
 				}
-
 				logger.ErrorWithCtxAndReason(ctx, reason).Msgf("quesma request failed: %v", err)
 
 				requestId := "n/a"

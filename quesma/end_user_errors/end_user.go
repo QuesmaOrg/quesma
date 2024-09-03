@@ -93,6 +93,7 @@ var ErrExpectedNDJSON = errorType(1002, "Invalid request body. We're expecting N
 
 var ErrSearchCondition = errorType(2001, "Not supported search condition.")
 var ErrNoSuchTable = errorType(2002, "Missing table.")
+var ErrNoSuchTableColumn = errorType(2003, "Missing table column.")
 
 var ErrDatabaseTableNotFound = errorType(3001, "Table not found in database.")
 var ErrDatabaseFieldNotFound = errorType(3002, "Field not found in database.")
