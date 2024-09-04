@@ -246,8 +246,8 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			if len(bucketArr) == len(subAggrRows) {
 				// Simple case, we merge bucketArr[i] with subAggrRows[i] (if lengths are equal, keys must be equal => it's fine to not check them at all)
 				for i, bucket := range bucketArr {
-					for pipelineAggrName, pipelineAggrBuckets := range pipelineBucketsPerAggregation {
-						bucketArr[i][pipelineAggrName] = model.JsonMap{"value": pipelineAggrBuckets[i].LastColValue()}
+					for pipelineAggrName, pipelineAggrResult := range pipelineBucketsPerAggregation {
+						bucketArr[i][pipelineAggrName] = pipelineAggrResult[i]
 					}
 
 					if docCount, ok := bucket["doc_count"]; ok && fmt.Sprintf("%v", docCount) == "0" {
@@ -268,8 +268,8 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 				// If not, we just keep bucket[i] (i++, subAggrIdx stays the same)
 				subAggrIdx := 0
 				for i, bucket := range bucketArr {
-					for pipelineAggrName, pipelineAggrBuckets := range pipelineBucketsPerAggregation {
-						bucketArr[i][pipelineAggrName] = model.JsonMap{"value": pipelineAggrBuckets[i].LastColValue()}
+					for pipelineAggrName, pipelineAggrResult := range pipelineBucketsPerAggregation {
+						bucketArr[i][pipelineAggrName] = pipelineAggrResult[i]
 					}
 
 					if docCount, ok := bucket["doc_count"]; ok && fmt.Sprintf("%v", docCount) == "0" {

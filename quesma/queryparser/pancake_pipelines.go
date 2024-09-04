@@ -76,29 +76,28 @@ func (p pancakePipelinesProcessor) calcSingleMetricPipeline(layer *pancakeModelL
 
 // input parameters: bucketRows is a subset of rows (it both has <= columns, and <= rows).
 func (p pancakePipelinesProcessor) currentPipelineBucketAggregations(layer, nextLayer *pancakeModelLayer, bucketRows []model.QueryResultRow,
-	subAggrRows [][]model.QueryResultRow) (resultRowsPerPipeline map[string][]model.QueryResultRow) {
+	subAggrRows [][]model.QueryResultRow) (resultRowsPerPipeline map[string][]model.JsonMap) {
 
-	resultRowsPerPipeline = make(map[string][]model.QueryResultRow)
+	resultRowsPerPipeline = make(map[string][]model.JsonMap)
 
 	for _, childPipeline := range nextLayer.childrenPipelineAggregations {
 		if childPipeline.queryType.AggregationType() != model.PipelineBucketAggregation {
 			continue
 		}
 
+		bucketRowsWithRightLastColumn := bucketRows
 		needToAddProperMetricColumn := !childPipeline.queryType.IsCount() // If count, last column of bucketRows is already count we need.
 		if needToAddProperMetricColumn {
-			bucketRows = p.addProperPipelineColumn(childPipeline.parentInternalName, bucketRows, subAggrRows)
+			bucketRowsWithRightLastColumn = p.replaceCountColumnWithMetricColumn(childPipeline.parentInternalName, bucketRows, subAggrRows)
 		}
 
-		var bucketRowsTransformedIfNeeded []model.QueryResultRow
+		bucketRowsTransformedIfNeeded := bucketRowsWithRightLastColumn
 		switch queryType := layer.nextBucketAggregation.queryType.(type) {
-		// TODO: logic what and when to transform shouldn't probably be here
+		// Current logic is not perfect, but we need extra buckets in some cases
 		case bucket_aggregations.Histogram:
-			bucketRowsTransformedIfNeeded = queryType.NewRowsTransformer().Transform(p.ctx, bucketRows)
+			bucketRowsTransformedIfNeeded = queryType.NewRowsTransformer().Transform(p.ctx, bucketRowsWithRightLastColumn)
 		case *bucket_aggregations.DateHistogram:
-			bucketRowsTransformedIfNeeded = queryType.NewRowsTransformer().Transform(p.ctx, bucketRows)
-		default:
-			bucketRowsTransformedIfNeeded = bucketRows
+			bucketRowsTransformedIfNeeded = queryType.NewRowsTransformer().Transform(p.ctx, bucketRowsWithRightLastColumn)
 		}
 
 		childResults := p.calcSinglePipelineBucket(nextLayer, childPipeline, bucketRowsTransformedIfNeeded)
@@ -106,7 +105,11 @@ func (p pancakePipelinesProcessor) currentPipelineBucketAggregations(layer, next
 			if _, alreadyExists := resultRowsPerPipeline[pipelineName]; alreadyExists { // sanity check
 				logger.ErrorWithCtx(p.ctx).Msgf("pipeline %s already exists in resultsPerPipeline", pipelineName)
 			}
-			resultRowsPerPipeline[pipelineName] = pipelineResults
+			jsonResults := make([]model.JsonMap, len(pipelineResults))
+			for i, pipelineResult := range pipelineResults {
+				jsonResults[i] = childPipeline.queryType.TranslateSqlResponseToJson([]model.QueryResultRow{pipelineResult}, 0)
+			}
+			resultRowsPerPipeline[pipelineName] = jsonResults
 		}
 	}
 
@@ -134,10 +137,7 @@ func (p pancakePipelinesProcessor) calcSinglePipelineBucket(layer *pancakeModelL
 	return
 }
 
-// returns:
-//   - newSelectedRows: same as selectedRows, but with one column different if needed (value for this column is taken from
-//     allRows, which has >= columns than selectedRows, and should have the column we need)
-func (p pancakePipelinesProcessor) addProperPipelineColumn(parentColumnName string, bucketRows []model.QueryResultRow,
+func (p pancakePipelinesProcessor) replaceCountColumnWithMetricColumn(parentColumnName string, bucketRows []model.QueryResultRow,
 	subAggrRows [][]model.QueryResultRow) (newBucketRows []model.QueryResultRow) {
 
 	if len(subAggrRows) == 0 {
@@ -157,15 +157,19 @@ func (p pancakePipelinesProcessor) addProperPipelineColumn(parentColumnName stri
 		}
 	}
 
-	newBucketRows = bucketRows
 	if colIdx == -1 {
 		logger.WarnWithCtx(p.ctx).Msgf("could not find parent column %s", parentColumnName)
-		return
+		return bucketRows
 	}
 
-	for i := range bucketRows {
-		// for given i, subAggrRows[i][0, 1, ...] have the same value of the metric we need, so we may just look at [0]
-		newBucketRows[i].Cols[len(newBucketRows[i].Cols)-1].Value = subAggrRows[i][0].Cols[colIdx].Value
+	newBucketRows = make([]model.QueryResultRow, len(bucketRows))
+	for i, origRow := range bucketRows {
+		withoutLastColumn := origRow.Cols[:len(origRow.Cols)-1]
+
+		newBucketRows[i] = model.QueryResultRow{
+			Index: origRow.Index,
+			Cols:  append(withoutLastColumn, subAggrRows[i][0].Cols[colIdx]),
+		}
 	}
 	return
 }
