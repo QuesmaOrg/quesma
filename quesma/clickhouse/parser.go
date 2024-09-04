@@ -102,13 +102,11 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, chConfig *ChTab
 			// So I convert it to:
 			// "service::name::very::name"
 			internalName := nameFormatter.Format(namespace, name)
-			// We should never have dots in the field names, see 4 ADR
-			internalName = strings.Replace(internalName, ".", "::", -1)
-
-			// FIXME: linear search, converting back '::' to '.'
-			if slices.Contains(ignoredFields, config.FieldName(strings.Replace(internalName, "::", ".", -1))) {
+			if slices.Contains(ignoredFields, config.FieldName(internalName)) {
 				continue
 			}
+			// We should never have dots in the field names, see 4 ADR
+			internalName = strings.Replace(internalName, ".", "::", -1)
 
 			resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: internalName, ClickHouseType: fTypeString})
 		}
