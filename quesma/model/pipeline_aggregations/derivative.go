@@ -22,10 +22,6 @@ func NewDerivative(ctx context.Context, bucketsPath string) Derivative {
 }
 
 func (query Derivative) AggregationType() model.AggregationType {
-	return model.PipelineAggregation
-}
-
-func (query Derivative) PipelineAggregationType() model.PipelineAggregationType {
 	return model.PipelineBucketAggregation
 }
 

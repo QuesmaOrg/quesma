@@ -184,7 +184,7 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 				result = append(result, layerAndNextBucket{layer: layer, nextBucketAggregation: childAgg})
 			}
 
-		case model.PipelineAggregation:
+		case model.PipelineMetricsAggregation, model.PipelineBucketAggregation:
 			pipeline, err := a.pipelineAggregationToLayer(previousAggrNames, childAgg)
 			if err != nil {
 				return nil, err

@@ -21,10 +21,6 @@ func NewSumBucket(ctx context.Context, bucketsPath string) SumBucket {
 }
 
 func (query SumBucket) AggregationType() model.AggregationType {
-	return model.PipelineAggregation
-}
-
-func (query SumBucket) PipelineAggregationType() model.PipelineAggregationType {
 	return model.PipelineMetricsAggregation
 }
 

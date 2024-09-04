@@ -21,10 +21,6 @@ func NewMaxBucket(ctx context.Context, bucketsPath string) MaxBucket {
 }
 
 func (query MaxBucket) AggregationType() model.AggregationType {
-	return model.PipelineAggregation
-}
-
-func (query MaxBucket) PipelineAggregationType() model.PipelineAggregationType {
 	return model.PipelineMetricsAggregation
 }
 

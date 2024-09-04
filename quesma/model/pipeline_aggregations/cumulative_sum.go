@@ -26,10 +26,6 @@ func NewCumulativeSum(ctx context.Context, bucketsPath string) CumulativeSum {
 }
 
 func (query CumulativeSum) AggregationType() model.AggregationType {
-	return model.PipelineAggregation
-}
-
-func (query CumulativeSum) PipelineAggregationType() model.PipelineAggregationType {
 	return model.PipelineBucketAggregation
 }
 
