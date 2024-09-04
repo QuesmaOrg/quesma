@@ -231,7 +231,7 @@ func (b *aggrQueryBuilder) finishBuildingAggregationPipeline(aggregationType mod
 		query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewCountFunc())
 	case pipeline_aggregations.CumulativeSum:
 		query.NoDBQuery = true
-		if aggrType.IsCount {
+		if aggrType.IsCount() {
 			if len(query.Aggregators) < 2 {
 				logger.WarnWithCtx(b.ctx).Msg("cumulative_sum with count as parent, but no parent aggregation found")
 			}
@@ -241,7 +241,7 @@ func (b *aggrQueryBuilder) finishBuildingAggregationPipeline(aggregationType mod
 		}
 	case pipeline_aggregations.Derivative:
 		query.NoDBQuery = true
-		if aggrType.IsCount {
+		if aggrType.IsCount() {
 			query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewCountFunc())
 			if len(query.Aggregators) < 2 {
 				logger.WarnWithCtx(b.ctx).Msg("derivative with count as parent, but no parent aggregation found")
@@ -252,7 +252,7 @@ func (b *aggrQueryBuilder) finishBuildingAggregationPipeline(aggregationType mod
 		}
 	case pipeline_aggregations.SerialDiff:
 		query.NoDBQuery = true
-		if aggrType.IsCount {
+		if aggrType.IsCount() {
 			query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewCountFunc())
 			if len(query.Aggregators) < 2 {
 				logger.WarnWithCtx(b.ctx).Msg("serial diff with count as parent, but no parent aggregation found")

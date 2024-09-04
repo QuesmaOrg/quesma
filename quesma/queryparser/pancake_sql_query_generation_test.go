@@ -41,7 +41,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: schemaRegistry}
 
-	for i, test := range allAggregationTestsWithoutPipeline() { // TODO fix pipeline
+	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if test.ExpectedPancakeSQL == "" || test.ExpectedPancakeResults == nil { // TODO remove this
 				t.Skip("Not updated answers for pancake.")
@@ -60,6 +60,13 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
+			}
+			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
+				t.Skip("Need fix with date keys in pipeline aggregations.")
+			}
+
+			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram" {
+				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)

@@ -12,17 +12,16 @@ import (
 )
 
 type MaxBucket struct {
-	ctx    context.Context
-	Parent string
-	// IsCount bool
+	ctx context.Context
+	PipelineAggregation
 }
 
 func NewMaxBucket(ctx context.Context, bucketsPath string) MaxBucket {
-	return MaxBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
+	return MaxBucket{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query MaxBucket) AggregationType() model.AggregationType {
-	return model.PipelineAggregation
+	return model.PipelineMetricsAggregation
 }
 
 // FIXME I think we should return all rows, not just 1
@@ -44,7 +43,7 @@ func (query MaxBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 	}
 }
 
-func (query MaxBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
+func (query MaxBucket) CalculateResultWhenMissing(parentRows []model.QueryResultRow) []model.QueryResultRow {
 	resultRows := make([]model.QueryResultRow, 0)
 	if len(parentRows) == 0 {
 		return resultRows // maybe null?
@@ -54,13 +53,13 @@ func (query MaxBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows [
 	// in calculateSingleAvgBucket we calculate avg all current_keys with the same parent_cols
 	// so we need to split into buckets based on parent_cols
 	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
-		resultRows = append(resultRows, query.calculateSingleMaxBucket(qwa, parentRowsOneBucket))
+		resultRows = append(resultRows, query.calculateSingleMaxBucket(parentRowsOneBucket))
 	}
 	return resultRows
 }
 
 // we're sure len(parentRows) > 0
-func (query MaxBucket) calculateSingleMaxBucket(qwa *model.Query, parentRows []model.QueryResultRow) model.QueryResultRow {
+func (query MaxBucket) calculateSingleMaxBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
 	var resultValue any
 	var resultKeys []any
 
@@ -95,7 +94,7 @@ func (query MaxBucket) calculateSingleMaxBucket(qwa *model.Query, parentRows []m
 		// find keys with max value
 		for _, row := range parentRows[firstNonNilIndex:] {
 			if value, ok := util.ExtractFloat64Maybe(row.LastColValue()); ok && value == maxValue {
-				resultKeys = append(resultKeys, getKey(query.ctx, row, qwa))
+				resultKeys = append(resultKeys, getKey(query.ctx, row))
 			}
 		}
 	} else if firstRowValueInt, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[firstNonNilIndex].LastColValue()); firstRowValueIsInt {
@@ -113,7 +112,7 @@ func (query MaxBucket) calculateSingleMaxBucket(qwa *model.Query, parentRows []m
 		// find keys with max value
 		for _, row := range parentRows[firstNonNilIndex:] {
 			if value, ok := util.ExtractInt64Maybe(row.LastColValue()); ok && value == maxValue {
-				resultKeys = append(resultKeys, getKey(query.ctx, row, qwa))
+				resultKeys = append(resultKeys, getKey(query.ctx, row))
 			}
 		}
 	} else {

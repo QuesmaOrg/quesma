@@ -83,6 +83,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 			"key_as_string": intervalStart,
 		})
 	}
+
 	return model.JsonMap{
 		"buckets": response,
 	}

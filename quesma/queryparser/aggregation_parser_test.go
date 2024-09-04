@@ -737,21 +737,7 @@ func allAggregationTests() []testdata.AggregationTestCase {
 	return allTests
 }
 
-// TODO remove after pipeline aggregations are implemented
-func allAggregationTestsWithoutPipeline() []testdata.AggregationTestCase {
-	const lowerBoundTestNr = 80
-	allTests := make([]testdata.AggregationTestCase, 0, lowerBoundTestNr)
-	allTests = append(allTests, testdata.AggregationTests...)
-	allTests = append(allTests, testdata.AggregationTests2...)
-	allTests = append(allTests, opensearch_visualize.AggregationTests...)
-	allTests = append(allTests, dashboard_1.AggregationTests...)
-	allTests = append(allTests, kibana_visualize.AggregationTests...)
-	allTests = append(allTests, clients.KunkkaTests...)
-	allTests = append(allTests, clients.OpheliaTests...)
-	return allTests
-}
-
-func Test2AggregationParserExternalTestcases(t *testing.T) {
+func TestAggregationParserExternalTestcases(t *testing.T) {
 
 	ctx := context.Background()
 

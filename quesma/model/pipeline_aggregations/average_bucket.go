@@ -12,23 +12,23 @@ import (
 )
 
 type AverageBucket struct {
-	ctx    context.Context
-	Parent string
+	ctx context.Context
+	PipelineAggregation
 }
 
 func NewAverageBucket(ctx context.Context, bucketsPath string) AverageBucket {
-	return AverageBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
+	return AverageBucket{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query AverageBucket) AggregationType() model.AggregationType {
-	return model.PipelineAggregation
+	return model.PipelineMetricsAggregation
 }
 
 func (query AverageBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	return translateSqlResponseToJsonCommon(query.ctx, rows, query.String())
 }
 
-func (query AverageBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
+func (query AverageBucket) CalculateResultWhenMissing(parentRows []model.QueryResultRow) []model.QueryResultRow {
 	resultRows := make([]model.QueryResultRow, 0)
 	if len(parentRows) == 0 {
 		return resultRows // maybe null?

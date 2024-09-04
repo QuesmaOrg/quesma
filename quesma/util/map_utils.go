@@ -4,6 +4,8 @@ package util
 
 import (
 	"cmp"
+	"context"
+	"quesma/logger"
 	"sort"
 )
 
@@ -37,4 +39,15 @@ func MapKeysSortedByValue[K comparable, V cmp.Ordered](m map[K]V) []K {
 		return m[keys[i]] < m[keys[j]]
 	})
 	return keys
+}
+
+// Caution: this function mutates the first map
+func Merge[V any](ctx context.Context, m1, m2 map[string]V, errorContext string) map[string]V {
+	for k, v := range m2 {
+		if _, exists := m1[k]; exists {
+			logger.ErrorWithCtx(ctx).Msgf("key %s already exists. overriding (%s)", k, errorContext)
+		}
+		m1[k] = v
+	}
+	return m1
 }
