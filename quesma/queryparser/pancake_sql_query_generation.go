@@ -397,15 +397,6 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			return nil, "", fmt.Errorf("expected top_hits query type, got: %T", topHits.queryType)
 		}
 
-		topHitsSourceName := "quesma_top_hits_group_by"
-
-		namedCte := []*model.CTE{
-			{
-				Name:          topHitsSourceName,
-				SelectCommand: resultQuery,
-			},
-		}
-
 		// TODO: add combinators if there exist
 		whereClause := aggregation.whereClause
 
@@ -432,6 +423,8 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 				convertColumnRefToHitTable(groupBy.Expr)))
 		}
 
+		topHitsSourceName := "quesma_top_hits_group_table"
+
 		fromClause := model.NewJoinExpr(
 			model.NewAliasedExpr(model.NewLiteral(topHitsSourceName), groupTableName),
 			model.NewAliasedExpr(model.NewTableRef(model.SingleTableNamePlaceHolder), hitTableName),
@@ -457,22 +450,35 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			model.NewWindowFunction("ROW_NUMBER", []model.Expr{}, partitionByExprs, []model.OrderByExpr{}),
 			"top_hits_rank"))
 
-		outerQuery := model.SelectCommand{
+		joinQuery := model.SelectCommand{
 			Columns: p.aliasedExprArrayToExpr(newSelects),
 			// rank by hits
 			FromClause:  fromClause,
 			WhereClause: whereClause,
-			NamedCTEs:   namedCte,
+		}
+
+		joinQueryName := "quesma_top_hits_join"
+
+		namedCte := []*model.CTE{
+			{
+				Name:          topHitsSourceName,
+				SelectCommand: resultQuery,
+			},
+			{
+				Name:          joinQueryName,
+				SelectCommand: &joinQuery,
+			},
 		}
 
 		// TODO: Simplify
 		resultQuery = &model.SelectCommand{
 			Columns:    p.aliasedExprArrayToLiteralExpr(newSelects),
-			FromClause: outerQuery,
+			FromClause: model.NewLiteral(joinQueryName),
 			WhereClause: model.NewInfixExpr(
 				model.NewLiteral("top_hits_rank"),
 				"<=",
 				model.NewLiteral(strconv.Itoa(topHitsQueryType.Size))),
+			NamedCTEs: namedCte,
 		}
 
 		optimizerName = PancakeOptimizerName + "(with top_hits)"
