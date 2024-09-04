@@ -26,27 +26,18 @@ type TransformationHistory struct {
 
 type AggregationType int
 
-// Just like aggregations are either Metrics/Bucket/Pipeline,
-// Pipeline aggregations can be split into Metrics/Bucket.
-// (it's our terminology, I don't think it's like that in Elastic docs)
-// Metric return single value, bucket return value for each bucket.
-type PipelineAggregationType int
-
 const (
 	BucketAggregation AggregationType = iota
 	MetricsAggregation
-	PipelineAggregation
-	TypicalAggregation // Not a real aggregation, but we reuse type
+	PipelineMetricsAggregation // Pipeline aggregation that returns metrics
+	PipelineBucketAggregation  // Pipeline aggregation that operate on buckets
+	TypicalAggregation         // Not a real aggregation, but we reuse type
 	UnknownAggregation
 )
 
-const (
-	PipelineMetricsAggregation PipelineAggregationType = iota
-	PipelineBucketAggregation
-)
-
 func (s AggregationType) String() string {
-	return [...]string{"BucketAggregation", "MetricsAggregation", "PipelineAggregation", "TypicalAggregation", "UnknownAggregation"}[s]
+	return [...]string{"BucketAggregation", "MetricsAggregation", "PipelineMetricsAggregation",
+		"PipelineBucketAggregation", "TypicalAggregation", "UnknownAggregation"}[s]
 }
 
 type (

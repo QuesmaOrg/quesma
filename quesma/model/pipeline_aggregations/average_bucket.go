@@ -21,10 +21,6 @@ func NewAverageBucket(ctx context.Context, bucketsPath string) AverageBucket {
 }
 
 func (query AverageBucket) AggregationType() model.AggregationType {
-	return model.PipelineAggregation
-}
-
-func (query AverageBucket) PipelineAggregationType() model.PipelineAggregationType {
 	return model.PipelineMetricsAggregation
 }
 

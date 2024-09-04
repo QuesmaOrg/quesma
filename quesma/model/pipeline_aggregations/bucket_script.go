@@ -17,10 +17,6 @@ func NewBucketScript(ctx context.Context) BucketScript {
 }
 
 func (query BucketScript) AggregationType() model.AggregationType {
-	return model.PipelineAggregation
-}
-
-func (query BucketScript) PipelineAggregationType() model.PipelineAggregationType {
 	return model.PipelineMetricsAggregation // not sure
 }
 

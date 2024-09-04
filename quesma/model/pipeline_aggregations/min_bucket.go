@@ -21,10 +21,6 @@ func NewMinBucket(ctx context.Context, bucketsPath string) MinBucket {
 }
 
 func (query MinBucket) AggregationType() model.AggregationType {
-	return model.PipelineAggregation
-}
-
-func (query MinBucket) PipelineAggregationType() model.PipelineAggregationType {
 	return model.PipelineMetricsAggregation
 }
 

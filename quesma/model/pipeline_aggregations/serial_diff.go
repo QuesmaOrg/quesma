@@ -23,10 +23,6 @@ func NewSerialDiff(ctx context.Context, bucketsPath string, lag int) SerialDiff 
 }
 
 func (query SerialDiff) AggregationType() model.AggregationType {
-	return model.PipelineAggregation
-}
-
-func (query SerialDiff) PipelineAggregationType() model.PipelineAggregationType {
 	return model.PipelineBucketAggregation
 }
 
