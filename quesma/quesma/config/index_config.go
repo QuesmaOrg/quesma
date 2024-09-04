@@ -4,14 +4,11 @@ package config
 
 import (
 	"fmt"
-	"strings"
 )
 
 type IndexConfiguration struct {
 	Name     string `koanf:"name"`
 	Disabled bool   `koanf:"disabled"`
-	// TODO to be deprecated
-	FullTextFields []string `koanf:"fullTextFields"`
 	// TODO to be deprecated
 	TimestampField    *string                           `koanf:"timestampField"`
 	SchemaOverrides   *SchemaConfiguration              `koanf:"schemaOverrides"`
@@ -33,10 +30,6 @@ func (c IndexConfiguration) String() string {
 		c.SchemaOverrides.String(),
 		c.Override,
 	)
-
-	if len(c.FullTextFields) > 0 {
-		str = fmt.Sprintf("%s, fullTextFields: %s", str, strings.Join(c.FullTextFields, ", "))
-	}
 
 	if c.TimestampField != nil {
 		return fmt.Sprintf("%s, timestampField: %s", str, *c.TimestampField)
