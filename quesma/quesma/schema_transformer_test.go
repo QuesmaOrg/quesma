@@ -30,27 +30,30 @@ func Test_ipRangeTransform(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_logs": {
-			Name:           "kibana_sample_data_logs",
-			FullTextFields: []string{"message", "content"},
+			Name: "kibana_sample_data_logs",
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				config.FieldName(IpFieldName): {Type: "ip"},
+				"message":                     {Type: "text"},
+				"content":                     {Type: "text"},
 			}},
 		},
 		// Identical to kibana_sample_data_logs, but with "nested.clientip"
 		// instead of "clientip"
 		"kibana_sample_data_logs_nested": {
-			Name:           "kibana_sample_data_logs_nested",
-			FullTextFields: []string{"message", "content"},
+			Name: "kibana_sample_data_logs_nested",
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				"nested.clientip": {Type: "ip"},
+				"message":         {Type: "text"},
+				"content":         {Type: "text"},
 			}},
 		},
 		"kibana_sample_data_flights": {
-			Name:           "kibana_sample_data_flights",
-			FullTextFields: []string{"message", "content"},
+			Name: "kibana_sample_data_flights",
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				config.FieldName(IpFieldName): {Type: "ip"},
 				"DestLocation":                {Type: "geo_point"},
+				"message":                     {Type: "text"},
+				"content":                     {Type: "text"},
 			}},
 		},
 	}
