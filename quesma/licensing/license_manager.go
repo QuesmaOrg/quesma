@@ -52,6 +52,9 @@ func (l *LicenseModule) obtainLicenseKey() (err error) {
 }
 
 func FormatLicenseKey(licenseKey []byte) string {
+	if len(licenseKey) < 8 { // too short to be obfuscated, most probably it's invalid anyway
+		return "....."
+	}
 	return fmt.Sprintf("%s.....%s", string(licenseKey[:8]), string(licenseKey[len(licenseKey)-8:]))
 }
 
