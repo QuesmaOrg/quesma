@@ -31,7 +31,6 @@ func (p pancakePipelinesProcessor) selectPipelineRows(pipeline model.PipelineQue
 				newRow.Cols = append(newRow.Cols, col)
 			}
 		}
-		fmt.Println()
 		result = append(result, newRow)
 	}
 	return
@@ -76,8 +75,6 @@ func (p pancakePipelinesProcessor) calcSingleMetricPipeline(layer *pancakeModelL
 }
 
 // input parameters: bucketRows is a subset of rows (it both has <= columns, and <= rows).
-// If e.g. rowIndexes = [2, 5], then bucketRows = [rows[2], rows[5]] (with maybe some columns removed)
-// We need rows and rowIndexes to fetch proper metric column from rows.
 func (p pancakePipelinesProcessor) currentPipelineBucketAggregations(layer, nextLayer *pancakeModelLayer, bucketRows []model.QueryResultRow,
 	subAggrRows [][]model.QueryResultRow) (resultRowsPerPipeline map[string][]model.QueryResultRow) {
 
@@ -140,9 +137,6 @@ func (p pancakePipelinesProcessor) calcSinglePipelineBucket(layer *pancakeModelL
 // returns:
 //   - newSelectedRows: same as selectedRows, but with one column different if needed (value for this column is taken from
 //     allRows, which has >= columns than selectedRows, and should have the column we need)
-//   - oldColumnArray:  old value of the exchanged column, to be restored in restoreOriginalColumn after processing
-//
-// Use restoreOriginalColumn after processing to restore original values.
 func (p pancakePipelinesProcessor) addProperPipelineColumn(parentColumnName string, bucketRows []model.QueryResultRow,
 	subAggrRows [][]model.QueryResultRow) (newBucketRows []model.QueryResultRow) {
 
