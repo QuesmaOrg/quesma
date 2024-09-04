@@ -5,6 +5,8 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/barkimedes/go-deepcopy"
+	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -87,7 +89,27 @@ func (p pancakePipelinesProcessor) currentPipelineBucketAggregations(layer, next
 
 		needToAddProperMetricColumn := !childPipeline.queryType.IsCount() // If count, last column of bucketRows is already count we need.
 		if needToAddProperMetricColumn {
-			bucketRows = p.addProperPipelineColumn(childPipeline.parentInternalName, bucketRows, subAggrRows)
+			pp.Println("JM: currentPipelineBucketAggregations before")
+			for _, row := range bucketRows {
+				pp.Println("Row", row.Index)
+				for _, col := range row.Cols {
+					pp.Println(" -", col.ColName, col.Value)
+				}
+			}
+			newBucketRows := deepcopy.MustAnything(bucketRows).([]model.QueryResultRow)
+			newBucketRows2 := p.addProperPipelineColumn(childPipeline.parentInternalName, newBucketRows, subAggrRows)
+			pp.Println("JM: currentPipelineBucketAggregations after")
+
+			for _, row := range newBucketRows2 {
+				pp.Println("Row", row.Index)
+				for _, col := range row.Cols {
+					pp.Println(" -", col.ColName, col.Value)
+				}
+			}
+
+			//if false {
+			//	bucketRows = p.addProperPipelineColumn(childPipeline.parentInternalName, bucketRows, subAggrRows)
+			//}
 		}
 
 		var bucketRowsTransformedIfNeeded []model.QueryResultRow
