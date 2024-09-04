@@ -1658,14 +1658,7 @@ var AggregationTests = []AggregationTestCase{
 			ORDER BY "aggr__origins__order_1_rank" ASC,
 			  "aggr__origins__distinations__order_1_rank" ASC`,
 		ExpectedAdditionalPancakeSQLs: []string{`
-			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
-			  "aggr__origins__count", "aggr__origins__order_1",
-			  "aggr__origins__distinations__parent_count",
-			  "aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
-			  "aggr__origins__distinations__order_1", "top_hits_1", "top_hits_rank"
-			FROM (
-			
-			WITH quesma_top_hits_group_by AS (
+			WITH quesma_top_hits_group_table AS (
 			  SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
 				"aggr__origins__count", "aggr__origins__order_1",
 				"aggr__origins__distinations__parent_count",
@@ -1702,37 +1695,39 @@ var AggregationTests = []AggregationTestCase{
 			  WHERE ("aggr__origins__order_1_rank"<=10001 AND
 				"aggr__origins__distinations__order_1_rank"<=10001)
 			  ORDER BY "aggr__origins__order_1_rank" ASC,
-				"aggr__origins__distinations__order_1_rank" ASC)
-			SELECT "group_table"."aggr__origins__parent_count" AS
-			  "aggr__origins__parent_count",
-			  "group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
-			  "group_table"."aggr__origins__count" AS "aggr__origins__count",
-			  "group_table"."aggr__origins__order_1" AS "aggr__origins__order_1",
-			  "group_table"."aggr__origins__distinations__parent_count" AS
+				"aggr__origins__distinations__order_1_rank" ASC) ,
+			quesma_top_hits_join AS (
+			  SELECT "group_table"."aggr__origins__parent_count" AS
+				"aggr__origins__parent_count",
+				"group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
+				"group_table"."aggr__origins__count" AS "aggr__origins__count",
+				"group_table"."aggr__origins__order_1" AS "aggr__origins__order_1",
+				"group_table"."aggr__origins__distinations__parent_count" AS
+				"aggr__origins__distinations__parent_count",
+				"group_table"."aggr__origins__distinations__key_0" AS
+				"aggr__origins__distinations__key_0",
+				"group_table"."aggr__origins__distinations__count" AS
+				"aggr__origins__distinations__count",
+				"group_table"."aggr__origins__distinations__order_1" AS
+				"aggr__origins__distinations__order_1",
+				"hit_table"."OriginLocation" AS "top_hits_1",
+				"hit_table"."Origin" AS "top_hits_2",
+				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0",
+				"group_table"."aggr__origins__distinations__key_0") AS "top_hits_rank"
+			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+				__quesma_table_name AS "hit_table" ON (("group_table"."aggr__origins__key_0"
+				="hit_table"."OriginAirportID" AND
+				"group_table"."aggr__origins__distinations__key_0"=
+				"hit_table"."DestAirportID")))
+			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
+			  "aggr__origins__count", "aggr__origins__order_1",
 			  "aggr__origins__distinations__parent_count",
-			  "group_table"."aggr__origins__distinations__key_0" AS
-			  "aggr__origins__distinations__key_0",
-			  "group_table"."aggr__origins__distinations__count" AS
-			  "aggr__origins__distinations__count",
-			  "group_table"."aggr__origins__distinations__order_1" AS
-			  "aggr__origins__distinations__order_1",
-			  "hit_table"."DestLocation" AS "top_hits_1",
-			  ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0",
-			  "group_table"."aggr__origins__distinations__key_0") AS "top_hits_rank"
-			FROM quesma_top_hits_group_by AS "group_table" LEFT OUTER JOIN
-			  __quesma_table_name AS "hit_table" ON (("group_table"."aggr__origins__key_0"=
-			  "hit_table"."OriginAirportID" AND
-			  "group_table"."aggr__origins__distinations__key_0"="hit_table"."DestAirportID"
-			  )))
+			  "aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
+			  "aggr__origins__distinations__order_1", "top_hits_1", "top_hits_2",
+			  "top_hits_rank"
+			FROM quesma_top_hits_join
 			WHERE top_hits_rank<=1`, `
-			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
-			  "aggr__origins__count", "aggr__origins__order_1",
-			  "aggr__origins__distinations__parent_count",
-			  "aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
-			  "aggr__origins__distinations__order_1", "top_hits_1", "top_hits_rank"
-			FROM (
-			
-			WITH quesma_top_hits_group_by AS (
+			WITH quesma_top_hits_group_table AS (
 			  SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
 				"aggr__origins__count", "aggr__origins__order_1",
 				"aggr__origins__distinations__parent_count",
@@ -1769,28 +1764,35 @@ var AggregationTests = []AggregationTestCase{
 			  WHERE ("aggr__origins__order_1_rank"<=10001 AND
 				"aggr__origins__distinations__order_1_rank"<=10001)
 			  ORDER BY "aggr__origins__order_1_rank" ASC,
-				"aggr__origins__distinations__order_1_rank" ASC)
-			SELECT "group_table"."aggr__origins__parent_count" AS
-			  "aggr__origins__parent_count",
-			  "group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
-			  "group_table"."aggr__origins__count" AS "aggr__origins__count",
-			  "group_table"."aggr__origins__order_1" AS "aggr__origins__order_1",
-			  "group_table"."aggr__origins__distinations__parent_count" AS
+				"aggr__origins__distinations__order_1_rank" ASC) ,
+			quesma_top_hits_join AS (
+			  SELECT "group_table"."aggr__origins__parent_count" AS
+				"aggr__origins__parent_count",
+				"group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
+				"group_table"."aggr__origins__count" AS "aggr__origins__count",
+				"group_table"."aggr__origins__order_1" AS "aggr__origins__order_1",
+				"group_table"."aggr__origins__distinations__parent_count" AS
+				"aggr__origins__distinations__parent_count",
+				"group_table"."aggr__origins__distinations__key_0" AS
+				"aggr__origins__distinations__key_0",
+				"group_table"."aggr__origins__distinations__count" AS
+				"aggr__origins__distinations__count",
+				"group_table"."aggr__origins__distinations__order_1" AS
+				"aggr__origins__distinations__order_1",
+				"hit_table"."DestLocation" AS "top_hits_1",
+				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0",
+				"group_table"."aggr__origins__distinations__key_0") AS "top_hits_rank"
+			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+				__quesma_table_name AS "hit_table" ON (("group_table"."aggr__origins__key_0"
+				="hit_table"."OriginAirportID" AND
+				"group_table"."aggr__origins__distinations__key_0"=
+				"hit_table"."DestAirportID")))
+			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
+			  "aggr__origins__count", "aggr__origins__order_1",
 			  "aggr__origins__distinations__parent_count",
-			  "group_table"."aggr__origins__distinations__key_0" AS
-			  "aggr__origins__distinations__key_0",
-			  "group_table"."aggr__origins__distinations__count" AS
-			  "aggr__origins__distinations__count",
-			  "group_table"."aggr__origins__distinations__order_1" AS
-			  "aggr__origins__distinations__order_1",
-			  "hit_table"."DestLocation" AS "top_hits_1",
-			  ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0",
-			  "group_table"."aggr__origins__distinations__key_0") AS "top_hits_rank"
-			FROM quesma_top_hits_group_by AS "group_table" LEFT OUTER JOIN
-			  __quesma_table_name AS "hit_table" ON (("group_table"."aggr__origins__key_0"=
-			  "hit_table"."OriginAirportID" AND
-			  "group_table"."aggr__origins__distinations__key_0"="hit_table"."DestAirportID"
-			  )))
+			  "aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
+			  "aggr__origins__distinations__order_1", "top_hits_1", "top_hits_rank"
+			FROM quesma_top_hits_join
 			WHERE top_hits_rank<=1`},
 	},
 	{ // [8]

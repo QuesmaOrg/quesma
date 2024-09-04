@@ -100,7 +100,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 					if pancakeIdx-1 >= len(test.ExpectedAdditionalPancakeResults) {
 						pp.Println("=== Expected additional results for SQL:")
 						fmt.Println(prettyPancakeSql)
-						continue
 					}
 					expectedSql = test.ExpectedAdditionalPancakeSQLs[pancakeIdx-1]
 				}
