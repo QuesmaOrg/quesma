@@ -43,8 +43,7 @@ func (p pancakePipelinesProcessor) currentPipelineMetricAggregations(layer *panc
 	resultPerPipeline = make(map[string]model.JsonMap)
 
 	for _, pipeline := range layer.childrenPipelineAggregations {
-		typ := pipeline.queryType.PipelineAggregationType()
-		if typ != model.PipelineMetricsAggregation {
+		if pipeline.queryType.AggregationType() != model.PipelineMetricsAggregation {
 			continue
 		}
 
@@ -85,7 +84,7 @@ func (p pancakePipelinesProcessor) currentPipelineBucketAggregations(layer, next
 	resultRowsPerPipeline = make(map[string][]model.QueryResultRow)
 
 	for _, childPipeline := range nextLayer.childrenPipelineAggregations {
-		if childPipeline.queryType.PipelineAggregationType() != model.PipelineBucketAggregation {
+		if childPipeline.queryType.AggregationType() != model.PipelineBucketAggregation {
 			continue
 		}
 

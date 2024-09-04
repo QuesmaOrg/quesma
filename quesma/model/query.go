@@ -35,14 +35,10 @@ type PipelineAggregationType int
 const (
 	BucketAggregation AggregationType = iota
 	MetricsAggregation
-	PipelineAggregation
-	TypicalAggregation // Not a real aggregation, but we reuse type
+	PipelineMetricsAggregation // Pipeline aggregation that returns metrics
+	PipelineBucketAggregation  // Pipeline aggregation that operate on buckets
+	TypicalAggregation         // Not a real aggregation, but we reuse type
 	UnknownAggregation
-)
-
-const (
-	PipelineMetricsAggregation PipelineAggregationType = iota
-	PipelineBucketAggregation
 )
 
 func (s AggregationType) String() string {

@@ -180,7 +180,7 @@ func (q *QueryRunner) maybeCreatePancakeExecutionPlan(ctx context.Context, resol
 	queriesWithoutAggr := make([]*model.Query, 0)
 	for _, query := range plan.Queries {
 		switch query.Type.AggregationType() {
-		case model.MetricsAggregation, model.BucketAggregation, model.PipelineAggregation:
+		case model.MetricsAggregation, model.BucketAggregation, model.PipelineMetricsAggregation, model.PipelineBucketAggregation:
 			hasAggQuery = true
 		default:
 			queriesWithoutAggr = append(queriesWithoutAggr, query)
