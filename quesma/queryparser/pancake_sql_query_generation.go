@@ -397,7 +397,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			return nil, "", fmt.Errorf("expected top_hits query type, got: %T", topHits.queryType)
 		}
 
-		topHitsSourceName := "quesma_top_hits"
+		topHitsSourceName := "quesma_top_hits_group_by"
 
 		namedCte := []*model.CTE{
 			{
@@ -435,7 +435,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		fromClause := model.NewJoinExpr(
 			model.NewAliasedExpr(model.NewLiteral(topHitsSourceName), groupTableName),
 			model.NewAliasedExpr(model.NewTableRef(model.SingleTableNamePlaceHolder), hitTableName),
-			"LEFT OUTER JOIN",
+			"LEFT OUTER",
 			model.And(joinExprs))
 
 		newSelects := make([]model.AliasedExpr, 0, len(selectColumns)+len(topHits.selectedColumns))
@@ -475,9 +475,6 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 				model.NewLiteral(strconv.Itoa(topHitsQueryType.Size))),
 		}
 
-		// TODO: create top_hits
-		//topHitJoin := model.SelectCommand{}
-		//resultQuery = &topHitJoin
 		optimizerName = PancakeOptimizerName + "(with top_hits)"
 	}
 
