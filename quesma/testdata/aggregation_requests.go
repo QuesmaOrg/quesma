@@ -1612,7 +1612,17 @@ var AggregationTests = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 15), model.NewQueryResultCol("key", "DLH")}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			// TODO: query 0
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				// TODO: query 1
+			},
+			{
+				// TODO: query 2
+			},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + TableName + ` `,
