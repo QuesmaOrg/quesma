@@ -11,6 +11,7 @@ import (
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/schema"
+	"quesma/single_table"
 	"quesma/util"
 	"strings"
 	"sync/atomic"
@@ -126,6 +127,7 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 	if td.cfg.ClickHouse.Database != "" {
 		databaseName = td.cfg.ClickHouse.Database
 	}
+	// TODO here we should read table definition from the elastic as well.
 	if tables, err := td.readTables(databaseName); err != nil {
 		var endUserError *end_user_errors.EndUserError
 		if errors.As(err, &endUserError) {
@@ -154,7 +156,17 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]string, d
 	configuredTables = make(map[string]discoveredTable)
 	var explicitlyDisabledTables, notConfiguredTables []string
 	for table, columns := range tables {
-		if indexConfig, found := td.cfg.IndexConfig[table]; found {
+
+		// single logs table is our internal table, user shouldn't configure it at all
+		// and we should always include it in the list of tables managed by Quesma
+		isAllLogs := table == single_table.TableName
+
+		if indexConfig, found := td.cfg.IndexConfig[table]; found || isAllLogs {
+
+			if isAllLogs {
+				indexConfig = config.IndexConfiguration{}
+			}
+
 			if indexConfig.Disabled {
 				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 			} else {
@@ -253,8 +265,12 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 	}
 
 	existing := td.tableDefinitions.Load()
-	existing.Range(func(key string, _ *Table) bool {
+	existing.Range(func(key string, table *Table) bool {
+		if table.DefinitionOnly {
+			return true
+		}
 		if !tableMap.Has(key) {
+
 			logger.Info().Msgf("table %s is no longer found in the database, ignoring", key)
 		}
 		return true
@@ -430,6 +446,7 @@ func removePrecision(str string) string {
 }
 
 func (td *tableDiscovery) readTables(database string) (map[string]map[string]string, error) {
+
 	logger.Debug().Msgf("describing tables: %s", database)
 
 	rows, err := td.dbConnPool.Query("SELECT table, name, type FROM system.columns WHERE database = ?", database)

@@ -26,6 +26,7 @@ type Table struct {
 	Comment          string // this human-readable comment
 	CreateTableQuery string
 	TimestampColumn  *string
+	DefinitionOnly   bool
 }
 
 func (t *Table) createTableOurFieldsString() []string {

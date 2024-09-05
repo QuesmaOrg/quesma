@@ -201,7 +201,7 @@ func validateValueAgainstType(fieldName string, value interface{}, column *Colum
 // and returns the fields that are not valid e.g. have wrong types
 // according to the schema
 func (lm *LogManager) validateIngest(tableName string, document types.JSON) (types.JSON, error) {
-	clickhouseTable := lm.FindTable(tableName)
+	clickhouseTable := lm.GetTable(tableName)
 
 	if clickhouseTable == nil {
 		logger.Error().Msgf("Table %s not found", tableName)

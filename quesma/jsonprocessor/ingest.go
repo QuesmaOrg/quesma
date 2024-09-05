@@ -44,12 +44,12 @@ func IngestTransformerFor(table string, cfg *config.QuesmaConfiguration) IngestT
 		transformers = append(transformers, &removeFieldsTransformer{fields: indexConfig.SchemaOverrides.IgnoredFields()})
 	}
 
-	return ingestTransformerPipeline(transformers)
+	return IngestTransformerPipeline(transformers)
 }
 
-type ingestTransformerPipeline []IngestTransformer
+type IngestTransformerPipeline []IngestTransformer
 
-func (pipe ingestTransformerPipeline) Transform(document types.JSON) (types.JSON, error) {
+func (pipe IngestTransformerPipeline) Transform(document types.JSON) (types.JSON, error) {
 	for _, transformer := range pipe {
 		var err error
 		document, err = transformer.Transform(document)

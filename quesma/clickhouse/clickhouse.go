@@ -19,6 +19,7 @@ import (
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/schema"
+	"quesma/single_table"
 	"quesma/stats"
 	"quesma/telemetry"
 	"quesma/util"
@@ -356,10 +357,20 @@ func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (retu
 	return returnedErr
 }
 
-func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string, config *ChTableConfig) error {
+func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string, config *ChTableConfig, name string, tableDefinitionChangeOnly bool) error {
 	table, err := NewTable(query, config)
 	if err != nil {
-		return err
+		return fmt.Errorf("error parsing create table DDL table: %w", err)
+	}
+
+	// This is a HACK.
+	// CreateQueryParser assumes that the table name is in the form of "database.table"
+	// in this case we don't have a database name, so we need to add it
+	if tableDefinitionChangeOnly {
+		table.Name = name
+		table.DatabaseName = ""
+		table.Comment = "Definition only. This is not a real table."
+		table.DefinitionOnly = true
 	}
 
 	// if exists only then createTable
@@ -368,7 +379,13 @@ func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string,
 		return fmt.Errorf("table %s already exists", table.Name)
 	}
 
-	return lm.execute(ctx, addOurFieldsToCreateTableQuery(query, config, table))
+	createTableDDL := addOurFieldsToCreateTableQuery(query, config, table)
+
+	if tableDefinitionChangeOnly {
+		return nil
+	}
+
+	return lm.execute(ctx, createTableDDL)
 }
 
 func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
@@ -390,15 +407,21 @@ func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tabl
 	}
 	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName), ignoredFields) + Indexes(jsonData)
 
+	var extraComment string
+
+	if tableName == single_table.TableName {
+		extraComment = "This table is used for storing multiple indexes. It is not meant to be used directly."
+	}
+
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
 (
 
 %s
 )
 %s
-COMMENT 'created by Quesma'`,
+COMMENT 'Managed by Quesma. %s'`,
 		tableName, columns,
-		tableConfig.CreateTablePostFieldsString())
+		tableConfig.CreateTablePostFieldsString(), extraComment)
 
 	return createTableCmd, nil
 }
@@ -416,8 +439,7 @@ func Indexes(m SchemaMap) string {
 	result.WriteString(",\n")
 	return result.String()
 }
-
-func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig, tableFormatter TableColumNameFormatter) error {
+func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig, tableFormatter TableColumNameFormatter, tableDefinitionChangeOnly bool) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
 	query, err := lm.buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, tableFormatter)
@@ -425,7 +447,7 @@ func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name strin
 		return err
 	}
 
-	err = lm.ProcessCreateTableQuery(ctx, query, config)
+	err = lm.ProcessCreateTableQuery(ctx, query, config, name, tableDefinitionChangeOnly)
 	if err != nil {
 		return err
 	}
@@ -635,7 +657,10 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 		return string(rawBytes), nil, nil
 	}
 
-	table := lm.FindTable(tableName)
+	table := lm.GetTable(tableName)
+	if table == nil {
+		return "", nil, fmt.Errorf("table %s not found", tableName)
+	}
 	schemaFieldsJson, err := json.Marshal(jsonMap)
 
 	if err != nil {
@@ -691,12 +716,12 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), alterCmd, nil
 }
 
-func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName string, jsonData types.JSON, tableFormatter TableColumNameFormatter) (*ChTableConfig, error) {
-	table := lm.FindTable(tableName)
+func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName string, jsonData types.JSON, tableFormatter TableColumNameFormatter, tableDefinitionChangeOnly bool) (*ChTableConfig, error) {
+	table := lm.GetTable(tableName)
 	var config *ChTableConfig
 	if table == nil {
 		config = NewOnlySchemaFieldsCHConfig()
-		err := lm.CreateTableFromInsertQuery(ctx, tableName, jsonData, config, tableFormatter)
+		err := lm.CreateTableFromInsertQuery(ctx, tableName, jsonData, config, tableFormatter, tableDefinitionChangeOnly)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error ProcessInsertQuery, can't create table: %v", err)
 			return nil, err
@@ -716,7 +741,7 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 
 func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
-	tableFormatter TableColumNameFormatter) ([]string, error) {
+	tableFormatter TableColumNameFormatter, tableDefinitionChangeOnly bool) ([]string, error) {
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
@@ -731,7 +756,7 @@ func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string,
 	}
 	jsonData = processed
 
-	tableConfig, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0], tableFormatter)
+	tableConfig, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0], tableFormatter, tableDefinitionChangeOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -741,10 +766,51 @@ func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string,
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
-	statements, err := lm.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter)
+
+	indexConf, ok := lm.cfg.IndexConfig[tableName]
+	if !ok {
+		return fmt.Errorf("index config not found for index: %s", tableName)
+	}
+
+	useSingleTable := indexConf.UseSingleTable
+	if useSingleTable {
+		err := lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, true)
+
+		if err != nil {
+			return fmt.Errorf("error processing insert query - schema only: %v", err)
+		}
+
+		// process JSON and alter both tables
+		// original  - table definition only
+		// single_table -  table definition and real table
+
+		pipeline := jsonprocessor.IngestTransformerPipeline{}
+		pipeline = append(pipeline, &single_table.IngestAddIndexNameTransformer{IndexName: tableName})
+		pipeline = append(pipeline, transformer)
+		transformer = pipeline
+		tableName = single_table.TableName
+
+		return lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, false)
+
+	} else {
+		return lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, false)
+	}
+
+}
+
+func (lm *LogManager) processInsertQueryInternal(ctx context.Context, tableName string,
+	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	tableFormatter TableColumNameFormatter, tableDefintionChangeOnly bool) error {
+
+	statements, err := lm.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter, tableDefintionChangeOnly)
 	if err != nil {
 		return err
 	}
+
+	if tableDefintionChangeOnly {
+		return nil
+	}
+
 	// We expect to have date format set to `best_effort`
 	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
 		"date_time_input_format": "best_effort",
@@ -824,8 +890,8 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 	return statements, nil
 }
 
-func (lm *LogManager) FindTable(tableName string) (result *Table) {
-	tableNamePattern := index.TableNamePatternRegexp(tableName)
+func (lm *LogManager) FindTable(tableNameAsPattern string) (result *Table) {
+	tableNamePattern := index.TableNamePatternRegexp(tableNameAsPattern)
 	lm.tableDiscovery.TableDefinitions().
 		Range(func(name string, table *Table) bool {
 			if tableNamePattern.MatchString(name) {
@@ -838,6 +904,21 @@ func (lm *LogManager) FindTable(tableName string) (result *Table) {
 	return result
 }
 
+func (lm *LogManager) GetTable(tableName string) (result *Table) {
+
+	tm, err := lm.GetTableDefinitions()
+	if err != nil {
+		return nil
+	}
+
+	table, ok := tm.Load(tableName)
+	if ok {
+		return table
+	}
+
+	return nil
+}
+
 func (lm *LogManager) GetTableDefinitions() (TableMap, error) {
 	if err := lm.tableDiscovery.TableDefinitionsFetchError(); err != nil {
 		return *lm.tableDiscovery.TableDefinitions(), err
@@ -848,12 +929,10 @@ func (lm *LogManager) GetTableDefinitions() (TableMap, error) {
 
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
 func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
-	t := lm.FindTable(table.Name)
+	t := lm.GetTable(table.Name)
 	if t == nil {
 		table.Created = true
-
 		table.applyIndexConfig(lm.cfg)
-
 		lm.tableDiscovery.TableDefinitions().Store(table.Name, table)
 		return true
 	}

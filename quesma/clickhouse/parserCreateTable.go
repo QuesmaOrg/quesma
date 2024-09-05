@@ -366,12 +366,13 @@ func ParseCreateTable(q string) (*Table, int) {
 	}
 	if strings.Contains(ident, ".") { // If it has ".", it means it is DB name
 		split := strings.Split(ident, ".")
-		if len(split) != 2 {
-			return &t, i
+		if len(split) > 1 {
+			t.Name = strings.Join(split[1:], ".")
 		}
 		t.DatabaseName = split[0]
+	} else {
+		t.Name = ident
 	}
-	t.Name = ident
 	if quote {
 		i2 = parseExact(q, i2, `"`)
 		if i2 == -1 {
