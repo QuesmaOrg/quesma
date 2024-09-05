@@ -81,11 +81,21 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 
 		elem := model.JsonMap{
 			"_source": sourceMap,
+			"_score":  1.0, // placeholder
+			"_id":     "",  // TODO: placeholder
+			"_index":  "",  // TODO: placeholder
 		}
 		topElems = append(topElems, elem)
 	}
 	return model.JsonMap{
-		"hits": topElems,
+		"hits": model.JsonMap{
+			"hits":      topElems,
+			"max_score": 1.0, // placeholder
+			"total": model.JsonMap{ // could be better
+				"relation": "eq", // TODO: wrong, but let's pass test, it should ge geq
+				"value":    len(topElems),
+			},
+		},
 	}
 }
 

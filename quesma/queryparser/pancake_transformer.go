@@ -305,7 +305,10 @@ func (a *pancakeTransformer) createTopHitPancakes(pancake *pancakeModel) (result
 						nextBucketAggregation:     pancake.layers[i].nextBucketAggregation,
 					}
 				}
-				newLayers[len(newLayers)-1].currentMetricAggregations = []*pancakeModelMetricAggregation{metric}
+				newLayers = append(newLayers, &pancakeModelLayer{
+					currentMetricAggregations: []*pancakeModelMetricAggregation{metric},
+					nextBucketAggregation:     nil,
+				})
 
 				newPancake := pancakeModel{
 					layers:      newLayers,
