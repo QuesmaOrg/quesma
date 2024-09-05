@@ -1460,6 +1460,7 @@ var AggregationTests = []AggregationTestCase{
 							},
 							{
 								"distinations": {
+									"sum_other_doc_count": 0,
 									"buckets": [
 										{
 											"destLocation": {
@@ -1543,7 +1544,7 @@ var AggregationTests = []AggregationTestCase{
 							}
 						],
 						"doc_count_error_upper_bound": 0,
-						"sum_other_doc_count": 0
+						"sum_other_doc_count": 12716
 					}
 				},
 				"hits": {
@@ -1613,7 +1614,50 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedPancakeResults: []model.QueryResultRow{
-			// TODO: query 0
+			{
+				Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
+					model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
+					model.NewQueryResultCol("aggr__origins__count", int64(283)),
+					model.NewQueryResultCol("aggr__origins__order_1", int64(283)),
+					model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
+					model.NewQueryResultCol("aggr__origins__distinations__count", int64(21)),
+					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(21)),
+				},
+			},
+			{
+				Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
+					model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
+					model.NewQueryResultCol("aggr__origins__count", int64(283)),
+					model.NewQueryResultCol("aggr__origins__order_1", int64(283)),
+					model.NewQueryResultCol("aggr__origins__distinations__key_0", "UIO"),
+					model.NewQueryResultCol("aggr__origins__distinations__count", int64(12)),
+					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(12)),
+				},
+			},
+			{
+				Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
+					model.NewQueryResultCol("aggr__origins__key_0", "DLH"),
+					model.NewQueryResultCol("aggr__origins__count", int64(15)),
+					model.NewQueryResultCol("aggr__origins__order_1", int64(15)),
+					model.NewQueryResultCol("aggr__origins__distinations__key_0", "YUL"),
+					model.NewQueryResultCol("aggr__origins__distinations__count", int64(11)),
+					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(11)),
+				},
+			},
+			{
+				Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
+					model.NewQueryResultCol("aggr__origins__key_0", "DLH"),
+					model.NewQueryResultCol("aggr__origins__count", int64(15)),
+					model.NewQueryResultCol("aggr__origins__order_1", int64(15)),
+					model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
+					model.NewQueryResultCol("aggr__origins__distinations__count", int64(10)),
+					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(10)),
+				},
+			},
 		},
 		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
 			{
