@@ -311,7 +311,6 @@ func (a *pancakeTransformer) createTopHitPancakes(pancake *pancakeModel) (result
 					layers:      newLayers,
 					whereClause: pancake.whereClause,
 					sampleLimit: pancake.sampleLimit,
-					optTopHits:  metric,
 				}
 				result = append(result, &newPancake)
 			} else {
