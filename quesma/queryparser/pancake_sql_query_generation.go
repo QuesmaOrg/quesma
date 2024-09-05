@@ -272,9 +272,14 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		queryType bucket_aggregations.CombinatorAggregationInterface
 	}
 	addIfCombinators := make([]addIfCombinator, 0)
+	var optTopHits *pancakeModelMetricAggregation
 
 	for _, layer := range aggregation.layers {
 		for _, metric := range layer.currentMetricAggregations {
+			if _, isTopHits := metric.queryType.(metrics_aggregations.TopHits); isTopHits {
+				optTopHits = metric
+				continue
+			}
 			hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
 			addSelectColumns, err := p.generateMetricSelects(metric, groupBys, hasMoreBucketAggregations)
 			if err != nil {
@@ -387,9 +392,9 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		optimizerName = PancakeOptimizerName
 	}
 
-	if aggregation.optTopHits != nil {
+	if optTopHits != nil {
 		// TODO: we assume some group bys
-		topHits := aggregation.optTopHits
+		topHits := optTopHits
 		var topHitsQueryType metrics_aggregations.TopHits
 		if queryType, ok := topHits.queryType.(metrics_aggregations.TopHits); ok {
 			topHitsQueryType = queryType

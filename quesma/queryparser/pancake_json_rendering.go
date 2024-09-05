@@ -8,6 +8,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"quesma/model/metrics_aggregations"
 	"quesma/util"
 	"strings"
 )
@@ -36,6 +37,19 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 		return []model.QueryResultRow{newRow}
 	}
 	logger.ErrorWithCtx(p.ctx).Msgf("no rows in selectMetricRows %s", metricName)
+	return
+}
+
+func (p *pancakeJSONRenderer) selectTopHitsRows(rows []model.QueryResultRow) (result []model.QueryResultRow) {
+	for _, row := range rows {
+		var newCols []model.QueryResultCol
+		for _, col := range row.Cols {
+			if strings.HasPrefix(col.ColName, "top_hits_") {
+				newCols = append(newCols, col)
+			}
+		}
+		result = append(result, model.QueryResultRow{Index: row.Index, Cols: newCols})
+	}
 	return
 }
 
@@ -207,16 +221,18 @@ func (p *pancakeJSONRenderer) renderPotentialTopHits(rows []model.QueryResultRow
 func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
 	result := model.JsonMap{}
 	if len(remainingLayers) == 0 {
-		if p.optTopHits != nil {
-
-		}
 		return p.renderPotentialTopHits(rows)
 	}
 
 	layer := remainingLayers[0]
 
 	for _, metric := range layer.currentMetricAggregations {
-		metricRows := p.selectMetricRows(metric.internalName+"_col_", rows)
+		var metricRows []model.QueryResultRow
+		if _, ok := metric.queryType.(metrics_aggregations.TopHits); ok {
+			metricRows = p.selectTopHitsRows(rows)
+		} else {
+			metricRows = p.selectMetricRows(metric.internalName+"_col_", rows)
+		}
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
 		// TODO: maybe add metadata also here? probably not needed
 	}
