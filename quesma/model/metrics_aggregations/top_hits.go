@@ -24,7 +24,7 @@ func (query TopHits) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-// TODO implement correct
+// TODO: implement correct
 func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	var topElems []any
 	if len(rows) > 0 && level >= len(rows[0].Cols)-1 {
