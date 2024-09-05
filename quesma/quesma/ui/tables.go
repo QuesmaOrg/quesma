@@ -7,10 +7,151 @@ import (
 	"fmt"
 	"quesma/clickhouse"
 	"quesma/end_user_errors"
+	"quesma/single_table"
 	"quesma/util"
 	"sort"
 	"strings"
 )
+
+func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
+	buffer := newBufferWithHead()
+	buffer.Write(generateTopNavigation("tables"))
+	buffer.Html(`<main id="quesma_all_logs">`)
+
+	var schema clickhouse.TableMap
+	var hasSchema bool
+	var err error
+	var schemaError error
+	if qmc.logManager != nil {
+		schema, err = qmc.logManager.GetTableDefinitions()
+		if err != nil {
+			schemaError = err
+		} else {
+			hasSchema = true
+		}
+	}
+
+	if hasSchema {
+		tableNames := schema.Keys()
+
+		sort.Strings(tableNames)
+
+		for i, v := range tableNames {
+			if v == single_table.TableName {
+				// Remove element by value
+				tableNames = append(tableNames[:i], tableNames[i+1:]...)
+			}
+		}
+
+		tableNames = append([]string{single_table.TableName}, tableNames...)
+
+		catchAllLogs, ok := schema.Load(single_table.TableName)
+		if !ok {
+			buffer.Html(fmt.Sprintf("<p>Table %s is not available.</p>", single_table.TableName))
+
+		} else {
+
+			allColumnNamesMap := make(map[string]struct{})
+
+			for _, tableName := range tableNames {
+
+				indexConf, ok := qmc.cfg.IndexConfig[tableName]
+				if !ok {
+					continue
+				}
+
+				if indexConf.Disabled || !indexConf.UseSingleTable {
+					continue
+				}
+
+				table, ok := schema.Load(tableName)
+				if !ok {
+					continue
+				}
+				for k := range table.Cols {
+					allColumnNamesMap[k] = struct{}{}
+				}
+			}
+
+			allColumnNames := make([]string, 0, len(allColumnNamesMap))
+
+			for k := range allColumnNamesMap {
+				allColumnNames = append(allColumnNames, k)
+			}
+			sort.Strings(allColumnNames)
+
+			buffer.Html("\n<table>")
+
+			buffer.Html("<tr>")
+			buffer.Html("<th>Column Name</th>")
+
+			for _, tableName := range tableNames {
+				buffer.Html("<th class=catchAll>")
+				buffer.Text(tableName)
+				buffer.Html("</th>")
+			}
+			buffer.Html("</tr>")
+
+			for _, columnName := range allColumnNames {
+				quesmaAllLogsCol, hasQuesmaAllLogs := catchAllLogs.Cols[columnName]
+
+				buffer.Html("<tr>")
+				buffer.Html("<td>")
+				buffer.Text(columnName)
+				buffer.Html("</td>")
+
+				for _, tableName := range tableNames {
+					table, ok := schema.Load(tableName)
+					if !ok {
+						buffer.Html("<td>-</td>")
+						continue
+					}
+
+					if tableName == single_table.TableName {
+						if hasQuesmaAllLogs {
+							buffer.Html("<td>")
+							buffer.Text(quesmaAllLogsCol.Type.StringWithNullable())
+							buffer.Html("</td>")
+						} else {
+							buffer.Html("<td>MISSING</td>")
+						}
+					} else {
+						colType, ok := table.Cols[columnName]
+						if ok {
+							buffer.Html("<td>")
+
+							if hasQuesmaAllLogs {
+								if quesmaAllLogsCol.Type.StringWithNullable() != colType.Type.StringWithNullable() {
+									buffer.Text(colType.Type.StringWithNullable())
+								} else {
+									buffer.Text("✔")
+								}
+							} else {
+								buffer.Text(colType.Type.StringWithNullable())
+
+							}
+							buffer.Html("</td>")
+						} else {
+							buffer.Html("<td></td>")
+						}
+					}
+				}
+				buffer.Html("</tr>")
+			}
+
+			buffer.Html("</table>")
+		}
+
+	} else {
+		buffer.Text("Schema is not available.")
+		buffer.Text(fmt.Sprintf("Error: %s", schemaError))
+	}
+
+	buffer.Html("\n</main>\n\n")
+	buffer.Html("\n</body>")
+	buffer.Html("\n</html>")
+	return buffer.Bytes()
+}
 
 func (qmc *QuesmaManagementConsole) generateTables() []byte {
 	type menuEntry struct {
@@ -73,13 +214,20 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 			buffer.Html(`Table: `)
 			buffer.Text(table.Name)
 
+			buffer.Html(`</h2>`)
 			if table.Comment != "" {
+				buffer.Html(`<h3>`)
 				buffer.Text(" (")
 				buffer.Text(table.Comment)
 				buffer.Text(")")
+				buffer.Html(`</h3>`)
 			}
 
-			buffer.Html(`</h2></th>`)
+			if table.Name == single_table.TableName {
+				buffer.Html(`<h3><a href="/tables/quesma_all_logs" >table statistics</a></h3>`)
+			}
+
+			buffer.Html(`</th>`)
 			buffer.Html(`</tr>`)
 
 			buffer.Html(`<tr>`)
