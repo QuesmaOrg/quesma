@@ -298,7 +298,7 @@ func (a *pancakeTransformer) createTopHitPancakes(pancake *pancakeModel) (result
 		metricsWithoutTopHits := make([]*pancakeModelMetricAggregation, 0, len(layer.currentMetricAggregations))
 		for _, metric := range layer.currentMetricAggregations {
 			if _, isTopHits := metric.queryType.(metrics_aggregations.TopHits); isTopHits {
-				newLayers := make([]*pancakeModelLayer, layerIdx+1)
+				newLayers := make([]*pancakeModelLayer, layerIdx)
 				for i := range newLayers {
 					newLayers[i] = &pancakeModelLayer{
 						currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),

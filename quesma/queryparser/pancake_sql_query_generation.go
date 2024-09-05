@@ -446,9 +446,10 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		}
 
 		// TODO: we need to implement order by here
-		newSelects = append(newSelects, model.NewAliasedExpr(
+		rankSelect := model.NewAliasedExpr(
 			model.NewWindowFunction("ROW_NUMBER", []model.Expr{}, partitionByExprs, []model.OrderByExpr{}),
-			"top_hits_rank"))
+			"top_hits_rank")
+		newSelects = append(newSelects, rankSelect)
 
 		joinQuery := model.SelectCommand{
 			Columns: p.aliasedExprArrayToExpr(newSelects),
