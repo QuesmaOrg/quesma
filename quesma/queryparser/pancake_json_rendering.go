@@ -13,8 +13,9 @@ import (
 )
 
 type pancakeJSONRenderer struct {
-	ctx      context.Context
-	pipeline pancakePipelinesProcessor
+	ctx        context.Context
+	pipeline   pancakePipelinesProcessor
+	optTopHits *pancakeModelMetricAggregation
 }
 
 func newPancakeJSONRenderer(ctx context.Context) *pancakeJSONRenderer {
@@ -186,10 +187,30 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 	}
 }
 
+func (p *pancakeJSONRenderer) renderPotentialTopHits(rows []model.QueryResultRow) (model.JsonMap, error) {
+	if p.optTopHits == nil {
+		return model.JsonMap{}, nil
+	}
+	hits := make([]model.JsonMap, 0)
+	return model.JsonMap{
+		"hits": model.JsonMap{
+			"hits":      hits,
+			"max_score": 1.0,
+			"total": model.JsonMap{ // could be better
+				"relation": "geq",
+				"value":    len(hits),
+			},
+		},
+	}, nil
+}
+
 func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
 	result := model.JsonMap{}
 	if len(remainingLayers) == 0 {
-		return result, nil
+		if p.optTopHits != nil {
+
+		}
+		return p.renderPotentialTopHits(rows)
 	}
 
 	layer := remainingLayers[0]
@@ -320,5 +341,8 @@ func (p *pancakeJSONRenderer) valueForColumn(rows []model.QueryResultRow, column
 }
 
 func (p *pancakeJSONRenderer) toJSON(agg *pancakeModel, rows []model.QueryResultRow) (model.JsonMap, error) {
-	return p.layerToJSON(agg.layers, rows)
+	p.optTopHits = agg.optTopHits
+	result, err := p.layerToJSON(agg.layers, rows)
+	p.optTopHits = nil
+	return result, err
 }
