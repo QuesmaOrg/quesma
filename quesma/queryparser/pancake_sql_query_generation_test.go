@@ -43,12 +43,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if test.ExpectedPancakeSQL == "" || test.ExpectedPancakeResults == nil { // TODO remove this
-				//t.Skip("Not updated answers for pancake.")
-			}
-			if i != 97 {
-				t.Skip()
-			}
 			if strings.HasPrefix(test.TestName, "dashboard-1") {
 				t.Skip("Skipped also for previous implementation. Those 2 tests have nested histograms with min_doc_count=0. Some work done long time ago (Krzysiek)")
 			}
