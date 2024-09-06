@@ -28,7 +28,7 @@ func (query TopHits) AggregationType() model.AggregationType {
 // TODO: implement correct
 func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	var topElems []any
-	if len(rows) > 0 && level >= len(rows[0].Cols)-1 {
+	if len(rows) > 0 && level >= len(rows[0].Cols) {
 		// values are [level, len(row.Cols) - 1]
 		logger.WarnWithCtx(query.ctx).Msgf(
 			"no columns returned for top_hits aggregation, level: %d, len(rows[0].Cols): %d, len(rows): %d",

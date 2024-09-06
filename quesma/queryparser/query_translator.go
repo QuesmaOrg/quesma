@@ -173,6 +173,8 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 	}
 	cw.postprocessPipelineAggregations(queries, ResultSets)
 
+	wasPancake := false
+
 	for i, query := range queries {
 		if i >= len(ResultSets) || query_util.IsNonAggregationQuery(query) {
 			continue
@@ -180,7 +182,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 		var aggregation model.JsonMap
 
 		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
-
+			wasPancake = true
 			var err error
 			aggregation, err = pancake.RenderAggregationJson(cw.Ctx, ResultSets[i])
 			if err != nil {
@@ -190,7 +192,11 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 			aggregation = cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
 		}
 		if len(aggregation) != 0 {
-			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation, model.KeyAddedByQuesma)
+			mergeKey := model.KeyAddedByQuesma
+			if wasPancake {
+				mergeKey = "key"
+			}
+			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation, mergeKey)
 		}
 	}
 	return aggregations, nil

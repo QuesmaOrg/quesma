@@ -358,6 +358,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		if len(rankColumns) > 0 {
 			orderBy = rankColumns[0].Expr.(model.WindowFunction).OrderBy
 		}
+		rankColumns = []model.AliasedExpr{} // needed if there would be top hits
 
 		resultQuery = &model.SelectCommand{
 			Columns:     p.aliasedExprArrayToExpr(selectColumns),
@@ -393,6 +394,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	}
 
 	if optTopHits != nil {
+		resultQuery.Columns = append(resultQuery.Columns, p.aliasedExprArrayToLiteralExpr(rankColumns)...)
 		resultQuery, err = p.generateTopHitsQuery(aggregation, optTopHits, groupBys, selectColumns, resultQuery)
 		optimizerName = PancakeOptimizerName + "(with top_hits)"
 	}
@@ -477,11 +479,26 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 		"top_hits_rank")
 	newSelects = append(newSelects, rankSelect)
 
+	prefixWithTopHists := func(orderByExprs []model.OrderByExpr) (result []model.OrderByExpr) {
+		for _, orderBy := range orderByExprs {
+			if orderByLiteral, ok := orderBy.Expr.(model.LiteralExpr); ok {
+				result = append(result, model.NewOrderByExpr(
+					model.NewLiteral(strconv.Quote(groupTableName)+"."+orderByLiteral.Value.(string)),
+					orderBy.Direction,
+				))
+			} else {
+				panic("todo it is bug")
+			}
+		}
+		return
+	}
+
 	joinQuery := model.SelectCommand{
 		Columns: p.aliasedExprArrayToExpr(newSelects),
 		// rank by hits
 		FromClause:  fromClause,
 		WhereClause: whereClause,
+		OrderBy:     prefixWithTopHists(origQuery.OrderBy),
 	}
 
 	joinQueryName := "quesma_top_hits_join"
