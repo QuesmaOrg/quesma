@@ -19,14 +19,10 @@ type CreateTableEntry struct {
 	ClickHouseType       string
 }
 
-// m: unmarshalled json from HTTP request
-// Returns nicely formatted string for CREATE TABLE command
-func FieldsMapToCreateTableString(m SchemaMap, config *ChTableConfig, nameFormatter TableColumNameFormatter, schemaMapping *schema.Schema, ignoredFields []config.FieldName) string {
+func columnsToString(columnsFromJson []CreateTableEntry,
+	columnsFromSchema map[schema.FieldName]CreateTableEntry,
+) string {
 	var result strings.Builder
-
-	columnsFromJson := JsonToColumns("", m, 1, config, nameFormatter, ignoredFields)
-	columnsFromSchema := SchemaToColumns(schemaMapping, nameFormatter)
-
 	first := true
 	for _, columnFromJson := range columnsFromJson {
 		if first {
@@ -56,8 +52,16 @@ func FieldsMapToCreateTableString(m SchemaMap, config *ChTableConfig, nameFormat
 		result.WriteString(util.Indent(1))
 		result.WriteString(fmt.Sprintf("\"%s\" %s", column.ClickHouseColumnName, column.ClickHouseType))
 	}
-
 	return result.String()
+}
+
+// m: unmarshalled json from HTTP request
+// Returns nicely formatted string for CREATE TABLE command
+func FieldsMapToCreateTableString(m SchemaMap, config *ChTableConfig, nameFormatter TableColumNameFormatter, schemaMapping *schema.Schema, ignoredFields []config.FieldName) string {
+	columnsFromJson := JsonToColumns("", m, 1, config, nameFormatter, ignoredFields)
+	columnsFromSchema := SchemaToColumns(schemaMapping, nameFormatter)
+
+	return columnsToString(columnsFromJson, columnsFromSchema)
 }
 
 func JsonToColumns(namespace string, m SchemaMap, indentLvl int, chConfig *ChTableConfig, nameFormatter TableColumNameFormatter, ignoredFields []config.FieldName) []CreateTableEntry {
