@@ -789,23 +789,21 @@ func (lm *LogManager) executeStatements(ctx context.Context, queries []string) e
 	return nil
 }
 
-func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName string, jsons []types.JSON,
-	config *ChTableConfig, transformer jsonprocessor.IngestTransformer) ([]string, error) {
-
-	var jsonsReadyForInsertion []string
-	var alterCmd []string
+func (lm *LogManager) preprocessJsons(ctx context.Context,
+	tableName string, jsons []types.JSON, transformer jsonprocessor.IngestTransformer,
+) ([]types.JSON, []types.JSON, error) {
 	var preprocessedJsons []types.JSON
 	var invalidJsons []types.JSON
 	for _, jsonValue := range jsons {
 		preprocessedJson, err := transformer.Transform(jsonValue)
 		if err != nil {
-			return nil, fmt.Errorf("error IngestTransformer: %v", err)
+			return nil, nil, fmt.Errorf("error IngestTransformer: %v", err)
 		}
 		// Validate the input JSON
 		// against the schema
 		inValidJson, err := lm.validateIngest(tableName, preprocessedJson)
 		if err != nil {
-			return nil, fmt.Errorf("error validation: %v", err)
+			return nil, nil, fmt.Errorf("error validation: %v", err)
 		}
 		invalidJsons = append(invalidJsons, inValidJson)
 		stats.GlobalStatistics.UpdateNonSchemaValues(lm.cfg, tableName,
@@ -814,10 +812,27 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
 		preprocessedJsons = append(preprocessedJsons, preprocessedJson)
 	}
+	return preprocessedJsons, invalidJsons, nil
+}
+
+func (lm *LogManager) GenerateSqlStatements(ctx context.Context,
+	tableName string, jsons []types.JSON,
+	config *ChTableConfig, transformer jsonprocessor.IngestTransformer,
+) ([]string, error) {
+
+	var jsonsReadyForInsertion []string
+	var alterCmd []string
+	var preprocessedJsons []types.JSON
+	var invalidJsons []types.JSON
+	preprocessedJsons, invalidJsons, err := lm.preprocessJsons(ctx, tableName, jsons, transformer)
+	if err != nil {
+		return nil, fmt.Errorf("error preprocessJsons: %v", err)
+	}
 	for i, preprocessedJson := range preprocessedJsons {
 		// TODO this is doing nested field encoding
 		// ----------------------
-		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson, invalidJsons[i], config)
+		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson,
+			invalidJsons[i], config)
 		// ----------------------
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
