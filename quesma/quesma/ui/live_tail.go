@@ -327,6 +327,11 @@ func (qmc *QuesmaManagementConsole) printPerformanceResult(buffer *builder.HtmlB
 		buffer.Html(`<a href="`).Text(qmc.cfg.ClickHouse.AdminUrl.String()).Text("/play#").Text(base64QueryBody).Html(`">`)
 	}
 
+	if q.Error != nil {
+		errorMsg := q.Error.Error()
+		errorMsg = strings.ReplaceAll(errorMsg, "\n", " ")
+		buffer.Text(fmt.Sprintf("-- error: %s\n", errorMsg))
+	}
 	buffer.Text(fmt.Sprintf("-- time: %s, rows returned: %d, query_id: %s \n", q.Duration, q.RowsReturned, q.QueryID))
 	if qmc.cfg.ClickHouse.AdminUrl != nil {
 		buffer.Html("</a>")

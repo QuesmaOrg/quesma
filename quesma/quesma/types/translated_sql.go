@@ -17,4 +17,5 @@ type TranslatedSQLQuery struct {
 	QueryID           string
 	ExplainPlan       string
 	ExecutionPlanName string
+	Error             error
 }

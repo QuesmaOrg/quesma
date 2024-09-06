@@ -182,7 +182,7 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 
 		translatedQueryBody, results, err := q.searchWorker(ctx, plan, table, doneCh, optAsync)
 		if err != nil {
-			doneCh <- AsyncSearchWithError{err: err}
+			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 			return
 		}
 
@@ -537,12 +537,12 @@ func (q *QueryRunner) runQueryJobsSequence(ctx context.Context, jobs []QueryJob)
 	var performance = make([]clickhouse.PerformanceResult, 0)
 	for _, job := range jobs {
 		rows, perf, err := job(ctx)
+		performance = append(performance, perf)
 		if err != nil {
-			return nil, nil, err
+			return nil, performance, err
 		}
 
 		results = append(results, rows)
-		performance = append(performance, perf)
 	}
 	return results, performance, nil
 }
@@ -583,11 +583,11 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 	// consume
 	for range len(jobs) {
 		res := <-collector
+		performances[res.jobId] = res.perf
 		if res.err == nil {
 			results[res.jobId] = res.rows
-			performances[res.jobId] = res.perf
 		} else {
-			return nil, nil, res.err
+			return nil, performances, res.err
 		}
 	}
 
@@ -631,7 +631,8 @@ func (q *QueryRunner) makeJob(table *clickhouse.Table, query *model.Query) Query
 
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
-			return nil, clickhouse.PerformanceResult{}, err
+			performance.Error = err
+			return nil, performance, err
 		}
 
 		return rows, performance, nil
@@ -679,6 +680,17 @@ func (q *QueryRunner) searchWorkerCommon(
 
 	jobResults, performance, err := q.runQueryJobs(ctx, jobs)
 	if err != nil {
+		for jobId, resultPosition := range jobHitsPosition {
+
+			if jobId < len(performance) {
+				p := performance[jobId]
+				translatedQueryBody[resultPosition].QueryID = p.QueryID
+				translatedQueryBody[resultPosition].Duration = p.Duration
+				translatedQueryBody[resultPosition].ExplainPlan = p.ExplainPlan
+				translatedQueryBody[resultPosition].RowsReturned = p.RowsReturned
+				translatedQueryBody[resultPosition].Error = p.Error
+			}
+		}
 		return
 	}
 
