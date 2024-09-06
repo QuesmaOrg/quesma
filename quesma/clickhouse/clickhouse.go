@@ -378,16 +378,19 @@ func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema
 	return nil
 }
 
-func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tableName string,
-	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter TableColumNameFormatter) ([]CreateTableEntry, map[schema.FieldName]CreateTableEntry) {
-
-	var ignoredFields []config.FieldName
+func (lm *LogManager) getIgnoredFields(tableName string) []config.FieldName {
 	if indexConfig, found := lm.cfg.IndexConfig[tableName]; found && indexConfig.SchemaOverrides != nil {
 		// FIXME: don't get ignored fields from schema config, but store
 		// them in the schema registry - that way we don't have to manually replace '.' with '::'
 		// in removeFieldsTransformer's Transform method
-		ignoredFields = indexConfig.SchemaOverrides.IgnoredFields()
+		return indexConfig.SchemaOverrides.IgnoredFields()
 	}
+	return nil
+}
+
+func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tableName string,
+	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter TableColumNameFormatter) ([]CreateTableEntry, map[schema.FieldName]CreateTableEntry) {
+	ignoredFields := lm.getIgnoredFields(tableName)
 	return FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName), ignoredFields)
 }
 
