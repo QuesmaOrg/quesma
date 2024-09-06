@@ -411,6 +411,15 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		convertColumnRefToHitTable := func(expr model.Expr) model.Expr {
 			switch exprTyped := expr.(type) {
 			case model.ColumnRef:
+				// TODO: hack alert, we treat geo here in unique way
+				if strings.HasSuffix(exprTyped.ColumnName, "Location") {
+					return model.NewFunction("map",
+						model.NewLiteral("'lat'"),
+						model.NewLiteral(strconv.Quote(hitTableName)+"."+strconv.Quote(exprTyped.ColumnName+"::lat")),
+						model.NewLiteral("'lon'"),
+						model.NewLiteral(strconv.Quote(hitTableName)+"."+strconv.Quote(exprTyped.ColumnName+"::lon")),
+					)
+				}
 				// TODO: Need better type, this should not be NewLiteral, but ColumnRefWithTable
 				return model.NewLiteral(strconv.Quote(hitTableName) + "." + strconv.Quote(exprTyped.ColumnName))
 			}
