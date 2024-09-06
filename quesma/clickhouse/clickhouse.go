@@ -610,10 +610,9 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	if err != nil {
 		return "", nil, err
 	}
-	jsonDataAsString := string(jsonData)
 
 	// we find all non-schema fields
-	jsonMap, err := types.ParseJSON(jsonDataAsString)
+	jsonMap, err := types.ParseJSON(string(jsonData))
 	if err != nil {
 		return "", nil, err
 	}
@@ -624,7 +623,7 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 		// if we don't have any attributes, and it wasn't replaced,
 		// we don't need to modify the json
 		if !wasReplaced {
-			return jsonDataAsString, nil, nil
+			return string(jsonData), nil, nil
 		}
 		rawBytes, err := jsonMap.Bytes()
 		if err != nil {
@@ -642,8 +641,8 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 
 	mDiff := DifferenceMap(jsonMap, table) // TODO change to DifferenceMap(m, t)
 
-	if len(mDiff) == 0 && string(schemaFieldsJson) == jsonDataAsString && len(inValidJson) == 0 { // no need to modify, just insert 'js'
-		return jsonDataAsString, nil, nil
+	if len(mDiff) == 0 && string(schemaFieldsJson) == string(jsonData) && len(inValidJson) == 0 { // no need to modify, just insert 'js'
+		return string(jsonData), nil, nil
 	}
 
 	// check attributes precondition
