@@ -170,6 +170,9 @@ func (q *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTab
 			return nil, fmt.Errorf("error calling elastic. got error code: %d", resp.StatusCode)
 		}
 
+		contextValues := tracing.ExtractValues(ctx)
+		pushPrimaryInfo(q.quesmaManagementConsole, contextValues.RequestId, responseBody, plan.StartTime)
+
 		return responseBody, nil
 	}
 }
