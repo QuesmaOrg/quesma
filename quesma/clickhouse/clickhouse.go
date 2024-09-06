@@ -608,14 +608,14 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 	config *ChTableConfig,
 ) (string, []string, error) {
 
-	jsonData, err := json.Marshal(data)
+	jsonAsBytesSlice, err := json.Marshal(data)
 
 	if err != nil {
 		return "", nil, err
 	}
 
 	// we find all non-schema fields
-	jsonMap, err := types.ParseJSON(string(jsonData))
+	jsonMap, err := types.ParseJSON(string(jsonAsBytesSlice))
 	if err != nil {
 		return "", nil, err
 	}
@@ -626,7 +626,7 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 		// if we don't have any attributes, and it wasn't replaced,
 		// we don't need to modify the json
 		if !wasReplaced {
-			return string(jsonData), nil, nil
+			return string(jsonAsBytesSlice), nil, nil
 		}
 		rawBytes, err := jsonMap.Bytes()
 		if err != nil {
@@ -643,8 +643,8 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 
 	mDiff := DifferenceMap(jsonMap, table) // TODO change to DifferenceMap(m, t)
 
-	if len(mDiff) == 0 && string(schemaFieldsJson) == string(jsonData) && len(inValidJson) == 0 { // no need to modify, just insert 'js'
-		return string(jsonData), nil, nil
+	if len(mDiff) == 0 && string(schemaFieldsJson) == string(jsonAsBytesSlice) && len(inValidJson) == 0 { // no need to modify, just insert 'js'
+		return string(jsonAsBytesSlice), nil, nil
 	}
 
 	// check attributes precondition
