@@ -14,7 +14,7 @@ type IndexConfiguration struct {
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
 	Override        string                            `koanf:"override"`
-  UseSingleTable  bool                              `koanf:"useSingleTable"`
+	UseSingleTable  bool                              `koanf:"useSingleTable"`
 }
 
 func (c IndexConfiguration) GetTimestampField() (tsField string) {
