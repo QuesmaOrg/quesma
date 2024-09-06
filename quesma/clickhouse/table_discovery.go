@@ -193,8 +193,8 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]strin
 		configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField}
 
 	}
-	for tableName := range configuredTables {
-		autoDiscoResults.WriteString(fmt.Sprintf("{table: %s}, ", tableName))
+	for tableName, table := range configuredTables {
+		autoDiscoResults.WriteString(fmt.Sprintf("{table: %s, timestampField: %s}, ", tableName, table.timestampFieldName))
 	}
 	logger.Info().Msgf("Table auto-discovery results -> %d tables found: [%s]", len(configuredTables), strings.TrimSuffix(autoDiscoResults.String(), ", "))
 	return
