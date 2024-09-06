@@ -736,10 +736,34 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 	} else {
 		config = table.Config
 	}
-	// TODO this is doing nested field encoding
-	// ----------------------
-	return lm.GenerateSqlStatements(ctx, table, jsonData, config, transformer)
-	// ----------------------
+	var jsonsReadyForInsertion []string
+	var alterCmd []string
+	var preprocessedJsons []types.JSON
+	var invalidJsons []types.JSON
+	preprocessedJsons, invalidJsons, err := lm.preprocessJsons(ctx, table.Name, jsonData, transformer)
+	if err != nil {
+		return nil, fmt.Errorf("error preprocessJsons: %v", err)
+	}
+	for i, preprocessedJson := range preprocessedJsons {
+		// TODO this is doing nested field encoding
+		// ----------------------
+		insertJson, alter, err := lm.BuildIngestSQLStatements(table, preprocessedJson,
+			invalidJsons[i], config)
+		// ----------------------
+		alterCmd = append(alterCmd, alter...)
+		if err != nil {
+			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
+		}
+		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
+	}
+
+	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
+	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
+
+	var statements []string
+	statements = append(statements, alterCmd...)
+	statements = append(statements, insert)
+	return statements, nil
 }
 
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
@@ -814,41 +838,6 @@ func (lm *LogManager) preprocessJsons(ctx context.Context,
 		preprocessedJsons = append(preprocessedJsons, preprocessedJson)
 	}
 	return preprocessedJsons, invalidJsons, nil
-}
-
-func (lm *LogManager) GenerateSqlStatements(ctx context.Context,
-	table *Table, jsons []types.JSON,
-	config *ChTableConfig, transformer jsonprocessor.IngestTransformer,
-) ([]string, error) {
-
-	var jsonsReadyForInsertion []string
-	var alterCmd []string
-	var preprocessedJsons []types.JSON
-	var invalidJsons []types.JSON
-	preprocessedJsons, invalidJsons, err := lm.preprocessJsons(ctx, table.Name, jsons, transformer)
-	if err != nil {
-		return nil, fmt.Errorf("error preprocessJsons: %v", err)
-	}
-	for i, preprocessedJson := range preprocessedJsons {
-		// TODO this is doing nested field encoding
-		// ----------------------
-		insertJson, alter, err := lm.BuildIngestSQLStatements(table, preprocessedJson,
-			invalidJsons[i], config)
-		// ----------------------
-		alterCmd = append(alterCmd, alter...)
-		if err != nil {
-			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
-		}
-		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
-	}
-
-	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
-	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
-
-	var statements []string
-	statements = append(statements, alterCmd...)
-	statements = append(statements, insert)
-	return statements, nil
 }
 
 func (lm *LogManager) FindTable(tableName string) (result *Table) {
