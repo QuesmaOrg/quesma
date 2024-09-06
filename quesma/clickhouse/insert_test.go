@@ -90,6 +90,12 @@ var insertTests = []struct {
 	},
 }
 
+var quesmaConfig = &config.QuesmaConfiguration{
+	IndexConfig: map[string]config.IndexConfiguration{
+		"test_table": {},
+	},
+}
+
 var configs = []*ChTableConfig{
 	NewChTableConfigNoAttrs(),
 	NewDefaultCHConfig(),
@@ -140,15 +146,17 @@ func logManagersNonEmpty(cfg *ChTableConfig) []logManagerHelper {
 			},
 			Created: created,
 		})
-		lms = append(lms, logManagerHelper{NewLogManager(full, &config.QuesmaConfiguration{}), created})
+		lms = append(lms, logManagerHelper{NewLogManager(full, quesmaConfig), created})
 	}
 	return lms
 }
 
-func logManagers(config *ChTableConfig) []logManagerHelper {
+func logManagers(tableCfg *ChTableConfig) []logManagerHelper {
 	logManager := NewLogManagerEmpty()
+
+	logManager.cfg = quesmaConfig
 	logManager.schemaRegistry = schema.StaticRegistry{}
-	return append([]logManagerHelper{{logManager, false}}, logManagersNonEmpty(config)...)
+	return append([]logManagerHelper{{logManager, false}}, logManagersNonEmpty(tableCfg)...)
 }
 
 func TestAutomaticTableCreationAtInsert(t *testing.T) {

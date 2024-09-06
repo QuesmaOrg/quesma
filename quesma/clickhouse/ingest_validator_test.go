@@ -64,6 +64,13 @@ func EscapeBrackets(s string) string {
 }
 
 func TestIngestValidation(t *testing.T) {
+
+	quesmaConfig := &config.QuesmaConfiguration{
+		IndexConfig: map[string]config.IndexConfiguration{
+			"test_table": {},
+		},
+	}
+
 	// Trying to ingest a field with a different type than the one defined in the table
 	// will end with populating attributes_string_key with the field name and attributes_string_value with the field value
 	inputJson := []string{
@@ -167,7 +174,8 @@ func TestIngestValidation(t *testing.T) {
 		db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 		lm := NewLogManagerEmpty()
 		lm.chDb = db
-		lm.tableDiscovery = newTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
+		lm.cfg = quesmaConfig
+		lm.tableDiscovery = newTableDiscoveryWith(quesmaConfig, nil, *tableMap)
 
 		defer db.Close()
 
