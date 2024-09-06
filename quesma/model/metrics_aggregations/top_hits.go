@@ -4,6 +4,7 @@ package metrics_aggregations
 
 import (
 	"context"
+	"encoding/json"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/schema"
@@ -75,7 +76,17 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 				}
 
 			} else {
-				sourceMap[col.ColName] = col.ExtractValue(query.ctx)
+				value := col.ExtractValue(query.ctx)
+				// TODO: this is hack, we should not assume this is location
+				if strings.HasSuffix(col.ColName, "Location") {
+					if valueStr, ok := value.(string); ok {
+						var valueJson model.JsonMap
+						if err := json.Unmarshal([]byte(valueStr), &valueJson); err == nil {
+							value = valueJson
+						}
+					}
+				}
+				sourceMap[col.ColName] = value
 			}
 		}
 

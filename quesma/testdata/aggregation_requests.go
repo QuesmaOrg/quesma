@@ -1659,7 +1659,7 @@ var AggregationTests = []AggregationTestCase{
 				},
 			},
 		},
-		AdditionalAcceptableDifference: []string{"_index", "_id", "value", "OriginLocation", "DestLocation"},
+		AdditionalAcceptableDifference: []string{"_index", "_id", "value", "DestLocation"},
 		// TODO: Remove value as it is used for total hits
 		// TODO: Remove OriginLocation and DestLocation as they need to be filled in test and update properly
 		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
