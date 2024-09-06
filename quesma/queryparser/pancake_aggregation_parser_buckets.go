@@ -73,7 +73,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		field := cw.parseFieldField(dateHistogram, "date_histogram")
 		minDocCount := cw.parseMinDocCount(dateHistogram)
 		timezone := cw.parseStringField(dateHistogram, "time_zone", "")
-		fmt.Println("parser", timezone)
 		interval, intervalType := cw.extractInterval(dateHistogram)
 		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 

@@ -427,15 +427,6 @@ func AssertSqlEqual(t *testing.T, expected, actual string) {
 				break
 			}
 			eLine := expectedLines[i]
-			if len(aLine) != len(eLine) {
-				fmt.Println("LEN ACT", len(aLine), len(eLine))
-				for i := range len(aLine) {
-					if aLine[i] != eLine[i] {
-						fmt.Println(i, aLine[i-5:i+5], eLine[i-5:i+5])
-						break
-					}
-				}
-			}
 			if aLine != eLine {
 				if i > 0 {
 					fmt.Println("         ", actualLines[i-1])

@@ -159,7 +159,7 @@ func TimestampGroupBy(timestampField model.Expr, typ DateTimeType, groupByInterv
 
 func TimestampGroupByWithTimezone(timestampField model.Expr, typ DateTimeType,
 	groupByInterval time.Duration, timezone string) model.Expr {
-	fmt.Println("TimestampGroupByWithTimezone jestem tu", timezone)
+
 	// If no timezone, or timezone is default (UTC), we just return TimestampGroupBy(...)
 	if timezone == "" {
 		return TimestampGroupBy(timestampField, typ, groupByInterval)
@@ -195,7 +195,7 @@ func TimestampGroupByWithTimezone(timestampField model.Expr, typ DateTimeType,
 
 	switch typ {
 	case DateTime64:
-		// as string: fmt.Sprintf("toInt64(toUnixTimestamp(`%s`)/%f)", timestampFieldName, groupByInterval.Seconds())
+		// e.g: (toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 600000
 		return createAExp("toUnixTimestamp64Milli", groupByInterval.Milliseconds(), 1000)
 	case DateTime:
 		return createAExp("toUnixTimestamp", groupByInterval.Milliseconds()/1000, 1)

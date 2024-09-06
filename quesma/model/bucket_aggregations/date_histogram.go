@@ -4,7 +4,6 @@ package bucket_aggregations
 
 import (
 	"context"
-	"fmt"
 	"quesma/clickhouse"
 	"quesma/kibana"
 	"quesma/logger"
@@ -68,6 +67,13 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
+	// key is in `query.timezone` time, and we need it to be UTC
+	wantedTimezone, err := time.LoadLocation(query.timezone)
+	if err != nil {
+		logger.ErrorWithCtx(query.ctx).Msgf("time.LoadLocation error: %v", err)
+		wantedTimezone = time.UTC
+	}
+
 	var response []model.JsonMap
 	for _, row := range rows {
 		var key int64
@@ -78,24 +84,11 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 			key = query.getKey(row) * intervalInMilliseconds
 		}
 
-		// key is in `query.timezone` timezone, not UTC
-		// u nas 12:00 UTC
-		fmt.Println("1", key, time.UnixMilli(key).UTC())
-
-		// key is in `query.timezone` time, and we need it to be UTC
-		wantedTimezone, err := time.LoadLocation(query.timezone)
-		if err != nil {
-			logger.ErrorWithCtx(query.ctx).Msgf("time.LoadLocation error: %v", err)
-		}
-		//wantedTimezone
 		ts := time.UnixMilli(key).UTC()
 		intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), wantedTimezone)
 
 		_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
 		key -= int64(timezoneOffsetInSeconds * 1000) // seconds -> milliseconds
-
-		fmt.Println("2", key, time.UnixMilli(key).UTC())
-		fmt.Println(ts, key, timezoneOffsetInSeconds, intervalStartNotUTC, intervalStartNotUTC.UTC())
 
 		response = append(response, model.JsonMap{
 			"key":           key,

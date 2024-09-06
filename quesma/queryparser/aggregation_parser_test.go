@@ -786,10 +786,10 @@ func TestAggregationParserExternalTestcases(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s, Config: cfg}
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if strings.HasPrefix(test.TestName, "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)") {
+			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)(file:opensearch-visualize/pipeline_agg_req,nr:18)" {
 				t.Skip("Needs to be fixed by keeping last key for every aggregation. Now we sometimes don't know it. Hard to reproduce, leaving it for separate PR")
 			}
-			if strings.HasPrefix(test.TestName, "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram") {
+			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:22)" {
 				t.Skip("Waiting for fix. Now we handle only the case where pipeline agg is at the same nesting level as its parent. Should be quick to fix.")
 			}
 			if i == 27 || i == 29 || i == 30 {
@@ -798,7 +798,7 @@ func TestAggregationParserExternalTestcases(t *testing.T) {
 			if strings.HasPrefix(test.TestName, "dashboard-1") {
 				t.Skip("Those 2 tests have nested histograms with min_doc_count=0. Some work done long time ago (Krzysiek)")
 			}
-			if strings.HasPrefix(test.TestName, "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range") {
+			if test.TestName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range(file:opensearch-visualize/agg_req,nr:1)" {
 				t.Skip("Need a (most likely) small fix to top_hits.")
 			}
 			if i == 20 {
@@ -807,17 +807,17 @@ func TestAggregationParserExternalTestcases(t *testing.T) {
 			if i == 7 {
 				t.Skip("Let's implement top_hits in next PR. Easily doable, just a bit of code.")
 			}
-			if strings.HasPrefix(test.TestName, "it's the same input as in previous test, but with the original output from Elastic."+
+			if test.TestName == "it's the same input as in previous test, but with the original output from Elastic."+
 				"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
-				"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix") {
+				"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix(file:clients/kunkka,nr:1)" {
 				t.Skip("Unskip and remove the previous test after those fixes.")
 			}
-			if strings.HasPrefix(test.TestName, "clients/kunkka/test_1, used to be broken before aggregations merge fix") {
+			if test.TestName == "clients/kunkka/test_1, used to be broken before aggregations merge fix(file:clients/kunkka,nr:2)" {
 				t.Skip("Small details left for this test to be correct. I'll (Krzysiek) fix soon after returning to work")
 			}
-			if strings.HasPrefix(test.TestName, "Ophelia Test 3: 5x terms + a lot of other aggregations") ||
-				strings.HasPrefix(test.TestName, "Ophelia Test 6: triple terms + other aggregations + order by another aggregations") ||
-				strings.HasPrefix(test.TestName, "Ophelia Test 7: 5x terms + a lot of other aggregations") {
+			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations(file:clients/ophelia,nr:2)" ||
+				test.TestName == "Ophelia Test 6: triple terms + other aggregations + order by another aggregations(file:clients/ophelia,nr:5)" ||
+				test.TestName == "Ophelia Test 7: 5x terms + a lot of other aggregations(file:clients/ophelia,nr:6)" {
 				t.Skip("Very similar to 2 previous tests, results have like 500-1000 lines. They are almost finished though. Maybe I'll fix soon, but not in this PR")
 			}
 
