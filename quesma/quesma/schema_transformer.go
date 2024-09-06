@@ -405,8 +405,6 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*mode
 	expr := query.SelectCommand.Accept(visitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
-	} else {
-
 	}
 
 	return query, nil
