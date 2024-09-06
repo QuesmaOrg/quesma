@@ -157,7 +157,10 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 			for index3, lm := range logManagers(tableConfig) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], logManager["+strconv.Itoa(index3)+"]", func(t *testing.T) {
 					lm.lm.schemaRegistry = schema.StaticRegistry{}
-					query := lm.lm.buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), tableConfig, &columNameFormatter{separator: "::"})
+					columnsFromJson, columnsFromSchema := lm.lm.buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), tableConfig, &columNameFormatter{separator: "::"})
+					columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(types.MustJSON(tt.insertJson)))
+					query := createTableQuery(tableName, columns, tableConfig)
+
 					table, err := NewTable(query, tableConfig)
 					assert.NoError(t, err)
 					query = addOurFieldsToCreateTableQuery(query, tableConfig, table)

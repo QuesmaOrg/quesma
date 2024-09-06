@@ -379,7 +379,7 @@ func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema
 }
 
 func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tableName string,
-	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter TableColumNameFormatter) string {
+	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter TableColumNameFormatter) ([]CreateTableEntry, map[schema.FieldName]CreateTableEntry) {
 
 	var ignoredFields []config.FieldName
 	if indexConfig, found := lm.cfg.IndexConfig[tableName]; found && indexConfig.SchemaOverrides != nil {
@@ -388,22 +388,7 @@ func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tabl
 		// in removeFieldsTransformer's Transform method
 		ignoredFields = indexConfig.SchemaOverrides.IgnoredFields()
 	}
-	columnsFromJson, columnsFromSchema := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName), ignoredFields)
-
-	columns := columnsToString(columnsFromJson, columnsFromSchema)
-	columns += Indexes(jsonData)
-
-	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
-(
-
-%s
-)
-%s
-COMMENT 'created by Quesma'`,
-		tableName, columns,
-		tableConfig.CreateTablePostFieldsString())
-
-	return createTableCmd
+	return FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName), ignoredFields)
 }
 
 func Indexes(m SchemaMap) string {
@@ -420,12 +405,34 @@ func Indexes(m SchemaMap) string {
 	return result.String()
 }
 
+func createTableQuery(name string, columns string, config *ChTableConfig) string {
+	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
+(
+
+%s
+)
+%s
+COMMENT 'created by Quesma'`,
+		name, columns,
+		config.CreateTablePostFieldsString())
+	return createTableCmd
+}
+
+func columnsWithIndexes(columns string, indexes string) string {
+	return columns + indexes
+
+}
+
 func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig, tableFormatter TableColumNameFormatter) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
-	query := lm.buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, tableFormatter)
+	columnsFromJson, columnsFromSchema := lm.buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, tableFormatter)
 
-	return lm.ProcessCreateTableQuery(ctx, query, config)
+	columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData))
+
+	createTableCmd := createTableQuery(name, columns, config)
+
+	return lm.ProcessCreateTableQuery(ctx, createTableCmd, config)
 }
 
 func deepCopyMapSliceInterface(original map[string][]interface{}) map[string][]interface{} {
