@@ -58,7 +58,7 @@ func (s *OptimizePipeline) getIndexName(queries []*model.Query) string {
 	return res
 }
 
-func (s *OptimizePipeline) findConfig(transformer OptimizeTransformer, queries []*model.Query) (bool, map[string]string) {
+func (s *OptimizePipeline) findConfig(transformer OptimizeTransformer, queries []*model.Query) (disabled bool, props map[string]string) {
 
 	indexName := s.getIndexName(queries)
 
@@ -70,7 +70,7 @@ func (s *OptimizePipeline) findConfig(transformer OptimizeTransformer, queries [
 	}
 
 	// default is not enabled
-	return transformer.IsEnabledByDefault(), make(map[string]string)
+	return !transformer.IsEnabledByDefault(), make(map[string]string)
 }
 
 func (s *OptimizePipeline) Transform(queries []*model.Query) ([]*model.Query, error) {
