@@ -65,7 +65,7 @@ type RelationalDbConfiguration struct {
 }
 
 type OptimizerConfiguration struct {
-	Disabled   bool              `koanf:"enabled"`
+	Disabled   bool              `koanf:"disabled"`
 	Properties map[string]string `koanf:"properties"`
 }
 
