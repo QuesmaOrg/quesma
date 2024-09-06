@@ -64,6 +64,7 @@ func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 		if inMemoryCollector == nil {
 			logger.InfoWithCtx(c.ctx).Msg("Creating InMemoryCollector")
 			inMemoryCollector = c.newInMemoryProcessor(repoHealthQueue)
+			senderUseCollector(inMemoryCollector)
 		}
 
 		// TODO add logic here

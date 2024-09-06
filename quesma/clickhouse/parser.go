@@ -56,20 +56,6 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 	return result.String()
 }
 
-// Returns typed columns from JSON and schema mapping
-func FieldsMapToCreateTableString(m SchemaMap,
-	config *ChTableConfig,
-	nameFormatter TableColumNameFormatter,
-	schemaMapping *schema.Schema,
-	ignoredFields []config.FieldName,
-) ([]CreateTableEntry, map[schema.FieldName]CreateTableEntry) {
-	columnsFromJson := JsonToColumns("", m, 1,
-		config, nameFormatter, ignoredFields)
-	columnsFromSchema := SchemaToColumns(schemaMapping, nameFormatter)
-
-	return columnsFromJson, columnsFromSchema
-}
-
 func JsonToColumns(namespace string, m SchemaMap, indentLvl int, chConfig *ChTableConfig, nameFormatter TableColumNameFormatter, ignoredFields []config.FieldName) []CreateTableEntry {
 	var resultColumns []CreateTableEntry
 
