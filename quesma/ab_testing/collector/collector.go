@@ -57,6 +57,10 @@ type InMemoryCollector struct {
 	// add  health state
 }
 
+func (r *InMemoryCollector) String() string {
+	return "InMemoryCollector(sends data to Quesma)"
+}
+
 func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessage) *InMemoryCollector {
 
 	ctx, cancel := context.WithCancel(ctx)
