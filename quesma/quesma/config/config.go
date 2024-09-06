@@ -97,8 +97,6 @@ var k = koanf.New(".")
 
 func Load() QuesmaConfiguration {
 	var config QuesmaConfiguration
-	config.QuesmaInternalTelemetryUrl = telemetryUrl
-	config.Logging.RemoteLogDrainUrl = telemetryUrl
 
 	loadConfigFile()
 	if err := k.Load(env.Provider("QUESMA_", ".", func(s string) string {
