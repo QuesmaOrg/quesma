@@ -327,12 +327,25 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*mode
 	useSingleTable := indexConf.UseSingleTable
 
 	// TODO compute physical from expression based on single table or union or whatever ....
-	var physicalFromExpression model.Expr
+
+	tableName := query.TableName
 	if useSingleTable {
-		physicalFromExpression = model.NewTableRef(single_table.TableName)
-	} else {
-		physicalFromExpression = model.NewTableRef(query.TableName)
+		tableName = single_table.TableName
 	}
+
+	table := s.logManager.GetTable(tableName)
+	if table == nil {
+		logger.Error().Msgf("Table %s not found", tableName)
+		return query, nil
+	}
+
+	// table.FullTableName() returns quoted table name with database name if it's not empty.
+	// It's used on ingest side. On query side we quote on table name on rendering.
+	physicalTableName := table.Name
+	if table.DatabaseName != "" {
+		physicalTableName = fmt.Sprintf("%s.%s", table.DatabaseName, table.Name)
+	}
+	physicalFromExpression := model.NewTableRef(physicalTableName)
 
 	visitor := model.NewBaseVisitor()
 
