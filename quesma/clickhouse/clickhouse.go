@@ -423,16 +423,6 @@ func columnsWithIndexes(columns string, indexes string) string {
 
 }
 
-func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig, tableFormatter TableColumNameFormatter) string {
-	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
-
-	columnsFromJson, columnsFromSchema := lm.buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, tableFormatter)
-
-	columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData))
-
-	return createTableQuery(name, columns, config)
-}
-
 func deepCopyMapSliceInterface(original map[string][]interface{}) map[string][]interface{} {
 	copiedMap := make(map[string][]interface{}, len(original))
 	for key, value := range original {
@@ -697,7 +687,9 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 	var config *ChTableConfig
 	if table == nil {
 		config = NewOnlySchemaFieldsCHConfig()
-		createTableCmd := lm.CreateTableFromInsertQuery(ctx, tableName, jsonData, config, tableFormatter)
+		columnsFromJson, columnsFromSchema := lm.buildCreateTableQueryNoOurFields(ctx, tableName, jsonData, config, tableFormatter)
+		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData))
+		createTableCmd := createTableQuery(tableName, columns, config)
 		err := lm.ProcessCreateTableQuery(ctx, createTableCmd, config)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error ProcessInsertQuery, can't create table: %v", err)
