@@ -707,15 +707,16 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		processed = append(processed, result)
 	}
 	jsonData = processed
-	// TODO this is doing nested field encoding
-	// ----------------------
 	table := lm.FindTable(tableName)
 	var config *ChTableConfig
 	if table == nil {
 		config = NewOnlySchemaFieldsCHConfig()
 		ignoredFields := lm.getIgnoredFields(tableName)
+		// TODO this is doing nested field encoding
+		// ----------------------
 		columnsFromJson := JsonToColumns("", jsonData[0], 1,
 			config, tableFormatter, ignoredFields)
+		// ----------------------
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), tableFormatter)
 		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
 		createTableCmd := createTableQuery(tableName, columns, config)
@@ -733,8 +734,6 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 	} else {
 		config = table.Config
 	}
-	// ----------------------
-
 	// TODO this is doing nested field encoding
 	// ----------------------
 	return lm.GenerateSqlStatements(ctx, tableName, jsonData, config, transformer)
