@@ -794,6 +794,8 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
+	var preprocessedJsons []types.JSON
+	var invalidJsons []types.JSON
 	for _, jsonValue := range jsons {
 		preprocessedJson, err := transformer.Transform(jsonValue)
 		if err != nil {
@@ -805,14 +807,17 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 		if err != nil {
 			return nil, fmt.Errorf("error validation: %v", err)
 		}
-
+		invalidJsons = append(invalidJsons, inValidJson)
 		stats.GlobalStatistics.UpdateNonSchemaValues(lm.cfg, tableName,
 			inValidJson, NestedSeparator)
 		// Remove invalid fields from the input JSON
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
+		preprocessedJsons = append(preprocessedJsons, preprocessedJson)
+	}
+	for i, preprocessedJson := range preprocessedJsons {
 		// TODO this is doing nested field encoding
 		// ----------------------
-		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson, inValidJson, config)
+		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson, invalidJsons[i], config)
 		// ----------------------
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
