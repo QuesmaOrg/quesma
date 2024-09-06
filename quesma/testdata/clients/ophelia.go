@@ -1175,123 +1175,161 @@ var OpheliaTests = []testdata.AggregationTestCase{
 								"1": {
 									"value": 1091661.7608666667
 								},
-								"8": {
+								"7": {
 									"buckets": [
 										{
 											"1": {
 												"value": 51891.94613333333
 											},
-											"4": {
+											"8": {
 												"buckets": [
 													{
 														"1": {
 															"value": 51891.94613333333
 														},
-														"5": {
-															"value": 37988.09523333333
+														"4": {
+															"buckets": [
+																{
+																	"doc_count": 10,
+																	"key": "d11",
+																	"1": {
+																		"value": 1.1
+																	},
+																	"3": {
+																		"buckets": [
+																			{
+																				"doc_count": 3,
+																				"key": "e11",
+																				"1": {
+																					"value": -1
+																				},
+																				"5": {
+																					"value": -2
+																				},
+																				"6": {
+																					"value": -3	
+																				}
+																			}
+																		],
+																		"doc_count_error_upper_bound": 0,
+																		"sum_other_doc_count": 7
+																	}
+																},
+																{
+																	"doc_count": 5,
+																	"key": "d12",
+																	"1": {
+																		"value": 2.2
+																	},
+																	"3": {
+																		"buckets": [
+																			{
+																				"doc_count": 1,
+																				"key": "e12",
+																				"1": {
+																					"value": null
+																				},
+																				"5": {
+																					"value": -22
+																				},
+																				"6": {
+																					"value": -33
+																				}
+																			}
+																		],
+																		"doc_count_error_upper_bound": 0,
+																		"sum_other_doc_count": 4
+																	}
+																}
+															],
+															"doc_count_error_upper_bound": 0,
+															"sum_other_doc_count": 6
 														},
 														"doc_count": 21,
-														"key": "c11"
+														"key": "c1"
 													}
 												],
 												"doc_count_error_upper_bound": 0,
 												"sum_other_doc_count": 0
 											},
 											"doc_count": 21,
-											"key": "b11"
-										},
-										{
-											"1": {
-												"value": 45774.291766666654
-											},
-											"4": {
-												"buckets": [
-													{
-														"1": {
-															"value": 45774.291766666654
-														},
-														"5": {
-															"value": 36577.89516666666
-														},
-														"doc_count": 24,
-														"key": "c12"
-													}
-												],
-												"doc_count_error_upper_bound": 0,
-												"sum_other_doc_count": 0
-											},
-											"doc_count": 24,
-											"key": "b12"
+											"key": "b1"
 										}
 									],
 									"doc_count_error_upper_bound": -1,
-									"sum_other_doc_count": 504
+									"sum_other_doc_count": 1015
 								},
 								"doc_count": 1036,
 								"key": "a1"
 							},
 							{
 								"1": {
-									"value": 630270.07765
+									"value": 0
 								},
-								"8": {
+								"7": {
 									"buckets": [
 										{
 											"1": {
-												"value": 399126.7496833334
+												"value": 0.1
 											},
-											"4": {
+											"8": {
 												"buckets": [
 													{
 														"1": {
-															"value": 399126.7496833334
+															"value": 0.2
 														},
-														"5": {
-															"value": 337246.82201666664
+														"4": {
+															"buckets": [
+																{
+																	"doc_count": 2,
+																	"key": "d2",
+																	"1": {
+																		"value": 0.3
+																	},
+																	"3": {
+																		"buckets": [
+																			{
+																				"doc_count": 1,
+																				"key": "e2",
+																				"1": {
+																					"value": -0.4
+																				},
+																				"5": {
+																					"value": -0.5
+																				},
+																				"6": {
+																					"value": -0.6
+																				}
+																			}
+																		],
+																		"doc_count_error_upper_bound": 0,
+																		"sum_other_doc_count": 1
+																	}
+																}
+															],
+															"doc_count_error_upper_bound": 0,
+															"sum_other_doc_count": 1
 														},
-														"doc_count": 17,
-														"key": "c21"
+														"doc_count": 3,
+														"key": "c2"
 													}
 												],
 												"doc_count_error_upper_bound": 0,
-												"sum_other_doc_count": 0
+												"sum_other_doc_count": 1
 											},
-											"doc_count": 17,
-											"key": "b21"
-										},
-										{
-											"1": {
-												"value": 231143.3279666666
-											},
-											"4": {
-												"buckets": [
-													{
-														"1": {
-															"value": 231143.3279666666
-														},
-														"5": {
-															"value": 205408.48849999998
-														},
-														"doc_count": 17,
-														"key": "c22"
-													}
-												],
-												"doc_count_error_upper_bound": 0,
-												"sum_other_doc_count": 0
-											},
-											"doc_count": 17,
-											"key": "b22"
+											"doc_count": 4,
+											"key": "b2"
 										}
 									],
-									"doc_count_error_upper_bound": 0,
-									"sum_other_doc_count": 0
+									"doc_count_error_upper_bound": -1,
+									"sum_other_doc_count": 1
 								},
-								"doc_count": 34,
+								"doc_count": 5,
 								"key": "a2"
 							}
 						],
 						"doc_count_error_upper_bound": -1,
-						"sum_other_doc_count": 33220
+						"sum_other_doc_count": 49386
 					}
 				},
 				"hits": {
@@ -1457,6 +1495,95 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			{},
 			{},
 			{},
+		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 50427),
+				model.NewQueryResultCol("aggr__2__key_0", "a1"),
+				model.NewQueryResultCol("aggr__2__count", uint64(1036)),
+				model.NewQueryResultCol("aggr__2__order_1", 1091661.7608666667),
+				model.NewQueryResultCol("metric__2__1_col_0", 1091661.7608666667),
+				model.NewQueryResultCol("aggr__2__7__parent_count", 1036),
+				model.NewQueryResultCol("aggr__2__7__key_0", "b1"),
+				model.NewQueryResultCol("aggr__2__7__count", int64(21)),
+				model.NewQueryResultCol("aggr__2__7__order_1", 51891.94613333333),
+				model.NewQueryResultCol("metric__2__7__1_col_0", 51891.94613333333),
+				model.NewQueryResultCol("aggr__2__7__8__parent_count", 21),
+				model.NewQueryResultCol("aggr__2__7__8__key_0", "c1"),
+				model.NewQueryResultCol("aggr__2__7__8__count", int64(21)),
+				model.NewQueryResultCol("aggr__2__7__8__order_1", 51891.94613333333),
+				model.NewQueryResultCol("metric__2__7__8__1_col_0", 51891.94613333333),
+				model.NewQueryResultCol("aggr__2__7__8__4__parent_count", 21),
+				model.NewQueryResultCol("aggr__2__7__8__4__key_0", "d11"),
+				model.NewQueryResultCol("aggr__2__7__8__4__count", int64(10)),
+				model.NewQueryResultCol("aggr__2__7__8__4__order_1", 1.1),
+				model.NewQueryResultCol("metric__2__7__8__4__1_col_0", 1.1),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__parent_count", 10),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__key_0", "e11"),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__count", int64(3)),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__order_1", -1),
+				model.NewQueryResultCol("metric__2__7__8__4__3__1_col_0", -1),
+				model.NewQueryResultCol("metric__2__7__8__4__3__5_col_0", -2),
+				model.NewQueryResultCol("metric__2__7__8__4__3__6_col_0", -3),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 50427),
+				model.NewQueryResultCol("aggr__2__key_0", "a1"),
+				model.NewQueryResultCol("aggr__2__count", uint64(1036)),
+				model.NewQueryResultCol("aggr__2__order_1", 1091661.7608666667),
+				model.NewQueryResultCol("metric__2__1_col_0", 1091661.7608666667),
+				model.NewQueryResultCol("aggr__2__7__parent_count", 1036),
+				model.NewQueryResultCol("aggr__2__7__key_0", "b1"),
+				model.NewQueryResultCol("aggr__2__7__count", int64(21)),
+				model.NewQueryResultCol("aggr__2__7__order_1", 51891.94613333333),
+				model.NewQueryResultCol("metric__2__7__1_col_0", 51891.94613333333),
+				model.NewQueryResultCol("aggr__2__7__8__parent_count", 21),
+				model.NewQueryResultCol("aggr__2__7__8__key_0", "c1"),
+				model.NewQueryResultCol("aggr__2__7__8__count", int64(21)),
+				model.NewQueryResultCol("aggr__2__7__8__order_1", 51891.94613333333),
+				model.NewQueryResultCol("metric__2__7__8__1_col_0", 51891.94613333333),
+				model.NewQueryResultCol("aggr__2__7__8__4__parent_count", 21),
+				model.NewQueryResultCol("aggr__2__7__8__4__key_0", "d12"),
+				model.NewQueryResultCol("aggr__2__7__8__4__count", int64(5)),
+				model.NewQueryResultCol("aggr__2__7__8__4__order_1", 2.2),
+				model.NewQueryResultCol("metric__2__7__8__4__1_col_0", 2.2),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__parent_count", 5),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__key_0", "e12"),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__count", int64(1)),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__order_1", nil),
+				model.NewQueryResultCol("metric__2__7__8__4__3__1_col_0", nil),
+				model.NewQueryResultCol("metric__2__7__8__4__3__5_col_0", -22),
+				model.NewQueryResultCol("metric__2__7__8__4__3__6_col_0", -33),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 50427),
+				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count", uint64(5)),
+				model.NewQueryResultCol("aggr__2__order_1", 0),
+				model.NewQueryResultCol("metric__2__1_col_0", 0),
+				model.NewQueryResultCol("aggr__2__7__parent_count", 5),
+				model.NewQueryResultCol("aggr__2__7__key_0", "b2"),
+				model.NewQueryResultCol("aggr__2__7__count", int64(4)),
+				model.NewQueryResultCol("aggr__2__7__order_1", 0.1),
+				model.NewQueryResultCol("metric__2__7__1_col_0", 0.1),
+				model.NewQueryResultCol("aggr__2__7__8__parent_count", 4),
+				model.NewQueryResultCol("aggr__2__7__8__key_0", "c2"),
+				model.NewQueryResultCol("aggr__2__7__8__count", int64(3)),
+				model.NewQueryResultCol("aggr__2__7__8__order_1", 0.2),
+				model.NewQueryResultCol("metric__2__7__8__1_col_0", 0.2),
+				model.NewQueryResultCol("aggr__2__7__8__4__parent_count", 3),
+				model.NewQueryResultCol("aggr__2__7__8__4__key_0", "d2"),
+				model.NewQueryResultCol("aggr__2__7__8__4__count", int64(2)),
+				model.NewQueryResultCol("aggr__2__7__8__4__order_1", 0.3),
+				model.NewQueryResultCol("metric__2__7__8__4__1_col_0", 0.3),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__parent_count", 2),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__key_0", "e2"),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__count", int64(1)),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__order_1", -0.4),
+				model.NewQueryResultCol("metric__2__7__8__4__3__1_col_0", -0.4),
+				model.NewQueryResultCol("metric__2__7__8__4__3__5_col_0", -0.5),
+				model.NewQueryResultCol("metric__2__7__8__4__3__6_col_0", -0.6),
+			}},
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
@@ -1643,6 +1770,107 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100`,
 		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
+			  "aggr__2__order_1", "metric__2__1_col_0", "aggr__2__7__parent_count",
+			  "aggr__2__7__key_0", "aggr__2__7__count", "aggr__2__7__order_1",
+			  "metric__2__7__1_col_0", "aggr__2__7__8__parent_count",
+			  "aggr__2__7__8__key_0", "aggr__2__7__8__count", "aggr__2__7__8__order_1",
+			  "metric__2__7__8__1_col_0", "aggr__2__7__8__4__parent_count",
+			  "aggr__2__7__8__4__key_0", "aggr__2__7__8__4__count",
+			  "aggr__2__7__8__4__order_1", "metric__2__7__8__4__1_col_0",
+			  "aggr__2__7__8__4__3__parent_count", "aggr__2__7__8__4__3__key_0",
+			  "aggr__2__7__8__4__3__count", "aggr__2__7__8__4__3__order_1",
+			  "metric__2__7__8__4__3__1_col_0", "metric__2__7__8__4__3__5_col_0",
+			  "metric__2__7__8__4__3__6_col_0"
+			FROM (
+			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
+				"aggr__2__order_1", "metric__2__1_col_0", "aggr__2__7__parent_count",
+				"aggr__2__7__key_0", "aggr__2__7__count", "aggr__2__7__order_1",
+				"metric__2__7__1_col_0", "aggr__2__7__8__parent_count",
+				"aggr__2__7__8__key_0", "aggr__2__7__8__count", "aggr__2__7__8__order_1",
+				"metric__2__7__8__1_col_0", "aggr__2__7__8__4__parent_count",
+				"aggr__2__7__8__4__key_0", "aggr__2__7__8__4__count",
+				"aggr__2__7__8__4__order_1", "metric__2__7__8__4__1_col_0",
+				"aggr__2__7__8__4__3__parent_count", "aggr__2__7__8__4__3__key_0",
+				"aggr__2__7__8__4__3__count", "aggr__2__7__8__4__3__order_1",
+				"metric__2__7__8__4__3__1_col_0", "metric__2__7__8__4__3__5_col_0",
+				"metric__2__7__8__4__3__6_col_0",
+				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
+				AS "aggr__2__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
+				"aggr__2__7__order_1" DESC, "aggr__2__7__key_0" ASC) AS
+				"aggr__2__7__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0" ORDER
+				BY "aggr__2__7__8__order_1" DESC, "aggr__2__7__8__key_0" ASC) AS
+				"aggr__2__7__8__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
+				"aggr__2__7__8__key_0" ORDER BY "aggr__2__7__8__4__order_1" DESC,
+				"aggr__2__7__8__4__key_0" ASC) AS "aggr__2__7__8__4__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
+				"aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0" ORDER BY
+				"aggr__2__7__8__4__3__order_1" DESC, "aggr__2__7__8__4__3__key_0" ASC) AS
+				"aggr__2__7__8__4__3__order_1_rank"
+			  FROM (
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
+				  "surname" AS "aggr__2__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0") AS
+				  "aggr__2__order_1",
+				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0") AS
+				  "metric__2__1_col_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
+				  "aggr__2__7__parent_count",
+				  COALESCE("limbName", '__missing__') AS "aggr__2__7__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0") AS
+				  "aggr__2__7__count",
+				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
+				  "aggr__2__7__key_0") AS "aggr__2__7__order_1",
+				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
+				  "aggr__2__7__key_0") AS "metric__2__7__1_col_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0") AS
+				  "aggr__2__7__8__parent_count",
+				  COALESCE("organName", '__missing__') AS "aggr__2__7__8__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
+				  "aggr__2__7__8__key_0") AS "aggr__2__7__8__count",
+				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
+				  "aggr__2__7__key_0", "aggr__2__7__8__key_0") AS "aggr__2__7__8__order_1",
+				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
+				  "aggr__2__7__key_0", "aggr__2__7__8__key_0") AS "metric__2__7__8__1_col_0"
+				  ,
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
+				  "aggr__2__7__8__key_0") AS "aggr__2__7__8__4__parent_count",
+				  "doctorName" AS "aggr__2__7__8__4__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
+				  "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
+				  "aggr__2__7__8__4__count",
+				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
+				  "aggr__2__7__key_0", "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
+				  "aggr__2__7__8__4__order_1",
+				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
+				  "aggr__2__7__key_0", "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
+				  "metric__2__7__8__4__1_col_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
+				  "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
+				  "aggr__2__7__8__4__3__parent_count",
+				  "height" AS "aggr__2__7__8__4__3__key_0",
+				  count(*) AS "aggr__2__7__8__4__3__count",
+				  sumOrNull("total") AS "aggr__2__7__8__4__3__order_1",
+				  sumOrNull("total") AS "metric__2__7__8__4__3__1_col_0",
+				  sumOrNull("some") AS "metric__2__7__8__4__3__5_col_0",
+				  sumOrNull("cost") AS "metric__2__7__8__4__3__6_col_0"
+				FROM __quesma_table_name
+				GROUP BY "surname" AS "aggr__2__key_0",
+				  COALESCE("limbName", '__missing__') AS "aggr__2__7__key_0",
+				  COALESCE("organName", '__missing__') AS "aggr__2__7__8__key_0",
+				  "doctorName" AS "aggr__2__7__8__4__key_0",
+				  "height" AS "aggr__2__7__8__4__3__key_0"))
+			WHERE (((("aggr__2__order_1_rank"<=101 AND "aggr__2__7__order_1_rank"<=10) AND
+			  "aggr__2__7__8__order_1_rank"<=10) AND "aggr__2__7__8__4__order_1_rank"<=7)
+			  AND "aggr__2__7__8__4__3__order_1_rank"<=2)
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__7__order_1_rank" ASC,
+			  "aggr__2__7__8__order_1_rank" ASC, "aggr__2__7__8__4__order_1_rank" ASC,
+			  "aggr__2__7__8__4__3__order_1_rank" ASC`,
 	},
 	{ // [3]
 		TestName: "Ophelia Test 4: triple terms + order by another aggregations",
