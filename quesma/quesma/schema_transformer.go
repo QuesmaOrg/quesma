@@ -529,7 +529,7 @@ func (s *SchemaCheckPass) checkDottedColumns(query *model.Query) (*model.Query, 
 			// this is a hack for now
 			// it should return an error instead
 			logger.Warn().Msgf("dotted column found: %s, table %s", e.ColumnName, query.TableName)
-			return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
+			//return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
 		}
 		return e
 	}
