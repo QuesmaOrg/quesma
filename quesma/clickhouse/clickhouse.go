@@ -729,8 +729,10 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
+		config = table.Config
+	} else {
+		config = table.Config
 	}
-	config = table.Config
 	// ----------------------
 
 	// TODO this is doing nested field encoding
