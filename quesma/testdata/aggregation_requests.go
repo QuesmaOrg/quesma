@@ -1807,7 +1807,8 @@ var AggregationTests = []AggregationTestCase{
 				"group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
 				"group_table"."aggr__origins__count" AS "aggr__origins__count",
 				"group_table"."aggr__origins__order_1" AS "aggr__origins__order_1",
-				"hit_table"."OriginLocation" AS "top_hits_1",
+				map('lat', "hit_table"."OriginLocation::lat", 'lon',
+				"hit_table"."OriginLocation::lon") AS "top_hits_1",
 				"hit_table"."Origin" AS "top_hits_2",
 				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0") AS
 				"top_hits_rank"
@@ -1871,7 +1872,8 @@ var AggregationTests = []AggregationTestCase{
 				"aggr__origins__distinations__count",
 				"group_table"."aggr__origins__distinations__order_1" AS
 				"aggr__origins__distinations__order_1",
-				"hit_table"."DestLocation" AS "top_hits_1",
+				map('lat', "hit_table"."DestLocation::lat", 'lon',
+				"hit_table"."DestLocation::lon") AS "top_hits_1",
 				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0",
 				"group_table"."aggr__origins__distinations__key_0") AS "top_hits_rank"
 			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
