@@ -1659,9 +1659,8 @@ var AggregationTests = []AggregationTestCase{
 				},
 			},
 		},
-		AdditionalAcceptableDifference: []string{"_index", "_id", "value", "DestLocation"},
+		AdditionalAcceptableDifference: []string{"_index", "_id", "value"},
 		// TODO: Remove value as it is used for total hits
-		// TODO: Remove OriginLocation and DestLocation as they need to be filled in test and update properly
 		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
 			{
 				{
@@ -1703,7 +1702,10 @@ var AggregationTests = []AggregationTestCase{
 						model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
 						model.NewQueryResultCol("aggr__origins__distinations__count", int64(21)),
 						model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(21)),
-						model.NewQueryResultCol("top_hits_1", "TODO"),
+						model.NewQueryResultCol("top_hits_1", `{
+																	"lat": "-34.8222",
+																	"lon": "-58.5358"
+																}`),
 						model.NewQueryResultCol("top_hits_rank", int64(1)),
 					},
 				},
@@ -1716,7 +1718,10 @@ var AggregationTests = []AggregationTestCase{
 						model.NewQueryResultCol("aggr__origins__distinations__key_0", "UIO"),
 						model.NewQueryResultCol("aggr__origins__distinations__count", int64(12)),
 						model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(12)),
-						model.NewQueryResultCol("top_hits_1", "TODO"),
+						model.NewQueryResultCol("top_hits_1", `{
+														"lat": "-0.129166667",
+														"lon": "-78.3575"
+													}`),
 						model.NewQueryResultCol("top_hits_rank", int64(1)),
 					},
 				},
@@ -1729,7 +1734,10 @@ var AggregationTests = []AggregationTestCase{
 						model.NewQueryResultCol("aggr__origins__distinations__key_0", "YUL"),
 						model.NewQueryResultCol("aggr__origins__distinations__count", int64(11)),
 						model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(11)),
-						model.NewQueryResultCol("top_hits_1", "TODO"),
+						model.NewQueryResultCol("top_hits_1", `{
+																	"lat": "45.47060013",
+																	"lon": "-73.74079895"
+																}`),
 						model.NewQueryResultCol("top_hits_rank", int64(1)),
 					},
 				},
@@ -1742,7 +1750,10 @@ var AggregationTests = []AggregationTestCase{
 						model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
 						model.NewQueryResultCol("aggr__origins__distinations__count", int64(10)),
 						model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(10)),
-						model.NewQueryResultCol("top_hits_1", "TODO"),
+						model.NewQueryResultCol("top_hits_1", `{
+																	"lat": "-34.8222",
+																	"lon": "-58.5358"
+																}`),
 						model.NewQueryResultCol("top_hits_rank", int64(1)),
 					},
 				},
