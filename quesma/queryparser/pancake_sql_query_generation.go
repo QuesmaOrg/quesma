@@ -405,7 +405,7 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	groupBys []model.AliasedExpr,
 	selectColumns []model.AliasedExpr,
 	origQuery *model.SelectCommand) (*model.SelectCommand, error) {
-	
+
 	// TODO: we assume some group bys
 	var topHitsQueryType metrics_aggregations.TopHits
 	if queryType, ok := topHits.queryType.(metrics_aggregations.TopHits); ok {
