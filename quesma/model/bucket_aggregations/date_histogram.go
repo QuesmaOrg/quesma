@@ -4,6 +4,7 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/kibana"
 	"quesma/logger"
@@ -77,21 +78,29 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 			key = query.getKey(row) * intervalInMilliseconds
 		}
 
+		// key is in `query.timezone` timezone, not UTC
+		// u nas 12:00 UTC
+		fmt.Println("1", key, time.UnixMilli(key).UTC())
+
 		// key is in `query.timezone` time, and we need it to be UTC
 		wantedTimezone, err := time.LoadLocation(query.timezone)
 		if err != nil {
 			logger.ErrorWithCtx(query.ctx).Msgf("time.LoadLocation error: %v", err)
 		}
-		ts := time.UnixMilli(key)
+		//wantedTimezone
+		ts := time.UnixMilli(key).UTC()
 		intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), wantedTimezone)
 
 		_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
 		key -= int64(timezoneOffsetInSeconds * 1000) // seconds -> milliseconds
 
+		fmt.Println("2", key, time.UnixMilli(key).UTC())
+		fmt.Println(ts, key, timezoneOffsetInSeconds, intervalStartNotUTC, intervalStartNotUTC.UTC())
+
 		response = append(response, model.JsonMap{
 			"key":           key,
 			"doc_count":     row.LastColValue(), // used to be [level], but because some columns are duplicated, it doesn't work in 100% cases now
-			"key_as_string": intervalStartNotUTC.UTC().Format("2006-01-02T15:04:05.000"),
+			"key_as_string": time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000"),
 		})
 	}
 

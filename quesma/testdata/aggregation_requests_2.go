@@ -1853,16 +1853,14 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"field": "@timestamp",
 						"fixed_interval": "30s",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					},
 					"aggs": {
 						"3": {
 							"date_histogram": {
 								"field": "@timestamp",
 								"fixed_interval": "40s",
-								"min_doc_count": 1,
-								"time_zone": "Europe/Warsaw"
+								"min_doc_count": 1
 							}
 						}
 					}
@@ -2173,12 +2171,12 @@ var AggregationTests2 = []AggregationTestCase{
 				`FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
-			`SELECT floor("bytes"/100.000000)*100.000000, count() ` +
+			`SELECT floor("bytes"/100)*100, count() ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
-				`GROUP BY floor("bytes"/100.000000)*100.000000 ` +
-				`ORDER BY floor("bytes"/100.000000)*100.000000`,
+				`GROUP BY floor("bytes"/100)*100 ` +
+				`ORDER BY floor("bytes"/100)*100`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
@@ -2191,15 +2189,15 @@ var AggregationTests2 = []AggregationTestCase{
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank"
 			  FROM (
-				SELECT floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
+				SELECT floor("bytes"/100)*100 AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0",
+				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0",
 				  count(*) AS "aggr__2__3__count"
 				FROM ` + TableName + `
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
-				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
+				GROUP BY floor("bytes"/100)*100 AS "aggr__2__key_0",
+				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
 	},
 	{ // [50] TODO: what about nulls in histogram? Maybe they should be treated like in terms?
@@ -2378,12 +2376,12 @@ var AggregationTests2 = []AggregationTestCase{
 				`FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
-			`SELECT floor("bytes"/100.000000)*100.000000, count() ` +
+			`SELECT floor("bytes"/100)*100, count() ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
-				`GROUP BY floor("bytes"/100.000000)*100.000000 ` +
-				`ORDER BY floor("bytes"/100.000000)*100.000000`,
+				`GROUP BY floor("bytes"/100)*100 ` +
+				`ORDER BY floor("bytes"/100)*100`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
@@ -2396,15 +2394,15 @@ var AggregationTests2 = []AggregationTestCase{
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank"
 			  FROM (
-				SELECT floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
+				SELECT floor("bytes"/100)*100 AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0",
+				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0",
 				  count(*) AS "aggr__2__3__count"
 				FROM ` + TableName + `
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
-				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
+				GROUP BY floor("bytes"/100)*100 AS "aggr__2__key_0",
+				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
 	},
 	{ // [51]

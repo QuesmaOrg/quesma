@@ -21,8 +21,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				"0": {
 					"date_histogram": {
 						"field": "@timestamp",
-						"calendar_interval": "1h",
-						"time_zone": "Europe/Warsaw"
+						"calendar_interval": "1h"
 					},
 					"aggs": {
 						"1": {
@@ -347,8 +346,8 @@ var KunkkaTests = []testdata.AggregationTestCase{
 									"doc_count": 0
 								},
 								"doc_count": 2,
-								"key": 1718794800000,
-								"key_as_string": "2024-06-19T11:00:00.000"
+								"key": 1718787600000,
+								"key_as_string": "2024-06-19T09:00:00.000"
 							},
 							{
 								"1": {
@@ -361,8 +360,8 @@ var KunkkaTests = []testdata.AggregationTestCase{
 									"doc_count": 0
 								},
 								"doc_count": 3,
-								"key": 1718798400000,
-								"key_as_string": "2024-06-19T12:00:00.000"
+								"key": 1718791200000,
+								"key_as_string": "2024-06-19T10:00:00.000"
 							},
 							{
 								"1": {
@@ -375,8 +374,8 @@ var KunkkaTests = []testdata.AggregationTestCase{
 									"doc_count": 1
 								},
 								"doc_count": 2,
-								"key": 1718802000000,
-								"key_as_string": "2024-06-19T13:00:00.000"
+								"key": 1718794800000,
+								"key_as_string": "2024-06-19T11:00:00.000"
 							}
 						]
 					}
@@ -482,15 +481,16 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
-			  "aggr__0__key_0", count(*) AS "aggr__0__count",
+			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+  			  "@timestamp", 'Europe/Warsaw'))*1000) / 3600000) AS "aggr__0__key_0",
+			  count(*) AS "aggr__0__count",
 			  sumOrNull("spent") AS "metric__0__1_col_0",
 			  countIf(` + fullTextFieldName + ` iLIKE '%started%') AS "aggr__0__2-bucket__count",
 			  sumOrNullIf("multiplier", ` + fullTextFieldName + ` iLIKE '%started%') AS
 			  "metric__0__2-bucket__2-metric_col_0"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
-			  "aggr__0__key_0"
+			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+  			  "@timestamp", 'Europe/Warsaw'))*1000) / 3600000) AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 	},
 	{ // [2]

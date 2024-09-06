@@ -30,8 +30,7 @@ var AggregationTestsWithSpecialCharactersInFieldNames = []AggregationTestCase{
 					"date_histogram": {
 						"field": "-@timestamp",
 						"fixed_interval": "12h",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				}
 			},

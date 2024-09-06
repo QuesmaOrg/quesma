@@ -5,7 +5,6 @@ package queryparser
 import (
 	"errors"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/queryparser/query_util"
@@ -298,7 +297,6 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			if err != nil {
 				return nil, false, err
 			}
-			pp.Println("add", addSelectColumns)
 			selectColumns = append(selectColumns, addSelectColumns...)
 			groupBys = append(groupBys, addGroupBys...)
 			rankColumns = append(rankColumns, addRankColumns...)
