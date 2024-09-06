@@ -379,7 +379,7 @@ func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema
 }
 
 func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tableName string,
-	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter TableColumNameFormatter) (string, error) {
+	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter TableColumNameFormatter) string {
 
 	var ignoredFields []config.FieldName
 	if indexConfig, found := lm.cfg.IndexConfig[tableName]; found && indexConfig.SchemaOverrides != nil {
@@ -403,7 +403,7 @@ COMMENT 'created by Quesma'`,
 		tableName, columns,
 		tableConfig.CreateTablePostFieldsString())
 
-	return createTableCmd, nil
+	return createTableCmd
 }
 
 func Indexes(m SchemaMap) string {
@@ -423,16 +423,9 @@ func Indexes(m SchemaMap) string {
 func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig, tableFormatter TableColumNameFormatter) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
-	query, err := lm.buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, tableFormatter)
-	if err != nil {
-		return err
-	}
+	query := lm.buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, tableFormatter)
 
-	err = lm.ProcessCreateTableQuery(ctx, query, config)
-	if err != nil {
-		return err
-	}
-	return nil
+	return lm.ProcessCreateTableQuery(ctx, query, config)
 }
 
 func deepCopyMapSliceInterface(original map[string][]interface{}) map[string][]interface{} {
