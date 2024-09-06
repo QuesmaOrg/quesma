@@ -689,38 +689,11 @@ func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), alterCmd, nil
 }
 
-func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName string, jsonData types.JSON, tableFormatter TableColumNameFormatter) (*ChTableConfig, error) {
-	table := lm.FindTable(tableName)
-	var config *ChTableConfig
-	if table == nil {
-		config = NewOnlySchemaFieldsCHConfig()
-		ignoredFields := lm.getIgnoredFields(tableName)
-		columnsFromJson := JsonToColumns("", jsonData, 1,
-			config, tableFormatter, ignoredFields)
-		columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), tableFormatter)
-		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData))
-		createTableCmd := createTableQuery(tableName, columns, config)
-		err := lm.ProcessCreateTableQuery(ctx, createTableCmd, config)
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error ProcessInsertQuery, can't create table: %v", err)
-			return nil, err
-		}
-		return config, nil
-	} else if !table.Created {
-		err := lm.execute(ctx, table.createTableString())
-		if err != nil {
-			return nil, err
-		}
-		config = table.Config
-	} else {
-		config = table.Config
-	}
-	return config, nil
-}
-
-func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string,
+func (lm *LogManager) processInsertQuery(ctx context.Context,
+	tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
-	tableFormatter TableColumNameFormatter) ([]string, error) {
+	tableFormatter TableColumNameFormatter,
+) ([]string, error) {
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
@@ -736,14 +709,35 @@ func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string,
 	jsonData = processed
 	// TODO this is doing nested field encoding
 	// ----------------------
-	tableConfig, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0], tableFormatter)
-	// ----------------------
-	if err != nil {
-		return nil, err
+	table := lm.FindTable(tableName)
+	var config *ChTableConfig
+	if table == nil {
+		config = NewOnlySchemaFieldsCHConfig()
+		ignoredFields := lm.getIgnoredFields(tableName)
+		columnsFromJson := JsonToColumns("", jsonData[0], 1,
+			config, tableFormatter, ignoredFields)
+		columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), tableFormatter)
+		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
+		createTableCmd := createTableQuery(tableName, columns, config)
+		err := lm.ProcessCreateTableQuery(ctx, createTableCmd, config)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("error ProcessInsertQuery, can't create table: %v", err)
+			return nil, err
+		}
+	} else if !table.Created {
+		err := lm.execute(ctx, table.createTableString())
+		if err != nil {
+			return nil, err
+		}
+		config = table.Config
+	} else {
+		config = table.Config
 	}
+	// ----------------------
+
 	// TODO this is doing nested field encoding
 	// ----------------------
-	return lm.GenerateSqlStatements(ctx, tableName, jsonData, tableConfig, transformer)
+	return lm.GenerateSqlStatements(ctx, tableName, jsonData, config, transformer)
 	// ----------------------
 }
 
