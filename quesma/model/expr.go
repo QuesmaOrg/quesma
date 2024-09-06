@@ -121,6 +121,11 @@ func (s DistinctExpr) Accept(v ExprVisitor) interface{} {
 
 // TableRef is an explicit reference to a table in a query
 type TableRef struct {
+	// This is optional, can be empty.  In most databases it's called a 'schema'.
+	// Clickhouse calls it a database name.
+	// For devs it's a just a namespace.
+	DatabaseName string
+
 	Name string
 	// to be considered - alias (e.g. FROM tableName AS t)
 	// to be considered - database prefix (e.g. FROM databaseName.tableName)
@@ -128,6 +133,10 @@ type TableRef struct {
 
 func NewTableRef(name string) TableRef {
 	return TableRef{Name: name}
+}
+
+func NewTableRefWithDatabaseName(name, databaseName string) TableRef {
+	return TableRef{Name: name, DatabaseName: databaseName}
 }
 
 func (t TableRef) Accept(v ExprVisitor) interface{} {

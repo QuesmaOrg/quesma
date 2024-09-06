@@ -117,11 +117,23 @@ func (v *renderer) VisitDistinctExpr(e DistinctExpr) interface{} {
 
 func (v *renderer) VisitTableRef(e TableRef) interface{} {
 
-	if identifierRegexp.MatchString(e.Name) {
-		return e.Name
+	var result []string
+
+	if e.DatabaseName != "" {
+		if identifierRegexp.MatchString(e.DatabaseName) {
+			result = append(result, e.DatabaseName)
+		} else {
+			result = append(result, strconv.Quote(e.DatabaseName))
+		}
 	}
 
-	return strconv.Quote(e.Name)
+	if identifierRegexp.MatchString(e.Name) {
+		result = append(result, e.Name)
+	} else {
+		result = append(result, strconv.Quote(e.Name))
+	}
+
+	return strings.Join(result, ".")
 }
 
 func (v *renderer) VisitAliasedExpr(e AliasedExpr) interface{} {

@@ -339,19 +339,13 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*mode
 		return query, nil
 	}
 
-	// table.FullTableName() returns quoted table name with database name if it's not empty.
-	// It's used on ingest side. On query side we quote on table name on rendering.
-	physicalTableName := table.Name
-	if table.DatabaseName != "" {
-		physicalTableName = fmt.Sprintf("%s.%s", table.DatabaseName, table.Name)
-	}
-	physicalFromExpression := model.NewTableRef(physicalTableName)
+	tableRef := model.NewTableRefWithDatabaseName(table.Name, table.DatabaseName)
 
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
 		if e.Name == model.SingleTableNamePlaceHolder {
-			return physicalFromExpression
+			return tableRef
 		}
 		return e
 	}
