@@ -180,9 +180,10 @@ func (s *materializedViewReplace) replace(rule materializedViewReplaceRule, quer
 				from = query.FromClause.Accept(v).(model.Expr)
 			}
 		}
-
-		where := query.WhereClause.Accept(v).(model.Expr)
-
+		where := query.WhereClause
+		if query.WhereClause != nil {
+			where = query.WhereClause.Accept(v).(model.Expr)
+		}
 		return model.NewSelectCommand(query.Columns, query.GroupBy, query.OrderBy, from, where, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes, namedCTEs)
 
 	}

@@ -405,7 +405,10 @@ func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tabl
 		// in removeFieldsTransformer's Transform method
 		ignoredFields = indexConfig.SchemaOverrides.IgnoredFields()
 	}
-	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName), ignoredFields) + Indexes(jsonData)
+	columnsFromJson, columnsFromSchema := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName), ignoredFields)
+
+	columns := columnsToString(columnsFromJson, columnsFromSchema)
+	columns += Indexes(jsonData)
 
 	var extraComment string
 
@@ -756,11 +759,18 @@ func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string,
 	}
 	jsonData = processed
 
+	// TODO this is doing nested field encoding
+	// ----------------------
 	tableConfig, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0], tableFormatter, tableDefinitionChangeOnly)
+	// ----------------------
+
 	if err != nil {
 		return nil, err
 	}
+	// TODO this is doing nested field encoding
+	// ----------------------
 	return lm.GenerateSqlStatements(ctx, tableName, jsonData, tableConfig, transformer)
+	// ----------------------
 }
 
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
@@ -873,7 +883,10 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 			inValidJson, NestedSeparator)
 		// Remove invalid fields from the input JSON
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
+		// TODO this is doing nested field encoding
+		// ----------------------
 		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson, inValidJson, config)
+		// ----------------------
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
