@@ -690,7 +690,9 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 	var config *ChTableConfig
 	if table == nil {
 		config = NewOnlySchemaFieldsCHConfig()
-		columnsFromJson, columnsFromSchema := lm.buildCreateTableQueryNoOurFields(ctx, tableName, jsonData, config, tableFormatter)
+		ignoredFields := lm.getIgnoredFields(tableName)
+		columnsFromJson, columnsFromSchema := FieldsMapToCreateTableString(jsonData,
+			config, tableFormatter, findSchemaPointer(lm.schemaRegistry, tableName), ignoredFields)
 		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData))
 		createTableCmd := createTableQuery(tableName, columns, config)
 		err := lm.ProcessCreateTableQuery(ctx, createTableCmd, config)
