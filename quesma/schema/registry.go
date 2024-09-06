@@ -68,7 +68,7 @@ func (s *schemaRegistry) populateSchemaFromDynamicConfiguration(indexName string
 
 		// TODO replace with notion of ephemeral types (see other identical TODOs)
 		if columnType.Equal(TypePoint) {
-			fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(strings.Replace(column.Name, ".", "::", -1)), Type: columnType}
+			fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(strings.Replace(column.Name, ".", ".", -1)), Type: columnType}
 		} else {
 			fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: columnType}
 		}
@@ -118,7 +118,7 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 		if resolvedType, valid := ParseQuesmaType(field.Type.AsString()); valid {
 			// TODO replace with notion of ephemeral types (see other identical TODOs)
 			if resolvedType.Equal(TypePoint) {
-				fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(strings.Replace(fieldName.AsString(), ".", "::", -1)), Type: resolvedType}
+				fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(strings.Replace(fieldName.AsString(), ".", ".", -1)), Type: resolvedType}
 			} else {
 				fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(fieldName), Type: resolvedType}
 			}
@@ -145,7 +145,7 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 		logger.Debug().Msgf("loading schema for table %s", indexName)
 
 		for _, column := range tableDefinition.Columns {
-			propertyName := FieldName(strings.Replace(column.Name, "::", ".", -1))
+			propertyName := FieldName(strings.Replace(column.Name, ".", ".", -1))
 			if existing, exists := fields[propertyName]; !exists {
 				if quesmaType, resolved := s.dataSourceTypeAdapter.Convert(column.Type); resolved {
 					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: quesmaType}

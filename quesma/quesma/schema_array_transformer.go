@@ -29,7 +29,7 @@ func (v *arrayTypeResolver) dbColumnType(fieldName string) string {
 	//
 	fieldName = strings.TrimSuffix(fieldName, ".keyword")
 
-	tableColumnName := strings.ReplaceAll(fieldName, ".", "::")
+	tableColumnName := strings.ReplaceAll(fieldName, ".", ".")
 	col, ok := v.table.Cols[tableColumnName]
 	if ok {
 		return col.Type.String()

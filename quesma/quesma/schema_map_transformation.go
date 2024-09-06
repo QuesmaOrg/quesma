@@ -46,7 +46,7 @@ func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScop
 		scope = scopeWholeMap
 	}
 
-	tableColumnName := strings.ReplaceAll(fieldName, ".", "::")
+	tableColumnName := strings.ReplaceAll(fieldName, ".", ".")
 	col, ok := v.table.Cols[tableColumnName]
 
 	if ok {

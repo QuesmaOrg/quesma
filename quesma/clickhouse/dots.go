@@ -10,7 +10,7 @@ import (
 func replaceDotsWithSeparator(jsonInsert types.JSON) bool {
 	gotDots := false
 	for fieldName, v := range jsonInsert {
-		withoutDotsFieldName := strings.Replace(fieldName, ".", "::", -1)
+		withoutDotsFieldName := strings.Replace(fieldName, ".", ".", -1)
 		if fieldName != withoutDotsFieldName {
 			gotDots = true
 			jsonInsert[withoutDotsFieldName] = v

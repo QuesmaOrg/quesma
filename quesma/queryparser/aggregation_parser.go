@@ -254,8 +254,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		if col, ok := firstExpr.(model.ColumnRef); ok {
 			colName := col.ColumnName
 			// TODO we have create columns according to the schema
-			latColumn := model.NewColumnRef(colName + "::lat")
-			lonColumn := model.NewColumnRef(colName + "::lon")
+			latColumn := model.NewColumnRef(colName + ".lat")
+			lonColumn := model.NewColumnRef(colName + ".lon")
 			castLat := model.NewFunction("CAST", latColumn, model.NewLiteral(fmt.Sprintf("'%s'", "Float")))
 			castLon := model.NewFunction("CAST", lonColumn, model.NewLiteral(fmt.Sprintf("'%s'", "Float")))
 			query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewFunction("avgOrNull", castLat))
@@ -964,10 +964,10 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		// TODO columns names should be created according to the schema
 		var lon = model.AsString(field)
 		lon = strings.Trim(lon, "\"")
-		lon = lon + "::lon"
+		lon = lon + ".lon"
 		var lat = model.AsString(field)
 		lat = strings.Trim(lat, "\"")
-		lat = lat + "::lat"
+		lat = lat + ".lat"
 		toFloatFunLon := model.NewFunction("toFloat64", model.NewColumnRef(lon))
 		var infixX model.Expr
 		infixX = model.NewParenExpr(model.NewInfixExpr(toFloatFunLon, "+", model.NewLiteral(180.0)))

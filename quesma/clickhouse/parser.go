@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-const NestedSeparator = "::"
+const NestedSeparator = "."
 
 type CreateTableEntry struct {
 	ClickHouseColumnName string
@@ -103,12 +103,12 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, chConfig *ChTab
 			// "service::name::very::name"
 			internalName := nameFormatter.Format(namespace, name)
 			// We should never have dots in the field names, see 4 ADR
-			internalName = strings.Replace(internalName, ".", "::", -1)
+			//internalName = strings.Replace(internalName, ".", "::", -1)
 
 			// FIXME: linear search, converting back '::' to '.'
-			if slices.Contains(ignoredFields, config.FieldName(strings.Replace(internalName, "::", ".", -1))) {
-				continue
-			}
+			//if slices.Contains(ignoredFields, config.FieldName(strings.Replace(internalName, "::", ".", -1))) {
+			//	continue
+			//}
 
 			resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: internalName, ClickHouseType: fTypeString})
 		}
@@ -127,7 +127,7 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameF
 		var fType string
 
 		// We should never have dots in the field names, see 4 ADR
-		internalPropertyName := strings.Replace(field.InternalPropertyName.AsString(), ".", "::", -1)
+		internalPropertyName := strings.Replace(field.InternalPropertyName.AsString(), ".", ".", -1)
 
 		switch field.Type.Name {
 		default:

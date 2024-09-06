@@ -55,13 +55,13 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 				hits := make(model.JsonMap)
 				// TODO suffixes (::lat, ::lon) hardcoded for now
 				// due to insufficient information in the schema
-				if strings.Contains(col.ColName, "::lon") {
+				if strings.Contains(col.ColName, ".lon") {
 					hits["lon"] = col.ExtractValue(query.ctx)
-					colName = strings.TrimSuffix(col.ColName, "::lon")
+					colName = strings.TrimSuffix(col.ColName, ".lon")
 				}
-				if strings.Contains(col.ColName, "::lat") {
+				if strings.Contains(col.ColName, ".lat") {
 					hits["lat"] = col.ExtractValue(query.ctx)
-					colName = strings.TrimSuffix(col.ColName, "::lat")
+					colName = strings.TrimSuffix(col.ColName, ".lat")
 				}
 				if _, ok := sourceMap[colName]; ok {
 					currentHits := sourceMap[colName].(model.JsonMap)

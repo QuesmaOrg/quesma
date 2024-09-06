@@ -190,8 +190,8 @@ func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Qu
 				field := schemaInstance.Fields[schema.FieldName(col.ColumnName)]
 				if field.Type.Name == schema.TypePoint.Name {
 					// TODO suffixes ::lat, ::lon are hardcoded for now
-					groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lat"))
-					groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lon"))
+					groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+".lat"))
+					groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+".lon"))
 				} else {
 					groupBy = append(groupBy, groupByExpr)
 				}
@@ -207,8 +207,8 @@ func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Qu
 				field := schemaInstance.Fields[schema.FieldName(col.ColumnName)]
 				if field.Type.Name == schema.TypePoint.Name {
 					// TODO suffixes ::lat, ::lon are hardcoded for now
-					columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lat"))
-					columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lon"))
+					columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+".lat"))
+					columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+".lon"))
 				} else {
 					columns = append(columns, expr.Accept(b).(model.Expr))
 				}
@@ -511,12 +511,12 @@ func (g *GeoIpResultTransformer) Transform(result [][]model.QueryResultRow) ([][
 	for i, rows := range result {
 		for j, row := range rows {
 			for k, col := range row.Cols {
-				if strings.Contains(col.ColName, "::lat") {
-					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, "::lat"))].Type
+				if strings.Contains(col.ColName, ".lat") {
+					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, ".lat"))].Type
 					result[i][j].Cols[k].ColType = colType
 				}
-				if strings.Contains(col.ColName, "::lon") {
-					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, "::lon"))].Type
+				if strings.Contains(col.ColName, ".lon") {
+					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, ".lon"))].Type
 					result[i][j].Cols[k].ColType = colType
 				}
 			}

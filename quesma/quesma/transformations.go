@@ -27,7 +27,7 @@ type replaceColumNamesWithFieldNames struct {
 
 func (t *replaceColumNamesWithFieldNames) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
-	const doubleColons = "::"
+	const doubleColons = "."
 	const dot = "."
 
 	for _, rows := range result {
