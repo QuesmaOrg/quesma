@@ -293,29 +293,47 @@ func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, 
 	return layer, nil
 }
 
-func (a *pancakeTransformer) createTopHitPancakes(pancake *pancakeModel) (result []*pancakeModel) {
+func (a *pancakeTransformer) createTopHitPancakes(pancake *pancakeModel) (result []*pancakeModel, err error) {
 	for layerIdx, layer := range pancake.layers {
 		metricsWithoutTopHits := make([]*pancakeModelMetricAggregation, 0, len(layer.currentMetricAggregations))
 		for _, metric := range layer.currentMetricAggregations {
 			if _, isTopHits := metric.queryType.(metrics_aggregations.TopHits); isTopHits {
-				newLayers := make([]*pancakeModelLayer, layerIdx)
-				for i := range newLayers {
-					newLayers[i] = &pancakeModelLayer{
-						currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
-						nextBucketAggregation:     pancake.layers[i].nextBucketAggregation,
+				canOptimize := layerIdx == len(pancake.layers)-1 && len(layer.currentMetricAggregations) == 1
+				for _, layer2 := range pancake.layers[:layerIdx] {
+					if len(layer2.currentMetricAggregations) > 0 {
+						canOptimize = false
+					}
+					if layer2.nextBucketAggregation != nil {
+						switch layer2.nextBucketAggregation.queryType.(type) {
+						case bucket_aggregations.CombinatorAggregationInterface:
+							return nil, fmt.Errorf("top_hits can't be in filter(s)/range/dataRange aggregation")
+						}
 					}
 				}
-				newLayers = append(newLayers, &pancakeModelLayer{
-					currentMetricAggregations: []*pancakeModelMetricAggregation{metric},
-					nextBucketAggregation:     nil,
-				})
 
-				newPancake := pancakeModel{
-					layers:      newLayers,
-					whereClause: pancake.whereClause,
-					sampleLimit: pancake.sampleLimit,
+				if canOptimize { // if this is just one top_hits with buckets than we can optimize
+					// and don't need to create new pancake
+					metricsWithoutTopHits = append(metricsWithoutTopHits, metric)
+				} else {
+					newLayers := make([]*pancakeModelLayer, layerIdx)
+					for i := range newLayers {
+						newLayers[i] = &pancakeModelLayer{
+							currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
+							nextBucketAggregation:     pancake.layers[i].nextBucketAggregation,
+						}
+					}
+					newLayers = append(newLayers, &pancakeModelLayer{
+						currentMetricAggregations: []*pancakeModelMetricAggregation{metric},
+						nextBucketAggregation:     nil,
+					})
+
+					newPancake := pancakeModel{
+						layers:      newLayers,
+						whereClause: pancake.whereClause,
+						sampleLimit: pancake.sampleLimit,
+					}
+					result = append(result, &newPancake)
 				}
-				result = append(result, &newPancake)
 			} else {
 				metricsWithoutTopHits = append(metricsWithoutTopHits, metric)
 			}
@@ -358,7 +376,12 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 
 		pancakeResults = append(pancakeResults, &newPancake)
 
-		if additionalTopHitPancakes := a.createTopHitPancakes(&newPancake); len(additionalTopHitPancakes) > 0 {
+		additionalTopHitPancakes, err := a.createTopHitPancakes(&newPancake)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(additionalTopHitPancakes) > 0 {
 			pancakeResults = append(pancakeResults, additionalTopHitPancakes...)
 		}
 	}

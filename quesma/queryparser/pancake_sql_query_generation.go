@@ -494,8 +494,7 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	}
 
 	joinQuery := model.SelectCommand{
-		Columns: p.aliasedExprArrayToExpr(newSelects),
-		// rank by hits
+		Columns:     p.aliasedExprArrayToExpr(newSelects),
 		FromClause:  fromClause,
 		WhereClause: whereClause,
 		OrderBy:     prefixWithTopHists(origQuery.OrderBy),
