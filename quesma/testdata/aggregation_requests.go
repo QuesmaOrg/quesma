@@ -1825,7 +1825,9 @@ var AggregationTests = []AggregationTestCase{
 				"top_hits_rank"
 			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
 				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__origins__key_0"=
-				"hit_table"."OriginAirportID"))
+				"hit_table"."OriginAirportID")
+			  ORDER BY "group_table"."aggr__origins__order_1" DESC,
+				"group_table"."aggr__origins__key_0" ASC)
 			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
 			  "aggr__origins__count", "aggr__origins__order_1", "top_hits_1", "top_hits_2",
 			  "top_hits_rank"
@@ -1836,7 +1838,8 @@ var AggregationTests = []AggregationTestCase{
 				"aggr__origins__count", "aggr__origins__order_1",
 				"aggr__origins__distinations__parent_count",
 				"aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
-				"aggr__origins__distinations__order_1"
+				"aggr__origins__distinations__order_1", "aggr__origins__order_1_rank",
+				"aggr__origins__distinations__order_1_rank"
 			  FROM (
 				SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
 				  "aggr__origins__count", "aggr__origins__order_1",
@@ -1891,7 +1894,9 @@ var AggregationTests = []AggregationTestCase{
 				__quesma_table_name AS "hit_table" ON (("group_table"."aggr__origins__key_0"
 				="hit_table"."OriginAirportID" AND
 				"group_table"."aggr__origins__distinations__key_0"=
-				"hit_table"."DestAirportID")))
+				"hit_table"."DestAirportID"))
+			  ORDER BY "group_table"."aggr__origins__order_1_rank" ASC,
+				"group_table"."aggr__origins__distinations__order_1_rank" ASC)
 			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
 			  "aggr__origins__count", "aggr__origins__order_1",
 			  "aggr__origins__distinations__parent_count",
