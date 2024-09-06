@@ -494,18 +494,17 @@ func (s *SchemaCheckPass) applyTimestampField(query *model.Query) (*model.Query,
 	var replacementExpr model.Expr
 
 	if timestampColumnName == "" {
-
+		// no timestamp field found, replace with NULL if any
+		replacementExpr = model.NewLiteral("NULL")
+	} else {
 		// check if the query has hits type, so '_id' generation should not be based on timestamp
 		//
 		// This is a mess. `query.Type` holds a pointer to Hits, but Hits do not have pointer receivers to mutate the state.
 		if hits, ok := query.Type.(*typical_queries.Hits); ok {
-			newHits := hits.WithoutTimestampField()
+			newHits := hits.WithTimestampField(timestampColumnName)
 			query.Type = &newHits
 		}
 
-		// no timestamp field found, replace with NULL if any
-		replacementExpr = model.NewLiteral("NULL")
-	} else {
 		// if the target column is not the canonical timestamp field, replace it
 		if timestampColumnName != model.TimestampFieldName {
 			replacementExpr = model.NewColumnRef(timestampColumnName)
