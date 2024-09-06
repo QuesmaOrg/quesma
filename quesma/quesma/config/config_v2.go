@@ -42,6 +42,7 @@ type QuesmaNewConfiguration struct {
 	QuesmaInternalTelemetryUrl *Url                 `koanf:"internalTelemetryUrl"`
 	Processors                 []Processor          `koanf:"processors"`
 	Pipelines                  []Pipeline           `koanf:"pipelines"`
+	DisableTelemetry           bool                 `koanf:"disableTelemetry"`
 }
 
 type Pipeline struct {
@@ -382,6 +383,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	}
 	if conf.Elasticsearch, err = c.getElasticsearchConfig(); err != nil {
 		errAcc = multierror.Append(errAcc, err)
+	}
+	if !c.DisableTelemetry {
+		conf.QuesmaInternalTelemetryUrl = telemetryUrl
+		conf.Logging.RemoteLogDrainUrl = telemetryUrl
 	}
 	conf.Logging = c.Logging
 	conf.InstallationId = c.InstallationId
