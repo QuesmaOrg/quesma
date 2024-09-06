@@ -391,7 +391,11 @@ func (lm *LogManager) getIgnoredFields(tableName string) []config.FieldName {
 func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tableName string,
 	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter TableColumNameFormatter) ([]CreateTableEntry, map[schema.FieldName]CreateTableEntry) {
 	ignoredFields := lm.getIgnoredFields(tableName)
-	return FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName), ignoredFields)
+
+	columnsFromJson := JsonToColumns("", jsonData, 1,
+		tableConfig, nameFormatter, ignoredFields)
+	columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), nameFormatter)
+	return columnsFromJson, columnsFromSchema
 }
 
 func Indexes(m SchemaMap) string {
@@ -691,8 +695,9 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 	if table == nil {
 		config = NewOnlySchemaFieldsCHConfig()
 		ignoredFields := lm.getIgnoredFields(tableName)
-		columnsFromJson, columnsFromSchema := FieldsMapToCreateTableString(jsonData,
-			config, tableFormatter, findSchemaPointer(lm.schemaRegistry, tableName), ignoredFields)
+		columnsFromJson := JsonToColumns("", jsonData, 1,
+			config, tableFormatter, ignoredFields)
+		columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), tableFormatter)
 		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData))
 		createTableCmd := createTableQuery(tableName, columns, config)
 		err := lm.ProcessCreateTableQuery(ctx, createTableCmd, config)
