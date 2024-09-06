@@ -502,8 +502,13 @@ func (a *agent) runtimeStats() (stats RuntimeStats) {
 }
 
 func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHomeStats) {
+	// FIXME: this should log the pipelines used, not phased-out modes
+	if a.config.TransparentProxy {
+		stats.ConfigMode = "proxy-inspect"
+	} else {
+		stats.ConfigMode = "dual-write-query-clickhouse"
+	}
 
-	stats.ConfigMode = a.config.Mode.String()
 	stats.ReportType = reportType
 	stats.Hostname = a.hostname
 	stats.AgentStartedAt = a.statedAt.Unix()

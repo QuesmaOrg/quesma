@@ -24,7 +24,7 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 	}
 
 	assert.Equal(t, licenseKeyPassedAsEnvVar, cfg.LicenseKey)
-	assert.Equal(t, DualWriteQueryClickhouse, cfg.Mode)
+	assert.Equal(t, false, cfg.TransparentProxy)
 	assert.Equal(t, 8080, int(cfg.PublicTcpPort))
 	assert.Equal(t, "http://localhost:9200", cfg.Elasticsearch.Url.String())
 	assert.Equal(t, "clickhouse://localhost:9000", cfg.ClickHouse.Url.String())

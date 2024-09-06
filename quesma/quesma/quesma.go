@@ -355,7 +355,7 @@ func (q *Quesma) Close(ctx context.Context) {
 
 func (q *Quesma) Start() {
 	defer recovery.LogPanic()
-	logger.Info().Msgf("starting quesma in the mode: %v", q.config.Mode)
+	logger.Info().Msgf("starting quesma, transparent proxy mode: %t", q.config.TransparentProxy)
 
 	go q.processor.Ingest()
 	go q.quesmaManagementConsole.Run()

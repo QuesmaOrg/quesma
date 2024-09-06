@@ -1,5 +1,5 @@
 # TEST CONFIGURATION
-mode: "dual-write-query-clickhouse"
+transparentProxy: false
 licenseKey: "cdd749a3-e777-11ee-bcf8-0242ac150004"
 port: 8080  # public tcp port to listen for incoming traffic
 elasticsearch:

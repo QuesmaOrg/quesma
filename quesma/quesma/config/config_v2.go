@@ -407,20 +407,20 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 	}
 	// Now determine Quesma final state with following heuristic
-	// if 2 pipelines with noop processor -> switch to proxy mode, ditch the whole config
-	// if one query, one ingest pipeline with noop processor -> switch to "dual-write-query-clickhouse" mode
+	// if 2 pipelines with noop processor -> switch to transparent proxy mode, ditch the whole config
+	// if one query, one ingest pipeline with noop processor -> switch to "Quesma" mode
 	procList := c.getProcessorsConfiguredInPipelines()
 	if len(procList) == 1 {
 		if procList[0].Type == QuesmaV1ProcessorNoOp {
-			conf.Mode = ProxyInspect
+			conf.TransparentProxy = true
 		} else {
-			conf.Mode = DualWriteQueryClickhouse
+			conf.TransparentProxy = false
 		}
 	} else if len(procList) == 2 {
 		if procList[0].Type == QuesmaV1ProcessorNoOp && procList[1].Type == QuesmaV1ProcessorNoOp {
-			conf.Mode = ProxyInspect
+			conf.TransparentProxy = true
 		} else {
-			conf.Mode = DualWriteQueryClickhouse
+			conf.TransparentProxy = false
 		}
 	}
 	if v1processor := procList[0]; v1processor != nil {
