@@ -388,7 +388,10 @@ func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tabl
 		// in removeFieldsTransformer's Transform method
 		ignoredFields = indexConfig.SchemaOverrides.IgnoredFields()
 	}
-	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName), ignoredFields) + Indexes(jsonData)
+	columnsFromJson, columnsFromSchema := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName), ignoredFields)
+
+	columns := columnsToString(columnsFromJson, columnsFromSchema)
+	columns += Indexes(jsonData)
 
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
 (
@@ -733,7 +736,6 @@ func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string,
 	// TODO this is doing nested field encoding
 	// ----------------------
 	tableConfig, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0], tableFormatter)
-
 	// ----------------------
 	if err != nil {
 		return nil, err

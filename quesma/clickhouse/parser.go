@@ -19,6 +19,7 @@ type CreateTableEntry struct {
 	ClickHouseType       string
 }
 
+// Rendering columns to string
 func columnsToString(columnsFromJson []CreateTableEntry,
 	columnsFromSchema map[schema.FieldName]CreateTableEntry,
 ) string {
@@ -55,13 +56,18 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 	return result.String()
 }
 
-// m: unmarshalled json from HTTP request
-// Returns nicely formatted string for CREATE TABLE command
-func FieldsMapToCreateTableString(m SchemaMap, config *ChTableConfig, nameFormatter TableColumNameFormatter, schemaMapping *schema.Schema, ignoredFields []config.FieldName) string {
-	columnsFromJson := JsonToColumns("", m, 1, config, nameFormatter, ignoredFields)
+// Returns typed columns from JSON and schema mapping
+func FieldsMapToCreateTableString(m SchemaMap,
+	config *ChTableConfig,
+	nameFormatter TableColumNameFormatter,
+	schemaMapping *schema.Schema,
+	ignoredFields []config.FieldName,
+) ([]CreateTableEntry, map[schema.FieldName]CreateTableEntry) {
+	columnsFromJson := JsonToColumns("", m, 1,
+		config, nameFormatter, ignoredFields)
 	columnsFromSchema := SchemaToColumns(schemaMapping, nameFormatter)
 
-	return columnsToString(columnsFromJson, columnsFromSchema)
+	return columnsFromJson, columnsFromSchema
 }
 
 func JsonToColumns(namespace string, m SchemaMap, indentLvl int, chConfig *ChTableConfig, nameFormatter TableColumNameFormatter, ignoredFields []config.FieldName) []CreateTableEntry {
