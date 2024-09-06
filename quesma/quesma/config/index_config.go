@@ -38,10 +38,9 @@ func (c IndexConfiguration) String() string {
 	}
 }
 
-func (c IndexConfiguration) GetOptimizerConfiguration(optimizerName string) (map[string]string, bool) {
+func (c IndexConfiguration) GetOptimizerConfiguration(optimizerName string) (props map[string]string, disabled bool) {
 	if optimizer, ok := c.Optimizers[optimizerName]; ok {
 		return optimizer.Properties, optimizer.Disabled
 	}
-
-	return nil, false
+	return nil, true
 }

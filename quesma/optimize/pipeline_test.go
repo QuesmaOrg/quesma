@@ -44,7 +44,7 @@ func Test_cacheQueries(t *testing.T) {
 	cfg := config.QuesmaConfiguration{}
 	cfg.IndexConfig = make(map[string]config.IndexConfiguration)
 	cfg.IndexConfig["foo"] = config.IndexConfiguration{
-		EnabledOptimizers: map[string]config.OptimizerConfiguration{"cache_queries": {Enabled: true}},
+		Optimizers: map[string]config.OptimizerConfiguration{"cache_queries": {}},
 	}
 
 	for _, tt := range tests {
@@ -197,7 +197,7 @@ func Test_dateTrunc(t *testing.T) {
 	cfg := config.QuesmaConfiguration{}
 	cfg.IndexConfig = make(map[string]config.IndexConfiguration)
 	cfg.IndexConfig["foo"] = config.IndexConfiguration{
-		EnabledOptimizers: map[string]config.OptimizerConfiguration{"truncate_date": {Enabled: true}},
+		Optimizers: map[string]config.OptimizerConfiguration{"truncate_date": {}},
 	}
 
 	for _, tt := range tests {
@@ -425,9 +425,8 @@ func Test_materialized_view_replace(t *testing.T) {
 	cfg := config.QuesmaConfiguration{}
 	cfg.IndexConfig = make(map[string]config.IndexConfiguration)
 	cfg.IndexConfig["foo"] = config.IndexConfiguration{
-		EnabledOptimizers: map[string]config.OptimizerConfiguration{
+		Optimizers: map[string]config.OptimizerConfiguration{
 			"materialized_view_replace": {
-				Enabled: true,
 				Properties: map[string]string{
 					"table":     "foo",
 					"condition": `"a">10`,
