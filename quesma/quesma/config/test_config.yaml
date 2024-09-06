@@ -28,13 +28,27 @@ indexes:
           targetColumnName: "@timestamp"
   kafka-example-topic:
   logs-generic-default:
-    fullTextFields: ["message", "host.name"]
+    schemaOverrides:
+      fields:
+        message:
+          type: text
+        "host.name":
+          type: text
   device-logs:
-    fullTextFields: ["message"]
+    schemaOverrides:
+      fields:
+        message:
+          type: text
   phone_home_logs:
-    fullTextFields: ["message"]
+    schemaOverrides:
+      fields:
+        message:
+          type: text
   windows_logs:
   phone_home_data:
-    fullTextFields: ["message"]
+    schemaOverrides:
+      fields:
+        message:
+          type: text
 
 

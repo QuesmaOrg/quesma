@@ -47,6 +47,7 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 		s.populateSchemaFromStaticConfiguration(indexConfiguration, fields)
 		existsInDataSource := s.populateSchemaFromTableDefinition(definitions, indexName, fields)
 		s.populateAliases(indexConfiguration, fields, aliases)
+		s.removeIgnoredFields(indexConfiguration, fields, aliases)
 		schemas[TableName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource)
 	}
 
@@ -111,7 +112,7 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 		return
 	}
 	for fieldName, field := range indexConfiguration.SchemaOverrides.Fields {
-		if field.Type.AsString() == config.TypeAlias {
+		if field.Type.AsString() == config.TypeAlias || field.Ignored {
 			continue
 		}
 		if resolvedType, valid := ParseQuesmaType(field.Type.AsString()); valid {
@@ -158,4 +159,16 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 		}
 	}
 	return found
+}
+
+func (s *schemaRegistry) removeIgnoredFields(indexConfiguration config.IndexConfiguration, fields map[FieldName]Field, aliases map[FieldName]FieldName) {
+	if indexConfiguration.SchemaOverrides == nil {
+		return
+	}
+	for fieldName, field := range indexConfiguration.SchemaOverrides.Fields {
+		if field.Ignored {
+			delete(fields, FieldName(fieldName))
+			delete(aliases, FieldName(fieldName))
+		}
+	}
 }

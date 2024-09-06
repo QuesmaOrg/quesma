@@ -206,12 +206,13 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 		var columnsMap = make(map[string]*Column)
 		partiallyResolved := false
 		for col, colType := range resTable.columnTypes {
-
-			if _, isIgnored := resTable.config.IgnoredFields[col]; isIgnored {
-				logger.Warn().Msgf("table %s, column %s is ignored", tableName, col)
-				continue
+			if resTable.config.SchemaOverrides != nil {
+				if schemaOverride, found := resTable.config.SchemaOverrides.Fields[config.FieldName(col)]; found && schemaOverride.Ignored {
+					logger.Warn().Msgf("table %s, column %s is ignored", tableName, col)
+					continue
+				}
 			}
-			if col != AttributesKeyColumn && col != AttributesValueColumn {
+			if col != AttributesValuesColumn && col != AttributesMetadataColumn {
 				column := resolveColumn(col, colType)
 				if column != nil {
 					columnsMap[col] = column
@@ -411,17 +412,17 @@ func isNullableType(colType string) bool {
 }
 
 func containsAttributes(cols map[string]string) bool {
-	hasAttributesKey := false
-	hasAttributesValues := false
+	hasAttributesValuesColumn := false
+	hasAttributesMetadataColumn := false
 	for col, colType := range cols {
-		if col == AttributesKeyColumn && colType == attributesColumnType {
-			hasAttributesKey = true
+		if col == AttributesValuesColumn && colType == attributesColumnType {
+			hasAttributesValuesColumn = true
 		}
-		if col == AttributesValueColumn && colType == attributesColumnType {
-			hasAttributesValues = true
+		if col == AttributesMetadataColumn && colType == attributesColumnType {
+			hasAttributesMetadataColumn = true
 		}
 	}
-	return hasAttributesKey && hasAttributesValues
+	return hasAttributesValuesColumn && hasAttributesMetadataColumn
 }
 
 func removePrecision(str string) string {

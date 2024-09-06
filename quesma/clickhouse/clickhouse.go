@@ -380,21 +380,16 @@ func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema
 }
 
 func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tableName string,
-	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter TableColumNameFormatter) (string, error) {
+	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter TableColumNameFormatter) ([]CreateTableEntry, map[schema.FieldName]CreateTableEntry) {
 
-	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName)) + Indexes(jsonData)
-
-	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
-(
-
-%s
-)
-%s
-COMMENT 'created by Quesma'`,
-		tableName, columns,
-		tableConfig.CreateTablePostFieldsString())
-
-	return createTableCmd, nil
+	var ignoredFields []config.FieldName
+	if indexConfig, found := lm.cfg.IndexConfig[tableName]; found && indexConfig.SchemaOverrides != nil {
+		// FIXME: don't get ignored fields from schema config, but store
+		// them in the schema registry - that way we don't have to manually replace '.' with '::'
+		// in removeFieldsTransformer's Transform method
+		ignoredFields = indexConfig.SchemaOverrides.IgnoredFields()
+	}
+	return FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName), ignoredFields)
 }
 
 func Indexes(m SchemaMap) string {
@@ -411,19 +406,22 @@ func Indexes(m SchemaMap) string {
 	return result.String()
 }
 
-func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig, tableFormatter TableColumNameFormatter) error {
-	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
+func createTableQuery(name string, columns string, config *ChTableConfig) string {
+	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
+(
 
-	query, err := lm.buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, tableFormatter)
-	if err != nil {
-		return err
-	}
+%s
+)
+%s
+COMMENT 'created by Quesma'`,
+		name, columns,
+		config.CreateTablePostFieldsString())
+	return createTableCmd
+}
 
-	err = lm.ProcessCreateTableQuery(ctx, query, config)
-	if err != nil {
-		return err
-	}
-	return nil
+func columnsWithIndexes(columns string, indexes string) string {
+	return columns + indexes
+
 }
 
 func deepCopyMapSliceInterface(original map[string][]interface{}) map[string][]interface{} {
@@ -441,9 +439,9 @@ func deepCopyMapSliceInterface(original map[string][]interface{}) map[string][]i
 func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalidJson types.JSON) map[string][]interface{} {
 	newAttrsMap := deepCopyMapSliceInterface(attrsMap)
 	for k, v := range invalidJson {
-		newAttrsMap[AttributesKeyColumn] = append(newAttrsMap[AttributesKeyColumn], k)
-		newAttrsMap[AttributesValueColumn] = append(newAttrsMap[AttributesValueColumn], v)
-		newAttrsMap[AttributesValueType] = append(newAttrsMap[AttributesValueType], NewType(v).String())
+		newAttrsMap[DeprecatedAttributesKeyColumn] = append(newAttrsMap[DeprecatedAttributesKeyColumn], k)
+		newAttrsMap[DeprecatedAttributesValueColumn] = append(newAttrsMap[DeprecatedAttributesValueColumn], v)
+		newAttrsMap[DeprecatedAttributesValueType] = append(newAttrsMap[DeprecatedAttributesValueType], NewType(v).String())
 	}
 	return newAttrsMap
 }
@@ -473,8 +471,8 @@ func (lm *LogManager) generateNewColumns(
 	table *Table,
 	alteredAttributesIndexes []int) []string {
 	var alterCmd []string
-	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
-	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
+	attrKeys := getAttributesByArrayName(DeprecatedAttributesKeyColumn, attrsMap)
+	attrTypes := getAttributesByArrayName(DeprecatedAttributesValueType, attrsMap)
 	var deleteIndexes []int
 
 	// HACK Alert:
@@ -507,9 +505,9 @@ func (lm *LogManager) generateNewColumns(
 	table.Cols = newColumns
 
 	for i := len(deleteIndexes) - 1; i >= 0; i-- {
-		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn][:deleteIndexes[i]], attrsMap[AttributesKeyColumn][deleteIndexes[i]+1:]...)
-		attrsMap[AttributesValueType] = append(attrsMap[AttributesValueType][:deleteIndexes[i]], attrsMap[AttributesValueType][deleteIndexes[i]+1:]...)
-		attrsMap[AttributesValueColumn] = append(attrsMap[AttributesValueColumn][:deleteIndexes[i]], attrsMap[AttributesValueColumn][deleteIndexes[i]+1:]...)
+		attrsMap[DeprecatedAttributesKeyColumn] = append(attrsMap[DeprecatedAttributesKeyColumn][:deleteIndexes[i]], attrsMap[DeprecatedAttributesKeyColumn][deleteIndexes[i]+1:]...)
+		attrsMap[DeprecatedAttributesValueType] = append(attrsMap[DeprecatedAttributesValueType][:deleteIndexes[i]], attrsMap[DeprecatedAttributesValueType][deleteIndexes[i]+1:]...)
+		attrsMap[DeprecatedAttributesValueColumn] = append(attrsMap[DeprecatedAttributesValueColumn][:deleteIndexes[i]], attrsMap[DeprecatedAttributesValueColumn][deleteIndexes[i]+1:]...)
 	}
 	return alterCmd
 }
@@ -519,11 +517,11 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 	if len(attrsMap) <= 0 {
 		return nonSchemaStr, nil
 	}
-	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
-	attrValues := getAttributesByArrayName(AttributesValueColumn, attrsMap)
-	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
+	attrKeys := getAttributesByArrayName(DeprecatedAttributesKeyColumn, attrsMap)
+	attrValues := getAttributesByArrayName(DeprecatedAttributesValueColumn, attrsMap)
+	attrTypes := getAttributesByArrayName(DeprecatedAttributesValueType, attrsMap)
 
-	attributesColumns := []string{AttributesColumn, AttributesMetadataColumn}
+	attributesColumns := []string{AttributesValuesColumn, AttributesMetadataColumn}
 
 	for columnIndex, column := range attributesColumns {
 		var value string
@@ -554,7 +552,7 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 
 // This function implements heuristic for deciding if we should add new columns
 func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]interface{}) (bool, []int) {
-	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
+	attrKeys := getAttributesByArrayName(DeprecatedAttributesKeyColumn, attrsMap)
 	alterColumnIndexes := make([]int, 0)
 	if len(table.Cols) < alwaysAddColumnLimit {
 		// We promote all non-schema fields to columns
@@ -690,7 +688,10 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 	var config *ChTableConfig
 	if table == nil {
 		config = NewOnlySchemaFieldsCHConfig()
-		err := lm.CreateTableFromInsertQuery(ctx, tableName, jsonData, config, tableFormatter)
+		columnsFromJson, columnsFromSchema := lm.buildCreateTableQueryNoOurFields(ctx, tableName, jsonData, config, tableFormatter)
+		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData))
+		createTableCmd := createTableQuery(tableName, columns, config)
+		err := lm.ProcessCreateTableQuery(ctx, createTableCmd, config)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error ProcessInsertQuery, can't create table: %v", err)
 			return nil, err
@@ -724,12 +725,17 @@ func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string,
 		processed = append(processed, result)
 	}
 	jsonData = processed
-
+	// TODO this is doing nested field encoding
+	// ----------------------
 	tableConfig, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0], tableFormatter)
+	// ----------------------
 	if err != nil {
 		return nil, err
 	}
+	// TODO this is doing nested field encoding
+	// ----------------------
 	return lm.GenerateSqlStatements(ctx, tableName, jsonData, tableConfig, transformer)
+	// ----------------------
 }
 
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
@@ -801,7 +807,10 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 			inValidJson, NestedSeparator)
 		// Remove invalid fields from the input JSON
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
+		// TODO this is doing nested field encoding
+		// ----------------------
 		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson, inValidJson, config)
+		// ----------------------
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)

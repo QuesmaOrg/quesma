@@ -12,17 +12,16 @@ import (
 )
 
 type MinBucket struct {
-	ctx    context.Context
-	Parent string
-	// IsCount bool
+	ctx context.Context
+	PipelineAggregation
 }
 
 func NewMinBucket(ctx context.Context, bucketsPath string) MinBucket {
-	return MinBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
+	return MinBucket{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query MinBucket) AggregationType() model.AggregationType {
-	return model.PipelineAggregation
+	return model.PipelineMetricsAggregation
 }
 
 func (query MinBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
@@ -40,7 +39,7 @@ func (query MinBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 	return model.JsonMap{}
 }
 
-func (query MinBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
+func (query MinBucket) CalculateResultWhenMissing(parentRows []model.QueryResultRow) []model.QueryResultRow {
 	resultRows := make([]model.QueryResultRow, 0)
 	if len(parentRows) == 0 {
 		return resultRows // maybe null?
@@ -53,13 +52,13 @@ func (query MinBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows [
 		logger.WarnWithCtx(query.ctx).Msgf("parentFieldsCnt is less than 0: %d", parentFieldsCnt)
 	}
 	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
-		resultRows = append(resultRows, query.calculateSingleMinBucket(qwa, parentRowsOneBucket))
+		resultRows = append(resultRows, query.calculateSingleMinBucket(parentRowsOneBucket))
 	}
 	return resultRows
 }
 
 // we're sure len(parentRows) > 0
-func (query MinBucket) calculateSingleMinBucket(qwa *model.Query, parentRows []model.QueryResultRow) model.QueryResultRow {
+func (query MinBucket) calculateSingleMinBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
 	var resultValue any
 	var resultKeys []any
 	if firstRowValueFloat, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[0].LastColValue()); firstRowValueIsFloat {
@@ -77,7 +76,7 @@ func (query MinBucket) calculateSingleMinBucket(qwa *model.Query, parentRows []m
 		// find keys with min value
 		for _, row := range parentRows {
 			if value, ok := util.ExtractFloat64Maybe(row.LastColValue()); ok && value == minValue {
-				resultKeys = append(resultKeys, getKey(query.ctx, row, qwa))
+				resultKeys = append(resultKeys, getKey(query.ctx, row))
 			}
 		}
 	} else if firstRowValueInt, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[0].LastColValue()); firstRowValueIsInt {
@@ -95,7 +94,7 @@ func (query MinBucket) calculateSingleMinBucket(qwa *model.Query, parentRows []m
 		// find keys with min value
 		for _, row := range parentRows {
 			if value, ok := util.ExtractInt64Maybe(row.LastColValue()); ok && value == minValue {
-				resultKeys = append(resultKeys, getKey(query.ctx, row, qwa))
+				resultKeys = append(resultKeys, getKey(query.ctx, row))
 			}
 		}
 	}

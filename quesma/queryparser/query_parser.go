@@ -65,8 +65,8 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		var pancakeApplied bool
 
 		// this is an alternative implementation
-		pancakeOptimizerProps, enabled := cw.Config.IndexConfig[cw.IncomingIndexName].GetOptimizerConfiguration(PancakeOptimizerName)
-		if enabled && pancakeOptimizerProps["mode"] == "apply" {
+		pancakeOptimizerProps, disabled := cw.Config.IndexConfig[cw.IncomingIndexName].GetOptimizerConfiguration(PancakeOptimizerName)
+		if !disabled && pancakeOptimizerProps["mode"] == "apply" {
 
 			// here we deside if pancake should count rows
 			addCount := countQuery != nil

@@ -5,6 +5,7 @@ package clickhouse
 import (
 	"fmt"
 	"quesma/logger"
+	"quesma/quesma/config"
 	"quesma/schema"
 	"quesma/util"
 	"slices"
@@ -18,14 +19,11 @@ type CreateTableEntry struct {
 	ClickHouseType       string
 }
 
-// m: unmarshalled json from HTTP request
-// Returns nicely formatted string for CREATE TABLE command
-func FieldsMapToCreateTableString(m SchemaMap, config *ChTableConfig, nameFormatter TableColumNameFormatter, schemaMapping *schema.Schema) string {
+// Rendering columns to string
+func columnsToString(columnsFromJson []CreateTableEntry,
+	columnsFromSchema map[schema.FieldName]CreateTableEntry,
+) string {
 	var result strings.Builder
-
-	columnsFromJson := JsonToColumns("", m, 1, config, nameFormatter)
-	columnsFromSchema := SchemaToColumns(schemaMapping, nameFormatter)
-
 	first := true
 	for _, columnFromJson := range columnsFromJson {
 		if first {
@@ -55,11 +53,24 @@ func FieldsMapToCreateTableString(m SchemaMap, config *ChTableConfig, nameFormat
 		result.WriteString(util.Indent(1))
 		result.WriteString(fmt.Sprintf("\"%s\" %s", column.ClickHouseColumnName, column.ClickHouseType))
 	}
-
 	return result.String()
 }
 
-func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTableConfig, nameFormatter TableColumNameFormatter) []CreateTableEntry {
+// Returns typed columns from JSON and schema mapping
+func FieldsMapToCreateTableString(m SchemaMap,
+	config *ChTableConfig,
+	nameFormatter TableColumNameFormatter,
+	schemaMapping *schema.Schema,
+	ignoredFields []config.FieldName,
+) ([]CreateTableEntry, map[schema.FieldName]CreateTableEntry) {
+	columnsFromJson := JsonToColumns("", m, 1,
+		config, nameFormatter, ignoredFields)
+	columnsFromSchema := SchemaToColumns(schemaMapping, nameFormatter)
+
+	return columnsFromJson, columnsFromSchema
+}
+
+func JsonToColumns(namespace string, m SchemaMap, indentLvl int, chConfig *ChTableConfig, nameFormatter TableColumNameFormatter, ignoredFields []config.FieldName) []CreateTableEntry {
 	var resultColumns []CreateTableEntry
 
 	for name, value := range m {
@@ -69,7 +80,7 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTable
 		}
 		nestedValue, ok := value.(SchemaMap)
 		if (ok && nestedValue != nil && len(nestedValue) > 0) && !isListValue {
-			nested := JsonToColumns(nameFormatter.Format(namespace, name), nestedValue, indentLvl, config, nameFormatter)
+			nested := JsonToColumns(nameFormatter.Format(namespace, name), nestedValue, indentLvl, chConfig, nameFormatter, ignoredFields)
 			resultColumns = append(resultColumns, nested...)
 		} else {
 			var fTypeString string
@@ -90,7 +101,7 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTable
 				}
 			}
 			// hack for now
-			if indentLvl == 1 && name == timestampFieldName && config.timestampDefaultsNow {
+			if indentLvl == 1 && name == timestampFieldName && chConfig.timestampDefaultsNow {
 				fTypeString += " DEFAULT now64()"
 			}
 
@@ -103,6 +114,12 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTable
 			internalName := nameFormatter.Format(namespace, name)
 			// We should never have dots in the field names, see 4 ADR
 			internalName = strings.Replace(internalName, ".", "::", -1)
+
+			// FIXME: linear search, converting back '::' to '.'
+			if slices.Contains(ignoredFields, config.FieldName(strings.Replace(internalName, "::", ".", -1))) {
+				continue
+			}
+
 			resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: internalName, ClickHouseType: fTypeString})
 		}
 	}

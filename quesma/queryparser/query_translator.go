@@ -448,7 +448,7 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []*
 			logger.WarnWithCtx(cw.Ctx).Msgf("parent index not found for query %v", query)
 			continue
 		}
-		ResultSets[queryIndex] = pipelineQueryType.CalculateResultWhenMissing(query, ResultSets[parentIndex])
+		ResultSets[queryIndex] = pipelineQueryType.CalculateResultWhenMissing(ResultSets[parentIndex])
 	}
 }
 

@@ -13,25 +13,23 @@ import (
 const derivativeLag = 1
 
 type Derivative struct {
-	ctx     context.Context
-	Parent  string
-	IsCount bool
+	ctx context.Context
+	PipelineAggregation
 }
 
 func NewDerivative(ctx context.Context, bucketsPath string) Derivative {
-	isCount := bucketsPath == BucketsPathCount
-	return Derivative{ctx: ctx, Parent: bucketsPath, IsCount: isCount}
+	return Derivative{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query Derivative) AggregationType() model.AggregationType {
-	return model.PipelineAggregation
+	return model.PipelineBucketAggregation
 }
 
 func (query Derivative) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	return translateSqlResponseToJsonCommon(query.ctx, rows, query.String())
 }
 
-func (query Derivative) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
+func (query Derivative) CalculateResultWhenMissing(parentRows []model.QueryResultRow) []model.QueryResultRow {
 	return calculateResultWhenMissingCommonForDiffAggregations(query.ctx, parentRows, derivativeLag)
 }
 

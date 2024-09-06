@@ -116,8 +116,10 @@ func TestAddTimestamp(t *testing.T) {
 	nameFormatter := DefaultColumnNameFormatter()
 	lm := NewLogManagerEmpty()
 	lm.schemaRegistry = schema.StaticRegistry{}
-	query, err := lm.buildCreateTableQueryNoOurFields(context.Background(), "tableName", types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`), tableConfig, nameFormatter)
-	assert.NoError(t, err)
+	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
+	columnsFromJson, columnsFromSchema := lm.buildCreateTableQueryNoOurFields(context.Background(), "tableName", jsonData, tableConfig, nameFormatter)
+	columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData))
+	query := createTableQuery(tableName, columns, tableConfig)
 	assert.True(t, strings.Contains(query, timestampFieldName))
 }
 

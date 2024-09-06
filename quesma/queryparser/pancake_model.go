@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"regexp"
+	"strings"
 )
 
 // Pancake model.
@@ -19,8 +21,19 @@ type pancakeModel struct {
 }
 
 type pancakeModelLayer struct {
-	nextBucketAggregation     *pancakeModelBucketAggregation
-	currentMetricAggregations []*pancakeModelMetricAggregation
+	nextBucketAggregation       *pancakeModelBucketAggregation
+	currentMetricAggregations   []*pancakeModelMetricAggregation
+	currentPipelineAggregations []*pancakeModelPipelineAggregation
+
+	childrenPipelineAggregations []*pancakeModelPipelineAggregation
+}
+
+func newPancakeModelLayer() *pancakeModelLayer {
+	return &pancakeModelLayer{
+		currentMetricAggregations:    make([]*pancakeModelMetricAggregation, 0),
+		currentPipelineAggregations:  make([]*pancakeModelPipelineAggregation, 0),
+		childrenPipelineAggregations: make([]*pancakeModelPipelineAggregation, 0),
+	}
 }
 
 type pancakeModelMetricAggregation struct {
@@ -47,6 +60,35 @@ type pancakeModelBucketAggregation struct {
 	filterOurEmptyKeyBucket bool
 }
 
+type pancakeModelPipelineAggregation struct {
+	name         string // as originally appeared in Query DSL
+	internalName string // full name with path, e.g. pipeline__byCountry__byCity__population
+
+	// full name with path, e.g. metric__byCountry__byCity__population
+	// (at least for now it's always metric - not 100% sure it's the only possibility)
+	parentInternalName string
+	queryType          model.PipelineQueryType
+
+	metadata model.JsonMap
+}
+
+func newPancakeModelPipelineAggregation(name string, previousAggrNames []string, pipelineQueryType model.PipelineQueryType,
+	metadata model.JsonMap) *pancakeModelPipelineAggregation {
+
+	internalNamePrefix := strings.Join(previousAggrNames, "__")
+	internalName := fmt.Sprintf("%s__%s", internalNamePrefix, name)
+	parentInternalName := fmt.Sprintf("metric__%s__%s_col_0", internalNamePrefix,
+		strings.Join(append(pipelineQueryType.GetPathToParent(), pipelineQueryType.GetParent()), "__"))
+
+	return &pancakeModelPipelineAggregation{
+		name:               name,
+		internalName:       internalName,
+		parentInternalName: parentInternalName,
+		queryType:          pipelineQueryType,
+		metadata:           metadata,
+	}
+}
+
 const pancakeBucketAggregationNoLimit = 0
 const noSampleLimit = 0
 
@@ -63,6 +105,11 @@ func (p pancakeModelBucketAggregation) InternalNameForOrderBy(id int) string {
 	return fmt.Sprintf("%sorder_%d", p.internalName, id)
 }
 
+func (p pancakeModelBucketAggregation) isInternalNameOrderByColumn(internalName string) bool {
+	matched, _ := regexp.MatchString(`.*order_[0-9]+`, internalName)
+	return matched
+}
+
 func (p pancakeModelBucketAggregation) InternalNameForCount() string {
 	return fmt.Sprintf("%scount", p.internalName)
 }
@@ -72,7 +119,21 @@ func (p pancakeModelBucketAggregation) InternalNameForParentCount() string {
 	return fmt.Sprintf("%sparent_count", p.internalName)
 }
 
+func (p pancakeModelBucketAggregation) isInternalNameCountColumn(internalName string) bool {
+	return strings.HasSuffix(internalName, "count")
+}
+
 func (p pancakeModelBucketAggregation) DoesHaveGroupBy() bool {
 	_, noGroupBy := p.queryType.(bucket_aggregations.NoGroupByInterface)
 	return !noGroupBy
+}
+
+func (p *pancakeModelLayer) findPipelineChildren(pipeline *pancakeModelPipelineAggregation) []*pancakeModelPipelineAggregation {
+	children := make([]*pancakeModelPipelineAggregation, 0)
+	for _, maybeChild := range p.childrenPipelineAggregations {
+		if maybeChild.queryType.GetParent() == pipeline.name {
+			children = append(children, maybeChild)
+		}
+	}
+	return children
 }

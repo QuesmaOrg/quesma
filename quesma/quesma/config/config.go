@@ -65,7 +65,7 @@ type RelationalDbConfiguration struct {
 }
 
 type OptimizerConfiguration struct {
-	Enabled    bool              `koanf:"enabled"`
+	Disabled   bool              `koanf:"disabled"`
 	Properties map[string]string `koanf:"properties"`
 }
 
@@ -97,8 +97,6 @@ var k = koanf.New(".")
 
 func Load() QuesmaConfiguration {
 	var config QuesmaConfiguration
-	config.QuesmaInternalTelemetryUrl = telemetryUrl
-	config.Logging.RemoteLogDrainUrl = telemetryUrl
 
 	loadConfigFile()
 	if err := k.Load(env.Provider("QUESMA_", ".", func(s string) string {
@@ -181,10 +179,7 @@ func (c *QuesmaConfiguration) Validate() error {
 //
 //lint:ignore U1000 Ignore unused function temporarily for debugging
 func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, result error) error {
-	if len(indexName.IgnoredFields) > 0 {
-		fmt.Printf("index configuration %s contains deprecated field 'ignoredFields'", indexName.Name)
-	}
-	return result
+	return nil
 }
 
 func (c *QuesmaConfiguration) validateIndexName(indexName string, result error) error {
@@ -219,7 +214,13 @@ func (c *QuesmaConfiguration) optimizersConfigAsString(s string, cfg map[string]
 
 	lines = append(lines, fmt.Sprintf("        %s:", s))
 	for k, v := range cfg {
-		lines = append(lines, fmt.Sprintf("            %s: %v", k, v.Enabled))
+		var status string
+		if v.Disabled {
+			status = "<disabled>"
+		} else {
+			status = "enabled"
+		}
+		lines = append(lines, fmt.Sprintf("            %s: %s", k, status))
 		if v.Properties != nil && len(v.Properties) > 0 {
 			lines = append(lines, fmt.Sprintf("                properties: %v", v.Properties))
 		}
@@ -235,8 +236,8 @@ func (c *QuesmaConfiguration) OptimizersConfigAsString() string {
 	lines = append(lines, "\n")
 
 	for indexName, indexConfig := range c.IndexConfig {
-		if indexConfig.EnabledOptimizers != nil && len(indexConfig.EnabledOptimizers) > 0 {
-			lines = append(lines, c.optimizersConfigAsString(indexName, indexConfig.EnabledOptimizers))
+		if indexConfig.Optimizers != nil && len(indexConfig.Optimizers) > 0 {
+			lines = append(lines, c.optimizersConfigAsString(indexName, indexConfig.Optimizers))
 		}
 	}
 
@@ -333,9 +334,9 @@ func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfigurat
 	}
 
 	for fieldName, fieldConfig := range config.SchemaOverrides.Fields {
-		if fieldConfig.Type == "" {
+		if fieldConfig.Type == "" && !fieldConfig.Ignored {
 			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has no type", fieldName, config.Name))
-		} else if !elasticsearch_field_types.IsValid(fieldConfig.Type.AsString()) {
+		} else if !elasticsearch_field_types.IsValid(fieldConfig.Type.AsString()) && !fieldConfig.Ignored {
 			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has invalid type %s", fieldName, config.Name, fieldConfig.Type))
 		}
 		if fieldConfig.Type == TypeAlias && fieldConfig.TargetColumnName == "" {

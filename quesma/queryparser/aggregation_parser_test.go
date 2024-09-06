@@ -737,21 +737,7 @@ func allAggregationTests() []testdata.AggregationTestCase {
 	return allTests
 }
 
-// TODO remove after pipeline aggregations are implemented
-func allAggregationTestsWithoutPipeline() []testdata.AggregationTestCase {
-	const lowerBoundTestNr = 80
-	allTests := make([]testdata.AggregationTestCase, 0, lowerBoundTestNr)
-	allTests = append(allTests, testdata.AggregationTests...)
-	allTests = append(allTests, testdata.AggregationTests2...)
-	allTests = append(allTests, opensearch_visualize.AggregationTests...)
-	allTests = append(allTests, dashboard_1.AggregationTests...)
-	allTests = append(allTests, kibana_visualize.AggregationTests...)
-	allTests = append(allTests, clients.KunkkaTests...)
-	allTests = append(allTests, clients.OpheliaTests...)
-	return allTests
-}
-
-func Test2AggregationParserExternalTestcases(t *testing.T) {
+func TestAggregationParserExternalTestcases(t *testing.T) {
 
 	ctx := context.Background()
 
@@ -823,7 +809,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			}
 			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations" ||
 				test.TestName == "Ophelia Test 6: triple terms + other aggregations + order by another aggregations" ||
-				test.TestName == "Ophelia Test 7: 5x terms + a lot of other aggregations" {
+				test.TestName == "Ophelia Test 7: 5x terms + a lot of other aggregations + different order bys" {
 				t.Skip("Very similar to 2 previous tests, results have like 500-1000 lines. They are almost finished though. Maybe I'll fix soon, but not in this PR")
 			}
 

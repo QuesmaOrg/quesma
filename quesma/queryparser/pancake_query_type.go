@@ -41,7 +41,7 @@ func (p PancakeQueryType) ReturnTotalCount() *pancakeModelMetricAggregation {
 }
 
 func (p PancakeQueryType) RenderAggregationJson(ctx context.Context, rows []model.QueryResultRow) (model.JsonMap, error) {
-	renderer := &pancakeJSONRenderer{ctx: ctx}
+	renderer := newPancakeJSONRenderer(ctx)
 	res, err := renderer.toJSON(p.pancakeAggregation, rows)
 	if err != nil {
 		logger.Error().Err(err).Msg("Error rendering JSON. Returning empty.")

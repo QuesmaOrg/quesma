@@ -52,7 +52,7 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 	}
 
 	// Phase 2: Translate aggregation tree into pancake model
-	transformer := newPancakeTransformer()
+	transformer := newPancakeTransformer(cw.Ctx)
 	pancakeQueries, err := transformer.aggregationTreeToPancakes(topLevel)
 
 	if err != nil {
@@ -139,9 +139,9 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 	}
 
 	// 2. Pipeline aggregation => always leaf (for now)
-	_, isPipelineAggregation := cw.parsePipelineAggregations(queryMap)
-	if isPipelineAggregation {
-		return nil, errors.New("pipeline aggregations are not supported in version uno")
+	if pipelineAggr, isPipeline := cw.parsePipelineAggregations(queryMap); isPipeline {
+		aggregation.queryType = pipelineAggr
+		return aggregation, nil
 	}
 
 	// 3. Now process filter(s) first, because they apply to everything else on the same level or below.

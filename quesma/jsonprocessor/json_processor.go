@@ -4,6 +4,7 @@ package jsonprocessor
 
 import (
 	"fmt"
+	"quesma/quesma/config"
 	"quesma/quesma/types"
 )
 
@@ -106,5 +107,16 @@ func (t *RewriteArrayOfObject) Transform(data types.JSON) (types.JSON, error) {
 		}
 	}
 
+	return data, nil
+}
+
+type RemoveFieldsOfObject struct {
+	RemovedFields []config.FieldName
+}
+
+func (t *RemoveFieldsOfObject) Transform(data types.JSON) (types.JSON, error) {
+	for _, field := range t.RemovedFields {
+		delete(data, field.AsString())
+	}
 	return data, nil
 }
