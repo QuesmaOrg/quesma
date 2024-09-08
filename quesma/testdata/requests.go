@@ -148,33 +148,24 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
     "start_time_in_millis": 1706010201964
 }`,
 		"no comment yet",
-		model.HitsInfo{TrackTotalHits: model.TrackTotalHitsFalse, RequestedFields: make([]string, 0)},
+		model.NewHitsInfo(model.NoHits, []string{}, 0, model.TrackTotalHitsFalse),
 		[]string{
-			`SELECT "aggr__sample__count", "metric__sample__sample_count_col_0", ` +
-				`"aggr__sample__top_values__key_0", "aggr__sample__top_values__parent_count", ` +
-				`"aggr__sample__top_values__count", "aggr__sample__top_values__order_1" ` +
+			`SELECT sum(count(*)) OVER () AS "aggr__sample__count", ` +
+				`sum(count("host.name")) OVER () AS "metric__sample__sample_count_col_0", ` +
+				`sum(count(*)) OVER () AS "aggr__sample__top_values__parent_count", ` +
+				`"host.name" AS "aggr__sample__top_values__key_0", ` +
+				`count(*) AS "aggr__sample__top_values__count", ` +
+				`count() AS "aggr__sample__top_values__order_1" ` +
 				`FROM (` +
-				`SELECT "aggr__sample__count", "metric__sample__sample_count_col_0", ` +
-				`"aggr__sample__top_values__key_0", "aggr__sample__top_values__parent_count", ` +
-				`"aggr__sample__top_values__count", "aggr__sample__top_values__order_1", ` +
-				`dense_rank() OVER (PARTITION BY 1 ` +
-				`ORDER BY "aggr__sample__top_values__order_1" DESC, ` +
-				`"aggr__sample__top_values__key_0" ASC) AS "aggr__sample__top_values__order_1_rank" ` +
-				`FROM (` +
-				`SELECT sum("aggr__sample__count_part") OVER (PARTITION BY 1) AS ` +
-				`"aggr__sample__count", count() AS "metric__sample__sample_count_col_0", ` +
-				`"host.name" AS "aggr__sample__top_values__key_0", sum(count(\*)) OVER ` +
-				`(PARTITION BY 1) AS "aggr__sample__top_values__parent_count", count(\*) AS ` +
-				`"aggr__sample__top_values__count", count() AS ` +
-				`"aggr__sample__top_values__order_1", count(\*) AS ` +
-				`"aggr__sample__count_part" ` +
-				`FROM ` + TableName + ` ` +
+				`SELECT "host.name" ` +
+				`FROM __quesma_table_name ` +
 				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
-				`AND "message" iLIKE '%user%') ` +
-				`GROUP BY "host.name" AS "aggr__sample__top_values__key_0")) ` +
-				`WHERE "aggr__sample__top_values__order_1_rank"<=10 ` +
-				`ORDER BY "aggr__sample__top_values__order_1_rank" ASC`,
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND ` +
+				`"message" iLIKE '%user%') ` +
+				`LIMIT 20000) ` +
+				`GROUP BY "host.name" AS "aggr__sample__top_values__key_0" ` +
+				`ORDER BY "aggr__sample__top_values__order_1" DESC, "aggr__sample__top_values__key_0" ASC ` +
+				`LIMIT 11`,
 		},
 		true,
 	},
@@ -314,7 +305,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
     "start_time_in_millis": 1706021975538
 }
 `, "there should be 97 results, I truncated most of them",
-		model.HitsInfo{Type: model.SomeFields, RequestedFields: []string{"message"}, Size: 100, TrackTotalHits: model.TrackTotalHitsTrue},
+		model.NewHitsInfo(model.SomeFields, []string{"message"}, 100, model.TrackTotalHitsTrue),
 		[]string{
 			`SELECT count() FROM ` + TableName + ` WHERE ((("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z')) AND "message" iLIKE '%user%') AND "message" IS NOT NULL)`,
@@ -695,24 +686,21 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.NewHitsInfo(model.SomeFields, []string{"@timestamp"}, 100, 1000),
 		[]string{
-			`SELECT count() FROM (SELECT 1 ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
-				`LIMIT 1000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("message" iLIKE '%user%' ` +
-				`AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') ` +
-				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z'))) ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000)`,
 			`SELECT "@timestamp" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("message" iLIKE '%user%' ` +
-				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
+				`FROM __quesma_table_name ` +
+				`WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort(` +
+				`'2024-01-23T14:43:19.481Z') AND "@timestamp"<=parseDateTime64BestEffort(` +
+				`'2024-01-23T14:58:19.481Z'))) ` +
 				`LIMIT 100`,
+			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0", ` +
+				`toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0", ` +
+				`count(*) AS "aggr__0__count" ` +
+				`FROM __quesma_table_name ` +
+				`WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort(` +
+				`'2024-01-23T14:43:19.481Z') AND "@timestamp"<=parseDateTime64BestEffort(` +
+				`'2024-01-23T14:58:19.481Z'))) ` +
+				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0" ` +
+				`ORDER BY "aggr__0__key_0" ASC`,
 		},
 		true,
 	},
@@ -752,27 +740,32 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.NewHitsInfo(model.NoHits, []string{}, 0, model.TrackTotalHitsFalse),
 		[]string{
-			`WITH cte_1 AS ` +
-				`(SELECT COALESCE("event.dataset",'unknown') AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
+			`SELECT "aggr__stats__parent_count", "aggr__stats__key_0", "aggr__stats__count", ` +
+				`"aggr__stats__order_1", "aggr__stats__series__key_0", ` +
+				`"aggr__stats__series__count" ` +
+				`FROM (` +
+				`SELECT "aggr__stats__parent_count", "aggr__stats__key_0", ` +
+				`"aggr__stats__count", "aggr__stats__order_1", "aggr__stats__series__key_0", ` +
+				`"aggr__stats__series__count", ` +
+				`dense_rank() OVER (ORDER BY "aggr__stats__order_1" DESC, ` +
+				`"aggr__stats__key_0" ASC) AS "aggr__stats__order_1_rank", ` +
+				`dense_rank() OVER (PARTITION BY "aggr__stats__key_0" ORDER BY ` +
+				`"aggr__stats__series__key_0" ASC) AS "aggr__stats__series__order_1_rank" ` +
+				`FROM (` +
+				`SELECT sum(count(*)) OVER () AS "aggr__stats__parent_count", ` +
+				`COALESCE("event.dataset",'unknown') AS "aggr__stats__key_0", ` +
+				`sum(count(*)) OVER (PARTITION BY "aggr__stats__key_0") AS "aggr__stats__count", ` +
+				`sum(count()) OVER (PARTITION BY "aggr__stats__key_0") AS "aggr__stats__order_1", ` +
+				`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS ` +
+				`"aggr__stats__series__key_0", count(*) AS "aggr__stats__series__count" ` +
+				`FROM __quesma_table_name ` +
 				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')) ` +
-				`GROUP BY COALESCE("event.dataset",'unknown') ` +
-				`ORDER BY count() DESC, COALESCE("event.dataset",'unknown') ` +
-				`LIMIT 4) ` +
-				`SELECT COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`INNER JOIN "cte_1" ON COALESCE("event.dataset",'unknown') = "cte_1_1" ` +
-				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')) ` +
-				`GROUP BY COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
-			`SELECT COALESCE("event.dataset",'unknown'), count() FROM ` + TableName + ` ` +
-				`WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') ` +
-				`AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')) ` +
-				`GROUP BY COALESCE("event.dataset",'unknown') ` +
-				`ORDER BY count() DESC, COALESCE("event.dataset",'unknown') ` +
-				`LIMIT 4`,
+				`GROUP BY COALESCE("event.dataset",'unknown') AS "aggr__stats__key_0", ` +
+				`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS ` +
+				`"aggr__stats__series__key_0")) ` +
+				`WHERE "aggr__stats__order_1_rank"<=4 ` +
+				`ORDER BY "aggr__stats__order_1_rank" ASC`,
 		},
 		true,
 	},
@@ -856,10 +849,12 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.NewHitsInfo(model.NoHits, []string{}, 0, 1),
 		[]string{
-			`SELECT count() FROM (SELECT 1 FROM ` + TableName + ` ` +
-				`WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%') LIMIT 1)`,
-			`SELECT m..OrNull("@timestamp") FROM ` + TableName + ` WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
-			`SELECT m..OrNull("@timestamp") FROM ` + TableName + ` WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+			`SELECT minOrNull("@timestamp") AS "metric__earliest_timestamp_col_0", ` +
+				`maxOrNull("@timestamp") AS "metric__latest_timestamp_col_0", ` +
+				`count(*) AS "metric____quesma_total_count_col_0" ` +
+				`FROM __quesma_table_name ` +
+				`WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') ` +
+				`AND "host.name" iLIKE '%poseidon%')`,
 		},
 		true,
 	},

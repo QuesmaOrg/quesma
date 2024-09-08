@@ -86,9 +86,6 @@ func TestAsyncSearchHandler(t *testing.T) {
 
 	for i, tt := range testdata.TestsAsyncSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
-			if i != -1 {
-				t.Skip()
-			}
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
@@ -96,6 +93,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 
 			for _, wantedRegex := range tt.WantedRegexes {
 				if tt.WantedHitsInfo.Type == model.AllFields {
+					fmt.Println("LOLOL")
 					// Normally we always want to escape, but in ListAllFields (SELECT *) we have (permutation1|permutation2|...)
 					// and we don't want to escape those ( and ) characters. So we don't escape [:WHERE], and escape [WHERE:]
 					// Hackish, but fastest way to get it done.
@@ -104,7 +102,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 						wantedRegex = wantedRegex[:splitIndex] + testdata.EscapeBrackets(wantedRegex[splitIndex:])
 					}
 				} else {
-					wantedRegex = testdata.EscapeBrackets(wantedRegex)
+					wantedRegex = testdata.EscapeWildcard(testdata.EscapeBrackets(wantedRegex))
 				}
 				mock.ExpectQuery(wantedRegex).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
@@ -450,22 +448,19 @@ func TestNumericFacetsQueries(t *testing.T) {
 	for i, tt := range testdata.TestsNumericFacets {
 		for _, handlerName := range handlers {
 			t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-				t.Skip()
 				db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 				defer db.Close()
 				lm := clickhouse.NewLogManagerWithConnection(db, table)
 				managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
-				returnedBuckets := sqlmock.NewRows([]string{"", ""})
+				// 4 lines below aren't pretty, but it's an old, not very important test. Let's make it compile/work ASAP.
+				returnedBuckets := sqlmock.NewRows([]string{"", "", "", "", "", "", "", "", ""})
 				for _, row := range tt.ResultRows {
-					returnedBuckets.AddRow(row[0], row[1])
+					returnedBuckets.AddRow(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8])
 				}
 
-				// count, present in all tests
-				mock.ExpectQuery(`SELECT count\(\) FROM ` + tableName).WillReturnRows(sqlmock.NewRows([]string{"count"}))
-				// Don't care about the query's SQL in this test, it's thoroughly tested in different tests, thus ""
-				mock.ExpectQuery(`SELECT count\(\) FROM ` + strconv.Quote(tableName)).WillReturnRows(sqlmock.NewRows([]string{"not-important"}))
-				mock.ExpectQuery("").WillReturnRows(returnedBuckets)
+				expectedSQLEscaped := testdata.EscapeWildcard(testdata.EscapeBrackets(tt.ExpectedSQL))
+				mock.ExpectQuery(expectedSQLEscaped).WillReturnRows(returnedBuckets)
 
 				queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 				var response []byte
@@ -491,6 +486,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 				} else {
 					responsePart = responseMap["response"].(model.JsonMap)
 				}
+				pp.Println(responsePart)
 				// check max
 				assert.Equal(t, tt.MaxExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["max_value"].(model.JsonMap)["value"].(float64))
 				// check min

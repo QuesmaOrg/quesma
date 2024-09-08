@@ -505,8 +505,8 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query *model.SimpleQuery, limit int) *model.Query {
-	return query_util.BuildHitsQuery(cw.Ctx, model.SingleTableNamePlaceHolder, fieldName, query, limit)
+func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldNames []string, query *model.SimpleQuery, limit int) *model.Query {
+	return query_util.BuildHitsQuery(cw.Ctx, model.SingleTableNamePlaceHolder, fieldNames, query, limit)
 }
 
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, tableName string, whereClause model.Expr, limit int) *model.Query {
@@ -548,33 +548,6 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 			nil,
 			nil,
 		),
-	}
-}
-
-func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQuery *model.SimpleQuery, isNumeric bool) *model.Query {
-	// FromClause: (SELECT fieldName FROM table WHERE whereClause LIMIT facetsSampleSize)
-	var typ model.QueryType
-	if isNumeric {
-		typ = typical_queries.NewFacetsNumeric(cw.Ctx)
-	} else {
-		typ = typical_queries.NewFacets(cw.Ctx)
-	}
-
-	return &model.Query{
-		SelectCommand: *model.NewSelectCommand(
-			[]model.Expr{model.NewColumnRef(fieldName), model.NewCountFunc()},
-			[]model.Expr{model.NewColumnRef(fieldName)},
-			[]model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)},
-			model.NewTableRef(model.SingleTableNamePlaceHolder),
-			simpleQuery.WhereClause,
-			[]model.Expr{},
-			0,
-			facetsSampleSize,
-			false,
-			nil,
-			nil,
-		),
-		Type: typ,
 	}
 }
 

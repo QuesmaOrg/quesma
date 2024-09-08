@@ -52,6 +52,8 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	// countQuery will be added later, depending on pancake optimization
 	countQuery := cw.buildCountQueryIfNeeded(simpleQuery, queryInfo)
 
+	fmt.Println("count", countQuery)
+
 	var pancakeApplied bool
 
 	// this is an alternative implementation
@@ -60,7 +62,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	fmt.Println("enabled:", enabled, "mode:", pancakeOptimizerProps["mode"])
 	if enabled && pancakeOptimizerProps["mode"] == "apply" {
 
-		// here we deside if pancake should count rows
+		// here we decide if pancake should count rows
 		addCount := countQuery != nil
 
 		if pancakeQueries, err := cw.PancakeParseAggregationJson(body, addCount); err == nil {
@@ -159,9 +161,9 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	switch hitsInfo.Type {
 	case model.AllFields:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
-		fullQuery = cw.BuildNRowsQuery("*", simpleQuery, hitsInfo.Size)
+		fullQuery = cw.BuildNRowsQuery([]string{"*"}, simpleQuery, hitsInfo.Size)
 	case model.SomeFields:
-		fullQuery = cw.BuildNRowsQuery("*", simpleQuery, hitsInfo.Size)
+		fullQuery = cw.BuildNRowsQuery(hitsInfo.RequestedFields, simpleQuery, hitsInfo.Size)
 	default:
 	}
 
@@ -206,6 +208,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model
 		parsedQuery.OrderBy = cw.parseSortFields(sortPart)
 	}
 
+	fmt.Println(cw.parseHits(queryAsMap))
 	return &parsedQuery, cw.parseHits(queryAsMap), highlighter, nil
 }
 

@@ -42,15 +42,18 @@ func FilterAggregationQueries(queries []*model.Query) []*model.Query {
 }
 */
 
-func BuildHitsQuery(ctx context.Context, tableName string, fieldName string, query *model.SimpleQuery, limit int) *model.Query {
-	var col model.Expr
-	if fieldName == "*" {
-		col = model.NewWildcardExpr
-	} else {
-		col = model.NewColumnRef(fieldName)
+func BuildHitsQuery(ctx context.Context, tableName string, fieldNames []string, query *model.SimpleQuery, limit int) *model.Query {
+	var columns []model.Expr
+	for _, fieldName := range fieldNames {
+		if fieldName == "*" {
+			columns = append(columns, model.NewWildcardExpr)
+		} else {
+			columns = append(columns, model.NewColumnRef(fieldName))
+		}
 	}
+
 	return &model.Query{
-		SelectCommand: *model.NewSelectCommand([]model.Expr{col}, nil, query.OrderBy, model.NewTableRef(tableName),
+		SelectCommand: *model.NewSelectCommand(columns, nil, query.OrderBy, model.NewTableRef(tableName),
 			query.WhereClause, []model.Expr{}, applySizeLimit(ctx, limit), 0, false, []*model.SelectCommand{}, []*model.CTE{}),
 	}
 }
