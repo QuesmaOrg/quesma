@@ -20,8 +20,7 @@ func (p *pancakeSqlQueryGenerator) generateSimpleTopHitsQuery(topHits *pancakeMo
 
 	newSelects := make([]model.AliasedExpr, 0, len(topHits.selectedColumns))
 	for topHitsIdx, selectedTopHits := range topHits.selectedColumns {
-		aliasedColumnName := fmt.Sprintf("%s%d", topHits.InternalColumnNamePrefix(), topHitsIdx+1)
-		aliasedColumn := model.NewAliasedExpr(selectedTopHits, aliasedColumnName)
+		aliasedColumn := model.NewAliasedExpr(selectedTopHits, topHits.InternalNameForCol(topHitsIdx))
 		newSelects = append(newSelects, aliasedColumn)
 	}
 
@@ -138,9 +137,8 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	}
 
 	for topHitsIdx, selectedTopHits := range topHits.selectedColumns {
-		aliasedColumnName := fmt.Sprintf("%s%d", topHits.InternalColumnNamePrefix(), topHitsIdx+1)
 		withConvertedHitTable := convertColumnRefToHitTable(selectedTopHits)
-		aliasedColumn := model.NewAliasedExpr(withConvertedHitTable, aliasedColumnName)
+		aliasedColumn := model.NewAliasedExpr(withConvertedHitTable, topHits.InternalNameForCol(topHitsIdx))
 		newSelects = append(newSelects, aliasedColumn)
 	}
 

@@ -44,11 +44,10 @@ func (p *pancakeJSONRenderer) selectTopHitsRows(topHits *pancakeModelMetricAggre
 	for _, row := range rows {
 		var newCols []model.QueryResultCol
 		for _, col := range row.Cols {
-			if strings.HasPrefix(col.ColName, topHits.InternalColumnNamePrefix()) {
-				numStr := strings.TrimPrefix(col.ColName, topHits.InternalColumnNamePrefix())
+			if strings.HasPrefix(col.ColName, topHits.InternalNamePrefix()) {
+				numStr := strings.TrimPrefix(col.ColName, topHits.InternalNamePrefix())
 				if num, err := strconv.Atoi(numStr); err == nil {
 					var overrideName string
-					num -= 1
 					if num < 0 || num >= len(topHits.selectedColumns) {
 						logger.WarnWithCtx(p.ctx).Msgf("invalid top_hits column index %d", num)
 					} else {
@@ -230,7 +229,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		if _, ok := metric.queryType.(metrics_aggregations.TopHits); ok {
 			metricRows = p.selectTopHitsRows(metric, rows)
 		} else {
-			metricRows = p.selectMetricRows(metric.InternalColumnNamePrefix(), rows)
+			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
 		}
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
 		// TODO: maybe add metadata also here? probably not needed
