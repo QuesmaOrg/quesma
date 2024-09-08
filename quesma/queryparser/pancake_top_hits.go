@@ -63,6 +63,13 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	groupTableName := "group_table"
 	hitTableName := "hit_table"
 
+	hitTableLiteral := func(reference string) model.Expr {
+		return model.NewLiteral(strconv.Quote(hitTableName) + "." + strconv.Quote(reference))
+	}
+	groupTableLiteral := func(reference string) model.Expr {
+		return model.NewLiteral(strconv.Quote(groupTableName) + "." + strconv.Quote(reference))
+	}
+
 	convertColumnRefToHitTable := func(expr model.Expr) model.Expr {
 		switch exprTyped := expr.(type) {
 		case model.ColumnRef:
@@ -70,9 +77,9 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 			if strings.HasSuffix(exprTyped.ColumnName, "Location") {
 				return model.NewFunction("map",
 					model.NewLiteral("'lat'"),
-					model.NewLiteral(strconv.Quote(hitTableName)+"."+strconv.Quote(exprTyped.ColumnName+"::lat")),
+					hitTableLiteral(exprTyped.ColumnName+"::lat"),
 					model.NewLiteral("'lon'"),
-					model.NewLiteral(strconv.Quote(hitTableName)+"."+strconv.Quote(exprTyped.ColumnName+"::lon")),
+					hitTableLiteral(exprTyped.ColumnName+"::lon"),
 				)
 			}
 			return model.ColumnRef{
@@ -86,10 +93,9 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	var joinExprs []model.Expr
 	var partitionByExprs []model.Expr
 	for _, groupBy := range groupBys {
-		partitionByExprs = append(partitionByExprs,
-			model.NewLiteral(strconv.Quote(groupTableName)+"."+strconv.Quote(groupBy.Alias)))
+		partitionByExprs = append(partitionByExprs, groupTableLiteral(groupBy.Alias))
 		joinExprs = append(joinExprs, model.NewInfixExpr(
-			model.NewLiteral(strconv.Quote(groupTableName)+"."+strconv.Quote(groupBy.Alias)),
+			groupTableLiteral(groupBy.Alias),
 			"=",
 			convertColumnRefToHitTable(groupBy.Expr)))
 	}
@@ -104,8 +110,7 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 
 	newSelects := make([]model.AliasedExpr, 0, len(selectColumns)+len(topHits.selectedColumns))
 	for _, selectColumn := range selectColumns {
-		aliasedColumnLiteral := model.NewLiteral(fmt.Sprintf("%s.%s", strconv.Quote(groupTableName), selectColumn.AliasRef().Value))
-		aliasedColumn := model.NewAliasedExpr(aliasedColumnLiteral, selectColumn.Alias)
+		aliasedColumn := model.NewAliasedExpr(groupTableLiteral(selectColumn.Alias), selectColumn.Alias)
 		newSelects = append(newSelects, aliasedColumn)
 	}
 
@@ -125,8 +130,7 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 			}
 			if !alreadyAdded {
 				selectsForOrderBy = append(selectsForOrderBy, model.NewAliasedExpr(
-					model.NewLiteral(strconv.Quote(groupTableName)+"."+orderByLiteral.Value.(string)),
-					unquoted))
+					groupTableLiteral(unquoted), unquoted))
 			}
 		} else {
 			panic("all pancake orderBy are on aliases, so we should have LiteralExpr here")
