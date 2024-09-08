@@ -245,7 +245,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 
 	buffer.Html("\n<table>")
 	buffer.Html(`<tr class="tableName" id="quesma-config">`)
-	buffer.Html(`<th colspan=3><h2>`)
+	buffer.Html(`<th colspan=2><h2>`)
 	buffer.Html(`Quesma Config`)
 	buffer.Html(`</h2></th>`)
 	buffer.Html(`</tr>`)
@@ -256,9 +256,6 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 	buffer.Html(`</th>`)
 	buffer.Html(`<th>`)
 	buffer.Html(`Disabled?`)
-	buffer.Html(`</th>`)
-	buffer.Html(`<th>`)
-	buffer.Html(`Full Text Search Fields`)
 	buffer.Html(`</th>`)
 
 	buffer.Html(`</tr>`)
@@ -274,10 +271,6 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 		} else {
 			buffer.Text("false")
 		}
-		buffer.Html(`</td>`)
-
-		buffer.Html(`<td>`)
-		buffer.Text(strings.Join(cfg.FullTextFields, ", "))
 		buffer.Html(`</td>`)
 
 		buffer.Html(`</tr>`)

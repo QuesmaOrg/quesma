@@ -809,7 +809,7 @@ func TestAggregationParserExternalTestcases(t *testing.T) {
 			}
 			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations" ||
 				test.TestName == "Ophelia Test 6: triple terms + other aggregations + order by another aggregations" ||
-				test.TestName == "Ophelia Test 7: 5x terms + a lot of other aggregations" {
+				test.TestName == "Ophelia Test 7: 5x terms + a lot of other aggregations + different order bys" {
 				t.Skip("Very similar to 2 previous tests, results have like 500-1000 lines. They are almost finished though. Maybe I'll fix soon, but not in this PR")
 			}
 

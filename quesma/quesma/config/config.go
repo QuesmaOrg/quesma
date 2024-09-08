@@ -65,7 +65,7 @@ type RelationalDbConfiguration struct {
 }
 
 type OptimizerConfiguration struct {
-	Enabled    bool              `koanf:"enabled"`
+	Disabled   bool              `koanf:"disabled"`
 	Properties map[string]string `koanf:"properties"`
 }
 
@@ -97,8 +97,6 @@ var k = koanf.New(".")
 
 func Load() QuesmaConfiguration {
 	var config QuesmaConfiguration
-	config.QuesmaInternalTelemetryUrl = telemetryUrl
-	config.Logging.RemoteLogDrainUrl = telemetryUrl
 
 	loadConfigFile()
 	if err := k.Load(env.Provider("QUESMA_", ".", func(s string) string {
@@ -219,7 +217,13 @@ func (c *QuesmaConfiguration) optimizersConfigAsString(s string, cfg map[string]
 
 	lines = append(lines, fmt.Sprintf("        %s:", s))
 	for k, v := range cfg {
-		lines = append(lines, fmt.Sprintf("            %s: %v", k, v.Enabled))
+		var status string
+		if v.Disabled {
+			status = "<disabled>"
+		} else {
+			status = "enabled"
+		}
+		lines = append(lines, fmt.Sprintf("            %s: %s", k, status))
 		if v.Properties != nil && len(v.Properties) > 0 {
 			lines = append(lines, fmt.Sprintf("                properties: %v", v.Properties))
 		}
@@ -235,8 +239,8 @@ func (c *QuesmaConfiguration) OptimizersConfigAsString() string {
 	lines = append(lines, "\n")
 
 	for indexName, indexConfig := range c.IndexConfig {
-		if indexConfig.EnabledOptimizers != nil && len(indexConfig.EnabledOptimizers) > 0 {
-			lines = append(lines, c.optimizersConfigAsString(indexName, indexConfig.EnabledOptimizers))
+		if indexConfig.Optimizers != nil && len(indexConfig.Optimizers) > 0 {
+			lines = append(lines, c.optimizersConfigAsString(indexName, indexConfig.Optimizers))
 		}
 	}
 

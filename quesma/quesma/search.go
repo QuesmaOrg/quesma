@@ -778,6 +778,14 @@ func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]mo
 	return geoIpTransformer.Transform(res)
 }
 
+func pushPrimaryInfo(qmc *ui.QuesmaManagementConsole, Id string, QueryResp []byte, startTime time.Time) {
+	qmc.PushPrimaryInfo(&ui.QueryDebugPrimarySource{
+		Id:          Id,
+		QueryResp:   QueryResp,
+		PrimaryTook: time.Since(startTime),
+	})
+}
+
 func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []types.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     Id,

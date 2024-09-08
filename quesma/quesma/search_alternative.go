@@ -117,14 +117,14 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, plan 
 
 func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON, table *clickhouse.Table, isAsync bool) (*model.ExecutionPlan, executionPlanExecutor) {
 
-	props, enabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration(queryparser.PancakeOptimizerName)
-	if enabled && props["mode"] == "alternative" {
+	props, disabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration(queryparser.PancakeOptimizerName)
+	if !disabled && props["mode"] == "alternative" {
 		return q.maybeCreatePancakeExecutionPlan(ctx, resolvedTableName, plan, queryTranslator, body, table, isAsync)
 	}
 
 	// TODO is should be enabled in a different way. it's not an optimizer
-	_, enabled = q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration("elastic_ab_testing")
-	if enabled {
+	_, disabled = q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration("elastic_ab_testing")
+	if !disabled {
 		return q.askElasticAsAnAlternative(ctx, resolvedTableName, plan, queryTranslator, body, table, isAsync)
 	}
 
@@ -169,6 +169,9 @@ func (q *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTab
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("error calling elastic. got error code: %d", resp.StatusCode)
 		}
+
+		contextValues := tracing.ExtractValues(ctx)
+		pushPrimaryInfo(q.quesmaManagementConsole, contextValues.RequestId, responseBody, plan.StartTime)
 
 		return responseBody, nil
 	}

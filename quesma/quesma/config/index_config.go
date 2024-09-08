@@ -4,19 +4,16 @@ package config
 
 import (
 	"fmt"
-	"strings"
 )
 
 type IndexConfiguration struct {
 	Name     string `koanf:"name"`
 	Disabled bool   `koanf:"disabled"`
 	// TODO to be deprecated
-	FullTextFields []string `koanf:"fullTextFields"`
-	// TODO to be deprecated
-	TimestampField    *string                           `koanf:"timestampField"`
-	SchemaOverrides   *SchemaConfiguration              `koanf:"schemaOverrides"`
-	EnabledOptimizers map[string]OptimizerConfiguration `koanf:"optimizers"`
-	Override          string                            `koanf:"override"`
+	TimestampField  *string                           `koanf:"timestampField"`
+	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
+	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
+	Override        string                            `koanf:"override"`
 }
 
 func (c IndexConfiguration) GetTimestampField() (tsField string) {
@@ -34,10 +31,6 @@ func (c IndexConfiguration) String() string {
 		c.Override,
 	)
 
-	if len(c.FullTextFields) > 0 {
-		str = fmt.Sprintf("%s, fullTextFields: %s", str, strings.Join(c.FullTextFields, ", "))
-	}
-
 	if c.TimestampField != nil {
 		return fmt.Sprintf("%s, timestampField: %s", str, *c.TimestampField)
 	} else {
@@ -45,10 +38,9 @@ func (c IndexConfiguration) String() string {
 	}
 }
 
-func (c IndexConfiguration) GetOptimizerConfiguration(optimizerName string) (map[string]string, bool) {
-	if optimizer, ok := c.EnabledOptimizers[optimizerName]; ok {
-		return optimizer.Properties, optimizer.Enabled
+func (c IndexConfiguration) GetOptimizerConfiguration(optimizerName string) (props map[string]string, disabled bool) {
+	if optimizer, ok := c.Optimizers[optimizerName]; ok {
+		return optimizer.Properties, optimizer.Disabled
 	}
-
-	return nil, false
+	return nil, true
 }
