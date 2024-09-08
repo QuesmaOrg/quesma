@@ -13,12 +13,17 @@ import (
 )
 
 type TopHits struct {
-	ctx  context.Context
-	Size int
+	ctx     context.Context
+	Size    int
+	OrderBy []model.OrderByExpr
 }
 
 func NewTopHits(ctx context.Context, size int) TopHits {
 	return TopHits{ctx: ctx, Size: size}
+}
+
+func NewTopHitsWithOrderBy(ctx context.Context, size int, orderBy []model.OrderByExpr) TopHits {
+	return TopHits{ctx: ctx, Size: size, OrderBy: orderBy}
 }
 
 func (query TopHits) AggregationType() model.AggregationType {

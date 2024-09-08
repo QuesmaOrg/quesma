@@ -115,9 +115,9 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 		newSelects = append(newSelects, aliasedColumn)
 	}
 
-	// TODO: we need to implement order by here
+	// TODO: we need to test order by here
 	rankSelect := model.NewAliasedExpr(
-		model.NewWindowFunction("ROW_NUMBER", []model.Expr{}, partitionByExprs, []model.OrderByExpr{}),
+		model.NewWindowFunction("ROW_NUMBER", []model.Expr{}, partitionByExprs, topHitsQueryType.OrderBy),
 		"top_hits_rank")
 	newSelects = append(newSelects, rankSelect)
 
