@@ -92,7 +92,11 @@ func newPancakeModelPipelineAggregation(name string, previousAggrNames []string,
 const pancakeBucketAggregationNoLimit = 0
 const noSampleLimit = 0
 
-// Helper functions
+// Naming function
+func (p pancakeModelMetricAggregation) InternalColumnNamePrefix() string {
+	return p.internalName + "_col_"
+}
+
 func (p pancakeModelBucketAggregation) InternalNameForKeyPrefix() string {
 	return fmt.Sprintf("%skey", p.internalName)
 }

@@ -43,8 +43,12 @@ func (a *pancakeTransformer) generateUniqueInternalName(origName string, aggrNam
 	return origName
 }
 
-func (a *pancakeTransformer) generateMetricInternalName(aggrNames []string) string {
-	origName := fmt.Sprintf("metric__%s", strings.Join(aggrNames, "__"))
+func (a *pancakeTransformer) generateMetricInternalName(aggrNames []string, queryType model.QueryType) string {
+	prefix := "metric"
+	if _, isTopHits := queryType.(metrics_aggregations.TopHits); isTopHits {
+		prefix = "top_hits"
+	}
+	origName := fmt.Sprintf("%s__%s", prefix, strings.Join(aggrNames, "__"))
 	return a.generateUniqueInternalName(origName, aggrNames)
 }
 
@@ -67,7 +71,7 @@ func (a *pancakeTransformer) metricAggregationTreeNodeToModel(previousAggrNames 
 
 	return &pancakeModelMetricAggregation{
 		name:            metric.name,
-		internalName:    a.generateMetricInternalName(append(previousAggrNames, metric.name)),
+		internalName:    a.generateMetricInternalName(append(previousAggrNames, metric.name), metric.queryType),
 		queryType:       metric.queryType,
 		selectedColumns: metric.selectedColumns,
 

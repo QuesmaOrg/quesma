@@ -64,7 +64,7 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 
 func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMetricAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (addSelectColumns []model.AliasedExpr, err error) {
 	for columnId, column := range metric.selectedColumns {
-		aliasedName := fmt.Sprintf("%s_col_%d", metric.internalName, columnId)
+		aliasedName := fmt.Sprintf("%s%d", metric.InternalColumnNamePrefix(), columnId)
 		finalColumn := column
 
 		if hasMoreBucketAggregations {
