@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+func (p *pancakeSqlQueryGenerator) quotedLiteral(name string) model.LiteralExpr {
+	return model.NewLiteral(strconv.Quote(name))
+}
+
 func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeModel,
 	combinatorWhere []model.Expr,
 	topHits *pancakeModelMetricAggregation,
@@ -78,6 +82,30 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 		newSelects = append(newSelects, aliasedColumn)
 	}
 
+	selectsForOrderBy := make([]model.Expr, 0, len(origQuery.OrderBy))
+	for _, usedByOrderBy := range origQuery.OrderBy {
+		if orderByLiteral, ok := usedByOrderBy.Expr.(model.LiteralExpr); ok {
+			unquoted, err := strconv.Unquote(orderByLiteral.Value.(string))
+			if err != nil {
+				unquoted = orderByLiteral.Value.(string)
+			}
+			alreadyAdded := false
+			for _, newSelect := range newSelects {
+				if newSelect.Alias == unquoted {
+					alreadyAdded = true
+					break
+				}
+			}
+			if !alreadyAdded {
+				selectsForOrderBy = append(selectsForOrderBy, model.NewAliasedExpr(
+					model.NewLiteral(strconv.Quote(groupTableName)+"."+orderByLiteral.Value.(string)),
+					unquoted))
+			}
+		} else {
+			panic("todo it is bug")
+		}
+	}
+
 	for topHitsIdx, selectedTopHits := range topHits.selectedColumns {
 		aliasedColumnName := fmt.Sprintf("top_hits_%d", topHitsIdx+1)
 		withConvertedHitTable := convertColumnRefToHitTable(selectedTopHits)
@@ -91,25 +119,10 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 		"top_hits_rank")
 	newSelects = append(newSelects, rankSelect)
 
-	prefixWithTopHists := func(orderByExprs []model.OrderByExpr) (result []model.OrderByExpr) {
-		for _, orderBy := range orderByExprs {
-			if orderByLiteral, ok := orderBy.Expr.(model.LiteralExpr); ok {
-				result = append(result, model.NewOrderByExpr(
-					model.NewLiteral(strconv.Quote(groupTableName)+"."+orderByLiteral.Value.(string)),
-					orderBy.Direction,
-				))
-			} else {
-				panic("todo it is bug")
-			}
-		}
-		return
-	}
-
 	joinQuery := model.SelectCommand{
-		Columns:     p.aliasedExprArrayToExpr(newSelects),
+		Columns:     append(p.aliasedExprArrayToExpr(newSelects), selectsForOrderBy...),
 		FromClause:  fromClause,
 		WhereClause: whereClause,
-		OrderBy:     prefixWithTopHists(origQuery.OrderBy),
 	}
 
 	joinQueryName := "quesma_top_hits_join"
@@ -125,14 +138,19 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 		},
 	}
 
-	// TODO: Simplify
+	orderBy := append(origQuery.OrderBy, model.NewOrderByExpr(
+		p.quotedLiteral("top_hits_rank"),
+		model.AscOrder,
+	))
+
 	resultQuery := &model.SelectCommand{
 		Columns:    p.aliasedExprArrayToLiteralExpr(newSelects),
-		FromClause: model.NewLiteral(joinQueryName),
+		FromClause: p.quotedLiteral(joinQueryName),
 		WhereClause: model.NewInfixExpr(
-			model.NewLiteral("top_hits_rank"),
+			p.quotedLiteral("top_hits_rank"),
 			"<=",
 			model.NewLiteral(strconv.Itoa(topHitsQueryType.Size))),
+		OrderBy:   orderBy,
 		NamedCTEs: namedCte,
 	}
 
