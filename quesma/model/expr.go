@@ -13,7 +13,8 @@ var InvalidExpr = Expr(nil)
 
 // ColumnRef is a reference to a column in a table, we can enrich it with more information (e.g. type used) as we go
 type ColumnRef struct {
-	ColumnName string
+	OptPrefixTable string // used for alias in joins, mostly empty
+	ColumnName     string
 }
 
 func NewColumnRef(name string) ColumnRef {

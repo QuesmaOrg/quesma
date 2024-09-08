@@ -50,8 +50,10 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 					model.NewLiteral(strconv.Quote(hitTableName)+"."+strconv.Quote(exprTyped.ColumnName+"::lon")),
 				)
 			}
-			// TODO: Need better type, this should not be NewLiteral, but ColumnRefWithTable
-			return model.NewLiteral(strconv.Quote(hitTableName) + "." + strconv.Quote(exprTyped.ColumnName))
+			return model.ColumnRef{
+				OptPrefixTable: hitTableName,
+				ColumnName:     exprTyped.ColumnName,
+			}
 		}
 		return expr
 	}
@@ -102,7 +104,7 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 					unquoted))
 			}
 		} else {
-			panic("todo it is bug")
+			panic("all pancake orderBy are on aliases, so we should have LiteralExpr here")
 		}
 	}
 

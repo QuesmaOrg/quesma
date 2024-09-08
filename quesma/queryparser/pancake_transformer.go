@@ -306,6 +306,7 @@ func (a *pancakeTransformer) createTopHitPancakes(pancake *pancakeModel) (result
 					if layer2.nextBucketAggregation != nil {
 						switch layer2.nextBucketAggregation.queryType.(type) {
 						case bucket_aggregations.CombinatorAggregationInterface:
+							// TODO: possible to implement, by generating more queries, skipped as it is rare
 							return nil, fmt.Errorf("top_hits can't be in filter(s)/range/dataRange aggregation")
 						}
 					}
