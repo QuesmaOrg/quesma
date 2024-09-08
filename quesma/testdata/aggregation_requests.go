@@ -1777,21 +1777,25 @@ var AggregationTests = []AggregationTestCase{
 				map('lat', "hit_table"."DestLocation::lat", 'lon',
 				"hit_table"."DestLocation::lon") AS "top_hits_1",
 				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0",
-				"group_table"."aggr__origins__distinations__key_0") AS "top_hits_rank"
+				"group_table"."aggr__origins__distinations__key_0") AS "top_hits_rank",
+				"group_table"."aggr__origins__order_1_rank" AS "aggr__origins__order_1_rank"
+				,
+				"group_table"."aggr__origins__distinations__order_1_rank" AS
+				"aggr__origins__distinations__order_1_rank"
 			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
 				__quesma_table_name AS "hit_table" ON (("group_table"."aggr__origins__key_0"
 				="hit_table"."OriginAirportID" AND
 				"group_table"."aggr__origins__distinations__key_0"=
-				"hit_table"."DestAirportID"))
-			  ORDER BY "group_table"."aggr__origins__order_1_rank" ASC,
-				"group_table"."aggr__origins__distinations__order_1_rank" ASC)
+				"hit_table"."DestAirportID")))
 			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
 			  "aggr__origins__count", "aggr__origins__order_1",
 			  "aggr__origins__distinations__parent_count",
 			  "aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
 			  "aggr__origins__distinations__order_1", "top_hits_1", "top_hits_rank"
-			FROM quesma_top_hits_join
-			WHERE top_hits_rank<=1`,
+			FROM "quesma_top_hits_join"
+			WHERE "top_hits_rank"<=1
+			ORDER BY "aggr__origins__order_1_rank" ASC,
+			  "aggr__origins__distinations__order_1_rank" ASC, "top_hits_rank" ASC`,
 		ExpectedAdditionalPancakeSQLs: []string{`
 			WITH quesma_top_hits_group_table AS (
 			  SELECT sum(count(*)) OVER () AS "aggr__origins__parent_count",
@@ -1814,14 +1818,14 @@ var AggregationTests = []AggregationTestCase{
 				"top_hits_rank"
 			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
 				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__origins__key_0"=
-				"hit_table"."OriginAirportID")
-			  ORDER BY "group_table"."aggr__origins__order_1" DESC,
-				"group_table"."aggr__origins__key_0" ASC)
+				"hit_table"."OriginAirportID"))
 			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
 			  "aggr__origins__count", "aggr__origins__order_1", "top_hits_1", "top_hits_2",
 			  "top_hits_rank"
-			FROM quesma_top_hits_join
-			WHERE top_hits_rank<=1`},
+			FROM "quesma_top_hits_join"
+			WHERE "top_hits_rank"<=1
+			ORDER BY "aggr__origins__order_1" DESC, "aggr__origins__key_0" ASC,
+			  "top_hits_rank" ASC`},
 	},
 	{ // [8]
 		TestName: "histogram, different field than timestamp",
