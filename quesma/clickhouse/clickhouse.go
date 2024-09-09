@@ -356,19 +356,19 @@ func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (retu
 	return returnedErr
 }
 
-func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string, config *ChTableConfig) error {
+func (lm *LogManager) createTableObjectAndAttributes(ctx context.Context, query string, config *ChTableConfig) (string, error) {
 	table, err := NewTable(query, config)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// if exists only then createTable
 	noSuchTable := lm.AddTableIfDoesntExist(table)
 	if !noSuchTable {
-		return fmt.Errorf("table %s already exists", table.Name)
+		return "", fmt.Errorf("table %s already exists", table.Name)
 	}
 
-	return lm.execute(ctx, addOurFieldsToCreateTableQuery(query, config, table))
+	return addOurFieldsToCreateTableQuery(query, config, table), nil
 }
 
 func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
@@ -766,9 +766,14 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), tableFormatter)
 		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
 		createTableCmd := createTableQuery(tableName, columns, tableConfig)
-		err := lm.ProcessCreateTableQuery(ctx, createTableCmd, tableConfig)
+		createTableCmd, err := lm.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig)
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error ProcessInsertQuery, can't create table: %v", err)
+			logger.ErrorWithCtx(ctx).Msgf("error createTableObjectAndAttributes, can't create table: %v", err)
+			return nil, err
+		}
+		err = lm.execute(ctx, createTableCmd)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("error execute, can't create table: %v", err)
 			return nil, err
 		}
 		// Set pointer to table after creating it
@@ -778,10 +783,8 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
-		tableConfig = table.Config
-	} else {
-		tableConfig = table.Config
 	}
+	tableConfig = table.Config
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
 	var preprocessedJsons []types.JSON
