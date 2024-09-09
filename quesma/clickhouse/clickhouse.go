@@ -719,8 +719,11 @@ func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), err
 }
 
-func generateSqlStatements(alterCmd []string, insert string) []string {
+func generateSqlStatements(createTableCmd string, alterCmd []string, insert string) []string {
 	var statements []string
+	if createTableCmd != "" {
+		statements = append(statements, createTableCmd)
+	}
 	statements = append(statements, alterCmd...)
 	statements = append(statements, insert)
 	return statements
@@ -757,32 +760,25 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 	jsonData = processed
 	table := lm.FindTable(tableName)
 	var tableConfig *ChTableConfig
+	var createTableCmd string
 	if table == nil {
 		tableConfig = NewOnlySchemaFieldsCHConfig()
 		ignoredFields := lm.getIgnoredFields(tableName)
-
 		columnsFromJson := JsonToColumns("", jsonData[0], 1,
 			tableConfig, tableFormatter, ignoredFields)
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), tableFormatter)
 		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
-		createTableCmd := createTableQuery(tableName, columns, tableConfig)
-		createTableCmd, err := lm.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig)
+		createTableCmd = createTableQuery(tableName, columns, tableConfig)
+		var err error
+		createTableCmd, err = lm.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error createTableObjectAndAttributes, can't create table: %v", err)
-			return nil, err
-		}
-		err = lm.execute(ctx, createTableCmd)
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error execute, can't create table: %v", err)
 			return nil, err
 		}
 		// Set pointer to table after creating it
 		table = lm.FindTable(tableName)
 	} else if !table.Created {
-		err := lm.execute(ctx, table.createTableString())
-		if err != nil {
-			return nil, err
-		}
+		createTableCmd = table.createTableString()
 	}
 	tableConfig = table.Config
 	var jsonsReadyForInsertion []string
@@ -812,7 +808,7 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
-	return generateSqlStatements(alterCmd, insert), nil
+	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
 }
 
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
