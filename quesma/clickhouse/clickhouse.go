@@ -518,10 +518,12 @@ func (lm *LogManager) generateNewColumns(
 	return alterCmd
 }
 
+// This struct contains the information about the columns that are part of the schema
+// and will go into attributes map
 type NonSchemaField struct {
 	Key   string
 	Value string
-	Type  string
+	Type  string // inferred from incoming json
 }
 
 func convertNonSchemaFieldsToString(nonSchemaFields []NonSchemaField) string {
