@@ -817,16 +817,12 @@ func TestAggregationParserExternalTestcases(t *testing.T) {
 			}
 			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations(file:clients/ophelia,nr:2)" ||
 				test.TestName == "Ophelia Test 6: triple terms + other aggregations + order by another aggregations(file:clients/ophelia,nr:5)" ||
-				test.TestName == "Ophelia Test 7: 5x terms + a lot of other aggregations(file:clients/ophelia,nr:6)" {
+				test.TestName == "Ophelia Test 7: 5x terms + a lot of other aggregations + different order bys(file:clients/ophelia,nr:6)" {
 				t.Skip("Very similar to 2 previous tests, results have like 500-1000 lines. They are almost finished though. Maybe I'll fix soon, but not in this PR")
 			}
 
 			if strings.HasPrefix(test.TestName, "2x date_histogram") || strings.HasPrefix(test.TestName, "2x histogram") {
 				t.Skip("Don't want to waste time on filling results there. Do that if we decide not to discard non-pancake logic soon.")
-			}
-
-			if i == 42 {
-				t.Skip()
 			}
 
 			body, parseErr := types.ParseJSON(test.QueryRequestJson)
