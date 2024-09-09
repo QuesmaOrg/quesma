@@ -395,10 +395,10 @@ func Test_arrayType(t *testing.T) {
 
 	indexSchema := schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
-			"products::name":     {PropertyName: "products::name", InternalPropertyName: "products::name", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
-			"products::quantity": {PropertyName: "products::quantity", InternalPropertyName: "products::quantity", InternalPropertyType: "Array(Int64)", Type: schema.QuesmaTypeArray},
-			"products::sku":      {PropertyName: "products::sku", InternalPropertyName: "products::sku", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
-			"order_date":         {PropertyName: "order_date", InternalPropertyName: "order_date", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
+			"products.name":     {PropertyName: "products.name", InternalPropertyName: "products::name", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
+			"products.quantity": {PropertyName: "products.quantity", InternalPropertyName: "products::quantity", InternalPropertyType: "Array(Int64)", Type: schema.QuesmaTypeArray},
+			"products.sku":      {PropertyName: "products.sku", InternalPropertyName: "products::sku", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
+			"order_date":        {PropertyName: "order_date", InternalPropertyName: "order_date", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
 		},
 	}
 
