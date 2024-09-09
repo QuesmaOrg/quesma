@@ -21,15 +21,18 @@ type arrayTypeResolver struct {
 	indexSchema schema.Schema
 }
 
-func (v *arrayTypeResolver) dbColumnType(fieldName string) string {
+func (v *arrayTypeResolver) dbColumnType(columName string) string {
 
 	//
 	// This is a HACK to get the column database type from the schema
 	//
 	//
-	fieldName = strings.TrimSuffix(fieldName, ".keyword")
+	// here we should resolve field by column name not field name
+	columName = strings.TrimSuffix(columName, ".keyword")
+	columName = strings.ReplaceAll(columName, "::", ".")
 
-	field, ok := v.indexSchema.ResolveField(fieldName)
+	field, ok := v.indexSchema.ResolveField(columName)
+
 	if !ok {
 		return ""
 	}
