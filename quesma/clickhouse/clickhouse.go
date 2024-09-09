@@ -747,6 +747,13 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		}
 		processed = append(processed, result)
 	}
+	// Do field encoding here, once for all jsons
+	// This is in-place operation
+	for _, jsonValue := range jsonData {
+		transformFieldName(jsonValue, func(field string) string {
+			return fieldToColumnEncoder(field)
+		})
+	}
 	jsonData = processed
 	table := lm.FindTable(tableName)
 	var tableConfig *ChTableConfig
@@ -756,16 +763,6 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 
 		columnsFromJson := JsonToColumns("", jsonData[0], 1,
 			tableConfig, tableFormatter, ignoredFields)
-		for i, column := range columnsFromJson {
-			// TODO this is doing nested field encoding
-			// ----------------------
-			column.ClickHouseColumnName = fieldToColumnEncoder(column.ClickHouseColumnName)
-			if slices.Contains(ignoredFields, config.FieldName(strings.Replace(column.ClickHouseColumnName, "::", ".", -1))) {
-				continue
-			}
-			columnsFromJson[i] = column
-			// ----------------------
-		}
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), tableFormatter)
 		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
 		createTableCmd := createTableQuery(tableName, columns, tableConfig)
@@ -794,12 +791,6 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		return nil, fmt.Errorf("error preprocessJsons: %v", err)
 	}
 	for i, preprocessedJson := range preprocessedJsons {
-		// TODO this is doing nested field encoding
-		// ----------------------
-		transformFieldName(preprocessedJson, func(field string) string {
-			return fieldToColumnEncoder(field)
-		})
-		// ----------------------
 		alter, onlySchemaFields, nonSchemaFields, err := lm.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], tableConfig)
 		if err != nil {
