@@ -991,7 +991,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 		case clickhouse.NotExists:
 			// TODO this is a workaround for the case when the field is a point
 			if schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name)); exists {
-				if value, ok := schemaInstance.ResolveFieldByInternalName(fieldName); ok && value.Type.Equal(schema.TypePoint) {
+				if value, ok := schemaInstance.ResolveFieldByInternalName(fieldName); ok && value.Type.Equal(schema.QuesmaTypePoint) {
 					return model.NewSimpleQuery(sql, true)
 				}
 			}

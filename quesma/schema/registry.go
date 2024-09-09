@@ -15,13 +15,14 @@ type (
 		UpdateDynamicConfiguration(name TableName, table Table)
 	}
 	schemaRegistry struct {
-		configuration           *config.QuesmaConfiguration
+		// index configuration overrides always take precedence
+		indexConfiguration      *map[string]config.IndexConfiguration
 		dataSourceTableProvider TableProvider
 		dataSourceTypeAdapter   typeAdapter
 		dynamicConfiguration    map[string]Table
 	}
 	typeAdapter interface {
-		Convert(string) (Type, bool)
+		Convert(string) (QuesmaType, bool)
 	}
 	TableProvider interface {
 		TableDefinitions() map[string]Table
@@ -39,7 +40,7 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 	definitions := s.dataSourceTableProvider.TableDefinitions()
 	schemas := make(map[TableName]Schema)
 
-	for indexName, indexConfiguration := range s.configuration.IndexConfig {
+	for indexName, indexConfiguration := range *s.indexConfiguration {
 		fields := make(map[FieldName]Field)
 		aliases := make(map[FieldName]FieldName)
 
@@ -67,7 +68,7 @@ func (s *schemaRegistry) populateSchemaFromDynamicConfiguration(indexName string
 		}
 
 		// TODO replace with notion of ephemeral types (see other identical TODOs)
-		if columnType.Equal(TypePoint) {
+		if columnType.Equal(QuesmaTypePoint) {
 			fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(strings.Replace(column.Name, ".", "::", -1)), Type: columnType}
 		} else {
 			fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: columnType}
@@ -100,7 +101,7 @@ func (s *schemaRegistry) UpdateDynamicConfiguration(name TableName, table Table)
 
 func NewSchemaRegistry(tableProvider TableProvider, configuration *config.QuesmaConfiguration, dataSourceTypeAdapter typeAdapter) Registry {
 	return &schemaRegistry{
-		configuration:           configuration,
+		indexConfiguration:      &configuration.IndexConfig,
 		dataSourceTableProvider: tableProvider,
 		dataSourceTypeAdapter:   dataSourceTypeAdapter,
 		dynamicConfiguration:    make(map[string]Table),
@@ -117,7 +118,7 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 		}
 		if resolvedType, valid := ParseQuesmaType(field.Type.AsString()); valid {
 			// TODO replace with notion of ephemeral types (see other identical TODOs)
-			if resolvedType.Equal(TypePoint) {
+			if resolvedType.Equal(QuesmaTypePoint) {
 				fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(strings.Replace(fieldName.AsString(), ".", "::", -1)), Type: resolvedType}
 			} else {
 				fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(fieldName), Type: resolvedType}
@@ -151,7 +152,7 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: quesmaType}
 				} else {
 					logger.Debug().Msgf("type %s not supported, falling back to keyword", column.Type)
-					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: TypeKeyword}
+					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: QuesmaTypeKeyword}
 				}
 			} else {
 				fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: existing.Type}

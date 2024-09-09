@@ -51,7 +51,7 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 			}
 			colName, _ := strings.CutPrefix(withoutQuotes, `windowed_`)
 
-			if col.ColType.Name == schema.TypePoint.Name {
+			if col.ColType.Name == schema.QuesmaTypePoint.Name {
 				hits := make(model.JsonMap)
 				// TODO suffixes (::lat, ::lon) hardcoded for now
 				// due to insufficient information in the schema

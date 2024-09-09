@@ -18,7 +18,7 @@ import (
 	"quesma/util"
 )
 
-func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, fieldType schema.Type, index string) {
+func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, fieldType schema.QuesmaType, index string) {
 	fieldTypeName := asElasticType(fieldType)
 	fieldCapability := model.FieldCapability{
 		Type:          asElasticType(fieldType),
@@ -67,13 +67,13 @@ func handleFieldCapsIndex(cfg *config.QuesmaConfiguration, schemaRegistry schema
 				addFieldCapabilityFromSchemaRegistry(fields, fieldName.AsString(), field.Type, resolvedIndex)
 				switch field.Type.Name {
 				case "text":
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldKeywordSuffix), schema.TypeKeyword, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldKeywordSuffix), schema.QuesmaTypeKeyword, resolvedIndex)
 				case "keyword":
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldTextSuffix), schema.TypeText, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldTextSuffix), schema.QuesmaTypeText, resolvedIndex)
 				case "map":
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldTextSuffix), schema.TypeText, resolvedIndex)
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldMapKeysSuffix), schema.TypeText, resolvedIndex)
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldMapValuesSuffix), schema.TypeText, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldTextSuffix), schema.QuesmaTypeText, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldMapKeysSuffix), schema.QuesmaTypeText, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldMapValuesSuffix), schema.QuesmaTypeText, resolvedIndex)
 				}
 			}
 
@@ -118,29 +118,29 @@ func HandleFieldCaps(ctx context.Context, cfg *config.QuesmaConfiguration, schem
 	return handleFieldCapsIndex(cfg, schemaRegistry, indexes)
 }
 
-func asElasticType(t schema.Type) string {
+func asElasticType(t schema.QuesmaType) string {
 	switch t.Name {
-	case schema.TypeText.Name:
+	case schema.QuesmaTypeText.Name:
 		return elasticsearch_field_types.FieldTypeText
-	case schema.TypeTimestamp.Name:
+	case schema.QuesmaTypeTimestamp.Name:
 		return elasticsearch_field_types.FieldTypeDate
-	case schema.TypeKeyword.Name:
+	case schema.QuesmaTypeKeyword.Name:
 		return elasticsearch_field_types.FieldTypeKeyword
-	case schema.TypeLong.Name:
+	case schema.QuesmaTypeLong.Name:
 		return elasticsearch_field_types.FieldTypeLong
-	case schema.TypeDate.Name:
+	case schema.QuesmaTypeDate.Name:
 		return elasticsearch_field_types.FieldTypeDate
-	case schema.TypeFloat.Name:
+	case schema.QuesmaTypeFloat.Name:
 		return elasticsearch_field_types.FieldTypeDouble
-	case schema.TypeBoolean.Name:
+	case schema.QuesmaTypeBoolean.Name:
 		return elasticsearch_field_types.FieldTypeBoolean
-	case schema.TypeIp.Name:
+	case schema.QuesmaTypeIp.Name:
 		return elasticsearch_field_types.FieldTypeIp
-	case schema.TypeObject.Name:
+	case schema.QuesmaTypeObject.Name:
 		return elasticsearch_field_types.FieldTypeObject
-	case schema.TypePoint.Name:
+	case schema.QuesmaTypePoint.Name:
 		return elasticsearch_field_types.FieldTypeGeoPoint
-	case schema.TypeInteger.Name:
+	case schema.QuesmaTypeInteger.Name:
 		return elasticsearch_field_types.FieldTypeInteger
 	default:
 		return elasticsearch_field_types.FieldTypeText
