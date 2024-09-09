@@ -35,18 +35,19 @@ func TestAlterTable(t *testing.T) {
 		"{\"attributes_values\":{},\"attributes_metadata\":{},\"Test1\":1,\"Test2\":2}",
 	}
 	alters := []string{
-		"ALTER TABLE \"\" ADD COLUMN IF NOT EXISTS \"Test1\" Nullable(Int64)",
-		"ALTER TABLE \"\" ADD COLUMN IF NOT EXISTS \"Test2\" Nullable(Int64)",
+		"ALTER TABLE \"tableName\" ADD COLUMN IF NOT EXISTS \"Test1\" Nullable(Int64)",
+		"ALTER TABLE \"tableName\" ADD COLUMN IF NOT EXISTS \"Test2\" Nullable(Int64)",
 	}
 	columns := []string{"Test1", "Test2"}
 	table := &Table{
+		Name: "tableName",
 		Cols: map[string]*Column{},
 	}
 	fieldsMap := concurrent.NewMapWith("tableName", table)
 
 	lm := NewLogManager(fieldsMap, &config.QuesmaConfiguration{})
 	for i := range rowsToInsert {
-		insert, alter, err := lm.BuildIngestSQLStatements("tableName", types.MustJSON(rowsToInsert[i]), nil, chConfig)
+		insert, alter, err := lm.BuildIngestSQLStatements(table, types.MustJSON(rowsToInsert[i]), nil, chConfig)
 		assert.Equal(t, expectedInsert[i], insert)
 		assert.Equal(t, alters[i], alter[0])
 		// Table will grow with each iteration
@@ -93,10 +94,11 @@ func TestAlterTableHeuristic(t *testing.T) {
 		{1000, 1000, 1},
 	}
 	for _, tc := range testcases {
+		const tableName = "tableName"
 		table := &Table{
+			Name: tableName,
 			Cols: map[string]*Column{},
 		}
-		const tableName = "tableName"
 		fieldsMap := concurrent.NewMapWith(tableName, table)
 		lm := NewLogManager(fieldsMap, &config.QuesmaConfiguration{})
 
@@ -119,7 +121,7 @@ func TestAlterTableHeuristic(t *testing.T) {
 
 		assert.Equal(t, int64(0), lm.ingestCounter)
 		for i := range rowsToInsert {
-			_, _, err := lm.BuildIngestSQLStatements(tableName, types.MustJSON(rowsToInsert[i]), nil, chConfig)
+			_, _, err := lm.BuildIngestSQLStatements(table, types.MustJSON(rowsToInsert[i]), nil, chConfig)
 			assert.NoError(t, err)
 		}
 		assert.Equal(t, tc.expected, len(table.Cols))
