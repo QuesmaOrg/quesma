@@ -121,7 +121,7 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameF
 		default:
 			logger.Warn().Msgf("Unsupported field type '%s' for field '%s' when trying to create a table. Ignoring that field.", field.Type.Name, field.PropertyName.AsString())
 			continue
-		case schema.TypePoint.Name:
+		case schema.QuesmaTypePoint.Name:
 			lat := nameFormatter.Format(internalPropertyName, "lat")
 			lon := nameFormatter.Format(internalPropertyName, "lon")
 			resultColumns[schema.FieldName(lat)] = CreateTableEntry{ClickHouseColumnName: lat, ClickHouseType: "Nullable(String)"}
@@ -129,25 +129,25 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameF
 			continue
 
 		// Simple types:
-		case schema.TypeText.Name:
+		case schema.QuesmaTypeText.Name:
 			fType = "Nullable(String)"
-		case schema.TypeKeyword.Name:
+		case schema.QuesmaTypeKeyword.Name:
 			fType = "Nullable(String)"
-		case schema.TypeLong.Name:
+		case schema.QuesmaTypeLong.Name:
 			fType = "Nullable(Int64)"
-		case schema.TypeUnsignedLong.Name:
+		case schema.QuesmaTypeUnsignedLong.Name:
 			fType = "Nullable(Uint64)"
-		case schema.TypeTimestamp.Name:
+		case schema.QuesmaTypeTimestamp.Name:
 			fType = "Nullable(DateTime64)"
-		case schema.TypeDate.Name:
+		case schema.QuesmaTypeDate.Name:
 			fType = "Nullable(Date)"
 			// TODO: This (and Nullable(DateTime64) above) can be problematic for ingest when when set by user explicitly. We should either not use Nullable in this case
 			// or add some validation logic so that its handled properly.
 			// Example if someone sets `type: date` to a field in schemaOverrides AND this is a timestamp field for which we have dedicated logic (use DateTime64 + add DEFAULT now64())
 			// Ingest will FAIL creating table with "Sorting key contains nullable columns, but merge tree setting `allow_nullable_key` is disabled"
-		case schema.TypeFloat.Name:
+		case schema.QuesmaTypeFloat.Name:
 			fType = "Nullable(Float64)"
-		case schema.TypeBoolean.Name:
+		case schema.QuesmaTypeBoolean.Name:
 			fType = "Nullable(Bool)"
 		}
 		resultColumns[schema.FieldName(internalPropertyName)] = CreateTableEntry{ClickHouseColumnName: internalPropertyName, ClickHouseType: fType}

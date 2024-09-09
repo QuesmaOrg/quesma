@@ -41,9 +41,9 @@ func TestSearchOpensearch(t *testing.T) {
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
-			"-@timestamp":  {PropertyName: "-@timestamp", InternalPropertyName: "-@timestamp", Type: schema.TypeDate},
-			"message$*%:;": {PropertyName: "message$*%:;", InternalPropertyName: "message$*%:;", Type: schema.TypeText},
-			"-@bytes":      {PropertyName: "-@bytes", InternalPropertyName: "-@bytes", Type: schema.TypeLong},
+			"-@timestamp":  {PropertyName: "-@timestamp", InternalPropertyName: "-@timestamp", Type: schema.QuesmaTypeDate},
+			"message$*%:;": {PropertyName: "message$*%:;", InternalPropertyName: "message$*%:;", Type: schema.QuesmaTypeText},
+			"-@bytes":      {PropertyName: "-@bytes", InternalPropertyName: "-@bytes", Type: schema.QuesmaTypeLong},
 		},
 	}
 
@@ -187,9 +187,9 @@ func TestHighlighter(t *testing.T) {
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"messeage$*%:;": {PropertyName: "message$*%:;", InternalPropertyName: "message$*%:;", Type: schema.TypeText},
-					"host.name":     {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"@timestamp":    {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.TypeDate},
+					"messeage$*%:;": {PropertyName: "message$*%:;", InternalPropertyName: "message$*%:;", Type: schema.QuesmaTypeText},
+					"host.name":     {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+					"@timestamp":    {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
 				},
 			},
 		},

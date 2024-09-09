@@ -395,10 +395,10 @@ func Test_arrayType(t *testing.T) {
 
 	indexSchema := schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
-			"products::name":     {PropertyName: "products::name", InternalPropertyName: "products::name", InternalPropertyType: "Array(String)", Type: schema.TypeArray},
-			"products::quantity": {PropertyName: "products::quantity", InternalPropertyName: "products::quantity", InternalPropertyType: "Array(Int64)", Type: schema.TypeArray},
-			"products::sku":      {PropertyName: "products::sku", InternalPropertyName: "products::sku", InternalPropertyType: "Array(String)", Type: schema.TypeArray},
-			"order_date":         {PropertyName: "order_date", InternalPropertyName: "order_date", InternalPropertyType: "DateTime64", Type: schema.TypeDate},
+			"products::name":     {PropertyName: "products::name", InternalPropertyName: "products::name", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
+			"products::quantity": {PropertyName: "products::quantity", InternalPropertyName: "products::quantity", InternalPropertyType: "Array(Int64)", Type: schema.QuesmaTypeArray},
+			"products::sku":      {PropertyName: "products::sku", InternalPropertyName: "products::sku", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
+			"order_date":         {PropertyName: "order_date", InternalPropertyName: "order_date", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
 		},
 	}
 
@@ -571,9 +571,9 @@ func TestApplyWildCard(t *testing.T) {
 
 	indexSchema := schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
-			"a": {PropertyName: "a", InternalPropertyName: "a", InternalPropertyType: "String", Type: schema.TypeText},
-			"b": {PropertyName: "b", InternalPropertyName: "b", InternalPropertyType: "String", Type: schema.TypeText},
-			"c": {PropertyName: "c", InternalPropertyName: "c", InternalPropertyType: "String", Type: schema.TypeText},
+			"a": {PropertyName: "a", InternalPropertyName: "a", InternalPropertyType: "String", Type: schema.QuesmaTypeText},
+			"b": {PropertyName: "b", InternalPropertyName: "b", InternalPropertyType: "String", Type: schema.QuesmaTypeText},
+			"c": {PropertyName: "c", InternalPropertyName: "c", InternalPropertyType: "String", Type: schema.QuesmaTypeText},
 		},
 	}
 
