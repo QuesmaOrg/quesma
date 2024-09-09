@@ -525,6 +525,9 @@ type NonSchemaField struct {
 }
 
 func generateNonSchemaStr(nonSchemaFields []NonSchemaField) string {
+	if len(nonSchemaFields) <= 0 {
+		return ""
+	}
 	attributesColumns := []string{AttributesValuesColumn, AttributesMetadataColumn}
 	var nonSchemaStr string
 	for columnIndex, column := range attributesColumns {
@@ -535,11 +538,7 @@ func generateNonSchemaStr(nonSchemaFields []NonSchemaField) string {
 		nonSchemaStr += "\"" + column + "\":{"
 		for i := 0; i < len(nonSchemaFields); i++ {
 			if columnIndex > 0 {
-				// We are versioning metadata fields
-				// At the moment we store only types
-				// but that might change in the future
-				const metadataVersionPrefix = "v1"
-				value = metadataVersionPrefix + ";" + nonSchemaFields[i].Type
+				value = nonSchemaFields[i].Type
 			} else {
 				value = nonSchemaFields[i].Value
 			}
@@ -573,10 +572,20 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) ([]NonSche
 				// but that might change in the future
 				const metadataVersionPrefix = "v1"
 				value = metadataVersionPrefix + ";" + attrTypes[i]
+				if i > len(nonSchemaFields)-1 {
+					nonSchemaFields = append(nonSchemaFields, NonSchemaField{Key: attrKeys[i], Value: "", Type: value})
+				} else {
+					nonSchemaFields[i].Type = value
+				}
 			} else {
 				value = attrValues[i]
+				if i > len(nonSchemaFields)-1 {
+					nonSchemaFields = append(nonSchemaFields, NonSchemaField{Key: attrKeys[i], Value: value, Type: ""})
+				} else {
+					nonSchemaFields[i].Value = value
+				}
+
 			}
-			nonSchemaFields = append(nonSchemaFields, NonSchemaField{Key: attrKeys[i], Value: value, Type: attrTypes[i]})
 		}
 	}
 	return nonSchemaFields, nil
