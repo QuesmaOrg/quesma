@@ -3,15 +3,15 @@
 package quesma
 
 import (
-	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/types"
+	"quesma/schema"
 	"strings"
 )
 
 type mapTypeResolver struct {
-	table *clickhouse.Table
+	indexSchema schema.Schema
 }
 
 type searchScope int
@@ -47,10 +47,10 @@ func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScop
 	}
 
 	tableColumnName := strings.ReplaceAll(fieldName, ".", "::")
-	col, ok := v.table.Cols[tableColumnName]
+	col, ok := v.indexSchema.Fields[schema.FieldName(tableColumnName)]
 
 	if ok {
-		if strings.HasPrefix(col.Type.String(), "Map") {
+		if strings.HasPrefix(col.InternalPropertyType, "Map") {
 			return true, scope, tableColumnName
 		}
 	}
