@@ -518,10 +518,45 @@ func (lm *LogManager) generateNewColumns(
 	return alterCmd
 }
 
-func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, error) {
+type NonSchemaField struct {
+	Key   string
+	Value string
+	Type  string
+}
+
+func generateNonSchemaStr(nonSchemaFields []NonSchemaField) string {
+	attributesColumns := []string{AttributesValuesColumn, AttributesMetadataColumn}
 	var nonSchemaStr string
+	for columnIndex, column := range attributesColumns {
+		var value string
+		if columnIndex > 0 {
+			nonSchemaStr += ","
+		}
+		nonSchemaStr += "\"" + column + "\":{"
+		for i := 0; i < len(nonSchemaFields); i++ {
+			if columnIndex > 0 {
+				// We are versioning metadata fields
+				// At the moment we store only types
+				// but that might change in the future
+				const metadataVersionPrefix = "v1"
+				value = metadataVersionPrefix + ";" + nonSchemaFields[i].Type
+			} else {
+				value = nonSchemaFields[i].Value
+			}
+			if i > 0 {
+				nonSchemaStr += ","
+			}
+			nonSchemaStr += fmt.Sprintf("\"%s\":\"%s\"", nonSchemaFields[i].Key, value)
+		}
+		nonSchemaStr = nonSchemaStr + "}"
+	}
+	return nonSchemaStr
+}
+
+func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) ([]NonSchemaField, error) {
+	var nonSchemaFields []NonSchemaField
 	if len(attrsMap) <= 0 {
-		return nonSchemaStr, nil
+		return nonSchemaFields, nil
 	}
 	attrKeys := getAttributesByArrayName(DeprecatedAttributesKeyColumn, attrsMap)
 	attrValues := getAttributesByArrayName(DeprecatedAttributesValueColumn, attrsMap)
@@ -529,12 +564,8 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 
 	attributesColumns := []string{AttributesValuesColumn, AttributesMetadataColumn}
 
-	for columnIndex, column := range attributesColumns {
+	for columnIndex, _ := range attributesColumns {
 		var value string
-		if columnIndex > 0 {
-			nonSchemaStr += ","
-		}
-		nonSchemaStr += "\"" + column + "\":{"
 		for i := 0; i < len(attrKeys); i++ {
 			if columnIndex > 0 {
 				// We are versioning metadata fields
@@ -545,15 +576,10 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 			} else {
 				value = attrValues[i]
 			}
-			if i > 0 {
-				nonSchemaStr += ","
-			}
-			nonSchemaStr += fmt.Sprintf("\"%s\":\"%s\"", attrKeys[i], value)
+			nonSchemaFields = append(nonSchemaFields, NonSchemaField{Key: attrKeys[i], Value: value, Type: attrTypes[i]})
 		}
-		nonSchemaStr = nonSchemaStr + "}"
-
 	}
-	return nonSchemaStr, nil
+	return nonSchemaFields, nil
 }
 
 // This function implements heuristic for deciding if we should add new columns
@@ -606,18 +632,18 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 	data types.JSON,
 	inValidJson types.JSON,
 	config *ChTableConfig,
-) (string, []string, error) {
+) (string, []string, types.JSON, []NonSchemaField, error) {
 
 	jsonAsBytesSlice, err := json.Marshal(data)
 
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, nil, err
 	}
 
 	// we find all non-schema fields
 	jsonMap, err := types.ParseJSON(string(jsonAsBytesSlice))
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, nil, err
 	}
 
 	wasReplaced := replaceDotsWithSeparator(jsonMap)
@@ -626,30 +652,30 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 		// if we don't have any attributes, and it wasn't replaced,
 		// we don't need to modify the json
 		if !wasReplaced {
-			return string(jsonAsBytesSlice), nil, nil
+			return string(jsonAsBytesSlice), nil, jsonMap, nil, nil
 		}
 		rawBytes, err := jsonMap.Bytes()
 		if err != nil {
-			return "", nil, err
+			return "", nil, nil, nil, err
 		}
-		return string(rawBytes), nil, nil
+		return string(rawBytes), nil, jsonMap, nil, nil
 	}
 
 	schemaFieldsJson, err := json.Marshal(jsonMap)
 
 	if err != nil {
-		return "", nil, err
+		return "", nil, jsonMap, nil, err
 	}
 
 	mDiff := DifferenceMap(jsonMap, table) // TODO change to DifferenceMap(m, t)
 
 	if len(mDiff) == 0 && string(schemaFieldsJson) == string(jsonAsBytesSlice) && len(inValidJson) == 0 { // no need to modify, just insert 'js'
-		return string(jsonAsBytesSlice), nil, nil
+		return string(jsonAsBytesSlice), nil, jsonMap, nil, nil
 	}
 
 	// check attributes precondition
 	if len(config.attributes) <= 0 {
-		return "", nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
+		return "", nil, nil, nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
 	}
 	attrsMap, _ := BuildAttrsMap(mDiff, config)
 
@@ -669,24 +695,20 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 	// addInvalidJsonFieldsToAttributes returns a new map with invalid fields added
 	// this map is then used to generate non-schema fields string
 	attrsMapWithInvalidFields := addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
-	nonSchemaStr, err := generateNonSchemaFieldsString(attrsMapWithInvalidFields)
+	nonSchemaFields, err := generateNonSchemaFieldsString(attrsMapWithInvalidFields)
 
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, nil, err
 	}
 
 	onlySchemaFields := RemoveNonSchemaFields(jsonMap, table)
 	schemaFieldsJson, err = json.Marshal(onlySchemaFields)
 
 	if err != nil {
-		return "", nil, err
-	}
-	comma := ""
-	if nonSchemaStr != "" && len(schemaFieldsJson) > 2 {
-		comma = "," // need to watch out where we input commas, CH doesn't tolerate trailing ones
+		return "", nil, nil, nil, err
 	}
 
-	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), alterCmd, nil
+	return fmt.Sprintf("{%s%s%s", "", "", schemaFieldsJson[1:]), alterCmd, onlySchemaFields, nonSchemaFields, nil
 }
 
 func (lm *LogManager) processInsertQuery(ctx context.Context,
@@ -755,8 +777,18 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 	for i, preprocessedJson := range preprocessedJsons {
 		// TODO this is doing nested field encoding
 		// ----------------------
-		insertJson, alter, err := lm.BuildIngestSQLStatements(table, preprocessedJson,
+		insertJson, alter, onlySchemaFields, nonSchemaFields, err := lm.BuildIngestSQLStatements(table, preprocessedJson,
 			invalidJsons[i], tableConfig)
+		nonSchemaStr := generateNonSchemaStr(nonSchemaFields)
+		schemaFieldsJson, err := json.Marshal(onlySchemaFields)
+		if err != nil {
+			panic(err)
+		}
+		comma := ""
+		if nonSchemaStr != "" && len(schemaFieldsJson) > 2 {
+			comma = "," // need to watch out where we input commas, CH doesn't tolerate trailing ones
+		}
+		insertJson = fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:])
 		// ----------------------
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
