@@ -641,18 +641,18 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 	data types.JSON,
 	inValidJson types.JSON,
 	config *ChTableConfig,
-) (string, []string, types.JSON, []NonSchemaField, error) {
+) ([]string, types.JSON, []NonSchemaField, error) {
 
 	jsonAsBytesSlice, err := json.Marshal(data)
 
 	if err != nil {
-		return "", nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// we find all non-schema fields
 	jsonMap, err := types.ParseJSON(string(jsonAsBytesSlice))
 	if err != nil {
-		return "", nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	wasReplaced := replaceDotsWithSeparator(jsonMap)
@@ -661,30 +661,26 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 		// if we don't have any attributes, and it wasn't replaced,
 		// we don't need to modify the json
 		if !wasReplaced {
-			return string(jsonAsBytesSlice), nil, jsonMap, nil, nil
+			return nil, jsonMap, nil, nil
 		}
-		rawBytes, err := jsonMap.Bytes()
-		if err != nil {
-			return "", nil, nil, nil, err
-		}
-		return string(rawBytes), nil, jsonMap, nil, nil
+		return nil, jsonMap, nil, nil
 	}
 
 	schemaFieldsJson, err := json.Marshal(jsonMap)
 
 	if err != nil {
-		return "", nil, jsonMap, nil, err
+		return nil, jsonMap, nil, err
 	}
 
 	mDiff := DifferenceMap(jsonMap, table) // TODO change to DifferenceMap(m, t)
 
 	if len(mDiff) == 0 && string(schemaFieldsJson) == string(jsonAsBytesSlice) && len(inValidJson) == 0 { // no need to modify, just insert 'js'
-		return string(jsonAsBytesSlice), nil, jsonMap, nil, nil
+		return nil, jsonMap, nil, nil
 	}
 
 	// check attributes precondition
 	if len(config.attributes) <= 0 {
-		return "", nil, nil, nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
+		return nil, nil, nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
 	}
 	attrsMap, _ := BuildAttrsMap(mDiff, config)
 
@@ -707,17 +703,17 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 	nonSchemaFields, err := generateNonSchemaFieldsString(attrsMapWithInvalidFields)
 
 	if err != nil {
-		return "", nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	onlySchemaFields := RemoveNonSchemaFields(jsonMap, table)
 	schemaFieldsJson, err = json.Marshal(onlySchemaFields)
 
 	if err != nil {
-		return "", nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return fmt.Sprintf("{%s%s%s", "", "", schemaFieldsJson[1:]), alterCmd, onlySchemaFields, nonSchemaFields, nil
+	return alterCmd, onlySchemaFields, nonSchemaFields, nil
 }
 
 func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types.JSON) string {
@@ -799,7 +795,7 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 	for i, preprocessedJson := range preprocessedJsons {
 		// TODO this is doing nested field encoding
 		// ----------------------
-		_, alter, onlySchemaFields, nonSchemaFields, err := lm.BuildIngestSQLStatements(table, preprocessedJson,
+		alter, onlySchemaFields, nonSchemaFields, err := lm.BuildIngestSQLStatements(table, preprocessedJson,
 			invalidJsons[i], tableConfig)
 		insertJson := generateInsertJson(nonSchemaFields, onlySchemaFields)
 		// ----------------------
