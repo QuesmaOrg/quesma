@@ -783,7 +783,9 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 	for i, preprocessedJson := range preprocessedJsons {
 		// TODO this is doing nested field encoding
 		// ----------------------
-		replaceDotsWithSeparator(preprocessedJson)
+		transformFieldName(preprocessedJson, func(field string) string {
+			return strings.Replace(field, ".", "::", -1)
+		})
 		// ----------------------
 		alter, onlySchemaFields, nonSchemaFields, err := lm.BuildIngestSQLStatements(table, preprocessedJson,
 			invalidJsons[i], tableConfig)

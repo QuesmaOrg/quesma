@@ -5,25 +5,31 @@ package clickhouse
 import (
 	"github.com/stretchr/testify/assert"
 	"quesma/quesma/types"
+	"strings"
 	"testing"
 )
 
 func Test_removeDotsFromJsons(t *testing.T) {
 	hostNameStr := `{"host.name": "alpha"}`
 	hostNameJson, _ := types.ParseJSON(hostNameStr)
-	assert.True(t, replaceDotsWithSeparator(hostNameJson))
+
+	fieldTransform := func(field string) string {
+		return strings.ReplaceAll(field, ".", "::")
+	}
+
+	assert.True(t, transformFieldName(hostNameJson, fieldTransform))
 	newBytes, _ := hostNameJson.Bytes()
 	assert.Equal(t, `{"host::name":"alpha"}`, string(newBytes))
 
 	nestedStr := `{"cloud": {"host.name":"alpha"}}`
 	nestedJson, _ := types.ParseJSON(nestedStr)
-	assert.True(t, replaceDotsWithSeparator(nestedJson))
+	assert.True(t, transformFieldName(nestedJson, fieldTransform))
 	newNested, _ := nestedJson.Bytes()
 	assert.Equal(t, `{"cloud":{"host::name":"alpha"}}`, string(newNested))
 
 	noChange := `{"host_name": "alpha"}`
 	noChangeJson, _ := types.ParseJSON(noChange)
-	assert.False(t, replaceDotsWithSeparator(noChangeJson))
+	assert.False(t, transformFieldName(noChangeJson, fieldTransform))
 	newNoChange, _ := noChangeJson.Bytes()
 	assert.Equal(t, `{"host_name":"alpha"}`, string(newNoChange))
 }
