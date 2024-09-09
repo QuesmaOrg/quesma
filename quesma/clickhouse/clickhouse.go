@@ -637,7 +637,7 @@ func (lm *LogManager) shouldAlterColumns(table *Table, attrsMap map[string][]int
 	return false, nil
 }
 
-func (lm *LogManager) BuildIngestSQLStatements(table *Table,
+func (lm *LogManager) GenerateIngestContent(table *Table,
 	data types.JSON,
 	inValidJson types.JSON,
 	config *ChTableConfig,
@@ -717,6 +717,17 @@ func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), err
 }
 
+func generateSqlStatements(alterCmd []string, insert string) []string {
+	var statements []string
+	statements = append(statements, alterCmd...)
+	statements = append(statements, insert)
+	return statements
+}
+
+func fieldToColumnEncoder(field string) string {
+	return strings.Replace(field, ".", "::", -1)
+}
+
 func (lm *LogManager) processInsertQuery(ctx context.Context,
 	tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
@@ -743,16 +754,16 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 
 		columnsFromJson := JsonToColumns("", jsonData[0], 1,
 			tableConfig, tableFormatter, ignoredFields)
-		// TODO this is doing nested field encoding
-		// ----------------------
 		for i, column := range columnsFromJson {
-			column.ClickHouseColumnName = strings.Replace(column.ClickHouseColumnName, ".", "::", -1)
+			// TODO this is doing nested field encoding
+			// ----------------------
+			column.ClickHouseColumnName = fieldToColumnEncoder(column.ClickHouseColumnName)
 			if slices.Contains(ignoredFields, config.FieldName(strings.Replace(column.ClickHouseColumnName, "::", ".", -1))) {
 				continue
 			}
 			columnsFromJson[i] = column
+			// ----------------------
 		}
-		// ----------------------
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), tableFormatter)
 		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
 		createTableCmd := createTableQuery(tableName, columns, tableConfig)
@@ -784,10 +795,10 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		// TODO this is doing nested field encoding
 		// ----------------------
 		transformFieldName(preprocessedJson, func(field string) string {
-			return strings.Replace(field, ".", "::", -1)
+			return fieldToColumnEncoder(field)
 		})
 		// ----------------------
-		alter, onlySchemaFields, nonSchemaFields, err := lm.BuildIngestSQLStatements(table, preprocessedJson,
+		alter, onlySchemaFields, nonSchemaFields, err := lm.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], tableConfig)
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
@@ -805,10 +816,7 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
-	var statements []string
-	statements = append(statements, alterCmd...)
-	statements = append(statements, insert)
-	return statements, nil
+	return generateSqlStatements(alterCmd, insert), nil
 }
 
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
