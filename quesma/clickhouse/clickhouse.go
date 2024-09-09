@@ -564,7 +564,7 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) ([]NonSche
 
 	attributesColumns := []string{AttributesValuesColumn, AttributesMetadataColumn}
 
-	for columnIndex, _ := range attributesColumns {
+	for columnIndex := range attributesColumns {
 		var value string
 		for i := 0; i < len(attrKeys); i++ {
 			if columnIndex > 0 {
@@ -711,6 +711,19 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 	return fmt.Sprintf("{%s%s%s", "", "", schemaFieldsJson[1:]), alterCmd, onlySchemaFields, nonSchemaFields, nil
 }
 
+func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types.JSON) string {
+	nonSchemaStr := generateNonSchemaStr(nonSchemaFields)
+	schemaFieldsJson, err := json.Marshal(onlySchemaFields)
+	if err != nil {
+		panic(err)
+	}
+	comma := ""
+	if nonSchemaStr != "" && len(schemaFieldsJson) > 2 {
+		comma = ","
+	}
+	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:])
+}
+
 func (lm *LogManager) processInsertQuery(ctx context.Context,
 	tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
@@ -777,18 +790,9 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 	for i, preprocessedJson := range preprocessedJsons {
 		// TODO this is doing nested field encoding
 		// ----------------------
-		insertJson, alter, onlySchemaFields, nonSchemaFields, err := lm.BuildIngestSQLStatements(table, preprocessedJson,
+		_, alter, onlySchemaFields, nonSchemaFields, err := lm.BuildIngestSQLStatements(table, preprocessedJson,
 			invalidJsons[i], tableConfig)
-		nonSchemaStr := generateNonSchemaStr(nonSchemaFields)
-		schemaFieldsJson, err := json.Marshal(onlySchemaFields)
-		if err != nil {
-			panic(err)
-		}
-		comma := ""
-		if nonSchemaStr != "" && len(schemaFieldsJson) > 2 {
-			comma = "," // need to watch out where we input commas, CH doesn't tolerate trailing ones
-		}
-		insertJson = fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:])
+		insertJson := generateInsertJson(nonSchemaFields, onlySchemaFields)
 		// ----------------------
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {

@@ -47,7 +47,8 @@ func TestAlterTable(t *testing.T) {
 
 	lm := NewLogManager(fieldsMap, &config.QuesmaConfiguration{})
 	for i := range rowsToInsert {
-		insert, alter, err := lm.BuildIngestSQLStatements(table, types.MustJSON(rowsToInsert[i]), nil, chConfig)
+		_, alter, onlySchemaFields, nonSchemaFields, err := lm.BuildIngestSQLStatements(table, types.MustJSON(rowsToInsert[i]), nil, chConfig)
+		insert := generateInsertJson(nonSchemaFields, onlySchemaFields)
 		assert.Equal(t, expectedInsert[i], insert)
 		assert.Equal(t, alters[i], alter[0])
 		// Table will grow with each iteration
@@ -121,7 +122,7 @@ func TestAlterTableHeuristic(t *testing.T) {
 
 		assert.Equal(t, int64(0), lm.ingestCounter)
 		for i := range rowsToInsert {
-			_, _, err := lm.BuildIngestSQLStatements(table, types.MustJSON(rowsToInsert[i]), nil, chConfig)
+			_, _, _, _, err := lm.BuildIngestSQLStatements(table, types.MustJSON(rowsToInsert[i]), nil, chConfig)
 			assert.NoError(t, err)
 		}
 		assert.Equal(t, tc.expected, len(table.Cols))
