@@ -177,7 +177,7 @@ func incorrectResult(testName string) bool {
 		"Output more or less works, but is different and worse than what Elastic returns."+
 		"If it starts failing, maybe that's a good thing(file:clients/kunkka,nr:0)"
 	// below test is replacing it
-	// strings.HasPrefix( "it's the same input as in previous test, but with the original output from Elastic."+
+	// testName == "it's the same input as in previous test, but with the original output from Elastic."+
 	//	"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
 	//	"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix"
 	return t1 || t2 || t3
