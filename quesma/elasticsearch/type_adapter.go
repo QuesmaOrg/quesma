@@ -10,27 +10,27 @@ import (
 type SchemaTypeAdapter struct {
 }
 
-func (e SchemaTypeAdapter) Convert(s string) (schema.Type, bool) {
+func (e SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
 	switch s {
 	case elasticsearch_field_types.FieldTypeText:
-		return schema.TypeText, true
+		return schema.QuesmaTypeText, true
 	case elasticsearch_field_types.FieldTypeKeyword:
-		return schema.TypeKeyword, true
+		return schema.QuesmaTypeKeyword, true
 	case elasticsearch_field_types.FieldTypeLong:
-		return schema.TypeLong, true
+		return schema.QuesmaTypeLong, true
 	case elasticsearch_field_types.FieldTypeDate:
-		return schema.TypeDate, true
+		return schema.QuesmaTypeDate, true
 	case elasticsearch_field_types.FieldTypeDateNanos:
-		return schema.TypeDate, true
+		return schema.QuesmaTypeDate, true
 	case elasticsearch_field_types.FieldTypeDouble:
-		return schema.TypeFloat, true
+		return schema.QuesmaTypeFloat, true
 	case elasticsearch_field_types.FieldTypeBoolean:
-		return schema.TypeBoolean, true
+		return schema.QuesmaTypeBoolean, true
 	case elasticsearch_field_types.FieldTypeIp:
-		return schema.TypeIp, true
+		return schema.QuesmaTypeIp, true
 	case elasticsearch_field_types.FieldTypeGeoPoint:
-		return schema.TypePoint, true
+		return schema.QuesmaTypePoint, true
 	default:
-		return schema.TypeUnknown, false
+		return schema.QuesmaTypeUnknown, false
 	}
 }

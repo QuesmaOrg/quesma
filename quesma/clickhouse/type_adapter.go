@@ -10,38 +10,38 @@ import (
 type SchemaTypeAdapter struct {
 }
 
-func (c SchemaTypeAdapter) Convert(s string) (schema.Type, bool) {
+func (c SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
 	for isArray(s) {
 		s = arrayType(s)
 	}
 	switch {
 	case strings.HasPrefix(s, "Unknown"):
-		return schema.TypeUnknown, true
+		return schema.QuesmaTypeUnknown, true
 	case strings.HasPrefix(s, "Tuple"):
-		return schema.TypeObject, true
+		return schema.QuesmaTypeObject, true
 	}
 
 	switch s {
 	case "String", "LowCardinality(String)":
-		return schema.TypeKeyword, true
+		return schema.QuesmaTypeKeyword, true
 	case "Int", "Int8", "Int16", "Int32", "Int64":
-		return schema.TypeLong, true
+		return schema.QuesmaTypeLong, true
 	case "UInt8", "UInt16", "UInt32", "UInt64", "UInt128", "UInt256":
-		return schema.TypeInteger, true
+		return schema.QuesmaTypeInteger, true
 	case "Bool":
-		return schema.TypeBoolean, true
+		return schema.QuesmaTypeBoolean, true
 	case "Float32", "Float64":
-		return schema.TypeFloat, true
+		return schema.QuesmaTypeFloat, true
 	case "DateTime", "DateTime64":
-		return schema.TypeTimestamp, true
+		return schema.QuesmaTypeTimestamp, true
 	case "Date":
-		return schema.TypeDate, true
+		return schema.QuesmaTypeDate, true
 	case "Point":
-		return schema.TypePoint, true
+		return schema.QuesmaTypePoint, true
 	case "Map(String, Nullable(String))", "Map(String, String)":
-		return schema.TypeMap, true
+		return schema.QuesmaTypeMap, true
 	default:
-		return schema.TypeUnknown, false
+		return schema.QuesmaTypeUnknown, false
 	}
 }
 

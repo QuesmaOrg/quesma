@@ -30,7 +30,7 @@ func ParseMappings(namespace string, mappings map[string]interface{}) map[string
 
 		if typeMapping := fieldMappingAsMap["type"]; typeMapping != nil {
 			parsedType, _ := ParseElasticType(typeMapping.(string))
-			if parsedType.Name == schema.TypeUnknown.Name {
+			if parsedType.Name == schema.QuesmaTypeUnknown.Name {
 				logger.Warn().Msgf("unknown type '%v' of field %s", typeMapping, fieldName)
 			}
 			result[fieldName] = schema.Column{Name: fieldName, Type: parsedType.Name}
@@ -47,7 +47,7 @@ func ParseMappings(namespace string, mappings map[string]interface{}) map[string
 func GenerateMappings(schemaNode *schema.SchemaTreeNode) map[string]any {
 	if schemaNode.Field != nil {
 		result := map[string]any{"type": schemaTypeToElasticType(schemaNode.Field.Type)}
-		if schemaNode.Field.Type.Name == schema.TypeText.Name {
+		if schemaNode.Field.Type.Name == schema.QuesmaTypeText.Name {
 			result["fields"] = map[string]any{
 				"keyword": map[string]any{"type": "keyword"},
 			}
@@ -63,57 +63,57 @@ func GenerateMappings(schemaNode *schema.SchemaTreeNode) map[string]any {
 }
 
 // FIXME: should be in elasticsearch_field_types, but this causes import cycle
-func ParseElasticType(t string) (schema.Type, bool) {
+func ParseElasticType(t string) (schema.QuesmaType, bool) {
 	switch t {
 	case elasticsearch_field_types.FieldTypeText:
-		return schema.TypeText, true
+		return schema.QuesmaTypeText, true
 	case elasticsearch_field_types.FieldTypeKeyword:
-		return schema.TypeKeyword, true
+		return schema.QuesmaTypeKeyword, true
 	case elasticsearch_field_types.FieldTypeLong, elasticsearch_field_types.FieldTypeInteger, elasticsearch_field_types.FieldTypeShort, elasticsearch_field_types.FieldTypeByte:
-		return schema.TypeLong, true
+		return schema.QuesmaTypeLong, true
 	case elasticsearch_field_types.FieldTypeDate:
-		return schema.TypeTimestamp, true
+		return schema.QuesmaTypeTimestamp, true
 	case elasticsearch_field_types.FieldTypeFloat, elasticsearch_field_types.FieldTypeHalfFloat, elasticsearch_field_types.FieldTypeDouble:
-		return schema.TypeFloat, true
+		return schema.QuesmaTypeFloat, true
 	case elasticsearch_field_types.FieldTypeBoolean:
-		return schema.TypeBoolean, true
+		return schema.QuesmaTypeBoolean, true
 	case elasticsearch_field_types.FieldTypeIp:
-		return schema.TypeIp, true
+		return schema.QuesmaTypeIp, true
 	case elasticsearch_field_types.FieldTypeGeoPoint:
-		return schema.TypePoint, true
+		return schema.QuesmaTypePoint, true
 	default:
-		return schema.TypeUnknown, false
+		return schema.QuesmaTypeUnknown, false
 	}
 }
 
-func schemaTypeToElasticType(t schema.Type) string {
+func schemaTypeToElasticType(t schema.QuesmaType) string {
 	switch t.Name {
-	case schema.TypeText.Name:
+	case schema.QuesmaTypeText.Name:
 		return elasticsearch_field_types.FieldTypeText
-	case schema.TypeKeyword.Name:
+	case schema.QuesmaTypeKeyword.Name:
 		return elasticsearch_field_types.FieldTypeKeyword
-	case schema.TypeInteger.Name:
+	case schema.QuesmaTypeInteger.Name:
 		return elasticsearch_field_types.FieldTypeInteger
-	case schema.TypeLong.Name:
+	case schema.QuesmaTypeLong.Name:
 		return elasticsearch_field_types.FieldTypeLong
-	case schema.TypeUnsignedLong.Name:
+	case schema.QuesmaTypeUnsignedLong.Name:
 		return elasticsearch_field_types.FieldTypeUnsignedLong
-	case schema.TypeTimestamp.Name:
+	case schema.QuesmaTypeTimestamp.Name:
 		return elasticsearch_field_types.FieldTypeDate
-	case schema.TypeDate.Name:
+	case schema.QuesmaTypeDate.Name:
 		return elasticsearch_field_types.FieldTypeDate
-	case schema.TypeFloat.Name:
+	case schema.QuesmaTypeFloat.Name:
 		return elasticsearch_field_types.FieldTypeDouble
-	case schema.TypeBoolean.Name:
+	case schema.QuesmaTypeBoolean.Name:
 		return elasticsearch_field_types.FieldTypeBoolean
-	case schema.TypeObject.Name:
+	case schema.QuesmaTypeObject.Name:
 		return elasticsearch_field_types.FieldTypeObject
-	case schema.TypeIp.Name:
+	case schema.QuesmaTypeIp.Name:
 		return elasticsearch_field_types.FieldTypeIp
-	case schema.TypePoint.Name:
+	case schema.QuesmaTypePoint.Name:
 		return elasticsearch_field_types.FieldTypeGeoPoint
 	default:
-		logger.Error().Msgf("Unknown type '%s', defaulting to 'text' type", t.Name)
+		logger.Error().Msgf("Unknown Quesma type '%s', defaulting to 'text' type", t.Name)
 		return elasticsearch_field_types.FieldTypeText
 	}
 }

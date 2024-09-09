@@ -118,7 +118,7 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 		if !found {
 			logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsValue, fromTable)
 		}
-		if !field.Type.Equal(schema.TypeIp) {
+		if !field.Type.Equal(schema.QuesmaTypeIp) {
 			return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
 		}
 		if len(lhsValue) == 0 || len(rhsValue) == 0 {
@@ -188,7 +188,7 @@ func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Qu
 				// This checks if the column is of type point
 				// and if it is, it appends the lat and lon columns to the group by clause
 				field := schemaInstance.Fields[schema.FieldName(col.ColumnName)]
-				if field.Type.Name == schema.TypePoint.Name {
+				if field.Type.Name == schema.QuesmaTypePoint.Name {
 					// TODO suffixes ::lat, ::lon are hardcoded for now
 					groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lat"))
 					groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lon"))
@@ -205,7 +205,7 @@ func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Qu
 				// This checks if the column is of type point
 				// and if it is, it appends the lat and lon columns to the select clause
 				field := schemaInstance.Fields[schema.FieldName(col.ColumnName)]
-				if field.Type.Name == schema.TypePoint.Name {
+				if field.Type.Name == schema.QuesmaTypePoint.Name {
 					// TODO suffixes ::lat, ::lon are hardcoded for now
 					columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lat"))
 					columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lon"))
