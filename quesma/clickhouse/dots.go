@@ -4,13 +4,12 @@ package clickhouse
 
 import (
 	"quesma/quesma/types"
-	"strings"
 )
 
-func replaceDotsWithSeparator(jsonInsert types.JSON) bool {
+func transformFieldName(jsonInsert types.JSON, transformer func(field string) string) bool {
 	gotDots := false
 	for fieldName, v := range jsonInsert {
-		withoutDotsFieldName := strings.Replace(fieldName, ".", "::", -1)
+		withoutDotsFieldName := transformer(fieldName)
 		if fieldName != withoutDotsFieldName {
 			gotDots = true
 			jsonInsert[withoutDotsFieldName] = v
@@ -18,7 +17,7 @@ func replaceDotsWithSeparator(jsonInsert types.JSON) bool {
 			fieldName = withoutDotsFieldName
 		}
 		if nestedJson, isNested := v.(map[string]interface{}); isNested {
-			nestedGotDots := replaceDotsWithSeparator(nestedJson)
+			nestedGotDots := transformFieldName(nestedJson, transformer)
 			gotDots = gotDots || nestedGotDots
 		}
 	}
