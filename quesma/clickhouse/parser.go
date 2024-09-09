@@ -90,22 +90,14 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, chConfig *ChTab
 			if indentLvl == 1 && name == timestampFieldName && chConfig.timestampDefaultsNow {
 				fTypeString += " DEFAULT now64()"
 			}
-
 			// We still may have name like:
 			// "service.name": { "very.name": "value" }
 			// Before that code it would be transformed to:
 			// "service.name::very.name"
 			// So I convert it to:
 			// "service::name::very::name"
+
 			internalName := nameFormatter.Format(namespace, name)
-			// We should never have dots in the field names, see 4 ADR
-			internalName = strings.Replace(internalName, ".", "::", -1)
-
-			// FIXME: linear search, converting back '::' to '.'
-			if slices.Contains(ignoredFields, config.FieldName(strings.Replace(internalName, "::", ".", -1))) {
-				continue
-			}
-
 			resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: internalName, ClickHouseType: fTypeString})
 		}
 	}

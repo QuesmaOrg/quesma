@@ -46,9 +46,11 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 		},
 	})
 
+	tableName, exists := fieldsMap.Load("tableName")
+	assert.True(t, exists)
 	f := func(t1, t2 TableMap) {
 		lm := NewLogManager(fieldsMap, &config.QuesmaConfiguration{})
-		j, alter, err := lm.BuildIngestSQLStatements("tableName", types.MustJSON(rowToInsert), nil, hasOthersConfig)
+		j, alter, err := lm.BuildIngestSQLStatements(tableName, types.MustJSON(rowToInsert), nil, hasOthersConfig)
 		assert.NoError(t, err)
 		assert.Equal(t, 0, len(alter))
 		m := make(SchemaMap)
