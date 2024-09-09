@@ -4,9 +4,9 @@ package quesma
 
 import (
 	"fmt"
-	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/schema"
 	"strings"
 )
 
@@ -18,7 +18,7 @@ import (
 //
 
 type arrayTypeResolver struct {
-	table *clickhouse.Table
+	indexSchema schema.Schema
 }
 
 func (v *arrayTypeResolver) dbColumnType(fieldName string) string {
@@ -29,13 +29,12 @@ func (v *arrayTypeResolver) dbColumnType(fieldName string) string {
 	//
 	fieldName = strings.TrimSuffix(fieldName, ".keyword")
 
-	tableColumnName := strings.ReplaceAll(fieldName, ".", "::")
-	col, ok := v.table.Cols[tableColumnName]
-	if ok {
-		return col.Type.String()
+	field, ok := v.indexSchema.ResolveField(fieldName)
+	if !ok {
+		return ""
 	}
 
-	return ""
+	return field.InternalPropertyType
 }
 
 func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {

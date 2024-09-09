@@ -4,7 +4,6 @@ package quesma
 
 import (
 	"fmt"
-	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/config"
@@ -13,7 +12,12 @@ import (
 	"strings"
 )
 
-func (s *SchemaCheckPass) applyBooleanLiteralLowering(query *model.Query) (*model.Query, error) {
+type SchemaCheckPass struct {
+	cfg            map[string]config.IndexConfiguration
+	schemaRegistry schema.Registry
+}
+
+func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
 
 	visitor := model.NewBaseVisitor()
 
@@ -41,23 +45,6 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(query *model.Query) (*mode
 	return query, nil
 }
 
-type SchemaCheckPass struct {
-	cfg            map[string]config.IndexConfiguration
-	schemaRegistry schema.Registry
-	logManager     *clickhouse.LogManager
-}
-
-// This functions trims the db name from the table name if exists
-// We need to do this due to the way we are storing the schema in the config
-// TableMap is indexed by table name, not db.table name
-func getFromTable(fromTable string) string {
-	// cut db name from table name if exists
-	if idx := strings.IndexByte(fromTable, '.'); idx >= 0 {
-		fromTable = fromTable[idx:]
-		fromTable = strings.Trim(fromTable, ".")
-	}
-	return strings.Trim(fromTable, "\"")
-}
 
 // Below function applies schema transformations to the query regarding ip addresses.
 // Internally, it converts sql statement like
@@ -67,8 +54,9 @@ func getFromTable(fromTable string) string {
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(COALESCE(lhs,'0.0.0.0') AS "String"),rhs) - COALESCE is used to handle NULL values
 //
 //	e.g.: isIPAddressInRange(CAST(COALESCE(IP_ADDR_COLUMN_NAME,'0.0.0.0') AS "String"),'10.10.10.0/24')
-func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Query, error) {
-	fromTable := getFromTable(query.TableName)
+func (s *SchemaCheckPass) applyIpTransformations(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	fromTable := query.TableName
 
 	visitor := model.NewBaseVisitor()
 
@@ -109,12 +97,8 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 		if !strings.Contains(rhsValue, "/") {
 			return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
 		}
-		dataScheme, found := s.schemaRegistry.FindSchema(schema.TableName(fromTable))
-		if !found {
-			logger.Error().Msgf("Schema for table %s not found, this should never happen here", fromTable)
-		}
 
-		field, found := dataScheme.ResolveFieldByInternalName(lhsValue)
+		field, found := indexSchema.ResolveFieldByInternalName(lhsValue)
 		if !found {
 			logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsValue, fromTable)
 		}
@@ -168,8 +152,9 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Query, error) {
-	fromTable := getFromTable(query.TableName)
+func (s *SchemaCheckPass) applyGeoTransformations(currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	fromTable := query.TableName
+
 	visitor := model.NewBaseVisitor()
 	visitor.OverrideVisitSelectCommand = func(b *model.BaseExprVisitor, e model.SelectCommand) interface{} {
 		if s.schemaRegistry == nil {
@@ -233,16 +218,9 @@ func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Qu
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyArrayTransformations(query *model.Query) (*model.Query, error) {
-	fromTable := getFromTable(query.TableName)
+func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
-	table := s.logManager.FindTable(fromTable)
-	if table == nil {
-		logger.Error().Msgf("Table %s not found", fromTable)
-		return query, nil
-	}
-
-	arrayTypeResolver := arrayTypeResolver{table: table}
+	arrayTypeResolver := arrayTypeResolver{indexSchema: indexSchema}
 
 	// check if the query has array columns
 
@@ -278,16 +256,9 @@ func (s *SchemaCheckPass) applyArrayTransformations(query *model.Query) (*model.
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyMapTransformations(query *model.Query) (*model.Query, error) {
-	fromTable := getFromTable(query.TableName)
+func (s *SchemaCheckPass) applyMapTransformations(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
-	table := s.logManager.FindTable(fromTable)
-	if table == nil {
-		logger.Error().Msgf("Table %s not found", fromTable)
-		return query, nil
-	}
-
-	mapResolver := mapTypeResolver{table: table}
+	mapResolver := mapTypeResolver{indexSchema: indexSchema}
 
 	// check if the query has map columns
 
@@ -323,7 +294,7 @@ func (s *SchemaCheckPass) applyMapTransformations(query *model.Query) (*model.Qu
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	if query.TableName == model.SingleTableNamePlaceHolder {
 		logger.Warn().Msg("applyPhysicalFromExpression: physical table name is not set")
@@ -348,14 +319,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(query *model.Query) (*mode
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyWildcardExpansion(query *model.Query) (*model.Query, error) {
-	fromTable := getFromTable(query.TableName)
-
-	table := s.logManager.FindTable(fromTable)
-	if table == nil {
-		logger.Error().Msgf("Table %s not found", fromTable)
-		return query, nil
-	}
+func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	var newColumns []model.Expr
 	var hasWildcard bool
@@ -371,9 +335,9 @@ func (s *SchemaCheckPass) applyWildcardExpansion(query *model.Query) (*model.Que
 
 	if hasWildcard {
 
-		cols := make([]string, 0, len(table.Cols))
-		for _, col := range table.Cols {
-			cols = append(cols, col.Name)
+		cols := make([]string, 0, len(indexSchema.Fields))
+		for _, col := range indexSchema.Fields {
+			cols = append(cols, col.InternalPropertyName.AsString())
 		}
 		sort.Strings(cols)
 
@@ -387,19 +351,11 @@ func (s *SchemaCheckPass) applyWildcardExpansion(query *model.Query) (*model.Que
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyFullTextField(query *model.Query) (*model.Query, error) {
-	fromTable := getFromTable(query.TableName)
-
-	index, ok := s.schemaRegistry.FindSchema(schema.TableName(fromTable))
-
-	if !ok {
-		logger.Warn().Msgf("schema not found for table %s", fromTable)
-		return query, nil
-	}
+func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	var fullTextFields []string
 
-	for _, field := range index.Fields {
+	for _, field := range indexSchema.Fields {
 		if field.Type.IsFullText() {
 			fullTextFields = append(fullTextFields, field.InternalPropertyName.AsString())
 		}
@@ -458,24 +414,33 @@ func (s *SchemaCheckPass) applyFullTextField(query *model.Query) (*model.Query, 
 }
 
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
+
+	transformationChain := []struct {
+		TransformationName string
+		Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
+	}{
+		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
+		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
+		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
+		{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
+		{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
+		{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
+		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
+		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
+	}
+
 	for k, query := range queries {
 		var err error
-		transformationChain := []struct {
-			TransformationName string
-			Transformation     func(*model.Query) (*model.Query, error)
-		}{
-			{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
-			{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
-			{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
-			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
-			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
-			{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
-			{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
-			{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
+
+		indexSchema, ok := s.schemaRegistry.FindSchema(schema.TableName(query.TableName))
+		if !ok {
+			return nil, fmt.Errorf("Schema  %s not found", query.TableName)
 		}
+
 		for _, transformation := range transformationChain {
+
 			inputQuery := query.SelectCommand.String()
-			query, err = transformation.Transformation(query)
+			query, err = transformation.Transformation(indexSchema, query)
 			if err != nil {
 				return nil, err
 			}

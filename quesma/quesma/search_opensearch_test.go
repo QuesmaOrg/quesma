@@ -192,7 +192,7 @@ func TestHighlighter(t *testing.T) {
 	}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
 					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},

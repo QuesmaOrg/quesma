@@ -148,7 +148,7 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 			propertyName := FieldName(strings.Replace(column.Name, "::", ".", -1))
 			if existing, exists := fields[propertyName]; !exists {
 				if quesmaType, resolved := s.dataSourceTypeAdapter.Convert(column.Type); resolved {
-					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: quesmaType}
+					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), InternalPropertyType: column.Type, Type: quesmaType}
 				} else {
 					logger.Debug().Msgf("type %s not supported, falling back to keyword", column.Type)
 					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: TypeKeyword}
