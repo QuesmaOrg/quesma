@@ -708,19 +708,27 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 	}
 	jsonData = processed
 	table := lm.FindTable(tableName)
-	var config *ChTableConfig
+	var tableConfig *ChTableConfig
 	if table == nil {
-		config = NewOnlySchemaFieldsCHConfig()
+		tableConfig = NewOnlySchemaFieldsCHConfig()
 		ignoredFields := lm.getIgnoredFields(tableName)
+
+		columnsFromJson := JsonToColumns("", jsonData[0], 1,
+			tableConfig, tableFormatter, ignoredFields)
 		// TODO this is doing nested field encoding
 		// ----------------------
-		columnsFromJson := JsonToColumns("", jsonData[0], 1,
-			config, tableFormatter, ignoredFields)
+		for i, column := range columnsFromJson {
+			column.ClickHouseColumnName = strings.Replace(column.ClickHouseColumnName, ".", "::", -1)
+			if slices.Contains(ignoredFields, config.FieldName(strings.Replace(column.ClickHouseColumnName, "::", ".", -1))) {
+				continue
+			}
+			columnsFromJson[i] = column
+		}
 		// ----------------------
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), tableFormatter)
 		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
-		createTableCmd := createTableQuery(tableName, columns, config)
-		err := lm.ProcessCreateTableQuery(ctx, createTableCmd, config)
+		createTableCmd := createTableQuery(tableName, columns, tableConfig)
+		err := lm.ProcessCreateTableQuery(ctx, createTableCmd, tableConfig)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error ProcessInsertQuery, can't create table: %v", err)
 			return nil, err
@@ -732,9 +740,9 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
-		config = table.Config
+		tableConfig = table.Config
 	} else {
-		config = table.Config
+		tableConfig = table.Config
 	}
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
@@ -748,7 +756,7 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		// TODO this is doing nested field encoding
 		// ----------------------
 		insertJson, alter, err := lm.BuildIngestSQLStatements(table, preprocessedJson,
-			invalidJsons[i], config)
+			invalidJsons[i], tableConfig)
 		// ----------------------
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
@@ -759,7 +767,6 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
-
 	var statements []string
 	statements = append(statements, alterCmd...)
 	statements = append(statements, insert)
