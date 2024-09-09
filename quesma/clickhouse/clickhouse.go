@@ -655,14 +655,9 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 		return nil, nil, nil, err
 	}
 
-	wasReplaced := replaceDotsWithSeparator(jsonMap)
+	replaceDotsWithSeparator(jsonMap)
 
 	if len(config.attributes) == 0 {
-		// if we don't have any attributes, and it wasn't replaced,
-		// we don't need to modify the json
-		if !wasReplaced {
-			return nil, jsonMap, nil, nil
-		}
 		return nil, jsonMap, nil, nil
 	}
 
@@ -707,26 +702,21 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 	}
 
 	onlySchemaFields := RemoveNonSchemaFields(jsonMap, table)
-	schemaFieldsJson, err = json.Marshal(onlySchemaFields)
-
-	if err != nil {
-		return nil, nil, nil, err
-	}
 
 	return alterCmd, onlySchemaFields, nonSchemaFields, nil
 }
 
-func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types.JSON) string {
+func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types.JSON) (string, error) {
 	nonSchemaStr := generateNonSchemaStr(nonSchemaFields)
 	schemaFieldsJson, err := json.Marshal(onlySchemaFields)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	comma := ""
 	if nonSchemaStr != "" && len(schemaFieldsJson) > 2 {
 		comma = ","
 	}
-	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:])
+	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), err
 }
 
 func (lm *LogManager) processInsertQuery(ctx context.Context,
@@ -797,7 +787,13 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		// ----------------------
 		alter, onlySchemaFields, nonSchemaFields, err := lm.BuildIngestSQLStatements(table, preprocessedJson,
 			invalidJsons[i], tableConfig)
-		insertJson := generateInsertJson(nonSchemaFields, onlySchemaFields)
+		if err != nil {
+			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
+		}
+		insertJson, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
+		if err != nil {
+			return nil, fmt.Errorf("error generatateInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
+		}
 		// ----------------------
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
