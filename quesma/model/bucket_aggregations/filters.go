@@ -59,9 +59,13 @@ func (query Filters) DoesNotHaveGroupBy() bool {
 
 func (query Filters) CombinatorGroups() (result []CombinatorGroup) {
 	for filterIdx, filter := range query.Filters {
+		prefix := fmt.Sprintf("filter_%d__", filterIdx)
+		if len(query.Filters) == 1 {
+			prefix = ""
+		}
 		result = append(result, CombinatorGroup{
 			idx:         filterIdx,
-			Prefix:      fmt.Sprintf("filter_%d__", filterIdx),
+			Prefix:      prefix,
 			Key:         filter.Name,
 			WhereClause: filter.Sql.WhereClause,
 		})
@@ -71,4 +75,12 @@ func (query Filters) CombinatorGroups() (result []CombinatorGroup) {
 
 func (query Filters) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
 	return query.TranslateSqlResponseToJson(rows, 0)
+}
+
+func (query Filters) CombinatorSplit() []model.QueryType {
+	result := make([]model.QueryType, 0, len(query.Filters))
+	for _, filter := range query.Filters {
+		result = append(result, NewFilters(query.ctx, []Filter{filter}))
+	}
+	return result
 }

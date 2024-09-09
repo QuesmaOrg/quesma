@@ -196,6 +196,9 @@ func (query DateRange) DoesNotHaveGroupBy() bool {
 func (query DateRange) CombinatorGroups() (result []CombinatorGroup) {
 	for intervalIdx, interval := range query.Intervals {
 		prefix := fmt.Sprintf("range_%d__", intervalIdx)
+		if len(query.Intervals) == 1 {
+			prefix = ""
+		}
 		result = append(result, CombinatorGroup{
 			idx:         intervalIdx,
 			Prefix:      prefix,
@@ -228,4 +231,12 @@ func (query DateRange) CombinatorTranslateSqlResponseToJson(subGroup CombinatorG
 	}
 
 	return response
+}
+
+func (query DateRange) CombinatorSplit() []model.QueryType {
+	result := make([]model.QueryType, 0, len(query.Intervals))
+	for _, interval := range query.Intervals {
+		result = append(result, NewDateRange(query.ctx, query.FieldName, query.Format, []DateTimeInterval{interval}, query.SelectColumnsNr))
+	}
+	return result
 }

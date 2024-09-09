@@ -5,7 +5,6 @@ package queryparser
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"quesma/logger"
 	"quesma/model"
@@ -62,8 +61,12 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 		copy(innerFieldsAsSelect, metricsAggr.Fields)
 		return innerFieldsAsSelect, nil
 	case "top_metrics":
-		// see other buildMetricsAggregation(), we don't implement it now
-		return nil, errors.New("top_metrics is not implemented yet in version una")
+		innerFieldsAsSelect := make([]model.Expr, len(metricsAggr.Fields))
+		copy(innerFieldsAsSelect, metricsAggr.Fields)
+		if len(metricsAggr.SortBy) > 0 {
+			innerFieldsAsSelect = append(innerFieldsAsSelect, model.NewColumnRef(metricsAggr.SortBy))
+		}
+		return innerFieldsAsSelect, nil
 	case "percentile_ranks":
 		result = make([]model.Expr, 0, len(metricsAggr.CutValues))
 		for _, cutValueAsString := range metricsAggr.CutValues {
@@ -141,7 +144,7 @@ func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) mo
 	case "top_hits":
 		return metrics_aggregations.NewTopHitsWithOrderBy(ctx, metricsAggr.Size, metricsAggr.OrderBy)
 	case "top_metrics":
-		return metrics_aggregations.NewTopMetrics(ctx, metricsAggr.sortByExists())
+		return metrics_aggregations.NewTopMetrics(ctx, metricsAggr.Size, metricsAggr.SortBy, metricsAggr.Order)
 	case "value_count":
 		return metrics_aggregations.NewValueCount(ctx)
 	case "percentile_ranks":

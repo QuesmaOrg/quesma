@@ -270,20 +270,21 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		queryType bucket_aggregations.CombinatorAggregationInterface
 	}
 	addIfCombinators := make([]addIfCombinator, 0)
-	var optTopHits *pancakeModelMetricAggregation
+	var optTopHitsOrMetrics *pancakeModelMetricAggregation
 
 	for _, layer := range aggregation.layers {
 		for _, metric := range layer.currentMetricAggregations {
-			if _, isTopHits := metric.queryType.(metrics_aggregations.TopHits); isTopHits {
-				optTopHits = metric
-				continue
+			switch metric.queryType.(type) {
+			case metrics_aggregations.TopMetrics, metrics_aggregations.TopHits:
+				optTopHitsOrMetrics = metric
+			default:
+				hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
+				addSelectColumns, err := p.generateMetricSelects(metric, groupBys, hasMoreBucketAggregations)
+				if err != nil {
+					return nil, "", err
+				}
+				selectColumns = append(selectColumns, addSelectColumns...)
 			}
-			hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
-			addSelectColumns, err := p.generateMetricSelects(metric, groupBys, hasMoreBucketAggregations)
-			if err != nil {
-				return nil, "", err
-			}
-			selectColumns = append(selectColumns, addSelectColumns...)
 		}
 
 		if layer.nextBucketAggregation != nil {
@@ -393,9 +394,9 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		optimizerName = PancakeOptimizerName
 	}
 
-	if optTopHits != nil {
+	if optTopHitsOrMetrics != nil {
 		resultQuery.Columns = append(resultQuery.Columns, p.aliasedExprArrayToLiteralExpr(rankColumns)...)
-		resultQuery, err = p.generateTopHitsQuery(aggregation, combinatorWhere, optTopHits, groupBys, selectColumns, resultQuery)
+		resultQuery, err = p.generateTopQuery(aggregation, combinatorWhere, optTopHitsOrMetrics, groupBys, selectColumns, resultQuery)
 		optimizerName = PancakeOptimizerName + "(with top_hits)"
 	}
 
