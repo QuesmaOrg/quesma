@@ -524,7 +524,7 @@ type NonSchemaField struct {
 	Type  string
 }
 
-func generateNonSchemaStr(nonSchemaFields []NonSchemaField) string {
+func convertNonSchemaFieldsToString(nonSchemaFields []NonSchemaField) string {
 	if len(nonSchemaFields) <= 0 {
 		return ""
 	}
@@ -552,7 +552,7 @@ func generateNonSchemaStr(nonSchemaFields []NonSchemaField) string {
 	return nonSchemaStr
 }
 
-func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) ([]NonSchemaField, error) {
+func generateNonSchemaFields(attrsMap map[string][]interface{}) ([]NonSchemaField, error) {
 	var nonSchemaFields []NonSchemaField
 	if len(attrsMap) <= 0 {
 		return nonSchemaFields, nil
@@ -693,7 +693,7 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 	// addInvalidJsonFieldsToAttributes returns a new map with invalid fields added
 	// this map is then used to generate non-schema fields string
 	attrsMapWithInvalidFields := addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
-	nonSchemaFields, err := generateNonSchemaFieldsString(attrsMapWithInvalidFields)
+	nonSchemaFields, err := generateNonSchemaFields(attrsMapWithInvalidFields)
 
 	if err != nil {
 		return nil, nil, nil, err
@@ -705,7 +705,7 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 }
 
 func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types.JSON) (string, error) {
-	nonSchemaStr := generateNonSchemaStr(nonSchemaFields)
+	nonSchemaStr := convertNonSchemaFieldsToString(nonSchemaFields)
 	schemaFieldsJson, err := json.Marshal(onlySchemaFields)
 	if err != nil {
 		return "", err
