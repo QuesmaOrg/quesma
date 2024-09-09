@@ -356,19 +356,19 @@ func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (retu
 	return returnedErr
 }
 
-func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string, config *ChTableConfig) error {
+func (lm *LogManager) createTableObjectAndAttributes(ctx context.Context, query string, config *ChTableConfig) (string, error) {
 	table, err := NewTable(query, config)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// if exists only then createTable
 	noSuchTable := lm.AddTableIfDoesntExist(table)
 	if !noSuchTable {
-		return fmt.Errorf("table %s already exists", table.Name)
+		return "", fmt.Errorf("table %s already exists", table.Name)
 	}
 
-	return lm.execute(ctx, addOurFieldsToCreateTableQuery(query, config, table))
+	return addOurFieldsToCreateTableQuery(query, config, table), nil
 }
 
 func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
@@ -719,8 +719,11 @@ func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), err
 }
 
-func generateSqlStatements(alterCmd []string, insert string) []string {
+func generateSqlStatements(createTableCmd string, alterCmd []string, insert string) []string {
 	var statements []string
+	if createTableCmd != "" {
+		statements = append(statements, createTableCmd)
+	}
 	statements = append(statements, alterCmd...)
 	statements = append(statements, insert)
 	return statements
@@ -747,44 +750,37 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		}
 		processed = append(processed, result)
 	}
+	// Do field encoding here, once for all jsons
+	// This is in-place operation
+	for _, jsonValue := range jsonData {
+		transformFieldName(jsonValue, func(field string) string {
+			return fieldToColumnEncoder(field)
+		})
+	}
 	jsonData = processed
 	table := lm.FindTable(tableName)
 	var tableConfig *ChTableConfig
+	var createTableCmd string
 	if table == nil {
 		tableConfig = NewOnlySchemaFieldsCHConfig()
 		ignoredFields := lm.getIgnoredFields(tableName)
-
 		columnsFromJson := JsonToColumns("", jsonData[0], 1,
 			tableConfig, tableFormatter, ignoredFields)
-		for i, column := range columnsFromJson {
-			// TODO this is doing nested field encoding
-			// ----------------------
-			column.ClickHouseColumnName = fieldToColumnEncoder(column.ClickHouseColumnName)
-			if slices.Contains(ignoredFields, config.FieldName(strings.Replace(column.ClickHouseColumnName, "::", ".", -1))) {
-				continue
-			}
-			columnsFromJson[i] = column
-			// ----------------------
-		}
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), tableFormatter)
 		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
-		createTableCmd := createTableQuery(tableName, columns, tableConfig)
-		err := lm.ProcessCreateTableQuery(ctx, createTableCmd, tableConfig)
+		createTableCmd = createTableQuery(tableName, columns, tableConfig)
+		var err error
+		createTableCmd, err = lm.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig)
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error ProcessInsertQuery, can't create table: %v", err)
+			logger.ErrorWithCtx(ctx).Msgf("error createTableObjectAndAttributes, can't create table: %v", err)
 			return nil, err
 		}
 		// Set pointer to table after creating it
 		table = lm.FindTable(tableName)
 	} else if !table.Created {
-		err := lm.execute(ctx, table.createTableString())
-		if err != nil {
-			return nil, err
-		}
-		tableConfig = table.Config
-	} else {
-		tableConfig = table.Config
+		createTableCmd = table.createTableString()
 	}
+	tableConfig = table.Config
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
 	var preprocessedJsons []types.JSON
@@ -794,12 +790,6 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		return nil, fmt.Errorf("error preprocessJsons: %v", err)
 	}
 	for i, preprocessedJson := range preprocessedJsons {
-		// TODO this is doing nested field encoding
-		// ----------------------
-		transformFieldName(preprocessedJson, func(field string) string {
-			return fieldToColumnEncoder(field)
-		})
-		// ----------------------
 		alter, onlySchemaFields, nonSchemaFields, err := lm.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], tableConfig)
 		if err != nil {
@@ -818,7 +808,7 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
-	return generateSqlStatements(alterCmd, insert), nil
+	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
 }
 
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
