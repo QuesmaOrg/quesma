@@ -4,6 +4,7 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/kibana"
 	"quesma/logger"
@@ -153,11 +154,16 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
 	exprForBiggerIntervals := func(toIntervalStartFuncName string) model.Expr {
 		// returned expr as string:
-		// "1000 * toInt64(toUnixTimestamp(toStartOf[Week|Month|Quarter|Year](timestamp)))"
-		toStartOf := model.NewFunction(toIntervalStartFuncName, query.field)
-		toUnixTimestamp := model.NewFunction("toUnixTimestamp", toStartOf)
-		toInt64 := model.NewFunction("toInt64", toUnixTimestamp)
-		return model.NewInfixExpr(toInt64, "*", model.NewLiteral(1000))
+		// "1000 * toInt64(toUnixTimestamp(toStartOf[Week|Month|Quarter|Year](timestamp)))" (with no timezone offset)
+		// "toTimeZone(timestamp, timezone)" instead of "timestamp" above (with timezone present)
+		timestampFieldWithOffset := query.field
+		if query.timezone != "" {
+			timestampFieldWithOffset = model.NewFunction("toTimezone", query.field, model.NewLiteral(fmt.Sprintf("'%s'", query.timezone)))
+		}
+		toStartOf := model.NewFunction(toIntervalStartFuncName, timestampFieldWithOffset) // toStartOfMonth(...) or toStartOfWeek(...)
+		toUnixTimestamp := model.NewFunction("toUnixTimestamp", toStartOf)                // toUnixTimestamp(toStartOf...)
+		toInt64 := model.NewFunction("toInt64", toUnixTimestamp)                          // toInt64(toUnixTimestamp(...))
+		return model.NewInfixExpr(toInt64, "*", model.NewLiteral(1000))                   // toInt64(...)*1000
 	}
 
 	// calendar_interval: minute/hour/day are the same as fixed_interval: 1m/1h/1d
