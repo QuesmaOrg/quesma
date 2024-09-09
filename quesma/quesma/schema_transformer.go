@@ -45,7 +45,6 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query
 	return query, nil
 }
 
-
 // Below function applies schema transformations to the query regarding ip addresses.
 // Internally, it converts sql statement like
 // SELECT * FROM "kibana_sample_data_logs" WHERE lhs op rhs
@@ -434,7 +433,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 
 		indexSchema, ok := s.schemaRegistry.FindSchema(schema.TableName(query.TableName))
 		if !ok {
-			return nil, fmt.Errorf("Schema  %s not found", query.TableName)
+			return nil, fmt.Errorf("schema not found: %s", query.TableName)
 		}
 
 		for _, transformation := range transformationChain {
