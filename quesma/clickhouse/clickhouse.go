@@ -655,8 +655,6 @@ func (lm *LogManager) BuildIngestSQLStatements(table *Table,
 		return nil, nil, nil, err
 	}
 
-	replaceDotsWithSeparator(jsonMap)
-
 	if len(config.attributes) == 0 {
 		return nil, jsonMap, nil, nil
 	}
@@ -785,6 +783,8 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 	for i, preprocessedJson := range preprocessedJsons {
 		// TODO this is doing nested field encoding
 		// ----------------------
+		replaceDotsWithSeparator(preprocessedJson)
+		// ----------------------
 		alter, onlySchemaFields, nonSchemaFields, err := lm.BuildIngestSQLStatements(table, preprocessedJson,
 			invalidJsons[i], tableConfig)
 		if err != nil {
@@ -794,7 +794,6 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		if err != nil {
 			return nil, fmt.Errorf("error generatateInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
 		}
-		// ----------------------
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
