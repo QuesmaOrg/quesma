@@ -97,7 +97,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 					if pancakeIdx-1 >= len(test.ExpectedAdditionalPancakeResults) {
 						pp.Println("=== Expected additional results for SQL:")
 						fmt.Println(prettyPancakeSql)
-						continue
 					}
 					expectedSql = test.ExpectedAdditionalPancakeSQLs[pancakeIdx-1]
 				}
@@ -141,6 +140,9 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			// FIXME we can quite easily remove 'probability' and 'seed' from above - just start remembering them in RandomSampler struct and print in JSON response.
 			acceptableDifference := []string{"probability", "seed", "bg_count", model.KeyAddedByQuesma,
 				"doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
+			if len(test.AdditionalAcceptableDifference) > 0 {
+				acceptableDifference = append(acceptableDifference, test.AdditionalAcceptableDifference...)
+			}
 
 			actualMinusExpected, expectedMinusActual := util.MapDifference(pancakeJson,
 				expectedAggregationsPart, acceptableDifference, true, true)
@@ -186,8 +188,7 @@ func incorrectResult(testName string) bool {
 // TODO remove after fix
 func topHits(testName string) bool {
 	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range" // also range
-	t2 := testName == "top hits, quite complex"
-	return t1 || t2
+	return t1
 }
 
 // TODO remove after fix

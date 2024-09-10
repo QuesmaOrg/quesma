@@ -1460,6 +1460,7 @@ var AggregationTests = []AggregationTestCase{
 							},
 							{
 								"distinations": {
+									"sum_other_doc_count": 0,
 									"buckets": [
 										{
 											"destLocation": {
@@ -1543,7 +1544,7 @@ var AggregationTests = []AggregationTestCase{
 							}
 						],
 						"doc_count_error_upper_bound": 0,
-						"sum_other_doc_count": 0
+						"sum_other_doc_count": 12716
 					}
 				},
 				"hits": {
@@ -1612,7 +1613,106 @@ var AggregationTests = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 15), model.NewQueryResultCol("key", "DLH")}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{
+				Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
+					model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
+					model.NewQueryResultCol("aggr__origins__count", int64(283)),
+					model.NewQueryResultCol("aggr__origins__order_1", int64(283)),
+					model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
+					model.NewQueryResultCol("aggr__origins__distinations__count", int64(21)),
+					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(21)),
+					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", `{
+																	"lat": "-34.8222",
+																	"lon": "-58.5358"
+																}`),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				},
+			},
+			{
+				Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
+					model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
+					model.NewQueryResultCol("aggr__origins__count", int64(283)),
+					model.NewQueryResultCol("aggr__origins__order_1", int64(283)),
+					model.NewQueryResultCol("aggr__origins__distinations__key_0", "UIO"),
+					model.NewQueryResultCol("aggr__origins__distinations__count", int64(12)),
+					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(12)),
+					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", `{
+														"lat": "-0.129166667",
+														"lon": "-78.3575"
+													}`),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				},
+			},
+			{
+				Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
+					model.NewQueryResultCol("aggr__origins__key_0", "DLH"),
+					model.NewQueryResultCol("aggr__origins__count", int64(15)),
+					model.NewQueryResultCol("aggr__origins__order_1", int64(15)),
+					model.NewQueryResultCol("aggr__origins__distinations__key_0", "YUL"),
+					model.NewQueryResultCol("aggr__origins__distinations__count", int64(11)),
+					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(11)),
+					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", `{
+																	"lat": "45.47060013",
+																	"lon": "-73.74079895"
+																}`),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				},
+			},
+			{
+				Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
+					model.NewQueryResultCol("aggr__origins__key_0", "DLH"),
+					model.NewQueryResultCol("aggr__origins__count", int64(15)),
+					model.NewQueryResultCol("aggr__origins__order_1", int64(15)),
+					model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
+					model.NewQueryResultCol("aggr__origins__distinations__count", int64(10)),
+					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(10)),
+					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", `{
+																	"lat": "-34.8222",
+																	"lon": "-58.5358"
+																}`),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				},
+			},
+		},
+		AdditionalAcceptableDifference: []string{"_index", "_id", "value"},
+		// TODO: Remove value as it is used for total hits
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{
+					Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
+						model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
+						model.NewQueryResultCol("aggr__origins__count", int64(283)),
+						model.NewQueryResultCol("aggr__origins__order_1", int64(283)),
+						model.NewQueryResultCol("top_hits__origins__originLocation_col_0", `{
+														"lat": "-0.129166667",
+														"lon": "-78.3575"
+													}`),
+						model.NewQueryResultCol("top_hits__origins__originLocation_col_1", "Mariscal Sucre International Airport"),
+						model.NewQueryResultCol("top_hits_rank", int64(1)),
+					},
+				},
+				{
+					Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
+						model.NewQueryResultCol("aggr__origins__key_0", "DLH"),
+						model.NewQueryResultCol("aggr__origins__count", int64(15)),
+						model.NewQueryResultCol("aggr__origins__order_1", int64(15)),
+						model.NewQueryResultCol("top_hits__origins__originLocation_col_0", `{
+														"lat": "46.84209824",
+														"lon": "-92.19360352"
+													}`),
+						model.NewQueryResultCol("top_hits__origins__originLocation_col_1", "Duluth International Airport"),
+						model.NewQueryResultCol("top_hits_rank", int64(1)),
+					},
+				},
+			},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + TableName + ` `,
@@ -1620,7 +1720,116 @@ var AggregationTests = []AggregationTestCase{
 			``,
 			``,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			WITH quesma_top_hits_group_table AS (
+			  SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
+				"aggr__origins__count", "aggr__origins__order_1",
+				"aggr__origins__distinations__parent_count",
+				"aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
+				"aggr__origins__distinations__order_1", "aggr__origins__order_1_rank",
+				"aggr__origins__distinations__order_1_rank"
+			  FROM (
+				SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
+				  "aggr__origins__count", "aggr__origins__order_1",
+				  "aggr__origins__distinations__parent_count",
+				  "aggr__origins__distinations__key_0",
+				  "aggr__origins__distinations__count",
+				  "aggr__origins__distinations__order_1",
+				  dense_rank() OVER (ORDER BY "aggr__origins__order_1" DESC,
+				  "aggr__origins__key_0" ASC) AS "aggr__origins__order_1_rank",
+				  dense_rank() OVER (PARTITION BY "aggr__origins__key_0" ORDER BY
+				  "aggr__origins__distinations__order_1" DESC,
+				  "aggr__origins__distinations__key_0" ASC) AS
+				  "aggr__origins__distinations__order_1_rank"
+				FROM (
+				  SELECT sum(count(*)) OVER () AS "aggr__origins__parent_count",
+					"OriginAirportID" AS "aggr__origins__key_0",
+					sum(count(*)) OVER (PARTITION BY "aggr__origins__key_0") AS
+					"aggr__origins__count",
+					sum(count()) OVER (PARTITION BY "aggr__origins__key_0") AS
+					"aggr__origins__order_1",
+					sum(count(*)) OVER (PARTITION BY "aggr__origins__key_0") AS
+					"aggr__origins__distinations__parent_count",
+					"DestAirportID" AS "aggr__origins__distinations__key_0",
+					count(*) AS "aggr__origins__distinations__count",
+					count() AS "aggr__origins__distinations__order_1"
+				  FROM __quesma_table_name
+				  GROUP BY "OriginAirportID" AS "aggr__origins__key_0",
+					"DestAirportID" AS "aggr__origins__distinations__key_0"))
+			  WHERE ("aggr__origins__order_1_rank"<=10001 AND
+				"aggr__origins__distinations__order_1_rank"<=10001)
+			  ORDER BY "aggr__origins__order_1_rank" ASC,
+				"aggr__origins__distinations__order_1_rank" ASC) ,
+			quesma_top_hits_join AS (
+			  SELECT "group_table"."aggr__origins__parent_count" AS
+				"aggr__origins__parent_count",
+				"group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
+				"group_table"."aggr__origins__count" AS "aggr__origins__count",
+				"group_table"."aggr__origins__order_1" AS "aggr__origins__order_1",
+				"group_table"."aggr__origins__distinations__parent_count" AS
+				"aggr__origins__distinations__parent_count",
+				"group_table"."aggr__origins__distinations__key_0" AS
+				"aggr__origins__distinations__key_0",
+				"group_table"."aggr__origins__distinations__count" AS
+				"aggr__origins__distinations__count",
+				"group_table"."aggr__origins__distinations__order_1" AS
+				"aggr__origins__distinations__order_1",
+				map('lat', "hit_table"."DestLocation::lat", 'lon',
+				"hit_table"."DestLocation::lon") AS
+				"top_hits__origins__distinations__destLocation_col_0",
+				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0",
+				"group_table"."aggr__origins__distinations__key_0") AS "top_hits_rank",
+				"group_table"."aggr__origins__order_1_rank" AS "aggr__origins__order_1_rank"
+				,
+				"group_table"."aggr__origins__distinations__order_1_rank" AS
+				"aggr__origins__distinations__order_1_rank"
+			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+				__quesma_table_name AS "hit_table" ON (("group_table"."aggr__origins__key_0"
+				="hit_table"."OriginAirportID" AND
+				"group_table"."aggr__origins__distinations__key_0"=
+				"hit_table"."DestAirportID")))
+			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
+			  "aggr__origins__count", "aggr__origins__order_1",
+			  "aggr__origins__distinations__parent_count",
+			  "aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
+			  "aggr__origins__distinations__order_1",
+			  "top_hits__origins__distinations__destLocation_col_0", "top_hits_rank"
+			FROM "quesma_top_hits_join"
+			WHERE "top_hits_rank"<=1
+			ORDER BY "aggr__origins__order_1_rank" ASC,
+			  "aggr__origins__distinations__order_1_rank" ASC, "top_hits_rank" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{`
+			WITH quesma_top_hits_group_table AS (
+			  SELECT sum(count(*)) OVER () AS "aggr__origins__parent_count",
+				"OriginAirportID" AS "aggr__origins__key_0",
+				count(*) AS "aggr__origins__count", count() AS "aggr__origins__order_1"
+			  FROM __quesma_table_name
+			  GROUP BY "OriginAirportID" AS "aggr__origins__key_0"
+			  ORDER BY "aggr__origins__order_1" DESC, "aggr__origins__key_0" ASC
+			  LIMIT 10001) ,
+			quesma_top_hits_join AS (
+			  SELECT "group_table"."aggr__origins__parent_count" AS
+				"aggr__origins__parent_count",
+				"group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
+				"group_table"."aggr__origins__count" AS "aggr__origins__count",
+				"group_table"."aggr__origins__order_1" AS "aggr__origins__order_1",
+				map('lat', "hit_table"."OriginLocation::lat", 'lon',
+				"hit_table"."OriginLocation::lon") AS
+				"top_hits__origins__originLocation_col_0",
+				"hit_table"."Origin" AS "top_hits__origins__originLocation_col_1",
+				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0") AS
+				"top_hits_rank"
+			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__origins__key_0"=
+				"hit_table"."OriginAirportID"))
+			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
+			  "aggr__origins__count", "aggr__origins__order_1",
+			  "top_hits__origins__originLocation_col_0",
+			  "top_hits__origins__originLocation_col_1", "top_hits_rank"
+			FROM "quesma_top_hits_join"
+			WHERE "top_hits_rank"<=1
+			ORDER BY "aggr__origins__order_1" DESC, "aggr__origins__key_0" ASC,
+			  "top_hits_rank" ASC`},
 	},
 	{ // [8]
 		TestName: "histogram, different field than timestamp",
