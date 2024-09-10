@@ -9,6 +9,7 @@ import (
 	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/util"
 	"strconv"
 	"strings"
 	"time"
@@ -17,7 +18,7 @@ import (
 type DateHistogramIntervalType bool
 
 const (
-	DefaultMinDocCount                                      = 1
+	DefaultMinDocCount                                      = -1
 	DateHistogramFixedInterval    DateHistogramIntervalType = true
 	DateHistogramCalendarInterval DateHistogramIntervalType = false
 	defaultDateTimeType                                     = clickhouse.DateTime64
@@ -64,6 +65,9 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		)
 	}
 
+	// TODO: implement default  when query.minDocCount == DefaultMinDocCount
+	// all buckets between the first bucket that matches documents and the last one are returned
+
 	if query.minDocCount == 0 {
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
@@ -90,6 +94,11 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 
 		_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
 		key -= int64(timezoneOffsetInSeconds * 1000) // seconds -> milliseconds
+
+		docCount := row.LastColValue()
+		if util.ExtractInt64(docCount) < int64(query.minDocCount) {
+			continue
+		}
 
 		response = append(response, model.JsonMap{
 			"key":           key,
