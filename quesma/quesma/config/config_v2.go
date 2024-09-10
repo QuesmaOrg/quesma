@@ -92,7 +92,7 @@ func LoadV2Config() QuesmaNewConfiguration {
 	if err := k.Unmarshal("", &v2config); err != nil {
 		log.Fatalf("error unmarshalling config: %v", err)
 	}
-	if err := v2config.validate(); err != nil {
+	if err := v2config.Validate(); err != nil {
 		log.Fatalf("Config validation failed: %v", err)
 	}
 	return v2config
@@ -100,7 +100,7 @@ func LoadV2Config() QuesmaNewConfiguration {
 
 // validate at this level verifies the basic assumptions behind pipelines/processors/connectors,
 // many of which being just stubs for future impl
-func (c *QuesmaNewConfiguration) validate() error {
+func (c *QuesmaNewConfiguration) Validate() error {
 	var errAcc error
 	for _, pipeline := range c.Pipelines {
 		errAcc = multierror.Append(errAcc, c.validatePipeline(pipeline))
@@ -407,20 +407,20 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 	}
 	// Now determine Quesma final state with following heuristic
-	// if 2 pipelines with noop processor -> switch to proxy mode, ditch the whole config
-	// if one query, one ingest pipeline with noop processor -> switch to "dual-write-query-clickhouse" mode
+	// if all configured pipelines are of type noop -> switch to transparent proxy mode, ditch the whole config
+	// else -> switch to "Quesma" mode
 	procList := c.getProcessorsConfiguredInPipelines()
 	if len(procList) == 1 {
 		if procList[0].Type == QuesmaV1ProcessorNoOp {
-			conf.Mode = ProxyInspect
+			conf.TransparentProxy = true
 		} else {
-			conf.Mode = DualWriteQueryClickhouse
+			conf.TransparentProxy = false
 		}
 	} else if len(procList) == 2 {
 		if procList[0].Type == QuesmaV1ProcessorNoOp && procList[1].Type == QuesmaV1ProcessorNoOp {
-			conf.Mode = ProxyInspect
+			conf.TransparentProxy = true
 		} else {
-			conf.Mode = DualWriteQueryClickhouse
+			conf.TransparentProxy = false
 		}
 	}
 	if v1processor := procList[0]; v1processor != nil {

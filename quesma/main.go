@@ -115,14 +115,9 @@ func main() {
 }
 
 func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender) *quesma.Quesma {
-	switch cfg.Mode {
-	case config.Proxy:
-		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, false)
-	case config.ProxyInspect:
+	if cfg.TransparentProxy {
 		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, true)
-	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
+	} else {
 		return quesma.NewHttpProxy(phoneHomeAgent, lm, sl, im, schemaRegistry, cfg, quesmaManagementConsole, logChan, abResultsrepository)
 	}
-	logger.Panic().Msgf("unknown operation mode: %s", cfg.Mode.String())
-	panic("unreachable")
 }
