@@ -14,7 +14,9 @@ func (p *pancakeSqlQueryGenerator) quotedLiteral(name string) model.LiteralExpr 
 	return model.NewLiteral(strconv.Quote(name))
 }
 
-func (p *pancakeSqlQueryGenerator) generateSimpleTopQuery(topHits *pancakeModelMetricAggregation,
+// generateSimpleTopHitsQuery generates an SQL for top_hits/top_metrics
+// original query does not any group aggregations and we don't need to do JOIN.
+func (p *pancakeSqlQueryGenerator) generateSimpleTopHitsQuery(topHits *pancakeModelMetricAggregation,
 	whereClause model.Expr,
 	orderBy []model.OrderByExpr,
 	size int) (*model.SelectCommand, error) {
@@ -36,7 +38,9 @@ func (p *pancakeSqlQueryGenerator) generateSimpleTopQuery(topHits *pancakeModelM
 	return resultQuery, nil
 }
 
-func (p *pancakeSqlQueryGenerator) generateTopQuery(aggregation *pancakeModel,
+// generateTopHitsQuery generates an SQL for top_hits/top_metrics.
+// It takes original group by query and JOIN it with select to actual fields.
+func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeModel,
 	combinatorWhere []model.Expr,
 	topHits *pancakeModelMetricAggregation,
 	groupBys []model.AliasedExpr,
@@ -73,7 +77,7 @@ func (p *pancakeSqlQueryGenerator) generateTopQuery(aggregation *pancakeModel,
 	}
 
 	if len(groupBys) == 0 {
-		return p.generateSimpleTopQuery(topHits, whereClause, topOrderBy, sizeLimit)
+		return p.generateSimpleTopHitsQuery(topHits, whereClause, topOrderBy, sizeLimit)
 	}
 
 	groupTableName := "group_table"

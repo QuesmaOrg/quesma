@@ -40,7 +40,9 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 	return
 }
 
-func (p *pancakeJSONRenderer) selectTopRows(topAggr *pancakeModelMetricAggregation, rows []model.QueryResultRow) (result []model.QueryResultRow) {
+// selectTopHitsRows: select columns for top_hits/top_metrics and rename them to original column names.
+// There is refactoring opportunity once we move completely to pancakes and remove re-name logic from this method.
+func (p *pancakeJSONRenderer) selectTopHitsRows(topAggr *pancakeModelMetricAggregation, rows []model.QueryResultRow) (result []model.QueryResultRow) {
 	for _, row := range rows {
 		var newCols []model.QueryResultCol
 		for _, col := range row.Cols {
@@ -231,7 +233,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		var metricRows []model.QueryResultRow
 		switch metric.queryType.(type) {
 		case metrics_aggregations.TopMetrics, metrics_aggregations.TopHits:
-			metricRows = p.selectTopRows(metric, rows)
+			metricRows = p.selectTopHitsRows(metric, rows)
 		default:
 			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
 		}

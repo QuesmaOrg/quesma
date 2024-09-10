@@ -396,7 +396,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 
 	if optTopHitsOrMetrics != nil {
 		resultQuery.Columns = append(resultQuery.Columns, p.aliasedExprArrayToLiteralExpr(rankColumns)...)
-		resultQuery, err = p.generateTopQuery(aggregation, combinatorWhere, optTopHitsOrMetrics, groupBys, selectColumns, resultQuery)
+		resultQuery, err = p.generateTopHitsQuery(aggregation, combinatorWhere, optTopHitsOrMetrics, groupBys, selectColumns, resultQuery)
 		optimizerName = PancakeOptimizerName + "(with top_hits)"
 	}
 

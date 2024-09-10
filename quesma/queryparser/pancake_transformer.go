@@ -303,12 +303,14 @@ func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, 
 func (a *pancakeTransformer) createTopHitAndTopMetricsPancakes(pancake *pancakeModel) (result []*pancakeModel, err error) {
 	for layerIdx, layer := range pancake.layers {
 		metricsWithoutTopHits := make([]*pancakeModelMetricAggregation, 0, len(layer.currentMetricAggregations))
-		for metricIDx, metric := range layer.currentMetricAggregations {
+		for metricIdx, metric := range layer.currentMetricAggregations {
 			switch metric.queryType.(type) {
 			case metrics_aggregations.TopMetrics, metrics_aggregations.TopHits:
-				canOptimize := layerIdx == len(pancake.layers)-1 && (len(layer.currentMetricAggregations) == 1 ||
+				isLastLayer := layerIdx == len(pancake.layers)-1
+				isOnlyAggregationOnLayer := len(layer.currentMetricAggregations) == 1 ||
 					// if we have several top_metrics at bottom layer we can still optimize last one
-					(len(layer.currentMetricAggregations)-1 == metricIDx && len(metricsWithoutTopHits) == 0))
+					(len(layer.currentMetricAggregations)-1 == metricIdx && len(metricsWithoutTopHits) == 0)
+				canOptimize := isLastLayer && isOnlyAggregationOnLayer
 				for _, layer2 := range pancake.layers[:layerIdx] {
 					if len(layer2.currentMetricAggregations) > 0 {
 						canOptimize = false
