@@ -6,6 +6,7 @@ import (
 	"context"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/util"
 	"strconv"
 )
 
@@ -30,9 +31,9 @@ func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow,
 	}
 	var response []model.JsonMap
 	for _, row := range rows {
-		zoom := int64(query.extractFloat(row.Cols[0].Value))
-		x := int64(query.extractFloat(row.Cols[1].Value))
-		y := int64(query.extractFloat(row.Cols[2].Value))
+		zoom := int64(util.ExtractFloat64(row.Cols[0].Value))
+		x := int64(util.ExtractFloat64(row.Cols[1].Value))
+		y := int64(util.ExtractFloat64(row.Cols[2].Value))
 		key := strconv.FormatInt(zoom, 10) + "/" + strconv.FormatInt(x, 10) + "/" + strconv.FormatInt(y, 10)
 		response = append(response, model.JsonMap{
 			"key":       key,
@@ -41,18 +42,6 @@ func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow,
 	}
 	return model.JsonMap{
 		"buckets": response,
-	}
-}
-
-func (query GeoTileGrid) extractFloat(value any) float64 {
-	switch valueTyped := value.(type) {
-	case float64:
-		return valueTyped
-	case float32:
-		return float64(valueTyped)
-	default:
-		logger.ErrorWithCtx(query.ctx).Msgf("unexpected value type in geotile_grid aggregation response: %T", value)
-		return 0
 	}
 }
 
