@@ -407,8 +407,8 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 	}
 	// Now determine Quesma final state with following heuristic
-	// if 2 pipelines with noop processor -> switch to transparent proxy mode, ditch the whole config
-	// if one query, one ingest pipeline with noop processor -> switch to "Quesma" mode
+	// if all configured pipelines are of type noop -> switch to transparent proxy mode, ditch the whole config
+	// else -> switch to "Quesma" mode
 	procList := c.getProcessorsConfiguredInPipelines()
 	if len(procList) == 1 {
 		if procList[0].Type == QuesmaV1ProcessorNoOp {
