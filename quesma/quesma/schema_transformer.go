@@ -386,7 +386,7 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 			if col.ColumnName == model.FullTextFieldNamePlaceHolder {
 
 				if len(fullTextFields) == 0 {
-					if (e.Op == "LIKE" || e.Op == "ILIKE") && model.AsString(e.Right) == "'%'" {
+					if (strings.ToUpper(e.Op) == "LIKE" || strings.ToUpper(e.Op) == "ILIKE") && model.AsString(e.Right) == "'%'" {
 						return model.NewLiteral(true)
 					}
 					return model.NewLiteral(false)
