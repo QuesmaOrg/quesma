@@ -1,0 +1,110 @@
+# TEST CONFIGURATION
+licenseKey: "cdd749a3-e777-11ee-bcf8-0242ac150004"
+frontendConnectors:
+  - name: elastic-ingest
+    type: elasticsearch-fe-ingest
+    config:
+      listenPort: 8080
+  - name: elastic-query
+    type: elasticsearch-fe-query
+    config:
+      listenPort: 8080
+backendConnectors:
+  - name: my-minimal-elasticsearch
+    type: elasticsearch
+    config:
+      url: "http://localhost:9200"
+  - name: my-clickhouse-data-source
+    type: clickhouse-os
+    config:
+      url: "clickhouse://localhost:9000"
+ingestStatistics: true
+internalTelemetryUrl: "https://api.quesma.com/phone-home"
+logging:
+  remoteUrl: "https://api.quesma.com/phone-home"
+  path: "logs"
+  level: "info"
+processors:
+  - name: my-query-processor
+    type: quesma-v1-processor-query
+    config:
+      indexes:
+        example-index:
+        kibana_sample_data_ecommerce:
+        kibana_sample_data_flights:
+        kibana_sample_data_logs:
+          schemaOverrides:
+            fields:
+              timestamp:
+                type: alias
+                targetColumnName: "@timestamp"
+        kafka-example-topic:
+        logs-generic-default:
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+              "host.name":
+                type: text
+        device-logs:
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        phone_home_logs:
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        windows_logs:
+        phone_home_data:
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+  - name: my-ingest-processor
+    type: quesma-v1-processor-ingest
+    config:
+      indexes:
+        example-index:
+        kibana_sample_data_ecommerce:
+        kibana_sample_data_flights:
+        kibana_sample_data_logs:
+          schemaOverrides:
+            fields:
+              timestamp:
+                type: alias
+                targetColumnName: "@timestamp"
+        kafka-example-topic:
+        logs-generic-default:
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+              "host.name":
+                type: text
+        device-logs:
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        phone_home_logs:
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        windows_logs:
+        phone_home_data:
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+pipelines:
+  - name: my-pipeline-elasticsearch-query-clickhouse
+    frontendConnectors: [ elastic-query ]
+    processors: [ my-query-processor ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]
+  - name: my-pipeline-elasticsearch-ingest-to-clickhouse
+    frontendConnectors: [ elastic-ingest ]
+    processors: [ my-ingest-processor ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]

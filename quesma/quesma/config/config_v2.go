@@ -92,7 +92,7 @@ func LoadV2Config() QuesmaNewConfiguration {
 	if err := k.Unmarshal("", &v2config); err != nil {
 		log.Fatalf("error unmarshalling config: %v", err)
 	}
-	if err := v2config.validate(); err != nil {
+	if err := v2config.Validate(); err != nil {
 		log.Fatalf("Config validation failed: %v", err)
 	}
 	return v2config
@@ -100,7 +100,7 @@ func LoadV2Config() QuesmaNewConfiguration {
 
 // validate at this level verifies the basic assumptions behind pipelines/processors/connectors,
 // many of which being just stubs for future impl
-func (c *QuesmaNewConfiguration) validate() error {
+func (c *QuesmaNewConfiguration) Validate() error {
 	var errAcc error
 	for _, pipeline := range c.Pipelines {
 		errAcc = multierror.Append(errAcc, c.validatePipeline(pipeline))
