@@ -469,34 +469,34 @@ var AggregationTests2 = []AggregationTestCase{
 				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'Europe/Warsaw'))))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000, count() ` +
+			`SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'UTC'))))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000`,
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'UTC'))))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'UTC'))))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000, count() ` +
+			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'UTC'))))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000`,
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'UTC'))))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'UTC'))))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000, count() ` +
+			`SELECT toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'UTC'))))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000`,
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'UTC'))))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'UTC'))))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000, count() ` +
+			`SELECT toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'UTC'))))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000`,
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'UTC'))))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'UTC'))))*1000`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
@@ -545,10 +545,10 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
 			  AS "aggr__month1__key_0"
 			ORDER BY "aggr__month1__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
+			`SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__month2__key_0", count(*) AS "aggr__month2__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
+			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__month2__key_0"
 			ORDER BY "aggr__month2__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
@@ -557,10 +557,10 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 AS
 			  "aggr__quarter1__key_0"
 			ORDER BY "aggr__quarter1__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
+			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__quarter2__key_0", count(*) AS "aggr__quarter2__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
+			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__quarter2__key_0"
 			ORDER BY "aggr__quarter2__key_0" ASC`,
 			`SELECT  toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 AS
@@ -569,10 +569,10 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
 			  AS "aggr__week1__key_0"
 			ORDER BY "aggr__week1__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
+			`SELECT toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__week2__key_0", count(*) AS "aggr__week2__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
+			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__week2__key_0"
 			ORDER BY "aggr__week2__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
@@ -581,10 +581,10 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
 			  AS "aggr__year1__key_0"
 			ORDER BY "aggr__year1__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
+			`SELECT toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__year2__key_0", count(*) AS "aggr__year2__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
+			GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__year2__key_0"
 			ORDER BY "aggr__year2__key_0" ASC`,
 		},
