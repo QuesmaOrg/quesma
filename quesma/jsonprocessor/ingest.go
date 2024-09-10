@@ -35,7 +35,7 @@ func (t *removeFieldsTransformer) Transform(document types.JSON) (types.JSON, er
 func IngestTransformerFor(table string, cfg *config.QuesmaConfiguration) IngestTransformer {
 	var transformers []IngestTransformer
 
-	transformers = append(transformers, &flattenMapTransformer{separator: "::"})
+	transformers = append(transformers, &flattenMapTransformer{separator: "_"})
 
 	if indexConfig, found := cfg.IndexConfig[table]; found && indexConfig.SchemaOverrides != nil {
 		// FIXME: don't get ignored fields from schema config, but store

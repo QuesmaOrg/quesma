@@ -27,6 +27,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode"
 )
 
 const (
@@ -395,7 +396,8 @@ func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tabl
 
 	columnsFromJson := JsonToColumns("", jsonData, 1,
 		tableConfig, nameFormatter, ignoredFields)
-	columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), nameFormatter)
+
+	columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), nameFormatter, func(string) string { return "" })
 	return columnsFromJson, columnsFromSchema
 }
 
@@ -730,8 +732,23 @@ func generateSqlStatements(createTableCmd string, alterCmd []string, insert stri
 	return statements
 }
 
+func replaceNonAlphabetic(str string) string {
+	runes := []rune(str)
+	for i, r := range runes {
+		if !unicode.IsLetter(r) {
+			runes[i] = '_'
+		}
+	}
+	return string(runes)
+}
+
 func fieldToColumnEncoder(field string) string {
-	return strings.Replace(field, ".", "::", -1)
+	newField := strings.ToLower(field)
+	newField = replaceNonAlphabetic(newField)
+	if unicode.IsDigit(rune(newField[0])) {
+		newField = "_" + newField
+	}
+	return newField
 }
 
 func (lm *LogManager) processInsertQuery(ctx context.Context,
@@ -767,9 +784,17 @@ func (lm *LogManager) processInsertQuery(ctx context.Context,
 		ignoredFields := lm.getIgnoredFields(tableName)
 		columnsFromJson := JsonToColumns("", jsonData[0], 1,
 			tableConfig, tableFormatter, ignoredFields)
-		columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), tableFormatter)
-		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
-		createTableCmd = createTableQuery(tableName, columns, tableConfig)
+		// This comes externally from (configuration)
+		// So we need to convert that separately
+		columnsFromSchema := SchemaToColumns(findSchemaPointer(lm.schemaRegistry, tableName), tableFormatter, fieldToColumnEncoder)
+		for _, column := range columnsFromSchema {
+			oldName := column.ClickHouseColumnName
+			delete(columnsFromSchema, schema.FieldName(oldName))
+			column.ClickHouseColumnName = fieldToColumnEncoder(column.ClickHouseColumnName)
+			columnsFromSchema[schema.FieldName(column.ClickHouseColumnName)] = column
+		}
+		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
+		createTableCmd = createTableQuery(tableName, columnsAsString, tableConfig)
 		var err error
 		createTableCmd, err = lm.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig)
 		if err != nil {
