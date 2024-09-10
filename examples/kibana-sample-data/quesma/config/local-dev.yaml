@@ -32,6 +32,7 @@ processors:
     config:
       indexes:
         kibana_sample_data_ecommerce:
+          target: [ my-clickhouse-data-source ]
           schemaOverrides:
             fields:
               "geoip.location":
@@ -45,6 +46,7 @@ processors:
               manufacturer:
                 type: text
         kibana_sample_data_flights:
+          target: [ my-clickhouse-data-source ]
           schemaOverrides:
             fields:
               "DestLocation":
@@ -52,6 +54,7 @@ processors:
               "OriginLocation":
                 type: geo_point
         logs-generic-default:
+          target: [ my-clickhouse-data-source ]
           schemaOverrides:
             fields:
               timestamp:
@@ -72,6 +75,7 @@ processors:
     config:
       indexes:
         kibana_sample_data_ecommerce:
+          target: [ my-clickhouse-data-source ]
           schemaOverrides:
             fields:
               "geoip.location":
@@ -85,6 +89,7 @@ processors:
               manufacturer:
                 type: text
         kibana_sample_data_flights:
+          target: [ my-clickhouse-data-source ]
           schemaOverrides:
             fields:
               "DestLocation":
@@ -92,6 +97,7 @@ processors:
               "OriginLocation":
                 type: geo_point
         logs-generic-default:
+          target: [ my-clickhouse-data-source ]
           schemaOverrides:
             fields:
               timestamp:
