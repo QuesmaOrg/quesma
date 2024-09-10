@@ -174,7 +174,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 
 	for k, v := range queryMap {
 		// should be empty by now. If it's not, it's an unsupported/unrecognized type of aggregation.
-		logger.WarnWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).
+		logger.ErrorWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).
 			Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
 		// TODO: remove hard fail. Temporary to make development easier
 		return nil, fmt.Errorf("unsupported aggregation type: (%v: %v), value type: %T", k, v, v)

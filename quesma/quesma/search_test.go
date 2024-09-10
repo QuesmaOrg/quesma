@@ -4,6 +4,7 @@ package quesma
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
@@ -14,6 +15,7 @@ import (
 	"quesma/concurrent"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/queryparser"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
@@ -31,11 +33,23 @@ const defaultAsyncSearchTimeout = 1000
 
 const tableName = model.SingleTableNamePlaceHolder
 
+var ConfigWithPancake = config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{
+	tableName: {
+		Optimizers: map[string]config.OptimizerConfiguration{
+			queryparser.PancakeOptimizerName: {
+				Properties: map[string]string{
+					"mode": "apply",
+				},
+			},
+		},
+	},
+}}
+
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
 
 func TestAsyncSearchHandler(t *testing.T) {
 	// logger.InitSimpleLoggerForTests()
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
+	cfg := ConfigWithPancake
 
 	table := concurrent.NewMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
@@ -75,24 +89,13 @@ func TestAsyncSearchHandler(t *testing.T) {
 
 	for i, tt := range testdata.TestsAsyncSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
-			for _, wantedRegex := range tt.WantedRegexes {
-				if tt.WantedParseResult.Typ == model.ListAllFields {
-					// Normally we always want to escape, but in ListAllFields (SELECT *) we have (permutation1|permutation2|...)
-					// and we don't want to escape those ( and ) characters. So we don't escape [:WHERE], and escape [WHERE:]
-					// Hackish, but fastest way to get it done.
-					splitIndex := strings.Index(wantedRegex, "WHERE")
-					if splitIndex != -1 {
-						wantedRegex = wantedRegex[:splitIndex] + testdata.EscapeBrackets(wantedRegex[splitIndex:])
-					}
-				} else {
-					wantedRegex = testdata.EscapeBrackets(wantedRegex)
-				}
-				mock.ExpectQuery(wantedRegex).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			for _, query := range tt.WantedQuery {
+				mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
@@ -106,7 +109,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 }
 
 func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
+	cfg := ConfigWithPancake
 	table := clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
@@ -138,14 +141,12 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 	}
 	for i, tt := range testdata.AggregationTestsWithSpecialCharactersInFieldNames {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
 			managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
-			for _, expectedSql := range tt.ExpectedSQLs {
-				mock.ExpectQuery(testdata.EscapeBrackets(expectedSql)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
-			}
+			mock.ExpectQuery(tt.ExpectedPancakeSQL).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 
 			queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryRequestJson), defaultAsyncSearchTimeout, true)
@@ -173,7 +174,7 @@ var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
 })
 
 func TestSearchHandler(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
+	cfg := ConfigWithPancake
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			model.SingleTableNamePlaceHolder: {
@@ -185,25 +186,39 @@ func TestSearchHandler(t *testing.T) {
 	}
 	for i, tt := range testdata.TestsSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+			var db *sql.DB
+			var mock sqlmock.Sqlmock
+			if len(tt.WantedRegexes) > 0 {
+				db, mock = util.InitSqlMockWithPrettyPrint(t, false)
+			} else {
+				db, mock = util.InitSqlMockWithPrettySqlAndPrint(t, false)
+			}
 			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
-			for _, wantedRegex := range tt.WantedRegexes {
+			if len(tt.WantedRegexes) > 0 {
+				for _, wantedRegex := range tt.WantedRegexes {
 
-				// This test reuses test cases suited for query generator
-				// In this case pipeline transformations are triggered by query runner.
-				// So we should have a different expectation here.
+					// This test reuses test cases suited for query generator
+					// In this case pipeline transformations are triggered by query runner.
+					// So we should have a different expectation here.
 
-				// HACK. we change expectations here
-				wantedRegex = strings.ReplaceAll(wantedRegex, model.FullTextFieldNamePlaceHolder, "message")
+					// HACK. we change expectations here
+					wantedRegex = strings.ReplaceAll(wantedRegex, model.FullTextFieldNamePlaceHolder, "message")
 
-				mock.ExpectQuery(testdata.EscapeWildcard(testdata.EscapeBrackets(wantedRegex))).
-					WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+					mock.ExpectQuery(testdata.EscapeWildcard(testdata.EscapeBrackets(wantedRegex))).
+						WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+				}
+			} else {
+				for _, query := range tt.WantedQueries {
+					mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+				}
 			}
 			queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
-			_, _ = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
+			var err error
+			_, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
+			assert.NoError(t, err)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -257,13 +272,25 @@ func TestAsyncSearchFilter(t *testing.T) {
 	}
 	for _, tt := range testdata.TestSearchFilter {
 		t.Run(tt.Name, func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+			var db *sql.DB
+			var mock sqlmock.Sqlmock
+			if len(tt.WantedRegexes) > 0 {
+				db, mock = util.InitSqlMockWithPrettyPrint(t, false)
+			} else {
+				db, mock = util.InitSqlMockWithPrettySqlAndPrint(t, false)
+			}
 			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
-			for _, wantedRegex := range tt.WantedRegexes {
-				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			if len(tt.WantedRegexes) > 0 {
+				for _, wantedRegex := range tt.WantedRegexes {
+					mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+				}
+			} else {
+				for _, query := range tt.WantedQueries {
+					mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+				}
 			}
 			queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, _ = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
@@ -279,7 +306,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 // (testing of creating response is lacking), because of `sqlmock` limitation.
 // It can't return uint64, thus creating response code panics because of that.
 func TestHandlingDateTimeFields(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
+	cfg := ConfigWithPancake
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: {
@@ -339,13 +366,45 @@ func TestHandlingDateTimeFields(t *testing.T) {
 			}}]}}
 		}`
 	}
-	expectedSelectStatementRegex := map[string]string{
-		dateTimeTimestampField:      `SELECT toInt64(toUnixTimestamp("timestamp") / 60), count() FROM`,
-		dateTime64TimestampField:    `SELECT toInt64(toUnixTimestamp64Milli("timestamp64") / 60000), count() FROM`,
-		dateTime64OurTimestampField: `SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() FROM`,
+	expectedSelectStatement := map[string]string{
+		dateTimeTimestampField: `SELECT toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0",
+									  count(*) AS "aggr__0__count"
+									FROM __quesma_table_name
+									WHERE ((("timestamp64">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z')
+									  AND "timestamp64"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')) AND
+									  ("timestamp">=parseDateTimeBestEffort('2024-01-29T15:36:36.491Z') AND
+									  "timestamp"<=parseDateTimeBestEffort('2024-01-29T18:11:36.491Z'))) AND NOT ((
+									  "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND
+									  "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))))
+									GROUP BY toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0"
+									ORDER BY "aggr__0__key_0" ASC`,
+		dateTime64TimestampField: `SELECT toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
+									  "aggr__0__key_0", count(*) AS "aggr__0__count"
+									FROM __quesma_table_name
+									WHERE ((("timestamp64">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z')
+									  AND "timestamp64"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')) AND
+									  ("timestamp">=parseDateTimeBestEffort('2024-01-29T15:36:36.491Z') AND
+									  "timestamp"<=parseDateTimeBestEffort('2024-01-29T18:11:36.491Z'))) AND NOT ((
+									  "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND
+									  "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))))
+									GROUP BY toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
+									  "aggr__0__key_0"
+									ORDER BY "aggr__0__key_0" ASC`,
+		dateTime64OurTimestampField: `SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS "aggr__0__key_0"
+										  , count(*) AS "aggr__0__count"
+										FROM __quesma_table_name
+										WHERE ((("timestamp64">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z')
+										  AND "timestamp64"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')) AND
+										  ("timestamp">=parseDateTimeBestEffort('2024-01-29T15:36:36.491Z') AND
+										  "timestamp"<=parseDateTimeBestEffort('2024-01-29T18:11:36.491Z'))) AND NOT ((
+										  "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND
+										  "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))))
+										GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
+										  "aggr__0__key_0"
+										ORDER BY "aggr__0__key_0" ASC`,
 	}
 
-	db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+	db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
@@ -353,7 +412,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 
 	for _, fieldName := range []string{dateTimeTimestampField, dateTime64TimestampField, dateTime64OurTimestampField} {
 
-		mock.ExpectQuery(testdata.EscapeBrackets(expectedSelectStatementRegex[fieldName])).
+		mock.ExpectQuery(expectedSelectStatement[fieldName]).
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
 
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported

@@ -756,6 +756,46 @@ func InitSqlMockWithPrettyPrint(t *testing.T, matchExpectationsInOrder bool) (*s
 	return db, mock
 }
 
+func InitSqlMockWithPrettySqlAndPrint(t *testing.T, matchExpectationsInOrder bool) (*sql.DB, sqlmock.Sqlmock) {
+	mismatchedSqls := make([]sqlMockMismatchSql, 0)
+	lock := sync.Mutex{}
+	queryMatcher := sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
+		expectedPretty := SqlPrettyPrint([]byte(expectedSQL))
+		actualSQLWithoutOpt := strings.Split(actualSQL, "-- optimizations")[0]
+		actualPretty := SqlPrettyPrint([]byte(actualSQLWithoutOpt))
+
+		var matchError error
+		if expectedPretty != actualPretty {
+			matchError = fmt.Errorf("sql mismatch")
+		}
+
+		if matchError != nil {
+			lock.Lock()
+			mismatchedSqls = append(mismatchedSqls, sqlMockMismatchSql{expected: expectedPretty, actual: actualPretty})
+			lock.Unlock()
+		}
+		return matchError
+	})
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(queryMatcher))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if t.Failed() {
+			lock.Lock()
+			defer lock.Unlock()
+			for _, mismatch := range mismatchedSqls {
+				pp.Printf("-- %s Expected pretty:\n", t.Name())
+				fmt.Printf("%s\n", mismatch.expected)
+				pp.Printf("---- %s Actual pretty:\n", t.Name())
+				fmt.Printf("%s\n", mismatch.actual)
+			}
+		}
+	})
+	mock.MatchExpectationsInOrder(matchExpectationsInOrder)
+	return db, mock
+}
+
 func stringifyHelper(v interface{}, isInsideArray bool) string {
 	switch v := v.(type) {
 	case string:

@@ -25,7 +25,7 @@ import (
 
 func TestSearchOpensearch(t *testing.T) {
 
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
+	cfg := ConfigWithPancake
 
 	table := clickhouse.Table{
 		Name:   tableName,
@@ -50,7 +50,7 @@ func TestSearchOpensearch(t *testing.T) {
 
 	for i, tt := range testdata.OpensearchSearchTests {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
 			managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
@@ -65,8 +65,8 @@ func TestSearchOpensearch(t *testing.T) {
 			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
 			assert.Contains(t, tt.WantedSql, whereClause, "contains wanted sql")
 
-			for _, wantedRegex := range tt.WantedRegexes {
-				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			for _, wantedQuery := range tt.WantedQueries {
+				mock.ExpectQuery(wantedQuery).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, err2 := queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
