@@ -483,6 +483,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
 	}{
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
+		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
@@ -490,7 +491,6 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 		{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
-		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 	}
 
 	for k, query := range queries {
