@@ -743,6 +743,10 @@ func replaceNonAlphabetic(str string) string {
 }
 
 func fieldToColumnEncoder(field string) string {
+	// Skip timestamp
+	if field == timestampFieldName {
+		return field
+	}
 	newField := strings.ToLower(field)
 	newField = replaceNonAlphabetic(newField)
 	if unicode.IsDigit(rune(newField[0])) {
