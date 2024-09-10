@@ -49,3 +49,7 @@ func (query FilterAgg) CombinatorGroups() (result []CombinatorGroup) {
 func (query FilterAgg) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
 	return query.TranslateSqlResponseToJson(rows, 0)
 }
+
+func (query FilterAgg) CombinatorSplit() []model.QueryType {
+	return []model.QueryType{query}
+}

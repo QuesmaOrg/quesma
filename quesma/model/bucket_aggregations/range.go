@@ -177,9 +177,13 @@ func (query Range) DoesNotHaveGroupBy() bool {
 
 func (query Range) CombinatorGroups() (result []CombinatorGroup) {
 	for intervalIdx, interval := range query.Intervals {
+		prefix := fmt.Sprintf("range_%d__", intervalIdx)
+		if len(query.Intervals) == 1 {
+			prefix = ""
+		}
 		result = append(result, CombinatorGroup{
 			idx:         intervalIdx,
-			Prefix:      fmt.Sprintf("range_%d__", intervalIdx),
+			Prefix:      prefix,
 			Key:         interval.String(),
 			WhereClause: interval.ToWhereClause(query.Expr),
 		})
@@ -191,4 +195,12 @@ func (query Range) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup
 	interval := query.Intervals[subGroup.idx]
 	count := rows[0].Cols[len(rows[0].Cols)-1].Value
 	return query.responseForInterval(interval, count)
+}
+
+func (query Range) CombinatorSplit() []model.QueryType {
+	result := make([]model.QueryType, 0, len(query.Intervals))
+	for _, interval := range query.Intervals {
+		result = append(result, NewRange(query.ctx, query.Expr, []Interval{interval}, query.Keyed))
+	}
+	return result
 }

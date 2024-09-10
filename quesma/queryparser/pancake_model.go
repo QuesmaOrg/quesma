@@ -101,6 +101,20 @@ func (p pancakeModelMetricAggregation) InternalNameForCol(id int) string {
 	return fmt.Sprintf("%s%d", p.InternalNamePrefix(), id)
 }
 
+func (p pancakeModelBucketAggregation) ShallowClone() pancakeModelBucketAggregation {
+	return pancakeModelBucketAggregation{
+		name:                    p.name,
+		internalName:            p.internalName,
+		queryType:               p.queryType,
+		selectedColumns:         p.selectedColumns,
+		orderBy:                 p.orderBy,
+		limit:                   p.limit,
+		isKeyed:                 p.isKeyed,
+		metadata:                p.metadata,
+		filterOurEmptyKeyBucket: p.filterOurEmptyKeyBucket,
+	}
+}
+
 func (p pancakeModelBucketAggregation) InternalNameForKeyPrefix() string {
 	return fmt.Sprintf("%skey", p.internalName)
 }
