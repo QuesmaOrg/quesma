@@ -15,6 +15,7 @@ import (
 	"quesma/connectors"
 	"quesma/elasticsearch"
 	"quesma/feature"
+	"quesma/ingest"
 	"quesma/licensing"
 	"quesma/logger"
 	"quesma/quesma"
@@ -86,7 +87,8 @@ func main() {
 
 	connManager := connectors.NewConnectorManager(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry)
 	lm := connManager.GetConnector()
-
+	//create ingest processor, very lame but for the sake of refactor
+	_ = ingest.NewEmptyIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry)
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())

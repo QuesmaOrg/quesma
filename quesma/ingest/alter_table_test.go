@@ -1,9 +1,10 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package clickhouse
+package ingest
 
 import (
 	"github.com/stretchr/testify/assert"
+	"quesma/clickhouse"
 	"quesma/concurrent"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestAlterTable(t *testing.T) {
-	chConfig := &ChTableConfig{
+	chConfig := &clickhouse.ChTableConfig{
 		hasTimestamp:         true,
 		timestampDefaultsNow: true,
 		engine:               "MergeTree",
@@ -39,15 +40,15 @@ func TestAlterTable(t *testing.T) {
 		"ALTER TABLE \"tableName\" ADD COLUMN IF NOT EXISTS \"Test2\" Nullable(Int64)",
 	}
 	columns := []string{"Test1", "Test2"}
-	table := &Table{
+	table := &clickhouse.Table{
 		Name: "tableName",
 		Cols: map[string]*Column{},
 	}
 	fieldsMap := concurrent.NewMapWith("tableName", table)
 
-	lm := NewLogManager(fieldsMap, &config.QuesmaConfiguration{})
+	ip := NewIngestProcessor(fieldsMap, &config.QuesmaConfiguration{})
 	for i := range rowsToInsert {
-		alter, onlySchemaFields, nonSchemaFields, err := lm.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig)
+		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig)
 		assert.NoError(t, err)
 		insert, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
 		assert.Equal(t, expectedInsert[i], insert)
@@ -68,7 +69,7 @@ func TestAlterTable(t *testing.T) {
 }
 
 func TestAlterTableHeuristic(t *testing.T) {
-	chConfig := &ChTableConfig{
+	chConfig := &clickhouse.ChTableConfig{
 		hasTimestamp:         true,
 		timestampDefaultsNow: true,
 		engine:               "MergeTree",
@@ -77,7 +78,7 @@ func TestAlterTableHeuristic(t *testing.T) {
 		primaryKey:           "",
 		ttl:                  "",
 		attributes: []Attribute{
-			NewDefaultStringAttribute(),
+			clickhouse.NewDefaultStringAttribute(),
 		},
 		castUnsupportedAttrValueTypesToString: true,
 		preferCastingToOthers:                 true,
@@ -97,12 +98,12 @@ func TestAlterTableHeuristic(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		const tableName = "tableName"
-		table := &Table{
+		table := &clickhouse.Table{
 			Name: tableName,
-			Cols: map[string]*Column{},
+			Cols: map[string]*clickhouse.Column{},
 		}
 		fieldsMap := concurrent.NewMapWith(tableName, table)
-		lm := NewLogManager(fieldsMap, &config.QuesmaConfiguration{})
+		ip := NewIngestProcessor(fieldsMap, &config.QuesmaConfiguration{})
 
 		rowsToInsert := make([]string, 0)
 		previousRow := ``
@@ -121,9 +122,9 @@ func TestAlterTableHeuristic(t *testing.T) {
 			previousRow = currentRow
 		}
 
-		assert.Equal(t, int64(0), lm.ingestCounter)
+		assert.Equal(t, int64(0), ip.ingestCounter)
 		for i := range rowsToInsert {
-			_, _, _, err := lm.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig)
+			_, _, _, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig)
 			assert.NoError(t, err)
 		}
 		assert.Equal(t, tc.expected, len(table.Cols))

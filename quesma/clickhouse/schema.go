@@ -39,7 +39,7 @@ type (
 	}
 	BaseType struct {
 		Name     string       // ClickHouse name
-		goType   reflect.Type // can be nil, e.g. for LowCardinality
+		GoType   reflect.Type // can be nil, e.g. for LowCardinality
 		Nullable bool         // if it's Nullable
 	}
 	CompoundType struct { // only Array for now I think
@@ -177,7 +177,7 @@ func (t BaseType) canConvert(v interface{}) bool {
 		return true
 	}
 	rv := reflect.ValueOf(v)
-	return rv.CanConvert(t.goType) && rv.Equal(rv.Convert(t.goType).Convert(rv.Type()))
+	return rv.CanConvert(t.GoType) && rv.Equal(rv.Convert(t.GoType).Convert(rv.Type()))
 }
 
 func (t CompoundType) canConvert(v interface{}) bool {
@@ -189,12 +189,12 @@ func (t MultiValueType) canConvert(v interface{}) bool {
 }
 
 func NewBaseType(clickHouseTypeName string) BaseType {
-	var goType = ResolveType(clickHouseTypeName)
-	if goType == nil {
+	var GoType = ResolveType(clickHouseTypeName)
+	if GoType == nil {
 		// default, probably good for dates, etc.
-		goType = reflect.TypeOf("")
+		GoType = reflect.TypeOf("")
 	}
-	return BaseType{Name: clickHouseTypeName, goType: goType}
+	return BaseType{Name: clickHouseTypeName, GoType: GoType}
 }
 
 // this is catch all type for all types we do not exlicitly support
@@ -238,21 +238,21 @@ func NewType(value any) Type {
 	case string:
 		t, err := time.Parse(time.RFC3339Nano, valueCasted)
 		if err == nil {
-			return BaseType{Name: "DateTime64", goType: reflect.TypeOf(t)}
+			return BaseType{Name: "DateTime64", GoType: reflect.TypeOf(t)}
 		}
 		t, err = time.Parse("2006-01-02T15:04:05", valueCasted)
 		if err == nil {
-			return BaseType{Name: "DateTime64", goType: reflect.TypeOf(t)}
+			return BaseType{Name: "DateTime64", GoType: reflect.TypeOf(t)}
 		}
-		return BaseType{Name: "String", goType: reflect.TypeOf("")}
+		return BaseType{Name: "String", GoType: reflect.TypeOf("")}
 	case float64:
 		if isFloatInt(valueCasted) {
-			return BaseType{Name: "Int64", goType: reflect.TypeOf(int64(0))}
+			return BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0))}
 		} else {
-			return BaseType{Name: "Float64", goType: reflect.TypeOf(float64(0))}
+			return BaseType{Name: "Float64", GoType: reflect.TypeOf(float64(0))}
 		}
 	case bool:
-		return BaseType{Name: "Bool", goType: reflect.TypeOf(true)}
+		return BaseType{Name: "Bool", GoType: reflect.TypeOf(true)}
 	case map[string]interface{}:
 		cols := make([]*Column, len(valueCasted))
 		for k, v := range valueCasted {
@@ -272,7 +272,7 @@ func NewType(value any) Type {
 	logger.Warn().Msgf("Unsupported type '%T' of value: %v.", value, value)
 
 	// value can be nil, so should return something reasonable here
-	return BaseType{Name: "String", goType: reflect.TypeOf("")}
+	return BaseType{Name: "String", GoType: reflect.TypeOf("")}
 
 }
 

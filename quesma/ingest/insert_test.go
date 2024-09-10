@@ -1,12 +1,13 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package clickhouse
+package ingest
 
 import (
 	"context"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"quesma/clickhouse"
 	"quesma/concurrent"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -90,7 +91,7 @@ var insertTests = []struct {
 	},
 }
 
-var configs = []*ChTableConfig{
+var configs = []*clickhouse.ChTableConfig{
 	NewChTableConfigNoAttrs(),
 	NewDefaultCHConfig(),
 }
@@ -114,8 +115,8 @@ var expectedInserts = [][]string{
 	},
 }
 
-type logManagerHelper struct {
-	lm                  *LogManager
+type ingestProcessorHelper struct {
+	ip                  *IngestProcessor
 	tableAlreadyCreated bool
 }
 
@@ -126,13 +127,13 @@ func (*IngestTransformer) Transform(document types.JSON) (types.JSON, error) {
 	return document, nil
 }
 
-func logManagersNonEmpty(cfg *ChTableConfig) []logManagerHelper {
-	lms := make([]logManagerHelper, 0, 4)
+func ingestProcessorsNonEmpty(cfg *clickhouse.ChTableConfig) []ingestProcessorHelper {
+	lms := make([]ingestProcessorHelper, 0, 4)
 	for _, created := range []bool{true, false} {
-		full := concurrent.NewMapWith(tableName, &Table{
+		full := concurrent.NewMapWith(tableName, &clickhouse.Table{
 			Name:   tableName,
 			Config: cfg,
-			Cols: map[string]*Column{
+			Cols: map[string]*clickhouse.Column{
 				"@timestamp":       dateTime("@timestamp"),
 				"host::name":       genericString("host::name"),
 				"message":          lowCardinalityString("message"),
@@ -140,28 +141,28 @@ func logManagersNonEmpty(cfg *ChTableConfig) []logManagerHelper {
 			},
 			Created: created,
 		})
-		lms = append(lms, logManagerHelper{NewLogManager(full, &config.QuesmaConfiguration{}), created})
+		lms = append(lms, ingestProcessorHelper{NewIngestProcessor(full, &config.QuesmaConfiguration{}), created})
 	}
 	return lms
 }
 
-func logManagers(config *ChTableConfig) []logManagerHelper {
-	logManager := NewLogManagerEmpty()
-	logManager.schemaRegistry = schema.StaticRegistry{}
-	return append([]logManagerHelper{{logManager, false}}, logManagersNonEmpty(config)...)
+func ingestProcessors(config *clickhouse.ChTableConfig) []ingestProcessorHelper {
+	ingestProcessor := NewIngestProcessorEmpty()
+	ingestProcessor.schemaRegistry = schema.StaticRegistry{}
+	return append([]ingestProcessorHelper{{ingestProcessor, false}}, ingestProcessorsNonEmpty(config)...)
 }
 
 func TestAutomaticTableCreationAtInsert(t *testing.T) {
 	for index1, tt := range insertTests {
 		for index2, tableConfig := range configs {
-			for index3, lm := range logManagers(tableConfig) {
-				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], logManager["+strconv.Itoa(index3)+"]", func(t *testing.T) {
-					lm.lm.schemaRegistry = schema.StaticRegistry{}
-					columnsFromJson, columnsFromSchema := lm.lm.buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), tableConfig, &columNameFormatter{separator: "::"})
+			for index3, ip := range ingestProcessors(tableConfig) {
+				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
+					ip.ip.schemaRegistry = schema.StaticRegistry{}
+					columnsFromJson, columnsFromSchema := ip.ip.buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), tableConfig, &columNameFormatter{separator: "::"})
 					columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(types.MustJSON(tt.insertJson)))
 					query := createTableQuery(tableName, columns, tableConfig)
 
-					table, err := NewTable(query, tableConfig)
+					table, err := clickhouse.NewTable(query, tableConfig)
 					assert.NoError(t, err)
 					query = addOurFieldsToCreateTableQuery(query, tableConfig, table)
 
@@ -178,34 +179,34 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 							assert.Contains(t, tt.createTableLines, line)
 						}
 					}
-					logManagerEmpty := lm.lm.tableDiscovery.TableDefinitions().Size() == 0
+					ingestProcessorEmpty := ip.ip.tableDiscovery.TableDefinitions().Size() == 0
 
 					// check if we properly create table in our tables table :) (:) suggested by Copilot) if needed
-					tableInMemory := lm.lm.FindTable(tableName)
+					tableInMemory := ip.ip.FindTable(tableName)
 					needCreate := true
 					if tableInMemory != nil && tableInMemory.Created {
 						needCreate = false
 					}
-					noSuchTable := lm.lm.AddTableIfDoesntExist(table)
+					noSuchTable := ip.ip.AddTableIfDoesntExist(table)
 					assert.Equal(t, needCreate, noSuchTable)
 
 					// and Created is set to true
-					tableInMemory = lm.lm.FindTable(tableName)
+					tableInMemory = ip.ip.FindTable(tableName)
 					assert.NotNil(t, tableInMemory)
 					assert.True(t, tableInMemory.Created)
 
 					// and we have a schema in memory in every case
-					assert.Equal(t, 1, lm.lm.tableDiscovery.TableDefinitions().Size())
+					assert.Equal(t, 1, ip.ip.tableDiscovery.TableDefinitions().Size())
 
 					// and that schema in memory is what it should be (predefined, if it was predefined, new if it was new)
-					resolvedTable, _ := lm.lm.tableDiscovery.TableDefinitions().Load(tableName)
-					if logManagerEmpty {
+					resolvedTable, _ := ip.ip.tableDiscovery.TableDefinitions().Load(tableName)
+					if ingestProcessorEmpty {
 						if len(tableConfig.attributes) > 0 {
 							assert.Equal(t, len(tableConfig.attributes)+4, len(resolvedTable.Cols))
 						} else {
 							assert.Equal(t, 6+2*len(tableConfig.attributes), len(resolvedTable.Cols))
 						}
-					} else if lm.lm.tableDiscovery.TableDefinitions().Size() > 0 {
+					} else if ip.ip.tableDiscovery.TableDefinitions().Size() > 0 {
 						assert.Equal(t, 4, len(resolvedTable.Cols))
 					} else {
 						assert.Equal(t, 4, len(resolvedTable.Cols))
@@ -220,22 +221,22 @@ func TestProcessInsertQuery(t *testing.T) {
 	ctx := context.Background()
 	for index1, tt := range insertTests {
 		for index2, config := range configs {
-			for index3, lm := range logManagers(config) {
-				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], logManager["+strconv.Itoa(index3)+"]", func(t *testing.T) {
+			for index3, ip := range ingestProcessors(config) {
+				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
 					db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-					lm.lm.chDb = db
+					ip.ip.chDb = db
 					defer db.Close()
 
 					// info: result values aren't important, this '.WillReturnResult[...]' just needs to be there
-					if !lm.tableAlreadyCreated {
+					if !ip.tableAlreadyCreated {
 						// we check here if we try to create table from predefined schema, not from insert's JSON
-						if lm.lm.tableDiscovery.TableDefinitions().Size() > 0 {
+						if ip.ip.tableDiscovery.TableDefinitions().Size() > 0 {
 							mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName + `.*non-insert-field`).WillReturnResult(sqlmock.NewResult(0, 0))
 						} else {
 							mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
 						}
 					}
-					if len(config.attributes) == 0 || (lm.lm.tableDiscovery.TableDefinitions().Size() == 0) {
+					if len(config.attributes) == 0 || (ip.ip.tableDiscovery.TableDefinitions().Size() == 0) {
 						for i := range expectedInserts[2*index1] {
 							mock.ExpectExec(expectedInserts[2*index1][i]).WillReturnResult(sqlmock.NewResult(545, 54))
 						}
@@ -245,7 +246,7 @@ func TestProcessInsertQuery(t *testing.T) {
 						}
 					}
 
-					err := lm.lm.ProcessInsertQuery(ctx, tableName, []types.JSON{types.MustJSON(tt.insertJson)}, &IngestTransformer{}, &columNameFormatter{separator: "::"})
+					err := ip.ip.ProcessInsertQuery(ctx, tableName, []types.JSON{types.MustJSON(tt.insertJson)}, &IngestTransformer{}, &columNameFormatter{separator: "::"})
 					assert.NoError(t, err)
 					if err := mock.ExpectationsWereMet(); err != nil {
 						t.Fatal("there were unfulfilled expections:", err)
@@ -269,7 +270,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	for i, bigInt := range bigInts {
 		t.Run("big integer schema field: "+bigInt, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-			lm := NewLogManagerEmpty()
+			lm := NewIngestProcessorEmpty()
 			lm.chDb = db
 			defer db.Close()
 
@@ -285,19 +286,19 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	}
 
 	// big integer as an attribute field
-	tableMapNoSchemaFields := concurrent.NewMapWith(tableName, &Table{
+	tableMapNoSchemaFields := concurrent.NewMapWith(tableName, &clickhouse.Table{
 		Name:    tableName,
 		Config:  NewChTableConfigFourAttrs(),
-		Cols:    map[string]*Column{},
+		Cols:    map[string]*clickhouse.Column{},
 		Created: true,
 	})
 
 	for i, bigInt := range bigInts {
 		t.Run("big integer attribute field: "+bigInt, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-			lm := NewLogManagerEmpty()
+			lm := NewIngestProcessorEmpty()
 			lm.chDb = db
-			lm.tableDiscovery = newTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
+			lm.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
 			defer db.Close()
 
 			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
@@ -314,33 +315,33 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	}
 }
 
-func genericString(name string) *Column {
-	return &Column{
+func genericString(name string) *clickhouse.Column {
+	return &clickhouse.Column{
 		Name: name,
-		Type: BaseType{
+		Type: clickhouse.BaseType{
 			Name:   "String",
-			goType: NewBaseType("String").goType,
+			GoType: clickhouse.NewBaseType("String").GoType,
 		},
 		Modifiers: "CODEC(ZSTD(1))",
 	}
 }
 
-func lowCardinalityString(name string) *Column {
-	return &Column{
+func lowCardinalityString(name string) *clickhouse.Column {
+	return &clickhouse.Column{
 		Name: name,
-		Type: BaseType{
+		Type: clickhouse.BaseType{
 			Name:   "LowCardinality(String)",
-			goType: NewBaseType("LowCardinality(String)").goType,
+			GoType: clickhouse.NewBaseType("LowCardinality(String)").GoType,
 		},
 	}
 }
 
-func dateTime(name string) *Column {
-	return &Column{
+func dateTime(name string) *clickhouse.Column {
+	return &clickhouse.Column{
 		Name: name,
-		Type: BaseType{
+		Type: clickhouse.BaseType{
 			Name:   "DateTime64",
-			goType: NewBaseType("DateTime64").goType,
+			GoType: clickhouse.NewBaseType("DateTime64").GoType,
 		},
 		Modifiers: "CODEC(DoubleDelta, LZ4)",
 	}
