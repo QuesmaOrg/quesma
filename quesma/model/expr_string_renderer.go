@@ -30,8 +30,8 @@ func (v *renderer) VisitColumnRef(e ColumnRef) interface{} {
 	name = strings.TrimSuffix(name, "::keyword") // TODO is this needed?
 	name = strings.TrimSuffix(name, types.MultifieldMapKeysSuffix)
 	name = strings.TrimSuffix(name, types.MultifieldMapValuesSuffix)
-	if len(e.OptPrefixTable) > 0 {
-		return fmt.Sprintf("%s.%s", strconv.Quote(e.OptPrefixTable), strconv.Quote(name))
+	if len(e.TableAlias) > 0 {
+		return fmt.Sprintf("%s.%s", strconv.Quote(e.TableAlias), strconv.Quote(name))
 	} else {
 		return strconv.Quote(name)
 	}

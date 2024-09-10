@@ -297,10 +297,5 @@ WHERE top_hits_rank<=1`
 	expect := strings.Trim(sql, " \n")
 
 	sqlFormatted := SqlPrettyPrint([]byte(sql))
-	println("===== Expected: ")
-
-	println(expect)
-	println("===== Actual: ")
-	println(sqlFormatted)
 	assert.Equal(t, expect, sqlFormatted)
 }

@@ -386,9 +386,7 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 			return nil, err
 		}
 
-		if len(additionalTopHitPancakes) > 0 {
-			pancakeResults = append(pancakeResults, additionalTopHitPancakes...)
-		}
+		pancakeResults = append(pancakeResults, additionalTopHitPancakes...)
 	}
 
 	return

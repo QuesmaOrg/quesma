@@ -82,8 +82,8 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 				)
 			}
 			return model.ColumnRef{
-				OptPrefixTable: hitTableName,
-				ColumnName:     exprTyped.ColumnName,
+				TableAlias: hitTableName,
+				ColumnName: exprTyped.ColumnName,
 			}
 		}
 		return expr
@@ -156,7 +156,7 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 
 	joinQueryName := "quesma_top_hits_join"
 
-	namedCte := []*model.CTE{
+	namedCTEs := []*model.CTE{
 		{
 			Name:          topHitsSourceName,
 			SelectCommand: origQuery,
@@ -178,9 +178,9 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 		WhereClause: model.NewInfixExpr(
 			p.quotedLiteral("top_hits_rank"),
 			"<=",
-			model.NewLiteral(strconv.Itoa(topHitsQueryType.Size))),
+			model.NewLiteral(topHitsQueryType.Size)),
 		OrderBy:   orderBy,
-		NamedCTEs: namedCte,
+		NamedCTEs: namedCTEs,
 	}
 
 	return resultQuery, nil
