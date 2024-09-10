@@ -435,7 +435,9 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 	if timestampColumnName == "" {
 		// no timestamp field found, replace with NULL if any
-		replacementExpr = model.NewLiteral("NULL")
+
+		// see comment above, we don't know what is a discovered timestamp field
+		//replacementExpr = model.NewLiteral("NULL")
 	} else {
 		// check if the query has hits type, so '_id' generation should not be based on timestamp
 		//
@@ -482,6 +484,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 	}{
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
+		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 		{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
 		{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
