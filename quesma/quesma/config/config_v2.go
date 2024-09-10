@@ -170,7 +170,9 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 	if len(c.Pipelines) > 2 {
 		return fmt.Errorf("only one or two pipelines are supported at this moment")
 	}
-	if isSinglePipeline { // for single pipelines we can support only querying
+	if isSinglePipeline {
+		// We plan to only support a case of a single pipeline for querying (this code validates this).
+		// However, we haven't yet implemented the case of disabling ingest, so single pipeline case is not yet supported.
 		fcName := c.Pipelines[0].FrontendConnectors[0]
 		if fc := c.getFrontendConnectorByName(fcName); fc != nil {
 			if fc.Type != ElasticsearchFrontendQueryConnectorName {
@@ -180,9 +182,6 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 			if proc == nil {
 				return fmt.Errorf(fmt.Sprintf("processor named [%s] not found in configuration", c.Pipelines[0].Processors[0]))
 			}
-			if proc.Type != QuesmaV1ProcessorQuery && proc.Type != QuesmaV1ProcessorNoOp {
-				return fmt.Errorf("single pipeline Quesma can only be used for querying, but the processor is not of query type")
-			}
 			declaredBackendConnectors := c.Pipelines[0].BackendConnectors
 			if proc.Type == QuesmaV1ProcessorNoOp {
 				if len(declaredBackendConnectors) != 1 {
@@ -191,24 +190,28 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				if conn := c.getBackendConnectorByName(declaredBackendConnectors[0]); conn.Type != ElasticsearchBackendConnectorName {
 					return fmt.Errorf("noop processor can be connected only to elasticsearch backend connector")
 				}
-				if proc.Type == QuesmaV1ProcessorQuery {
-					if len(declaredBackendConnectors) != 2 {
-						return fmt.Errorf("query processor requires two backend connectors")
-					}
-					var backendConnectorTypes []string
-					for _, con := range declaredBackendConnectors {
-						backendConnectorTypes = append(backendConnectorTypes, c.getBackendConnectorByName(con).Type)
-					}
-					if !slices.Contains(backendConnectorTypes, ElasticsearchBackendConnectorName) {
-						return fmt.Errorf("query processor requires having one elasticsearch backend connector")
-					}
-					if !slices.Contains(backendConnectorTypes, ClickHouseBackendConnectorName) &&
-						!slices.Contains(backendConnectorTypes, ClickHouseOSBackendConnectorName) &&
-						!slices.Contains(backendConnectorTypes, HydrolixBackendConnectorName) {
-						return fmt.Errorf("query processor requires having one Clickhouse-compatible backend connector")
-					}
+			} else if proc.Type == QuesmaV1ProcessorQuery {
+				if len(declaredBackendConnectors) != 2 {
+					return fmt.Errorf("query processor requires two backend connectors")
 				}
+				var backendConnectorTypes []string
+				for _, con := range declaredBackendConnectors {
+					backendConnectorTypes = append(backendConnectorTypes, c.getBackendConnectorByName(con).Type)
+				}
+				if !slices.Contains(backendConnectorTypes, ElasticsearchBackendConnectorName) {
+					return fmt.Errorf("query processor requires having one elasticsearch backend connector")
+				}
+				if !slices.Contains(backendConnectorTypes, ClickHouseBackendConnectorName) &&
+					!slices.Contains(backendConnectorTypes, ClickHouseOSBackendConnectorName) &&
+					!slices.Contains(backendConnectorTypes, HydrolixBackendConnectorName) {
+					return fmt.Errorf("query processor requires having one Clickhouse-compatible backend connector")
+				}
+			} else {
+				return fmt.Errorf("single pipeline Quesma can only be used for querying, but the processor is not of query type")
 			}
+
+			// We have a correct query-only pipeline, but we haven't yet implemented the case of disabling ingest...
+			return fmt.Errorf("single pipeline Quesma with querying (ingest disabled) is not supported at this moment")
 		} else {
 			return fmt.Errorf(fmt.Sprintf("frontend connector named [%s] referred in pipeline [%s] not found in configuration", fcName, c.Pipelines[0].Name))
 		}
