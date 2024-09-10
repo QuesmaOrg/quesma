@@ -337,6 +337,9 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 
 		cols := make([]string, 0, len(indexSchema.Fields))
 		for _, col := range indexSchema.Fields {
+			if col.Type.Name == schema.QuesmaTypePoint.Name {
+				continue
+			}
 			cols = append(cols, col.InternalPropertyName.AsString())
 		}
 		sort.Strings(cols)
