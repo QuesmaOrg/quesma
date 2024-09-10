@@ -89,7 +89,7 @@ Dot in this case is just a separator.
    - Users may need familiarize with it.
    - For non-SQL it slightly less intuitive than `.`.
 
-5. Non-conflicting encoding
+5. **Non-conflicting encoding**
     - Pros:
         - Avoids conflicts with non-conflicting encoding.
     - Cons:
@@ -105,7 +105,7 @@ Dot in this case is just a separator.
         - Potentially requires more code to handle storing/loading persistence information and additional calls to ElasticSearch.
         - May lead to some unexpected behavior when user move to another ElasticSearch.
 
-7. **Using simple encoding with column comments (annotations) as persistent storage **
+7. **Using simple encoding with column comments (annotations) as persistent storage**
    - Pros:
       - Avoids conflicts with special characters.
       - Seems simpler than using external storage (option 5).
@@ -129,7 +129,7 @@ Collision encoding logic:
    - if starts with digit, then add ‘_’ at beginning
    - Save mapping to persitent logic, on-collision do override.
 
-As a result, we decided to use option 6 (which seems simpler) - using simple encoding with column comments (annotations) as persistent storage.
+As a result, we decided to use option 7 (which seems simpler) - using simple encoding with column comments (annotations) as persistent storage.
 
 ## People
 
