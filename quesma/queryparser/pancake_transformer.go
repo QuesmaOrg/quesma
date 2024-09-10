@@ -148,7 +148,7 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 
 	result = make([]layerAndNextBucket, 1)
 
-	result[0].layer = newPancakeModelLayer()
+	result[0].layer = newPancakeModelLayer(nil)
 
 	// we need sort aggregation to generate consistent results, otherwise:
 	// - tests are flaky
@@ -185,10 +185,7 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 				}
 
 				// we need more pancakes as we support just one bucket layer
-				layer := &pancakeModelLayer{
-					currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
-					nextBucketAggregation:     bucket,
-				}
+				layer := newPancakeModelLayer(bucket)
 				result = append(result, layerAndNextBucket{layer: layer, nextBucketAggregation: childAgg})
 			}
 
@@ -229,8 +226,7 @@ func (a *pancakeTransformer) aggregationChildrenToLayers(aggrNames []string, chi
 				for i, childLayer := range childLayers {
 					newLayer := res.layer
 					if i > 0 { // remove metrics
-						newLayer = newPancakeModelLayer()
-						newLayer.nextBucketAggregation = res.layer.nextBucketAggregation
+						newLayer = newPancakeModelLayer(res.layer.nextBucketAggregation)
 					}
 
 					resultLayers = append(resultLayers, append([]*pancakeModelLayer{newLayer}, childLayer...))
@@ -338,27 +334,21 @@ func (a *pancakeTransformer) createTopHitAndTopMetricsPancakes(pancake *pancakeM
 									nextBucketAggregation := pancake.layers[idx].nextBucketAggregation.ShallowClone()
 									nextBucketAggregation.queryType = nextBucketAggregationQueryType
 									newArrayOfNewLayers = append(newArrayOfNewLayers,
-										append(newLayers, &pancakeModelLayer{
-											currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
-											nextBucketAggregation:     &nextBucketAggregation,
-										}))
+										append(newLayers, newPancakeModelLayer(&nextBucketAggregation)))
 								}
 							}
 							arrayOfNewLayers = newArrayOfNewLayers
 						default:
 							for i := range arrayOfNewLayers {
-								arrayOfNewLayers[i] = append(arrayOfNewLayers[i], &pancakeModelLayer{
-									currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
-									nextBucketAggregation:     pancake.layers[idx].nextBucketAggregation,
-								})
+								arrayOfNewLayers[i] = append(arrayOfNewLayers[i],
+									newPancakeModelLayer(pancake.layers[idx].nextBucketAggregation))
 							}
 						}
 					}
 					for _, newLayers := range arrayOfNewLayers {
-						newLayers = append(newLayers, &pancakeModelLayer{
-							currentMetricAggregations: []*pancakeModelMetricAggregation{metric},
-							nextBucketAggregation:     nil,
-						})
+						newLayer := newPancakeModelLayer(nil)
+						newLayer.currentMetricAggregations = append(newLayer.currentMetricAggregations, metric)
+						newLayers = append(newLayers, newLayer)
 
 						newPancake := pancakeModel{
 							layers:      newLayers,

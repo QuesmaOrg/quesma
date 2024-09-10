@@ -28,8 +28,9 @@ type pancakeModelLayer struct {
 	childrenPipelineAggregations []*pancakeModelPipelineAggregation
 }
 
-func newPancakeModelLayer() *pancakeModelLayer {
+func newPancakeModelLayer(nextBucketAggregation *pancakeModelBucketAggregation) *pancakeModelLayer {
 	return &pancakeModelLayer{
+		nextBucketAggregation:        nextBucketAggregation,
 		currentMetricAggregations:    make([]*pancakeModelMetricAggregation, 0),
 		currentPipelineAggregations:  make([]*pancakeModelPipelineAggregation, 0),
 		childrenPipelineAggregations: make([]*pancakeModelPipelineAggregation, 0),
