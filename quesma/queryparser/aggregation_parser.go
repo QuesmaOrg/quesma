@@ -287,7 +287,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "top_hits":
 		query.Type = metrics_aggregations.NewTopHits(b.ctx, metricsAggr.Size)
 	case "top_metrics":
-		query.Type = metrics_aggregations.NewTopMetrics(b.ctx, metricsAggr.sortByExists())
+		query.Type = metrics_aggregations.NewTopMetrics(b.ctx, metricsAggr.Size, metricsAggr.SortBy, metricsAggr.Order)
 	case "value_count":
 		query.Type = metrics_aggregations.NewValueCount(b.ctx)
 	case "percentile_ranks":

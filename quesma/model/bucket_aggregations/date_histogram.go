@@ -152,14 +152,17 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 }
 
 func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
+	const defaultTimezone = "UTC"
 	exprForBiggerIntervals := func(toIntervalStartFuncName string) model.Expr {
 		// returned expr as string:
-		// a) "1000 * toInt64(toUnixTimestamp(toStartOf[Week|Month|Quarter|Year](timestamp)))" (with no timezone offset)
-		// b) as above, but replace timestamp -> toTimeZone(timestamp, timezone) (with timezone present)
-		timestampFieldWithOffset := query.field
-		if query.timezone != "" {
-			timestampFieldWithOffset = model.NewFunction("toTimezone", query.field, model.NewLiteral(fmt.Sprintf("'%s'", query.timezone)))
+		// 1000 * toInt64(toUnixTimestamp(toStartOf[Week|Month|Quarter|Year](toTimeZone(timestamp, timezone)))
+
+		timezone := query.timezone
+		if timezone == "" {
+			timezone = defaultTimezone
 		}
+		timestampFieldWithOffset := model.NewFunction("toTimezone", query.field, model.NewLiteral(fmt.Sprintf("'%s'", timezone)))
+
 		toStartOf := model.NewFunction(toIntervalStartFuncName, timestampFieldWithOffset) // toStartOfMonth(...) or toStartOfWeek(...)
 		toUnixTimestamp := model.NewFunction("toUnixTimestamp", toStartOf)                // toUnixTimestamp(toStartOf...)
 		toInt64 := model.NewFunction("toInt64", toUnixTimestamp)                          // toInt64(toUnixTimestamp(...))

@@ -49,11 +49,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if i == 29 || i == 30 {
 				t.Skip("Skipped also for previous implementation. New tests, harder, failing for now.")
 			}
-			if topHits(test.TestName) {
-				t.Skip("Fix top_hits")
-			}
-			if topMetrics(test.TestName) {
-				t.Skip("Fix top metrics")
+			if test.TestName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range(file:opensearch-visualize/agg_req,nr:1)" {
+				t.Skip("Skipped also for previous implementation. Top_hits needs to be better.")
 			}
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
@@ -183,21 +180,6 @@ func incorrectResult(testName string) bool {
 	//	"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
 	//	"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix"
 	return t1 || t2 || t3
-}
-
-// TODO remove after fix
-func topHits(testName string) bool {
-	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range(file:opensearch-visualize/agg_req,nr:1)" // also range
-	return t1
-}
-
-// TODO remove after fix
-func topMetrics(testName string) bool {
-	t1 := testName == "Kibana Visualize -> Last Value. Used to panic(file:agg_req,nr:31)" // also filter
-	t2 := testName == "simplest top_metrics, no sort(file:agg_req,nr:38)"
-	t3 := testName == "simplest top_metrics, with sort(file:agg_req,nr:39)"
-	t4 := testName == "very long: multiple top_metrics + histogram(file:agg_req,nr:10)" // also top_metrics
-	return t1 || t2 || t3 || t4
 }
 
 // TODO remove after fix

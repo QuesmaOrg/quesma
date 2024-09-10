@@ -40,18 +40,20 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 	return
 }
 
-func (p *pancakeJSONRenderer) selectTopHitsRows(topHits *pancakeModelMetricAggregation, rows []model.QueryResultRow) (result []model.QueryResultRow) {
+// selectTopHitsRows: select columns for top_hits/top_metrics and rename them to original column names.
+// There is refactoring opportunity once we move completely to pancakes and remove re-name logic from this method.
+func (p *pancakeJSONRenderer) selectTopHitsRows(topAggr *pancakeModelMetricAggregation, rows []model.QueryResultRow) (result []model.QueryResultRow) {
 	for _, row := range rows {
 		var newCols []model.QueryResultCol
 		for _, col := range row.Cols {
-			if strings.HasPrefix(col.ColName, topHits.InternalNamePrefix()) {
-				numStr := strings.TrimPrefix(col.ColName, topHits.InternalNamePrefix())
+			if strings.HasPrefix(col.ColName, topAggr.InternalNamePrefix()) {
+				numStr := strings.TrimPrefix(col.ColName, topAggr.InternalNamePrefix())
 				if num, err := strconv.Atoi(numStr); err == nil {
 					var overrideName string
-					if num < 0 || num >= len(topHits.selectedColumns) {
+					if num < 0 || num >= len(topAggr.selectedColumns) {
 						logger.WarnWithCtx(p.ctx).Msgf("invalid top_hits column index %d", num)
 					} else {
-						selectedColumn := topHits.selectedColumns[num]
+						selectedColumn := topAggr.selectedColumns[num]
 						if colRef, ok := selectedColumn.(model.ColumnRef); ok {
 							overrideName = colRef.ColumnName
 						}
@@ -69,6 +71,9 @@ func (p *pancakeJSONRenderer) selectTopHitsRows(topHits *pancakeModelMetricAggre
 }
 
 func (p *pancakeJSONRenderer) selectPrefixRows(prefix string, rows []model.QueryResultRow) (result []model.QueryResultRow) {
+	if prefix == "" {
+		return rows
+	}
 	for _, row := range rows {
 		var newCols []model.QueryResultCol
 		for _, col := range row.Cols {
@@ -226,9 +231,10 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 
 	for _, metric := range layer.currentMetricAggregations {
 		var metricRows []model.QueryResultRow
-		if _, ok := metric.queryType.(metrics_aggregations.TopHits); ok {
+		switch metric.queryType.(type) {
+		case metrics_aggregations.TopMetrics, metrics_aggregations.TopHits:
 			metricRows = p.selectTopHitsRows(metric, rows)
-		} else {
+		default:
 			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
 		}
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?

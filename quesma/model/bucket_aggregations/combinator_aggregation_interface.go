@@ -17,7 +17,8 @@ import "quesma/model"
 type CombinatorAggregationInterface interface {
 	CombinatorGroups() []CombinatorGroup
 	CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap
-	DoesNotHaveGroupBy() bool // defined is NoGroupByInterface which is broader group
+	DoesNotHaveGroupBy() bool           // defined is NoGroupByInterface which is broader group
+	CombinatorSplit() []model.QueryType // split into new aggregations, each for one group
 }
 
 type CombinatorGroup struct {

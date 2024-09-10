@@ -14,9 +14,12 @@ func (p *pancakeSqlQueryGenerator) quotedLiteral(name string) model.LiteralExpr 
 	return model.NewLiteral(strconv.Quote(name))
 }
 
+// generateSimpleTopHitsQuery generates an SQL for top_hits/top_metrics
+// original query does not any group aggregations and we don't need to do JOIN.
 func (p *pancakeSqlQueryGenerator) generateSimpleTopHitsQuery(topHits *pancakeModelMetricAggregation,
 	whereClause model.Expr,
-	topHitsQueryType metrics_aggregations.TopHits) (*model.SelectCommand, error) {
+	orderBy []model.OrderByExpr,
+	size int) (*model.SelectCommand, error) {
 
 	newSelects := make([]model.AliasedExpr, 0, len(topHits.selectedColumns))
 	for topHitsIdx, selectedTopHits := range topHits.selectedColumns {
@@ -28,13 +31,15 @@ func (p *pancakeSqlQueryGenerator) generateSimpleTopHitsQuery(topHits *pancakeMo
 		Columns:     p.aliasedExprArrayToExpr(newSelects),
 		FromClause:  model.NewTableRef(model.SingleTableNamePlaceHolder),
 		WhereClause: whereClause,
-		OrderBy:     topHitsQueryType.OrderBy,
-		Limit:       topHitsQueryType.Size,
+		OrderBy:     orderBy,
+		Limit:       size,
 	}
 
 	return resultQuery, nil
 }
 
+// generateTopHitsQuery generates an SQL for top_hits/top_metrics.
+// It takes original group by query and JOIN it with select to actual fields.
 func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeModel,
 	combinatorWhere []model.Expr,
 	topHits *pancakeModelMetricAggregation,
@@ -42,11 +47,27 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	selectColumns []model.AliasedExpr,
 	origQuery *model.SelectCommand) (*model.SelectCommand, error) {
 
-	var topHitsQueryType metrics_aggregations.TopHits
-	if queryType, ok := topHits.queryType.(metrics_aggregations.TopHits); ok {
-		topHitsQueryType = queryType
-	} else {
-		return nil, fmt.Errorf("expected top_hits query type, got: %T", topHits.queryType)
+	var sizeLimit int
+	var topOrderBy []model.OrderByExpr
+
+	switch queryType := topHits.queryType.(type) {
+	case metrics_aggregations.TopHits:
+		topOrderBy = queryType.OrderBy
+		sizeLimit = queryType.Size
+	case metrics_aggregations.TopMetrics:
+		if len(queryType.SortBy) > 0 {
+			topOrderBy = []model.OrderByExpr{
+				model.NewOrderByExpr(
+					model.NewColumnRef(queryType.SortBy),
+					queryType.SortOrder,
+				),
+			}
+		} else {
+			topOrderBy = []model.OrderByExpr{}
+		}
+		sizeLimit = queryType.Size
+	default:
+		return nil, fmt.Errorf("expected top_hits/top_metrics query type, got: %T", topHits.queryType)
 	}
 
 	// Add combinators if needed
@@ -56,7 +77,7 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	}
 
 	if len(groupBys) == 0 {
-		return p.generateSimpleTopHitsQuery(topHits, whereClause, topHitsQueryType)
+		return p.generateSimpleTopHitsQuery(topHits, whereClause, topOrderBy, sizeLimit)
 	}
 
 	groupTableName := "group_table"
@@ -144,7 +165,7 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 
 	// TODO: we need to test order by here
 	rankSelect := model.NewAliasedExpr(
-		model.NewWindowFunction("ROW_NUMBER", []model.Expr{}, partitionByExprs, topHitsQueryType.OrderBy),
+		model.NewWindowFunction("ROW_NUMBER", []model.Expr{}, partitionByExprs, topOrderBy),
 		"top_hits_rank")
 	newSelects = append(newSelects, rankSelect)
 
@@ -178,7 +199,7 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 		WhereClause: model.NewInfixExpr(
 			p.quotedLiteral("top_hits_rank"),
 			"<=",
-			model.NewLiteral(topHitsQueryType.Size)),
+			model.NewLiteral(sizeLimit)),
 		OrderBy:   orderBy,
 		NamedCTEs: namedCTEs,
 	}
