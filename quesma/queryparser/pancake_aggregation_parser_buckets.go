@@ -5,7 +5,6 @@ package queryparser
 
 import (
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -315,8 +314,8 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 
 func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap QueryMap, aggregationName string) model.Expr {
 	notFoundValue := model.NewLiteral("")
+
 	aggsRaw, exists := queryMap["aggs"]
-	pp.Println("wchodze do find...", aggsRaw)
 	if !exists {
 		logger.WarnWithCtx(cw.Ctx).Msgf("no aggs in queryMap, queryMap: %+v", queryMap)
 		return notFoundValue
@@ -327,37 +326,37 @@ func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap Query
 		return notFoundValue
 	}
 
-	var weTrySplitByDot bool
 	var percentileNameWeLookFor string
+	weTrySplitByDot := false
 
 	// We try 2 things here:
 	// First (always): maybe there exists an aggregation with exactly this name
 	// Second (if aggregation_name == X.Y): maybe it's aggregationName.some_value, e.g. "2.75", when "2" aggregation is a percentile, and 75 is its value
-	aggregationNameToTry := []string{aggregationName}
+	aggregationNamesToTry := []string{aggregationName}
 	splitByDot := strings.Split(aggregationName, ".")
 	if len(splitByDot) == 2 {
 		weTrySplitByDot = true
 		percentileNameWeLookFor = splitByDot[1]
-		aggregationNameToTry = append(aggregationNameToTry, splitByDot[0])
+		aggregationNamesToTry = append(aggregationNamesToTry, splitByDot[0])
 	}
 
-	for _, aggName := range aggregationNameToTry {
-		aggMapRaw, exists := aggs[aggName]
+	for _, aggNameToTry := range aggregationNamesToTry {
+		currentAggMapRaw, exists := aggs[aggNameToTry]
 		if !exists {
 			continue
 		}
 
-		aggMap, ok := aggMapRaw.(QueryMap)
+		currentAggMap, ok := currentAggMapRaw.(QueryMap)
 		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("aggregation %s is not a map, but %T, value: %v. Skipping", aggregationName, aggMapRaw, aggMapRaw)
-			return notFoundValue
+			logger.WarnWithCtx(cw.Ctx).Msgf("aggregation %s is not a map, but %T, value: %v. Skipping",
+				aggregationName, currentAggMapRaw, currentAggMapRaw)
+			continue
 		}
 
-		agg, success := cw.tryMetricsAggregation(aggMap)
-		pp.Println(success, agg)
+		agg, success := cw.tryMetricsAggregation(currentAggMap)
 		if !success {
 			logger.WarnWithCtx(cw.Ctx).Msgf("failed to parse metric aggregation: %v", agg)
-			return notFoundValue
+			continue
 		}
 
 		// we build a temporary query only to extract the name of the metric
@@ -366,7 +365,7 @@ func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap Query
 			continue
 		}
 
-		if aggName == aggregationName {
+		if aggNameToTry == aggregationName {
 			if len(columns) != 1 {
 				continue
 			}

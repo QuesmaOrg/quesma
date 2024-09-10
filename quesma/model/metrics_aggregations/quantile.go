@@ -56,8 +56,6 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 
 		percentileNameToReturn := query.createPercentileNameToReturn(query.percentileNames[percentileIdx])
 
-		fmt.Println("1", percentileNameToReturn, percentile, percentileIsNanOrInvalid, percentileAsString)
-
 		if percentileIsNanOrInvalid {
 			valueMap[percentileNameToReturn] = nil
 		} else {
@@ -68,8 +66,6 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 		}
 	}
 
-	fmt.Println("valueMap", valueMap)
-
 	if query.keyed {
 		return model.JsonMap{
 			"values": valueMap,
@@ -79,7 +75,6 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 		for _, percentileName := range query.percentileNames {
 			key := query.createPercentileNameToReturn(percentileName)
 			value := valueMap[key]
-			fmt.Println("k, v", key, value)
 			keyAsFloat, _ := strconv.ParseFloat(key, 64)
 			responseValue := model.JsonMap{
 				"key":   keyAsFloat,
