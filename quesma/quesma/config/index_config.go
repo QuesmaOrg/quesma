@@ -10,17 +10,9 @@ type IndexConfiguration struct {
 	Name     string `koanf:"name"`
 	Disabled bool   `koanf:"disabled"`
 	// TODO to be deprecated
-	TimestampField  *string                           `koanf:"timestampField"`
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
 	Override        string                            `koanf:"override"`
-}
-
-func (c IndexConfiguration) GetTimestampField() (tsField string) {
-	if c.TimestampField != nil {
-		tsField = *c.TimestampField
-	}
-	return
 }
 
 func (c IndexConfiguration) String() string {
@@ -31,11 +23,7 @@ func (c IndexConfiguration) String() string {
 		c.Override,
 	)
 
-	if c.TimestampField != nil {
-		return fmt.Sprintf("%s, timestampField: %s", str, *c.TimestampField)
-	} else {
-		return str
-	}
+	return str
 }
 
 func (c IndexConfiguration) GetOptimizerConfiguration(optimizerName string) (props map[string]string, disabled bool) {

@@ -160,7 +160,8 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]string, d
 			} else {
 				comment := td.tableComment(databaseName, table)
 				createTableQuery := td.createTableQuery(databaseName, table)
-				configuredTables[table] = discoveredTable{table, columns, indexConfig, comment, createTableQuery}
+				// we assume here that @timestamp field is always present in the table, or it's explicitly configured
+				configuredTables[table] = discoveredTable{table, columns, indexConfig, comment, createTableQuery, ""}
 			}
 		} else {
 			notConfiguredTables = append(notConfiguredTables, table)
@@ -189,14 +190,11 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]strin
 		} else {
 			maybeTimestampField = td.tableTimestampField(databaseName, table, ClickHouse)
 		}
-		if maybeTimestampField != "" {
-			configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{TimestampField: &maybeTimestampField}, comment, createTableQuery}
-		} else {
-			configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{}, comment, createTableQuery}
-		}
+		configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField}
+
 	}
-	for tableName, conf := range configuredTables {
-		autoDiscoResults.WriteString(fmt.Sprintf("{table: %s, timestampField: %s}, ", tableName, conf.config.GetTimestampField()))
+	for tableName, table := range configuredTables {
+		autoDiscoResults.WriteString(fmt.Sprintf("{table: %s, timestampField: %s}, ", tableName, table.timestampFieldName))
 	}
 	logger.Info().Msgf("Table auto-discovery results -> %d tables found: [%s]", len(configuredTables), strings.TrimSuffix(autoDiscoResults.String(), ", "))
 	return
@@ -225,6 +223,11 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 			}
 		}
 
+		var timestampFieldName *string
+		if resTable.timestampFieldName != "" {
+			timestampFieldName = &resTable.timestampFieldName
+		}
+
 		if !partiallyResolved {
 			table := Table{
 				Created:      true,
@@ -237,7 +240,8 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 					castUnsupportedAttrValueTypesToString: true,
 					preferCastingToOthers:                 true,
 				},
-				CreateTableQuery: resTable.createTableQuery,
+				CreateTableQuery:             resTable.createTableQuery,
+				DiscoveredTimestampFieldName: timestampFieldName,
 			}
 			if containsAttributes(resTable.columnTypes) {
 				table.Config.attributes = []Attribute{NewDefaultStringAttribute()}

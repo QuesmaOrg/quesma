@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/model/typical_queries"
 	"quesma/quesma/config"
 	"quesma/schema"
 	"sort"
@@ -412,6 +413,69 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 
 }
 
+func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	var timestampColumnName string
+
+	// check if the schema has a timestamp field configured
+	if column, ok := indexSchema.Fields[model.TimestampFieldName]; ok {
+		timestampColumnName = column.InternalPropertyName.AsString()
+	}
+
+	// if not found, check if the table has a timestamp field discovered somehow
+	// This is commented out for now.
+	// We should be able to fetch table (physical representation) for current schema
+	//
+	/*
+		if timestampColumnName == "" && table.DiscoveredTimestampFieldName != nil {
+			timestampColumnName = *table.DiscoveredTimestampFieldName
+		}
+	*/
+	var replacementExpr model.Expr
+
+	if timestampColumnName == "" {
+		// no timestamp field found, replace with NULL if any
+
+		// see comment above, we don't know what is a discovered timestamp field
+		//replacementExpr = model.NewLiteral("NULL")
+	} else {
+		// check if the query has hits type, so '_id' generation should not be based on timestamp
+		//
+		// This is a mess. `query.Type` holds a pointer to Hits, but Hits do not have pointer receivers to mutate the state.
+		if hits, ok := query.Type.(*typical_queries.Hits); ok {
+			newHits := hits.WithTimestampField(timestampColumnName)
+			query.Type = &newHits
+		}
+
+		// if the target column is not the canonical timestamp field, replace it
+		if timestampColumnName != model.TimestampFieldName {
+			replacementExpr = model.NewColumnRef(timestampColumnName)
+		}
+	}
+
+	// no replacement needed
+	if replacementExpr == nil {
+		return query, nil
+	}
+
+	visitor := model.NewBaseVisitor()
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		// full text field should be used only in where clause
+		if e.ColumnName == model.TimestampFieldName {
+			return replacementExpr
+		}
+		return e
+	}
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 
 	transformationChain := []struct {
@@ -420,6 +484,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 	}{
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
+		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 		{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
 		{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},

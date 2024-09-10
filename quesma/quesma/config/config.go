@@ -179,10 +179,7 @@ func (c *QuesmaConfiguration) Validate() error {
 //
 //lint:ignore U1000 Ignore unused function temporarily for debugging
 func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, result error) error {
-	if indexName.TimestampField != nil {
-		fmt.Printf("index configuration %s contains deprecated field 'timestampField'", indexName.Name)
-	}
-	return result
+	return nil
 }
 
 func (c *QuesmaConfiguration) validateIndexName(indexName string, result error) error {

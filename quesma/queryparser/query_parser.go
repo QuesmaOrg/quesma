@@ -408,11 +408,8 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	}
 	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
 
-	timestampColumnName, err := cw.Table.GetTimestampFieldName()
-	if err != nil {
-		logger.Warn().Msgf("id query executed, but not timestamp field configured")
-		return model.NewSimpleQuery(nil, true)
-	}
+	timestampColumnName := model.TimestampFieldName
+
 	if len(ids) == 0 {
 		logger.Warn().Msgf("parsing error: empty _id array")
 		return model.NewSimpleQuery(nil, false)

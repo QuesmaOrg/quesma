@@ -395,6 +395,7 @@ func Test_arrayType(t *testing.T) {
 
 	indexSchema := schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
+			"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
 			"products.name":     {PropertyName: "products.name", InternalPropertyName: "products::name", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
 			"products.quantity": {PropertyName: "products.quantity", InternalPropertyName: "products::quantity", InternalPropertyType: "Array(Int64)", Type: schema.QuesmaTypeArray},
 			"products.sku":      {PropertyName: "products.sku", InternalPropertyName: "products::sku", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
@@ -428,7 +429,7 @@ func Test_arrayType(t *testing.T) {
 				TableName: "kibana_sample_data_ecommerce",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
-					Columns:    []model.Expr{model.NewColumnRef("order_date"), model.NewColumnRef("products::name"), model.NewColumnRef("products::quantity"), model.NewColumnRef("products::sku")},
+					Columns:    []model.Expr{model.NewColumnRef("@timestamp"), model.NewColumnRef("order_date"), model.NewColumnRef("products::name"), model.NewColumnRef("products::quantity"), model.NewColumnRef("products::sku")},
 				},
 			},
 		},

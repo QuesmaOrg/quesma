@@ -37,10 +37,8 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
-	tsField := "@timestamp"
 	indexConfig := config.IndexConfiguration{
-		Name:           "logs-generic-default",
-		TimestampField: &tsField,
+		Name: "logs-generic-default",
 	}
 
 	cfg.IndexConfig[indexConfig.Name] = indexConfig

@@ -25,7 +25,8 @@ type Table struct {
 	// TODO: we should use aliases directly from configuration, not store them here
 	Comment          string // this human-readable comment
 	CreateTableQuery string
-	TimestampColumn  *string
+
+	DiscoveredTimestampFieldName *string
 }
 
 func (t *Table) createTableOurFieldsString() []string {
@@ -125,10 +126,6 @@ func (t *Table) applyIndexConfig(configuration *config.QuesmaConfiguration) {
 			}
 		}
 	}
-	if v, ok := configuration.IndexConfig[t.Name]; ok {
-		t.TimestampColumn = v.TimestampField
-	}
-
 }
 
 func (t *Table) HasColumn(ctx context.Context, fieldName string) bool {
@@ -171,12 +168,4 @@ func (t *Table) GetFieldInfo(ctx context.Context, fieldName string) FieldInfo {
 		return ExistsAndIsArray
 	}
 	return ExistsAndIsBaseType
-}
-
-func (t *Table) GetTimestampFieldName() (string, error) {
-	if t.TimestampColumn != nil {
-		return *t.TimestampColumn, nil
-	} else {
-		return "", fmt.Errorf("no timestamp field configured for table %s", t.Name)
-	}
 }
