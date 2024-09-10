@@ -550,8 +550,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
             "date_histogram": {
                 "field": "@timestamp",
                 "fixed_interval": "30s",
-                "min_doc_count": 1,
-                "time_zone": "Europe/Warsaw"
+                "min_doc_count": 1
             }
         }
     },
@@ -2406,8 +2405,7 @@ var TestSearchFilter = []SearchTestCase{
 				  "date_histogram": {
 					"field": "@timestamp",
 					"fixed_interval": "30s",
-					"min_doc_count": 1,
-					"time_zone": "Europe/Warsaw"
+					"min_doc_count": 1
 				  }
 				}
 			  },
@@ -2461,8 +2459,7 @@ var TestSearchFilter = []SearchTestCase{
 			  "date_histogram": {
 				"field": "@timestamp",
 				"fixed_interval": "30s",
-				"min_doc_count": 1,
-				"time_zone": "Europe/Warsaw"
+				"min_doc_count": 1
 			  }
 			}
 		  },

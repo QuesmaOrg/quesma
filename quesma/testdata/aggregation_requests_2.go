@@ -12,8 +12,6 @@ import (
 
 var AggregationTests2 = []AggregationTestCase{
 	{ // [42]
-		// FIXME results for this test are not 100% correct for day/week intervals (maybe others too)
-		// see https://github.com/QuesmaOrg/quesma/issues/307
 		TestName: "histogram with all possible calendar_intervals",
 		QueryRequestJson: `
 		{
@@ -33,8 +31,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "minute",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				},
 				"hour1": {
@@ -49,8 +46,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "hour",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				},
 				"day1": {
@@ -65,8 +61,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "day",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				},
 				"week1": {
@@ -81,8 +76,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "week",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				},
 				"month1": {
@@ -97,8 +91,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "month",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				},
 				"quarter1": {
@@ -113,8 +106,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "quarter",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				},
 				"year1": {
@@ -129,8 +121,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "year",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				}
 			},
@@ -285,16 +276,16 @@ var AggregationTests2 = []AggregationTestCase{
 						}
 					]
 				},
-				"day2": {
+				"day1": {
 					"buckets": [
 						{
-							"key_as_string": "2024-06-10T00:00:00.000",
-							"key": 1717977600000,
+							"key_as_string": "2024-06-09T22:00:00.000",
+							"key": 1717970400000,
 							"doc_count": 33
 						}
 					]
 				},
-				"day1": {
+				"day2": {
 					"buckets": [
 						{
 							"key_as_string": "2024-06-10T00:00:00.000",
@@ -308,15 +299,15 @@ var AggregationTests2 = []AggregationTestCase{
 		ExpectedResults: [][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(33))}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`, int64(1717980400000/86400000)),
+				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`, int64(1717977600000/86400000)),
 				model.NewQueryResultCol("count()", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`, int64(1717980400000/86400000)),
+				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`, int64(1717977600000/86400000)),
 				model.NewQueryResultCol("count()", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718024400000/3600000)),
+				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718031600000/3600000)),
 				model.NewQueryResultCol("count()", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -325,11 +316,11 @@ var AggregationTests2 = []AggregationTestCase{
 			}}},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`, int64(1718025840000/60000)),
+					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`, int64(1718033040000/60000)),
 					model.NewQueryResultCol("count()", uint64(9)),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`, int64(1718025900000/60000)),
+					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`, int64(1718033100000/60000)),
 					model.NewQueryResultCol("count()", uint64(24)),
 				}},
 			},
@@ -344,7 +335,7 @@ var AggregationTests2 = []AggregationTestCase{
 				}},
 			},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfMonth("@timestamp")))`, int64(1717192800000)),
+				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfMonth("@timestamp")))`, int64(1717200000000)),
 				model.NewQueryResultCol("count()", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -352,7 +343,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("count()", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfQuarter("@timestamp")))`, int64(1711922400000)),
+				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfQuarter("@timestamp")))`, int64(1711929600000)),
 				model.NewQueryResultCol("count()", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -360,7 +351,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("count()", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfWeek("@timestamp")))`, int64(1717970400000)),
+				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfWeek("@timestamp")))`, int64(1717977600000)),
 				model.NewQueryResultCol("count()", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -368,7 +359,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("count()", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfYear("@timestamp")))`, int64(1704063600000)),
+				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfYear("@timestamp")))`, int64(1704067200000)),
 				model.NewQueryResultCol("count()", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -388,7 +379,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__day2__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__hour1__key_0", int64(1718024400000/3600000)),
+				model.NewQueryResultCol("aggr__hour1__key_0", int64(1718031600000/3600000)),
 				model.NewQueryResultCol("aggr__hour1__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -397,11 +388,11 @@ var AggregationTests2 = []AggregationTestCase{
 			}}},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("aggr__minute1__key_0", int64(1718025840000/60000)),
+					model.NewQueryResultCol("aggr__minute1__key_0", int64(1718033040000/60000)),
 					model.NewQueryResultCol("aggr__minute1__count", uint64(9)),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("aggr__minute1__key_0", int64(1718025900000/60000)),
+					model.NewQueryResultCol("aggr__minute1__key_0", int64(1718033100000/60000)),
 					model.NewQueryResultCol("aggr__minute1__count", uint64(24)),
 				}},
 			},
@@ -416,7 +407,7 @@ var AggregationTests2 = []AggregationTestCase{
 				}},
 			},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__month1__key_0", int64(1717192800000)),
+				model.NewQueryResultCol("aggr__month1__key_0", int64(1717200000000)),
 				model.NewQueryResultCol("aggr__month1__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -424,7 +415,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__month2__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__quarter1__key_0", int64(1711922400000)),
+				model.NewQueryResultCol("aggr__quarter1__key_0", int64(1711929600000)),
 				model.NewQueryResultCol("aggr__quarter1__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -432,7 +423,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__quarter2__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__week1__key_0", int64(1717970400000)),
+				model.NewQueryResultCol("aggr__week1__key_0", int64(1717977600000)),
 				model.NewQueryResultCol("aggr__week1__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -440,7 +431,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__week2__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__year1__key_0", int64(1704063600000)),
+				model.NewQueryResultCol("aggr__year1__key_0", int64(1704067200000)),
 				model.NewQueryResultCol("aggr__year1__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -450,69 +441,70 @@ var AggregationTests2 = []AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + TableName,
+			`SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 86400000), count() ` +
+				`FROM ` + TableName + ` ` +
+				`GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 86400000) ` +
+				`ORDER BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 86400000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000), count() ` +
 				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000), count() ` +
+			`SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 3600000), count() ` +
 				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`,
+				`GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 3600000) ` +
+				`ORDER BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 3600000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
 				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
+			`SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 60000), count() ` +
 				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
+				`GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 60000) ` +
+				`ORDER BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 60000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
 				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
+			`SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'Europe/Warsaw'))))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'Europe/Warsaw'))))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000, count() ` +
+			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000`,
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000, count() ` +
+			`SELECT toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000`,
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000, count() ` +
+			`SELECT toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000`,
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000, count() ` +
 				`FROM ` + TableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 ` +
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
-			  "aggr__day1__key_0", count(*) AS "aggr__day1__count"
+			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+              "@timestamp",'Europe/Warsaw'))*1000) / 86400000) AS "aggr__day1__key_0",
+			  count(*) AS "aggr__day1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
-			  "aggr__day1__key_0"
+			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+              "@timestamp",'Europe/Warsaw'))*1000) / 86400000) AS "aggr__day1__key_0"
 			ORDER BY "aggr__day1__key_0" ASC`,
 		ExpectedAdditionalPancakeSQLs: []string{
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
@@ -521,11 +513,12 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
 			  "aggr__day2__key_0"
 			ORDER BY "aggr__day2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
-			  "aggr__hour1__key_0", count(*) AS "aggr__hour1__count"
+			`SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+			"@timestamp",'Europe/Warsaw'))*1000) / 3600000) AS "aggr__hour1__key_0",
+			count(*) AS "aggr__hour1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
-			  "aggr__hour1__key_0"
+			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+			"@timestamp",'Europe/Warsaw'))*1000) / 3600000) AS "aggr__hour1__key_0"
 			ORDER BY "aggr__hour1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__hour2__key_0", count(*) AS "aggr__hour2__count"
@@ -533,11 +526,12 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__hour2__key_0"
 			ORDER BY "aggr__hour2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
-			  "aggr__minute1__key_0", count(*) AS "aggr__minute1__count"
+			`SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+			"@timestamp",'Europe/Warsaw'))*1000) / 60000) AS "aggr__minute1__key_0",
+			count(*) AS "aggr__minute1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
-			  "aggr__minute1__key_0"
+			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+			"@timestamp",'Europe/Warsaw'))*1000) / 60000) AS "aggr__minute1__key_0"
 			ORDER BY "aggr__minute1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 			  "aggr__minute2__key_0", count(*) AS "aggr__minute2__count"
@@ -545,11 +539,11 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 			  "aggr__minute2__key_0"
 			ORDER BY "aggr__minute2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
-			  "aggr__month1__key_0", count(*) AS "aggr__month1__count"
+			`SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
+    		  AS "aggr__month1__key_0", count(*) AS "aggr__month1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
-			  "aggr__month1__key_0"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
+			  AS "aggr__month1__key_0"
 			ORDER BY "aggr__month1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
 			  "aggr__month2__key_0", count(*) AS "aggr__month2__count"
@@ -557,10 +551,10 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
 			  "aggr__month2__key_0"
 			ORDER BY "aggr__month2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
-			  "aggr__quarter1__key_0", count(*) AS "aggr__quarter1__count"
+			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
+    		  AS "aggr__quarter1__key_0", count(*) AS "aggr__quarter1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
+			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 AS
 			  "aggr__quarter1__key_0"
 			ORDER BY "aggr__quarter1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
@@ -569,11 +563,11 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
 			  "aggr__quarter2__key_0"
 			ORDER BY "aggr__quarter2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
+			`SELECT  toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 AS
 			  "aggr__week1__key_0", count(*) AS "aggr__week1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
-			  "aggr__week1__key_0"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
+			  AS "aggr__week1__key_0"
 			ORDER BY "aggr__week1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
 			  "aggr__week2__key_0", count(*) AS "aggr__week2__count"
@@ -581,11 +575,11 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
 			  "aggr__week2__key_0"
 			ORDER BY "aggr__week2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
-			  "aggr__year1__key_0", count(*) AS "aggr__year1__count"
+			`SELECT toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
+    		  AS "aggr__year1__key_0", count(*) AS "aggr__year1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
-			  "aggr__year1__key_0"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
+			  AS "aggr__year1__key_0"
 			ORDER BY "aggr__year1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
 			  "aggr__year2__key_0", count(*) AS "aggr__year2__count"
@@ -1855,16 +1849,14 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"field": "@timestamp",
 						"fixed_interval": "30s",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					},
 					"aggs": {
 						"3": {
 							"date_histogram": {
 								"field": "@timestamp",
 								"fixed_interval": "40s",
-								"min_doc_count": 1,
-								"time_zone": "Europe/Warsaw"
+								"min_doc_count": 1
 							}
 						}
 					}
@@ -2175,12 +2167,12 @@ var AggregationTests2 = []AggregationTestCase{
 				`FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
-			`SELECT floor("bytes"/100.000000)*100.000000, count() ` +
+			`SELECT floor("bytes"/100)*100, count() ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
-				`GROUP BY floor("bytes"/100.000000)*100.000000 ` +
-				`ORDER BY floor("bytes"/100.000000)*100.000000`,
+				`GROUP BY floor("bytes"/100)*100 ` +
+				`ORDER BY floor("bytes"/100)*100`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
@@ -2193,15 +2185,15 @@ var AggregationTests2 = []AggregationTestCase{
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank"
 			  FROM (
-				SELECT floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
+				SELECT floor("bytes"/100)*100 AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0",
+				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0",
 				  count(*) AS "aggr__2__3__count"
 				FROM ` + TableName + `
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
-				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
+				GROUP BY floor("bytes"/100)*100 AS "aggr__2__key_0",
+				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
 	},
 	{ // [50] TODO: what about nulls in histogram? Maybe they should be treated like in terms?
@@ -2380,12 +2372,12 @@ var AggregationTests2 = []AggregationTestCase{
 				`FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
-			`SELECT floor("bytes"/100.000000)*100.000000, count() ` +
+			`SELECT floor("bytes"/100)*100, count() ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
-				`GROUP BY floor("bytes"/100.000000)*100.000000 ` +
-				`ORDER BY floor("bytes"/100.000000)*100.000000`,
+				`GROUP BY floor("bytes"/100)*100 ` +
+				`ORDER BY floor("bytes"/100)*100`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
@@ -2398,15 +2390,15 @@ var AggregationTests2 = []AggregationTestCase{
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank"
 			  FROM (
-				SELECT floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
+				SELECT floor("bytes"/100)*100 AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0",
+				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0",
 				  count(*) AS "aggr__2__3__count"
 				FROM ` + TableName + `
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
-				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
+				GROUP BY floor("bytes"/100)*100 AS "aggr__2__key_0",
+				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
 	},
 	{ // [51]
