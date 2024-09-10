@@ -38,6 +38,7 @@ type PerformanceResult struct {
 	Duration     time.Duration
 	RowsReturned int
 	ExplainPlan  string
+	Error        error
 }
 
 // ProcessQuery - only WHERE clause
@@ -177,12 +178,15 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 	}
 
 	queryID := getQueryId(ctx)
+	performanceResult.QueryID = queryID
 
 	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(settings), clickhouse.WithQueryID(queryID))
 
 	rows, err := lm.Query(ctx, queryAsString)
 	if err != nil {
-		span.End(err)
+		elapsed := span.End(err)
+		performanceResult.Duration = elapsed
+		performanceResult.Error = err
 		return nil, performanceResult, end_user_errors.GuessClickhouseErrorType(err).InternalDetails("clickhouse: query failed. err: %v, query: %v", err, queryAsString)
 	}
 
@@ -191,7 +195,6 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 	elapsed := span.End(nil)
 	performanceResult.Duration = elapsed
 	performanceResult.RowsReturned = len(res)
-	performanceResult.QueryID = queryID
 	if err == nil {
 		if lm.shouldExplainQuery(elapsed) {
 			performanceResult.ExplainPlan = lm.explainQuery(ctx, queryAsString, elapsed)

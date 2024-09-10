@@ -160,6 +160,10 @@ func SqlPrettyPrint(sqlData []byte) string {
 					lineLength = 0
 					isBreakIndent = true
 				}
+			} else if len(stack) > 0 && stack[len(stack)-1] == "WITH" {
+				sb.WriteString("\n")
+				lineLength = 0
+				isBreakIndent = false
 			} else {
 				if tokenIdx+1 < len(tokens) && tokens[tokenIdx+1].Type != sqllexer.WS {
 					sb.WriteString(" ")
