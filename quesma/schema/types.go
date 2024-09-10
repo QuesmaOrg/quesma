@@ -4,86 +4,85 @@ package schema
 
 import "slices"
 
+type (
+	QuesmaType struct {
+		Name       string
+		Properties []QuesmaTypeProperty
+	}
+	QuesmaTypeProperty string
+)
+
 var (
-	// TODO add more and review existing
-	TypeText         = Type{Name: "text", Properties: []TypeProperty{Searchable, FullText}}
-	TypeKeyword      = Type{Name: "keyword", Properties: []TypeProperty{Searchable, Aggregatable}}
-	TypeInteger      = Type{Name: "integer", Properties: []TypeProperty{Searchable, Aggregatable}}
-	TypeLong         = Type{Name: "long", Properties: []TypeProperty{Searchable, Aggregatable}}
-	TypeUnsignedLong = Type{Name: "unsigned_long", Properties: []TypeProperty{Searchable, Aggregatable}}
-	TypeTimestamp    = Type{Name: "timestamp", Properties: []TypeProperty{Searchable, Aggregatable}}
-	TypeDate         = Type{Name: "date", Properties: []TypeProperty{Searchable, Aggregatable}}
-	TypeFloat        = Type{Name: "float", Properties: []TypeProperty{Searchable, Aggregatable}}
-	TypeBoolean      = Type{Name: "boolean", Properties: []TypeProperty{Searchable, Aggregatable}}
-	TypeObject       = Type{Name: "object", Properties: []TypeProperty{Searchable}}
-	TypeArray        = Type{Name: "array", Properties: []TypeProperty{Searchable}}
-	TypeMap          = Type{Name: "map", Properties: []TypeProperty{Searchable}}
-	TypeIp           = Type{Name: "ip", Properties: []TypeProperty{Searchable, Aggregatable}}
-	TypePoint        = Type{Name: "point", Properties: []TypeProperty{Searchable, Aggregatable}}
-	TypeUnknown      = Type{Name: "unknown", Properties: []TypeProperty{Searchable}}
+	QuesmaTypeText         = QuesmaType{Name: "text", Properties: []QuesmaTypeProperty{Searchable, FullText}}
+	QuesmaTypeKeyword      = QuesmaType{Name: "keyword", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
+	QuesmaTypeInteger      = QuesmaType{Name: "integer", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
+	QuesmaTypeLong         = QuesmaType{Name: "long", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
+	QuesmaTypeUnsignedLong = QuesmaType{Name: "unsigned_long", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
+	QuesmaTypeTimestamp    = QuesmaType{Name: "timestamp", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
+	QuesmaTypeDate         = QuesmaType{Name: "date", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
+	QuesmaTypeFloat        = QuesmaType{Name: "float", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
+	QuesmaTypeBoolean      = QuesmaType{Name: "boolean", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
+	QuesmaTypeObject       = QuesmaType{Name: "object", Properties: []QuesmaTypeProperty{Searchable}}
+	QuesmaTypeArray        = QuesmaType{Name: "array", Properties: []QuesmaTypeProperty{Searchable}}
+	QuesmaTypeMap          = QuesmaType{Name: "map", Properties: []QuesmaTypeProperty{Searchable}}
+	QuesmaTypeIp           = QuesmaType{Name: "ip", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
+	QuesmaTypePoint        = QuesmaType{Name: "point", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
+	QuesmaTypeUnknown      = QuesmaType{Name: "unknown", Properties: []QuesmaTypeProperty{Searchable}}
 )
 
 const (
-	Aggregatable TypeProperty = "aggregatable"
-	Searchable   TypeProperty = "searchable"
-	FullText     TypeProperty = "full_text"
+	Aggregatable QuesmaTypeProperty = "aggregatable"
+	Searchable   QuesmaTypeProperty = "searchable"
+	FullText     QuesmaTypeProperty = "full_text"
 )
 
-func (t Type) Equal(t2 Type) bool {
+func (t QuesmaType) Equal(t2 QuesmaType) bool {
 	return t.Name == t2.Name
 }
 
-func (t Type) IsAggregatable() bool {
+func (t QuesmaType) IsAggregatable() bool {
 	return slices.Contains(t.Properties, Aggregatable)
 }
 
-func (t Type) IsSearchable() bool {
+func (t QuesmaType) IsSearchable() bool {
 	return slices.Contains(t.Properties, Searchable)
 }
 
-func (t Type) IsFullText() bool {
+func (t QuesmaType) IsFullText() bool {
 	return slices.Contains(t.Properties, FullText)
 }
 
-type (
-	Type struct {
-		Name       string
-		Properties []TypeProperty
-	}
-	TypeProperty string
-)
-
-func (t Type) String() string {
+func (t QuesmaType) String() string {
 	return t.Name
 }
 
-func ParseQuesmaType(t string) (Type, bool) {
+func ParseQuesmaType(t string) (QuesmaType, bool) {
 	switch t {
-	case TypeText.Name:
-		return TypeText, true
-	case TypeKeyword.Name:
-		return TypeKeyword, true
-	case TypeLong.Name:
-		return TypeLong, true
-	case TypeTimestamp.Name:
-		return TypeTimestamp, true
-	case TypeDate.Name:
-		return TypeDate, true
-	case TypeFloat.Name:
-		return TypeFloat, true
-	case TypeBoolean.Name, "bool":
-		return TypeBoolean, true
-	case TypeObject.Name, "json":
-		return TypeObject, true
-	case TypeArray.Name:
-		return TypeArray, true
-	case TypeMap.Name:
-		return TypeMap, true
-	case TypeIp.Name:
-		return TypeIp, true
-	case TypePoint.Name, "geo_point":
-		return TypePoint, true
+	case QuesmaTypeText.Name:
+		return QuesmaTypeText, true
+	case QuesmaTypeKeyword.Name:
+		return QuesmaTypeKeyword, true
+	case QuesmaTypeLong.Name:
+		return QuesmaTypeLong, true
+	case QuesmaTypeTimestamp.Name:
+		return QuesmaTypeTimestamp, true
+	case QuesmaTypeDate.Name:
+		return QuesmaTypeDate, true
+	case QuesmaTypeFloat.Name:
+		return QuesmaTypeFloat, true
+	case QuesmaTypeBoolean.Name, "bool":
+		return QuesmaTypeBoolean, true
+	case QuesmaTypeObject.Name, "json":
+		return QuesmaTypeObject, true
+	case QuesmaTypeArray.Name:
+		return QuesmaTypeArray, true
+	case QuesmaTypeMap.Name:
+		return QuesmaTypeMap, true
+	case QuesmaTypeIp.Name:
+		return QuesmaTypeIp, true
+	case QuesmaTypePoint.Name, "geo_point":
+		return QuesmaTypePoint, true
 	default:
-		return TypeUnknown, false
+		return QuesmaTypeUnknown, false
 	}
 }

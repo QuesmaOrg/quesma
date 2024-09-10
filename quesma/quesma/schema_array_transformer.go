@@ -4,9 +4,9 @@ package quesma
 
 import (
 	"fmt"
-	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/schema"
 	"strings"
 )
 
@@ -18,24 +18,26 @@ import (
 //
 
 type arrayTypeResolver struct {
-	table *clickhouse.Table
+	indexSchema schema.Schema
 }
 
-func (v *arrayTypeResolver) dbColumnType(fieldName string) string {
+func (v *arrayTypeResolver) dbColumnType(columName string) string {
 
 	//
 	// This is a HACK to get the column database type from the schema
 	//
 	//
-	fieldName = strings.TrimSuffix(fieldName, ".keyword")
+	// here we should resolve field by column name not field name
+	columName = strings.TrimSuffix(columName, ".keyword")
+	columName = strings.ReplaceAll(columName, "::", ".")
 
-	tableColumnName := strings.ReplaceAll(fieldName, ".", "::")
-	col, ok := v.table.Cols[tableColumnName]
-	if ok {
-		return col.Type.String()
+	field, ok := v.indexSchema.ResolveField(columName)
+
+	if !ok {
+		return ""
 	}
 
-	return ""
+	return field.InternalPropertyType
 }
 
 func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {

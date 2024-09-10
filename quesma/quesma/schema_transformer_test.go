@@ -73,14 +73,16 @@ func Test_ipRangeTransform(t *testing.T) {
 			}},
 		}}
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: clickhouse.NewLogManagerEmpty()}
+	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
+
+	selectColumns := []model.Expr{model.NewColumnRef("message")}
 
 	expectedQueries := []*model.Query{
 		{
 			TableName: "kibana_sample_data_logs",
 			SelectCommand: model.SelectCommand{
 				FromClause: model.NewTableRef("kibana_sample_data_logs"),
-				Columns:    []model.Expr{model.NewWildcardExpr},
+				Columns:    selectColumns,
 				WhereClause: &model.FunctionExpr{
 					Name: isIPAddressInRangePrimitive,
 					Args: []model.Expr{
@@ -108,7 +110,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			TableName: "kibana_sample_data_logs_nested",
 			SelectCommand: model.SelectCommand{
 				FromClause: model.NewTableRef("kibana_sample_data_logs_nested"),
-				Columns:    []model.Expr{model.NewWildcardExpr},
+				Columns:    selectColumns,
 				WhereClause: &model.FunctionExpr{
 					Name: isIPAddressInRangePrimitive,
 					Args: []model.Expr{
@@ -136,7 +138,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			TableName: "kibana_sample_data_logs",
 			SelectCommand: model.SelectCommand{
 				FromClause: model.NewTableRef("kibana_sample_data_logs"),
-				Columns:    []model.Expr{model.NewWildcardExpr},
+				Columns:    selectColumns,
 				WhereClause: &model.FunctionExpr{
 					Name: isIPAddressInRangePrimitive,
 					Args: []model.Expr{
@@ -164,7 +166,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			TableName: "kibana_sample_data_logs",
 			SelectCommand: model.SelectCommand{
 				FromClause: model.NewTableRef("kibana_sample_data_logs"),
-				Columns:    []model.Expr{model.NewWildcardExpr},
+				Columns:    selectColumns,
 				WhereClause: &model.InfixExpr{
 					Left:  &model.LiteralExpr{Value: IpFieldName},
 					Op:    "<",
@@ -176,7 +178,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			TableName: "kibana_sample_data_logs",
 			SelectCommand: model.SelectCommand{
 				FromClause: model.NewTableRef("kibana_sample_data_logs"),
-				Columns:    []model.Expr{model.NewWildcardExpr},
+				Columns:    selectColumns,
 				WhereClause: &model.FunctionExpr{
 					Name: isIPAddressInRangePrimitive,
 					Args: []model.Expr{
@@ -208,7 +210,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			TableName: "kibana_sample_data_logs",
 			SelectCommand: model.SelectCommand{
 				FromClause: model.NewTableRef("kibana_sample_data_logs"),
-				Columns:    []model.Expr{model.NewWildcardExpr},
+				Columns:    selectColumns,
 				WhereClause: &model.InfixExpr{
 					Left: &model.InfixExpr{
 						Left: &model.InfixExpr{
@@ -266,7 +268,7 @@ func Test_ipRangeTransform(t *testing.T) {
 				TableName: "kibana_sample_data_logs",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("kibana_sample_data_logs"),
-					Columns:    []model.Expr{model.NewWildcardExpr},
+					Columns:    selectColumns,
 					WhereClause: &model.InfixExpr{
 						Left:  &model.LiteralExpr{Value: IpFieldName},
 						Op:    "=",
@@ -279,7 +281,7 @@ func Test_ipRangeTransform(t *testing.T) {
 				TableName: "kibana_sample_data_logs_nested",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("kibana_sample_data_logs_nested"),
-					Columns:    []model.Expr{model.NewWildcardExpr},
+					Columns:    selectColumns,
 					WhereClause: &model.InfixExpr{
 						Left:  &model.ColumnRef{ColumnName: "nested::clientip"},
 						Op:    "=",
@@ -292,7 +294,7 @@ func Test_ipRangeTransform(t *testing.T) {
 				TableName: "kibana_sample_data_logs",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("kibana_sample_data_logs"),
-					Columns:    []model.Expr{model.NewWildcardExpr},
+					Columns:    selectColumns,
 					WhereClause: &model.InfixExpr{
 						Left:  &model.ColumnRef{ColumnName: IpFieldName},
 						Op:    "=",
@@ -305,7 +307,7 @@ func Test_ipRangeTransform(t *testing.T) {
 				TableName: "kibana_sample_data_logs",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("kibana_sample_data_logs"),
-					Columns:    []model.Expr{model.NewWildcardExpr},
+					Columns:    selectColumns,
 					WhereClause: &model.InfixExpr{
 						Left:  &model.LiteralExpr{Value: IpFieldName},
 						Op:    "<",
@@ -319,7 +321,7 @@ func Test_ipRangeTransform(t *testing.T) {
 				TableName: "kibana_sample_data_logs",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("kibana_sample_data_logs"),
-					Columns:    []model.Expr{model.NewWildcardExpr},
+					Columns:    selectColumns,
 					WhereClause: &model.InfixExpr{
 						Left:  &model.LiteralExpr{Value: IpFieldName},
 						Op:    "iLIKE",
@@ -337,7 +339,7 @@ func Test_ipRangeTransform(t *testing.T) {
 				TableName: "kibana_sample_data_logs",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("kibana_sample_data_logs"),
-					Columns:    []model.Expr{model.NewWildcardExpr},
+					Columns:    selectColumns,
 					WhereClause: &model.InfixExpr{
 						Left: &model.InfixExpr{
 							Left: &model.InfixExpr{
@@ -390,43 +392,24 @@ func Test_arrayType(t *testing.T) {
 			Name: "kibana_sample_data_ecommerce",
 		},
 	}
-	cfg := config.QuesmaConfiguration{
-		IndexConfig: indexConfig,
-	}
 
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{
-			"kibana_sample_data_ecommerce": {Columns: map[string]schema.Column{
-				"@timestamp":         {Name: "@timestamp", Type: "DateTime64"},
-				"products::name":     {Name: "products::name", Type: "keyword"},
-				"products::quantity": {Name: "products::quantity", Type: "long"},
-				"products::sku":      {Name: "products::sku", Type: "keyword"},
-				"order_date":         {Name: "order_date", Type: "timestamp"},
-			}},
-		}}
-
-	tableDefinition := clickhouse.Table{
-		Name:   "kibana_sample_data_ecommerce",
-		Config: clickhouse.NewDefaultCHConfig(),
-		Cols: map[string]*clickhouse.Column{
-			"@timestamp":         {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"products::name":     {Name: "products::name", Type: clickhouse.NewBaseType("Array(String)")},
-			"products::quantity": {Name: "products::quantity", Type: clickhouse.NewBaseType("Array(Int64)")},
-			"products::sku":      {Name: "products::sku", Type: clickhouse.NewBaseType("Array(String)")},
-			"order_date":         {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
+	indexSchema := schema.Schema{
+		Fields: map[schema.FieldName]schema.Field{
+			"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
+			"products.name":     {PropertyName: "products.name", InternalPropertyName: "products::name", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
+			"products.quantity": {PropertyName: "products.quantity", InternalPropertyName: "products::quantity", InternalPropertyType: "Array(Int64)", Type: schema.QuesmaTypeArray},
+			"products.sku":      {PropertyName: "products.sku", InternalPropertyName: "products::sku", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
+			"order_date":        {PropertyName: "order_date", InternalPropertyName: "order_date", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
 		},
 	}
 
-	lm := clickhouse.NewLogManagerEmpty()
-
-	td, err := lm.GetTableDefinitions()
-	if err != nil {
-		t.Fatal(err)
+	schemaRegistry := &schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
+			"kibana_sample_data_ecommerce": indexSchema,
+		},
 	}
-	td.Store("kibana_sample_data_ecommerce", &tableDefinition)
 
-	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
+	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: schemaRegistry}
 
 	tests := []struct {
 		name     string
@@ -586,39 +569,22 @@ func TestApplyWildCard(t *testing.T) {
 			Name: "kibana_sample_data_ecommerce",
 		},
 	}
-	cfg := config.QuesmaConfiguration{
-		IndexConfig: indexConfig,
-	}
 
-	lm := clickhouse.NewLogManagerEmpty()
-
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{
-			"test": {Columns: map[string]schema.Column{
-				"a": {Name: "a", Type: "String"},
-				"b": {Name: "b", Type: "String"},
-				"c": {Name: "c", Type: "String"},
-			}},
-		}}
-
-	tableDefinition := clickhouse.Table{
-		Name:   "test",
-		Config: clickhouse.NewDefaultCHConfig(),
-		Cols: map[string]*clickhouse.Column{
-			"a": {Name: "a", Type: clickhouse.NewBaseType("Array(String)")},
-			"b": {Name: "b", Type: clickhouse.NewBaseType("Array(Int64)")},
-			"c": {Name: "c", Type: clickhouse.NewBaseType("Array(String)")},
+	indexSchema := schema.Schema{
+		Fields: map[schema.FieldName]schema.Field{
+			"a": {PropertyName: "a", InternalPropertyName: "a", InternalPropertyType: "String", Type: schema.QuesmaTypeText},
+			"b": {PropertyName: "b", InternalPropertyName: "b", InternalPropertyType: "String", Type: schema.QuesmaTypeText},
+			"c": {PropertyName: "c", InternalPropertyName: "c", InternalPropertyType: "String", Type: schema.QuesmaTypeText},
 		},
 	}
 
-	td, err := lm.GetTableDefinitions()
-	if err != nil {
-		t.Fatal(err)
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
+			"test": indexSchema,
+		},
 	}
-	td.Store(tableDefinition.Name, &tableDefinition)
 
-	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
+	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
 
 	tests := []struct {
 		name     string
@@ -642,6 +608,11 @@ func TestApplyWildCard(t *testing.T) {
 		return res
 	}
 
+	indexSchema, ok := s.FindSchema("test")
+	if !ok {
+		t.Fatal("schema not found")
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			query := &model.Query{
@@ -651,7 +622,7 @@ func TestApplyWildCard(t *testing.T) {
 				},
 			}
 
-			actual, err := transform.applyWildcardExpansion(query)
+			actual, err := transform.applyWildcardExpansion(indexSchema, query)
 
 			if err != nil {
 				t.Fatal(err)
@@ -703,7 +674,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 	td.Store(tableDefinition.Name, &tableDefinition)
 
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
+	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
 
 	tests := []struct {
 		name     string
@@ -809,6 +780,11 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 		},
 	}
 
+	indexSchema, ok := s.FindSchema("test")
+	if !ok {
+		t.Fatal("schema not found")
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			query := &model.Query{
@@ -818,7 +794,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 
 			expectedAsString := model.AsString(tt.expected)
 
-			actual, err := transform.applyPhysicalFromExpression(query)
+			actual, err := transform.applyPhysicalFromExpression(indexSchema, query)
 
 			if err != nil {
 				t.Fatal(err)
@@ -832,8 +808,6 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 }
 
 func TestFullTextFields(t *testing.T) {
-
-	lm := clickhouse.NewLogManagerEmpty()
 
 	tests := []struct {
 		name           string
@@ -959,11 +933,16 @@ func TestFullTextFields(t *testing.T) {
 			}
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-			transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
+			transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
+
+			indexSchema, ok := s.FindSchema("test")
+			if !ok {
+				t.Fatal("schema not found")
+			}
 
 			expectedAsString := model.AsString(tt.expected)
 
-			actual, err := transform.applyFullTextField(query)
+			actual, err := transform.applyFullTextField(indexSchema, query)
 
 			if err != nil {
 				t.Fatal(err)

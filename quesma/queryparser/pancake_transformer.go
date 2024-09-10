@@ -8,6 +8,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"quesma/model/metrics_aggregations"
 	"reflect"
 	"sort"
 	"strings"
@@ -42,8 +43,12 @@ func (a *pancakeTransformer) generateUniqueInternalName(origName string, aggrNam
 	return origName
 }
 
-func (a *pancakeTransformer) generateMetricInternalName(aggrNames []string) string {
-	origName := fmt.Sprintf("metric__%s", strings.Join(aggrNames, "__"))
+func (a *pancakeTransformer) generateMetricInternalName(aggrNames []string, queryType model.QueryType) string {
+	prefix := "metric"
+	if _, isTopHits := queryType.(metrics_aggregations.TopHits); isTopHits {
+		prefix = "top_hits"
+	}
+	origName := fmt.Sprintf("%s__%s", prefix, strings.Join(aggrNames, "__"))
 	return a.generateUniqueInternalName(origName, aggrNames)
 }
 
@@ -66,7 +71,7 @@ func (a *pancakeTransformer) metricAggregationTreeNodeToModel(previousAggrNames 
 
 	return &pancakeModelMetricAggregation{
 		name:            metric.name,
-		internalName:    a.generateMetricInternalName(append(previousAggrNames, metric.name)),
+		internalName:    a.generateMetricInternalName(append(previousAggrNames, metric.name), metric.queryType),
 		queryType:       metric.queryType,
 		selectedColumns: metric.selectedColumns,
 
@@ -292,6 +297,57 @@ func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, 
 	return layer, nil
 }
 
+func (a *pancakeTransformer) createTopHitPancakes(pancake *pancakeModel) (result []*pancakeModel, err error) {
+	for layerIdx, layer := range pancake.layers {
+		metricsWithoutTopHits := make([]*pancakeModelMetricAggregation, 0, len(layer.currentMetricAggregations))
+		for _, metric := range layer.currentMetricAggregations {
+			if _, isTopHits := metric.queryType.(metrics_aggregations.TopHits); isTopHits {
+				canOptimize := layerIdx == len(pancake.layers)-1 && len(layer.currentMetricAggregations) == 1
+				for _, layer2 := range pancake.layers[:layerIdx] {
+					if len(layer2.currentMetricAggregations) > 0 {
+						canOptimize = false
+					}
+					if layer2.nextBucketAggregation != nil {
+						switch layer2.nextBucketAggregation.queryType.(type) {
+						case bucket_aggregations.CombinatorAggregationInterface:
+							// TODO: possible to implement, by generating more queries, skipped as it is rare
+							return nil, fmt.Errorf("top_hits can't be in filter(s)/range/dataRange aggregation")
+						}
+					}
+				}
+
+				if canOptimize { // if this is just one top_hits with buckets than we can optimize
+					// and don't need to create new pancake
+					metricsWithoutTopHits = append(metricsWithoutTopHits, metric)
+				} else {
+					newLayers := make([]*pancakeModelLayer, layerIdx)
+					for i := range newLayers {
+						newLayers[i] = &pancakeModelLayer{
+							currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
+							nextBucketAggregation:     pancake.layers[i].nextBucketAggregation,
+						}
+					}
+					newLayers = append(newLayers, &pancakeModelLayer{
+						currentMetricAggregations: []*pancakeModelMetricAggregation{metric},
+						nextBucketAggregation:     nil,
+					})
+
+					newPancake := pancakeModel{
+						layers:      newLayers,
+						whereClause: pancake.whereClause,
+						sampleLimit: pancake.sampleLimit,
+					}
+					result = append(result, &newPancake)
+				}
+			} else {
+				metricsWithoutTopHits = append(metricsWithoutTopHits, metric)
+			}
+		}
+		layer.currentMetricAggregations = metricsWithoutTopHits
+	}
+	return
+}
+
 func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregationTree) (pancakeResults []*pancakeModel, err error) {
 	if topLevel.children == nil || len(topLevel.children) == 0 {
 		return nil, fmt.Errorf("no top level aggregations found")
@@ -317,11 +373,20 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 
 		a.connectPipelineAggregations(layers)
 
-		pancakeResults = append(pancakeResults, &pancakeModel{
+		newPancake := pancakeModel{
 			layers:      layers,
 			whereClause: topLevel.whereClause,
 			sampleLimit: sampleLimit,
-		})
+		}
+
+		pancakeResults = append(pancakeResults, &newPancake)
+
+		additionalTopHitPancakes, err := a.createTopHitPancakes(&newPancake)
+		if err != nil {
+			return nil, err
+		}
+
+		pancakeResults = append(pancakeResults, additionalTopHitPancakes...)
 	}
 
 	return

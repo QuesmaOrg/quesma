@@ -147,7 +147,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			`SELECT count(DISTINCT "ftd_session_time") ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z') AND "ftd_session_time">=-100)`,
-			`SELECT count(if("ftd_session_time"<1000.000000,1,NULL)), count(if("ftd_session_time">=-100.000000,1,NULL)), count() ` +
+			`SELECT count(if("ftd_session_time"<1000,1,NULL)), count(if("ftd_session_time">=-100,1,NULL)), count() ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
 		},
@@ -508,8 +508,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
 				`AND "epoch_time_original">=1000)`,
-			`SELECT count(if(("epoch_time_original">=0.000000 AND "epoch_time_original"<1000.000000),1,NULL)), ` +
-				`count(if("epoch_time_original">=1000.000000,1,NULL)), count() ` +
+			`SELECT count(if(("epoch_time_original">=0 AND "epoch_time_original"<1000),1,NULL)), ` +
+				`count(if("epoch_time_original">=1000,1,NULL)), count() ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z')`,
 		},
@@ -674,8 +674,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
 				`AND ("properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000))`,
-			`SELECT count(if(("properties::exoestimation_connection_speedinkbps">=0.000000 AND "properties::exoestimation_connection_speedinkbps"<1000.000000),1,NULL)), ` +
-				`count(if(("properties::exoestimation_connection_speedinkbps">=1000.000000 AND "properties::exoestimation_connection_speedinkbps"<2000.000000),1,NULL)), ` +
+			`SELECT count(if(("properties::exoestimation_connection_speedinkbps">=0 AND "properties::exoestimation_connection_speedinkbps"<1000),1,NULL)), ` +
+				`count(if(("properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000),1,NULL)), ` +
 				`count() ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z')`,
@@ -1423,8 +1423,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 								]
 							},
 							"doc_count": 9,
-							"key": 1714860000000,
-							"key_as_string": "2024-05-04T22:00:00.000"
+							"key": 1714852800000,
+							"key_as_string": "2024-05-04T20:00:00.000"
 						},
 						{
 							"1": {
@@ -1440,8 +1440,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 								]
 							},
 							"doc_count": 12,
-							"key": 1714863600000,
-							"key_as_string": "2024-05-04T23:00:00.000"
+							"key": 1714856400000,
+							"key_as_string": "2024-05-04T21:00:00.000"
 						}
 					]
 				}
@@ -1492,25 +1492,26 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.TableName,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 3600000), ` +
-				`countIf("AvgTicketPrice"<=0.000000)/count(*)*100, ` +
-				`countIf("AvgTicketPrice"<=50000.000000)/count(*)*100 ` +
+			`SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 3600000), ` +
+				`countIf("AvgTicketPrice"<=0)/count(*)*100, ` +
+				`countIf("AvgTicketPrice"<=50000)/count(*)*100 ` +
 				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 3600000), count() ` +
+				`GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 3600000) ` +
+				`ORDER BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 3600000)`,
+			`SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 3600000), count() ` +
 				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000)`,
+				`GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 3600000) ` +
+				`ORDER BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 3600000)`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS
-			  "aggr__2__key_0", count(*) AS "aggr__2__count",
-			  countIf("AvgTicketPrice"<=0.000000)/count(*)*100 AS "metric__2__1_col_0",
-			  countIf("AvgTicketPrice"<=50000.000000)/count(*)*100 AS "metric__2__1_col_1"
+			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+  			  "timestamp", 'Europe/Warsaw'))*1000) / 3600000) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count",
+			  countIf("AvgTicketPrice"<=0)/count(*)*100 AS "metric__2__1_col_0",
+			  countIf("AvgTicketPrice"<=50000)/count(*)*100 AS "metric__2__1_col_1"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS
-			  "aggr__2__key_0"
+			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+              "timestamp", 'Europe/Warsaw'))*1000) / 3600000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [8]

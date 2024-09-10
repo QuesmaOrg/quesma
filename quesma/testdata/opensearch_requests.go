@@ -87,12 +87,14 @@ var OpensearchSearchTests = []SearchTestCase{
 			"SELECT count() FROM " + TableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z'))`,
-			`SELECT toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000), count() ` +
+			`SELECT toInt64((toUnixTimestamp64Milli("-@timestamp")` +
+				`\+timeZoneOffset(toTimezone("-@timestamp",'Europe/Warsaw'))\*1000) / 30000), ` +
+				`count() ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z')) ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000)`,
+				`GROUP BY toInt64((toUnixTimestamp64Milli("-@timestamp")\+timeZoneOffset(toTimezone("-@timestamp",'Europe/Warsaw'))\*1000) / 30000) ` +
+				`ORDER BY toInt64((toUnixTimestamp64Milli("-@timestamp")\+timeZoneOffset(toTimezone("-@timestamp",'Europe/Warsaw'))\*1000) / 30000)`,
 			`SELECT.*"-@bytes".*FROM ` + TableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z')) ` +
@@ -111,8 +113,7 @@ var OpensearchSearchTests = []SearchTestCase{
 					"date_histogram": {
 						"field": "-@timestamp",
 						"fixed_interval": "30s",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				}
 			},

@@ -35,6 +35,7 @@ type AggregationTestCase struct {
 	ExpectedPancakeSQL               string                   // "" if we don't have pancake results for this test
 	ExpectedAdditionalPancakeSQLs    []string                 // additional SQLs that are not part of the main query
 	ExpectedAdditionalPancakeResults [][]model.QueryResultRow // additional results that are not part of the main query
+	AdditionalAcceptableDifference   []string                 // additional keys that may differ in json response
 }
 
 type UnsupportedQueryTestCase struct {

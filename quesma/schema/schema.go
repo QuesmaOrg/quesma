@@ -16,7 +16,8 @@ type (
 		PropertyName FieldName
 		// InternalPropertyName is how the field is represented in the data source
 		InternalPropertyName FieldName
-		Type                 Type
+		InternalPropertyType string
+		Type                 QuesmaType
 	}
 	TableName string
 	FieldName string

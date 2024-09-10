@@ -8,7 +8,9 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"quesma/model/metrics_aggregations"
 	"quesma/util"
+	"strconv"
 	"strings"
 )
 
@@ -35,6 +37,34 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 		return []model.QueryResultRow{newRow}
 	}
 	logger.ErrorWithCtx(p.ctx).Msgf("no rows in selectMetricRows %s", metricName)
+	return
+}
+
+func (p *pancakeJSONRenderer) selectTopHitsRows(topHits *pancakeModelMetricAggregation, rows []model.QueryResultRow) (result []model.QueryResultRow) {
+	for _, row := range rows {
+		var newCols []model.QueryResultCol
+		for _, col := range row.Cols {
+			if strings.HasPrefix(col.ColName, topHits.InternalNamePrefix()) {
+				numStr := strings.TrimPrefix(col.ColName, topHits.InternalNamePrefix())
+				if num, err := strconv.Atoi(numStr); err == nil {
+					var overrideName string
+					if num < 0 || num >= len(topHits.selectedColumns) {
+						logger.WarnWithCtx(p.ctx).Msgf("invalid top_hits column index %d", num)
+					} else {
+						selectedColumn := topHits.selectedColumns[num]
+						if colRef, ok := selectedColumn.(model.ColumnRef); ok {
+							overrideName = colRef.ColumnName
+						}
+					}
+					if len(overrideName) > 0 {
+						col.ColName = overrideName
+					}
+					newCols = append(newCols, col)
+				}
+			}
+		}
+		result = append(result, model.QueryResultRow{Index: row.Index, Cols: newCols})
+	}
 	return
 }
 
@@ -195,7 +225,12 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 	layer := remainingLayers[0]
 
 	for _, metric := range layer.currentMetricAggregations {
-		metricRows := p.selectMetricRows(metric.internalName+"_col_", rows)
+		var metricRows []model.QueryResultRow
+		if _, ok := metric.queryType.(metrics_aggregations.TopHits); ok {
+			metricRows = p.selectTopHitsRows(metric, rows)
+		} else {
+			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
+		}
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
 		// TODO: maybe add metadata also here? probably not needed
 	}

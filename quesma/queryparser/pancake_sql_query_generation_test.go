@@ -58,11 +58,11 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
 			}
-			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
+			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)(file:opensearch-visualize/pipeline_agg_req,nr:18)" {
 				t.Skip("Need fix with date keys in pipeline aggregations.")
 			}
 
-			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram" {
+			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:22)" {
 				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
 			}
 
@@ -97,7 +97,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 					if pancakeIdx-1 >= len(test.ExpectedAdditionalPancakeResults) {
 						pp.Println("=== Expected additional results for SQL:")
 						fmt.Println(prettyPancakeSql)
-						continue
 					}
 					expectedSql = test.ExpectedAdditionalPancakeSQLs[pancakeIdx-1]
 				}
@@ -141,6 +140,9 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			// FIXME we can quite easily remove 'probability' and 'seed' from above - just start remembering them in RandomSampler struct and print in JSON response.
 			acceptableDifference := []string{"probability", "seed", "bg_count", model.KeyAddedByQuesma,
 				"doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
+			if len(test.AdditionalAcceptableDifference) > 0 {
+				acceptableDifference = append(acceptableDifference, test.AdditionalAcceptableDifference...)
+			}
 
 			actualMinusExpected, expectedMinusActual := util.MapDifference(pancakeJson,
 				expectedAggregationsPart, acceptableDifference, true, true)
@@ -170,12 +172,12 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 // We generate correct SQL, but result JSON did not match
 func incorrectResult(testName string) bool {
-	t1 := testName == "date_range aggregation" // we use relative time
-	t2 := testName == "complex filters"        // almost, we differ in doc 0 counts
+	t1 := testName == "date_range aggregation(file:agg_req,nr:22)" // we use relative time
+	t2 := testName == "complex filters(file:agg_req,nr:18)"        // almost, we differ in doc 0 counts
 	// to be deleted after pancakes
 	t3 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
 		"Output more or less works, but is different and worse than what Elastic returns."+
-		"If it starts failing, maybe that's a good thing"
+		"If it starts failing, maybe that's a good thing(file:clients/kunkka,nr:0)"
 	// below test is replacing it
 	// testName == "it's the same input as in previous test, but with the original output from Elastic."+
 	//	"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
@@ -185,24 +187,23 @@ func incorrectResult(testName string) bool {
 
 // TODO remove after fix
 func topHits(testName string) bool {
-	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range" // also range
-	t2 := testName == "top hits, quite complex"
-	return t1 || t2
+	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range(file:opensearch-visualize/agg_req,nr:1)" // also range
+	return t1
 }
 
 // TODO remove after fix
 func topMetrics(testName string) bool {
-	t1 := testName == "Kibana Visualize -> Last Value. Used to panic" // also filter
-	t2 := testName == "simplest top_metrics, no sort"
-	t3 := testName == "simplest top_metrics, with sort"
-	t4 := testName == "very long: multiple top_metrics + histogram" // also top_metrics
+	t1 := testName == "Kibana Visualize -> Last Value. Used to panic(file:agg_req,nr:31)" // also filter
+	t2 := testName == "simplest top_metrics, no sort(file:agg_req,nr:38)"
+	t3 := testName == "simplest top_metrics, with sort(file:agg_req,nr:39)"
+	t4 := testName == "very long: multiple top_metrics + histogram(file:agg_req,nr:10)" // also top_metrics
 	return t1 || t2 || t3 || t4
 }
 
 // TODO remove after fix
 func filters(testName string) bool {
 	// this works, but is very suboptimal and didn't update the test case
-	t1 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" // multi level filters
+	t1 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix(file:clients/kunkka,nr:2)" // multi level filters
 	return t1
 }
 

@@ -64,16 +64,10 @@ func TestAsyncSearchHandler(t *testing.T) {
 		Tables: map[schema.TableName]schema.Schema{
 			model.SingleTableNamePlaceHolder: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeKeyword},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeKeyword},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeKeyword},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeKeyword},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeKeyword},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeKeyword},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeKeyword},
+					"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+					"properties::isreg": {PropertyName: "properties::isreg", InternalPropertyName: "properties::isreg", Type: schema.QuesmaTypeInteger},
 				},
 			},
 		},
@@ -126,18 +120,18 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
 				},
 			},
 		},
@@ -184,17 +178,7 @@ func TestSearchHandler(t *testing.T) {
 		Tables: map[schema.TableName]schema.Schema{
 			model.SingleTableNamePlaceHolder: {
 				Fields: map[schema.FieldName]schema.Field{
-					"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.TypeDate},
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeKeyword},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeKeyword},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeKeyword},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeKeyword},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeKeyword},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeKeyword},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeKeyword},
+					"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 				},
 			},
 		},
@@ -233,18 +217,9 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+					"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 				},
 			},
 		},
@@ -273,18 +248,9 @@ func TestAsyncSearchFilter(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+					"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 				},
 			},
 		},
@@ -316,18 +282,18 @@ func TestHandlingDateTimeFields(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
 				},
 			},
 		},
@@ -412,17 +378,17 @@ func TestNumericFacetsQueries(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+					"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.QuesmaTypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
 				},
 			},
 		},
@@ -508,15 +474,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
-			"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-			"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-			"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-			"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-			"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-			"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
-			"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-			"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-			"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+			"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 		},
 	}
 
@@ -526,10 +484,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		Cols: map[string]*clickhouse.Column{
 			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
-			"message": {
-				Name: "message",
-				Type: clickhouse.NewBaseType("String"),
-			},
+			"message": {Name: "message", Type: clickhouse.NewBaseType("String")},
 		},
 		Created: true,
 	})

@@ -89,16 +89,16 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 		Tables: map[schema.TableName]schema.Schema{
 			testTableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"client_name":       {PropertyName: "client_name", InternalPropertyName: "client_name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+					"client_name":       {PropertyName: "client_name", InternalPropertyName: "client_name", Type: schema.QuesmaTypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
 				},
 				Aliases: map[schema.FieldName]schema.FieldName{
 					"client.name": "client_name",

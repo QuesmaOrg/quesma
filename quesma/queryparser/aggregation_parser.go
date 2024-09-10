@@ -30,6 +30,7 @@ type aggrQueryBuilder struct {
 type metricsAggregation struct {
 	AggrType            string
 	Fields              []model.Expr            // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
+	OrderBy             []model.OrderByExpr     // only for top_hits
 	FieldType           clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
 	Percentiles         map[string]float64      // Only for percentiles aggregation
 	Keyed               bool                    // Only for percentiles aggregation
@@ -284,7 +285,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "quantile":
 		query.Type = metrics_aggregations.NewQuantile(b.ctx, util.MapKeysSortedByValue(metricsAggr.Percentiles), metricsAggr.Keyed, metricsAggr.FieldType)
 	case "top_hits":
-		query.Type = metrics_aggregations.NewTopHits(b.ctx)
+		query.Type = metrics_aggregations.NewTopHits(b.ctx, metricsAggr.Size)
 	case "top_metrics":
 		query.Type = metrics_aggregations.NewTopMetrics(b.ctx, metricsAggr.sortByExists())
 	case "value_count":
@@ -574,8 +575,14 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 
 		const defaultSize = 1
 		size := defaultSize
+		orderBy := []model.OrderByExpr{}
 		if mapTyped, ok := topHits.(QueryMap); ok {
 			size = cw.parseSize(mapTyped, defaultSize)
+			orderBy = cw.parseOrder(mapTyped, queryMap, []model.Expr{})
+			if len(orderBy) == 1 && orderBy[0].IsCountDesc() { // we don't need count DESC
+				orderBy = []model.OrderByExpr{}
+			}
+
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("top_hits is not a map, but %T, value: %v. Using default size.", topHits, topHits)
 		}
@@ -584,6 +591,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			Fields:    exprs,
 			FieldType: metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
 			Size:      size,
+			OrderBy:   orderBy,
 		}, true
 	}
 
@@ -723,6 +731,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		}
 		field := cw.parseFieldField(dateHistogram, "date_histogram")
 		minDocCount := cw.parseMinDocCount(dateHistogram)
+		timezone := cw.parseStringField(dateHistogram, "time_zone", "")
 		interval, intervalType := cw.extractInterval(dateHistogram)
 		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 
@@ -730,7 +739,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid date time type for field %s", field)
 		}
 
-		dateHistogramAggr := bucket_aggregations.NewDateHistogram(cw.Ctx, field, interval, minDocCount, intervalType, dateTimeType)
+		dateHistogramAggr := bucket_aggregations.NewDateHistogram(cw.Ctx, field, interval, timezone, minDocCount, intervalType, dateTimeType)
 		currentAggr.Type = dateHistogramAggr
 
 		sqlQuery := dateHistogramAggr.GenerateSQL()
@@ -1068,6 +1077,16 @@ func (cw *ClickhouseQueryTranslator) parseFloatField(queryMap QueryMap, fieldNam
 			return asFloat
 		}
 		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default: %f", fieldName, valueRaw, valueRaw, defaultValue)
+	}
+	return defaultValue
+}
+
+func (cw *ClickhouseQueryTranslator) parseStringField(queryMap QueryMap, fieldName string, defaultValue string) string {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asString, ok := valueRaw.(string); ok {
+			return asString
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a string, but %T, value: %v. Using default: %s", fieldName, valueRaw, valueRaw, defaultValue)
 	}
 	return defaultValue
 }
