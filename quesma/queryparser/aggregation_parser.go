@@ -731,6 +731,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		}
 		field := cw.parseFieldField(dateHistogram, "date_histogram")
 		minDocCount := cw.parseMinDocCount(dateHistogram)
+		timezone := cw.parseStringField(dateHistogram, "time_zone", "")
 		interval, intervalType := cw.extractInterval(dateHistogram)
 		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 
@@ -738,7 +739,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid date time type for field %s", field)
 		}
 
-		dateHistogramAggr := bucket_aggregations.NewDateHistogram(cw.Ctx, field, interval, minDocCount, intervalType, dateTimeType)
+		dateHistogramAggr := bucket_aggregations.NewDateHistogram(cw.Ctx, field, interval, timezone, minDocCount, intervalType, dateTimeType)
 		currentAggr.Type = dateHistogramAggr
 
 		sqlQuery := dateHistogramAggr.GenerateSQL()
@@ -1076,6 +1077,16 @@ func (cw *ClickhouseQueryTranslator) parseFloatField(queryMap QueryMap, fieldNam
 			return asFloat
 		}
 		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default: %f", fieldName, valueRaw, valueRaw, defaultValue)
+	}
+	return defaultValue
+}
+
+func (cw *ClickhouseQueryTranslator) parseStringField(queryMap QueryMap, fieldName string, defaultValue string) string {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asString, ok := valueRaw.(string); ok {
+			return asString
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a string, but %T, value: %v. Using default: %s", fieldName, valueRaw, valueRaw, defaultValue)
 	}
 	return defaultValue
 }

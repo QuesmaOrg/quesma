@@ -72,6 +72,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 		field := cw.parseFieldField(dateHistogram, "date_histogram")
 		minDocCount := cw.parseMinDocCount(dateHistogram)
+		timezone := cw.parseStringField(dateHistogram, "time_zone", "")
 		interval, intervalType := cw.extractInterval(dateHistogram)
 		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 
@@ -79,7 +80,8 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			return false, fmt.Errorf("invalid date time type for field %s", field)
 		}
 
-		dateHistogramAggr := bucket_aggregations.NewDateHistogram(cw.Ctx, field, interval, minDocCount, intervalType, dateTimeType)
+		dateHistogramAggr := bucket_aggregations.NewDateHistogram(
+			cw.Ctx, field, interval, timezone, minDocCount, intervalType, dateTimeType)
 		aggregation.queryType = dateHistogramAggr
 
 		sqlQuery := dateHistogramAggr.GenerateSQL()

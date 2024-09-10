@@ -46,6 +46,18 @@ func PartlyImplementedIsEqual(a, b Expr) bool {
 			}
 			return true
 		}
+	case ParenExpr:
+		if bTyped, ok := b.(ParenExpr); ok {
+			if len(aTyped.Exprs) != len(bTyped.Exprs) {
+				return false
+			}
+			for i := range aTyped.Exprs {
+				if !PartlyImplementedIsEqual(aTyped.Exprs[i], bTyped.Exprs[i]) {
+					return false
+				}
+			}
+			return true
+		}
 	}
 	return false
 }

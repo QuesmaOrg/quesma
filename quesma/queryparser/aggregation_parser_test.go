@@ -5,6 +5,7 @@ package queryparser
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"github.com/jinzhu/copier"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
@@ -168,8 +169,7 @@ var aggregationTests = []struct {
 									"min": 1706881636029
 								},
 								"field": "timestamp",
-								"fixed_interval": "3h",
-								"time_zone": "Europe/Warsaw"
+								"fixed_interval": "3h"
 							}
 						}
 					},
@@ -418,8 +418,7 @@ var aggregationTests = []struct {
 									"max": 1707818397034,
 									"min": 1707213597034
 								},
-								"field": "order_date",
-								"time_zone": "Europe/Warsaw"
+								"field": "order_date"
 							}
 						}
 					},
@@ -542,8 +541,7 @@ var aggregationTests = []struct {
 							"date_histogram": {
 								"field": "order_date",
 								"fixed_interval": "12h",
-								"min_doc_count": 1,
-								"time_zone": "Europe/Warsaw"
+								"min_doc_count": 1
 							}
 						}
 					},
@@ -649,9 +647,9 @@ var aggregationTests = []struct {
 				  "size": 0
 			}`,
 		[]string{
-			`SELECT floor("bytes"/1782.000000)*1782.000000, count() FROM ` + tableName + ` ` +
-				`GROUP BY floor("bytes"/1782.000000)*1782.000000 ` +
-				`ORDER BY floor("bytes"/1782.000000)*1782.000000`,
+			`SELECT floor("bytes"/1782)*1782, count() FROM ` + tableName + ` ` +
+				`GROUP BY floor("bytes"/1782)*1782 ` +
+				`ORDER BY floor("bytes"/1782)*1782`,
 			`SELECT count() FROM ` + tableName,
 		},
 	},
@@ -723,17 +721,26 @@ func sortAggregations(aggregations []*model.Query) {
 }
 
 func allAggregationTests() []testdata.AggregationTestCase {
-	const lowerBoundTestNr = 80
+	const lowerBoundTestNr = 90
 	allTests := make([]testdata.AggregationTestCase, 0, lowerBoundTestNr)
-	allTests = append(allTests, testdata.AggregationTests...)
-	allTests = append(allTests, testdata.AggregationTests2...)
-	allTests = append(allTests, opensearch_visualize.AggregationTests...)
-	allTests = append(allTests, dashboard_1.AggregationTests...)
-	allTests = append(allTests, testdata.PipelineAggregationTests...)
-	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
-	allTests = append(allTests, kibana_visualize.AggregationTests...)
-	allTests = append(allTests, clients.KunkkaTests...)
-	allTests = append(allTests, clients.OpheliaTests...)
+
+	add := func(testsToAdd []testdata.AggregationTestCase, testFilename string) {
+		for i, test := range testsToAdd {
+			test.TestName = fmt.Sprintf("%s(file:%s,nr:%d)", test.TestName, testFilename, i)
+			allTests = append(allTests, test)
+		}
+	}
+
+	add(testdata.AggregationTests, "agg_req")
+	add(testdata.AggregationTests2, "agg_req_2")
+	add(opensearch_visualize.AggregationTests, "opensearch-visualize/agg_req")
+	add(dashboard_1.AggregationTests, "dashboard-1/agg_req")
+	add(testdata.PipelineAggregationTests, "pipeline_agg_req")
+	add(opensearch_visualize.PipelineAggregationTests, "opensearch-visualize/pipeline_agg_req")
+	add(kibana_visualize.AggregationTests, "kibana-visualize/agg_r")
+	add(clients.KunkkaTests, "clients/kunkka")
+	add(clients.OpheliaTests, "clients/ophelia")
+
 	return allTests
 }
 
@@ -778,10 +785,10 @@ func TestAggregationParserExternalTestcases(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s, Config: cfg}
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
+			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)(file:opensearch-visualize/pipeline_agg_req,nr:18)" {
 				t.Skip("Needs to be fixed by keeping last key for every aggregation. Now we sometimes don't know it. Hard to reproduce, leaving it for separate PR")
 			}
-			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram" {
+			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:22)" {
 				t.Skip("Waiting for fix. Now we handle only the case where pipeline agg is at the same nesting level as its parent. Should be quick to fix.")
 			}
 			if i == 27 || i == 29 || i == 30 {
@@ -790,7 +797,7 @@ func TestAggregationParserExternalTestcases(t *testing.T) {
 			if strings.HasPrefix(test.TestName, "dashboard-1") {
 				t.Skip("Those 2 tests have nested histograms with min_doc_count=0. Some work done long time ago (Krzysiek)")
 			}
-			if test.TestName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range" {
+			if test.TestName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range(file:opensearch-visualize/agg_req,nr:1)" {
 				t.Skip("Need a (most likely) small fix to top_hits.")
 			}
 			if i == 20 {
@@ -801,15 +808,15 @@ func TestAggregationParserExternalTestcases(t *testing.T) {
 			}
 			if test.TestName == "it's the same input as in previous test, but with the original output from Elastic."+
 				"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
-				"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix" {
+				"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix(file:clients/kunkka,nr:1)" {
 				t.Skip("Unskip and remove the previous test after those fixes.")
 			}
-			if test.TestName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" {
+			if test.TestName == "clients/kunkka/test_1, used to be broken before aggregations merge fix(file:clients/kunkka,nr:2)" {
 				t.Skip("Small details left for this test to be correct. I'll (Krzysiek) fix soon after returning to work")
 			}
-			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations" ||
-				test.TestName == "Ophelia Test 6: triple terms + other aggregations + order by another aggregations" ||
-				test.TestName == "Ophelia Test 7: 5x terms + a lot of other aggregations + different order bys" {
+			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations(file:clients/ophelia,nr:2)" ||
+				test.TestName == "Ophelia Test 6: triple terms + other aggregations + order by another aggregations(file:clients/ophelia,nr:5)" ||
+				test.TestName == "Ophelia Test 7: 5x terms + a lot of other aggregations + different order bys(file:clients/ophelia,nr:6)" {
 				t.Skip("Very similar to 2 previous tests, results have like 500-1000 lines. They are almost finished though. Maybe I'll fix soon, but not in this PR")
 			}
 

@@ -66,19 +66,7 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 }
 
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
-
-	if l.Value == "*" {
-		return "*"
-	}
-
-	switch l.Value.(type) {
-	case string:
-		return fmt.Sprintf("%s", l.Value)
-	case float64:
-		return fmt.Sprintf("%f", l.Value)
-	default:
-		return fmt.Sprintf("%v", l.Value)
-	}
+	return fmt.Sprintf("%v", l.Value)
 }
 
 func (v *renderer) VisitInfix(e InfixExpr) interface{} {

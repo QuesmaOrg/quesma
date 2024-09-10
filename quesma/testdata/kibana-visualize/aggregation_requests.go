@@ -130,8 +130,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 									"sum_other_doc_count": 1
 								},
 								"doc_count": 4,
-								"key": 1716834210000,
-								"key_as_string": "2024-05-27T18:23:30.000"
+								"key": 1716827010000,
+								"key_as_string": "2024-05-27T16:23:30.000"
 							},
 							{
 								"1": {
@@ -157,8 +157,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 									"sum_other_doc_count": 12
 								},
 								"doc_count": 16,
-								"key": 1716834270000,
-								"key_as_string": "2024-05-27T18:24:30.000"
+								"key": 1716827070000,
+								"key_as_string": "2024-05-27T16:24:30.000"
 							}
 						]
 					}
@@ -274,19 +274,19 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z'))`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), ` +
+			`SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 30000), ` +
 				`"severity", "source", count() ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z')) ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), ` + `"severity", "source" ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), ` + `"severity", "source"`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), count() ` +
+				`GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 30000), "severity", "source" ` +
+				`ORDER BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 30000), "severity", "source"`,
+			`SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 30000), count() ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE ("@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z')) ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000)`,
+				`GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 30000) ` +
+				`ORDER BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 30000)`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
@@ -302,8 +302,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 				"aggr__0__1__order_2" DESC, "aggr__0__1__key_0" ASC, "aggr__0__1__key_1" ASC
 				) AS "aggr__0__1__order_1_rank"
 			  FROM (
-				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-				  "aggr__0__key_0",
+				SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
+      			  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "severity" AS "aggr__0__1__key_0",
@@ -312,9 +312,9 @@ var AggregationTests = []testdata.AggregationTestCase{
 				FROM ` + TableName + `
 				WHERE ("@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z')
 				  AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z'))
-				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-				  "aggr__0__key_0", "severity" AS "aggr__0__1__key_0",
-				  "source" AS "aggr__0__1__key_1"))
+				GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
+				  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__0__key_0",
+				  "severity" AS "aggr__0__1__key_0", "source" AS "aggr__0__1__key_1"))
 			WHERE "aggr__0__1__order_1_rank"<=3
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
@@ -335,8 +335,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 									"min": 1716811173493
 								},
 								"field": "@timestamp",
-								"fixed_interval": "30s",
-								"time_zone": "Europe/Warsaw"
+								"fixed_interval": "30s"
 							}
 						}
 					},
@@ -566,8 +565,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 									"min": 1716833578178
 								},
 								"field": "@timestamp",
-								"fixed_interval": "30s",
-								"time_zone": "Europe/Warsaw"
+								"fixed_interval": "30s"
 							}
 						},
 						"2": {
@@ -873,8 +871,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"date_histogram": {
 								"field": "@timestamp",
 								"fixed_interval": "30s",
-								"min_doc_count": 1,
-								"time_zone": "Europe/Warsaw"
+								"min_doc_count": 1
 							}
 						}
 					},

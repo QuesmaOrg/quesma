@@ -786,16 +786,16 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
-			`SELECT floor("bytes"/200.000000)*200.000000, count() ` +
+			`SELECT floor("bytes"/200)*200, count() ` +
 				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000`,
+				`GROUP BY floor("bytes"/200)*200 ` +
+				`ORDER BY floor("bytes"/200)*200`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0",
+			SELECT floor("bytes"/200)*200 AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			GROUP BY floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0"
+			GROUP BY floor("bytes"/200)*200 AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [5]
@@ -824,8 +824,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 						},
 						"date_histogram": {
 							"field": "timestamp",
-							"fixed_interval": "10m",
-							"time_zone": "Europe/Warsaw"
+							"fixed_interval": "10m"
 						}
 					}
 				},
@@ -1070,8 +1069,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					},
 					"date_histogram": {
 						"field": "timestamp",
-						"fixed_interval": "10m",
-						"time_zone": "Europe/Warsaw"
+						"fixed_interval": "10m"
 					}
 				}
 			},
@@ -1515,16 +1513,16 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
-			`SELECT floor("bytes"/200.000000)*200.000000, count() ` +
+			`SELECT floor("bytes"/200)*200, count() ` +
 				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000`,
+				`GROUP BY floor("bytes"/200)*200 ` +
+				`ORDER BY floor("bytes"/200)*200`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0",
+			SELECT floor("bytes"/200)*200 AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			GROUP BY floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0"
+			GROUP BY floor("bytes"/200)*200 AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [8]
@@ -1689,16 +1687,16 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
-			`SELECT floor("bytes"/200.000000)*200.000000, count() ` +
+			`SELECT floor("bytes"/200)*200, count() ` +
 				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000`,
+				`GROUP BY floor("bytes"/200)*200 ` +
+				`ORDER BY floor("bytes"/200)*200`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0",
+			SELECT floor("bytes"/200)*200 AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			GROUP BY floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0"
+			GROUP BY floor("bytes"/200)*200 AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [9]
@@ -1727,8 +1725,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 						},
 						"date_histogram": {
 							"field": "timestamp",
-							"fixed_interval": "10m",
-							"time_zone": "Europe/Warsaw"
+							"fixed_interval": "10m"
 						}
 					}
 				},
@@ -2037,8 +2034,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": 2.0
 							},
 							"doc_count": 2,
-							"key": 1714869000000,
-							"key_as_string": "2024-05-05T00:30:00.000"
+							"key": 1714861800000,
+							"key_as_string": "2024-05-04T22:30:00.000"
 						},
 						{
 							"1": {
@@ -2048,8 +2045,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": 2.0
 							},
 							"doc_count": 0,
-							"key": 1714869600000,
-							"key_as_string": "2024-05-05T00:40:00.000"
+							"key": 1714862400000,
+							"key_as_string": "2024-05-04T22:40:00.000"
 						},
 						{
 							"1": {
@@ -2059,8 +2056,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": 2.0
 							},
 							"doc_count": 0,
-							"key": 1714878600000,
-							"key_as_string": "2024-05-05T03:10:00.000"
+							"key": 1714871400000,
+							"key_as_string": "2024-05-05T01:10:00.000"
 						},
 						{
 							"1": {
@@ -2070,8 +2067,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": 4.0
 							},
 							"doc_count": 2,
-							"key": 1714879200000,
-							"key_as_string": "2024-05-05T03:20:00.000"
+							"key": 1714872000000,
+							"key_as_string": "2024-05-05T01:20:00.000"
 						},
 						{
 							"1": {
@@ -2081,8 +2078,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": 10.0
 							},
 							"doc_count": 6,
-							"key": 1714879800000,
-							"key_as_string": "2024-05-05T03:30:00.000"
+							"key": 1714872600000,
+							"key_as_string": "2024-05-05T01:30:00.000"
 						},
 						{
 							"1": {
@@ -2092,8 +2089,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": 12.0
 							},
 							"doc_count": 2,
-							"key": 1714880400000,
-							"key_as_string": "2024-05-05T03:40:00.000"
+							"key": 1714873200000,
+							"key_as_string": "2024-05-05T01:40:00.000"
 						},
 						{
 							"1": {
@@ -2103,8 +2100,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": 14.0
 							},
 							"doc_count": 2,
-							"key": 1714881000000,
-							"key_as_string": "2024-05-05T03:50:00.000"
+							"key": 1714873800000,
+							"key_as_string": "2024-05-05T01:50:00.000"
 						},
 						{
 							"1": {
@@ -2114,8 +2111,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": 14.0
 							},
 							"doc_count": 0,
-							"key": 1714881600000,
-							"key_as_string": "2024-05-05T04:00:00.000"
+							"key": 1714874400000,
+							"key_as_string": "2024-05-05T02:00:00.000"
 						},
 						{
 							"1": {
@@ -2125,8 +2122,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": 16.0
 							},
 							"doc_count": 2,
-							"key": 1714882200000,
-							"key_as_string": "2024-05-05T04:10:00.000"
+							"key": 1714875000000,
+							"key_as_string": "2024-05-05T02:10:00.000"
 						},
 						{
 							"1": {
@@ -2136,8 +2133,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": 16.0
 							},
 							"doc_count": 0,
-							"key": 1714882800000,
-							"key_as_string": "2024-05-05T04:20:00.000"
+							"key": 1714875600000,
+							"key_as_string": "2024-05-05T02:20:00.000"
 						}
 					]
 				}
@@ -2246,17 +2243,18 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`NoDBQuery`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), count() ` +
+			`SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 600000), count() ` +
 				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
+				`GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 600000) ` +
+				`ORDER BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 600000)`,
 		},
 		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0",
+			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+  			  "timestamp", 'Europe/Warsaw'))*1000) / 600000) AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
-			  "aggr__2__key_0"
+			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+  			  "timestamp", 'Europe/Warsaw'))*1000) / 600000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [11]
@@ -2276,8 +2274,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					"date_histogram": {
 						"field": "timestamp",
 						"fixed_interval": "10m",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				}
 			},
@@ -2433,8 +2430,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					"date_histogram": {
 						"field": "timestamp",
 						"fixed_interval": "10m",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				}
 			},
@@ -2924,8 +2920,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					"date_histogram": {
 						"field": "timestamp",
 						"fixed_interval": "10m",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				}
 			},
@@ -3745,55 +3740,55 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			{}, // NoDBQuery
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 0.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
 					model.NewQueryResultCol("client_ip", "255.205.14.152"),
 					model.NewQueryResultCol(`sumOrNull("bytes")`, 13.0),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 0.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
 					model.NewQueryResultCol("client_ip", "252.177.62.191"),
 					model.NewQueryResultCol(`sumOrNull("bytes")`, 7.0),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
 					model.NewQueryResultCol("client_ip", "246.106.125.113"),
 					model.NewQueryResultCol(`sumOrNull("bytes")`, 7.0),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
 					model.NewQueryResultCol("client_ip", "236.212.255.77"),
 					model.NewQueryResultCol(`sumOrNull("bytes")`, 18.0),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 0.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
 					model.NewQueryResultCol("client_ip", "255.205.14.152"),
 					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 0.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
 					model.NewQueryResultCol("client_ip", "252.177.62.191"),
 					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
 					model.NewQueryResultCol("client_ip", "246.106.125.113"),
 					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
 					model.NewQueryResultCol("client_ip", "236.212.255.77"),
 					model.NewQueryResultCol(`count()`, 1),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 0.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
 					model.NewQueryResultCol(`count()`, 73),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
 					model.NewQueryResultCol(`count()`, 25),
 				}},
 			},
@@ -3837,28 +3832,28 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
 			`WITH cte_1 AS ` +
-				`(SELECT floor("bytes"/200.000000)*200.000000 AS "cte_1_1", "clientip" AS "cte_1_2", count() AS "cte_1_cnt" ` +
+				`(SELECT floor("bytes"/200)*200 AS "cte_1_1", "clientip" AS "cte_1_2", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "clientip" IS NOT NULL ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip" ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000, "clientip" DESC ` +
-				`LIMIT 2 BY floor("bytes"/200.000000)*200.000000) ` +
-				`SELECT floor("bytes"/200.000000)*200.000000, "clientip", sumOrNull("bytes") ` +
+				`GROUP BY floor("bytes"/200)*200, "clientip" ` +
+				`ORDER BY floor("bytes"/200)*200, "clientip" DESC ` +
+				`LIMIT 2 BY floor("bytes"/200)*200) ` +
+				`SELECT floor("bytes"/200)*200, "clientip", sumOrNull("bytes") ` +
 				`FROM ` + testdata.TableName + ` ` +
-				`INNER JOIN "cte_1" ON floor("bytes"/200.000000)*200.000000 = "cte_1_1" AND "clientip" = "cte_1_2" ` +
+				`INNER JOIN "cte_1" ON floor("bytes"/200)*200 = "cte_1_1" AND "clientip" = "cte_1_2" ` +
 				`WHERE "clientip" IS NOT NULL ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip", cte_1_cnt ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000, "clientip" DESC`,
-			`SELECT floor("bytes"/200.000000)*200.000000, "clientip", count() ` +
+				`GROUP BY floor("bytes"/200)*200, "clientip", cte_1_cnt ` +
+				`ORDER BY floor("bytes"/200)*200, "clientip" DESC`,
+			`SELECT floor("bytes"/200)*200, "clientip", count() ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "clientip" IS NOT NULL ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip" ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000, "clientip" DESC ` +
-				`LIMIT 2 BY floor("bytes"/200.000000)*200.000000`,
-			`SELECT floor("bytes"/200.000000)*200.000000, count() ` +
+				`GROUP BY floor("bytes"/200)*200, "clientip" ` +
+				`ORDER BY floor("bytes"/200)*200, "clientip" DESC ` +
+				`LIMIT 2 BY floor("bytes"/200)*200`,
+			`SELECT floor("bytes"/200)*200, count() ` +
 				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000`,
+				`GROUP BY floor("bytes"/200)*200 ` +
+				`ORDER BY floor("bytes"/200)*200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__1-bucket__parent_count",
@@ -3872,7 +3867,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__1-bucket__key_0" DESC) AS "aggr__2__1-bucket__order_1_rank"
 			  FROM (
-				SELECT floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0",
+				SELECT floor("bytes"/200)*200 AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__1-bucket__parent_count",
@@ -3880,7 +3875,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				  count(*) AS "aggr__2__1-bucket__count",
 				  sumOrNull("bytes") AS "metric__2__1-bucket__1-metric_col_0"
 				FROM __quesma_table_name
-				GROUP BY floor("bytes"/200.000000)*200.000000 AS "aggr__2__key_0",
+				GROUP BY floor("bytes"/200)*200 AS "aggr__2__key_0",
 				  "clientip" AS "aggr__2__1-bucket__key_0"))
 			WHERE "aggr__2__1-bucket__order_1_rank"<=3
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__1-bucket__order_1_rank" ASC`,
@@ -4071,8 +4066,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					"date_histogram": {
 						"field": "timestamp",
 						"fixed_interval": "10m",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				}
 			},
@@ -5389,8 +5383,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 									"date_histogram": {
 										"field": "timestamp",
 										"fixed_interval": "12h",
-										"min_doc_count": 1,
-										"time_zone": "Europe/Warsaw"
+										"min_doc_count": 1
 									}
 								}
 							},
@@ -5727,216 +5720,216 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			{}, // NoDBQuery
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 0.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 0.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, 6920.0),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, 1000.0),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 600.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 600.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, 27400.0),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 0.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
 					model.NewQueryResultCol(`count()`, 6),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 0.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
 					model.NewQueryResultCol(`count()`, 9),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
 					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
 					model.NewQueryResultCol(`count()`, 2),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
 					model.NewQueryResultCol(`count()`, 3),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 600.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 600.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
 					model.NewQueryResultCol(`count()`, 1),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 0.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
 					model.NewQueryResultCol(`count()`, 15),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
 					model.NewQueryResultCol(`count()`, 6),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 600.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 600.0),
 					model.NewQueryResultCol(`count()`, 1),
 				}},
 			},
 			{}, // NoDBQuery
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1000.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, 43320.0),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1000.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715205600000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, 44080.0),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1200.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715162400000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, 50040.0),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1400.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1400.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1600.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1600.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715248800000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1800.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1800.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, 72640.0),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1800.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1800.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
 					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1000.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
 					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1000.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715205600000/43200000)),
 					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1200.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715162400000/43200000)),
 					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1400.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
 					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1400.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
 					model.NewQueryResultCol(`count()`, 2),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1600.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
 					model.NewQueryResultCol(`count()`, 3),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1600.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715248800000/43200000)),
 					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1800.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
 					model.NewQueryResultCol(`count()`, 2),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1800.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
 					model.NewQueryResultCol(`count()`, 6),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1800.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
 					model.NewQueryResultCol(`count()`, 8),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1800.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
 					model.NewQueryResultCol(`count()`, 7),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1000.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
 					model.NewQueryResultCol(`count()`, 2),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1200.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1200.0),
 					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1400.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
 					model.NewQueryResultCol(`count()`, 3),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1600.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
 					model.NewQueryResultCol(`count()`, 4),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200.000000)*200.000000`, 1800.0),
+					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
 					model.NewQueryResultCol(`count()`, 23),
 				}},
 			},
@@ -5953,47 +5946,47 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() ` +
 				`FROM ` + testdata.TableName,
 			`NoDBQuery`,
-			`SELECT floor("bytes"/200.000000)*200.000000, ` +
+			`SELECT floor("bytes"/200)*200, ` +
 				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
 				`avgOrNull("memory") ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "bytes">=0 AND "bytes"<1000 ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
-				`ORDER BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
-			`SELECT floor("bytes"/200.000000)*200.000000, ` +
+				`GROUP BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
+				`ORDER BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
+			`SELECT floor("bytes"/200)*200, ` +
 				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
 				`count() ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "bytes">=0 AND "bytes"<1000 ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
-				`ORDER BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
-			`SELECT floor("bytes"/200.000000)*200.000000, ` +
+				`GROUP BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
+				`ORDER BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
+			`SELECT floor("bytes"/200)*200, ` +
 				`count() ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "bytes">=0 AND "bytes"<1000 ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000`,
+				`GROUP BY floor("bytes"/200)*200 ` +
+				`ORDER BY floor("bytes"/200)*200`,
 			`NoDBQuery`,
-			`SELECT floor("bytes"/200.000000)*200.000000, ` +
+			`SELECT floor("bytes"/200)*200, ` +
 				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
 				`avgOrNull("memory") ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
-				`ORDER BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
-			`SELECT floor("bytes"/200.000000)*200.000000, ` +
+				`GROUP BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
+				`ORDER BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
+			`SELECT floor("bytes"/200)*200, ` +
 				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
 				`count() ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
-				`ORDER BY floor("bytes"/200.000000)*200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
-			`SELECT floor("bytes"/200.000000)*200.000000, ` +
+				`GROUP BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
+				`ORDER BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
+			`SELECT floor("bytes"/200)*200, ` +
 				`count() ` +
 				`FROM ` + testdata.TableName + ` ` +
 				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000`,
+				`GROUP BY floor("bytes"/200)*200 ` +
+				`ORDER BY floor("bytes"/200)*200`,
 			`SELECT count(if("bytes">=0 AND "bytes"<1000,1,NULL)), ` +
 				`count(if("bytes">=1000 AND "bytes"<2000,1,NULL)), ` +
 				`count() ` +

@@ -12,5 +12,5 @@ func TestParenExpr(t *testing.T) {
 		NewInfixExpr(
 			NewFunction("floor", NewLiteral(1.5)),
 			"+", NewLiteral(2.5))), "/", NewLiteral(3.5))
-	assert.Equal(t, "(floor(1.500000)+2.500000)/3.500000", AsString(parenExpr))
+	assert.Equal(t, "(floor(1.5)+2.5)/3.5", AsString(parenExpr))
 }
