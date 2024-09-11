@@ -131,25 +131,10 @@ func (lm *LogManager) Close() {
 	_ = lm.chDb.Close()
 }
 
-// Deprecated: use ResolveIndexes instead, this method will be removed once we switch to the new one
-// Indexes can be in a form of wildcard, e.g. "index-*"
-// If we have such index, we need to resolve it to a real table name.
-//func (lm *LogManager) ResolveTableName(index string) (result string) {
-//	lm.tableDiscovery.TableDefinitions().
-//		Range(func(k string, v *Table) bool {
-//			if elasticsearch.IndexMatches(index, k) {
-//				result = k
-//				return false
-//			}
-//			return true
-//		})
-//	return result
-//}
-
-// Indexes can be in a form of wildcard, e.g. "index-*" or even contain multiple patterns like "index-*,logs-*",
-// this method returns all matching indexes
-// empty pattern means all indexes
-// "_all" index name means all indexes
+// ResolveIndexes - takes incoming index pattern (e.g. "index-*" or multiple patterns like "index-*,logs-*")
+// and returns all matching indexes. Empty pattern means all indexes, "_all" index name means all indexes
+//
+//	Note: Empty pattern means all indexes, "_all" index name means all indexes
 func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (results []string, err error) {
 	if err = lm.tableDiscovery.TableDefinitionsFetchError(); err != nil {
 		return nil, err
