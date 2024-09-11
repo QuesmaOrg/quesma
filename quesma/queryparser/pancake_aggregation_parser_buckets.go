@@ -46,11 +46,10 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 		minDocCount := cw.parseMinDocCount(histogram)
 		aggregation.queryType = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
-		aggregation.filterOutEmptyKeyBucket = true // there's 'missing' parameter
 
 		field, _ := cw.parseFieldFieldMaybeScript(histogram, "histogram")
-		field, addedMissing := cw.addMissingParameterIfPresent(field, histogram)
-		if !addedMissing {
+		field, didWeAddMissing := cw.addMissingParameterIfPresent(field, histogram)
+		if !didWeAddMissing {
 			aggregation.filterOutEmptyKeyBucket = true
 		}
 
@@ -109,8 +108,8 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 
 		fieldExpression := cw.parseFieldField(terms, termsType)
-		fieldExpression, addedMissing := cw.addMissingParameterIfPresent(fieldExpression, terms)
-		if !addedMissing {
+		fieldExpression, didWeAddMissing := cw.addMissingParameterIfPresent(fieldExpression, terms)
+		if !didWeAddMissing {
 			aggregation.filterOutEmptyKeyBucket = true
 		}
 
@@ -456,9 +455,9 @@ func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldE
 	return fullOrderBy
 }
 
+// addMissingParameterIfPresent parses 'missing' parameter. It can be any type.
 func (cw *ClickhouseQueryTranslator) addMissingParameterIfPresent(field model.Expr,
-	aggrQueryMap QueryMap) (updatedField model.Expr, missingPresent bool) {
-	// Parse 'missing' parameter. It can be any type.
+	aggrQueryMap QueryMap) (updatedField model.Expr, didWeAddMissing bool) {
 
 	if aggrQueryMap["missing"] == nil {
 		return field, false
