@@ -49,6 +49,11 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.filterOutEmptyKeyBucket = true // there's 'missing' parameter
 
 		field, _ := cw.parseFieldFieldMaybeScript(histogram, "histogram")
+		field, addedMissing := cw.addMissingParameterIfPresent(field, histogram)
+		if !addedMissing {
+			aggregation.filterOutEmptyKeyBucket = true
+		}
+
 		var col model.Expr
 		if interval != 1.0 {
 			// col as string is: fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
@@ -103,28 +108,10 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			return false, fmt.Errorf("%s is not a map, but %T, value: %v", termsType, termsRaw, termsRaw)
 		}
 
-		// Parse 'missing' parameter. It can be any type.
-		var missingPlaceholder any
-		if terms["missing"] != nil {
-			missingPlaceholder = terms["missing"]
-		}
-
 		fieldExpression := cw.parseFieldField(terms, termsType)
-
-		// apply missing placeholder if it is set
-		if missingPlaceholder != nil {
-			var value model.LiteralExpr
-
-			// Maybe we should check the input type against the schema?
-			// Right now we quote if it's a string.
-			switch val := missingPlaceholder.(type) {
-			case string:
-				value = model.NewLiteral("'" + val + "'")
-			default:
-				value = model.NewLiteral(missingPlaceholder)
-			}
-
-			fieldExpression = model.NewFunction("COALESCE", fieldExpression, value)
+		fieldExpression, addedMissing := cw.addMissingParameterIfPresent(fieldExpression, terms)
+		if !addedMissing {
+			aggregation.filterOutEmptyKeyBucket = true
 		}
 
 		size := 10
@@ -141,9 +128,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)
 		aggregation.limit = size
 		aggregation.orderBy = orderBy
-		if missingPlaceholder == nil {
-			aggregation.filterOutEmptyKeyBucket = true
-		}
 
 		delete(queryMap, termsType)
 		return success, nil
@@ -470,4 +454,25 @@ func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldE
 	}
 
 	return fullOrderBy
+}
+
+func (cw *ClickhouseQueryTranslator) addMissingParameterIfPresent(field model.Expr,
+	aggrQueryMap QueryMap) (updatedField model.Expr, missingPresent bool) {
+	// Parse 'missing' parameter. It can be any type.
+
+	if aggrQueryMap["missing"] == nil {
+		return field, false
+	}
+
+	// Maybe we should check the input type against the schema?
+	// Right now we quote if it's a string.
+	var value model.LiteralExpr
+	switch val := aggrQueryMap["missing"].(type) {
+	case string:
+		value = model.NewLiteral("'" + val + "'")
+	default:
+		value = model.NewLiteral(val)
+	}
+
+	return model.NewFunction("COALESCE", field, value), true
 }
