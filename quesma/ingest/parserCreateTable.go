@@ -43,16 +43,6 @@ func parseMaybeAndForget(q string, i int, s string) (int, bool) {
 	return i, false
 }
 
-func parseMaybeAndForgetMultiple(q string, i int, ss []string) (int, bool) {
-	for _, s := range ss {
-		i2, ok := parseMaybeAndForget(q, i, s)
-		if ok {
-			return i2, true
-		}
-	}
-	return i, false
-}
-
 func isGoodIdentChar(r rune) bool {
 	return !unicode.IsSpace(r) && r != ')' && r != '"' && r != '`' && r != ',' && r != '('
 }
@@ -125,76 +115,6 @@ func parseIdentWithBrackets(q string, i int) (int, string) {
 		i++
 	}
 	return -1, ""
-}
-
-func parseColumn(q string, i int) (int, clickhouse.Column) {
-	col := clickhouse.Column{}
-	i = omitWhitespace(q, i)
-	// name
-	quote := `"`
-	i2 := parseExact(q, i, quote)
-	if i2 == -1 {
-		quote = "`"
-		i2 = parseExact(q, i, quote)
-		if i2 == -1 {
-			return -1, col
-		}
-	}
-	i, col.Name = parseIdent(q, i2)
-	if i == -1 {
-		return -1, col
-	}
-	i = parseExact(q, i, quote)
-	// type
-	if i == -1 {
-		return -1, col
-	}
-	i, col.Type = parseNullable(q, i)
-	if i == -1 {
-		return -1, col
-	}
-
-	// NULL | NOT NULL
-	i = omitWhitespace(q, i)
-	i, _ = parseMaybeAndForgetMultiple(q, i, []string{"NULL", "NOT NULL"})
-
-	// DEFAULT | MATERIALIZED | EPHEMERAL | ALIAS expr
-	i = omitWhitespace(q, i)
-	i, ok := parseMaybeAndForgetMultiple(q, i, []string{"DEFAULT", "MATERIALIZED", "EPHEMERAL", "ALIAS"})
-	if ok {
-		i = omitWhitespace(q, i)
-		i = parseExpr(q, i)
-		if i == -1 {
-			return -1, col
-		}
-		i = omitWhitespace(q, i)
-	}
-
-	// CODEC
-	if i+5 < len(q) && q[i:i+5] == "CODEC" {
-		i, col.Codec = parseCodec(q, i)
-		i = omitWhitespace(q, i)
-	}
-
-	// TTL
-	if i+3 < len(q) && q[i:i+3] == "TTL" {
-		i = omitWhitespace(q, i+3)
-		i = parseExpr(q, i)
-		if i == -1 {
-			return -1, col
-		}
-		i = omitWhitespace(q, i)
-	}
-
-	// COMMENT
-	if i+7 < len(q) && q[i:i+7] == "COMMENT" {
-		return -1, col // TODO unsupported: parse comment, last thing to parse, let's do it later
-	}
-
-	if i == -1 || i >= len(q) || (q[i] != ',' && q[i] != ')') {
-		return -1, col
-	}
-	return i, col
 }
 
 func parseType(q string, i int) (int, clickhouse.Type) {
@@ -281,60 +201,4 @@ func parseMultiValueType(q string, i int) (int, []*clickhouse.Column) {
 		}
 		i = omitWhitespace(q, j+1)
 	}
-}
-
-func parseCodec(q string, i int) (int, clickhouse.Codec) {
-	b := i
-	i = parseExact(q, i, "CODEC")
-	if i == -1 {
-		return -1, clickhouse.Codec{}
-	}
-	i = omitWhitespace(q, i)
-	i = parseExact(q, i, "(")
-	bracketsCnt := 1
-	for i < len(q) && bracketsCnt > 0 {
-		if q[i] == '(' {
-			bracketsCnt++
-		} else if q[i] == ')' {
-			bracketsCnt--
-		}
-		i++
-	}
-	if i >= len(q) {
-		return -1, clickhouse.Codec{}
-	}
-	return i, clickhouse.Codec{Name: q[b:i]}
-}
-
-// Kind of hackish, but should work 100% of the time, unless CODEC/TTL/COMMENT
-// can be used in expressions (I'd assume they can't)
-func parseExpr(q string, i int) int {
-	bracketsCnt := 0
-	for i < len(q) {
-		if q[i] == '(' {
-			bracketsCnt++
-		} else if q[i] == ')' {
-			bracketsCnt--
-		}
-		if bracketsCnt < 0 {
-			return i
-		}
-		if bracketsCnt == 0 {
-			if q[i] == ',' {
-				return i
-			}
-			_, ok := parseMaybeAndForgetMultiple(q, i, []string{"CODEC", "TTL", "COMMENT"})
-			if ok {
-				return i
-			}
-			if q[i] == ')' {
-				i2 := omitWhitespace(q, i+1)
-				if parseExact(q, i2, "ENGINE") != -1 {
-					return i
-				}
-			}
-		}
-		i = omitWhitespace(q, i+1)
-	}
-	return -1
 }
