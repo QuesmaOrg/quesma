@@ -821,3 +821,26 @@ func TestExtractInt64(t *testing.T) {
 		assert.False(t, success)
 	}
 }
+
+func TestFieldEncoding(t *testing.T) {
+	tests := []struct {
+		field string
+		want  string
+	}{
+		{"@timestamp", "@timestamp"},
+		{"timestamp", "timestamp"},
+		{"9field", "_9field"},
+		{"field9", "field9"},
+		{"field::", "field__"},
+		{"host.name", "host_name"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.field, func(t *testing.T) {
+			got := FieldToColumnEncoder(tt.field)
+			if got != tt.want {
+				t.Errorf("FieldToColumnEncoder(%q) = %q; want %q", tt.field, got, tt.want)
+			}
+		})
+	}
+}
