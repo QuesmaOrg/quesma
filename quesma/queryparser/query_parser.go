@@ -60,11 +60,13 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		addCount := countQuery != nil
 
 		if pancakeQueries, err := cw.PancakeParseAggregationJson(body, addCount); err == nil {
+			if len(pancakeQueries) > 0 {
+				countQuery = nil // count was taken care of by pancake
+			}
 			queries = append(queries, pancakeQueries...)
-			countQuery = nil
 		} else {
-			// TODO: Change to error if failed, but also ignore if missing
-			logger.WarnWithCtx(cw.Ctx).Msgf("Error parsing pancake queries: %v. Falling back to the standard implementation.", err)
+			// Currently we swallow error to preserve backward compatibility, but eventually we should return it.
+			logger.ErrorWithCtx(cw.Ctx).Msgf("Error parsing pancake queries: %v.", err)
 		}
 	}
 

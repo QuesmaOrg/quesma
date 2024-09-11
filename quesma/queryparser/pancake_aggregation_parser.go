@@ -51,6 +51,10 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 		}
 	}
 
+	if len(topLevel.children) == 0 { // it's fine to have no aggregations
+		return []*model.Query{}, nil
+	}
+
 	// Phase 2: Translate aggregation tree into pancake model
 	transformer := newPancakeTransformer(cw.Ctx)
 	pancakeQueries, err := transformer.aggregationTreeToPancakes(topLevel)
