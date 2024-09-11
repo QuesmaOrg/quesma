@@ -43,7 +43,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	cfg.IndexConfig[indexConfig.Name] = indexConfig
 
-	lm := clickhouse.NewEmptyLogManager(&cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil), schema.StaticRegistry{})
+	lm := clickhouse.NewEmptyLogManager(&cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil))
 	lm.AddTableIfDoesntExist(table)
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
@@ -101,7 +101,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 		},
 		Created: true,
 	}
-	lm := clickhouse.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil), schema.StaticRegistry{})
+	lm := clickhouse.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil))
 	lm.AddTableIfDoesntExist(&table)
 	indexConfig := config.IndexConfiguration{
 		Name: "logs-generic-default",

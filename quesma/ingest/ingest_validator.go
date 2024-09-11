@@ -1,11 +1,12 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package clickhouse
+package ingest
 
 import (
 	"errors"
 	"fmt"
 	"math"
+	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/quesma/types"
 	"reflect"
@@ -35,10 +36,10 @@ func getTypeName(v interface{}) string {
 	if v == nil {
 		return unknownLiteral
 	}
-	goType := reflect.TypeOf(v).String()
-	switch goType {
+	GoType := reflect.TypeOf(v).String()
+	switch GoType {
 	case "string", "bool":
-		return primitiveTypes[goType]
+		return primitiveTypes[GoType]
 	case "int":
 		if v.(int) < 0 {
 			return primitiveTypes["int"]
@@ -51,7 +52,7 @@ func getTypeName(v interface{}) string {
 		} else if isUnsignedInt(v.(float64)) {
 			return primitiveTypes["uint"]
 		}
-		return primitiveTypes[goType]
+		return primitiveTypes[GoType]
 	}
 	switch elem := v.(type) {
 	case []interface{}:
@@ -79,7 +80,7 @@ func getTypeName(v interface{}) string {
 			return arrayLiteral + "(" + innerTypeName + ")"
 		}
 	}
-	return goType
+	return GoType
 }
 
 func removeLowCardinality(columnType string) string {
@@ -168,7 +169,7 @@ func validateNumericType(columnType string, incomingValueType string, value inte
 	return false
 }
 
-func validateValueAgainstType(fieldName string, value interface{}, column *Column) types.JSON {
+func validateValueAgainstType(fieldName string, value interface{}, column *clickhouse.Column) types.JSON {
 	const DateTimeType = "DateTime64"
 	const StringType = "String"
 	deletedFields := make(types.JSON, 0)
@@ -200,8 +201,8 @@ func validateValueAgainstType(fieldName string, value interface{}, column *Colum
 // validateIngest validates the document against the table schema
 // and returns the fields that are not valid e.g. have wrong types
 // according to the schema
-func (lm *LogManager) validateIngest(tableName string, document types.JSON) (types.JSON, error) {
-	clickhouseTable := lm.FindTable(tableName)
+func (ip *IngestProcessor) validateIngest(tableName string, document types.JSON) (types.JSON, error) {
+	clickhouseTable := ip.FindTable(tableName)
 
 	if clickhouseTable == nil {
 		logger.Error().Msgf("Table %s not found", tableName)

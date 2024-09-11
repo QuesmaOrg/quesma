@@ -4,11 +4,11 @@ package clickhouse
 
 type IndexStatement string
 
-func (s IndexStatement) statement() string {
+func (s IndexStatement) Statement() string {
 	return string(s)
 }
 
-func getIndexStatement(column string) IndexStatement {
+func GetIndexStatement(column string) IndexStatement {
 	switch column {
 	case "severity":
 		return "INDEX severity_idx severity TYPE set(25) GRANULARITY 4"

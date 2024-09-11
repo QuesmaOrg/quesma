@@ -22,62 +22,62 @@ func Test_resolveColumn(t *testing.T) {
 		{
 			name: "Bool",
 			args: args{colName: "is_critical", colType: "Bool"},
-			want: &Column{Name: "is_critical", Type: BaseType{Name: "Bool", goType: reflect.TypeOf(true)}},
+			want: &Column{Name: "is_critical", Type: BaseType{Name: "Bool", GoType: reflect.TypeOf(true)}},
 		},
 		{
 			name: "UInt64",
 			args: args{colName: "count", colType: "UInt64"},
-			want: &Column{Name: "count", Type: BaseType{Name: "UInt64", goType: reflect.TypeOf(uint64(0))}},
+			want: &Column{Name: "count", Type: BaseType{Name: "UInt64", GoType: reflect.TypeOf(uint64(0))}},
 		},
 		{
 			name: "Int64",
 			args: args{colName: "count", colType: "Int64"},
-			want: &Column{Name: "count", Type: BaseType{Name: "Int64", goType: reflect.TypeOf(int64(0))}},
+			want: &Column{Name: "count", Type: BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0))}},
 		},
 		{
 			name: "String",
 			args: args{colName: "severity", colType: "String"},
-			want: &Column{Name: "severity", Type: BaseType{Name: "String", goType: reflect.TypeOf("")}},
+			want: &Column{Name: "severity", Type: BaseType{Name: "String", GoType: reflect.TypeOf("")}},
 		},
 		{
 			name: "Nullable(String)",
 			args: args{colName: "severity", colType: "String"},
-			want: &Column{Name: "severity", Type: BaseType{Name: "String", goType: reflect.TypeOf("")}},
+			want: &Column{Name: "severity", Type: BaseType{Name: "String", GoType: reflect.TypeOf("")}},
 		},
 		{
 			name: "LowCardinality(String)",
 			args: args{colName: "severity", colType: "String"},
-			want: &Column{Name: "severity", Type: BaseType{Name: "String", goType: reflect.TypeOf("")}},
+			want: &Column{Name: "severity", Type: BaseType{Name: "String", GoType: reflect.TypeOf("")}},
 		},
 		{
 			name: "DateTime",
 			args: args{colName: "@timestamp", colType: "DateTime"},
-			want: &Column{Name: "@timestamp", Type: BaseType{Name: "DateTime", goType: reflect.TypeOf(time.Time{})}},
+			want: &Column{Name: "@timestamp", Type: BaseType{Name: "DateTime", GoType: reflect.TypeOf(time.Time{})}},
 		},
 		{
 			name: "DateTime64",
 			args: args{colName: "@timestamp", colType: "DateTime64"},
-			want: &Column{Name: "@timestamp", Type: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}},
+			want: &Column{Name: "@timestamp", Type: BaseType{Name: "DateTime64", GoType: reflect.TypeOf(time.Time{})}},
 		},
 		{
 			name: "Date",
 			args: args{colName: "@timestamp", colType: "Date"},
-			want: &Column{Name: "@timestamp", Type: BaseType{Name: "Date", goType: reflect.TypeOf(time.Time{})}},
+			want: &Column{Name: "@timestamp", Type: BaseType{Name: "Date", GoType: reflect.TypeOf(time.Time{})}},
 		},
 		{
 			name: "DateTime64(3)",
 			args: args{colName: "@timestamp", colType: "DateTime64"},
-			want: &Column{Name: "@timestamp", Type: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}},
+			want: &Column{Name: "@timestamp", Type: BaseType{Name: "DateTime64", GoType: reflect.TypeOf(time.Time{})}},
 		},
 		{
 			name: "Array(String)",
 			args: args{colName: "tags", colType: "Array(String)"},
-			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "String", goType: reflect.TypeOf("")}}},
+			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "String", GoType: reflect.TypeOf("")}}},
 		},
 		{
 			name: "Array(DateTime64)",
 			args: args{colName: "tags", colType: "Array(DateTime64)"},
-			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}}},
+			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "DateTime64", GoType: reflect.TypeOf(time.Time{})}}},
 		},
 
 		{
@@ -88,11 +88,11 @@ func Test_resolveColumn(t *testing.T) {
 				Type: MultiValueType{
 					Name: "Tuple",
 					Cols: []*Column{
-						{Name: "taxful_price", Type: BaseType{Name: "Float64", goType: reflect.TypeOf(float64(0))}},
-						{Name: "product_id", Type: BaseType{Name: "Int64", goType: reflect.TypeOf(int64(0))}},
-						{Name: "category", Type: BaseType{Name: "String", goType: reflect.TypeOf("")}},
-						{Name: "created_on", Type: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}},
-						{Name: "manufacturer", Type: BaseType{Name: "String", goType: reflect.TypeOf("")}},
+						{Name: "taxful_price", Type: BaseType{Name: "Float64", GoType: reflect.TypeOf(float64(0))}},
+						{Name: "product_id", Type: BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0))}},
+						{Name: "category", Type: BaseType{Name: "String", GoType: reflect.TypeOf("")}},
+						{Name: "created_on", Type: BaseType{Name: "DateTime64", GoType: reflect.TypeOf(time.Time{})}},
+						{Name: "manufacturer", Type: BaseType{Name: "String", GoType: reflect.TypeOf("")}},
 					},
 				},
 			},
@@ -107,11 +107,11 @@ func Test_resolveColumn(t *testing.T) {
 					BaseType: MultiValueType{
 						Name: "Tuple",
 						Cols: []*Column{
-							{Name: "taxful_price", Type: BaseType{Name: "Float64", goType: reflect.TypeOf(float64(0))}},
-							{Name: "product_id", Type: BaseType{Name: "Int64", goType: reflect.TypeOf(int64(0))}},
-							{Name: "category", Type: BaseType{Name: "String", goType: reflect.TypeOf("")}},
-							{Name: "created_on", Type: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}},
-							{Name: "manufacturer", Type: BaseType{Name: "String", goType: reflect.TypeOf("")}},
+							{Name: "taxful_price", Type: BaseType{Name: "Float64", GoType: reflect.TypeOf(float64(0))}},
+							{Name: "product_id", Type: BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0))}},
+							{Name: "category", Type: BaseType{Name: "String", GoType: reflect.TypeOf("")}},
+							{Name: "created_on", Type: BaseType{Name: "DateTime64", GoType: reflect.TypeOf(time.Time{})}},
+							{Name: "manufacturer", Type: BaseType{Name: "String", GoType: reflect.TypeOf("")}},
 						},
 					},
 				},
@@ -127,10 +127,10 @@ func Test_resolveColumn(t *testing.T) {
 					BaseType: MultiValueType{
 						Name: "Tuple",
 						Cols: []*Column{
-							{Name: "taxful_price", Type: BaseType{Name: "Float64", goType: reflect.TypeOf(float64(0))}},
-							{Name: "product_id", Type: BaseType{Name: "Int64", goType: reflect.TypeOf(int64(0))}},
-							{Name: "category", Type: BaseType{Name: "String", goType: reflect.TypeOf("")}},
-							{Name: "created_on", Type: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}},
+							{Name: "taxful_price", Type: BaseType{Name: "Float64", GoType: reflect.TypeOf(float64(0))}},
+							{Name: "product_id", Type: BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0))}},
+							{Name: "category", Type: BaseType{Name: "String", GoType: reflect.TypeOf("")}},
+							{Name: "created_on", Type: BaseType{Name: "DateTime64", GoType: reflect.TypeOf(time.Time{})}},
 						},
 					},
 				},
@@ -139,7 +139,7 @@ func Test_resolveColumn(t *testing.T) {
 		{
 			name: "Array(DateTime64(3))",
 			args: args{colName: "tags", colType: "Array(DateTime64(3))"},
-			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "DateTime64(3)", goType: reflect.TypeOf(time.Time{})}}},
+			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "DateTime64(3)", GoType: reflect.TypeOf(time.Time{})}}},
 		},
 	}
 
@@ -163,33 +163,33 @@ func Test_resolveColumn_Nullable(t *testing.T) {
 		{
 			name: "BaseType 1",
 			args: args{colName: "is_critical", colType: "Nullable(Bool)"},
-			want: &Column{Name: "is_critical", Type: BaseType{Name: "Bool", goType: reflect.TypeOf(true), Nullable: true}},
+			want: &Column{Name: "is_critical", Type: BaseType{Name: "Bool", GoType: reflect.TypeOf(true), Nullable: true}},
 		},
 		{
 			name: "BaseType 2",
 			args: args{colName: "count", colType: "Nullable(UInt64)"},
-			want: &Column{Name: "count", Type: BaseType{Name: "UInt64", goType: reflect.TypeOf(uint64(0)), Nullable: true}},
+			want: &Column{Name: "count", Type: BaseType{Name: "UInt64", GoType: reflect.TypeOf(uint64(0)), Nullable: true}},
 		},
 		{
 			name: "LowCardinality(String)",
 			args: args{colName: "severity", colType: "Nullable(String)"},
-			want: &Column{Name: "severity", Type: BaseType{Name: "String", goType: reflect.TypeOf(""), Nullable: true}},
+			want: &Column{Name: "severity", Type: BaseType{Name: "String", GoType: reflect.TypeOf(""), Nullable: true}},
 		},
 		{
 			name: "DateTime64(3)",
 			args: args{colName: "@timestamp", colType: "Nullable(DateTime64)"},
-			want: &Column{Name: "@timestamp", Type: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{}), Nullable: true}},
+			want: &Column{Name: "@timestamp", Type: BaseType{Name: "DateTime64", GoType: reflect.TypeOf(time.Time{}), Nullable: true}},
 		},
 		{
 			name: "Array(Nullable(String))",
 			args: args{colName: "tags", colType: "Array(Nullable(String))"},
-			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "String", goType: reflect.TypeOf(""), Nullable: true}}},
+			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "String", GoType: reflect.TypeOf(""), Nullable: true}}},
 		},
 
 		{
 			name: "Array(DateTime64)",
 			args: args{colName: "tags", colType: "Array(Nullable(DateTime64))"},
-			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{}), Nullable: true}}},
+			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "DateTime64", GoType: reflect.TypeOf(time.Time{}), Nullable: true}}},
 		},
 		{
 			name: "Tuple",
@@ -199,11 +199,11 @@ func Test_resolveColumn_Nullable(t *testing.T) {
 				Type: MultiValueType{
 					Name: "Tuple",
 					Cols: []*Column{
-						{Name: "taxful_price", Type: BaseType{Name: "Float64", goType: reflect.TypeOf(float64(0)), Nullable: true}},
-						{Name: "product_id", Type: BaseType{Name: "Int64", goType: reflect.TypeOf(int64(0)), Nullable: true}},
-						{Name: "category", Type: BaseType{Name: "String", goType: reflect.TypeOf(""), Nullable: true}},
-						{Name: "created_on", Type: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}},
-						{Name: "manufacturer", Type: BaseType{Name: "String", goType: reflect.TypeOf(""), Nullable: true}},
+						{Name: "taxful_price", Type: BaseType{Name: "Float64", GoType: reflect.TypeOf(float64(0)), Nullable: true}},
+						{Name: "product_id", Type: BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0)), Nullable: true}},
+						{Name: "category", Type: BaseType{Name: "String", GoType: reflect.TypeOf(""), Nullable: true}},
+						{Name: "created_on", Type: BaseType{Name: "DateTime64", GoType: reflect.TypeOf(time.Time{})}},
+						{Name: "manufacturer", Type: BaseType{Name: "String", GoType: reflect.TypeOf(""), Nullable: true}},
 					},
 				},
 			},
@@ -218,11 +218,11 @@ func Test_resolveColumn_Nullable(t *testing.T) {
 					BaseType: MultiValueType{
 						Name: "Tuple",
 						Cols: []*Column{
-							{Name: "taxful_price", Type: BaseType{Name: "Float64", goType: reflect.TypeOf(float64(0)), Nullable: true}},
-							{Name: "product_id", Type: BaseType{Name: "Int64", goType: reflect.TypeOf(int64(0)), Nullable: true}},
-							{Name: "category", Type: BaseType{Name: "String", goType: reflect.TypeOf(""), Nullable: true}},
-							{Name: "created_on", Type: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}},
-							{Name: "manufacturer", Type: BaseType{Name: "String", goType: reflect.TypeOf(""), Nullable: true}},
+							{Name: "taxful_price", Type: BaseType{Name: "Float64", GoType: reflect.TypeOf(float64(0)), Nullable: true}},
+							{Name: "product_id", Type: BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0)), Nullable: true}},
+							{Name: "category", Type: BaseType{Name: "String", GoType: reflect.TypeOf(""), Nullable: true}},
+							{Name: "created_on", Type: BaseType{Name: "DateTime64", GoType: reflect.TypeOf(time.Time{})}},
+							{Name: "manufacturer", Type: BaseType{Name: "String", GoType: reflect.TypeOf(""), Nullable: true}},
 						},
 					},
 				},
