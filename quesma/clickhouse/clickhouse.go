@@ -380,20 +380,20 @@ func Indexes(m SchemaMap) string {
 	return result.String()
 }
 
-// This function takes an AttributesMap and arrayName and returns
-// the values of the array named arrayName from the AttributesMap
-func getAttributesByArrayName(arrayName string,
-	attrsMap map[string][]interface{}) []string {
-	var Attributes []string
-	for k, v := range attrsMap {
-		if k == arrayName {
-			for _, val := range v {
-				Attributes = append(Attributes, util.Stringify(val))
-			}
-		}
-	}
-	return Attributes
-}
+//// This function takes an AttributesMap and arrayName and returns
+//// the values of the array named arrayName from the AttributesMap
+//func getAttributesByArrayName(arrayName string,
+//	attrsMap map[string][]interface{}) []string {
+//	var Attributes []string
+//	for k, v := range attrsMap {
+//		if k == arrayName {
+//			for _, val := range v {
+//				Attributes = append(Attributes, util.Stringify(val))
+//			}
+//		}
+//	}
+//	return Attributes
+//}
 
 func (lm *LogManager) FindTable(tableName string) (result *Table) {
 	tableNamePattern := index.TableNamePatternRegexp(tableName)
@@ -465,21 +465,6 @@ func NewLogManagerEmpty() *LogManager {
 		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()} //, ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 
-func NewOnlySchemaFieldsCHConfig() *ChTableConfig {
-	return &ChTableConfig{
-		HasTimestamp:                          true,
-		TimestampDefaultsNow:                  true,
-		Engine:                                "MergeTree",
-		OrderBy:                               "(" + `"@timestamp"` + ")",
-		PartitionBy:                           "",
-		PrimaryKey:                            "",
-		Ttl:                                   "",
-		Attributes:                            []Attribute{NewDefaultStringAttribute()},
-		CastUnsupportedAttrValueTypesToString: false,
-		PreferCastingToOthers:                 false,
-	}
-}
-
 func NewDefaultCHConfig() *ChTableConfig {
 	return &ChTableConfig{
 		HasTimestamp:         true,
@@ -524,23 +509,6 @@ func NewChTableConfigNoAttrs() *ChTableConfig {
 		Engine:                                "MergeTree",
 		OrderBy:                               "(" + `"@timestamp"` + ")",
 		Attributes:                            []Attribute{},
-		CastUnsupportedAttrValueTypesToString: true,
-		PreferCastingToOthers:                 true,
-	}
-}
-
-func NewChTableConfigFourAttrs() *ChTableConfig {
-	return &ChTableConfig{
-		HasTimestamp:         false,
-		TimestampDefaultsNow: true,
-		Engine:               "MergeTree",
-		OrderBy:              "(" + "`@timestamp`" + ")",
-		Attributes: []Attribute{
-			NewDefaultInt64Attribute(),
-			NewDefaultFloat64Attribute(),
-			NewDefaultBoolAttribute(),
-			NewDefaultStringAttribute(),
-		},
 		CastUnsupportedAttrValueTypesToString: true,
 		PreferCastingToOthers:                 true,
 	}

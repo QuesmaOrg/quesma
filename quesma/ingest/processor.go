@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
-	"math"
 	chLib "quesma/clickhouse"
 	"quesma/concurrent"
 	"quesma/elasticsearch"
@@ -48,7 +47,6 @@ type (
 )
 
 type (
-	// IngestProcessor should be renamed to Connector  -> TODO !!!
 	IngestProcessor struct {
 		ctx                       context.Context
 		cancel                    context.CancelFunc
@@ -71,27 +69,6 @@ type (
 		MapMetadataName string
 		Type            chLib.BaseType
 	}
-	//chLib.ChTableConfig struct {
-	//	hasTimestamp bool // does table have 'timestamp' field
-	//	// allow_suspicious_ttl_expressions=1 to enable TTL without date field (doesn't work for me!)
-	//	// also be very cautious with it and test it beforehand, people say it doesn't work properly
-	//	// TODO make sure it's unique in schema (there's no other 'timestamp' field)
-	//	// I (Krzysiek) can write it quickly, but don't want to waste time for it right now.
-	//	timestampDefaultsNow bool
-	//	engine               string // "Log", "MergeTree", etc.
-	//	orderBy              string // "" if none
-	//	partitionBy          string // "" if none
-	//	primaryKey           string // "" if none
-	//	settings             string // "" if none
-	//	ttl                  string // of type Interval, e.g. 3 MONTH, 1 YEAR
-	//	// look https://clickhouse.com/docs/en/sql-reference/data-types/special-data-types/interval
-	//	// "" if none
-	//	// TODO make sure it's unique in schema (there's no other 'others' field)
-	//	// I (Krzysiek) can write it quickly, but don't want to waste time for it right now.
-	//	attributes                            []Attribute
-	//	castUnsupportedAttrValueTypesToString bool // if we have e.g. only attrs (String, String), we'll cast e.g. Date to String
-	//	preferCastingToOthers                 bool // we'll put non-schema field in [String, String] attrs map instead of others, if we have both options
-	//}
 )
 
 func NewTableMap() *TableMap {
@@ -154,21 +131,6 @@ func (ip *IngestProcessor) ReloadTables() {
 
 func (ip *IngestProcessor) Close() {
 	_ = ip.chDb.Close()
-}
-
-// Deprecated: use ResolveIndexes instead, this method will be removed once we switch to the new one
-// Indexes can be in a form of wildcard, e.g. "index-*"
-// If we have such index, we need to resolve it to a real table name.
-func (ip *IngestProcessor) ResolveTableName(index string) (result string) {
-	ip.tableDiscovery.TableDefinitions().
-		Range(func(k string, v *chLib.Table) bool {
-			if elasticsearch.IndexMatches(index, k) {
-				result = k
-				return false
-			}
-			return true
-		})
-	return result
 }
 
 // Indexes can be in a form of wildcard, e.g. "index-*" or even contain multiple patterns like "index-*,logs-*",
@@ -254,28 +216,6 @@ func addOurFieldsToCreateTableQuery(q string, config *chLib.ChTableConfig, table
 	return q[:i+2] + othersStr + timestampStr + attributesStr + q[i+1:]
 }
 
-func (ip *IngestProcessor) CountMultiple(ctx context.Context, tables ...string) (int64, error) {
-	if len(tables) == 0 {
-		return 0, nil
-	}
-	const subcountStatement = "(SELECT count(*) FROM ?)"
-	var subCountStatements []string
-	for range len(tables) {
-		subCountStatements = append(subCountStatements, subcountStatement)
-	}
-
-	var count int64
-	var anyTables []any
-	for _, t := range tables {
-		anyTables = append(anyTables, t)
-	}
-	err := ip.chDb.QueryRowContext(ctx, fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL ")), anyTables...).Scan(&count)
-	if err != nil {
-		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
-	}
-	return count, nil
-}
-
 func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, error) {
 	var count int64
 	err := ip.chDb.QueryRowContext(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
@@ -283,79 +223,6 @@ func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, erro
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
 	return count, nil
-}
-
-func (ip *IngestProcessor) executeRawQuery(query string) (*sql.Rows, error) {
-	if res, err := ip.chDb.Query(query); err != nil {
-		return nil, fmt.Errorf("error in executeRawQuery: query: %s\nerr:%v", query, err)
-	} else {
-		return res, nil
-	}
-}
-
-/* The logic below contains a simple checks that are executed by connectors to ensure that they are
-not connected to the data sources which are not allowed by current license. */
-
-type PaidServiceName int
-
-const (
-	CHCloudServiceName PaidServiceName = iota
-	HydrolixServiceName
-)
-
-func (s PaidServiceName) String() string {
-	return [...]string{"ClickHouse Cloud", "Hydrolix"}[s]
-}
-
-var paidServiceChecks = map[PaidServiceName]string{
-	HydrolixServiceName: `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`,
-	CHCloudServiceName:  `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'SharedMergeTree';`,
-	// For CH Cloud we can also check the output of the following query: --> `SELECT * FROM system.settings WHERE name='cloud_mode_engine';`
-}
-
-func (ip *IngestProcessor) isConnectedToPaidService(service PaidServiceName) (bool, error) {
-	rows, err := ip.executeRawQuery(paidServiceChecks[service])
-	if err != nil {
-		return false, fmt.Errorf("error executing %s-identifying query: %v", service, err)
-	}
-	defer rows.Close()
-	if rows.Next() {
-		return true, fmt.Errorf("detected %s-specific table engine, which is not allowed", service)
-	}
-	return false, nil
-}
-
-// CheckIfConnectedPaidService executes simple query with exponential backoff
-func (ip *IngestProcessor) CheckIfConnectedPaidService(service PaidServiceName) (returnedErr error) {
-	if _, ok := paidServiceChecks[service]; !ok {
-		return fmt.Errorf("service %s is not supported", service)
-	}
-	totalCheckTime := time.Minute
-	startTimeInSeconds := 2.0
-	start := time.Now()
-	attempt := 0
-	for {
-		isConnectedToPaidService, err := ip.isConnectedToPaidService(service)
-		if err != nil {
-			returnedErr = fmt.Errorf("error checking connection to database, attempt #%d, err=%v", attempt+1, err)
-		}
-		if isConnectedToPaidService {
-			return fmt.Errorf("detected %s-specific table engine, which is not allowed", service)
-		} else if err == nil { // no paid service detected, no conn errors
-			returnedErr = nil
-			break
-		}
-		if time.Since(start) > totalCheckTime {
-			break
-		}
-		attempt++
-		sleepDuration := time.Duration(math.Pow(startTimeInSeconds, float64(attempt))) * time.Second
-		if remaining := time.Until(start.Add(totalCheckTime)); remaining < sleepDuration {
-			sleepDuration = remaining
-		}
-		time.Sleep(sleepDuration)
-	}
-	return returnedErr
 }
 
 func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, query string, config *chLib.ChTableConfig) (string, error) {
@@ -901,14 +768,6 @@ func (ip *IngestProcessor) FindTable(tableName string) (result *chLib.Table) {
 	return result
 }
 
-func (ip *IngestProcessor) GetTableDefinitions() (TableMap, error) {
-	if err := ip.tableDiscovery.TableDefinitionsFetchError(); err != nil {
-		return *ip.tableDiscovery.TableDefinitions(), err
-	}
-
-	return *ip.tableDiscovery.TableDefinitions(), nil
-}
-
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
 func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 	t := ip.FindTable(table.Name)
@@ -940,12 +799,6 @@ func NewIngestProcessor(tables *TableMap, cfg *config.QuesmaConfiguration) *Inge
 	return &IngestProcessor{chDb: nil, tableDiscovery: chLib.NewTableDiscoveryWith(cfg, nil, *tables),
 		cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(),
 		ingestFieldStatistics: make(IngestFieldStatistics)}
-}
-
-// right now only for tests purposes
-func NewIngestProcessorWithConnection(db *sql.DB, tables *TableMap) *IngestProcessor {
-	return &IngestProcessor{chDb: db, tableDiscovery: chLib.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, db, *tables),
-		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 
 func NewIngestProcessorEmpty() *IngestProcessor {
@@ -991,23 +844,6 @@ func NewDefaultCHConfig() *chLib.ChTableConfig {
 	}
 }
 
-//func NewNoTimestampOnlyStringAttrCHConfig() *chLib.ChTableConfig {
-//	return &chLib.ChTableConfig{
-//		HasTimestamp:         true,
-//		TimestampDefaultsNow: true,
-//		Engine:               "MergeTree",
-//		OrderBy:              "(" + `"@timestamp"` + ")",
-//		PartitionBy:          "",
-//		PrimaryKey:           "",
-//		Ttl:                  "",
-//		attributes: []Attribute{
-//			NewDefaultStringAttribute(),
-//		},
-//		castUnsupportedAttrValueTypesToString: true,
-//		preferCastingToOthers:                 true,
-//	}
-//}
-
 func NewChTableConfigNoAttrs() *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
 		HasTimestamp:                          false,
@@ -1036,19 +872,3 @@ func NewChTableConfigFourAttrs() *chLib.ChTableConfig {
 		PreferCastingToOthers:                 true,
 	}
 }
-
-func NewChTableConfigTimestampStringAttr() *chLib.ChTableConfig {
-	return &chLib.ChTableConfig{
-		HasTimestamp:                          true,
-		TimestampDefaultsNow:                  true,
-		Attributes:                            []chLib.Attribute{chLib.NewDefaultStringAttribute()},
-		Engine:                                "MergeTree",
-		OrderBy:                               "(" + "`@timestamp`" + ")",
-		CastUnsupportedAttrValueTypesToString: true,
-		PreferCastingToOthers:                 true,
-	}
-}
-
-//func (c *chLib.ChTableConfig) GetAttributes() []chLib.Attribute {
-//	return c.Attributes
-//}
