@@ -20,7 +20,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"unicode"
 )
 
 type JsonMap = map[string]interface{}
@@ -794,14 +793,22 @@ func Stringify(v interface{}) string {
 
 const timestampFieldName = "@timestamp"
 
+func isLetter(char byte) bool {
+	return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')
+}
+
+func isDigit(char byte) bool {
+	return char >= '0' && char <= '9'
+}
+
 func replaceNonAlphabetic(str string) string {
-	runes := []rune(str)
-	for i, r := range runes {
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
-			runes[i] = '_'
+	chars := []byte(str)
+	for i, c := range chars {
+		if !isLetter(c) && !isDigit(c) {
+			chars[i] = '_'
 		}
 	}
-	return string(runes)
+	return string(chars)
 }
 
 func FieldToColumnEncoder(field string) string {
@@ -811,7 +818,7 @@ func FieldToColumnEncoder(field string) string {
 	}
 	newField := strings.ToLower(field)
 	newField = replaceNonAlphabetic(newField)
-	if unicode.IsDigit(rune(newField[0])) {
+	if isDigit(byte(newField[0])) {
 		newField = "_" + newField
 	}
 	return newField
