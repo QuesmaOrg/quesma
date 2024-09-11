@@ -14,18 +14,18 @@ import (
 
 func TestAlterTable(t *testing.T) {
 	chConfig := &clickhouse.ChTableConfig{
-		hasTimestamp:         true,
-		timestampDefaultsNow: true,
-		engine:               "MergeTree",
-		orderBy:              "(timestamp)",
-		partitionBy:          "",
-		primaryKey:           "",
-		ttl:                  "",
-		attributes: []Attribute{
-			NewDefaultStringAttribute(),
+		HasTimestamp:         true,
+		TimestampDefaultsNow: true,
+		Engine:               "MergeTree",
+		OrderBy:              "(timestamp)",
+		PartitionBy:          "",
+		PrimaryKey:           "",
+		Ttl:                  "",
+		Attributes: []clickhouse.Attribute{
+			clickhouse.NewDefaultStringAttribute(),
 		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 	rowsToInsert := []string{
 		`{"Test1":1}`,
@@ -42,7 +42,7 @@ func TestAlterTable(t *testing.T) {
 	columns := []string{"Test1", "Test2"}
 	table := &clickhouse.Table{
 		Name: "tableName",
-		Cols: map[string]*Column{},
+		Cols: map[string]*clickhouse.Column{},
 	}
 	fieldsMap := concurrent.NewMapWith("tableName", table)
 
@@ -70,18 +70,18 @@ func TestAlterTable(t *testing.T) {
 
 func TestAlterTableHeuristic(t *testing.T) {
 	chConfig := &clickhouse.ChTableConfig{
-		hasTimestamp:         true,
-		timestampDefaultsNow: true,
-		engine:               "MergeTree",
-		orderBy:              "(timestamp)",
-		partitionBy:          "",
-		primaryKey:           "",
-		ttl:                  "",
-		attributes: []Attribute{
+		HasTimestamp:         true,
+		TimestampDefaultsNow: true,
+		Engine:               "MergeTree",
+		OrderBy:              "(timestamp)",
+		PartitionBy:          "",
+		PrimaryKey:           "",
+		Ttl:                  "",
+		Attributes: []clickhouse.Attribute{
 			clickhouse.NewDefaultStringAttribute(),
 		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 
 	var testcases = []struct {

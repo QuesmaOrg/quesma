@@ -27,12 +27,12 @@ type (
 	Type interface {
 		String() string
 		StringWithNullable() string // just like String but displays also 'Nullable' if it's nullable
-		canConvert(interface{}) bool
+		CanConvert(interface{}) bool
 		createTableString(indentLvl int) string // prints type for CREATE TABLE command
 		isArray() bool
 		isBool() bool // we need to differentiate between bool and other types. Special method to make it fast
 		isString() bool
-		isNullable() bool
+		IsNullable() bool
 	}
 	Codec struct {
 		Name string // change to enum
@@ -94,7 +94,7 @@ func (t BaseType) isString() bool {
 	return t.Name == "String"
 }
 
-func (t BaseType) isNullable() bool { return t.Nullable }
+func (t BaseType) IsNullable() bool { return t.Nullable }
 
 func (t CompoundType) String() string {
 	return fmt.Sprintf("%s(%s)", t.Name, t.BaseType.String())
@@ -115,7 +115,7 @@ func (t CompoundType) isString() bool {
 	return false
 }
 
-func (t CompoundType) isNullable() bool { return false }
+func (t CompoundType) IsNullable() bool { return false }
 
 func (t MultiValueType) String() string {
 	var sb strings.Builder
@@ -167,12 +167,12 @@ func (t MultiValueType) isString() bool {
 	return false
 }
 
-func (t MultiValueType) isNullable() bool {
+func (t MultiValueType) IsNullable() bool {
 	return false
 }
 
 // TODO maybe a bit better/faster?
-func (t BaseType) canConvert(v interface{}) bool {
+func (t BaseType) CanConvert(v interface{}) bool {
 	if t.Name == "String" {
 		return true
 	}
@@ -180,11 +180,11 @@ func (t BaseType) canConvert(v interface{}) bool {
 	return rv.CanConvert(t.GoType) && rv.Equal(rv.Convert(t.GoType).Convert(rv.Type()))
 }
 
-func (t CompoundType) canConvert(v interface{}) bool {
+func (t CompoundType) CanConvert(v interface{}) bool {
 	return false // TODO for now. For sure can implement arrays easily, maybe some other too
 }
 
-func (t MultiValueType) canConvert(v interface{}) bool {
+func (t MultiValueType) CanConvert(v interface{}) bool {
 	return false // TODO for now. For sure can implement tuples easily, maybe some other too
 }
 
@@ -304,22 +304,22 @@ func (col *Column) createTableString(indentLvl int) string {
 
 // TODO TTL only by timestamp for now!
 func (config *ChTableConfig) CreateTablePostFieldsString() string {
-	s := "ENGINE = " + config.engine + "\n"
-	if config.orderBy != "" {
-		s += "ORDER BY " + config.orderBy + "\n"
+	s := "ENGINE = " + config.Engine + "\n"
+	if config.OrderBy != "" {
+		s += "ORDER BY " + config.OrderBy + "\n"
 	}
-	if config.partitionBy != "" {
-		s += "PARTITION BY " + config.partitionBy + "\n"
+	if config.PartitionBy != "" {
+		s += "PARTITION BY " + config.PartitionBy + "\n"
 	}
-	if config.primaryKey != "" {
-		s += "PRIMARY KEY " + config.primaryKey + "\n"
+	if config.PrimaryKey != "" {
+		s += "PRIMARY KEY " + config.PrimaryKey + "\n"
 	}
-	if config.ttl != "" {
-		s += "TTL " + config.ttl + "\n"
+	if config.Ttl != "" {
+		s += "TTL " + config.Ttl + "\n"
 	}
 
-	if config.settings != "" {
-		s += "SETTINGS " + config.settings + "\n"
+	if config.Settings != "" {
+		s += "SETTINGS " + config.Settings + "\n"
 	}
 	return s
 }

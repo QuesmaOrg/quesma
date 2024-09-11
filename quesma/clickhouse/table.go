@@ -20,7 +20,7 @@ type Table struct {
 	Cols         map[string]*Column
 	Config       *ChTableConfig
 	Created      bool // do we need to create it during first insert
-	indexes      []IndexStatement
+	Indexes      []IndexStatement
 	aliases      map[string]string //deprecated
 	// TODO: we should use aliases directly from configuration, not store them here
 	Comment          string // this human-readable comment
@@ -31,18 +31,18 @@ type Table struct {
 
 func (t *Table) createTableOurFieldsString() []string {
 	rows := make([]string, 0)
-	if t.Config.hasTimestamp {
+	if t.Config.HasTimestamp {
 		_, ok := t.Cols[timestampFieldName]
 		if !ok {
 			defaultStr := ""
-			if t.Config.timestampDefaultsNow {
+			if t.Config.TimestampDefaultsNow {
 				defaultStr = " DEFAULT now64()"
 			}
 			rows = append(rows, fmt.Sprintf("%s\"%s\" DateTime64(3)%s", util.Indent(1), timestampFieldName, defaultStr))
 		}
 	}
-	if len(t.Config.attributes) > 0 {
-		for _, a := range t.Config.attributes {
+	if len(t.Config.Attributes) > 0 {
+		for _, a := range t.Config.Attributes {
 			_, ok := t.Cols[a.MapValueName]
 			if !ok {
 				rows = append(rows, fmt.Sprintf("%s\"%s\" Map(String,String)", util.Indent(1), a.MapValueName))
@@ -57,15 +57,15 @@ func (t *Table) createTableOurFieldsString() []string {
 	return rows
 }
 
-func (t *Table) createTableString() string {
+func (t *Table) CreateTableString() string {
 	s := "CREATE TABLE IF NOT EXISTS " + t.FullTableName() + " (\n"
 	rows := make([]string, 0)
 	for _, col := range t.Cols {
 		rows = append(rows, col.createTableString(1))
 	}
 	rows = append(rows, t.createTableOurFieldsString()...)
-	for _, index := range t.indexes {
-		rows = append(rows, util.Indent(1)+index.statement())
+	for _, index := range t.Indexes {
+		rows = append(rows, util.Indent(1)+index.Statement())
 	}
 	return s + strings.Join(rows, ",\n") + "\n)\n" + t.Config.CreateTablePostFieldsString()
 }
@@ -94,7 +94,7 @@ func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeT
 			return DateTime
 		}
 	}
-	if t.Config.hasTimestamp && fieldName == timestampFieldName {
+	if t.Config.HasTimestamp && fieldName == timestampFieldName {
 		return DateTime64
 	}
 	logger.WarnWithCtx(ctx).Msgf("datetime field '%s' not found in table '%s'", fieldName, t.Name)
@@ -109,8 +109,8 @@ func (t *Table) GetDateTimeTypeFromExpr(ctx context.Context, expr model.Expr) Da
 	return Invalid
 }
 
-// applyIndexConfig applies full text search and alias configuration to the table
-func (t *Table) applyIndexConfig(configuration *config.QuesmaConfiguration) {
+// ApplyIndexConfig applies full text search and alias configuration to the table
+func (t *Table) ApplyIndexConfig(configuration *config.QuesmaConfiguration) {
 
 	t.aliases = make(map[string]string)
 	if indexConf, ok := configuration.IndexConfig[t.Name]; ok {
@@ -154,7 +154,7 @@ func (t *Table) Aliases() map[string]string {
 }
 
 func (t *Table) GetAttributesList() []Attribute {
-	return t.Config.attributes
+	return t.Config.Attributes
 }
 
 // TODO Won't work with tuples, e.g. trying to access via tupleName.tupleField will return NotExists,

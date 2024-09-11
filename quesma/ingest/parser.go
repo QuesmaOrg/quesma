@@ -88,7 +88,7 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, chConfig *click
 				}
 			}
 			// hack for now
-			if indentLvl == 1 && name == timestampFieldName && chConfig.timestampDefaultsNow {
+			if indentLvl == 1 && name == timestampFieldName && chConfig.TimestampDefaultsNow {
 				fTypeString += " DEFAULT now64()"
 			}
 			// We still may have name like:
@@ -294,8 +294,8 @@ func BuildAttrsMap(m SchemaMap, config *clickhouse.ChTableConfig) (map[string][]
 	for _, name := range sortedKeys(m) {
 		value := m[name]
 		matched := false
-		for _, a := range config.attributes {
-			if a.Type.canConvert(value) {
+		for _, a := range config.Attributes {
+			if a.Type.CanConvert(value) {
 				result[a.KeysArrayName] = append(result[a.KeysArrayName], name)
 				result[a.ValuesArrayName] = append(result[a.ValuesArrayName], fmt.Sprintf("%v", value))
 				result[a.TypesArrayName] = append(result[a.TypesArrayName], clickhouse.NewType(value).String())

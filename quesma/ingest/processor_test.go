@@ -18,16 +18,16 @@ import (
 )
 
 var hasOthersConfig = &clickhouse.ChTableConfig{
-	hasTimestamp:                          false,
-	timestampDefaultsNow:                  false,
-	engine:                                "MergeTree",
-	orderBy:                               "(timestamp)",
-	partitionBy:                           "",
-	primaryKey:                            "",
-	ttl:                                   "",
-	attributes:                            []Attribute{},
-	castUnsupportedAttrValueTypesToString: false,
-	preferCastingToOthers:                 false,
+	HasTimestamp:                          false,
+	TimestampDefaultsNow:                  false,
+	Engine:                                "MergeTree",
+	OrderBy:                               "(timestamp)",
+	PartitionBy:                           "",
+	PrimaryKey:                            "",
+	Ttl:                                   "",
+	Attributes:                            []clickhouse.Attribute{},
+	CastUnsupportedAttrValueTypesToString: false,
+	PreferCastingToOthers:                 false,
 }
 
 // inserting row with 2 non-schema fields
@@ -107,24 +107,24 @@ func TestInsertNonSchemaFields_2(t *testing.T) {
 
 func TestAddTimestamp(t *testing.T) {
 	tableConfig := &clickhouse.ChTableConfig{
-		hasTimestamp:                          true,
-		timestampDefaultsNow:                  true,
-		engine:                                "MergeTree",
-		orderBy:                               "(@timestamp)",
-		partitionBy:                           "",
-		primaryKey:                            "",
-		ttl:                                   "",
-		attributes:                            []Attribute{},
-		castUnsupportedAttrValueTypesToString: false,
-		preferCastingToOthers:                 false,
+		HasTimestamp:                          true,
+		TimestampDefaultsNow:                  true,
+		Engine:                                "MergeTree",
+		OrderBy:                               "(timestamp)",
+		PartitionBy:                           "",
+		PrimaryKey:                            "",
+		Ttl:                                   "",
+		Attributes:                            []clickhouse.Attribute{},
+		CastUnsupportedAttrValueTypesToString: false,
+		PreferCastingToOthers:                 false,
 	}
 	nameFormatter := clickhouse.DefaultColumnNameFormatter()
 	ip := NewIngestProcessorEmpty()
 	ip.schemaRegistry = schema.StaticRegistry{}
 	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
-	clickhouse.ColumnsFromJson, clickhouse.ColumnsFromSchema := ip.buildCreateTableQueryNoOurFields(context.Background(), "tableName", jsonData, tableConfig, nameFormatter)
-	clickhouse.Columns := clickhouse.ColumnsWithIndexes(clickhouse.ColumnsToString(clickhouse.ColumnsFromJson, clickhouse.ColumnsFromSchema), Indexes(jsonData))
-	query := createTableQuery(tableName, clickhouse.Columns, tableConfig)
+	columnsFromJson, columnsFromSchema := ip.buildCreateTableQueryNoOurFields(context.Background(), "tableName", jsonData, tableConfig, nameFormatter)
+	columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData))
+	query := createTableQuery(tableName, columns, tableConfig)
 	assert.True(t, strings.Contains(query, timestampFieldName))
 }
 
@@ -512,21 +512,21 @@ func TestRemovingNonSchemaFields(t *testing.T) {
 
 func TestJsonFlatteningToStringAttr(t *testing.T) {
 	config := &clickhouse.ChTableConfig{
-		hasTimestamp:         true,
-		timestampDefaultsNow: true,
-		engine:               "MergeTree",
-		orderBy:              "(timestamp)",
-		partitionBy:          "",
-		primaryKey:           "",
-		ttl:                  "",
-		attributes: []Attribute{
-			NewDefaultInt64Attribute(),
-			NewDefaultFloat64Attribute(),
-			NewDefaultBoolAttribute(),
-			NewDefaultStringAttribute(),
+		HasTimestamp:         true,
+		TimestampDefaultsNow: true,
+		Engine:               "MergeTree",
+		OrderBy:              "(timestamp)",
+		PartitionBy:          "",
+		PrimaryKey:           "",
+		Ttl:                  "",
+		Attributes: []clickhouse.Attribute{
+			clickhouse.NewDefaultInt64Attribute(),
+			clickhouse.NewDefaultFloat64Attribute(),
+			clickhouse.NewDefaultBoolAttribute(),
+			clickhouse.NewDefaultStringAttribute(),
 		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 	m := SchemaMap{
 		"host.name": SchemaMap{
@@ -547,18 +547,18 @@ func TestJsonFlatteningToStringAttr(t *testing.T) {
 
 func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 	config := &clickhouse.ChTableConfig{
-		hasTimestamp:         true,
-		timestampDefaultsNow: true,
-		engine:               "MergeTree",
-		orderBy:              "(timestamp)",
-		partitionBy:          "",
-		primaryKey:           "",
-		ttl:                  "",
-		attributes: []Attribute{
-			NewDefaultStringAttribute(),
+		HasTimestamp:         true,
+		TimestampDefaultsNow: true,
+		Engine:               "MergeTree",
+		OrderBy:              "(timestamp)",
+		PartitionBy:          "",
+		PrimaryKey:           "",
+		Ttl:                  "",
+		Attributes: []clickhouse.Attribute{
+			clickhouse.NewDefaultStringAttribute(),
 		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 	m := SchemaMap{
 		"b1": true,
@@ -582,7 +582,7 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_1(t *testing.T) {
-	table := Table{
+	table := clickhouse.Table{
 		Created: false,
 		Name:    "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
 		Cols: map[string]*clickhouse.Column{
@@ -628,24 +628,24 @@ func TestCreateTableString_1(t *testing.T) {
 			},
 		},
 		Config: &clickhouse.ChTableConfig{
-			hasTimestamp:         true,
-			timestampDefaultsNow: true,
-			engine:               "MergeTree",
-			orderBy:              "(@timestamp)",
-			partitionBy:          "",
-			primaryKey:           "",
-			ttl:                  "",
-			attributes: []Attribute{
-				NewDefaultInt64Attribute(),
-				NewDefaultStringAttribute(),
-				NewDefaultBoolAttribute(),
+			HasTimestamp:         true,
+			TimestampDefaultsNow: true,
+			Engine:               "MergeTree",
+			OrderBy:              "(timestamp)",
+			PartitionBy:          "",
+			PrimaryKey:           "",
+			Ttl:                  "",
+			Attributes: []clickhouse.Attribute{
+				clickhouse.NewDefaultInt64Attribute(),
+				clickhouse.NewDefaultStringAttribute(),
+				clickhouse.NewDefaultBoolAttribute(),
 			},
-			castUnsupportedAttrValueTypesToString: false,
-			preferCastingToOthers:                 false,
+			CastUnsupportedAttrValueTypesToString: false,
+			PreferCastingToOthers:                 false,
 		},
-		indexes: []IndexStatement{
-			getIndexStatement("body"),
-			getIndexStatement("severity"),
+		Indexes: []clickhouse.IndexStatement{
+			clickhouse.GetIndexStatement("body"),
+			clickhouse.GetIndexStatement("severity"),
 		},
 	}
 	expectedRows := []string{
@@ -677,7 +677,7 @@ func TestCreateTableString_1(t *testing.T) {
 		`ORDER BY (@timestamp)`,
 		"",
 	}
-	createTableString := table.createTableString()
+	createTableString := table.CreateTableString()
 	for _, row := range strings.Split(createTableString, "\n") {
 		assert.Contains(t, expectedRows, strings.TrimSpace(row))
 	}
@@ -713,18 +713,18 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 			},
 		},
 		Config: &clickhouse.ChTableConfig{
-			hasTimestamp:         true,
-			timestampDefaultsNow: true,
-			engine:               "MergeTree",
-			orderBy:              "(@timestamp)",
-			partitionBy:          "",
-			primaryKey:           "",
-			ttl:                  "",
-			attributes: []Attribute{
-				NewDefaultInt64Attribute(),
+			HasTimestamp:         true,
+			TimestampDefaultsNow: true,
+			Engine:               "MergeTree",
+			OrderBy:              "(timestamp)",
+			PartitionBy:          "",
+			PrimaryKey:           "",
+			Ttl:                  "",
+			Attributes: []clickhouse.Attribute{
+				clickhouse.NewDefaultInt64Attribute(),
 			},
-			castUnsupportedAttrValueTypesToString: true,
-			preferCastingToOthers:                 true,
+			CastUnsupportedAttrValueTypesToString: true,
+			PreferCastingToOthers:                 true,
 		},
 	}
 	expectedRows := []string{
@@ -745,7 +745,7 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 		`ORDER BY (@timestamp)`,
 		"",
 	}
-	createTableString := table.createTableString()
+	createTableString := table.CreateTableString()
 	for _, row := range strings.Split(createTableString, "\n") {
 		assert.Contains(t, expectedRows, strings.TrimSpace(row))
 	}

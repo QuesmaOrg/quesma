@@ -271,22 +271,22 @@ func TestParseCreateTableWithNullable(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, columnNr, len(table.Cols))
 	for _, colName := range []string{"nullable-string", "nullable-date-time-1", "nullable-date-time-2", "nullable-date-time-3"} {
-		assert.True(t, table.Cols[colName].Type.isNullable(), colName)
+		assert.True(t, table.Cols[colName].Type.IsNullable(), colName)
 	}
 	for _, colName := range []string{"non-nullable-string", "nullable-array", "non-nullable-array", "tuple", "array-tuple"} {
-		assert.False(t, table.Cols[colName].Type.isNullable(), colName)
+		assert.False(t, table.Cols[colName].Type.IsNullable(), colName)
 	}
 	// base types
-	assert.True(t, table.Cols["nullable-array"].Type.(clickhouse.CompoundType).BaseType.isNullable())
-	assert.False(t, table.Cols["non-nullable-array"].Type.(clickhouse.CompoundType).BaseType.isNullable())
+	assert.True(t, table.Cols["nullable-array"].Type.(clickhouse.CompoundType).BaseType.IsNullable())
+	assert.False(t, table.Cols["non-nullable-array"].Type.(clickhouse.CompoundType).BaseType.IsNullable())
 
 	// tuple
-	assert.False(t, table.Cols["tuple"].Type.(clickhouse.MultiValueType).Cols[0].Type.isNullable())
-	assert.True(t, table.Cols["tuple"].Type.(clickhouse.MultiValueType).Cols[1].Type.isNullable())
-	assert.False(t, table.Cols["tuple"].Type.(clickhouse.MultiValueType).Cols[2].Type.(clickhouse.MultiValueType).Cols[0].Type.isNullable())
-	assert.True(t, table.Cols["tuple"].Type.(clickhouse.MultiValueType).Cols[2].Type.(clickhouse.MultiValueType).Cols[1].Type.isNullable())
+	assert.False(t, table.Cols["tuple"].Type.(clickhouse.MultiValueType).Cols[0].Type.IsNullable())
+	assert.True(t, table.Cols["tuple"].Type.(clickhouse.MultiValueType).Cols[1].Type.IsNullable())
+	assert.False(t, table.Cols["tuple"].Type.(clickhouse.MultiValueType).Cols[2].Type.(clickhouse.MultiValueType).Cols[0].Type.IsNullable())
+	assert.True(t, table.Cols["tuple"].Type.(clickhouse.MultiValueType).Cols[2].Type.(clickhouse.MultiValueType).Cols[1].Type.IsNullable())
 
 	// array(tuple)
-	assert.True(t, table.Cols["array-tuple"].Type.(clickhouse.CompoundType).BaseType.(clickhouse.MultiValueType).Cols[0].Type.isNullable())
-	assert.False(t, table.Cols["array-tuple"].Type.(clickhouse.CompoundType).BaseType.(clickhouse.MultiValueType).Cols[1].Type.isNullable())
+	assert.True(t, table.Cols["array-tuple"].Type.(clickhouse.CompoundType).BaseType.(clickhouse.MultiValueType).Cols[0].Type.IsNullable())
+	assert.False(t, table.Cols["array-tuple"].Type.(clickhouse.CompoundType).BaseType.(clickhouse.MultiValueType).Cols[1].Type.IsNullable())
 }

@@ -3,6 +3,7 @@
 package ingest
 
 import (
+	"quesma/clickhouse"
 	"quesma/logger"
 	"strings"
 	"unicode"
@@ -74,7 +75,7 @@ func parseIdent(q string, i int) (int, string) {
 	return j, q[i:j]
 }
 
-func parseNullable(q string, i int) (int, Type) {
+func parseNullable(q string, i int) (int, clickhouse.Type) {
 	i = omitWhitespace(q, i)
 	if q[i] == 'N' {
 		i, ok := parseMaybeAndForget(q, i, "Nullable")
@@ -91,7 +92,7 @@ func parseNullable(q string, i int) (int, Type) {
 			if i == -1 {
 				return -1, nil
 			}
-			typeAsBaseType, ok := ident.(BaseType)
+			typeAsBaseType, ok := ident.(clickhouse.BaseType)
 			if ok {
 				typeAsBaseType.Nullable = true
 				return i, typeAsBaseType
@@ -127,8 +128,8 @@ func parseIdentWithBrackets(q string, i int) (int, string) {
 	return -1, ""
 }
 
-func parseColumn(q string, i int) (int, Column) {
-	col := Column{}
+func parseColumn(q string, i int) (int, clickhouse.Column) {
+	col := clickhouse.Column{}
 	i = omitWhitespace(q, i)
 	// name
 	quote := `"`
@@ -197,7 +198,7 @@ func parseColumn(q string, i int) (int, Column) {
 	return i, col
 }
 
-func parseType(q string, i int) (int, Type) {
+func parseType(q string, i int) (int, clickhouse.Type) {
 	i2, name := parseIdent(q, i)
 	if i == -1 {
 		return -1, nil
@@ -208,26 +209,26 @@ func parseType(q string, i int) (int, Type) {
 		if i == -1 {
 			return -1, nil
 		}
-		return i, CompoundType{Name: name, BaseType: baseType}
+		return i, clickhouse.CompoundType{Name: name, BaseType: baseType}
 	case "Tuple", "Nested":
 		i, types := parseMultiValueType(q, i2)
 		if i == -1 {
 			return -1, nil
 		}
-		return i, MultiValueType{Name: name, Cols: types}
+		return i, clickhouse.MultiValueType{Name: name, Cols: types}
 	}
 	if parseExact(q, i2, "(") != -1 {
 		i, name = parseIdentWithBrackets(q, i)
 		if i == -1 {
 			return -1, nil
 		}
-		return i, NewBaseType(name)
+		return i, clickhouse.NewBaseType(name)
 	} else {
-		return i2, NewBaseType(name)
+		return i2, clickhouse.NewBaseType(name)
 	}
 }
 
-func parseCompoundType(q string, i int) (int, Type) {
+func parseCompoundType(q string, i int) (int, clickhouse.Type) {
 	i = parseExact(q, i, "(")
 	if i == -1 {
 		return -1, nil
@@ -246,12 +247,12 @@ func parseCompoundType(q string, i int) (int, Type) {
 // parseMultiValueType returns -1 if failed, otherwise (index after the match, []*Column)
 // TO THINK: subcolumns shouldn't have codecs? Maybe fix it somehow
 // TODO maybe merge with 'parseColumn'? Can wait, for now it works as it is.
-func parseMultiValueType(q string, i int) (int, []*Column) {
+func parseMultiValueType(q string, i int) (int, []*clickhouse.Column) {
 	i = parseExact(q, i, "(")
 	if i == -1 {
 		return -1, nil
 	}
-	var subColumns []*Column
+	var subColumns []*clickhouse.Column
 	for {
 		i = omitWhitespace(q, i)
 		quote := " "
@@ -271,7 +272,7 @@ func parseMultiValueType(q string, i int) (int, []*Column) {
 		if j == -1 {
 			return -1, nil
 		}
-		subColumns = append(subColumns, &Column{Name: name, Type: typ})
+		subColumns = append(subColumns, &clickhouse.Column{Name: name, Type: typ})
 		j = omitWhitespace(q, j)
 		if q[j] == ')' {
 			return j + 1, subColumns
@@ -283,11 +284,11 @@ func parseMultiValueType(q string, i int) (int, []*Column) {
 	}
 }
 
-func parseCodec(q string, i int) (int, Codec) {
+func parseCodec(q string, i int) (int, clickhouse.Codec) {
 	b := i
 	i = parseExact(q, i, "CODEC")
 	if i == -1 {
-		return -1, Codec{}
+		return -1, clickhouse.Codec{}
 	}
 	i = omitWhitespace(q, i)
 	i = parseExact(q, i, "(")
@@ -301,9 +302,9 @@ func parseCodec(q string, i int) (int, Codec) {
 		i++
 	}
 	if i >= len(q) {
-		return -1, Codec{}
+		return -1, clickhouse.Codec{}
 	}
-	return i, Codec{Name: q[b:i]}
+	return i, clickhouse.Codec{Name: q[b:i]}
 }
 
 // Kind of hackish, but should work 100% of the time, unless CODEC/TTL/COMMENT
@@ -343,8 +344,8 @@ func parseExpr(q string, i int) int {
 // > 0 - fail, char index where failed
 // Tuples can be unnamed. In this case they are not supported yet, as I'm not sure
 // if it's worth adding right now.
-func ParseCreateTable(q string) (*Table, int) {
-	t := Table{}
+func ParseCreateTable(q string) (*clickhouse.Table, int) {
+	t := clickhouse.Table{}
 
 	// parse header
 	i := parseExact(q, 0, "CREATE TABLE ")
@@ -396,7 +397,7 @@ func ParseCreateTable(q string) (*Table, int) {
 	}
 
 	// parse columns
-	t.Cols = make(map[string]*Column)
+	t.Cols = make(map[string]*clickhouse.Column)
 	for {
 		i = omitWhitespace(q, i3)
 		if parseExact(q, i, "INDEX") != -1 {

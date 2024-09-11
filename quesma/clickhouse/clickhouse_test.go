@@ -509,21 +509,21 @@ func TestRemovingNonSchemaFields(t *testing.T) {
 
 func TestJsonFlatteningToStringAttr(t *testing.T) {
 	config := &ChTableConfig{
-		hasTimestamp:         true,
-		timestampDefaultsNow: true,
-		engine:               "MergeTree",
-		orderBy:              "(timestamp)",
-		partitionBy:          "",
-		primaryKey:           "",
-		ttl:                  "",
-		attributes: []Attribute{
+		HasTimestamp:         true,
+		TimestampDefaultsNow: true,
+		Engine:               "MergeTree",
+		OrderBy:              "(@timestamp)",
+		PartitionBy:          "",
+		PrimaryKey:           "",
+		Ttl:                  "",
+		Attributes: []Attribute{
 			NewDefaultInt64Attribute(),
 			NewDefaultFloat64Attribute(),
 			NewDefaultBoolAttribute(),
 			NewDefaultStringAttribute(),
 		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 	m := SchemaMap{
 		"host.name": SchemaMap{
@@ -544,18 +544,18 @@ func TestJsonFlatteningToStringAttr(t *testing.T) {
 
 func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 	config := &ChTableConfig{
-		hasTimestamp:         true,
-		timestampDefaultsNow: true,
-		engine:               "MergeTree",
-		orderBy:              "(timestamp)",
-		partitionBy:          "",
-		primaryKey:           "",
-		ttl:                  "",
-		attributes: []Attribute{
+		HasTimestamp:         true,
+		TimestampDefaultsNow: true,
+		Engine:               "MergeTree",
+		OrderBy:              "(@timestamp)",
+		PartitionBy:          "",
+		PrimaryKey:           "",
+		Ttl:                  "",
+		Attributes: []Attribute{
 			NewDefaultStringAttribute(),
 		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 	m := SchemaMap{
 		"b1": true,
@@ -625,22 +625,22 @@ func TestCreateTableString_1(t *testing.T) {
 			},
 		},
 		Config: &ChTableConfig{
-			hasTimestamp:         true,
-			timestampDefaultsNow: true,
-			engine:               "MergeTree",
-			orderBy:              "(@timestamp)",
-			partitionBy:          "",
-			primaryKey:           "",
-			ttl:                  "",
-			attributes: []Attribute{
+			HasTimestamp:         true,
+			TimestampDefaultsNow: true,
+			Engine:               "MergeTree",
+			OrderBy:              "(@timestamp)",
+			PartitionBy:          "",
+			PrimaryKey:           "",
+			Ttl:                  "",
+			Attributes: []Attribute{
 				NewDefaultInt64Attribute(),
 				NewDefaultStringAttribute(),
 				NewDefaultBoolAttribute(),
 			},
-			castUnsupportedAttrValueTypesToString: false,
-			preferCastingToOthers:                 false,
+			CastUnsupportedAttrValueTypesToString: false,
+			PreferCastingToOthers:                 false,
 		},
-		indexes: []IndexStatement{
+		Indexes: []IndexStatement{
 			getIndexStatement("body"),
 			getIndexStatement("severity"),
 		},
@@ -674,7 +674,7 @@ func TestCreateTableString_1(t *testing.T) {
 		`ORDER BY (@timestamp)`,
 		"",
 	}
-	createTableString := table.createTableString()
+	createTableString := table.CreateTableString()
 	for _, row := range strings.Split(createTableString, "\n") {
 		assert.Contains(t, expectedRows, strings.TrimSpace(row))
 	}
@@ -710,18 +710,18 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 			},
 		},
 		Config: &ChTableConfig{
-			hasTimestamp:         true,
-			timestampDefaultsNow: true,
-			engine:               "MergeTree",
-			orderBy:              "(@timestamp)",
-			partitionBy:          "",
-			primaryKey:           "",
-			ttl:                  "",
-			attributes: []Attribute{
+			HasTimestamp:         true,
+			TimestampDefaultsNow: true,
+			Engine:               "MergeTree",
+			OrderBy:              "(@timestamp)",
+			PartitionBy:          "",
+			PrimaryKey:           "",
+			Ttl:                  "",
+			Attributes: []Attribute{
 				NewDefaultInt64Attribute(),
 			},
-			castUnsupportedAttrValueTypesToString: true,
-			preferCastingToOthers:                 true,
+			CastUnsupportedAttrValueTypesToString: true,
+			PreferCastingToOthers:                 true,
 		},
 	}
 	expectedRows := []string{
@@ -742,7 +742,7 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 		`ORDER BY (@timestamp)`,
 		"",
 	}
-	createTableString := table.createTableString()
+	createTableString := table.CreateTableString()
 	for _, row := range strings.Split(createTableString, "\n") {
 		assert.Contains(t, expectedRows, strings.TrimSpace(row))
 	}

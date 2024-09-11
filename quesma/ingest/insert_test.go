@@ -168,8 +168,8 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 
 					// check if CREATE TABLE string is OK
 					queryByLine := strings.Split(query, "\n")
-					if len(tableConfig.attributes) > 0 {
-						assert.Equal(t, len(tt.createTableLines)+len(tableConfig.attributes)-1, len(queryByLine))
+					if len(tableConfig.Attributes) > 0 {
+						assert.Equal(t, len(tt.createTableLines)+len(tableConfig.Attributes)-1, len(queryByLine))
 						for _, line := range tt.createTableLines {
 							assert.True(t, slices.Contains(tt.createTableLines, line) || slices.Contains(tt.createTableLinesAttrs, line))
 						}
@@ -201,10 +201,10 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					// and that schema in memory is what it should be (predefined, if it was predefined, new if it was new)
 					resolvedTable, _ := ip.ip.tableDiscovery.TableDefinitions().Load(tableName)
 					if ingestProcessorEmpty {
-						if len(tableConfig.attributes) > 0 {
-							assert.Equal(t, len(tableConfig.attributes)+4, len(resolvedTable.Cols))
+						if len(tableConfig.Attributes) > 0 {
+							assert.Equal(t, len(tableConfig.Attributes)+4, len(resolvedTable.Cols))
 						} else {
-							assert.Equal(t, 6+2*len(tableConfig.attributes), len(resolvedTable.Cols))
+							assert.Equal(t, 6+2*len(tableConfig.Attributes), len(resolvedTable.Cols))
 						}
 					} else if ip.ip.tableDiscovery.TableDefinitions().Size() > 0 {
 						assert.Equal(t, 4, len(resolvedTable.Cols))
@@ -236,7 +236,7 @@ func TestProcessInsertQuery(t *testing.T) {
 							mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
 						}
 					}
-					if len(config.attributes) == 0 || (ip.ip.tableDiscovery.TableDefinitions().Size() == 0) {
+					if len(config.Attributes) == 0 || (ip.ip.tableDiscovery.TableDefinitions().Size() == 0) {
 						for i := range expectedInserts[2*index1] {
 							mock.ExpectExec(expectedInserts[2*index1][i]).WillReturnResult(sqlmock.NewResult(545, 54))
 						}

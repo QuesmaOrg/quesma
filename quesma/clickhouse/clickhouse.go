@@ -68,25 +68,25 @@ type (
 		Type            BaseType
 	}
 	ChTableConfig struct {
-		hasTimestamp bool // does table have 'timestamp' field
-		// allow_suspicious_ttl_expressions=1 to enable TTL without date field (doesn't work for me!)
+		HasTimestamp bool // does table have 'timestamp' field
+		// allow_suspicious_Ttl_expressions=1 to enable TTL without date field (doesn't work for me!)
 		// also be very cautious with it and test it beforehand, people say it doesn't work properly
 		// TODO make sure it's unique in schema (there's no other 'timestamp' field)
 		// I (Krzysiek) can write it quickly, but don't want to waste time for it right now.
-		timestampDefaultsNow bool
-		engine               string // "Log", "MergeTree", etc.
-		orderBy              string // "" if none
-		partitionBy          string // "" if none
-		primaryKey           string // "" if none
-		settings             string // "" if none
-		ttl                  string // of type Interval, e.g. 3 MONTH, 1 YEAR
+		TimestampDefaultsNow bool
+		Engine               string // "Log", "MergeTree", etc.
+		OrderBy              string // "" if none
+		PartitionBy          string // "" if none
+		PrimaryKey           string // "" if none
+		Settings             string // "" if none
+		Ttl                  string // of type Interval, e.g. 3 MONTH, 1 YEAR
 		// look https://clickhouse.com/docs/en/sql-reference/data-types/special-data-types/interval
 		// "" if none
 		// TODO make sure it's unique in schema (there's no other 'others' field)
 		// I (Krzysiek) can write it quickly, but don't want to waste time for it right now.
-		attributes                            []Attribute
-		castUnsupportedAttrValueTypesToString bool // if we have e.g. only attrs (String, String), we'll cast e.g. Date to String
-		preferCastingToOthers                 bool // we'll put non-schema field in [String, String] attrs map instead of others, if we have both options
+		Attributes                            []Attribute
+		CastUnsupportedAttrValueTypesToString bool // if we have e.g. only attrs (String, String), we'll cast e.g. Date to String
+		PreferCastingToOthers                 bool // we'll put non-schema field in [String, String] attrs map instead of others, if we have both options
 	}
 )
 
@@ -212,42 +212,42 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 
 // updates also Table TODO stop updating table here, find a better solution
 func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Table) string {
-	if len(config.attributes) == 0 {
+	if len(config.Attributes) == 0 {
 		_, ok := table.Cols[timestampFieldName]
-		if !config.hasTimestamp || ok {
+		if !config.HasTimestamp || ok {
 			return q
 		}
 	}
 
-	othersStr, timestampStr, attributesStr := "", "", ""
-	if config.hasTimestamp {
+	othersStr, timestampStr, AttributesStr := "", "", ""
+	if config.HasTimestamp {
 		_, ok := table.Cols[timestampFieldName]
 		if !ok {
 			defaultStr := ""
-			if config.timestampDefaultsNow {
+			if config.TimestampDefaultsNow {
 				defaultStr = " DEFAULT now64()"
 			}
 			timestampStr = fmt.Sprintf("%s\"%s\" DateTime64(3)%s,\n", util.Indent(1), timestampFieldName, defaultStr)
 			table.Cols[timestampFieldName] = &Column{Name: timestampFieldName, Type: NewBaseType("DateTime64")}
 		}
 	}
-	if len(config.attributes) > 0 {
-		for _, a := range config.attributes {
+	if len(config.Attributes) > 0 {
+		for _, a := range config.Attributes {
 			_, ok := table.Cols[a.MapValueName]
 			if !ok {
-				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapValueName)
+				AttributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapValueName)
 				table.Cols[a.MapValueName] = &Column{Name: a.MapValueName, Type: CompoundType{Name: "Map", BaseType: NewBaseType("String, String")}}
 			}
 			_, ok = table.Cols[a.MapMetadataName]
 			if !ok {
-				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapMetadataName)
+				AttributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapMetadataName)
 				table.Cols[a.MapMetadataName] = &Column{Name: a.MapMetadataName, Type: CompoundType{Name: "Map", BaseType: NewBaseType("String, String")}}
 			}
 		}
 	}
 
 	i := strings.Index(q, "(")
-	return q[:i+2] + othersStr + timestampStr + attributesStr + q[i+1:]
+	return q[:i+2] + othersStr + timestampStr + AttributesStr + q[i+1:]
 }
 
 func (lm *LogManager) CountMultiple(ctx context.Context, tables ...string) (int64, error) {
@@ -304,9 +304,9 @@ func (s PaidServiceName) String() string {
 }
 
 var paidServiceChecks = map[PaidServiceName]string{
-	HydrolixServiceName: `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`,
-	CHCloudServiceName:  `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'SharedMergeTree';`,
-	// For CH Cloud we can also check the output of the following query: --> `SELECT * FROM system.settings WHERE name='cloud_mode_engine';`
+	HydrolixServiceName: `SELECT concat(database,'.', table) FROM system.tables WHERE Engine = 'TurbineStorage';`,
+	CHCloudServiceName:  `SELECT concat(database,'.', table) FROM system.tables WHERE Engine = 'SharedMergeTree';`,
+	// For CH Cloud we can also check the output of the following query: --> `SELECT * FROM system.settings WHERE name='cloud_mode_Engine';`
 }
 
 func (lm *LogManager) isConnectedToPaidService(service PaidServiceName) (bool, error) {
@@ -316,7 +316,7 @@ func (lm *LogManager) isConnectedToPaidService(service PaidServiceName) (bool, e
 	}
 	defer rows.Close()
 	if rows.Next() {
-		return true, fmt.Errorf("detected %s-specific table engine, which is not allowed", service)
+		return true, fmt.Errorf("detected %s-specific table Engine, which is not allowed", service)
 	}
 	return false, nil
 }
@@ -336,7 +336,7 @@ func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (retu
 			returnedErr = fmt.Errorf("error checking connection to database, attempt #%d, err=%v", attempt+1, err)
 		}
 		if isConnectedToPaidService {
-			return fmt.Errorf("detected %s-specific table engine, which is not allowed", service)
+			return fmt.Errorf("detected %s-specific table Engine, which is not allowed", service)
 		} else if err == nil { // no paid service detected, no conn errors
 			returnedErr = nil
 			break
@@ -399,11 +399,11 @@ func (lm *LogManager) getIgnoredFields(tableName string) []config.FieldName {
 func Indexes(m SchemaMap) string {
 	var result strings.Builder
 	for col := range m {
-		index := getIndexStatement(col)
+		index := GetIndexStatement(col)
 		if index != "" {
 			result.WriteString(",\n")
 			result.WriteString(util.Indent(1))
-			result.WriteString(index.statement())
+			result.WriteString(index.Statement())
 		}
 	}
 	result.WriteString(",\n")
@@ -438,7 +438,7 @@ func Indexes(m SchemaMap) string {
 //	return copiedMap
 //}
 
-// This function takes an attributesMap, creates a copy and updates it
+// This function takes an AttributesMap, creates a copy and updates it
 // with the fields that are not valid according to the inferred schema
 //func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalidJson types.JSON) map[string][]interface{} {
 //	newAttrsMap := deepCopyMapSliceInterface(attrsMap)
@@ -450,26 +450,26 @@ func Indexes(m SchemaMap) string {
 //	return newAttrsMap
 //}
 
-// This function takes an attributesMap and arrayName and returns
-// the values of the array named arrayName from the attributesMap
+// This function takes an AttributesMap and arrayName and returns
+// the values of the array named arrayName from the AttributesMap
 func getAttributesByArrayName(arrayName string,
 	attrsMap map[string][]interface{}) []string {
-	var attributes []string
+	var Attributes []string
 	for k, v := range attrsMap {
 		if k == arrayName {
 			for _, val := range v {
-				attributes = append(attributes, util.Stringify(val))
+				Attributes = append(Attributes, util.Stringify(val))
 			}
 		}
 	}
-	return attributes
+	return Attributes
 }
 
 // This function generates ALTER TABLE commands for adding new columns
-// to the table based on the attributesMap and the table name
-// AttributesMap contains the attributes that are not part of the schema
+// to the table based on the AttributesMap and the table name
+// AttributesMap contains the Attributes that are not part of the schema
 // Function has side effects, it modifies the table.Cols map
-// and removes the attributes that were promoted to columns
+// and removes the Attributes that were promoted to columns
 //func (lm *LogManager) generateNewColumns(
 //	attrsMap map[string][]interface{},
 //	table *Table,
@@ -517,7 +517,7 @@ func getAttributesByArrayName(arrayName string,
 //}
 
 // This struct contains the information about the columns that aren't part of the schema
-// and will go into attributes map
+// and will go into Attributes map
 //type NonSchemaField struct {
 //	Key   string
 //	Value string
@@ -528,9 +528,9 @@ func getAttributesByArrayName(arrayName string,
 //	if len(nonSchemaFields) <= 0 {
 //		return ""
 //	}
-//	attributesColumns := []string{AttributesValuesColumn, AttributesMetadataColumn}
+//	AttributesColumns := []string{AttributesValuesColumn, AttributesMetadataColumn}
 //	var nonSchemaStr string
-//	for columnIndex, column := range attributesColumns {
+//	for columnIndex, column := range AttributesColumns {
 //		var value string
 //		if columnIndex > 0 {
 //			nonSchemaStr += ","
@@ -561,9 +561,9 @@ func getAttributesByArrayName(arrayName string,
 //	attrValues := getAttributesByArrayName(DeprecatedAttributesValueColumn, attrsMap)
 //	attrTypes := getAttributesByArrayName(DeprecatedAttributesValueType, attrsMap)
 //
-//	attributesColumns := []string{AttributesValuesColumn, AttributesMetadataColumn}
+//	AttributesColumns := []string{AttributesValuesColumn, AttributesMetadataColumn}
 //
-//	for columnIndex := range attributesColumns {
+//	for columnIndex := range AttributesColumns {
 //		var value string
 //		for i := 0; i < len(attrKeys); i++ {
 //			if columnIndex > 0 {
@@ -655,7 +655,7 @@ func getAttributesByArrayName(arrayName string,
 //		return nil, nil, nil, err
 //	}
 //
-//	if len(config.attributes) == 0 {
+//	if len(config.Attributes) == 0 {
 //		return nil, jsonMap, nil, nil
 //	}
 //
@@ -671,13 +671,13 @@ func getAttributesByArrayName(arrayName string,
 //		return nil, jsonMap, nil, nil
 //	}
 //
-//	// check attributes precondition
-//	if len(config.attributes) <= 0 {
-//		return nil, nil, nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
+//	// check Attributes precondition
+//	if len(config.Attributes) <= 0 {
+//		return nil, nil, nil, fmt.Errorf("no Attributes config, but received non-schema fields: %s", mDiff)
 //	}
 //	attrsMap, _ := BuildAttrsMap(mDiff, config)
 //
-//	// generateNewColumns is called on original attributes map
+//	// generateNewColumns is called on original Attributes map
 //	// before adding invalid fields to it
 //	// otherwise it would contain invalid fields e.g. with wrong types
 //	// we only want to add fields that are not part of the schema e.g we don't
@@ -687,7 +687,7 @@ func getAttributesByArrayName(arrayName string,
 //	if ok, alteredAttributesIndexes := lm.shouldAlterColumns(table, attrsMap); ok {
 //		alterCmd = lm.generateNewColumns(attrsMap, table, alteredAttributesIndexes)
 //	}
-//	// If there are some invalid fields, we need to add them to the attributes map
+//	// If there are some invalid fields, we need to add them to the Attributes map
 //	// to not lose them and be able to store them later by
 //	// generating correct update query
 //	// addInvalidJsonFieldsToAttributes returns a new map with invalid fields added
@@ -911,7 +911,7 @@ func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 	if t == nil {
 		table.Created = true
 
-		table.applyIndexConfig(lm.cfg)
+		table.ApplyIndexConfig(lm.cfg)
 
 		lm.tableDiscovery.TableDefinitions().Store(table.Name, table)
 		return true
@@ -955,97 +955,97 @@ func NewLogManagerEmpty() *LogManager {
 
 func NewOnlySchemaFieldsCHConfig() *ChTableConfig {
 	return &ChTableConfig{
-		hasTimestamp:                          true,
-		timestampDefaultsNow:                  true,
-		engine:                                "MergeTree",
-		orderBy:                               "(" + `"@timestamp"` + ")",
-		partitionBy:                           "",
-		primaryKey:                            "",
-		ttl:                                   "",
-		attributes:                            []Attribute{NewDefaultStringAttribute()},
-		castUnsupportedAttrValueTypesToString: false,
-		preferCastingToOthers:                 false,
+		HasTimestamp:                          true,
+		TimestampDefaultsNow:                  true,
+		Engine:                                "MergeTree",
+		OrderBy:                               "(" + `"@timestamp"` + ")",
+		PartitionBy:                           "",
+		PrimaryKey:                            "",
+		Ttl:                                   "",
+		Attributes:                            []Attribute{NewDefaultStringAttribute()},
+		CastUnsupportedAttrValueTypesToString: false,
+		PreferCastingToOthers:                 false,
 	}
 }
 
 func NewDefaultCHConfig() *ChTableConfig {
 	return &ChTableConfig{
-		hasTimestamp:         true,
-		timestampDefaultsNow: true,
-		engine:               "MergeTree",
-		orderBy:              "(" + `"@timestamp"` + ")",
-		partitionBy:          "",
-		primaryKey:           "",
-		ttl:                  "",
-		attributes: []Attribute{
+		HasTimestamp:         true,
+		TimestampDefaultsNow: true,
+		Engine:               "MergeTree",
+		OrderBy:              "(" + `"@timestamp"` + ")",
+		PartitionBy:          "",
+		PrimaryKey:           "",
+		Ttl:                  "",
+		Attributes: []Attribute{
 			NewDefaultInt64Attribute(),
 			NewDefaultFloat64Attribute(),
 			NewDefaultBoolAttribute(),
 			NewDefaultStringAttribute(),
 		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 }
 
 func NewNoTimestampOnlyStringAttrCHConfig() *ChTableConfig {
 	return &ChTableConfig{
-		hasTimestamp:         false,
-		timestampDefaultsNow: false,
-		engine:               "MergeTree",
-		orderBy:              "(" + `"@timestamp"` + ")",
-		partitionBy:          "",
-		primaryKey:           "",
-		ttl:                  "",
-		attributes: []Attribute{
+		HasTimestamp:         false,
+		TimestampDefaultsNow: false,
+		Engine:               "MergeTree",
+		OrderBy:              "(" + `"@timestamp"` + ")",
+		PartitionBy:          "",
+		PrimaryKey:           "",
+		Ttl:                  "",
+		Attributes: []Attribute{
 			NewDefaultStringAttribute(),
 		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 }
 
 func NewChTableConfigNoAttrs() *ChTableConfig {
 	return &ChTableConfig{
-		hasTimestamp:                          false,
-		timestampDefaultsNow:                  false,
-		engine:                                "MergeTree",
-		orderBy:                               "(" + `"@timestamp"` + ")",
-		attributes:                            []Attribute{},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		HasTimestamp:                          false,
+		TimestampDefaultsNow:                  false,
+		Engine:                                "MergeTree",
+		OrderBy:                               "(" + `"@timestamp"` + ")",
+		Attributes:                            []Attribute{},
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 }
 
 func NewChTableConfigFourAttrs() *ChTableConfig {
 	return &ChTableConfig{
-		hasTimestamp:         false,
-		timestampDefaultsNow: true,
-		engine:               "MergeTree",
-		orderBy:              "(" + "`@timestamp`" + ")",
-		attributes: []Attribute{
+		HasTimestamp:         false,
+		TimestampDefaultsNow: true,
+		Engine:               "MergeTree",
+		OrderBy:              "(" + "`@timestamp`" + ")",
+		Attributes: []Attribute{
 			NewDefaultInt64Attribute(),
 			NewDefaultFloat64Attribute(),
 			NewDefaultBoolAttribute(),
 			NewDefaultStringAttribute(),
 		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 }
 
 func NewChTableConfigTimestampStringAttr() *ChTableConfig {
 	return &ChTableConfig{
-		hasTimestamp:                          true,
-		timestampDefaultsNow:                  true,
-		attributes:                            []Attribute{NewDefaultStringAttribute()},
-		engine:                                "MergeTree",
-		orderBy:                               "(" + "`@timestamp`" + ")",
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		HasTimestamp:                          true,
+		TimestampDefaultsNow:                  true,
+		Attributes:                            []Attribute{NewDefaultStringAttribute()},
+		Engine:                                "MergeTree",
+		OrderBy:                               "(" + "`@timestamp`" + ")",
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 }
 
 func (c *ChTableConfig) GetAttributes() []Attribute {
-	return c.attributes
+	return c.Attributes
 }

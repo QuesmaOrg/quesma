@@ -216,27 +216,27 @@ func (ip *IngestProcessor) ResolveIndexes(ctx context.Context, patterns string) 
 
 // updates also Table TODO stop updating table here, find a better solution
 func addOurFieldsToCreateTableQuery(q string, config *chLib.ChTableConfig, table *chLib.Table) string {
-	if len(config.attributes) == 0 {
+	if len(config.Attributes) == 0 {
 		_, ok := table.Cols[timestampFieldName]
-		if !config.hasTimestamp || ok {
+		if !config.HasTimestamp || ok {
 			return q
 		}
 	}
 
 	othersStr, timestampStr, attributesStr := "", "", ""
-	if config.hasTimestamp {
+	if config.HasTimestamp {
 		_, ok := table.Cols[timestampFieldName]
 		if !ok {
 			defaultStr := ""
-			if config.timestampDefaultsNow {
+			if config.TimestampDefaultsNow {
 				defaultStr = " DEFAULT now64()"
 			}
 			timestampStr = fmt.Sprintf("%s\"%s\" DateTime64(3)%s,\n", util.Indent(1), timestampFieldName, defaultStr)
 			table.Cols[timestampFieldName] = &chLib.Column{Name: timestampFieldName, Type: chLib.NewBaseType("DateTime64")}
 		}
 	}
-	if len(config.attributes) > 0 {
-		for _, a := range config.attributes {
+	if len(config.Attributes) > 0 {
+		for _, a := range config.Attributes {
 			_, ok := table.Cols[a.MapValueName]
 			if !ok {
 				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapValueName)
@@ -403,11 +403,11 @@ func (ip *IngestProcessor) buildCreateTableQueryNoOurFields(ctx context.Context,
 func Indexes(m SchemaMap) string {
 	var result strings.Builder
 	for col := range m {
-		index := getIndexStatement(col)
+		index := chLib.GetIndexStatement(col)
 		if index != "" {
 			result.WriteString(",\n")
 			result.WriteString(util.Indent(1))
-			result.WriteString(index.statement())
+			result.WriteString(index.Statement())
 		}
 	}
 	result.WriteString(",\n")
@@ -659,7 +659,7 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 		return nil, nil, nil, err
 	}
 
-	if len(config.attributes) == 0 {
+	if len(config.Attributes) == 0 {
 		return nil, jsonMap, nil, nil
 	}
 
@@ -676,7 +676,7 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	}
 
 	// check attributes precondition
-	if len(config.attributes) <= 0 {
+	if len(config.Attributes) <= 0 {
 		return nil, nil, nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
 	}
 	attrsMap, _ := BuildAttrsMap(mDiff, config)
@@ -780,7 +780,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		// Set pointer to table after creating it
 		table = ip.FindTable(tableName)
 	} else if !table.Created {
-		createTableCmd = table.createTableString()
+		createTableCmd = table.CreateTableString()
 	}
 	tableConfig = table.Config
 	var jsonsReadyForInsertion []string
@@ -915,7 +915,7 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 	if t == nil {
 		table.Created = true
 
-		table.applyIndexConfig(ip.cfg)
+		table.ApplyIndexConfig(ip.cfg)
 
 		ip.tableDiscovery.TableDefinitions().Store(table.Name, table)
 		return true
@@ -929,7 +929,7 @@ func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
-func NewEmptyIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery, schemaRegistry schema.Registry) *IngestProcessor {
+func NewEmptyIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry}
 }
@@ -958,97 +958,97 @@ func NewIngestProcessorEmpty() *IngestProcessor {
 
 func NewOnlySchemaFieldsCHConfig() *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
-		hasTimestamp:                          true,
-		timestampDefaultsNow:                  true,
-		engine:                                "MergeTree",
-		orderBy:                               "(" + `"@timestamp"` + ")",
-		partitionBy:                           "",
-		primaryKey:                            "",
-		ttl:                                   "",
-		attributes:                            []Attribute{NewDefaultStringAttribute()},
-		castUnsupportedAttrValueTypesToString: false,
-		preferCastingToOthers:                 false,
+		HasTimestamp:                          true,
+		TimestampDefaultsNow:                  true,
+		Engine:                                "MergeTree",
+		OrderBy:                               "(" + `"@timestamp"` + ")",
+		PartitionBy:                           "",
+		PrimaryKey:                            "",
+		Ttl:                                   "",
+		Attributes:                            []chLib.Attribute{chLib.NewDefaultStringAttribute()},
+		CastUnsupportedAttrValueTypesToString: false,
+		PreferCastingToOthers:                 false,
 	}
 }
 
 func NewDefaultCHConfig() *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
-		hasTimestamp:         true,
-		timestampDefaultsNow: true,
-		engine:               "MergeTree",
-		orderBy:              "(" + `"@timestamp"` + ")",
-		partitionBy:          "",
-		primaryKey:           "",
-		ttl:                  "",
-		attributes: []Attribute{
-			NewDefaultInt64Attribute(),
-			NewDefaultFloat64Attribute(),
-			NewDefaultBoolAttribute(),
-			NewDefaultStringAttribute(),
+		HasTimestamp:         true,
+		TimestampDefaultsNow: true,
+		Engine:               "MergeTree",
+		OrderBy:              "(" + `"@timestamp"` + ")",
+		PartitionBy:          "",
+		PrimaryKey:           "",
+		Ttl:                  "",
+		Attributes: []chLib.Attribute{
+			chLib.NewDefaultInt64Attribute(),
+			chLib.NewDefaultFloat64Attribute(),
+			chLib.NewDefaultBoolAttribute(),
+			chLib.NewDefaultStringAttribute(),
 		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 }
 
-func NewNoTimestampOnlyStringAttrCHConfig() *chLib.ChTableConfig {
-	return &chLib.ChTableConfig{
-		hasTimestamp:         false,
-		timestampDefaultsNow: false,
-		engine:               "MergeTree",
-		orderBy:              "(" + `"@timestamp"` + ")",
-		partitionBy:          "",
-		primaryKey:           "",
-		ttl:                  "",
-		attributes: []Attribute{
-			NewDefaultStringAttribute(),
-		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
-	}
-}
+//func NewNoTimestampOnlyStringAttrCHConfig() *chLib.ChTableConfig {
+//	return &chLib.ChTableConfig{
+//		HasTimestamp:         true,
+//		TimestampDefaultsNow: true,
+//		Engine:               "MergeTree",
+//		OrderBy:              "(" + `"@timestamp"` + ")",
+//		PartitionBy:          "",
+//		PrimaryKey:           "",
+//		Ttl:                  "",
+//		attributes: []Attribute{
+//			NewDefaultStringAttribute(),
+//		},
+//		castUnsupportedAttrValueTypesToString: true,
+//		preferCastingToOthers:                 true,
+//	}
+//}
 
 func NewChTableConfigNoAttrs() *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
-		hasTimestamp:                          false,
-		timestampDefaultsNow:                  false,
-		engine:                                "MergeTree",
-		orderBy:                               "(" + `"@timestamp"` + ")",
-		attributes:                            []Attribute{},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		HasTimestamp:                          false,
+		TimestampDefaultsNow:                  false,
+		Engine:                                "MergeTree",
+		OrderBy:                               "(" + `"@timestamp"` + ")",
+		Attributes:                            []chLib.Attribute{},
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 }
 
 func NewChTableConfigFourAttrs() *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
-		hasTimestamp:         false,
-		timestampDefaultsNow: true,
-		engine:               "MergeTree",
-		orderBy:              "(" + "`@timestamp`" + ")",
-		attributes: []Attribute{
-			NewDefaultInt64Attribute(),
-			NewDefaultFloat64Attribute(),
-			NewDefaultBoolAttribute(),
-			NewDefaultStringAttribute(),
+		HasTimestamp:         false,
+		TimestampDefaultsNow: true,
+		Engine:               "MergeTree",
+		OrderBy:              "(" + "`@timestamp`" + ")",
+		Attributes: []chLib.Attribute{
+			chLib.NewDefaultInt64Attribute(),
+			chLib.NewDefaultFloat64Attribute(),
+			chLib.NewDefaultBoolAttribute(),
+			chLib.NewDefaultStringAttribute(),
 		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 }
 
 func NewChTableConfigTimestampStringAttr() *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
-		hasTimestamp:                          true,
-		timestampDefaultsNow:                  true,
-		attributes:                            []Attribute{chLib.NewDefaultStringAttribute()},
-		engine:                                "MergeTree",
-		orderBy:                               "(" + "`@timestamp`" + ")",
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		HasTimestamp:                          true,
+		TimestampDefaultsNow:                  true,
+		Attributes:                            []chLib.Attribute{chLib.NewDefaultStringAttribute()},
+		Engine:                                "MergeTree",
+		OrderBy:                               "(" + "`@timestamp`" + ")",
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 }
 
-func (c *chLib.ChTableConfig) GetAttributes() []Attribute {
-	return c.attributes
-}
+//func (c *chLib.ChTableConfig) GetAttributes() []chLib.Attribute {
+//	return c.Attributes
+//}

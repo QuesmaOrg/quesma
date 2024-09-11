@@ -236,18 +236,18 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				DatabaseName: databaseName,
 				Cols:         columnsMap,
 				Config: &ChTableConfig{
-					attributes:                            []Attribute{},
-					castUnsupportedAttrValueTypesToString: true,
-					preferCastingToOthers:                 true,
+					Attributes:                            []Attribute{},
+					CastUnsupportedAttrValueTypesToString: true,
+					PreferCastingToOthers:                 true,
 				},
 				CreateTableQuery:             resTable.createTableQuery,
 				DiscoveredTimestampFieldName: timestampFieldName,
 			}
 			if containsAttributes(resTable.columnTypes) {
-				table.Config.attributes = []Attribute{NewDefaultStringAttribute()}
+				table.Config.Attributes = []Attribute{NewDefaultStringAttribute()}
 			}
 
-			table.applyIndexConfig(cfg)
+			table.ApplyIndexConfig(cfg)
 			tableMap.Store(tableName, &table)
 
 			logger.Debug().Msgf("schema for table [%s] loaded", tableName)
