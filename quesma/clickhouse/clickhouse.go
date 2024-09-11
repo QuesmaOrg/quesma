@@ -5,7 +5,6 @@ package clickhouse
 import (
 	"context"
 	"database/sql"
-	//"encoding/json"
 	"fmt"
 	"math"
 	"quesma/concurrent"
@@ -20,7 +19,6 @@ import (
 	"quesma/util"
 	"slices"
 	"strings"
-	//"sync"
 	"sync/atomic"
 	"time"
 )
@@ -38,10 +36,6 @@ type (
 		tableDiscovery TableDiscovery
 		cfg            *config.QuesmaConfiguration
 		phoneHomeAgent telemetry.PhoneHomeAgent
-		//schemaRegistry            schema.Registry
-		//ingestCounter             int64
-		//ingestFieldStatistics     IngestFieldStatistics
-		//ingestFieldStatisticsLock sync.Mutex
 	}
 	TableMap  = concurrent.Map[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -252,7 +246,7 @@ func (s PaidServiceName) String() string {
 var paidServiceChecks = map[PaidServiceName]string{
 	HydrolixServiceName: `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`,
 	CHCloudServiceName:  `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'SharedMergeTree';`,
-	// For CH Cloud we can also check the output of the following query: --> `SELECT * FROM system.settings WHERE name='cloud_mode_Engine';`
+	// For CH Cloud we can also check the output of the following query: --> `SELECT * FROM system.settings WHERE name='cloud_mode_engine';`
 }
 
 func (lm *LogManager) isConnectedToPaidService(service PaidServiceName) (bool, error) {
@@ -262,7 +256,7 @@ func (lm *LogManager) isConnectedToPaidService(service PaidServiceName) (bool, e
 	}
 	defer rows.Close()
 	if rows.Next() {
-		return true, fmt.Errorf("detected %s-specific table Engine, which is not allowed", service)
+		return true, fmt.Errorf("detected %s-specific table engine, which is not allowed", service)
 	}
 	return false, nil
 }
@@ -282,7 +276,7 @@ func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (retu
 			returnedErr = fmt.Errorf("error checking connection to database, attempt #%d, err=%v", attempt+1, err)
 		}
 		if isConnectedToPaidService {
-			return fmt.Errorf("detected %s-specific table Engine, which is not allowed", service)
+			return fmt.Errorf("detected %s-specific table engine, which is not allowed", service)
 		} else if err == nil { // no paid service detected, no conn errors
 			returnedErr = nil
 			break
