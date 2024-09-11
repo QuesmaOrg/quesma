@@ -115,20 +115,6 @@ func (ip *IngestProcessor) Stop() {
 	ip.cancel()
 }
 
-type discoveredTable struct {
-	name               string
-	columnTypes        map[string]string
-	config             config.IndexConfiguration
-	comment            string
-	createTableQuery   string
-	timestampFieldName string
-}
-
-func (ip *IngestProcessor) ReloadTables() {
-	logger.Info().Msg("reloading tables definitions")
-	ip.tableDiscovery.ReloadTableDefinitions()
-}
-
 func (ip *IngestProcessor) Close() {
 	_ = ip.chDb.Close()
 }

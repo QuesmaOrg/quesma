@@ -197,46 +197,6 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 	return util.Distinct(results), nil
 }
 
-// updates also Table TODO stop updating table here, find a better solution
-func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Table) string {
-	if len(config.Attributes) == 0 {
-		_, ok := table.Cols[timestampFieldName]
-		if !config.HasTimestamp || ok {
-			return q
-		}
-	}
-
-	othersStr, timestampStr, AttributesStr := "", "", ""
-	if config.HasTimestamp {
-		_, ok := table.Cols[timestampFieldName]
-		if !ok {
-			defaultStr := ""
-			if config.TimestampDefaultsNow {
-				defaultStr = " DEFAULT now64()"
-			}
-			timestampStr = fmt.Sprintf("%s\"%s\" DateTime64(3)%s,\n", util.Indent(1), timestampFieldName, defaultStr)
-			table.Cols[timestampFieldName] = &Column{Name: timestampFieldName, Type: NewBaseType("DateTime64")}
-		}
-	}
-	if len(config.Attributes) > 0 {
-		for _, a := range config.Attributes {
-			_, ok := table.Cols[a.MapValueName]
-			if !ok {
-				AttributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapValueName)
-				table.Cols[a.MapValueName] = &Column{Name: a.MapValueName, Type: CompoundType{Name: "Map", BaseType: NewBaseType("String, String")}}
-			}
-			_, ok = table.Cols[a.MapMetadataName]
-			if !ok {
-				AttributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapMetadataName)
-				table.Cols[a.MapMetadataName] = &Column{Name: a.MapMetadataName, Type: CompoundType{Name: "Map", BaseType: NewBaseType("String, String")}}
-			}
-		}
-	}
-
-	i := strings.Index(q, "(")
-	return q[:i+2] + othersStr + timestampStr + AttributesStr + q[i+1:]
-}
-
 func (lm *LogManager) CountMultiple(ctx context.Context, tables ...string) (int64, error) {
 	if len(tables) == 0 {
 		return 0, nil
@@ -341,31 +301,6 @@ func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (retu
 	return returnedErr
 }
 
-func (lm *LogManager) createTableObjectAndAttributes(ctx context.Context, query string, config *ChTableConfig) (string, error) {
-	table, err := NewTable(query, config)
-	if err != nil {
-		return "", err
-	}
-
-	// if exists only then createTable
-	noSuchTable := lm.AddTableIfDoesntExist(table)
-	if !noSuchTable {
-		return "", fmt.Errorf("table %s already exists", table.Name)
-	}
-
-	return addOurFieldsToCreateTableQuery(query, config, table), nil
-}
-
-func (lm *LogManager) getIgnoredFields(tableName string) []config.FieldName {
-	if indexConfig, found := lm.cfg.IndexConfig[tableName]; found && indexConfig.SchemaOverrides != nil {
-		// FIXME: don't get ignored fields from schema config, but store
-		// them in the schema registry - that way we don't have to manually replace '.' with '::'
-		// in removeFieldsTransformer's Transform method
-		return indexConfig.SchemaOverrides.IgnoredFields()
-	}
-	return nil
-}
-
 func Indexes(m SchemaMap) string {
 	var result strings.Builder
 	for col := range m {
@@ -379,21 +314,6 @@ func Indexes(m SchemaMap) string {
 	result.WriteString(",\n")
 	return result.String()
 }
-
-//// This function takes an AttributesMap and arrayName and returns
-//// the values of the array named arrayName from the AttributesMap
-//func getAttributesByArrayName(arrayName string,
-//	attrsMap map[string][]interface{}) []string {
-//	var Attributes []string
-//	for k, v := range attrsMap {
-//		if k == arrayName {
-//			for _, val := range v {
-//				Attributes = append(Attributes, util.Stringify(val))
-//			}
-//		}
-//	}
-//	return Attributes
-//}
 
 func (lm *LogManager) FindTable(tableName string) (result *Table) {
 	tableNamePattern := index.TableNamePatternRegexp(tableName)
