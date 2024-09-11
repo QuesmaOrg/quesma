@@ -3,9 +3,7 @@
 package queryparser
 
 import (
-	"github.com/barkimedes/go-deepcopy"
 	"quesma/logger"
-	"quesma/model"
 	"quesma/model/bucket_aggregations"
 )
 
@@ -43,39 +41,4 @@ func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (success bo
 		filters = append(filters, bucket_aggregations.NewFilter(name, cw.parseQueryMap(filterMap)))
 	}
 	return true, bucket_aggregations.NewFilters(cw.Ctx, filters)
-}
-
-func (cw *ClickhouseQueryTranslator) processFiltersAggregation(aggrBuilder *aggrQueryBuilder,
-	aggr bucket_aggregations.Filters, queryMap QueryMap) ([]*model.Query, error) {
-	aggregationQueries := make([]*model.Query, 0)
-
-	whereBeforeNesting := aggrBuilder.whereBuilder
-	aggrBuilder.Aggregators[len(aggrBuilder.Aggregators)-1].Filters = true
-	for _, filter := range aggr.Filters {
-		// newBuilder := aggrBuilder.clone()
-		// newBuilder.Type = bucket_aggregations.NewFilters(cw.Ctx, []bucket_aggregations.Filter{filter})
-		// newBuilder.whereBuilder.CombineWheresWith(filter.Sql)
-		// newBuilder.Aggregators = append(aggrBuilder.Aggregators, model.NewAggregatorEmpty(filter.Name))
-		aggrBuilder.Type = aggr
-		aggrBuilder.whereBuilder = model.CombineWheres(cw.Ctx, aggrBuilder.whereBuilder, filter.Sql)
-		aggrBuilder.Aggregators = append(aggrBuilder.Aggregators, model.NewAggregator(filter.Name))
-		aggregationQueries = append(aggregationQueries, aggrBuilder.buildBucketAggregation(nil)) // nil for now, will be changed
-		if aggs, ok := queryMap["aggs"].(QueryMap); ok {
-			aggsCopy, errAggs := deepcopy.Anything(aggs)
-			if errAggs == nil {
-				//err := cw.parseAggregationNames(newBuilder, aggsCopy.(QueryMap), resultAccumulator)
-				subAggregations, err := cw.parseAggregationNames(aggrBuilder, aggsCopy.(QueryMap))
-				if err != nil {
-					return aggregationQueries, err
-				}
-				aggregationQueries = append(aggregationQueries, subAggregations...)
-			} else {
-				logger.ErrorWithCtx(cw.Ctx).Msgf("deepcopy 'aggs' map error: %v. Skipping. aggs: %v", errAggs, aggs)
-			}
-		}
-		aggrBuilder.Aggregators = aggrBuilder.Aggregators[:len(aggrBuilder.Aggregators)-1]
-		aggrBuilder.whereBuilder = whereBeforeNesting
-	}
-	delete(queryMap, "filters")
-	return aggregationQueries, nil
 }
