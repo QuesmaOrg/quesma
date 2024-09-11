@@ -64,7 +64,7 @@ type (
 	}
 )
 
-func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *clickhouse.LogManager,
+func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor,
 	cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []BulkItem, err error) {
 	defer recovery.LogPanic()
 
@@ -83,7 +83,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *cli
 		return []BulkItem{}, err
 	}
 
-	sendToClickhouse(ctx, clickhouseDocumentsToInsert, phoneHomeAgent, cfg, lm)
+	sendToClickhouse(ctx, clickhouseDocumentsToInsert, phoneHomeAgent, cfg, ip)
 
 	return results, nil
 }

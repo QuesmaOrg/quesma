@@ -641,8 +641,8 @@ func TestCreateTableString_1(t *testing.T) {
 			PreferCastingToOthers:                 false,
 		},
 		Indexes: []IndexStatement{
-			getIndexStatement("body"),
-			getIndexStatement("severity"),
+			GetIndexStatement("body"),
+			GetIndexStatement("severity"),
 		},
 	}
 	expectedRows := []string{
