@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"quesma/quesma/types"
 )
 
 type ElasticJSONDatabase struct {
@@ -28,16 +27,11 @@ func NewElasticJSONDatabase(url, indexName string) *ElasticJSONDatabase {
 	}
 }
 
-func (p *ElasticJSONDatabase) Put(key string, val types.JSON) error {
+func (p *ElasticJSONDatabase) Put(key string, data string) error {
 
 	elasticsearchURL := fmt.Sprintf("%s/%s/_doc?id=%s", p.URL, p.IndexName, key)
 
-	jsonAsBytes, err := json.Marshal(val)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest("POST", elasticsearchURL, bytes.NewBuffer(jsonAsBytes))
+	req, err := http.NewRequest("POST", elasticsearchURL, bytes.NewBuffer([]byte(data)))
 	if err != nil {
 		return err
 	}
@@ -63,45 +57,39 @@ func (p *ElasticJSONDatabase) Put(key string, val types.JSON) error {
 	}
 }
 
-func (p *ElasticJSONDatabase) Get(key string) (types.JSON, error) {
+func (p *ElasticJSONDatabase) Get(key string) (string, bool, error) {
 	url := fmt.Sprintf("%s/%s/_source/%s", p.URL, p.IndexName, key)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, err
+		return "", false, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := p.httpClient.Do(req)
 
 	if err != nil {
-		return nil, err
+		return "", false, err
 	}
 
 	defer resp.Body.Close()
 
 	jsonAsBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return "", false, err
 	}
 
 	switch resp.StatusCode {
 	case http.StatusOK:
 		break
 	case http.StatusNotFound:
-		return nil, nil
+		return "", false, nil
 	default:
 		fmt.Println("failed to get from elastic: ", string(jsonAsBytes))
-		return nil, fmt.Errorf("failed to get from elastic: %v", resp.Status)
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
+		return "", false, fmt.Errorf("failed to get from elastic: %v", resp.Status)
 	}
 
-	var result types.JSON
-	err = json.Unmarshal(jsonAsBytes, &result)
-	return result, err
-
+	return string(jsonAsBytes), true, err
 }
 
 func (p *ElasticJSONDatabase) List() ([]string, error) {
