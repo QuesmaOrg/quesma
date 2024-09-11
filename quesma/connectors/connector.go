@@ -9,7 +9,6 @@ import (
 	"quesma/licensing"
 	"quesma/logger"
 	"quesma/quesma/config"
-	"quesma/schema"
 	"quesma/telemetry"
 )
 
@@ -37,27 +36,27 @@ func (c *ConnectorManager) GetConnector() *clickhouse.LogManager {
 	return c.connectors[0].GetConnector()
 }
 
-func NewConnectorManager(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader clickhouse.TableDiscovery, registry schema.Registry) *ConnectorManager {
+func NewConnectorManager(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader clickhouse.TableDiscovery) *ConnectorManager {
 	return &ConnectorManager{
-		connectors: registerConnectors(cfg, chDb, phoneHomeAgent, loader, registry),
+		connectors: registerConnectors(cfg, chDb, phoneHomeAgent, loader),
 	}
 }
 
-func registerConnectors(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader clickhouse.TableDiscovery, registry schema.Registry) (conns []Connector) {
+func registerConnectors(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader clickhouse.TableDiscovery) (conns []Connector) {
 	for connName, conn := range cfg.Connectors {
 		logger.Info().Msgf("Registering connector named [%s] of type [%s]", connName, conn.ConnectorType)
 		switch conn.ConnectorType {
 		case clickHouseConnectorTypeName:
 			conns = append(conns, &ClickHouseConnector{
-				Connector: clickhouse.NewEmptyLogManager(cfg, chDb, phoneHomeAgent, loader, registry),
+				Connector: clickhouse.NewEmptyLogManager(cfg, chDb, phoneHomeAgent, loader),
 			})
 		case clickHouseOSConnectorTypeName:
 			conns = append(conns, &ClickHouseOSConnector{
-				Connector: clickhouse.NewEmptyLogManager(cfg, chDb, phoneHomeAgent, loader, registry),
+				Connector: clickhouse.NewEmptyLogManager(cfg, chDb, phoneHomeAgent, loader),
 			})
 		case hydrolixConnectorTypeName:
 			conns = append(conns, &HydrolixConnector{
-				Connector: clickhouse.NewEmptyLogManager(cfg, chDb, phoneHomeAgent, loader, registry),
+				Connector: clickhouse.NewEmptyLogManager(cfg, chDb, phoneHomeAgent, loader),
 			})
 		default:
 			logger.Error().Msgf("Unknown connector type [%s]", conn.ConnectorType)

@@ -5,6 +5,7 @@ package doc
 import (
 	"context"
 	"quesma/clickhouse"
+	"quesma/ingest"
 	"quesma/jsonprocessor"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
@@ -12,7 +13,7 @@ import (
 	"quesma/stats"
 )
 
-func Write(ctx context.Context, tableName string, body types.JSON, lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration) error {
+func Write(ctx context.Context, tableName string, body types.JSON, ip *ingest.IngestProcessor, cfg *config.QuesmaConfiguration) error {
 	stats.GlobalStatistics.Process(cfg, tableName, body, clickhouse.NestedSeparator)
 
 	defer recovery.LogPanic()
@@ -26,6 +27,6 @@ func Write(ctx context.Context, tableName string, body types.JSON, lm *clickhous
 		}
 		nameFormatter := clickhouse.DefaultColumnNameFormatter()
 		transformer := jsonprocessor.IngestTransformerFor(tableName, cfg)
-		return lm.ProcessInsertQuery(ctx, tableName, types.NDJSON{body}, transformer, nameFormatter)
+		return ip.ProcessInsertQuery(ctx, tableName, types.NDJSON{body}, transformer, nameFormatter)
 	})
 }

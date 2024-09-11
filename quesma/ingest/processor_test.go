@@ -1,18 +1,132 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package clickhouse
+package ingest
 
 import (
 	"context"
+	"encoding/json"
+	"quesma/clickhouse"
 	"quesma/concurrent"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
+	"quesma/schema"
 	"strings"
 	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+var hasOthersConfig = &clickhouse.ChTableConfig{
+	HasTimestamp:                          false,
+	TimestampDefaultsNow:                  false,
+	Engine:                                "MergeTree",
+	OrderBy:                               "(timestamp)",
+	PartitionBy:                           "",
+	PrimaryKey:                            "",
+	Ttl:                                   "",
+	Attributes:                            []clickhouse.Attribute{},
+	CastUnsupportedAttrValueTypesToString: false,
+	PreferCastingToOthers:                 false,
+}
+
+// inserting row with 2 non-schema fields
+// they are added to "others" clickhouse.Column as JSON (one is nested)
+func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
+	rowToInsert := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","non-schema2":"2","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z","non-schema1":{"a":"b"}}`
+	var emptyMap TableMap
+	// TODO fix clickhouse.Columns
+	fieldsMap := concurrent.NewMapWith("tableName", &clickhouse.Table{
+		Cols: map[string]*clickhouse.Column{
+			"host::name":    nil,
+			"message":       nil,
+			"service::name": nil,
+			"severity":      nil,
+			"timestamp":     nil,
+			"source":        nil,
+		},
+	})
+
+	tableName, exists := fieldsMap.Load("tableName")
+	assert.True(t, exists)
+	f := func(t1, t2 TableMap) {
+		ip := NewIngestProcessor(fieldsMap, &config.QuesmaConfiguration{})
+		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(tableName, types.MustJSON(rowToInsert), nil, hasOthersConfig)
+		assert.NoError(t, err)
+		j, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(alter))
+		m := make(SchemaMap)
+		err = json.Unmarshal([]byte(j), &m)
+		assert.NoError(t, err)
+	}
+
+	// both cases need to be OK
+	f(emptyMap, *fieldsMap)
+	f(*fieldsMap, emptyMap)
+}
+
+// TODO update this test now it doesn't do many useful things
+/*
+// inserting row with 0 non-schema fields, but support for it
+func TestInsertNonSchemaFields_2(t *testing.T) {
+	rowToInsert := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z"}`
+	var emptyMap TableMap
+	// TODO fix clickhouse.Columns
+	fieldsMap := TableMap{
+		"tableName": &clickhouse.Table{
+			Cols: map[string]*clickhouse.Column{
+				"host.name":    nil,
+				"message":      nil,
+				"service.name": nil,
+				"severity":     nil,
+				"timestamp":    nil,
+				"source":       nil,
+			},
+		},
+	}
+
+	f := func(t1, t2 TableMap) {
+		lm := NewLogManagerNoConnection(emptyMap, fieldsMap)
+		j, err := lm.BuildInsertJson("tableName", rowToInsert, hasOthersConfig)
+		assert.NoError(t, err)
+		fmt.Println(j)
+		m := make(SchemaMap)
+		err = json.Unmarshal([]byte(j), &m)
+		assert.NoError(t, err)
+		nestedJson, ok := m["others"].(SchemaMap)
+		assert.True(t, ok)
+		assert.Equal(t, 0, len(nestedJson))
+	}
+
+	// both cases need to be OK
+	f(emptyMap, fieldsMap)
+	f(fieldsMap, emptyMap)
+}
+*/
+
+func TestAddTimestamp(t *testing.T) {
+	tableConfig := &clickhouse.ChTableConfig{
+		HasTimestamp:                          true,
+		TimestampDefaultsNow:                  true,
+		Engine:                                "MergeTree",
+		OrderBy:                               "(@timestamp)",
+		PartitionBy:                           "",
+		PrimaryKey:                            "",
+		Ttl:                                   "",
+		Attributes:                            []clickhouse.Attribute{},
+		CastUnsupportedAttrValueTypesToString: false,
+		PreferCastingToOthers:                 false,
+	}
+	nameFormatter := clickhouse.DefaultColumnNameFormatter()
+	ip := NewIngestProcessorEmpty()
+	ip.schemaRegistry = schema.StaticRegistry{}
+	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
+	columnsFromJson, columnsFromSchema := ip.buildCreateTableQueryNoOurFields(context.Background(), "tableName", jsonData, tableConfig, nameFormatter)
+	columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData))
+	query := createTableQuery(tableName, columns, tableConfig)
+	assert.True(t, strings.Contains(query, timestampFieldName))
+}
 
 func TestJsonToFieldsMap(t *testing.T) {
 	mExpected := SchemaMap{
@@ -44,8 +158,8 @@ func TestDifferenceMapSimple_1(t *testing.T) {
 		"source":       nil,
 		"timestamp":    nil,
 	}
-	table := &Table{
-		Cols: map[string]*Column{
+	table := &clickhouse.Table{
+		Cols: map[string]*clickhouse.Column{
 			"host.name":    nil,
 			"message":      nil,
 			"service.name": nil,
@@ -69,8 +183,8 @@ func TestDifferenceMapSimple_2(t *testing.T) {
 		"source":       "e",
 		"timestamp":    "f",
 	}
-	table := &Table{
-		Cols: map[string]*Column{
+	table := &clickhouse.Table{
+		Cols: map[string]*clickhouse.Column{
 			"message":      nil,
 			"service.name": nil,
 			"severity":     nil,
@@ -96,8 +210,8 @@ func TestDifferenceMapNested(t *testing.T) {
 		"source":       nil,
 		"timestamp":    nil,
 	}
-	table := &Table{
-		Cols: map[string]*Column{
+	table := &clickhouse.Table{
+		Cols: map[string]*clickhouse.Column{
 			"message":      nil,
 			"service.name": nil,
 			"severity":     nil,
@@ -128,8 +242,8 @@ func TestDifferenceMapSimpleAndNested_1(t *testing.T) {
 		"timestamp":    nil,
 		"non-schema":   nil,
 	}
-	table := &Table{
-		Cols: map[string]*Column{
+	table := &clickhouse.Table{
+		Cols: map[string]*clickhouse.Column{
 			"message":      nil,
 			"service.name": nil,
 			"severity":     nil,
@@ -164,11 +278,11 @@ func TestDifferenceMapSimpleAndNested_2(t *testing.T) {
 		"timestamp":    nil,
 		"non-schema":   nil,
 	}
-	table := &Table{
-		Cols: map[string]*Column{
-			"host.name": {Name: "host.name", Codec: Codec{Name: ""}, Type: MultiValueType{
-				Name: "Tuple", Cols: []*Column{
-					{Name: "b", Type: NewBaseType("String")},
+	table := &clickhouse.Table{
+		Cols: map[string]*clickhouse.Column{
+			"host.name": {Name: "host.name", Codec: clickhouse.Codec{Name: ""}, Type: clickhouse.MultiValueType{
+				Name: "Tuple", Cols: []*clickhouse.Column{
+					{Name: "b", Type: clickhouse.NewBaseType("String")},
 				},
 			}},
 			"message":      nil,
@@ -228,38 +342,38 @@ func TestDifferenceMapBig(t *testing.T) {
 			},
 		},
 	}
-	table := &Table{
-		Cols: map[string]*Column{
-			"host.name": {Name: "host.name", Type: MultiValueType{
-				Name: "Tuple", Cols: []*Column{
-					{Name: "b", Type: NewBaseType("String")},
+	table := &clickhouse.Table{
+		Cols: map[string]*clickhouse.Column{
+			"host.name": {Name: "host.name", Type: clickhouse.MultiValueType{
+				Name: "Tuple", Cols: []*clickhouse.Column{
+					{Name: "b", Type: clickhouse.NewBaseType("String")},
 				},
 			}},
-			"message": {Name: "message", Type: MultiValueType{
-				Name: "Tuple", Cols: []*Column{
-					{Name: "m", Type: NewBaseType("String")},
+			"message": {Name: "message", Type: clickhouse.MultiValueType{
+				Name: "Tuple", Cols: []*clickhouse.Column{
+					{Name: "m", Type: clickhouse.NewBaseType("String")},
 				},
 			}},
 			"service.name": nil,
 			"severity":     nil,
 			"timestamp":    nil,
 			"source":       nil,
-			"nested": {Name: "nested", Type: MultiValueType{
-				Name: "Tuple", Cols: []*Column{
-					{Name: "n1", Type: MultiValueType{
-						Name: "Tuple", Cols: []*Column{
-							{Name: "n11", Type: MultiValueType{
-								Name: "Tuple", Cols: []*Column{
-									{Name: "n111", Type: NewBaseType("String")},
+			"nested": {Name: "nested", Type: clickhouse.MultiValueType{
+				Name: "Tuple", Cols: []*clickhouse.Column{
+					{Name: "n1", Type: clickhouse.MultiValueType{
+						Name: "Tuple", Cols: []*clickhouse.Column{
+							{Name: "n11", Type: clickhouse.MultiValueType{
+								Name: "Tuple", Cols: []*clickhouse.Column{
+									{Name: "n111", Type: clickhouse.NewBaseType("String")},
 								},
 							},
 							},
-							{Name: "n12", Type: NewBaseType("String")},
+							{Name: "n12", Type: clickhouse.NewBaseType("String")},
 						},
 					}},
-					{Name: "n2", Type: MultiValueType{
-						Name: "Tuple", Cols: []*Column{
-							{Name: "n21", Type: NewBaseType("String")},
+					{Name: "n2", Type: clickhouse.MultiValueType{
+						Name: "Tuple", Cols: []*clickhouse.Column{
+							{Name: "n21", Type: clickhouse.NewBaseType("String")},
 						},
 					}},
 				},
@@ -335,32 +449,32 @@ func TestRemovingNonSchemaFields(t *testing.T) {
 		},
 		"non-schema2": nil,
 	}
-	table := &Table{
-		Cols: map[string]*Column{
-			"schema1": {Name: "schema1", Type: MultiValueType{
-				Name: "Tuple", Cols: []*Column{
-					{Name: "schema11", Type: MultiValueType{
-						Name: "Tuple", Cols: []*Column{
-							{Name: "schema111", Type: NewBaseType("String")},
+	table := &clickhouse.Table{
+		Cols: map[string]*clickhouse.Column{
+			"schema1": {Name: "schema1", Type: clickhouse.MultiValueType{
+				Name: "Tuple", Cols: []*clickhouse.Column{
+					{Name: "schema11", Type: clickhouse.MultiValueType{
+						Name: "Tuple", Cols: []*clickhouse.Column{
+							{Name: "schema111", Type: clickhouse.NewBaseType("String")},
 						},
 					}},
 				},
 			}},
-			"schema2": {Name: "schema2", Type: MultiValueType{
-				Name: "Tuple", Cols: []*Column{
-					{Name: "schema21", Type: MultiValueType{
-						Name: "Tuple", Cols: []*Column{
-							{Name: "schema212", Type: MultiValueType{
-								Name: "Tuple", Cols: []*Column{
-									{Name: "schema2121", Type: NewBaseType("String")},
+			"schema2": {Name: "schema2", Type: clickhouse.MultiValueType{
+				Name: "Tuple", Cols: []*clickhouse.Column{
+					{Name: "schema21", Type: clickhouse.MultiValueType{
+						Name: "Tuple", Cols: []*clickhouse.Column{
+							{Name: "schema212", Type: clickhouse.MultiValueType{
+								Name: "Tuple", Cols: []*clickhouse.Column{
+									{Name: "schema2121", Type: clickhouse.NewBaseType("String")},
 								},
 							}},
-							{Name: "schema211", Type: NewBaseType("String")},
+							{Name: "schema211", Type: clickhouse.NewBaseType("String")},
 						},
 					}},
-					{Name: "schema22", Type: MultiValueType{
-						Name: "Tuple", Cols: []*Column{
-							{Name: "schema221", Type: NewBaseType("String")},
+					{Name: "schema22", Type: clickhouse.MultiValueType{
+						Name: "Tuple", Cols: []*clickhouse.Column{
+							{Name: "schema221", Type: clickhouse.NewBaseType("String")},
 						},
 					}},
 				},
@@ -397,19 +511,19 @@ func TestRemovingNonSchemaFields(t *testing.T) {
 }
 
 func TestJsonFlatteningToStringAttr(t *testing.T) {
-	config := &ChTableConfig{
+	config := &clickhouse.ChTableConfig{
 		HasTimestamp:         true,
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
-		OrderBy:              "(timestamp)",
+		OrderBy:              "(@timestamp)",
 		PartitionBy:          "",
 		PrimaryKey:           "",
 		Ttl:                  "",
-		Attributes: []Attribute{
-			NewDefaultInt64Attribute(),
-			NewDefaultFloat64Attribute(),
-			NewDefaultBoolAttribute(),
-			NewDefaultStringAttribute(),
+		Attributes: []clickhouse.Attribute{
+			clickhouse.NewDefaultInt64Attribute(),
+			clickhouse.NewDefaultFloat64Attribute(),
+			clickhouse.NewDefaultBoolAttribute(),
+			clickhouse.NewDefaultStringAttribute(),
 		},
 		CastUnsupportedAttrValueTypesToString: true,
 		PreferCastingToOthers:                 true,
@@ -432,16 +546,16 @@ func TestJsonFlatteningToStringAttr(t *testing.T) {
 }
 
 func TestJsonConvertingBoolToStringAttr(t *testing.T) {
-	config := &ChTableConfig{
+	config := &clickhouse.ChTableConfig{
 		HasTimestamp:         true,
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
-		OrderBy:              "(timestamp)",
+		OrderBy:              "(@timestamp)",
 		PartitionBy:          "",
 		PrimaryKey:           "",
 		Ttl:                  "",
-		Attributes: []Attribute{
-			NewDefaultStringAttribute(),
+		Attributes: []clickhouse.Attribute{
+			clickhouse.NewDefaultStringAttribute(),
 		},
 		CastUnsupportedAttrValueTypesToString: true,
 		PreferCastingToOthers:                 true,
@@ -468,52 +582,52 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_1(t *testing.T) {
-	table := Table{
+	table := clickhouse.Table{
 		Created: false,
 		Name:    "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
-		Cols: map[string]*Column{
+		Cols: map[string]*clickhouse.Column{
 			"doc": {
 				Name: "doc",
-				Type: MultiValueType{
+				Type: clickhouse.MultiValueType{
 					Name: "Tuple",
-					Cols: []*Column{
+					Cols: []*clickhouse.Column{
 						{
 							Name: "Tuple",
-							Type: MultiValueType{
+							Type: clickhouse.MultiValueType{
 								Name: "Tuple",
-								Cols: []*Column{
+								Cols: []*clickhouse.Column{
 									{
 										Name: "runAt",
-										Type: NewBaseType("DateTime64"),
+										Type: clickhouse.NewBaseType("DateTime64"),
 									},
 									{
 										Name: "startedAt",
-										Type: NewBaseType("DateTime64"),
+										Type: clickhouse.NewBaseType("DateTime64"),
 									},
 									{
 										Name: "Tuple",
-										Type: NewBaseType("String"),
+										Type: clickhouse.NewBaseType("String"),
 									},
 									{
 										Name: "status",
-										Type: NewBaseType("String"),
+										Type: clickhouse.NewBaseType("String"),
 									},
 								},
 							},
 						},
 						{
 							Name: "updated_at",
-							Type: NewBaseType("DateTime64"),
+							Type: clickhouse.NewBaseType("DateTime64"),
 						},
 					},
 				},
 			},
 			"@timestamp": {
 				Name: "@timestamp",
-				Type: NewBaseType("DateTime64"),
+				Type: clickhouse.NewBaseType("DateTime64"),
 			},
 		},
-		Config: &ChTableConfig{
+		Config: &clickhouse.ChTableConfig{
 			HasTimestamp:         true,
 			TimestampDefaultsNow: true,
 			Engine:               "MergeTree",
@@ -521,17 +635,17 @@ func TestCreateTableString_1(t *testing.T) {
 			PartitionBy:          "",
 			PrimaryKey:           "",
 			Ttl:                  "",
-			Attributes: []Attribute{
-				NewDefaultInt64Attribute(),
-				NewDefaultStringAttribute(),
-				NewDefaultBoolAttribute(),
+			Attributes: []clickhouse.Attribute{
+				clickhouse.NewDefaultInt64Attribute(),
+				clickhouse.NewDefaultStringAttribute(),
+				clickhouse.NewDefaultBoolAttribute(),
 			},
 			CastUnsupportedAttrValueTypesToString: false,
 			PreferCastingToOthers:                 false,
 		},
-		Indexes: []IndexStatement{
-			GetIndexStatement("body"),
-			GetIndexStatement("severity"),
+		Indexes: []clickhouse.IndexStatement{
+			clickhouse.GetIndexStatement("body"),
+			clickhouse.GetIndexStatement("severity"),
 		},
 	}
 	expectedRows := []string{
@@ -571,34 +685,34 @@ func TestCreateTableString_1(t *testing.T) {
 
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_NewDateTypes(t *testing.T) {
-	table := Table{
+	table := clickhouse.Table{
 		Created: false,
 		Name:    "abc",
-		Cols: map[string]*Column{
+		Cols: map[string]*clickhouse.Column{
 			"low_card_string": {
 				Name: "low_card_string",
-				Type: NewBaseType("LowCardinality(String)"),
+				Type: clickhouse.NewBaseType("LowCardinality(String)"),
 			},
 			"uuid": {
 				Name: "uuid",
-				Type: NewBaseType("UUID"),
+				Type: clickhouse.NewBaseType("UUID"),
 			},
 			"int32": {
 				Name: "int32",
-				Type: NewBaseType("Int32"),
+				Type: clickhouse.NewBaseType("Int32"),
 			},
 			"epoch_time": {
 				Name:      "epoch_time",
-				Type:      NewBaseType("DateTime('Asia/Kolkata')"),
+				Type:      clickhouse.NewBaseType("DateTime('Asia/Kolkata')"),
 				Modifiers: "CODEC(DoubleDelta, LZ4)",
 			},
 			"estimated_connection_speedinkbps": {
 				Name:      "estimated_connection_speedinkbps",
-				Type:      NewBaseType("Float64"),
+				Type:      clickhouse.NewBaseType("Float64"),
 				Modifiers: "CODEC(DoubleDelta, LZ4)",
 			},
 		},
-		Config: &ChTableConfig{
+		Config: &clickhouse.ChTableConfig{
 			HasTimestamp:         true,
 			TimestampDefaultsNow: true,
 			Engine:               "MergeTree",
@@ -606,8 +720,8 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 			PartitionBy:          "",
 			PrimaryKey:           "",
 			Ttl:                  "",
-			Attributes: []Attribute{
-				NewDefaultInt64Attribute(),
+			Attributes: []clickhouse.Attribute{
+				clickhouse.NewDefaultInt64Attribute(),
 			},
 			CastUnsupportedAttrValueTypesToString: true,
 			PreferCastingToOthers:                 true,
@@ -646,49 +760,49 @@ func TestLogManager_GetTable(t *testing.T) {
 	}{
 		{
 			name:             "empty",
-			predefinedTables: *concurrent.NewMap[string, *Table](),
+			predefinedTables: *concurrent.NewMap[string, *clickhouse.Table](),
 			tableNamePattern: "table",
 			found:            false,
 		},
 		{
 			name:             "should find by name",
-			predefinedTables: *concurrent.NewMapWith("table1", &Table{Name: "table1"}),
+			predefinedTables: *concurrent.NewMapWith("table1", &clickhouse.Table{Name: "table1"}),
 			tableNamePattern: "table1",
 			found:            true,
 		},
 		{
 			name:             "should not find by name",
-			predefinedTables: *concurrent.NewMapWith("table1", &Table{Name: "table1"}),
+			predefinedTables: *concurrent.NewMapWith("table1", &clickhouse.Table{Name: "table1"}),
 			tableNamePattern: "foo",
 			found:            false,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-generic-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*-*-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-*-default",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*",
 			found:            true,
 		},
 		{
 			name:             "should not find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "foo-*",
 			found:            false,
 		},
@@ -697,8 +811,8 @@ func TestLogManager_GetTable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
 			tableDefinitions.Store(&tt.predefinedTables)
-			lm := NewLogManager(&tt.predefinedTables, &config.QuesmaConfiguration{})
-			assert.Equalf(t, tt.found, lm.FindTable(tt.tableNamePattern) != nil, "GetTable(%v)", tt.tableNamePattern)
+			ip := NewIngestProcessor(&tt.predefinedTables, &config.QuesmaConfiguration{})
+			assert.Equalf(t, tt.found, ip.FindTable(tt.tableNamePattern) != nil, "GetTable(%v)", tt.tableNamePattern)
 		})
 	}
 }
@@ -775,8 +889,8 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
 			tableDefinitions.Store(tt.tables)
-			lm := &LogManager{tableDiscovery: NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tt.tables)}
-			indexes, err := lm.ResolveIndexes(context.Background(), tt.patterns)
+			ip := &IngestProcessor{tableDiscovery: clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tt.tables)}
+			indexes, err := ip.ResolveIndexes(context.Background(), tt.patterns)
 			assert.NoError(t, err)
 			assert.Equalf(t, tt.resolved, indexes, tt.patterns, "ResolveIndexes(%v)", tt.patterns)
 		})
@@ -784,9 +898,9 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 }
 
 func newTableMap(tables ...string) *TableMap {
-	newMap := concurrent.NewMap[string, *Table]()
+	newMap := concurrent.NewMap[string, *clickhouse.Table]()
 	for _, table := range tables {
-		newMap.Store(table, &Table{Name: table})
+		newMap.Store(table, &clickhouse.Table{Name: table})
 	}
 	return newMap
 }
