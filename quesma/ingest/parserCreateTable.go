@@ -5,7 +5,6 @@ package ingest
 import (
 	"quesma/clickhouse"
 	"quesma/logger"
-	"strings"
 	"unicode"
 )
 
@@ -338,93 +337,4 @@ func parseExpr(q string, i int) int {
 		i = omitWhitespace(q, i+1)
 	}
 	return -1
-}
-
-// 0 = success,
-// > 0 - fail, char index where failed
-// Tuples can be unnamed. In this case they are not supported yet, as I'm not sure
-// if it's worth adding right now.
-func ParseCreateTable(q string) (*clickhouse.Table, int) {
-	t := clickhouse.Table{}
-
-	// parse header
-	i := parseExact(q, 0, "CREATE TABLE ")
-	if i == -1 {
-		return &t, 1
-	}
-	i, _ = parseMaybeAndForget(q, i, "IF NOT EXISTS ")
-
-	// parse [db.]table_name
-	i = omitWhitespace(q, i)
-	i2 := parseExact(q, i, `"`)
-	quote := i2 != -1
-	if quote {
-		i = i2
-	}
-	i2, ident := parseIdent(q, i) // ident = db name or table name
-	if i2 == -1 {
-		return &t, i
-	}
-	if strings.Contains(ident, ".") { // If it has ".", it means it is DB name
-		split := strings.Split(ident, ".")
-		if len(split) != 2 {
-			return &t, i
-		}
-		t.DatabaseName = split[0]
-	}
-	t.Name = ident
-	if quote {
-		i2 = parseExact(q, i2, `"`)
-		if i2 == -1 {
-			return &t, i
-		}
-	}
-
-	// parse [ON CLUSTER cluster_name]
-	i3 := parseExact(q, i2, "ON CLUSTER ")
-	if i3 != -1 {
-		i4, ident := parseIdent(q, i3)
-		if i4 == -1 {
-			return &t, i3
-		}
-		t.Cluster = ident
-		i2 = i4
-	}
-
-	i3 = parseExact(q, i2, "(")
-	if i3 == -1 {
-		return &t, i2
-	}
-
-	// parse columns
-	t.Cols = make(map[string]*clickhouse.Column)
-	for {
-		i = omitWhitespace(q, i3)
-		if parseExact(q, i, "INDEX") != -1 {
-			return &t, 0
-		}
-		i, col := parseColumn(q, i3)
-		if i == -1 {
-			return &t, i3
-		}
-		t.Cols[col.Name] = &col
-		i2 = omitWhitespace(q, i)
-		if i2 == -1 {
-			return &t, i
-		}
-		if q[i2] == ')' {
-			return &t, 0
-		} else if q[i2] != ',' {
-			return &t, i2
-		} else {
-			i3 = omitWhitespace(q, i2+1)
-			if i3 == -1 {
-				return &t, i2 + 1
-			} else if q[i3] == ')' {
-				return &t, 0
-			} else {
-				i3 = i2 + 1
-			}
-		}
-	}
 }

@@ -7,10 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
 	"strings"
-	"time"
 )
 
 type TableColumNameFormatter interface {
@@ -26,10 +23,6 @@ func (t *columNameFormatter) Format(namespace, columnName string) string {
 		return columnName
 	}
 	return fmt.Sprintf("%s%s%s", namespace, t.separator, columnName)
-}
-
-func DefaultColumnNameFormatter() TableColumNameFormatter {
-	return &columNameFormatter{separator: "::"}
 }
 
 // Code doesn't need to be pretty, 99.9% it's just for our purposes
@@ -130,78 +123,4 @@ func PrettyJson(jsonStr string) string {
 		return fmt.Sprintf("PrettyJson err: %v\n", err)
 	}
 	return prettyJSON.String()
-}
-
-// TimestampGroupBy returns string to be used in the select part of Clickhouse query, when grouping by timestamp interval.
-// e.g.
-// - timestampGroupBy("@timestamp", DateTime64, 30 seconds) --> toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)
-// - timestampGroupBy("@timestamp", DateTime, 30 seconds)   --> toInt64(toUnixTimestamp(`@timestamp`)/30)
-func TimestampGroupBy(timestampField model.Expr, typ clickhouse.DateTimeType, groupByInterval time.Duration) model.Expr {
-
-	createAExp := func(innerFuncName string, interval int64) model.Expr {
-		toUnixTsFunc := model.NewInfixExpr(
-			model.NewFunction(innerFuncName, timestampField),
-			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
-			model.NewLiteral(interval))
-		return model.NewFunction("toInt64", toUnixTsFunc)
-	}
-
-	switch typ {
-	case clickhouse.DateTime64:
-		// as string: fmt.Sprintf("toInt64(toUnixTimestamp(`%s`)/%f)", timestampFieldName, groupByInterval.Seconds())
-		return createAExp("toUnixTimestamp64Milli", groupByInterval.Milliseconds())
-	case clickhouse.DateTime:
-		return createAExp("toUnixTimestamp", groupByInterval.Milliseconds()/1000)
-	default:
-		logger.Error().Msgf("invalid timestamp fieldname: %s", timestampFieldName)
-		return model.NewLiteral("invalid") // maybe create new type InvalidExpr?
-	}
-}
-
-func TimestampGroupByWithTimezone(timestampField model.Expr, typ clickhouse.DateTimeType,
-	groupByInterval time.Duration, timezone string) model.Expr {
-
-	// If no timezone, or timezone is default (UTC), we just return TimestampGroupBy(...)
-	if timezone == "" {
-		return TimestampGroupBy(timestampField, typ, groupByInterval)
-	}
-
-	createAExp := func(innerFuncName string, interval, offsetMultiplier int64) model.Expr {
-		var offset model.Expr
-		offset = model.NewFunction(
-			"timeZoneOffset",
-			model.NewFunction(
-				"toTimezone",
-				timestampField, model.NewLiteral("'"+timezone+"'"),
-			),
-		)
-		if offsetMultiplier != 1 {
-			offset = model.NewInfixExpr(offset, "*", model.NewLiteral(offsetMultiplier))
-		}
-
-		unixTsWithOffset := model.NewInfixExpr(
-			model.NewFunction(innerFuncName, timestampField),
-			"+",
-			offset,
-		)
-
-		groupByExpr := model.NewInfixExpr(
-			model.NewParenExpr(unixTsWithOffset),
-			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
-			model.NewLiteral(interval),
-		)
-
-		return model.NewFunction("toInt64", groupByExpr)
-	}
-
-	switch typ {
-	case clickhouse.DateTime64:
-		// e.g: (toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 600000
-		return createAExp("toUnixTimestamp64Milli", groupByInterval.Milliseconds(), 1000)
-	case clickhouse.DateTime:
-		return createAExp("toUnixTimestamp", groupByInterval.Milliseconds()/1000, 1)
-	default:
-		logger.Error().Msgf("invalid timestamp fieldname: %s", timestampFieldName)
-		return model.NewLiteral("invalid") // maybe create new type InvalidExpr?
-	}
 }
