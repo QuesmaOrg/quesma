@@ -15,8 +15,7 @@ import (
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
-	//"quesma/quesma/types"
-	"quesma/schema"
+
 	"quesma/telemetry"
 	"quesma/util"
 	"slices"
@@ -251,8 +250,8 @@ func (s PaidServiceName) String() string {
 }
 
 var paidServiceChecks = map[PaidServiceName]string{
-	HydrolixServiceName: `SELECT concat(database,'.', table) FROM system.tables WHERE Engine = 'TurbineStorage';`,
-	CHCloudServiceName:  `SELECT concat(database,'.', table) FROM system.tables WHERE Engine = 'SharedMergeTree';`,
+	HydrolixServiceName: `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`,
+	CHCloudServiceName:  `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'SharedMergeTree';`,
 	// For CH Cloud we can also check the output of the following query: --> `SELECT * FROM system.settings WHERE name='cloud_mode_Engine';`
 }
 
@@ -357,9 +356,9 @@ func (lm *LogManager) Ping() error {
 	return lm.chDb.Ping()
 }
 
-func NewEmptyLogManager(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery, schemaRegistry schema.Registry) *LogManager {
+func NewEmptyLogManager(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery) *LogManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent} //, schemaRegistry: schemaRegistry}
+	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent}
 }
 
 func NewLogManager(tables *TableMap, cfg *config.QuesmaConfiguration) *LogManager {
@@ -368,13 +367,12 @@ func NewLogManager(tables *TableMap, cfg *config.QuesmaConfiguration) *LogManage
 	return &LogManager{chDb: nil, tableDiscovery: NewTableDiscoveryWith(cfg, nil, *tables),
 		cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(),
 	}
-	//	ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 
 // right now only for tests purposes
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
 	return &LogManager{chDb: db, tableDiscovery: NewTableDiscoveryWith(&config.QuesmaConfiguration{}, db, *tables),
-		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()} //, ingestFieldStatistics: make(IngestFieldStatistics)}
+		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewLogManagerEmpty() *LogManager {
@@ -382,7 +380,7 @@ func NewLogManagerEmpty() *LogManager {
 	tableDefinitions.Store(NewTableMap())
 	cfg := &config.QuesmaConfiguration{}
 	return &LogManager{tableDiscovery: NewTableDiscovery(cfg, nil), cfg: cfg,
-		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()} //, ingestFieldStatistics: make(IngestFieldStatistics)}
+		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewDefaultCHConfig() *ChTableConfig {

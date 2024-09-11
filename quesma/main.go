@@ -85,7 +85,7 @@ func main() {
 	tableDisco := clickhouse.NewTableDiscovery(&cfg, connectionPool)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.SchemaTypeAdapter{})
 
-	connManager := connectors.NewConnectorManager(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry)
+	connManager := connectors.NewConnectorManager(&cfg, connectionPool, phoneHomeAgent, tableDisco)
 	lm := connManager.GetConnector()
 	//create ingest processor, very lame but for the sake of refactor
 	ip := ingest.NewEmptyIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry)
