@@ -122,7 +122,7 @@ func (query Range) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
-func (query Range) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query Range) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) != 1 {
 		logger.ErrorWithCtx(query.ctx).Msgf("unexpected %d of rows in range aggregation response. Expected 1.", len(rows))
 		return model.JsonMap{}

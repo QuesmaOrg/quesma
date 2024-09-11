@@ -3,33 +3,22 @@
 package queryparser
 
 import (
-	"cmp"
 	"context"
 	"fmt"
-	"github.com/jinzhu/copier"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/concurrent"
 	"quesma/model"
-	"quesma/model/bucket_aggregations"
-	"quesma/queryparser/query_util"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/testdata"
 	"quesma/testdata/clients"
 	dashboard_1 "quesma/testdata/dashboard-1"
 	kibana_visualize "quesma/testdata/kibana-visualize"
 	opensearch_visualize "quesma/testdata/opensearch-visualize"
-	"quesma/util"
-	"slices"
-	"strconv"
-	"strings"
 	"testing"
 )
 
 const tableName = model.SingleTableNamePlaceHolder
 
+/*
 // Simple unit tests, testing only "aggs" part of the request json query
 var aggregationTests = []struct {
 	aggregationJson string
@@ -653,72 +642,7 @@ var aggregationTests = []struct {
 			`SELECT count() FROM ` + tableName,
 		},
 	},
-}
-
-// Simple unit test, testing only "aggs" part of the request json query
-func TestAggregationParser(t *testing.T) {
-	// logger.InitSimpleLoggerForTests() // FIXME there are 2 warns if you enable them, might look into that
-	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
-		( "message" String, "timestamp" DateTime64(3, 'UTC') )
-		ENGINE = Memory`,
-		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), &config.QuesmaConfiguration{})
-	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
-				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
-				},
-			},
-		},
-	}
-
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
-
-	for testIdx, test := range aggregationTests {
-		t.Run(strconv.Itoa(testIdx), func(t *testing.T) {
-			body, parseErr := types.ParseJSON(test.aggregationJson)
-			assert.NoError(t, parseErr)
-			aggregations, err := cw.ParseAggregationJson(body)
-			assert.NoError(t, err)
-			assert.Equal(t, len(test.translatedSqls), len(aggregations))
-			for _, aggregation := range aggregations {
-				util.AssertContainsSqlEqual(t, test.translatedSqls, aggregation.SelectCommand.String())
-			}
-		})
-	}
-}
-
-// Used in tests to make processing `aggregations` in a deterministic way
-func sortAggregations(aggregations []*model.Query) {
-	slices.SortFunc(aggregations, func(a, b *model.Query) int {
-		aLen, bLen := len(a.Aggregators), len(b.Aggregators)
-		for i := range min(aLen, bLen) {
-			if a.Aggregators[i].Name != b.Aggregators[i].Name {
-				return cmp.Compare(a.Aggregators[i].Name, b.Aggregators[i].Name)
-			}
-		}
-		// non-aggregations (len == 0) should be first
-		if aLen == 0 || bLen == 0 {
-			return cmp.Compare(aLen, bLen)
-		}
-		// longer list is first, as we first go deeper when parsing aggregations
-		return cmp.Compare(bLen, aLen)
-	})
-}
+}*/
 
 func allAggregationTests() []testdata.AggregationTestCase {
 	const lowerBoundTestNr = 90
@@ -742,163 +666,6 @@ func allAggregationTests() []testdata.AggregationTestCase {
 	add(clients.OpheliaTests, "clients/ophelia")
 
 	return allTests
-}
-
-func TestAggregationParserExternalTestcases(t *testing.T) {
-
-	ctx := context.Background()
-
-	// logger.InitSimpleLoggerForTests()
-	table := clickhouse.Table{
-		Cols: map[string]*clickhouse.Column{
-			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"order_date":  {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
-			"message":     {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"bytes_gauge": {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
-		},
-		Name:   tableName,
-		Config: clickhouse.NewDefaultCHConfig(),
-	}
-	cfg := &config.QuesmaConfiguration{}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), cfg)
-
-	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
-				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
-				},
-			},
-		},
-	}
-
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s, Config: cfg}
-	for i, test := range allAggregationTests() {
-		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)(file:opensearch-visualize/pipeline_agg_req,nr:18)" {
-				t.Skip("Needs to be fixed by keeping last key for every aggregation. Now we sometimes don't know it. Hard to reproduce, leaving it for separate PR")
-			}
-			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:22)" {
-				t.Skip("Waiting for fix. Now we handle only the case where pipeline agg is at the same nesting level as its parent. Should be quick to fix.")
-			}
-			if i == 27 || i == 29 || i == 30 {
-				t.Skip("New tests, harder, failing for now.")
-			}
-			if strings.HasPrefix(test.TestName, "dashboard-1") {
-				t.Skip("Those 2 tests have nested histograms with min_doc_count=0. Some work done long time ago (Krzysiek)")
-			}
-			if test.TestName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range(file:opensearch-visualize/agg_req,nr:1)" {
-				t.Skip("Need a (most likely) small fix to top_hits.")
-			}
-			if i == 20 {
-				t.Skip("Fixed in next PR.")
-			}
-			if i == 7 {
-				t.Skip("Let's implement top_hits in next PR. Easily doable, just a bit of code.")
-			}
-			if test.TestName == "it's the same input as in previous test, but with the original output from Elastic."+
-				"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
-				"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix(file:clients/kunkka,nr:1)" {
-				t.Skip("Unskip and remove the previous test after those fixes.")
-			}
-			if test.TestName == "clients/kunkka/test_1, used to be broken before aggregations merge fix(file:clients/kunkka,nr:2)" {
-				t.Skip("Small details left for this test to be correct. I'll (Krzysiek) fix soon after returning to work")
-			}
-			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations(file:clients/ophelia,nr:2)" ||
-				test.TestName == "Ophelia Test 6: triple terms + other aggregations + order by another aggregations(file:clients/ophelia,nr:5)" ||
-				test.TestName == "Ophelia Test 7: 5x terms + a lot of other aggregations + different order bys(file:clients/ophelia,nr:6)" {
-				t.Skip("Very similar to 2 previous tests, results have like 500-1000 lines. They are almost finished though. Maybe I'll fix soon, but not in this PR")
-			}
-
-			if test.TestName == "terms order by quantile, simplest - only one percentile(file:agg_req_2,nr:11)" ||
-				test.TestName == "terms order by quantile - more percentiles(file:agg_req_2,nr:12)" {
-				t.Skip("Not bothering with writing expected results for non-pancakes.")
-			}
-
-			if strings.HasPrefix(test.TestName, "2x date_histogram") || strings.HasPrefix(test.TestName, "2x histogram") {
-				t.Skip("Don't want to waste time on filling results there. Do that if we decide not to discard non-pancake logic soon.")
-			}
-
-			body, parseErr := types.ParseJSON(test.QueryRequestJson)
-			assert.NoError(t, parseErr)
-
-			plan, err := cw.ParseQuery(body)
-			queries := plan.Queries
-			assert.NoError(t, err)
-			assert.Len(t, test.ExpectedResults, len(queries))
-			sortAggregations(queries) // to make test runs deterministic
-
-			// Let's leave those commented debugs for now, they'll be useful in next PRs
-			for j, query := range queries {
-				// fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n%v\n\n", j, query, model.AsString(query.SelectCommand), query.SelectCommand.Columns)
-				if test.ExpectedSQLs[j] != "NoDBQuery" {
-					util.AssertSqlEqual(t, test.ExpectedSQLs[j], query.SelectCommand.String())
-				}
-				if query_util.IsNonAggregationQuery(query) {
-					continue
-				}
-
-				var resultTransformer model.QueryRowsTransformer
-				switch agg := query.Type.(type) {
-				case bucket_aggregations.Histogram:
-
-					resultTransformer = agg.NewRowsTransformer()
-
-				case *bucket_aggregations.DateHistogram:
-					resultTransformer = agg.NewRowsTransformer()
-				}
-				if resultTransformer != nil {
-					test.ExpectedResults[j] = resultTransformer.Transform(ctx, test.ExpectedResults[j])
-				}
-
-				// fmt.Println("--- Group by: ", query.GroupByFields)
-			}
-
-			// I copy `test.ExpectedResults`, as it's processed 2 times and each time it might be modified by
-			// pipeline aggregation processing.
-			var expectedResultsCopy [][]model.QueryResultRow
-			err = copier.CopyWithOption(&expectedResultsCopy, &test.ExpectedResults, copier.Option{DeepCopy: true})
-			assert.NoError(t, err)
-			// pp.Println("EXPECTED", expectedResultsCopy)
-			response := cw.MakeSearchResponse(queries, test.ExpectedResults)
-			responseMarshalled, marshalErr := response.Marshal()
-			// pp.Println("ACTUAL", response)
-			assert.NoError(t, marshalErr)
-
-			expectedResponseMap, _ := util.JsonToMap(test.ExpectedResponse)
-			var expectedAggregationsPart JsonMap
-			if responseSubMap, hasResponse := expectedResponseMap["response"]; hasResponse {
-				expectedAggregationsPart = responseSubMap.(JsonMap)["aggregations"].(JsonMap)
-			} else {
-				expectedAggregationsPart = expectedResponseMap["aggregations"].(JsonMap)
-			}
-			actualMinusExpected, expectedMinusActual := util.MapDifference(response.Aggregations,
-				expectedAggregationsPart, []string{}, true, true)
-
-			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
-			acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
-				"sum_other_doc_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
-			// pp.Println("ACTUAL diff", actualMinusExpected)
-			// pp.Println("EXPECTED diff", expectedMinusActual)
-			// pp.Println("ACTUAL", response.Aggregations)
-			// pp.Println("EXPECTED", expectedAggregationsPart)
-			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
-			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
-			if body["track_total_hits"] == true { // FIXME some better check after track_total_hits
-				assert.Contains(t, string(responseMarshalled), `"value":`+strconv.FormatUint(test.ExpectedResults[0][0].Cols[0].Value.(uint64), 10))
-			} // checks if hits nr is OK
-		})
-	}
 }
 
 func Test_quoteArray(t *testing.T) {

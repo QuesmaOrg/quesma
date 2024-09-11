@@ -1,6 +1,7 @@
 name: E2E tests
 
-on: # @TODO TBD WHEN WE RUN
+on: # @TODO should we run it on PRs?
+  merge_group:
   push:
     branches: [ "main" ]
   workflow_dispatch:

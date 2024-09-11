@@ -86,7 +86,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) model.JsonMap {
 	// check if we finish
 	if aggregatorsLevel == len(query.Aggregators) {
-		return query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)
+		return query.Type.TranslateSqlResponseToJson(ResultSet)
 	}
 
 	currentAggregator := query.Aggregators[aggregatorsLevel]
@@ -227,7 +227,7 @@ func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results []
 		logger.ErrorWithCtx(cw.Ctx).Msgf("hits query type is nil: %v", hitsQuery)
 		return queriesWithoutHits, resultsWithoutHits, nil
 	}
-	hitsPartOfResponse := hitsQuery.Type.TranslateSqlResponseToJson(hitsResultSet, 0)
+	hitsPartOfResponse := hitsQuery.Type.TranslateSqlResponseToJson(hitsResultSet)
 
 	hitsResponse := hitsPartOfResponse["hits"].(model.SearchHits)
 	return queriesWithoutHits, resultsWithoutHits, &hitsResponse

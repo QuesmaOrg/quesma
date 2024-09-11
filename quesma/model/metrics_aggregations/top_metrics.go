@@ -35,13 +35,13 @@ func (query TopMetrics) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	var topElems []any
-	if len(rows) > 0 && level >= len(rows[0].Cols)-1 {
+	if len(rows) > 0 && 0 >= len(rows[0].Cols)-1 {
 		// values are [level, len(row.Cols) - 1]
 		logger.WarnWithCtx(query.ctx).Msgf(
-			"no columns returned for top_metrics aggregation, level: %d, len(rows[0].Cols): %d, len(rows): %d",
-			level, len(rows[0].Cols), len(rows),
+			"no columns returned for top_metrics aggregation, len(rows[0].Cols): %d, len(rows): %d",
+			len(rows[0].Cols), len(rows),
 		)
 	}
 	for _, row := range rows {
@@ -56,9 +56,9 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 			// per convention, we know that value we sorted by is in the last column (if it exists)
 			lastIndex := len(row.Cols) - 1 // last column is the sort column, we don't return it
 			sortVal = append(sortVal, row.Cols[lastIndex].Value)
-			valuesForMetrics = row.Cols[level:lastIndex]
+			valuesForMetrics = row.Cols[:lastIndex]
 		} else {
-			valuesForMetrics = row.Cols[level:]
+			valuesForMetrics = row.Cols
 		}
 
 		metrics := make(model.JsonMap)

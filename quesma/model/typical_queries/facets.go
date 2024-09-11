@@ -33,7 +33,7 @@ func (query Facets) AggregationType() model.AggregationType {
 	return model.TypicalAggregation
 }
 
-func (query Facets) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query Facets) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	return facetsTranslateSqlResponseToJson(query.ctx, rows)
 }
 

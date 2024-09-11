@@ -62,10 +62,9 @@ type (
 		Metadata JsonMap
 	}
 	QueryType interface {
-		// TranslateSqlResponseToJson 'level' - we want to translate [level:] (metrics aggr) or [level-1:] (bucket aggr) columns to JSON
-		// Previous columns are used for bucketing.
+		// TranslateSqlResponseToJson
 		// For 'bucket' aggregation result is a map wrapped in 'buckets' key.
-		TranslateSqlResponseToJson(rows []QueryResultRow, level int) JsonMap
+		TranslateSqlResponseToJson(rows []QueryResultRow) JsonMap
 
 		AggregationType() AggregationType
 
@@ -231,7 +230,7 @@ func (query UnknownAggregationType) AggregationType() AggregationType {
 	return UnknownAggregation
 }
 
-func (query UnknownAggregationType) TranslateSqlResponseToJson(rows []QueryResultRow, level int) JsonMap {
+func (query UnknownAggregationType) TranslateSqlResponseToJson(rows []QueryResultRow) JsonMap {
 	return make(JsonMap, 0)
 }
 
