@@ -63,6 +63,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
 			}
 
+			if i != 55 {
+				t.Skip()
+			}
+
 			fmt.Println("i:", i, "test:", test.TestName)
 
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)

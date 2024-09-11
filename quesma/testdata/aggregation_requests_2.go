@@ -3420,4 +3420,103 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE "aggr__0__1__order_1_rank"<=6
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
+	{ // [55]
+		TestName: "terms order by quantile - more percentiles",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"sample": {
+					"aggs": {
+						"histo": {
+							"histogram": {
+								"field": "taxful_total_price",
+								"interval": 224.19300000000004
+							}
+						}
+					},
+					"sampler": {
+						"shard_size": 5000
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 0,
+			"expiration_time_in_millis": 0,
+			"id": "quesma_async_0191e0d2-589d-7dd9-8ac9-7f51fdf2f8af",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"sample": {
+						"doc_count": 1978,
+						"histo": {
+							"buckets": [
+								{
+									"doc_count": 1960,
+									"key": 0
+								},
+								{
+									"doc_count": 17,
+									"key": 224.19300000000004
+								}
+							]
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 5934
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedResults: nil, // we don't handle it in pre-pancake logic
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__sample__histo__count", 1960),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", 224.19300000000004),
+				model.NewQueryResultCol("aggr__sample__histo__count", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", nil),
+				model.NewQueryResultCol("aggr__sample__histo__count", 1),
+			}},
+		},
+		ExpectedSQLs: nil, // we don't handle it in pre-pancake logic
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__sample__count",
+			  floor("taxful_total_price"/224.19300000000004)*224.19300000000004 AS
+			  "aggr__sample__histo__key_0", count(*) AS "aggr__sample__histo__count"
+			FROM (
+			  SELECT "taxful_total_price"
+			  FROM __quesma_table_name
+			  LIMIT 20000)
+			GROUP BY floor("taxful_total_price"/224.19300000000004)*224.19300000000004 AS
+			  "aggr__sample__histo__key_0"
+			ORDER BY "aggr__sample__histo__key_0" ASC`,
+	},
 }

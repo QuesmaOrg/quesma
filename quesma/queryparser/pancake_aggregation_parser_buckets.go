@@ -46,6 +46,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 		minDocCount := cw.parseMinDocCount(histogram)
 		aggregation.queryType = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
+		aggregation.filterOutEmptyKeyBucket = true // there's 'missing' parameter
 
 		field, _ := cw.parseFieldFieldMaybeScript(histogram, "histogram")
 		var col model.Expr

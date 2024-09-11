@@ -144,6 +144,7 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregat
 func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLayer, bucketRows []model.QueryResultRow,
 	subAggrRows [][]model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
 	// We are filter out null
+	fmt.Println("111", bucketRows)
 	if layer.nextBucketAggregation.filterOurEmptyKeyBucket {
 		nullRowToDelete := -1
 		bucketKeyName := layer.nextBucketAggregation.InternalNameForKeyPrefix()
