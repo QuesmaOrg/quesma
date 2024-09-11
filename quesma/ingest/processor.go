@@ -10,7 +10,6 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	chLib "quesma/clickhouse"
 	"quesma/concurrent"
-	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/index"
 	"quesma/jsonprocessor"
@@ -131,7 +130,7 @@ func (ip *IngestProcessor) ResolveIndexes(ctx context.Context, patterns string) 
 	results = make([]string, 0)
 	if strings.Contains(patterns, ",") {
 		for _, pattern := range strings.Split(patterns, ",") {
-			if pattern == elasticsearch.AllIndexesAliasIndexName || pattern == "" {
+			if pattern == "_all" || pattern == "" {
 				results = ip.tableDiscovery.TableDefinitions().Keys()
 				slices.Sort(results)
 				return results, nil
@@ -144,14 +143,14 @@ func (ip *IngestProcessor) ResolveIndexes(ctx context.Context, patterns string) 
 			}
 		}
 	} else {
-		if patterns == elasticsearch.AllIndexesAliasIndexName || len(patterns) == 0 {
+		if patterns == "_all" || len(patterns) == 0 {
 			results = ip.tableDiscovery.TableDefinitions().Keys()
 			slices.Sort(results)
 			return results, nil
 		} else {
 			ip.tableDiscovery.TableDefinitions().
 				Range(func(tableName string, v *chLib.Table) bool {
-					if elasticsearch.IndexMatches(patterns, tableName) {
+					if util.IndexPatternMatches(patterns, tableName) {
 						results = append(results, tableName)
 					}
 					return true

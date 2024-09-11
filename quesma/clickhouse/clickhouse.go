@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math"
 	"quesma/concurrent"
-	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/index"
 	"quesma/logger"
@@ -135,17 +134,17 @@ func (lm *LogManager) Close() {
 // Deprecated: use ResolveIndexes instead, this method will be removed once we switch to the new one
 // Indexes can be in a form of wildcard, e.g. "index-*"
 // If we have such index, we need to resolve it to a real table name.
-func (lm *LogManager) ResolveTableName(index string) (result string) {
-	lm.tableDiscovery.TableDefinitions().
-		Range(func(k string, v *Table) bool {
-			if elasticsearch.IndexMatches(index, k) {
-				result = k
-				return false
-			}
-			return true
-		})
-	return result
-}
+//func (lm *LogManager) ResolveTableName(index string) (result string) {
+//	lm.tableDiscovery.TableDefinitions().
+//		Range(func(k string, v *Table) bool {
+//			if elasticsearch.IndexMatches(index, k) {
+//				result = k
+//				return false
+//			}
+//			return true
+//		})
+//	return result
+//}
 
 // Indexes can be in a form of wildcard, e.g. "index-*" or even contain multiple patterns like "index-*,logs-*",
 // this method returns all matching indexes
@@ -159,7 +158,7 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 	results = make([]string, 0)
 	if strings.Contains(patterns, ",") {
 		for _, pattern := range strings.Split(patterns, ",") {
-			if pattern == elasticsearch.AllIndexesAliasIndexName || pattern == "" {
+			if pattern == "_all" || pattern == "" {
 				results = lm.tableDiscovery.TableDefinitions().Keys()
 				slices.Sort(results)
 				return results, nil
@@ -172,14 +171,14 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 			}
 		}
 	} else {
-		if patterns == elasticsearch.AllIndexesAliasIndexName || len(patterns) == 0 {
+		if patterns == "_all" || len(patterns) == 0 {
 			results = lm.tableDiscovery.TableDefinitions().Keys()
 			slices.Sort(results)
 			return results, nil
 		} else {
 			lm.tableDiscovery.TableDefinitions().
 				Range(func(tableName string, v *Table) bool {
-					if elasticsearch.IndexMatches(patterns, tableName) {
+					if util.IndexPatternMatches(patterns, tableName) {
 						results = append(results, tableName)
 					}
 					return true

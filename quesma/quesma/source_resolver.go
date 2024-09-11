@@ -31,7 +31,7 @@ func ResolveSources(indexPattern string, cfg *config.QuesmaConfiguration, im ela
 			}
 
 			for indexName, indexConfig := range cfg.IndexConfig {
-				if elasticsearch.IndexMatches(pattern, indexName) && !indexConfig.Disabled {
+				if util.IndexPatternMatches(pattern, indexName) && !indexConfig.Disabled {
 					matchesClickhouse = append(matchesClickhouse, indexName)
 				}
 			}

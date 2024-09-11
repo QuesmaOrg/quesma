@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Elastic-2.0
 package schema
 
-import "strings"
+import (
+	"quesma/clickhouse"
+	"strings"
+)
 
 type (
 	Schema struct {
@@ -10,6 +13,7 @@ type (
 		Aliases             map[FieldName]FieldName
 		ExistsInDataSource  bool
 		internalNameToField map[FieldName]Field
+		InternalTableRepr   *clickhouse.Table
 	}
 	Field struct {
 		// PropertyName is how users refer to the field
