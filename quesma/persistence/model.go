@@ -1,9 +1,9 @@
-package persistance
+package persistence
 
 import "quesma/quesma/types"
 
-type Persistance interface {
-	List() ([]string, error)
-	Get(string) (types.JSON, error)
-	Put(string, types.JSON) error
+type JSONDatabase interface {
+	List() (keys []string, err error)
+	Get(key string) (types.JSON, error)
+	Put(key string, data types.JSON) error
 }

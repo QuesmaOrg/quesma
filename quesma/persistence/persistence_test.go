@@ -11,7 +11,7 @@ func TestNewElasticPersistence(t *testing.T) {
 
 	var p JSONDatabase
 
-	if false {
+	if true {
 		p = NewStaticJSONDatabase()
 	} else {
 		indexName := fmt.Sprintf("quesma_test_%d", time.Now().UnixMicro())
