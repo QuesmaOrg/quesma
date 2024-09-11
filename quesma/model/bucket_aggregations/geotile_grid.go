@@ -6,6 +6,7 @@ import (
 	"context"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/util"
 	"strconv"
 )
 
@@ -30,9 +31,9 @@ func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow,
 	}
 	var response []model.JsonMap
 	for _, row := range rows {
-		zoom := int64(row.Cols[0].Value.(float64))
-		x := int64(row.Cols[1].Value.(float64))
-		y := int64(row.Cols[2].Value.(float64))
+		zoom := int64(util.ExtractFloat64(row.Cols[0].Value))
+		x := int64(util.ExtractFloat64(row.Cols[1].Value))
+		y := int64(util.ExtractFloat64(row.Cols[2].Value))
 		key := strconv.FormatInt(zoom, 10) + "/" + strconv.FormatInt(x, 10) + "/" + strconv.FormatInt(y, 10)
 		response = append(response, model.JsonMap{
 			"key":       key,

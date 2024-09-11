@@ -63,7 +63,7 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	elkResponse.Body.Close()
 }
 
-func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, elkResponse *http.Response, quesmaResponse *mux.Result, zip bool) {
+func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, quesmaResponse *mux.Result, zip bool) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 
@@ -84,28 +84,6 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 	} else {
 		_, _ = io.Copy(w, bytes.NewBuffer(unzipped))
 	}
-	if elkResponse != nil {
-		LogMissingEsHeaders(elkResponse.Header, w.Header(), id)
-	}
-}
-
-func sendElkResponseToQuesmaConsole(ctx context.Context, elkResponse elasticResult, console *ui.QuesmaManagementConsole) {
-	reader := elkResponse.response.Body
-	body, err := io.ReadAll(reader)
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
-	if err != nil {
-		logger.ErrorWithCtx(ctx).Msgf("Error reading response body: %v", err)
-		return
-	}
-	elkResponse.response.Body = io.NopCloser(bytes.NewBuffer(body))
-
-	if gzip.IsGzipped(elkResponse.response) {
-		body, err = gzip.UnZip(body)
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("Error unzipping: %v", err)
-		}
-	}
-	console.PushPrimaryInfo(&ui.QueryDebugPrimarySource{Id: id, QueryResp: body, PrimaryTook: elkResponse.took})
 }
 
 func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, inspect bool) *Quesma {
@@ -176,36 +154,9 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 	handler, found := router.Matches(quesmaRequest)
 	if found {
-
-		var elkResponseChan = make(chan elasticResult)
-
-		if r.config.EnableElasticsearchIngest {
-			elkResponseChan = r.sendHttpRequestToElastic(ctx, req, reqBody, false)
-		}
-
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
 			return handler(ctx, quesmaRequest)
 		})
-		var elkRawResponse elasticResult
-		var elkResponse *http.Response
-		if r.config.EnableElasticsearchIngest {
-			elkRawResponse = <-elkResponseChan
-			elkResponse = elkRawResponse.response
-		} else {
-			elkResponse = nil
-		}
-		if elkResponse != nil {
-			if routes.IsQueryPath(req.URL.Path) { // We should send only responses for search queries to Quesma console
-				sendElkResponseToQuesmaConsole(ctx, elkRawResponse, r.quesmaManagementConsole)
-			}
-			if !(elkResponse.StatusCode >= 200 && elkResponse.StatusCode < 300) {
-
-				// elastic respond with 400 status code for our async search queries
-				if !(elkResponse.StatusCode == 400 && strings.HasPrefix(req.URL.Path, "/_async_search/quesma_async_")) {
-					logger.WarnWithCtx(ctx).Msgf("Elasticsearch returned unexpected status code [%d] when calling [%s %s]", elkResponse.StatusCode, req.Method, req.URL.Path)
-				}
-			}
-		}
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
 
@@ -220,45 +171,38 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			}
 			addProductAndContentHeaders(req.Header, w.Header())
 
-			responseFromQuesma(ctx, unzipped, w, elkResponse, quesmaResponse, zip)
+			responseFromQuesma(ctx, unzipped, w, quesmaResponse, zip)
 
 		} else {
 
 			r.failedRequests.Add(1)
 
-			if elkResponse != nil && r.config.Mode == config.DualWriteQueryClickhouseFallback {
-				logger.ErrorWithCtx(ctx).Msgf("quesma request failed: %v", err)
-				responseFromElastic(ctx, elkResponse, w)
+			msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
+			reason := "Failed request."
+			result := mux.ServerErrorResult()
 
-			} else {
+			// if error is an error with user-friendly message, we should use it
+			var endUserError *end_user_errors.EndUserError
+			if errors.As(err, &endUserError) {
+				msg = endUserError.EndUserErrorMessage()
+				reason = endUserError.Reason()
 
-				msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
-				reason := "Failed request."
-				result := mux.ServerErrorResult()
-
-				// if error is an error with user-friendly message, we should use it
-				var endUserError *end_user_errors.EndUserError
-				if errors.As(err, &endUserError) {
-					msg = endUserError.EndUserErrorMessage()
-					reason = endUserError.Reason()
-
-					// we treat all `Q1xxx` errors as bad requests here
-					if endUserError.ErrorType().Number < 2000 {
-						result = mux.BadReqeustResult()
-					}
+				// we treat all `Q1xxx` errors as bad requests here
+				if endUserError.ErrorType().Number < 2000 {
+					result = mux.BadReqeustResult()
 				}
-
-				logger.ErrorWithCtxAndReason(ctx, reason).Msgf("quesma request failed: %v", err)
-
-				requestId := "n/a"
-				if contextRid, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
-					requestId = contextRid
-				}
-
-				// We should not send our error message to the client. There can be sensitive information in it.
-				// We will send ID of failed request instead
-				responseFromQuesma(ctx, []byte(fmt.Sprintf("%s\nRequest ID: %s\n", msg, requestId)), w, elkResponse, result, zip)
 			}
+
+			logger.ErrorWithCtxAndReason(ctx, reason).Msgf("quesma request failed: %v", err)
+
+			requestId := "n/a"
+			if contextRid, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
+				requestId = contextRid
+			}
+
+			// We should not send our error message to the client. There can be sensitive information in it.
+			// We will send ID of failed request instead
+			responseFromQuesma(ctx, []byte(fmt.Sprintf("%s\nRequest ID: %s\n", msg, requestId)), w, result, zip)
 		}
 	} else {
 
@@ -411,7 +355,7 @@ func (q *Quesma) Close(ctx context.Context) {
 
 func (q *Quesma) Start() {
 	defer recovery.LogPanic()
-	logger.Info().Msgf("starting quesma in the mode: %v", q.config.Mode)
+	logger.Info().Msgf("starting quesma, transparent proxy mode: %t", q.config.TransparentProxy)
 
 	go q.processor.Ingest()
 	go q.quesmaManagementConsole.Run()

@@ -2946,4 +2946,478 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__5__order_1_rank"<=20)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__5__order_1_rank" ASC`,
 	},
+	{ // [53]
+		TestName: "terms order by quantile, simplest - only one percentile",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"aggs": {
+								"2": {
+									"percentiles": {
+										"field": "docker.cpu.total.pct",
+										"keyed": false,
+										"percents": [
+								  			75
+										]
+									}
+								}
+							},
+							"terms": {
+								"field": "container.name",
+								"order": {
+									"2.75": "desc"
+								},
+								"shard_size": 25,
+								"size": 5
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "@timestamp",
+						"fixed_interval": "12h",
+						"min_doc_count": 1
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "docker.container.created",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"bool": {
+								"minimum_should_match": 1,
+								"should": [
+									{
+										"term": {
+				  							"data_stream.dataset": {
+												"value": "docker.cpu"
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"range": {
+								"@timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-08-18T07:54:12.291Z",
+									"lte": "2024-09-02T07:54:12.291Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1720352002293,
+			"expiration_time_in_millis": 1720352062445,
+			"id": "FnpTUXdfTTZLUlBtQVo1YzBTVFBseEEcM19IaHdFWG5RN1d1eV9VaUcxenYwdzo0MTc0MA==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"key": 1706011200000,
+								"key_as_string": "2024-01-23T12:00:00.000",
+								"doc_count": 5,
+								"1": {
+									"buckets": [
+										{
+											"key": "x",
+											"doc_count": 2,
+											"2": {
+												"values": [
+													{
+														"key": 75,
+														"value": 349.95000000000005
+													}
+												]
+											}
+										},
+ 										{
+											"key": "y",
+											"doc_count": 1,
+											"2": {
+												"values": [
+													{
+														"key": 75,
+														"value": 100.2
+													}
+												]
+											}
+										}
+									],
+									"sum_other_doc_count": 2
+								}
+							},
+							{
+								"key": 1706054400000,
+								"key_as_string": "2024-01-24T00:00:00.000",
+								"doc_count": 5,
+								"1": {
+									"buckets": [
+										{
+											"key": "a",
+											"doc_count": 3,
+											"2": {
+												"values": [
+													{
+														"key": 75,
+														"value": 5
+													}
+												]
+											}
+										}
+									],
+									"sum_other_doc_count": 2
+								}
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 50427
+					}
+				},
+				"timed_out": false,
+				"took": 554
+			},
+			"start_time_in_millis": 1720352001739
+		}`,
+		ExpectedResults: nil, // we don't handle it in pre-pancake logic
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706011200000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "x"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(2)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 349.95000000000005),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{349.95000000000005}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706011200000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "y"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(1)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 100.2),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{100.2}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706054400000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "a"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(3)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 5),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{5}),
+			}},
+		},
+		ExpectedSQLs: nil, // we don't handle it in pre-pancake logic
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
+			  "aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
+			  "metric__0__1__2_col_0"
+			FROM (
+			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
+				"aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
+				"metric__0__1__2_col_0",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__order_1_rank"
+			  FROM (
+				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
+				  "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
+				  "aggr__0__1__parent_count", "container.name" AS "aggr__0__1__key_0",
+				  count(*) AS "aggr__0__1__count",
+				  quantiles(0.750000)("docker.cpu.total.pct") AS "aggr__0__1__order_1",
+				  quantiles(0.750000)("docker.cpu.total.pct") AS "metric__0__1__2_col_0"
+				FROM __quesma_table_name
+				WHERE ("data_stream.dataset"='docker.cpu' AND ("@timestamp">=
+				  parseDateTime64BestEffort('2024-08-18T07:54:12.291Z') AND "@timestamp"<=
+				  parseDateTime64BestEffort('2024-09-02T07:54:12.291Z')))
+				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
+				  "aggr__0__key_0", "container.name" AS "aggr__0__1__key_0"))
+			WHERE "aggr__0__1__order_1_rank"<=6
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+	},
+	{ // [54]
+		TestName: "terms order by quantile - more percentiles",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"aggs": {
+								"2": {
+									"percentiles": {
+										"field": "docker.cpu.total.pct",
+										"keyed": false,
+										"percents": [
+								  			10, 75, 99
+										]
+									}
+								}
+							},
+							"terms": {
+								"field": "container.name",
+								"order": {
+									"2.75": "desc"
+								},
+								"shard_size": 25,
+								"size": 5
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "@timestamp",
+						"fixed_interval": "12h",
+						"min_doc_count": 1
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "docker.container.created",
+					"format": "date_time"
+				}
+			],
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1720352002293,
+			"expiration_time_in_millis": 1720352062445,
+			"id": "FnpTUXdfTTZLUlBtQVo1YzBTVFBseEEcM19IaHdFWG5RN1d1eV9VaUcxenYwdzo0MTc0MA==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"key": 1706011200000,
+								"key_as_string": "2024-01-23T12:00:00.000",
+								"doc_count": 5,
+								"1": {
+									"buckets": [
+										{
+											"key": "x",
+											"doc_count": 2,
+											"2": {
+												"values": [
+													{
+														"key": 10,
+														"value": 349.95000000000005
+													},
+													{
+														"key": 75,
+														"value": 10.1
+													},
+													{
+														"key": 99,
+														"value": 20.2
+													}
+												]
+											}
+										},
+ 										{
+											"key": "y",
+											"doc_count": 1,
+											"2": {
+												"values": [
+													{
+														"key": 10,
+														"value": 100.2
+													},
+													{
+														"key": 75,
+														"value": 11.1
+													},
+													{
+														"key": 99,
+														"value": 21.2
+													}
+												]
+											}
+										}
+									],
+									"sum_other_doc_count": 2
+								}
+							},
+							{
+								"key": 1706054400000,
+								"key_as_string": "2024-01-24T00:00:00.000",
+								"doc_count": 5,
+								"1": {
+									"buckets": [
+										{
+											"key": "a",
+											"doc_count": 3,
+											"2": {
+												"values": [
+													{
+														"key": 10,
+														"value": 5
+													},
+													{
+														"key": 75,
+														"value": 12.1
+													},
+													{
+														"key": 99,
+														"value": 22.2
+													}
+												]
+											}
+										}
+									],
+									"sum_other_doc_count": 2
+								}
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 50427
+					}
+				},
+				"timed_out": false,
+				"took": 554
+			},
+			"start_time_in_millis": 1720352001739
+		}`,
+		ExpectedResults: nil, // we don't handle it in pre-pancake logic
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706011200000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "x"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(2)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 349.95000000000005),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{349.95000000000005}),
+				model.NewQueryResultCol("metric__0__1__2_col_1", []float64{10.1}),
+				model.NewQueryResultCol("metric__0__1__2_col_2", []float64{20.2}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706011200000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "y"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(1)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 100.2),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{100.2}),
+				model.NewQueryResultCol("metric__0__1__2_col_1", []float64{11.1}),
+				model.NewQueryResultCol("metric__0__1__2_col_2", []float64{21.2}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706054400000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "a"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(3)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 5),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{5}),
+				model.NewQueryResultCol("metric__0__1__2_col_1", []float64{12.1}),
+				model.NewQueryResultCol("metric__0__1__2_col_2", []float64{22.2}),
+			}},
+		},
+		ExpectedSQLs: nil, // we don't handle it in pre-pancake logic
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
+			  "aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
+			  "metric__0__1__2_col_0", "metric__0__1__2_col_1", "metric__0__1__2_col_2"
+			FROM (
+			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
+				"aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
+				"metric__0__1__2_col_0", "metric__0__1__2_col_1", "metric__0__1__2_col_2",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
+				,
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__order_1_rank"
+			  FROM (
+				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
+				  "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
+				  "aggr__0__1__parent_count", "container.name" AS "aggr__0__1__key_0",
+				  count(*) AS "aggr__0__1__count",
+				  quantiles(0.750000)("docker.cpu.total.pct") AS "aggr__0__1__order_1",
+				  quantiles(0.100000)("docker.cpu.total.pct") AS "metric__0__1__2_col_0",
+				  quantiles(0.750000)("docker.cpu.total.pct") AS "metric__0__1__2_col_1",
+				  quantiles(0.990000)("docker.cpu.total.pct") AS "metric__0__1__2_col_2"
+				FROM __quesma_table_name
+				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
+				  "aggr__0__key_0", "container.name" AS "aggr__0__1__key_0"))
+			WHERE "aggr__0__1__order_1_rank"<=6
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+	},
 }

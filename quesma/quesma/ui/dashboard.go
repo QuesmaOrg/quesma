@@ -212,7 +212,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	duration := uint64(time.Since(qmc.startedAt).Seconds())
 
 	buffer.Html(fmt.Sprintf(`<div class="status">Started: %s ago</div>`, secondsToTerseString(duration)))
-	buffer.Html(fmt.Sprintf(`<div class="status">Mode: %s</div>`, qmc.cfg.Mode.String()))
+	buffer.Html(fmt.Sprintf(`<div class="status">Transparent proxy: %t</div>`, qmc.cfg.TransparentProxy))
 
 	if h, errH := host.Info(); errH == nil {
 		buffer.Html(fmt.Sprintf(`<div class="status">Host uptime: %s</div>`, secondsToTerseString(h.Uptime)))

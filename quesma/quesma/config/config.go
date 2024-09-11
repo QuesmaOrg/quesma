@@ -29,10 +29,10 @@ var (
 
 type QuesmaConfiguration struct {
 	// both clickhouse and hydrolix connections are going to be deprecated and everything is going to live under connector
-	Connectors     map[string]RelationalDbConfiguration `koanf:"connectors"`
-	Mode           operationMode                        `koanf:"mode"`
-	InstallationId string                               `koanf:"installationId"`
-	LicenseKey     string                               `koanf:"licenseKey"`
+	Connectors       map[string]RelationalDbConfiguration `koanf:"connectors"`
+	TransparentProxy bool                                 `koanf:"transparentProxy"`
+	InstallationId   string                               `koanf:"installationId"`
+	LicenseKey       string                               `koanf:"licenseKey"`
 	//deprecated
 	ClickHouse RelationalDbConfiguration `koanf:"clickhouse"`
 	//deprecated
@@ -41,7 +41,6 @@ type QuesmaConfiguration struct {
 	IndexConfig                map[string]IndexConfiguration `koanf:"indexes"`
 	Logging                    LoggingConfiguration          `koanf:"logging"`
 	PublicTcpPort              network.Port                  `koanf:"port"`
-	EnableElasticsearchIngest  bool                          `koanf:"enableElasticsearchIngest"`
 	IngestStatistics           bool                          `koanf:"ingestStatistics"`
 	QuesmaInternalTelemetryUrl *Url                          `koanf:"internalTelemetryUrl"`
 }
@@ -158,9 +157,6 @@ func (c *QuesmaConfiguration) Validate() error {
 	if c.Elasticsearch.Url == nil {
 		result = multierror.Append(result, fmt.Errorf("elasticsearch URL is required"))
 	}
-	if c.Mode == "" {
-		result = multierror.Append(result, fmt.Errorf("quesma operating mode is required"))
-	}
 	for indexName, indexConfig := range c.IndexConfig {
 		result = c.validateIndexName(indexName, result)
 		// TODO enable when rolling out schema configuration
@@ -190,22 +186,19 @@ func (c *QuesmaConfiguration) validateIndexName(indexName string, result error) 
 }
 
 func (c *QuesmaConfiguration) ReadsFromClickhouse() bool {
-	return c.Mode == DualWriteQueryClickhouse || c.Mode == DualWriteQueryClickhouseFallback ||
-		c.Mode == DualWriteQueryClickhouseVerify || c.Mode == ClickHouse
+	return !c.TransparentProxy
 }
 
 func (c *QuesmaConfiguration) ReadsFromElasticsearch() bool {
-	return c.Mode == Proxy || c.Mode == ProxyInspect || c.Mode == DualWriteQueryElastic ||
-		c.Mode == DualWriteQueryClickhouse || c.Mode == DualWriteQueryClickhouseFallback ||
-		c.Mode == DualWriteQueryClickhouseVerify
+	return true
 }
 
 func (c *QuesmaConfiguration) WritesToClickhouse() bool {
-	return c.Mode != Proxy && c.Mode != ProxyInspect
+	return !c.TransparentProxy
 }
 
 func (c *QuesmaConfiguration) WritesToElasticsearch() bool {
-	return c.Mode != ClickHouse
+	return true
 }
 
 func (c *QuesmaConfiguration) optimizersConfigAsString(s string, cfg map[string]OptimizerConfiguration) string {
@@ -299,11 +292,10 @@ func (c *QuesmaConfiguration) String() string {
 	}
 	return fmt.Sprintf(`
 Quesma Configuration:
-	Mode: %s
+	Transparent proxy mode: %t
 	Elasticsearch URL: %s%s
 	ClickhouseUrl: %s%s
 	Connectors: %s
-	Call Elasticsearch: %v
 	Indexes: %s
 	Logs Path: %s
 	Log Level: %v
@@ -311,13 +303,12 @@ Quesma Configuration:
 	Ingest Statistics: %t,
 	Quesma Telemetry URL: %s
     Optimizers: %s`,
-		c.Mode.String(),
+		c.TransparentProxy,
 		elasticUrl,
 		elasticsearchExtra,
 		clickhouseUrl,
 		clickhouseExtra,
 		connectorString.String(),
-		c.EnableElasticsearchIngest,
 		indexConfigs,
 		c.Logging.Path,
 		c.Logging.Level,
