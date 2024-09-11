@@ -1690,7 +1690,7 @@ var AggregationTests2 = []AggregationTestCase{
 							"3": {
 								"buckets": [
 									{
-										"key": null,
+										"key": 5,
 										"doc_count": 1
 									}
 								]
@@ -1720,7 +1720,7 @@ var AggregationTests2 = []AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 9700.0),
 				model.NewQueryResultCol("aggr__2__count", 2),
-				model.NewQueryResultCol("aggr__2__3__key_0", nil),
+				model.NewQueryResultCol("aggr__2__3__key_0", 5),
 				model.NewQueryResultCol("aggr__2__3__count", 1),
 			}},
 		},
@@ -1870,7 +1870,7 @@ var AggregationTests2 = []AggregationTestCase{
 							"3": {
 								"buckets": [
 									{
-										"key": null,
+										"key": 5,
 										"doc_count": 1
 									}
 								]
@@ -1900,7 +1900,7 @@ var AggregationTests2 = []AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 9700.0),
 				model.NewQueryResultCol("aggr__2__count", 2),
-				model.NewQueryResultCol("aggr__2__3__key_0", nil),
+				model.NewQueryResultCol("aggr__2__3__key_0", 5),
 				model.NewQueryResultCol("aggr__2__3__count", 1),
 			}},
 		},
@@ -2786,5 +2786,521 @@ var AggregationTests2 = []AggregationTestCase{
 				  "aggr__0__key_0", "container.name" AS "aggr__0__1__key_0"))
 			WHERE "aggr__0__1__order_1_rank"<=6
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+	},
+	{ // [55]
+		TestName: "simple histogram with null values, no missing parameter",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"sample": {
+					"aggs": {
+						"histo": {
+							"histogram": {
+								"field": "taxful_total_price",
+								"interval": 224.19300000000004
+							}
+						}
+					},
+					"sampler": {
+						"shard_size": 5000
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 0,
+			"expiration_time_in_millis": 0,
+			"id": "quesma_async_0191e0d2-589d-7dd9-8ac9-7f51fdf2f8af",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"sample": {
+						"doc_count": 1978,
+						"histo": {
+							"buckets": [
+								{
+									"doc_count": 1960,
+									"key": 0
+								},
+								{
+									"doc_count": 17,
+									"key": 224.19300000000004
+								}
+							]
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 5934
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__sample__histo__count", 1960),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", 224.19300000000004),
+				model.NewQueryResultCol("aggr__sample__histo__count", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", nil),
+				model.NewQueryResultCol("aggr__sample__histo__count", 1),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__sample__count",
+			  floor("taxful_total_price"/224.19300000000004)*224.19300000000004 AS
+			  "aggr__sample__histo__key_0", count(*) AS "aggr__sample__histo__count"
+			FROM (
+			  SELECT "taxful_total_price"
+			  FROM __quesma_table_name
+			  LIMIT 20000)
+			GROUP BY floor("taxful_total_price"/224.19300000000004)*224.19300000000004 AS
+			  "aggr__sample__histo__key_0"
+			ORDER BY "aggr__sample__histo__key_0" ASC`,
+	},
+	{ // [56]
+		TestName: "histogram with null values, no missing parameter, and some subaggregation",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"histo": {
+					"histogram": {
+						"field": "taxful_total_price",
+						"interval": 224.19300000000004
+					},
+					"aggs": {
+						"0": {
+							"terms": {
+								"field": "type"
+							}
+						}
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 0,
+			"expiration_time_in_millis": 0,
+			"id": "quesma_async_0191e0d2-589d-7dd9-8ac9-7f51fdf2f8af",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"histo": {
+						"buckets": [
+							{
+								"doc_count": 1960,
+								"key": 0,
+								"0": {
+									"buckets": [
+										{
+											"doc_count": 42,
+											"key": "order"
+										},
+										{
+											"doc_count": 1,
+											"key": "disorder"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 1917
+								}
+							},
+							{
+								"doc_count": 17,
+								"key": 224.19300000000004
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 5934
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+				model.NewQueryResultCol("aggr__histo__0__order_1", int64(42)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "disorder"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 224.19300000000004),
+				model.NewQueryResultCol("aggr__histo__count", 17),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 17),
+				model.NewQueryResultCol("aggr__histo__0__key_0", nil),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", nil),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "a"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", nil),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "b"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__histo__key_0", "aggr__histo__count",
+			  "aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+			  "aggr__histo__0__count", "aggr__histo__0__order_1"
+			FROM (
+			  SELECT "aggr__histo__key_0", "aggr__histo__count",
+				"aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+				"aggr__histo__0__count", "aggr__histo__0__order_1",
+				dense_rank() OVER (ORDER BY "aggr__histo__key_0" ASC) AS
+				"aggr__histo__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__histo__key_0" ORDER BY
+				"aggr__histo__0__order_1" DESC, "aggr__histo__0__key_0" ASC) AS
+				"aggr__histo__0__order_1_rank"
+			  FROM (
+				SELECT floor("taxful_total_price"/224.19300000000004)*224.19300000000004 AS
+				  "aggr__histo__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
+				  count(*) AS "aggr__histo__0__count", count() AS "aggr__histo__0__order_1"
+				FROM __quesma_table_name
+				GROUP BY floor("taxful_total_price"/224.19300000000004)*224.19300000000004
+				  AS "aggr__histo__key_0", "type" AS "aggr__histo__0__key_0"))
+			WHERE "aggr__histo__0__order_1_rank"<=11
+			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
+	},
+	{ // [57]
+		TestName: "simple histogram with null values and missing parameter",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"sample": {
+					"aggs": {
+						"histo": {
+							"histogram": {
+								"field": "taxful_total_price",
+								"interval": 224.19300000000004,
+								"missing": 80
+							}
+						}
+					},
+					"sampler": {
+						"shard_size": 5000
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 0,
+			"expiration_time_in_millis": 0,
+			"id": "quesma_async_0191e0d2-589d-7dd9-8ac9-7f51fdf2f8af",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"sample": {
+						"doc_count": 1978,
+						"histo": {
+							"buckets": [
+								{
+									"doc_count": 1960,
+									"key": 0
+								},
+								{
+									"doc_count": 17,
+									"key": 80
+								},
+								{
+									"doc_count": 1,
+									"key": 224.19300000000004
+								}
+							]
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 5934
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__sample__histo__count", 1960),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", 80),
+				model.NewQueryResultCol("aggr__sample__histo__count", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", 224.19300000000004),
+				model.NewQueryResultCol("aggr__sample__histo__count", 1),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__sample__count",
+			  floor(COALESCE("taxful_total_price", 80)/224.19300000000004)*
+			  224.19300000000004 AS "aggr__sample__histo__key_0",
+			  count(*) AS "aggr__sample__histo__count"
+			FROM (
+			  SELECT "taxful_total_price"
+			  FROM __quesma_table_name
+			  LIMIT 20000)
+			GROUP BY floor(COALESCE("taxful_total_price", 80)/224.19300000000004)*
+			  224.19300000000004 AS "aggr__sample__histo__key_0"
+			ORDER BY "aggr__sample__histo__key_0" ASC`,
+	},
+	{ // [58]
+		TestName: "histogram with null values, missing parameter, and some subaggregation",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"histo": {
+					"histogram": {
+						"field": "taxful_total_price",
+						"interval": 224.19300000000004,
+						"missing": 800
+					},
+					"aggs": {
+						"0": {
+							"terms": {
+								"field": "type"
+							}
+						}
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 0,
+			"expiration_time_in_millis": 0,
+			"id": "quesma_async_0191e0d2-589d-7dd9-8ac9-7f51fdf2f8af",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"histo": {
+						"buckets": [
+							{
+								"doc_count": 1960,
+								"key": 0,
+								"0": {
+									"buckets": [
+										{
+											"doc_count": 42,
+											"key": "order"
+										},
+										{
+											"doc_count": 1,
+											"key": "disorder"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 1917
+								}
+							},
+							{
+								"doc_count": 17,
+								"key": 224.19300000000004
+							},
+							{
+								"doc_count": 15,
+								"key": 800,
+								"0": {
+									"buckets": [
+										{
+											"doc_count": 1,
+											"key": "a"
+										},
+										{
+											"doc_count": 1,
+											"key": "b"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 13
+								}
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 5934
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+				model.NewQueryResultCol("aggr__histo__0__order_1", int64(42)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "disorder"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 224.19300000000004),
+				model.NewQueryResultCol("aggr__histo__count", 17),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 17),
+				model.NewQueryResultCol("aggr__histo__0__key_0", nil),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 800),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "a"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 800),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "b"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__histo__key_0", "aggr__histo__count",
+			  "aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+			  "aggr__histo__0__count", "aggr__histo__0__order_1"
+			FROM (
+			  SELECT "aggr__histo__key_0", "aggr__histo__count",
+				"aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+				"aggr__histo__0__count", "aggr__histo__0__order_1",
+				dense_rank() OVER (ORDER BY "aggr__histo__key_0" ASC) AS
+				"aggr__histo__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__histo__key_0" ORDER BY
+				"aggr__histo__0__order_1" DESC, "aggr__histo__0__key_0" ASC) AS
+				"aggr__histo__0__order_1_rank"
+			  FROM (
+				SELECT floor(COALESCE("taxful_total_price", 800)/224.19300000000004)*
+				  224.19300000000004 AS "aggr__histo__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
+				  count(*) AS "aggr__histo__0__count", count() AS "aggr__histo__0__order_1"
+				FROM __quesma_table_name
+				GROUP BY floor(COALESCE("taxful_total_price", 800)/224.19300000000004)*
+				  224.19300000000004 AS "aggr__histo__key_0",
+				  "type" AS "aggr__histo__0__key_0"))
+			WHERE "aggr__histo__0__order_1_rank"<=11
+			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
 	},
 }
