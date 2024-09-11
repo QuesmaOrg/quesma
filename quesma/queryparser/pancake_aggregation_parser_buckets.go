@@ -83,7 +83,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 
 		if dateTimeType == clickhouse.Invalid {
-			return false, fmt.Errorf("invalid date time type for field %s", field)
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid date time type for field %s", field)
 		}
 
 		dateHistogramAggr := bucket_aggregations.NewDateHistogram(

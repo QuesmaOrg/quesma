@@ -96,7 +96,7 @@ func Test3AggregationParserNewLogic(t *testing.T) {
 				t.Skip()
 			}
 
-			body, parseErr := types.ParseJSON(test.QueryRequestJson)
+			_, parseErr := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, parseErr)
 
 			var queriesResultSets [][]model.QueryResultRow
@@ -142,7 +142,7 @@ func Test3AggregationParserNewLogic(t *testing.T) {
 
 			*/
 			response := cw.MakeSearchResponse(notCombinedQueries, queriesResultSets)
-			responseMarshalled, marshalErr := response.Marshal()
+			_, marshalErr := response.Marshal()
 			// pp.Println("ACTUAL", response)
 			assert.NoError(t, marshalErr)
 
@@ -166,9 +166,6 @@ func Test3AggregationParserNewLogic(t *testing.T) {
 			// pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
-			if body["track_total_hits"] == true { // FIXME some better check after track_total_hits
-				assert.Contains(t, string(responseMarshalled), `"value":`+strconv.FormatUint(test.ExpectedResults[0][0].Cols[0].Value.(uint64), 10))
-			} // checks if hits nr is OK
 		})
 	}
 }

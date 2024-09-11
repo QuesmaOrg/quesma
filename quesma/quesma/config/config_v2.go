@@ -113,6 +113,7 @@ func (c *QuesmaNewConfiguration) Validate() error {
 		errAcc = multierror.Append(errAcc, c.validateProcessor(pr))
 	}
 	errAcc = multierror.Append(errAcc, c.validatePipelines())
+	errAcc = multierror.Append(errAcc, c.validateBackendConnectors())
 
 	var multiErr *multierror.Error
 	if errors.As(errAcc, &multiErr) {
@@ -122,14 +123,6 @@ func (c *QuesmaNewConfiguration) Validate() error {
 		}
 	}
 	return nil
-}
-
-// unsafe to use!
-func (c *QuesmaNewConfiguration) getProcessorsConfiguredInPipelines() (processors []*Processor) {
-	for _, p := range c.Pipelines {
-		processors = append(processors, c.getProcessorByName(p.Processors[0]))
-	}
-	return processors
 }
 
 func (c *QuesmaNewConfiguration) getFrontendConnectorByName(name string) *FrontendConnector {
@@ -156,20 +149,26 @@ func (c *QuesmaNewConfiguration) validateFrontendConnectors() error {
 	return nil
 }
 
-func (c *QuesmaNewConfiguration) validatePipelines() error {
-	var isSinglePipeline, isDualPipeline bool // currently only supported options
-	if len(c.Pipelines) == 0 {
-		return fmt.Errorf("no pipelines defined, must define at least one")
-	}
+func (c *QuesmaNewConfiguration) getPipelinesType() (isSinglePipeline, isDualPipeline bool) {
+	isSinglePipeline, isDualPipeline = false, false
 	if len(c.Pipelines) == 1 {
 		isSinglePipeline = true
 	}
 	if len(c.Pipelines) == 2 {
 		isDualPipeline = true
 	}
+	return isSinglePipeline, isDualPipeline
+}
+
+func (c *QuesmaNewConfiguration) validatePipelines() error {
+	if len(c.Pipelines) == 0 {
+		return fmt.Errorf("no pipelines defined, must define at least one")
+	}
 	if len(c.Pipelines) > 2 {
 		return fmt.Errorf("only one or two pipelines are supported at this moment")
 	}
+	isSinglePipeline, isDualPipeline := c.getPipelinesType()
+
 	if isSinglePipeline {
 		// We plan to only support a case of a single pipeline for querying (this code validates this).
 		// However, we haven't yet implemented the case of disabling ingest, so single pipeline case is not yet supported.
@@ -226,7 +225,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		}
 		if !((fc1.Type == ElasticsearchFrontendQueryConnectorName && fc2.Type == ElasticsearchFrontendIngestConnectorName) ||
 			(fc2.Type == ElasticsearchFrontendQueryConnectorName && fc1.Type == ElasticsearchFrontendIngestConnectorName)) {
-			return fmt.Errorf("when declaring two fronted connector types, one must be of query type and the other of ingest type")
+			return fmt.Errorf("when declaring two frontend connector types, one must be of query type and the other of ingest type")
 		}
 		var queryPipeline, ingestPipeline Pipeline
 		if fc1.Type == ElasticsearchFrontendQueryConnectorName {
@@ -409,31 +408,33 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			conf.ClickHouse = *relDBConn
 		}
 	}
-	// Now determine Quesma final state with following heuristic
-	// if all configured pipelines are of type noop -> switch to transparent proxy mode, ditch the whole config
-	// else -> switch to "Quesma" mode
-	procList := c.getProcessorsConfiguredInPipelines()
-	if len(procList) == 1 {
-		if procList[0].Type == QuesmaV1ProcessorNoOp {
+
+	isSinglePipeline, isDualPipeline := c.getPipelinesType()
+
+	if isSinglePipeline {
+		procType := c.getProcessorByName(c.Pipelines[0].Processors[0]).Type
+		if procType == QuesmaV1ProcessorNoOp {
 			conf.TransparentProxy = true
 		} else {
-			conf.TransparentProxy = false
-		}
-	} else if len(procList) == 2 {
-		if procList[0].Type == QuesmaV1ProcessorNoOp && procList[1].Type == QuesmaV1ProcessorNoOp {
-			conf.TransparentProxy = true
-		} else {
-			conf.TransparentProxy = false
+			errAcc = multierror.Append(errAcc, fmt.Errorf("unsupported processor %s in single pipeline", procType))
 		}
 	}
-	if v1processor := procList[0]; v1processor != nil {
-		conf.IndexConfig = v1processor.Config.IndexConfig
-		for indexName, indexConfig := range v1processor.Config.IndexConfig {
+	if isDualPipeline {
+		fc1 := c.getFrontendConnectorByName(c.Pipelines[0].FrontendConnectors[0])
+		var queryPipeline, ingestPipeline Pipeline
+		if fc1.Type == ElasticsearchFrontendQueryConnectorName {
+			queryPipeline, ingestPipeline = c.Pipelines[0], c.Pipelines[1]
+		} else {
+			queryPipeline, ingestPipeline = c.Pipelines[1], c.Pipelines[0]
+		}
+
+		queryProcessor, _ := c.getProcessorByName(queryPipeline.Processors[0]), c.getProcessorByName(ingestPipeline.Processors[0])
+
+		conf.IndexConfig = make(map[string]IndexConfiguration)
+		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 			indexConfig.Name = indexName
 			conf.IndexConfig[indexName] = indexConfig
 		}
-	} else {
-		errAcc = multierror.Append(errAcc, err)
 	}
 
 	if errAcc != nil {
@@ -487,6 +488,26 @@ func (c *QuesmaNewConfiguration) getRelationalDBConf() (*RelationalDbConfigurati
 		return &backendConn.Config, typ, nil
 	}
 	return nil, "", fmt.Errorf("exactly one backend connector of type `clickhouse`, `clickhouse-os` or `hydrolix` must be configured")
+}
+
+func (c *QuesmaNewConfiguration) validateBackendConnectors() error {
+	elasticBackendConnectors, clickhouseBackendConnectors := 0, 0
+	for _, backendConn := range c.BackendConnectors {
+		if backendConn.Type == ElasticsearchBackendConnectorName {
+			elasticBackendConnectors += 1
+		} else if backendConn.Type == ClickHouseBackendConnectorName || backendConn.Type == ClickHouseOSBackendConnectorName || backendConn.Type == HydrolixBackendConnectorName {
+			clickhouseBackendConnectors += 1
+		} else {
+			return fmt.Errorf("backend connector type '%s' not recognized", backendConn.Type)
+		}
+	}
+	if elasticBackendConnectors > 1 {
+		return fmt.Errorf("only one elasticsearch backend connector is allowed, found %d many", elasticBackendConnectors)
+	}
+	if clickhouseBackendConnectors > 1 {
+		return fmt.Errorf("only one clickhouse-compatible backend connector is allowed, found %d many", clickhouseBackendConnectors)
+	}
+	return nil
 }
 
 func getAllowedProcessorTypes() []ProcessorType {

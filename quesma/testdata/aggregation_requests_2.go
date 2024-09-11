@@ -296,77 +296,6 @@ var AggregationTests2 = []AggregationTestCase{
 				}
 			}
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(33))}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`, int64(1717977600000/86400000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`, int64(1717977600000/86400000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718031600000/3600000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718024400000/3600000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`, int64(1718033040000/60000)),
-					model.NewQueryResultCol("count()", uint64(9)),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`, int64(1718033100000/60000)),
-					model.NewQueryResultCol("count()", uint64(24)),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`, int64(1718025840000/60000)),
-					model.NewQueryResultCol("count()", uint64(9)),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`, int64(1718025900000/60000)),
-					model.NewQueryResultCol("count()", uint64(24)),
-				}},
-			},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfMonth("@timestamp")))`, int64(1717200000000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfMonth("@timestamp")))`, int64(1717192800000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfQuarter("@timestamp")))`, int64(1711929600000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfQuarter("@timestamp")))`, int64(1711922400000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfWeek("@timestamp")))`, int64(1717977600000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfWeek("@timestamp")))`, int64(1717970400000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfYear("@timestamp")))`, int64(1704067200000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfYear("@timestamp")))`, int64(1704063600000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__day1__key_0", int64(1717980400000/86400000)),
@@ -438,65 +367,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__year2__key_0", int64(1704063600000)),
 				model.NewQueryResultCol("aggr__year2__count", uint64(33)),
 			}}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + TableName,
-			`SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 86400000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 86400000) ` +
-				`ORDER BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 86400000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`,
-			`SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 3600000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 3600000) ` +
-				`ORDER BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 60000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 60000) ` +
-				`ORDER BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone("@timestamp",'Europe/Warsaw'))*1000) / 60000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'Europe/Warsaw'))))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'Europe/Warsaw'))))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'UTC'))))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'UTC'))))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'UTC'))))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'UTC'))))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'UTC'))))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'UTC'))))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'UTC'))))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'UTC'))))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'UTC'))))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'UTC'))))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'UTC'))))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'UTC'))))*1000`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
@@ -718,22 +588,6 @@ var AggregationTests2 = []AggregationTestCase{
 			"timed_out": false,
 			"took": 9
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2786))}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("response", "200"),
-				model.NewQueryResultCol(`quantile_1`, []time.Time{util.ParseTime("2024-04-21T06:11:13.619Z")}),
-				model.NewQueryResultCol(`quantile_2`, []time.Time{util.ParseTime("2024-04-21T12:21:13.414Z")}),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("response", "200"),
-				model.NewQueryResultCol(`sumOrNull("count")`, 10),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("response", "200"),
-				model.NewQueryResultCol(`doc_count`, 2570),
-			}}},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 2786),
@@ -744,54 +598,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1_col_1", []time.Time{util.ParseTime("2024-04-21T12:21:13.414Z")}),
 				model.NewQueryResultCol("metric__2__2_col_0", 10),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))`,
-			`WITH cte_1 AS ` +
-				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response" ` +
-				`ORDER BY count() DESC, "response" ` +
-				`LIMIT 3) ` +
-				`SELECT "response", ` +
-				"quantiles(0.010000)(\"timestamp\") AS \"quantile_1\", " +
-				"quantiles(0.020000)(\"timestamp\") AS \"quantile_2\" " +
-				`FROM ` + TableName + ` ` +
-				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "response"`,
-			`WITH cte_1 AS ` +
-				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response" ` +
-				`ORDER BY count() DESC, "response" ` +
-				`LIMIT 3) ` +
-				`SELECT "response", sumOrNull("count") ` +
-				`FROM ` + TableName + ` ` +
-				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "response"`,
-			`SELECT "response", count() FROM ` + TableName + ` ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response" ` +
-				`ORDER BY count() DESC, "response" ` +
-				`LIMIT 3`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT
@@ -914,40 +720,6 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
@@ -989,27 +761,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
 				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 20 BY "surname"`,
-			`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
@@ -1161,54 +912,6 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a3"),
-					model.NewQueryResultCol("limbName", "b31"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a3"),
-					model.NewQueryResultCol("limbName", "b32"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a3"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			// nil in the middle
 			{Cols: []model.QueryResultCol{
@@ -1303,27 +1006,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__count_1", int64(17)),
 				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", "limbName", count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE ("surname" IS NOT NULL AND "limbName" IS NOT NULL) ` +
-				`GROUP BY "surname", "limbName", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, "limbName" ` +
-				`LIMIT 20 BY "surname"`,
-			`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
@@ -1457,40 +1139,6 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "miss"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "miss"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "miss"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
@@ -1532,24 +1180,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
 				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`WITH cte_1 AS (` +
-				`SELECT COALESCE("surname",'miss') AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY COALESCE("surname",'miss') ` +
-				`ORDER BY count() DESC, COALESCE("surname",'miss') ` +
-				`LIMIT 200) ` +
-				`SELECT COALESCE("surname",'miss'), COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON COALESCE("surname",'miss') = "cte_1_1" ` +
-				`GROUP BY COALESCE("surname",'miss'), COALESCE("limbName",'__missing__'), cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, COALESCE("surname",'miss'), count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 20 BY COALESCE("surname",'miss')`,
-			`SELECT COALESCE("surname",'miss'), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY COALESCE("surname",'miss') ` +
-				`ORDER BY count() DESC, COALESCE("surname",'miss') ` +
-				`LIMIT 200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
@@ -1683,40 +1313,6 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
@@ -1788,27 +1384,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
 				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", "limbName", count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE ("surname" IS NOT NULL AND "limbName" IS NOT NULL) ` +
-				`GROUP BY "surname", "limbName", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, "limbName" ` +
-				`LIMIT 20 BY "surname"`,
-			`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
@@ -2135,19 +1710,6 @@ var AggregationTests2 = []AggregationTestCase{
 			"timed_out": false,
 			"took": 10
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(6))}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 9100.0),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 9700.0),
-					model.NewQueryResultCol("doc_count", 2),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 9100.0),
@@ -2161,18 +1723,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__3__key_0", 5),
 				model.NewQueryResultCol("aggr__2__3__count", 1),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
-			`SELECT floor("bytes"/100)*100, count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
-				`GROUP BY floor("bytes"/100)*100 ` +
-				`ORDER BY floor("bytes"/100)*100`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
@@ -2340,19 +1890,6 @@ var AggregationTests2 = []AggregationTestCase{
 			"timed_out": false,
 			"took": 10
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(6))}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 9100.0),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 9700.0),
-					model.NewQueryResultCol("doc_count", 2),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 9100.0),
@@ -2366,18 +1903,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__3__key_0", 5),
 				model.NewQueryResultCol("aggr__2__3__count", 1),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
-			`SELECT floor("bytes"/100)*100, count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
-				`GROUP BY floor("bytes"/100)*100 ` +
-				`ORDER BY floor("bytes"/100)*100`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
@@ -2519,50 +2044,6 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
@@ -2608,39 +2089,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(17)),
 				model.NewQueryResultCol("aggr__2__8__5__order_1", 17),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 20 BY "surname"`,
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname"`,
-			`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
@@ -2794,50 +2242,6 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
@@ -2883,39 +2287,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(17)),
 				model.NewQueryResultCol("aggr__2__8__5__order_1", 17),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 20 BY "surname"`,
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname"`,
-			`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
@@ -3123,7 +2494,6 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__key_0", int64(1706011200000/43200000)),
@@ -3153,7 +2523,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{5}),
 			}},
 		},
-		ExpectedSQLs: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
 			  "aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
@@ -3353,7 +2722,6 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__key_0", int64(1706011200000/43200000)),
@@ -3389,7 +2757,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1__2_col_2", []float64{22.2}),
 			}},
 		},
-		ExpectedSQLs: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
 			  "aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
@@ -3488,7 +2855,6 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 0
 		}`,
-		ExpectedResults: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sample__count", 1978),
@@ -3506,7 +2872,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sample__histo__count", 1),
 			}},
 		},
-		ExpectedSQLs: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__sample__count",
 			  floor("taxful_total_price"/224.19300000000004)*224.19300000000004 AS
@@ -3598,7 +2963,6 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 0
 		}`,
-		ExpectedResults: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__histo__key_0", 0),
@@ -3641,7 +3005,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
 			}},
 		},
-		ExpectedSQLs: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeSQL: `
 			SELECT "aggr__histo__key_0", "aggr__histo__count",
 			  "aggr__histo__0__parent_count", "aggr__histo__0__key_0",
@@ -3742,7 +3105,6 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 0
 		}`,
-		ExpectedResults: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sample__count", 1978),
@@ -3760,7 +3122,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sample__histo__count", 1),
 			}},
 		},
-		ExpectedSQLs: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__sample__count",
 			  floor(COALESCE("taxful_total_price", 80)/224.19300000000004)*
@@ -3872,7 +3233,6 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 0
 		}`,
-		ExpectedResults: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__histo__key_0", 0),
@@ -3915,7 +3275,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
 			}},
 		},
-		ExpectedSQLs: nil, // we don't handle it in pre-pancake logic
 		ExpectedPancakeSQL: `
 			SELECT "aggr__histo__key_0", "aggr__histo__count",
 			  "aggr__histo__0__parent_count", "aggr__histo__0__key_0",
