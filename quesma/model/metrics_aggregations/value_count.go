@@ -20,10 +20,10 @@ func (query ValueCount) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query ValueCount) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query ValueCount) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	var value any = nil
 	if len(rows) > 0 {
-		value = rows[0].Cols[level].Value
+		value = rows[0].Cols[0].Value
 	} else {
 		logger.WarnWithCtx(query.ctx).Msg("Nn rows returned for value_count aggregation")
 	}

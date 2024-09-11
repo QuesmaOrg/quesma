@@ -22,11 +22,11 @@ func (query GeoTileGrid) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
-func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) > 0 && len(rows[0].Cols) < 3 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
-			"unexpected number of columns in geotile_grid aggregation response, len(rows[0].Cols): "+
-				"%d, level: %d", len(rows[0].Cols), level,
+			"unexpected number of columns in geotile_grid aggregation response, len(rows[0].Cols): %d",
+			len(rows[0].Cols),
 		)
 	}
 	var response []model.JsonMap

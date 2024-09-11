@@ -22,7 +22,7 @@ func (query Stats) AggregationType() model.AggregationType {
 
 var statsColumnsInOrder = []string{"count", "min", "max", "avg", "sum"} // we always ask for such order of columns
 
-func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for stats aggregation")
 		return model.JsonMap{
@@ -34,7 +34,7 @@ func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 	}
 
 	resultMap := make(model.JsonMap)
-	for i, v := range rows[0].Cols[level:] {
+	for i, v := range rows[0].Cols {
 		resultMap[statsColumnsInOrder[i]] = v.Value
 	}
 	return resultMap

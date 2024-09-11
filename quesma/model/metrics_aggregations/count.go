@@ -20,7 +20,7 @@ func (query Count) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for count aggregation")
 		return make(model.JsonMap, 0)
@@ -28,7 +28,7 @@ func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 	if len(rows) > 1 {
 		logger.WarnWithCtx(query.ctx).Msg("More than one row returned for count aggregation")
 	}
-	return model.JsonMap{"doc_count": rows[0].Cols[level].Value}
+	return model.JsonMap{"doc_count": rows[0].Cols[0]}
 }
 
 func (query Count) String() string {

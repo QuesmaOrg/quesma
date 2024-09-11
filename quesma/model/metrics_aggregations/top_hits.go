@@ -31,13 +31,13 @@ func (query TopHits) AggregationType() model.AggregationType {
 }
 
 // TODO: implement correct
-func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	var topElems []any
-	if len(rows) > 0 && level >= len(rows[0].Cols) {
+	if len(rows) > 0 && 0 >= len(rows[0].Cols) {
 		// values are [level, len(row.Cols) - 1]
 		logger.WarnWithCtx(query.ctx).Msgf(
-			"no columns returned for top_hits aggregation, level: %d, len(rows[0].Cols): %d, len(rows): %d",
-			level, len(rows[0].Cols), len(rows),
+			"no columns returned for top_hits aggregation, len(rows[0].Cols): %d, len(rows): %d",
+			len(rows[0].Cols), len(rows),
 		)
 	}
 	for _, row := range rows {
