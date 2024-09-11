@@ -131,24 +131,24 @@ func (lm *LogManager) Close() {
 	_ = lm.chDb.Close()
 }
 
-// ResolveIndexes - takes incoming index pattern (e.g. "index-*" or multiple patterns like "index-*,logs-*")
+// ResolveIndexPattern - takes incoming index pattern (e.g. "index-*" or multiple patterns like "index-*,logs-*")
 // and returns all matching indexes. Empty pattern means all indexes, "_all" index name means all indexes
 //
 //	Note: Empty pattern means all indexes, "_all" index name means all indexes
-func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (results []string, err error) {
+func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (results []string, err error) {
 	if err = lm.tableDiscovery.TableDefinitionsFetchError(); err != nil {
 		return nil, err
 	}
 
 	results = make([]string, 0)
-	if strings.Contains(patterns, ",") {
-		for _, pattern := range strings.Split(patterns, ",") {
+	if strings.Contains(pattern, ",") {
+		for _, pattern := range strings.Split(pattern, ",") {
 			if pattern == "_all" || pattern == "" {
 				results = lm.tableDiscovery.TableDefinitions().Keys()
 				slices.Sort(results)
 				return results, nil
 			} else {
-				indexes, err := lm.ResolveIndexes(ctx, pattern)
+				indexes, err := lm.ResolveIndexPattern(ctx, pattern)
 				if err != nil {
 					return nil, err
 				}
@@ -156,14 +156,14 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 			}
 		}
 	} else {
-		if patterns == "_all" || len(patterns) == 0 {
+		if pattern == "_all" || len(pattern) == 0 {
 			results = lm.tableDiscovery.TableDefinitions().Keys()
 			slices.Sort(results)
 			return results, nil
 		} else {
 			lm.tableDiscovery.TableDefinitions().
 				Range(func(tableName string, v *Table) bool {
-					if util.IndexPatternMatches(patterns, tableName) {
+					if util.IndexPatternMatches(pattern, tableName) {
 						results = append(results, tableName)
 					}
 					return true

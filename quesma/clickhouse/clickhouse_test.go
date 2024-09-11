@@ -776,9 +776,9 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
 			tableDefinitions.Store(tt.tables)
 			lm := &LogManager{tableDiscovery: NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tt.tables)}
-			indexes, err := lm.ResolveIndexes(context.Background(), tt.patterns)
+			indexes, err := lm.ResolveIndexPattern(context.Background(), tt.patterns)
 			assert.NoError(t, err)
-			assert.Equalf(t, tt.resolved, indexes, tt.patterns, "ResolveIndexes(%v)", tt.patterns)
+			assert.Equalf(t, tt.resolved, indexes, tt.patterns, "ResolveIndexPattern(%v)", tt.patterns)
 		})
 	}
 }

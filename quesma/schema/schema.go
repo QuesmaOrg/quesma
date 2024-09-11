@@ -3,7 +3,6 @@
 package schema
 
 import (
-	"quesma/clickhouse"
 	"strings"
 )
 
@@ -13,7 +12,6 @@ type (
 		Aliases             map[FieldName]FieldName
 		ExistsInDataSource  bool
 		internalNameToField map[FieldName]Field
-		InternalTableRepr   *clickhouse.Table
 	}
 	Field struct {
 		// PropertyName is how users refer to the field
