@@ -48,7 +48,7 @@ func (query Hits) AggregationType() model.AggregationType {
 	return model.TypicalAggregation
 }
 
-func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	hits := make([]model.SearchHit, 0, len(rows))
 	for i, row := range rows {
 		hit := model.NewSearchHit(query.indexName)

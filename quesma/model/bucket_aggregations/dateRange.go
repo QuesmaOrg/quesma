@@ -106,7 +106,7 @@ func (query DateRange) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
-func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) != 1 {
 		logger.ErrorWithCtx(query.ctx).Msgf("unexpected number of rows in date_range aggregation response, len: %d", len(rows))
 		return nil

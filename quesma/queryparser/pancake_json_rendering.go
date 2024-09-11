@@ -175,7 +175,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 	switch queryType := layer.nextBucketAggregation.queryType.(type) {
 	case bucket_aggregations.SamplerInterface, bucket_aggregations.FilterAgg:
 		selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), rows)
-		aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
+		aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows)
 		subAggr, err := p.layerToJSON(remainingLayers[1:], rows)
 		if err != nil {
 			return nil, err
@@ -237,7 +237,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		default:
 			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
 		}
-		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
+		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows)
 		// TODO: maybe add metadata also here? probably not needed
 	}
 
@@ -261,7 +261,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
 		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
 
-		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, 0)
+		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows)
 
 		if len(buckets) == 0 { // without this we'd generate {"buckets": []} in the response, which Elastic doesn't do.
 			if layer.nextBucketAggregation.metadata != nil {

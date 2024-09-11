@@ -21,8 +21,8 @@ func (query Sum) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query Sum) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	return metricsTranslateSqlResponseToJsonWithFieldTypeCheck(query.ctx, rows, level, query.fieldType)
+func (query Sum) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+	return metricsTranslateSqlResponseToJsonWithFieldTypeCheck(query.ctx, rows, query.fieldType)
 }
 
 func (query Sum) String() string {

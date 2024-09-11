@@ -21,8 +21,8 @@ func (query Avg) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query Avg) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	return metricsTranslateSqlResponseToJsonWithFieldTypeCheck(query.ctx, rows, level, query.fieldType)
+func (query Avg) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+	return metricsTranslateSqlResponseToJsonWithFieldTypeCheck(query.ctx, rows, query.fieldType)
 }
 
 func (query Avg) String() string {

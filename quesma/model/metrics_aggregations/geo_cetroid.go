@@ -19,7 +19,7 @@ func (query GeoCentroid) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query GeoCentroid) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query GeoCentroid) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) == 0 {
 		return model.JsonMap{}
 	}

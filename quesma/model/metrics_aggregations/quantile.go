@@ -29,7 +29,7 @@ func (query Quantile) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	valueMap := make(model.JsonMap)
 	valueAsStringMap := make(model.JsonMap)
 

@@ -6,10 +6,9 @@ package model
 // It's an extension to QueryType interface
 // Adds a method to calculate result rows from its parent aggregation
 type PipelineQueryType interface {
-	// TranslateSqlResponseToJson 'level' - we want to translate [level:] (metrics aggr) or [level-1:] (bucket aggr) columns to JSON
-	// Previous columns are used for bucketing.
+	// TranslateSqlResponseToJson .
 	// For 'bucket' aggregation result is a slice of buckets, for 'metrics' aggregation it's a single bucket (only look at [0])
-	TranslateSqlResponseToJson(rows []QueryResultRow, level int) JsonMap
+	TranslateSqlResponseToJson(rows []QueryResultRow) JsonMap
 
 	// Should always return PipelineAggregation
 	AggregationType() AggregationType
