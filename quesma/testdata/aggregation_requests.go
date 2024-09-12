@@ -739,21 +739,18 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__suggestions__parent_count", uint64(2200)),
 				model.NewQueryResultCol("aggr__suggestions__key_0", "Rome"),
 				model.NewQueryResultCol("aggr__suggestions__count", uint64(73)),
-				model.NewQueryResultCol("aggr__suggestions__order_1", uint64(73)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("metric__unique_terms_col_0", 143),
 				model.NewQueryResultCol("aggr__suggestions__parent_count", uint64(2200)),
 				model.NewQueryResultCol("aggr__suggestions__key_0", "Bogota"),
 				model.NewQueryResultCol("aggr__suggestions__count", uint64(44)),
-				model.NewQueryResultCol("aggr__suggestions__order_1", uint64(44)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("metric__unique_terms_col_0", 143),
 				model.NewQueryResultCol("aggr__suggestions__parent_count", uint64(2200)),
 				model.NewQueryResultCol("aggr__suggestions__key_0", "Milan"),
 				model.NewQueryResultCol("aggr__suggestions__count", uint64(32)),
-				model.NewQueryResultCol("aggr__suggestions__order_1", uint64(32)),
 			}},
 		},
 		ExpectedPancakeSQL: `
@@ -761,13 +758,12 @@ var AggregationTests = []AggregationTestCase{
 			  "metric__unique_terms_col_0",
 			  sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "OriginCityName" AS "aggr__suggestions__key_0",
-			  count(*) AS "aggr__suggestions__count",
-			  count(*) AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__count"
 			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
 			GROUP BY "OriginCityName" AS "aggr__suggestions__key_0"
-			ORDER BY "aggr__suggestions__order_1" DESC, "aggr__suggestions__key_0" ASC
+			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
 	},
 	{ // [5]

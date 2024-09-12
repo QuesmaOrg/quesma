@@ -1736,7 +1736,6 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__4__5__parent_count", 17),
 				model.NewQueryResultCol("aggr__2__8__4__5__key_0", "d22"),
 				model.NewQueryResultCol("aggr__2__8__4__5__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__4__5__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
@@ -1753,7 +1752,6 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__4__5__parent_count", 17),
 				model.NewQueryResultCol("aggr__2__8__4__5__key_0", "d21"),
 				model.NewQueryResultCol("aggr__2__8__4__5__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__4__5__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
@@ -1770,7 +1768,6 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__4__5__parent_count", 24),
 				model.NewQueryResultCol("aggr__2__8__4__5__key_0", "d12"),
 				model.NewQueryResultCol("aggr__2__8__4__5__count", int64(24)),
-				model.NewQueryResultCol("aggr__2__8__4__5__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
@@ -1788,7 +1785,6 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__4__5__parent_count", 21),
 				model.NewQueryResultCol("aggr__2__8__4__5__key_0", "d11"),
 				model.NewQueryResultCol("aggr__2__8__4__5__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__4__5__order_1", 21),
 			}},
 		},
 		ExpectedPancakeSQL: `
@@ -1797,7 +1793,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			  "aggr__2__8__order_1", "metric__2__8__1_col_0", "aggr__2__8__4__parent_count",
 			  "aggr__2__8__4__key_0", "aggr__2__8__4__count",
 			  "aggr__2__8__4__5__parent_count", "aggr__2__8__4__5__key_0",
-			  "aggr__2__8__4__5__count", "aggr__2__8__4__5__order_1"
+			  "aggr__2__8__4__5__count"
 			FROM (
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
 				"aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count",
@@ -1805,7 +1801,6 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				"aggr__2__8__4__parent_count", "aggr__2__8__4__key_0",
 				"aggr__2__8__4__count", "aggr__2__8__4__5__parent_count",
 				"aggr__2__8__4__5__key_0", "aggr__2__8__4__5__count",
-				"aggr__2__8__4__5__order_1",
 				dense_rank() OVER (ORDER BY "aggr__2__key_0" DESC) AS
 				"aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
@@ -1814,7 +1809,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0" ORDER
 				BY "aggr__2__8__4__key_0" DESC) AS "aggr__2__8__4__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0",
-				"aggr__2__8__4__key_0" ORDER BY "aggr__2__8__4__5__order_1" DESC,
+				"aggr__2__8__4__key_0" ORDER BY "aggr__2__8__4__5__count" DESC,
 				"aggr__2__8__4__key_0" ASC, "aggr__2__8__4__5__key_0" ASC) AS
 				"aggr__2__8__4__5__order_1_rank"
 			  FROM (
@@ -1837,9 +1832,8 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0",
 				  "aggr__2__8__4__key_0") AS "aggr__2__8__4__5__parent_count",
 				  "organName" AS "aggr__2__8__4__5__key_0",
-				  count(*) AS "aggr__2__8__4__5__count",
-				  count(*) AS "aggr__2__8__4__5__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__2__8__4__5__count"
+				FROM __quesma_table_name
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
 				  "organName" AS "aggr__2__8__4__key_0",

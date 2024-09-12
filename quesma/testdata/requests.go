@@ -1576,14 +1576,13 @@ var TestsSearch = []SearchTestCase{
 			  sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
 			  sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "stream.namespace" AS "aggr__suggestions__key_0",
-			  count(*) AS "aggr__suggestions__count",
-			  count(*) AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
 			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort(
 			  '2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort(
 			  '2024-01-22T09:41:10.299Z')))
 			GROUP BY "stream.namespace" AS "aggr__suggestions__key_0"
-			ORDER BY "aggr__suggestions__order_1" DESC, "aggr__suggestions__key_0" ASC
+			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
 		},
 	},
@@ -1669,14 +1668,13 @@ var TestsSearch = []SearchTestCase{
 			`SELECT uniqMerge(uniqState("namespace")) OVER () AS "metric__unique_terms_col_0"
 			  , sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "namespace" AS "aggr__suggestions__key_0",
-			  count(*) AS "aggr__suggestions__count",
-			  count(*) AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
 			WHERE ("service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort(
 			  '2024-01-22T14:34:35.873Z') AND "@timestamp"<=parseDateTime64BestEffort(
 			  '2024-01-22T14:49:35.873Z')))
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
-			ORDER BY "aggr__suggestions__order_1" DESC, "aggr__suggestions__key_0" ASC
+			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
 		},
 	},
@@ -1760,14 +1758,13 @@ var TestsSearch = []SearchTestCase{
 			  sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
 			  sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "stream.namespace" AS "aggr__suggestions__key_0",
-			  count(*) AS "aggr__suggestions__count",
-			  count(*) AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
 			WHERE (("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%')
 			  AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND
 			  "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))
 			GROUP BY "stream.namespace" AS "aggr__suggestions__key_0"
-			ORDER BY "aggr__suggestions__order_1" DESC, "aggr__suggestions__key_0" ASC
+			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
 		},
 	},
@@ -1844,14 +1841,13 @@ var TestsSearch = []SearchTestCase{
 			`SELECT uniqMerge(uniqState("namespace")) OVER () AS "metric__unique_terms_col_0"
 			  , sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "namespace" AS "aggr__suggestions__key_0",
-			  count(*) AS "aggr__suggestions__count",
-			  count(*) AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
 			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort(
 			  '2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort(
 			  '2024-01-22T09:41:10.299Z')))
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
-			ORDER BY "aggr__suggestions__order_1" DESC, "aggr__suggestions__key_0" ASC
+			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
 		},
 	},
@@ -1933,14 +1929,13 @@ var TestsSearch = []SearchTestCase{
 			`SELECT uniqMerge(uniqState("namespace")) OVER () AS "metric__unique_terms_col_0"
 			  , sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "namespace" AS "aggr__suggestions__key_0",
-			  count(*) AS "aggr__suggestions__count",
-			  count(*) AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
 			WHERE (("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%')
 			  AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND
 			  "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
-			ORDER BY "aggr__suggestions__order_1" DESC, "aggr__suggestions__key_0" ASC
+			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
 		},
 	},
@@ -2017,14 +2012,13 @@ var TestsSearch = []SearchTestCase{
 			`SELECT uniqMerge(uniqState("namespace")) OVER () AS "metric__unique_terms_col_0"
 			  , sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "namespace" AS "aggr__suggestions__key_0",
-			  count(*) AS "aggr__suggestions__count",
-			  count(*) AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
 			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort(
 			  '2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort(
 			  '2024-01-22T09:41:10.299Z')))
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
-			ORDER BY "aggr__suggestions__order_1" DESC, "aggr__suggestions__key_0" ASC
+			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
 		},
 	},
