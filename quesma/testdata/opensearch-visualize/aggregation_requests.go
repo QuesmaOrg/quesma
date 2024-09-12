@@ -739,29 +739,24 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__parent_count", 5000),
 				model.NewQueryResultCol("aggr__2__key_0", "200"),
 				model.NewQueryResultCol("aggr__2__count", int64(2570)),
-				model.NewQueryResultCol("aggr__2__order_1", 2570),
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-05-02T21:58:16.297Z")),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 5000),
 				model.NewQueryResultCol("aggr__2__key_0", "503"),
 				model.NewQueryResultCol("aggr__2__count", int64(94)),
-				model.NewQueryResultCol("aggr__2__order_1", 94),
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-05-02T15:59:12.949Z")),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT
-			  sum(count(*)) OVER () AS "aggr__2__parent_count",
-			  "response" AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  count(*) AS "aggr__2__order_1",
+			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
+			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  maxOrNull("timestamp") AS "metric__2__1_col_0"
-			FROM ` + TableName + `
+			FROM __quesma_table_name
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z'))
 			GROUP BY "response" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
+			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
 	},
 	{ // [5]
@@ -888,29 +883,24 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__parent_count", 5300),
 				model.NewQueryResultCol("aggr__2__key_0", "200"),
 				model.NewQueryResultCol("aggr__2__count", uint64(2570)),
-				model.NewQueryResultCol("aggr__2__order_1", 2570),
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-04-21T00:39:02.912Z")),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 5300),
 				model.NewQueryResultCol("aggr__2__key_0", "503"),
 				model.NewQueryResultCol("aggr__2__count", uint64(94)),
-				model.NewQueryResultCol("aggr__2__order_1", 94),
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-04-21T03:30:25.131Z")),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT
-			  sum(count(*)) OVER () AS "aggr__2__parent_count",
-			  "response" AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  count(*) AS "aggr__2__order_1",
+			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
+			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  minOrNull("timestamp") AS "metric__2__1_col_0"
-			FROM ` + TableName + `
+			FROM __quesma_table_name
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z'))
 			GROUP BY "response" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
+			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
 	},
 	{ // [6]
@@ -1064,7 +1054,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__parent_count", int64(2786)),
 				model.NewQueryResultCol("aggr__2__key_0", "200"),
 				model.NewQueryResultCol("aggr__2__count", int64(2570)),
-				model.NewQueryResultCol("aggr__2__order_1", 2570),
 				model.NewQueryResultCol("metric__2__1_col_0", []time.Time{util.ParseTime("2024-04-21T06:11:13.619Z")}),
 				model.NewQueryResultCol("metric__2__1_col_1", []time.Time{util.ParseTime("2024-04-21T12:21:13.414Z")}),
 				model.NewQueryResultCol("metric__2__1_col_2", []time.Time{util.ParseTime("2024-04-23T18:47:45.613Z")}),
@@ -1075,11 +1064,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT
-			  sum(count(*)) OVER () AS "aggr__2__parent_count",
-			  "response" AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  count(*) AS "aggr__2__order_1",
+			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
+			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  quantiles(0.010000)("timestamp") AS "metric__2__1_col_0",
 			  quantiles(0.020000)("timestamp") AS "metric__2__1_col_1",
 			  quantiles(0.250000)("timestamp") AS "metric__2__1_col_2",
@@ -1087,11 +1073,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  quantiles(0.750000)("timestamp") AS "metric__2__1_col_4",
 			  quantiles(0.950000)("timestamp") AS "metric__2__1_col_5",
 			  quantiles(0.990000)("timestamp") AS "metric__2__1_col_6"
-			FROM ` + TableName + `
+			FROM __quesma_table_name
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))
 			GROUP BY "response" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
+			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
 	},
 	{ // [7]

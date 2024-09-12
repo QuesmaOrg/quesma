@@ -748,14 +748,13 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
 			`SELECT "aggr__stats__parent_count", "aggr__stats__key_0", "aggr__stats__count",
-			  "aggr__stats__order_1", "aggr__stats__series__key_0",
-			  "aggr__stats__series__count"
+			  "aggr__stats__series__key_0", "aggr__stats__series__count"
 			FROM (
 			  SELECT "aggr__stats__parent_count", "aggr__stats__key_0",
-				"aggr__stats__count", "aggr__stats__order_1", "aggr__stats__series__key_0",
+				"aggr__stats__count", "aggr__stats__series__key_0",
 				"aggr__stats__series__count",
-				dense_rank() OVER (ORDER BY "aggr__stats__order_1" DESC,
-				"aggr__stats__key_0" ASC) AS "aggr__stats__order_1_rank",
+				dense_rank() OVER (ORDER BY "aggr__stats__count" DESC, "aggr__stats__key_0"
+				ASC) AS "aggr__stats__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__stats__key_0" ORDER BY
 				"aggr__stats__series__key_0" ASC) AS "aggr__stats__series__order_1_rank"
 			  FROM (
@@ -763,8 +762,6 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 				  COALESCE("event.dataset", 'unknown') AS "aggr__stats__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__stats__key_0") AS
 				  "aggr__stats__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__stats__key_0") AS
-				  "aggr__stats__order_1",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0", count(*) AS "aggr__stats__series__count"
 				FROM __quesma_table_name

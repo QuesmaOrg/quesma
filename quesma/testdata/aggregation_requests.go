@@ -470,7 +470,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(2200)),
 				model.NewQueryResultCol("aggr__0__key_0", "No Delay"),
 				model.NewQueryResultCol("aggr__0__count", uint64(1647)),
-				model.NewQueryResultCol("aggr__0__order_1", uint64(1647)),
 				model.NewQueryResultCol("aggr__0__1__key_0", int64(1706875200000/1000/60/60/3)),
 				model.NewQueryResultCol("aggr__0__1__count", uint64(2)),
 			}},
@@ -478,7 +477,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(2200)),
 				model.NewQueryResultCol("aggr__0__key_0", "No Delay"),
 				model.NewQueryResultCol("aggr__0__count", uint64(1647)),
-				model.NewQueryResultCol("aggr__0__order_1", uint64(1647)),
 				model.NewQueryResultCol("aggr__0__1__key_0", int64(1706886000000/1000/60/60/3)),
 				model.NewQueryResultCol("aggr__0__1__count", uint64(27)),
 			}},
@@ -486,7 +484,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(2200)),
 				model.NewQueryResultCol("aggr__0__key_0", "No Delay"),
 				model.NewQueryResultCol("aggr__0__count", uint64(1647)),
-				model.NewQueryResultCol("aggr__0__order_1", uint64(1647)),
 				model.NewQueryResultCol("aggr__0__1__key_0", int64(1706896800000/1000/60/60/3)),
 				model.NewQueryResultCol("aggr__0__1__count", uint64(34)),
 			}},
@@ -494,7 +491,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(2200)),
 				model.NewQueryResultCol("aggr__0__key_0", "Security Delay"),
 				model.NewQueryResultCol("aggr__0__count", uint64(45)),
-				model.NewQueryResultCol("aggr__0__order_1", uint64(45)),
 				model.NewQueryResultCol("aggr__0__1__key_0", int64(1706875200000/1000/60/60/3)),
 				model.NewQueryResultCol("aggr__0__1__count", uint64(0)),
 			}},
@@ -502,18 +498,17 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(2200)),
 				model.NewQueryResultCol("aggr__0__key_0", "Security Delay"),
 				model.NewQueryResultCol("aggr__0__count", uint64(45)),
-				model.NewQueryResultCol("aggr__0__order_1", uint64(45)),
 				model.NewQueryResultCol("aggr__0__1__key_0", int64(1706886000000/1000/60/60/3)),
 				model.NewQueryResultCol("aggr__0__1__count", uint64(2)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-			  "aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count"
+			  "aggr__0__1__key_0", "aggr__0__1__count"
 			FROM (
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-				"aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
+				"aggr__0__1__key_0", "aggr__0__1__count",
+				dense_rank() OVER (ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC)
 				AS "aggr__0__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
 				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
@@ -521,7 +516,6 @@ var AggregationTests = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "FlightDelayType" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 				  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count"
@@ -1317,7 +1311,6 @@ var AggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
 					model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
 					model.NewQueryResultCol("aggr__origins__count", int64(283)),
-					model.NewQueryResultCol("aggr__origins__order_1", int64(283)),
 					model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
 					model.NewQueryResultCol("aggr__origins__distinations__count", int64(21)),
 					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(21)),
@@ -1333,7 +1326,6 @@ var AggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
 					model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
 					model.NewQueryResultCol("aggr__origins__count", int64(283)),
-					model.NewQueryResultCol("aggr__origins__order_1", int64(283)),
 					model.NewQueryResultCol("aggr__origins__distinations__key_0", "UIO"),
 					model.NewQueryResultCol("aggr__origins__distinations__count", int64(12)),
 					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(12)),
@@ -1349,7 +1341,6 @@ var AggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
 					model.NewQueryResultCol("aggr__origins__key_0", "DLH"),
 					model.NewQueryResultCol("aggr__origins__count", int64(15)),
-					model.NewQueryResultCol("aggr__origins__order_1", int64(15)),
 					model.NewQueryResultCol("aggr__origins__distinations__key_0", "YUL"),
 					model.NewQueryResultCol("aggr__origins__distinations__count", int64(11)),
 					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(11)),
@@ -1365,7 +1356,6 @@ var AggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
 					model.NewQueryResultCol("aggr__origins__key_0", "DLH"),
 					model.NewQueryResultCol("aggr__origins__count", int64(15)),
-					model.NewQueryResultCol("aggr__origins__order_1", int64(15)),
 					model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
 					model.NewQueryResultCol("aggr__origins__distinations__count", int64(10)),
 					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(10)),
@@ -1386,7 +1376,6 @@ var AggregationTests = []AggregationTestCase{
 						model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
 						model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
 						model.NewQueryResultCol("aggr__origins__count", int64(283)),
-						model.NewQueryResultCol("aggr__origins__order_1", int64(283)),
 						model.NewQueryResultCol("top_hits__origins__originLocation_col_0", `{
 														"lat": "-0.129166667",
 														"lon": "-78.3575"
@@ -1400,7 +1389,6 @@ var AggregationTests = []AggregationTestCase{
 						model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
 						model.NewQueryResultCol("aggr__origins__key_0", "DLH"),
 						model.NewQueryResultCol("aggr__origins__count", int64(15)),
-						model.NewQueryResultCol("aggr__origins__order_1", int64(15)),
 						model.NewQueryResultCol("top_hits__origins__originLocation_col_0", `{
 														"lat": "46.84209824",
 														"lon": "-92.19360352"
@@ -1414,22 +1402,18 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			WITH quesma_top_hits_group_table AS (
 			  SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
-				"aggr__origins__count", "aggr__origins__order_1",
-				"aggr__origins__distinations__parent_count",
+				"aggr__origins__count", "aggr__origins__distinations__parent_count",
 				"aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
-				"aggr__origins__distinations__order_1", "aggr__origins__order_1_rank",
-				"aggr__origins__distinations__order_1_rank"
+				"aggr__origins__order_1_rank", "aggr__origins__distinations__order_1_rank"
 			  FROM (
 				SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
-				  "aggr__origins__count", "aggr__origins__order_1",
-				  "aggr__origins__distinations__parent_count",
+				  "aggr__origins__count", "aggr__origins__distinations__parent_count",
 				  "aggr__origins__distinations__key_0",
 				  "aggr__origins__distinations__count",
-				  "aggr__origins__distinations__order_1",
-				  dense_rank() OVER (ORDER BY "aggr__origins__order_1" DESC,
+				  dense_rank() OVER (ORDER BY "aggr__origins__count" DESC,
 				  "aggr__origins__key_0" ASC) AS "aggr__origins__order_1_rank",
 				  dense_rank() OVER (PARTITION BY "aggr__origins__key_0" ORDER BY
-				  "aggr__origins__distinations__order_1" DESC,
+				  "aggr__origins__distinations__count" DESC,
 				  "aggr__origins__distinations__key_0" ASC) AS
 				  "aggr__origins__distinations__order_1_rank"
 				FROM (
@@ -1438,12 +1422,9 @@ var AggregationTests = []AggregationTestCase{
 					sum(count(*)) OVER (PARTITION BY "aggr__origins__key_0") AS
 					"aggr__origins__count",
 					sum(count(*)) OVER (PARTITION BY "aggr__origins__key_0") AS
-					"aggr__origins__order_1",
-					sum(count(*)) OVER (PARTITION BY "aggr__origins__key_0") AS
 					"aggr__origins__distinations__parent_count",
 					"DestAirportID" AS "aggr__origins__distinations__key_0",
-					count(*) AS "aggr__origins__distinations__count",
-					count(*) AS "aggr__origins__distinations__order_1"
+					count(*) AS "aggr__origins__distinations__count"
 				  FROM __quesma_table_name
 				  GROUP BY "OriginAirportID" AS "aggr__origins__key_0",
 					"DestAirportID" AS "aggr__origins__distinations__key_0"))
@@ -1456,15 +1437,12 @@ var AggregationTests = []AggregationTestCase{
 				"aggr__origins__parent_count",
 				"group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
 				"group_table"."aggr__origins__count" AS "aggr__origins__count",
-				"group_table"."aggr__origins__order_1" AS "aggr__origins__order_1",
 				"group_table"."aggr__origins__distinations__parent_count" AS
 				"aggr__origins__distinations__parent_count",
 				"group_table"."aggr__origins__distinations__key_0" AS
 				"aggr__origins__distinations__key_0",
 				"group_table"."aggr__origins__distinations__count" AS
 				"aggr__origins__distinations__count",
-				"group_table"."aggr__origins__distinations__order_1" AS
-				"aggr__origins__distinations__order_1",
 				map('lat', "hit_table"."DestLocation::lat", 'lon',
 				"hit_table"."DestLocation::lon") AS
 				"top_hits__origins__distinations__destLocation_col_0",
@@ -1480,10 +1458,8 @@ var AggregationTests = []AggregationTestCase{
 				"group_table"."aggr__origins__distinations__key_0"=
 				"hit_table"."DestAirportID")))
 			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
-			  "aggr__origins__count", "aggr__origins__order_1",
-			  "aggr__origins__distinations__parent_count",
+			  "aggr__origins__count", "aggr__origins__distinations__parent_count",
 			  "aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
-			  "aggr__origins__distinations__order_1",
 			  "top_hits__origins__distinations__destLocation_col_0", "top_hits_rank"
 			FROM "quesma_top_hits_join"
 			WHERE "top_hits_rank"<=1
@@ -1493,17 +1469,16 @@ var AggregationTests = []AggregationTestCase{
 			WITH quesma_top_hits_group_table AS (
 			  SELECT sum(count(*)) OVER () AS "aggr__origins__parent_count",
 				"OriginAirportID" AS "aggr__origins__key_0",
-				count(*) AS "aggr__origins__count", count(*) AS "aggr__origins__order_1"
+				count(*) AS "aggr__origins__count"
 			  FROM __quesma_table_name
 			  GROUP BY "OriginAirportID" AS "aggr__origins__key_0"
-			  ORDER BY "aggr__origins__order_1" DESC, "aggr__origins__key_0" ASC
+			  ORDER BY "aggr__origins__count" DESC, "aggr__origins__key_0" ASC
 			  LIMIT 10001) ,
 			quesma_top_hits_join AS (
 			  SELECT "group_table"."aggr__origins__parent_count" AS
 				"aggr__origins__parent_count",
 				"group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
 				"group_table"."aggr__origins__count" AS "aggr__origins__count",
-				"group_table"."aggr__origins__order_1" AS "aggr__origins__order_1",
 				map('lat', "hit_table"."OriginLocation::lat", 'lon',
 				"hit_table"."OriginLocation::lon") AS
 				"top_hits__origins__originLocation_col_0",
@@ -1514,12 +1489,11 @@ var AggregationTests = []AggregationTestCase{
 				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__origins__key_0"=
 				"hit_table"."OriginAirportID"))
 			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
-			  "aggr__origins__count", "aggr__origins__order_1",
-			  "top_hits__origins__originLocation_col_0",
+			  "aggr__origins__count", "top_hits__origins__originLocation_col_0",
 			  "top_hits__origins__originLocation_col_1", "top_hits_rank"
 			FROM "quesma_top_hits_join"
 			WHERE "top_hits_rank"<=1
-			ORDER BY "aggr__origins__order_1" DESC, "aggr__origins__key_0" ASC,
+			ORDER BY "aggr__origins__count" DESC, "aggr__origins__key_0" ASC,
 			  "top_hits_rank" ASC`},
 	},
 	{ // [8]
@@ -1821,7 +1795,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", 167),
 				model.NewQueryResultCol("aggr__0__key_0", "info"),
 				model.NewQueryResultCol("aggr__0__count", int64(102)),
-				model.NewQueryResultCol("aggr__0__order_1", 102),
 				model.NewQueryResultCol("aggr__0__1__key_0", int64(1707480000000/1000/60/60/3)),
 				model.NewQueryResultCol("aggr__0__1__count", 22),
 			}},
@@ -1829,7 +1802,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", 167),
 				model.NewQueryResultCol("aggr__0__key_0", "info"),
 				model.NewQueryResultCol("aggr__0__count", int64(102)),
-				model.NewQueryResultCol("aggr__0__order_1", 102),
 				model.NewQueryResultCol("aggr__0__1__key_0", int64(1707490800000/1000/60/60/3)),
 				model.NewQueryResultCol("aggr__0__1__count", 80),
 			}},
@@ -1837,7 +1809,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", 167),
 				model.NewQueryResultCol("aggr__0__key_0", "debug"),
 				model.NewQueryResultCol("aggr__0__count", int64(49)),
-				model.NewQueryResultCol("aggr__0__order_1", 49),
 				model.NewQueryResultCol("aggr__0__1__key_0", int64(1707480000000/1000/60/60/3)),
 				model.NewQueryResultCol("aggr__0__1__count", 17),
 			}},
@@ -1845,7 +1816,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", 167),
 				model.NewQueryResultCol("aggr__0__key_0", "debug"),
 				model.NewQueryResultCol("aggr__0__count", int64(49)),
-				model.NewQueryResultCol("aggr__0__order_1", 49),
 				model.NewQueryResultCol("aggr__0__1__key_0", int64(1707490800000/1000/60/60/3)),
 				model.NewQueryResultCol("aggr__0__1__count", 32),
 			}},
@@ -1861,30 +1831,28 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", 167),
 				model.NewQueryResultCol("aggr__0__key_0", "critical"),
 				model.NewQueryResultCol("aggr__0__count", int64(16)),
-				model.NewQueryResultCol("aggr__0__order_1", 16),
 				model.NewQueryResultCol("aggr__0__1__key_0", int64(1707490800000/1000/60/60/3)),
 				model.NewQueryResultCol("aggr__0__1__count", 11),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-			  "aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count"
+			  "aggr__0__1__key_0", "aggr__0__1__count"
 			FROM (
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-				"aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
-				AS "aggr__0__order_1_rank",
+				"aggr__0__1__key_0", "aggr__0__1__count",
+				dense_rank() OVER (ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC) AS
+				"aggr__0__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
 				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "severity" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-      			  "@timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0",
+				  "@timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count"
-				FROM ` + TableName + `
+				FROM __quesma_table_name
 				WHERE ("host.name" iLIKE '%prometheus%' AND ("@timestamp">=
 				  parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') AND "@timestamp"<=
 				  parseDateTime64BestEffort('2024-02-09T16:36:49.940Z')))
@@ -2425,7 +2393,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sample__top_values__parent_count", 262),
 				model.NewQueryResultCol("aggr__sample__top_values__key_0", "hephaestus"),
 				model.NewQueryResultCol("aggr__sample__top_values__count", int64(30)),
-				model.NewQueryResultCol("aggr__sample__top_values__order_1", 30),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sample__count", 262),
@@ -2433,7 +2400,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sample__top_values__parent_count", 262),
 				model.NewQueryResultCol("aggr__sample__top_values__key_0", "poseidon"),
 				model.NewQueryResultCol("aggr__sample__top_values__count", int64(29)),
-				model.NewQueryResultCol("aggr__sample__top_values__order_1", 29),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sample__count", 262),
@@ -2441,7 +2407,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sample__top_values__parent_count", 262),
 				model.NewQueryResultCol("aggr__sample__top_values__key_0", "jupiter"),
 				model.NewQueryResultCol("aggr__sample__top_values__count", int64(28)),
-				model.NewQueryResultCol("aggr__sample__top_values__order_1", 28),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sample__count", 262),
@@ -2449,7 +2414,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sample__top_values__parent_count", 262),
 				model.NewQueryResultCol("aggr__sample__top_values__key_0", "selen"),
 				model.NewQueryResultCol("aggr__sample__top_values__count", int64(26)),
-				model.NewQueryResultCol("aggr__sample__top_values__order_1", 26),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sample__count", 262),
@@ -2457,7 +2421,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sample__top_values__parent_count", 262),
 				model.NewQueryResultCol("aggr__sample__top_values__key_0", "demeter"),
 				model.NewQueryResultCol("aggr__sample__top_values__count", int64(24)),
-				model.NewQueryResultCol("aggr__sample__top_values__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sample__count", 262),
@@ -2465,7 +2428,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sample__top_values__parent_count", 262),
 				model.NewQueryResultCol("aggr__sample__top_values__key_0", "iris"),
 				model.NewQueryResultCol("aggr__sample__top_values__count", int64(24)),
-				model.NewQueryResultCol("aggr__sample__top_values__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sample__count", 262),
@@ -2473,7 +2435,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sample__top_values__parent_count", 262),
 				model.NewQueryResultCol("aggr__sample__top_values__key_0", "pan"),
 				model.NewQueryResultCol("aggr__sample__top_values__count", int64(24)),
-				model.NewQueryResultCol("aggr__sample__top_values__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sample__count", 262),
@@ -2481,7 +2442,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sample__top_values__parent_count", 262),
 				model.NewQueryResultCol("aggr__sample__top_values__key_0", "hades"),
 				model.NewQueryResultCol("aggr__sample__top_values__count", int64(22)),
-				model.NewQueryResultCol("aggr__sample__top_values__order_1", 22),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sample__count", 262),
@@ -2489,7 +2449,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sample__top_values__parent_count", 262),
 				model.NewQueryResultCol("aggr__sample__top_values__key_0", "hermes"),
 				model.NewQueryResultCol("aggr__sample__top_values__count", int64(22)),
-				model.NewQueryResultCol("aggr__sample__top_values__order_1", 22),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sample__count", 262),
@@ -2497,7 +2456,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sample__top_values__parent_count", 262),
 				model.NewQueryResultCol("aggr__sample__top_values__key_0", "persephone"),
 				model.NewQueryResultCol("aggr__sample__top_values__count", int64(21)),
-				model.NewQueryResultCol("aggr__sample__top_values__order_1", 21),
 			}},
 		},
 		ExpectedPancakeSQL: `
@@ -2505,8 +2463,7 @@ var AggregationTests = []AggregationTestCase{
 			  sum(count("host.name")) OVER () AS "metric__sample__sample_count_col_0",
 			  sum(count(*)) OVER () AS "aggr__sample__top_values__parent_count",
 			  "host.name" AS "aggr__sample__top_values__key_0",
-			  count(*) AS "aggr__sample__top_values__count",
-			  count(*) AS "aggr__sample__top_values__order_1"
+			  count(*) AS "aggr__sample__top_values__count"
 			FROM (
 			  SELECT "host.name"
 			  FROM ` + TableName + `
@@ -2515,7 +2472,7 @@ var AggregationTests = []AggregationTestCase{
 				` + fullTextFieldName + ` iLIKE '%user%')
 			  LIMIT 8000)
 			GROUP BY "host.name" AS "aggr__sample__top_values__key_0"
-			ORDER BY "aggr__sample__top_values__order_1" DESC,
+			ORDER BY "aggr__sample__top_values__count" DESC,
 			  "aggr__sample__top_values__key_0" ASC
 			LIMIT 11`,
 	},
@@ -2759,7 +2716,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__stats__parent_count", int64(4675)),
 				model.NewQueryResultCol("aggr__stats__key_0", "27"),
 				model.NewQueryResultCol("aggr__stats__count", int64(348)),
-				model.NewQueryResultCol("aggr__stats__order_1", 348),
 				model.NewQueryResultCol("aggr__stats__series__key_0", int64(1713398400000/60000)),
 				model.NewQueryResultCol("aggr__stats__series__count", 85),
 			}},
@@ -2767,7 +2723,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__stats__parent_count", int64(4675)),
 				model.NewQueryResultCol("aggr__stats__key_0", "27"),
 				model.NewQueryResultCol("aggr__stats__count", int64(348)),
-				model.NewQueryResultCol("aggr__stats__order_1", 348),
 				model.NewQueryResultCol("aggr__stats__series__key_0", int64(1714003200000/60000)),
 				model.NewQueryResultCol("aggr__stats__series__count", 79),
 			}},
@@ -2775,20 +2730,18 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__stats__parent_count", int64(4675)),
 				model.NewQueryResultCol("aggr__stats__key_0", "52"),
 				model.NewQueryResultCol("aggr__stats__count", int64(188)),
-				model.NewQueryResultCol("aggr__stats__order_1", 188),
 				model.NewQueryResultCol("aggr__stats__series__key_0", int64(1713398400000/60000)),
 				model.NewQueryResultCol("aggr__stats__series__count", 35),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__stats__parent_count", "aggr__stats__key_0", "aggr__stats__count",
-			  "aggr__stats__order_1", "aggr__stats__series__key_0",
-			  "aggr__stats__series__count"
+			  "aggr__stats__series__key_0", "aggr__stats__series__count"
 			FROM (
 			  SELECT "aggr__stats__parent_count", "aggr__stats__key_0",
-				"aggr__stats__count", "aggr__stats__order_1", "aggr__stats__series__key_0",
+				"aggr__stats__count", "aggr__stats__series__key_0",
 				"aggr__stats__series__count",
-				dense_rank() OVER (ORDER BY "aggr__stats__order_1" DESC,
+				dense_rank() OVER (ORDER BY "aggr__stats__count" DESC,
 				"aggr__stats__key_0" ASC) AS "aggr__stats__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__stats__key_0" ORDER BY
 				"aggr__stats__series__key_0" ASC) AS "aggr__stats__series__order_1_rank"
@@ -2797,8 +2750,6 @@ var AggregationTests = []AggregationTestCase{
 				  COALESCE("event.dataset", 'unknown') AS "aggr__stats__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__stats__key_0") AS
 				  "aggr__stats__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__stats__key_0") AS
-				  "aggr__stats__order_1",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0", count(*) AS "aggr__stats__series__count"
 				FROM ` + TableName + `
@@ -3137,30 +3088,26 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(15750)),
 				model.NewQueryResultCol("aggr__0__key_0", "User created"),
 				model.NewQueryResultCol("aggr__0__count", int64(1700)),
-				model.NewQueryResultCol("aggr__0__order_1", 1700),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(15750)),
 				model.NewQueryResultCol("aggr__0__key_0", "User deleted"),
 				model.NewQueryResultCol("aggr__0__count", int64(1781)),
-				model.NewQueryResultCol("aggr__0__order_1", 1781),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(15750)),
 				model.NewQueryResultCol("aggr__0__key_0", "User logged in"),
 				model.NewQueryResultCol("aggr__0__count", int64(1757)),
-				model.NewQueryResultCol("aggr__0__order_1", 1757),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-			  "message" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  count(*) AS "aggr__0__order_1"
+			  "message" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
 			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z'))
 			GROUP BY "message" AS "aggr__0__key_0"
-			ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC
+			ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC
 			LIMIT 4`,
 	},
 	{ // [17]
@@ -3985,21 +3932,18 @@ var AggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__parent_count", int64(1634)),
 					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__key_0", int64(0)),
 					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__count", int64(53)),
-					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__order_1", int64(53)),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("aggr__sample__count", int64(1634)),
 					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__parent_count", int64(1634)),
 					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__key_0", int64(15035)),
 					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__count", int64(7)),
-					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__order_1", int64(7)),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("aggr__sample__count", int64(1634)),
 					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__parent_count", int64(1634)),
 					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__key_0", int64(3350)),
 					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__count", int64(4)),
-					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__order_1", int64(4)),
 				}},
 			},
 		},
@@ -4107,8 +4051,7 @@ var AggregationTests = []AggregationTestCase{
 			`SELECT sum(count(*)) OVER () AS "aggr__sample__count",
 			  sum(count(*)) OVER () AS "aggr__sample__bytes_gauge_top__parent_count",
 			  "bytes_gauge" AS "aggr__sample__bytes_gauge_top__key_0",
-			  count(*) AS "aggr__sample__bytes_gauge_top__count",
-			  count(*) AS "aggr__sample__bytes_gauge_top__order_1"
+			  count(*) AS "aggr__sample__bytes_gauge_top__count"
 			FROM (
 			  SELECT "bytes_gauge"
 			  FROM __quesma_table_name
@@ -4116,7 +4059,7 @@ var AggregationTests = []AggregationTestCase{
 				toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12)
 			  LIMIT 20000)
 			GROUP BY "bytes_gauge" AS "aggr__sample__bytes_gauge_top__key_0"
-			ORDER BY "aggr__sample__bytes_gauge_top__order_1" DESC,
+			ORDER BY "aggr__sample__bytes_gauge_top__count" DESC,
 			  "aggr__sample__bytes_gauge_top__key_0" ASC
 			LIMIT 11`,
 		},
@@ -4575,23 +4518,20 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__parent_count", uint64(825)),
 				model.NewQueryResultCol("aggr__2__key_0", "a"),
 				model.NewQueryResultCol("aggr__2__count", uint64(619)),
-				model.NewQueryResultCol("aggr__2__order_1", uint64(619)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", uint64(825)),
 				model.NewQueryResultCol("aggr__2__key_0", "zip"),
 				model.NewQueryResultCol("aggr__2__count", uint64(206)),
-				model.NewQueryResultCol("aggr__2__order_1", uint64(206)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 			  "message" AS "aggr__2__key_0", 
-			  count(*) AS "aggr__2__count",
-			  count(*) AS "aggr__2__order_1"
+			  count(*) AS "aggr__2__count"
 			FROM ` + TableName + `
 			GROUP BY "message" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
+			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 5`,
 	},
 	{ // [24]
@@ -5095,7 +5035,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__2__parent_count", 3),
 				model.NewQueryResultCol("aggr__0__2__key_0", "a"),
 				model.NewQueryResultCol("aggr__0__2__count", int64(2)),
-				model.NewQueryResultCol("aggr__0__2__order_1", 2),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__key_0", 0.0),
@@ -5103,7 +5042,6 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__2__parent_count", 3),
 				model.NewQueryResultCol("aggr__0__2__key_0", "b"),
 				model.NewQueryResultCol("aggr__0__2__count", int64(1)),
-				model.NewQueryResultCol("aggr__0__2__order_1", 1),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__key_0", 4000.0),
@@ -5111,26 +5049,25 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__2__parent_count", 1),
 				model.NewQueryResultCol("aggr__0__2__key_0", "c"),
 				model.NewQueryResultCol("aggr__0__2__count", int64(1)),
-				model.NewQueryResultCol("aggr__0__2__order_1", 1),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__2__parent_count",
-			  "aggr__0__2__key_0", "aggr__0__2__count", "aggr__0__2__order_1"
+			  "aggr__0__2__key_0", "aggr__0__2__count"
 			FROM (
 			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__2__parent_count",
-				"aggr__0__2__key_0", "aggr__0__2__count", "aggr__0__2__order_1",
+				"aggr__0__2__key_0", "aggr__0__2__count",
 				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
 				,
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
-				"aggr__0__2__order_1" DESC, "aggr__0__2__key_0" ASC) AS
+				"aggr__0__2__count" DESC, "aggr__0__2__key_0" ASC) AS
 				"aggr__0__2__order_1_rank"
 			  FROM (
 				SELECT floor("rspContentLen"/2000)*2000 AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__2__parent_count", "message" AS "aggr__0__2__key_0",
-				  count(*) AS "aggr__0__2__count", count(*) AS "aggr__0__2__order_1"
+				  count(*) AS "aggr__0__2__count"
 				FROM ` + TableName + `
 				GROUP BY floor("rspContentLen"/2000)*2000 AS "aggr__0__key_0",
 				  "message" AS "aggr__0__2__key_0"))
@@ -6270,29 +6207,25 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-			  "aggr__0__order_1", "aggr__0__1__parent_count", "aggr__0__1__key_0",
-			  "aggr__0__1__count", "aggr__0__1__order_1"
+			  "aggr__0__1__parent_count", "aggr__0__1__key_0", "aggr__0__1__count"
 			FROM (
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-				"aggr__0__order_1", "aggr__0__1__parent_count", "aggr__0__1__key_0",
-				"aggr__0__1__count", "aggr__0__1__order_1",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
-				AS "aggr__0__order_1_rank",
+				"aggr__0__1__parent_count", "aggr__0__1__key_0", "aggr__0__1__count",
+				dense_rank() OVER (ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC) AS
+				"aggr__0__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
-				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__count" DESC, "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "host.name" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "message" AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count", count(*) AS "aggr__0__1__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__0__1__count"
+				FROM __quesma_table_name
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0"))
-			
 			WHERE ("aggr__0__order_1_rank"<=11 AND "aggr__0__1__order_1_rank"<=4)
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
@@ -6381,37 +6314,33 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-			  "aggr__0__order_1", "aggr__0__1__parent_count", "aggr__0__1__key_0",
-			  "aggr__0__1__count", "aggr__0__1__order_1", "aggr__0__1__2__parent_count",
-			  "aggr__0__1__2__key_0", "aggr__0__1__2__count", "aggr__0__1__2__order_1"
+			  "aggr__0__1__parent_count", "aggr__0__1__key_0", "aggr__0__1__count",
+			  "aggr__0__1__2__parent_count", "aggr__0__1__2__key_0", "aggr__0__1__2__count"
 			FROM (
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-				"aggr__0__order_1", "aggr__0__1__parent_count", "aggr__0__1__key_0",
-				"aggr__0__1__count", "aggr__0__1__order_1", "aggr__0__1__2__parent_count",
-				"aggr__0__1__2__key_0", "aggr__0__1__2__count", "aggr__0__1__2__order_1",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
-				AS "aggr__0__order_1_rank",
+				"aggr__0__1__parent_count", "aggr__0__1__key_0", "aggr__0__1__count",
+				"aggr__0__1__2__parent_count", "aggr__0__1__2__key_0",
+				"aggr__0__1__2__count",
+				dense_rank() OVER (ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC) AS
+				"aggr__0__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
-				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__count" DESC, "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0" ORDER
-				BY "aggr__0__1__2__order_1" DESC, "aggr__0__1__key_0" ASC,
+				BY "aggr__0__1__2__count" DESC, "aggr__0__1__key_0" ASC,
 				"aggr__0__1__2__key_0" ASC) AS "aggr__0__1__2__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "host.name" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "message" AS "aggr__0__1__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0") AS
 				  "aggr__0__1__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0") AS
-				  "aggr__0__1__order_1",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0") AS
 				  "aggr__0__1__2__parent_count", "message" AS "aggr__0__1__2__key_0",
-				  count(*) AS "aggr__0__1__2__count", count(*) AS "aggr__0__1__2__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__0__1__2__count"
+				FROM __quesma_table_name
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0",
 				  "message" AS "aggr__0__1__2__key_0"))
@@ -6490,11 +6419,11 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-			  "aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count"
+			  "aggr__0__1__key_0", "aggr__0__1__count"
 			FROM (
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-				"aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
+				"aggr__0__1__key_0", "aggr__0__1__count",
+				dense_rank() OVER (ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC)
 				AS "aggr__0__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
 				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
@@ -6502,7 +6431,6 @@ var AggregationTests = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "host.name" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
 				FROM ` + TableName + `
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
@@ -6601,11 +6529,11 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-			  "aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count"
+			  "aggr__0__1__key_0", "aggr__0__1__count"
 			FROM (
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-				"aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
+				"aggr__0__1__key_0", "aggr__0__1__count",
+				dense_rank() OVER (ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC)
 				AS "aggr__0__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
 				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
@@ -6613,7 +6541,6 @@ var AggregationTests = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "host.name" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
 				FROM ` + TableName + `
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
@@ -6699,21 +6626,20 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-			  "aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count"
+			  "aggr__0__1__key_0", "aggr__0__1__count"
 			FROM (
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-				"aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
-				AS "aggr__0__order_1_rank",
+				"aggr__0__1__key_0", "aggr__0__1__count",
+				dense_rank() OVER (ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC) AS
+				"aggr__0__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
 				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "host.name" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
-				FROM ` + TableName + `
+				FROM __quesma_table_name
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0",
 				  "FlightDelayMin" AS "aggr__0__1__key_0"))
@@ -6989,26 +6915,23 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-			  "aggr__0__order_1", "aggr__0__1__parent_count", "aggr__0__1__key_0",
-			  "aggr__0__1__count", "aggr__0__1__order_1"
+			  "aggr__0__1__parent_count", "aggr__0__1__key_0", "aggr__0__1__count"
 			FROM (
 			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-				"aggr__0__order_1", "aggr__0__1__parent_count", "aggr__0__1__key_0",
-				"aggr__0__1__count", "aggr__0__1__order_1",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
-				AS "aggr__0__order_1_rank",
+				"aggr__0__1__parent_count", "aggr__0__1__key_0", "aggr__0__1__count",
+				dense_rank() OVER (ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC) AS
+				"aggr__0__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
-				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__count" DESC, "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "OriginAirportID" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "DestAirportID" AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count", count(*) AS "aggr__0__1__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__0__1__count"
+				FROM __quesma_table_name
 				GROUP BY "OriginAirportID" AS "aggr__0__key_0",
 				  "DestAirportID" AS "aggr__0__1__key_0"))
 			WHERE ("aggr__0__order_1_rank"<=11 AND "aggr__0__1__order_1_rank"<=4)

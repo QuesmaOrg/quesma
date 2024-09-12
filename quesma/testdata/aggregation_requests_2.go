@@ -593,26 +593,22 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__parent_count", 2786),
 				model.NewQueryResultCol("aggr__2__key_0", "200"),
 				model.NewQueryResultCol("aggr__2__count", 2570),
-				model.NewQueryResultCol("aggr__2__order_1", 2570),
 				model.NewQueryResultCol("metric__2__1_col_0", []time.Time{util.ParseTime("2024-04-21T06:11:13.619Z")}),
 				model.NewQueryResultCol("metric__2__1_col_1", []time.Time{util.ParseTime("2024-04-21T12:21:13.414Z")}),
 				model.NewQueryResultCol("metric__2__2_col_0", 10),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT
-			  sum(count(*)) OVER () AS "aggr__2__parent_count",
-			  "response" AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  count(*) AS "aggr__2__order_1",
+			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
+			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  quantiles(0.010000)("timestamp") AS "metric__2__1_col_0",
 			  quantiles(0.020000)("timestamp") AS "metric__2__1_col_1",
 			  sumOrNull("count") AS "metric__2__2_col_0"
-			FROM ` + TableName + `
+			FROM __quesma_table_name
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))
 			GROUP BY "response" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
+			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
 	},
 	{ // [44]
@@ -725,66 +721,55 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(24)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-			  "aggr__2__8__count", "aggr__2__8__order_1"
+			  "aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count"
 			FROM (
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-				"aggr__2__8__count", "aggr__2__8__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
+				"aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count",
+				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__count" DESC, "aggr__2__8__key_0" ASC) AS
 				"aggr__2__8__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count(*) AS "aggr__2__8__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__2__8__count"
+				FROM __quesma_table_name
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20)
@@ -918,117 +903,96 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__parent_count", 34324),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b11"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34324),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", nil),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34324),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(24)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 24),
 			}},
 			// nil at the beginningą
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", nil),
 				model.NewQueryResultCol("aggr__2__8__count", int64(57)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 57),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b22"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			// nil at the end
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a3"),
 				model.NewQueryResultCol("aggr__2__count_1", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b31"),
 				model.NewQueryResultCol("aggr__2__8__count_1", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a3"),
 				model.NewQueryResultCol("aggr__2__count_1", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b32"),
 				model.NewQueryResultCol("aggr__2__8__count_1", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a3"),
 				model.NewQueryResultCol("aggr__2__count_1", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", nil),
 				model.NewQueryResultCol("aggr__2__8__count_1", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-			  "aggr__2__8__count", "aggr__2__8__order_1"
+			  "aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count"
 			FROM (
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-				"aggr__2__8__count", "aggr__2__8__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
+				"aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count",
+				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__count" DESC, "aggr__2__8__key_0" ASC) AS
 				"aggr__2__8__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count", "limbName" AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count(*) AS "aggr__2__8__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__2__8__count"
+				FROM __quesma_table_name
 				GROUP BY "surname" AS "aggr__2__key_0", "limbName" AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
@@ -1144,66 +1108,55 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "miss"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "miss"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(24)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-			  "aggr__2__8__count", "aggr__2__8__order_1"
+			  "aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count"
 			FROM (
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-				"aggr__2__8__count", "aggr__2__8__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
+				"aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count",
+				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__count" DESC, "aggr__2__8__key_0" ASC) AS
 				"aggr__2__8__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  COALESCE("surname", 'miss') AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count(*) AS "aggr__2__8__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__2__8__count"
+				FROM __quesma_table_name
 				GROUP BY COALESCE("surname", 'miss') AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20)
@@ -1318,95 +1271,78 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b11"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(24)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", nil),
 				model.NewQueryResultCol("aggr__2__count", int64(55)),
-				model.NewQueryResultCol("aggr__2__order_1", 55),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", nil),
 				model.NewQueryResultCol("aggr__2__count", int64(55)),
-				model.NewQueryResultCol("aggr__2__order_1", 55),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "lala"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__8__key_0", nil),
 				model.NewQueryResultCol("aggr__2__8__count", uint64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", uint64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b22"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-			  "aggr__2__8__count", "aggr__2__8__order_1"
+			  "aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count"
 			FROM (
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-				"aggr__2__8__count", "aggr__2__8__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
+				"aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count",
+				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__count" DESC, "aggr__2__8__key_0" ASC) AS
 				"aggr__2__8__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count", "limbName" AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count(*) AS "aggr__2__8__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__2__8__count"
+				FROM __quesma_table_name
 				GROUP BY "surname" AS "aggr__2__key_0", "limbName" AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
@@ -2049,71 +1985,62 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__count", 1036),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", int64(1036)),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__count", 1036),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", int64(1036)),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "b12"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(24)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "b21"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 17),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__8__count", "aggr__2__8__5__parent_count",
-			  "aggr__2__8__5__key_0", "aggr__2__8__5__count", "aggr__2__8__5__order_1"
+			  "aggr__2__8__count", "aggr__2__8__5__parent_count", "aggr__2__8__5__key_0",
+			  "aggr__2__8__5__count"
 			FROM (
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__8__count", "aggr__2__8__5__parent_count",
-				"aggr__2__8__5__key_0", "aggr__2__8__5__count", "aggr__2__8__5__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
+				"aggr__2__8__count", "aggr__2__8__5__parent_count", "aggr__2__8__5__key_0",
+				"aggr__2__8__5__count",
+				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__5__order_1" DESC, "aggr__2__8__5__key_0" ASC) AS
+				"aggr__2__8__5__count" DESC, "aggr__2__8__5__key_0" ASC) AS
 				"aggr__2__8__5__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__8__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__5__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0",
-				  count(*) AS "aggr__2__8__5__count", count(*) AS "aggr__2__8__5__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__2__8__5__count"
+				FROM __quesma_table_name
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__5__order_1_rank"<=20)
@@ -2247,71 +2174,62 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__count", 1036),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", int64(1036)),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__count", 1036),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", int64(1036)),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "b12"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(24)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "b21"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 17),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__8__count", "aggr__2__8__5__parent_count",
-			  "aggr__2__8__5__key_0", "aggr__2__8__5__count", "aggr__2__8__5__order_1"
+			  "aggr__2__8__count", "aggr__2__8__5__parent_count", "aggr__2__8__5__key_0",
+			  "aggr__2__8__5__count"
 			FROM (
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__8__count", "aggr__2__8__5__parent_count",
-				"aggr__2__8__5__key_0", "aggr__2__8__5__count", "aggr__2__8__5__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
+				"aggr__2__8__count", "aggr__2__8__5__parent_count", "aggr__2__8__5__key_0",
+				"aggr__2__8__5__count",
+				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__5__order_1" DESC, "aggr__2__8__5__key_0" ASC) AS
+				"aggr__2__8__5__count" DESC, "aggr__2__8__5__key_0" ASC) AS
 				"aggr__2__8__5__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__8__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__5__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0",
-				  count(*) AS "aggr__2__8__5__count", count(*) AS "aggr__2__8__5__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__2__8__5__count"
+				FROM __quesma_table_name
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__5__order_1_rank"<=20)
@@ -2970,7 +2888,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
 				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
 				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
-				model.NewQueryResultCol("aggr__histo__0__order_1", int64(42)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__histo__key_0", 0),
@@ -2978,7 +2895,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
 				model.NewQueryResultCol("aggr__histo__0__key_0", "disorder"),
 				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
-				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__histo__key_0", 224.19300000000004),
@@ -2986,7 +2902,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__histo__0__parent_count", 17),
 				model.NewQueryResultCol("aggr__histo__0__key_0", nil),
 				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
-				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__histo__key_0", nil),
@@ -2994,7 +2909,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
 				model.NewQueryResultCol("aggr__histo__0__key_0", "a"),
 				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
-				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__histo__key_0", nil),
@@ -3002,21 +2916,20 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
 				model.NewQueryResultCol("aggr__histo__0__key_0", "b"),
 				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
-				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__histo__key_0", "aggr__histo__count",
 			  "aggr__histo__0__parent_count", "aggr__histo__0__key_0",
-			  "aggr__histo__0__count", "aggr__histo__0__order_1"
+			  "aggr__histo__0__count"
 			FROM (
 			  SELECT "aggr__histo__key_0", "aggr__histo__count",
 				"aggr__histo__0__parent_count", "aggr__histo__0__key_0",
-				"aggr__histo__0__count", "aggr__histo__0__order_1",
+				"aggr__histo__0__count",
 				dense_rank() OVER (ORDER BY "aggr__histo__key_0" ASC) AS
 				"aggr__histo__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__histo__key_0" ORDER BY
-				"aggr__histo__0__order_1" DESC, "aggr__histo__0__key_0" ASC) AS
+				"aggr__histo__0__count" DESC, "aggr__histo__0__key_0" ASC) AS
 				"aggr__histo__0__order_1_rank"
 			  FROM (
 				SELECT floor("taxful_total_price"/224.19300000000004)*224.19300000000004 AS
@@ -3025,7 +2938,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  "aggr__histo__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
 				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
-				  count(*) AS "aggr__histo__0__count", count(*) AS "aggr__histo__0__order_1"
+				  count(*) AS "aggr__histo__0__count"
 				FROM __quesma_table_name
 				GROUP BY floor("taxful_total_price"/224.19300000000004)*224.19300000000004
 				  AS "aggr__histo__key_0", "type" AS "aggr__histo__0__key_0"))
@@ -3240,7 +3153,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
 				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
 				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
-				model.NewQueryResultCol("aggr__histo__0__order_1", int64(42)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__histo__key_0", 0),
@@ -3248,7 +3160,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
 				model.NewQueryResultCol("aggr__histo__0__key_0", "disorder"),
 				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
-				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__histo__key_0", 224.19300000000004),
@@ -3256,7 +3167,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__histo__0__parent_count", 17),
 				model.NewQueryResultCol("aggr__histo__0__key_0", nil),
 				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
-				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__histo__key_0", 800),
@@ -3264,7 +3174,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
 				model.NewQueryResultCol("aggr__histo__0__key_0", "a"),
 				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
-				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__histo__key_0", 800),
@@ -3272,21 +3181,20 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
 				model.NewQueryResultCol("aggr__histo__0__key_0", "b"),
 				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
-				model.NewQueryResultCol("aggr__histo__0__order_1", int64(1)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__histo__key_0", "aggr__histo__count",
 			  "aggr__histo__0__parent_count", "aggr__histo__0__key_0",
-			  "aggr__histo__0__count", "aggr__histo__0__order_1"
+			  "aggr__histo__0__count"
 			FROM (
 			  SELECT "aggr__histo__key_0", "aggr__histo__count",
 				"aggr__histo__0__parent_count", "aggr__histo__0__key_0",
-				"aggr__histo__0__count", "aggr__histo__0__order_1",
+				"aggr__histo__0__count",
 				dense_rank() OVER (ORDER BY "aggr__histo__key_0" ASC) AS
 				"aggr__histo__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__histo__key_0" ORDER BY
-				"aggr__histo__0__order_1" DESC, "aggr__histo__0__key_0" ASC) AS
+				"aggr__histo__0__count" DESC, "aggr__histo__0__key_0" ASC) AS
 				"aggr__histo__0__order_1_rank"
 			  FROM (
 				SELECT floor(COALESCE("taxful_total_price", 800)/224.19300000000004)*
@@ -3295,7 +3203,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  "aggr__histo__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
 				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
-				  count(*) AS "aggr__histo__0__count", count(*) AS "aggr__histo__0__order_1"
+				  count(*) AS "aggr__histo__0__count"
 				FROM __quesma_table_name
 				GROUP BY floor(COALESCE("taxful_total_price", 800)/224.19300000000004)*
 				  224.19300000000004 AS "aggr__histo__key_0",
