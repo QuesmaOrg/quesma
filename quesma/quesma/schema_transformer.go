@@ -224,11 +224,7 @@ func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, q
 
 	// check if the query has array columns
 
-	selectCommand := query.SelectCommand
-
-	var allColumns []model.ColumnRef
-
-	allColumns = model.GetUsedColumns(selectCommand)
+	allColumns := model.GetUsedColumns(query.SelectCommand)
 
 	hasArrayColumn := false
 	for _, col := range allColumns {
