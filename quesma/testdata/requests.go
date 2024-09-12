@@ -148,7 +148,12 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.Facets, FieldName: "host.name", I1: 10, I2: 5000},
 		[]string{
-			`SELECT "host.name" AS "key", count() AS "doc_count"
+			`SELECT sum(count(*)) OVER () AS "aggr__sample__count",
+			  sum(count("host.name")) OVER () AS "metric__sample__sample_count_col_0",
+			  sum(count(*)) OVER () AS "aggr__sample__top_values__parent_count",
+			  "host.name" AS "aggr__sample__top_values__key_0",
+			  count(*) AS "aggr__sample__top_values__count",
+			  count() AS "aggr__sample__top_values__order_1"
 			FROM (
 			  SELECT "host.name"
 			  FROM __quesma_table_name
@@ -156,8 +161,10 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 				AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND
 				"message" iLIKE '%user%')
 			  LIMIT 20000)
-			GROUP BY "host.name"
-			ORDER BY count() DESC`,
+			GROUP BY "host.name" AS "aggr__sample__top_values__key_0"
+			ORDER BY "aggr__sample__top_values__order_1" DESC,
+			  "aggr__sample__top_values__key_0" ASC
+			LIMIT 11`,
 		},
 		true,
 	},

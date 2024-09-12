@@ -5,6 +5,7 @@ package quesma
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
@@ -453,20 +454,27 @@ func TestNumericFacetsQueries(t *testing.T) {
 	for i, tt := range testdata.TestsNumericFacets {
 		for _, handlerName := range handlers {
 			t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-				db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+				db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 				defer db.Close()
 				lm := clickhouse.NewLogManagerWithConnection(db, table)
 				managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
-				returnedBuckets := sqlmock.NewRows([]string{"", ""})
+				colNames := []string{}
+				if len(tt.ResultRows) > 0 {
+					for _, col := range tt.ResultRows[0].Cols {
+						colNames = append(colNames, col.ColName)
+					}
+				}
+				returnedBuckets := sqlmock.NewRows(colNames)
 				for _, row := range tt.ResultRows {
-					returnedBuckets.AddRow(row[0], row[1])
+					val := []driver.Value{}
+					for _, col := range row.Cols {
+						val = append(val, col.Value)
+					}
+					returnedBuckets.AddRow(val...)
 				}
 
-				// count, present in all tests
-				mock.ExpectQuery(`SELECT count\(\) FROM ` + tableName).WillReturnRows(sqlmock.NewRows([]string{"count"}))
-				// Don't care about the query's SQL in this test, it's thoroughly tested in different tests, thus ""
-				mock.ExpectQuery("").WillReturnRows(returnedBuckets)
+				mock.ExpectQuery(tt.ExpectedQuery).WillReturnRows(returnedBuckets)
 
 				queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
 				var response []byte
