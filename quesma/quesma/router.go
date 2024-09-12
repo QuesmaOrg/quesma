@@ -26,6 +26,7 @@ import (
 	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/tracing"
+	"quesma/util"
 	"regexp"
 	"strings"
 	"time"
@@ -206,6 +207,14 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 		columns := elasticsearch.ParseMappings("", body)
 
+		columnsCopy := make(map[string]schema.Column)
+
+		for _, column := range columns {
+			oldName := column.Name
+			column.Name = util.FieldToColumnEncoder(oldName)
+			columnsCopy[util.FieldToColumnEncoder(oldName)] = column
+		}
+		columns = columnsCopy
 		sr.UpdateDynamicConfiguration(schema.TableName(index), schema.Table{Columns: columns})
 
 		return putIndexResult(index)
