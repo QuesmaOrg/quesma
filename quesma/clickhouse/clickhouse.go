@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	timestampFieldName = "@timestamp" // it's always DateTime64 for now, don't want to waste time changing that, we don't seem to use that anyway
+	timestampFieldName             = "@timestamp" // it's always DateTime64 for now, don't want to waste time changing that, we don't seem to use that anyway
+	allElasticsearchIndicesPattern = "_all"
 )
 
 type (
@@ -143,7 +144,7 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (
 	results = make([]string, 0)
 	if strings.Contains(pattern, ",") {
 		for _, pattern := range strings.Split(pattern, ",") {
-			if pattern == "_all" || pattern == "" {
+			if pattern == allElasticsearchIndicesPattern || pattern == "" {
 				results = lm.tableDiscovery.TableDefinitions().Keys()
 				slices.Sort(results)
 				return results, nil
@@ -156,7 +157,7 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (
 			}
 		}
 	} else {
-		if pattern == "_all" || len(pattern) == 0 {
+		if pattern == allElasticsearchIndicesPattern || len(pattern) == 0 {
 			results = lm.tableDiscovery.TableDefinitions().Keys()
 			slices.Sort(results)
 			return results, nil
