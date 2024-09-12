@@ -180,11 +180,10 @@ func NewAggregator(name string) Aggregator {
 	return Aggregator{Name: name}
 }
 
-type SearchQueryType int // TODO/warning: right now difference between ListByField/ListAllFields/Normal is not very clear. It probably should be merged into 1 type.
+type HitsInfo int // TODO/warning: right now difference between ListByField/ListAllFields/Normal is not very clear. It probably should be merged into 1 type.
 
 const (
-	Facets SearchQueryType = iota
-	ListByField
+	ListByField HitsInfo = iota
 	ListAllFields
 	Normal
 )
@@ -195,12 +194,12 @@ const (
 	TrackTotalHitsFalse  = -2
 )
 
-func (queryType SearchQueryType) String() string {
-	return []string{"Facets", "FacetsNumeric", "ListByField", "ListAllFields", "Normal"}[queryType]
+func (queryType HitsInfo) String() string {
+	return []string{"ListByField", "ListAllFields", "Normal"}[queryType]
 }
 
 type SearchQueryInfo struct {
-	Typ SearchQueryType
+	Typ HitsInfo
 	// to be used as replacement for FieldName
 	RequestedFields []string
 	// deprecated

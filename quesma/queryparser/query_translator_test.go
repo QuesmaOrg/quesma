@@ -97,7 +97,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 	var args = []struct {
 		elasticResponseJson string
 		ourQueryResult      []model.QueryResultRow
-		queryType           model.SearchQueryType
+		queryType           model.HitsInfo
 	}{
 		{
 			`

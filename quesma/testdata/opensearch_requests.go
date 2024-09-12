@@ -175,7 +175,7 @@ var OpensearchSearchTests = []SearchTestCase{
 		WantedSql: []string{
 			`("-@timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND "-@timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))`,
 		},
-		WantedQueryType: model.Facets,
+		WantedQueryType: model.Normal,
 		WantedQueries: []string{
 			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
        		  toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000) AS "aggr__2__key_0",

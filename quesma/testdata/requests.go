@@ -1568,7 +1568,7 @@ var TestsSearch = []SearchTestCase{
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
 				`AND "stream.namespace" IS NOT NULL)`,
 		},
-		model.Facets,
+		model.Normal,
 		////[]model.Query{
 		//	justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`),
 		//},
@@ -1662,7 +1662,7 @@ var TestsSearch = []SearchTestCase{
 			`("service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z')))`,
 		},
-		model.Facets,
+		model.Normal,
 		////[]model.Query{
 		//	justSimplestWhere(`("service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z')))`),
 		//},
@@ -1750,7 +1750,7 @@ var TestsSearch = []SearchTestCase{
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))) ` +
 				`AND "stream.namespace" IS NOT NULL)`,
 		},
-		model.Facets,
+		model.Normal,
 		////[]model.Query{
 		//	justSimplestWhere(`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`),
 		//},
@@ -1835,7 +1835,7 @@ var TestsSearch = []SearchTestCase{
 			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
 		},
-		model.Facets,
+		model.Normal,
 		////[]model.Query{
 		//	justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`),
 		//},
@@ -1923,7 +1923,7 @@ var TestsSearch = []SearchTestCase{
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`,
 		},
-		model.Facets,
+		model.Normal,
 		////[]model.Query{
 		//	justSimplestWhere(`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`),
 		//},
@@ -2006,7 +2006,7 @@ var TestsSearch = []SearchTestCase{
 			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
 		},
-		model.Facets,
+		model.Normal,
 		////[]model.Query{
 		//	justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`),
 		//},
