@@ -199,13 +199,10 @@ func (queryType HitsInfo) String() string {
 }
 
 type SearchQueryInfo struct {
-	Typ HitsInfo
-	// to be used as replacement for FieldName
+	Typ             HitsInfo
 	RequestedFields []string
-	// deprecated
-	FieldName      string
-	Size           int // how many hits to return
-	TrackTotalHits int // >= 0: we want this nr of total hits, TrackTotalHitsTrue: it was "true", TrackTotalHitsFalse: it was "false", in the request
+	Size            int // how many hits to return
+	TrackTotalHits  int // >= 0: we want this nr of total hits, TrackTotalHitsTrue: it was "true", TrackTotalHitsFalse: it was "false", in the request
 }
 
 func NewSearchQueryInfoNormal() SearchQueryInfo {
