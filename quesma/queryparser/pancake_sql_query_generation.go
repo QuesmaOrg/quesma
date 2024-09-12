@@ -80,10 +80,10 @@ func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMet
 	return
 }
 
-func (p *pancakeSqlQueryGenerator) isPartOfGroupBy(column model.Expr, groupByColumns []model.AliasedExpr) *model.AliasedExpr {
-	for _, groupByColumn := range groupByColumns {
-		if model.PartlyImplementedIsEqual(column, groupByColumn) {
-			return &groupByColumn
+func (p *pancakeSqlQueryGenerator) isPartOf(column model.Expr, aliasedColumns []model.AliasedExpr) *model.AliasedExpr {
+	for _, aliasedColumn := range aliasedColumns {
+		if model.PartlyImplementedIsEqual(column, aliasedColumn) {
+			return &aliasedColumn
 		}
 	}
 	return nil
@@ -143,7 +143,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 			columnId := len(bucketAggregation.selectedColumns) + i
 			direction := orderBy.Direction
 
-			rankColumn := p.isPartOfGroupBy(orderBy.Expr, append(groupByColumns, addGroupBys...))
+			rankColumn := p.isPartOf(orderBy.Expr, append(append(groupByColumns, countAliasedColumn), addGroupBys...))
 			if rankColumn != nil { // rank is part of group by
 				if direction == model.DefaultOrder {
 					direction = model.AscOrder // primarily needed for tests
@@ -323,7 +323,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			combinatorWhere = append(combinatorWhere, subGroup.WhereClause)
 			for _, selectAfter := range selectsAfter {
 				var withCombinator model.Expr
-				if p.isPartOfGroupBy(selectAfter.Expr, groupBys) != nil {
+				if p.isPartOf(selectAfter.Expr, groupBys) != nil {
 					withCombinator = selectAfter.Expr
 				} else {
 					withIfCombinator, err := p.addIfCombinator(selectAfter.Expr, subGroup.WhereClause)
