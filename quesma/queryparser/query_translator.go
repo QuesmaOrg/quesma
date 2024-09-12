@@ -15,8 +15,6 @@ import (
 	"strings"
 )
 
-const facetsSampleSize = 20000
-
 type JsonMap = map[string]interface{}
 
 type ClickhouseQueryTranslator struct {

@@ -1299,17 +1299,6 @@ func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName
 		return fieldName
 	}
 }
-func (cw *ClickhouseQueryTranslator) parseSizeExists(queryMap QueryMap) (size int, ok bool) {
-	sizeRaw, exists := queryMap["size"]
-	if !exists {
-		return model.DefaultSizeListQuery, false
-	} else if sizeAsFloat, ok := sizeRaw.(float64); ok {
-		return int(sizeAsFloat), true
-	} else {
-		logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected float64", sizeRaw, sizeRaw)
-		return model.DefaultSizeListQuery, false
-	}
-}
 
 func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap, defaultSize int) int {
 	sizeRaw, exists := queryMap["size"]
