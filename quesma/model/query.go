@@ -50,8 +50,6 @@ type (
 		TableName string
 
 		Highlighter Highlighter
-		Parent      string       // parent aggregation name, used in some pipeline aggregations
-		Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
 
 		// dictionary to add as 'meta' field in the response.
 		// WARNING: it's probably not passed everywhere where it's needed, just in one place.
@@ -95,56 +93,7 @@ func NewSortColumn(field string, direction OrderByDirection) OrderByExpr {
 	return NewOrderByExpr(NewColumnRef(field), direction)
 }
 
-func NewSortByCountColumn(direction OrderByDirection) OrderByExpr {
-	return NewOrderByExpr(NewCountFunc(), direction)
-}
-
 var NoMetadataField JsonMap = nil
-
-// CopyAggregationFields copies all aggregation fields from qwa to q
-func (q *Query) CopyAggregationFields(qwa Query) {
-	q.SelectCommand.GroupBy = make([]Expr, len(qwa.SelectCommand.GroupBy))
-	copy(q.SelectCommand.GroupBy, qwa.SelectCommand.GroupBy)
-
-	q.SelectCommand.OrderBy = make([]OrderByExpr, len(qwa.SelectCommand.OrderBy))
-	copy(q.SelectCommand.OrderBy, qwa.SelectCommand.OrderBy)
-
-	q.SelectCommand.LimitBy = make([]Expr, len(qwa.SelectCommand.LimitBy))
-	copy(q.SelectCommand.LimitBy, qwa.SelectCommand.LimitBy)
-
-	q.SelectCommand.Columns = make([]Expr, len(qwa.SelectCommand.Columns))
-	copy(q.SelectCommand.Columns, qwa.SelectCommand.Columns)
-
-	q.SelectCommand.OrderBy = make([]OrderByExpr, len(qwa.SelectCommand.OrderBy))
-	copy(q.SelectCommand.OrderBy, qwa.SelectCommand.OrderBy)
-
-	q.SelectCommand.CTEs = make([]*SelectCommand, len(qwa.SelectCommand.CTEs))
-	copy(q.SelectCommand.CTEs, qwa.SelectCommand.CTEs)
-
-	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
-	copy(q.Aggregators, qwa.Aggregators)
-}
-
-// Name returns the name of this aggregation (specifically, the last aggregator)
-// So for nested aggregation {"a": {"b": {"c": this aggregation}}}, it returns "c".
-// In some queries aggregations are referenced by full name, so "a>b>c", but so far this implementation seems sufficient.
-func (q *Query) Name() string {
-	if len(q.Aggregators) == 0 {
-		return ""
-	}
-	return q.Aggregators[len(q.Aggregators)-1].Name
-}
-
-// HasParentAggregation returns true <=> this aggregation has a parent aggregation, so there's no query to the DB,
-// and results are calculated based on parent aggregation's results.
-func (q *Query) HasParentAggregation() bool {
-	return len(q.Parent) > 0 // first condition should be enough, second just in case
-}
-
-// IsChild returns true <=> this aggregation is a child of maybeParent (so maybeParent is its parent).
-func (q *Query) IsChild(maybeParent *Query) bool {
-	return q.HasParentAggregation() && q.Parent == maybeParent.Name()
-}
 
 func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []Expr,
 	whereClause Expr, orderByField string, orderByDesc bool) SelectCommand {
@@ -161,21 +110,6 @@ func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []
 	), RowNumberColumnName))
 
 	return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, whereClause, []Expr{}, 0, 0, false, []*SelectCommand{}, []*CTE{})
-}
-
-// Aggregator is always initialized as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.
-// It's updated after construction, during further processing of aggregations.
-type Aggregator struct {
-	Name                   string
-	SplitOverHowManyFields int  // normally 0 or 1, currently only multi_terms have > 1, as we split over multiple fields on one level.
-	Keyed                  bool // determines how results are returned in response's JSON
-	Filters                bool // if true, this aggregator is a filters aggregator
-}
-
-// NewAggregator (the only constructor) initializes Aggregator as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.
-// It's updated after construction, during further processing of aggregations.
-func NewAggregator(name string) Aggregator {
-	return Aggregator{Name: name}
 }
 
 type HitsInfo int // TODO/warning: right now difference between ListByField/ListAllFields/Normal is not very clear. It probably should be merged into 1 type.

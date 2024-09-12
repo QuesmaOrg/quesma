@@ -240,9 +240,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 			return
 		}
 	}
-
-	// TODO: Look for biggest aggregation
-
+	
 	return
 }
 
