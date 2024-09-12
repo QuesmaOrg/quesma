@@ -205,8 +205,6 @@ type SearchQueryInfo struct {
 	RequestedFields []string
 	// deprecated
 	FieldName      string
-	I1             int
-	I2             int
 	Size           int // how many hits to return
 	TrackTotalHits int // >= 0: we want this nr of total hits, TrackTotalHitsTrue: it was "true", TrackTotalHitsFalse: it was "false", in the request
 }

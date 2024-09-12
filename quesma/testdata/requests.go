@@ -303,7 +303,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
     "start_time_in_millis": 1706021975538
 }
 `, "there should be 97 results, I truncated most of them",
-		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"message"}, FieldName: "message", I1: 0, I2: 100},
+		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"message"}, FieldName: "message", Size: 100},
 		[]string{
 			`SELECT "message"
 			FROM __quesma_table_name
@@ -556,7 +556,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}
 	}`,
 		"Truncated most results. TODO Check what's at the end of response, probably count?",
-		model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: 500},
+		model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", Size: 500},
 		[]string{
 			`SELECT "@timestamp", "host.name", "message", "properties::isreg"
 			FROM __quesma_table_name
@@ -696,7 +696,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }
 `,
 		"no comment yet",
-		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"@timestamp"}, FieldName: "@timestamp", I2: 100},
+		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"@timestamp"}, FieldName: "@timestamp", Size: 100},
 		[]string{
 			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
 			  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0",
@@ -882,7 +882,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}`,
 		``,
 		"no comment yet",
-		model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: 50},
+		model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", Size: 50},
 		[]string{
 			`SELECT "@timestamp", "host.name", "message", "properties::isreg"
 			FROM __quesma_table_name
@@ -948,7 +948,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}`,
 		``,
 		"happens e.g. in Explorer > Field Statistics view",
-		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"properties::isreg"}, FieldName: "properties::isreg", I1: 0, I2: 100},
+		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"properties::isreg"}, FieldName: "properties::isreg", Size: 100},
 		[]string{
 			`SELECT "properties::isreg"
 				FROM __quesma_table_name
