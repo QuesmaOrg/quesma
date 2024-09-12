@@ -3,7 +3,6 @@
 package model
 
 import (
-	"context"
 	"time"
 )
 
@@ -198,35 +197,13 @@ func (queryType HitsInfo) String() string {
 	return []string{"ListByField", "ListAllFields", "Normal"}[queryType]
 }
 
-type SearchQueryInfo struct {
+type HitsCountInfo struct {
 	Typ             HitsInfo
 	RequestedFields []string
 	Size            int // how many hits to return
 	TrackTotalHits  int // >= 0: we want this nr of total hits, TrackTotalHitsTrue: it was "true", TrackTotalHitsFalse: it was "false", in the request
 }
 
-func NewSearchQueryInfoNormal() SearchQueryInfo {
-	return SearchQueryInfo{Typ: Normal}
-}
-
-// UnknownAggregationType is a placeholder for an aggregation type that'll be determined in the future,
-// after descending further into the aggregation tree
-type UnknownAggregationType struct {
-	ctx context.Context
-}
-
-func NewUnknownAggregationType(ctx context.Context) UnknownAggregationType {
-	return UnknownAggregationType{ctx: ctx}
-}
-
-func (query UnknownAggregationType) AggregationType() AggregationType {
-	return UnknownAggregation
-}
-
-func (query UnknownAggregationType) TranslateSqlResponseToJson(rows []QueryResultRow) JsonMap {
-	return make(JsonMap, 0)
-}
-
-func (query UnknownAggregationType) String() string {
-	return "unknown aggregation type"
+func NewEmptyHitsCountInfo() HitsCountInfo {
+	return HitsCountInfo{Typ: Normal}
 }

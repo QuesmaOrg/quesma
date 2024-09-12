@@ -102,7 +102,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 }
 
 func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
-	simpleQuery *model.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) *model.Query {
+	simpleQuery *model.SimpleQuery, queryInfo model.HitsCountInfo, highlighter model.Highlighter) *model.Query {
 	var fullQuery *model.Query
 	switch queryInfo.Typ {
 	case model.ListByField:
@@ -123,7 +123,7 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	return fullQuery
 }
 
-func (cw *ClickhouseQueryTranslator) buildCountQueryIfNeeded(simpleQuery *model.SimpleQuery, queryInfo model.SearchQueryInfo) *model.Query {
+func (cw *ClickhouseQueryTranslator) buildCountQueryIfNeeded(simpleQuery *model.SimpleQuery, queryInfo model.HitsCountInfo) *model.Query {
 	if queryInfo.TrackTotalHits == model.TrackTotalHitsFalse {
 		return nil
 	}
@@ -136,7 +136,7 @@ func (cw *ClickhouseQueryTranslator) buildCountQueryIfNeeded(simpleQuery *model.
 	return nil
 }
 
-func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model.SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
+func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model.SimpleQuery, model.HitsCountInfo, model.Highlighter, error) {
 	queryAsMap := body.Clone()
 
 	// we must parse "highlights" here, because it is stripped from the queryAsMap later
@@ -223,11 +223,11 @@ func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) model.H
 	return highlighter
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (model.SimpleQuery, model.SearchQueryInfo, model.Highlighter) {
+func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (model.SimpleQuery, model.HitsCountInfo, model.Highlighter) {
 	queryAsMap, err := types.ParseJSON(queryAsJson)
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
-		return model.NewSimpleQuery(nil, false), model.NewSearchQueryInfoNormal(), NewEmptyHighlighter()
+		return model.NewSimpleQuery(nil, false), model.NewEmptyHitsCountInfo(), NewEmptyHighlighter()
 	}
 
 	// we must parse "highlights" here, because it is stripped from the queryAsMap later
@@ -238,7 +238,7 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 		queryMap, ok := query.(QueryMap)
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid query type: %T, value: %v", query, query)
-			return model.NewSimpleQuery(nil, false), model.NewSearchQueryInfoNormal(), NewEmptyHighlighter()
+			return model.NewSimpleQuery(nil, false), model.NewEmptyHitsCountInfo(), NewEmptyHighlighter()
 		}
 		parsedQuery = cw.parseQueryMap(queryMap)
 	} else {
@@ -1062,7 +1062,7 @@ func sprint(i interface{}) string {
 // Return value:
 // - listByField: (ListByField, field name, 0, LIMIT)
 // - listAllFields: (ListAllFields, "*", 0, LIMIT) (LIMIT = how many rows we want to return)
-func (cw *ClickhouseQueryTranslator) tryProcessSearchMetadata(queryMap QueryMap) model.SearchQueryInfo {
+func (cw *ClickhouseQueryTranslator) tryProcessSearchMetadata(queryMap QueryMap) model.HitsCountInfo {
 	metadata := cw.parseMetadata(queryMap) // TODO we can remove this if we need more speed. It's a bit unnecessary call, at least for now, when we're parsing brutally.
 
 	// maybe it's ListByField ListAllFields request
@@ -1071,22 +1071,22 @@ func (cw *ClickhouseQueryTranslator) tryProcessSearchMetadata(queryMap QueryMap)
 	}
 
 	// otherwise: None
-	return model.NewSearchQueryInfoNormal()
+	return model.NewEmptyHitsCountInfo()
 }
 
 // 'queryMap' - metadata part of the JSON query
 // returns (info, true) if metadata shows it's ListAllFields or ListByField request (used e.g. for listing all rows in Kibana)
-// returns (model.NewSearchQueryInfoNormal, false) if it's not ListAllFields/ListByField request
-func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.SearchQueryInfo, bool) {
+// returns (model.NewEmptyHitsCountInfo, false) if it's not ListAllFields/ListByField request
+func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.HitsCountInfo, bool) {
 	// 1) case: very simple SELECT * kind of request
 	size := cw.parseSize(queryMap, model.DefaultSizeListQuery)
 	if size == 0 {
-		return model.NewSearchQueryInfoNormal(), false
+		return model.NewEmptyHitsCountInfo(), false
 	}
 
 	fields, ok := queryMap["fields"].([]any)
 	if !ok {
-		return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
+		return model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
 	}
 	if len(fields) > 1 {
 		fieldNames := make([]string, 0)
@@ -1104,21 +1104,21 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.S
 				}
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected QueryMap", field, field)
-				return model.NewSearchQueryInfoNormal(), false
+				return model.NewEmptyHitsCountInfo(), false
 			}
 		}
 		logger.Debug().Msgf("requested more than one field %s, falling back to '*'", fieldNames)
 		// so far everywhere I've seen, > 1 field ==> "*" is one of them
-		return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
+		return model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
 	} else if len(fields) == 0 {
 		// isCount, ok := queryMap["track_total_hits"].(bool)
 		// TODO make count separate!
 		/*
 			if ok && isCount {
-				return model.SearchQueryInfo{Typ: model.CountAsync, RequestedFields: make([]string, 0), FieldName: "", I1: 0, I2: 0}, true
+				return model.HitsCountInfo{Typ: model.CountAsync, RequestedFields: make([]string, 0), FieldName: "", I1: 0, I2: 0}, true
 			}
 		*/
-		return model.NewSearchQueryInfoNormal(), false
+		return model.NewEmptyHitsCountInfo(), false
 	} else {
 		// 2 cases are possible:
 		// a) just a string
@@ -1126,24 +1126,24 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.S
 		if !ok {
 			queryMap, ok = fields[0].(QueryMap)
 			if !ok {
-				return model.NewSearchQueryInfoNormal(), false
+				return model.NewEmptyHitsCountInfo(), false
 			}
 			// b) {"field": fieldName}
 			if field, ok := queryMap["field"]; ok {
 				if fieldName, ok = field.(string); !ok {
 					logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected string", field, field)
-					return model.NewSearchQueryInfoNormal(), false
+					return model.NewEmptyHitsCountInfo(), false
 				}
 			} else {
-				return model.NewSearchQueryInfoNormal(), false
+				return model.NewEmptyHitsCountInfo(), false
 			}
 		}
 
 		resolvedField := cw.ResolveField(cw.Ctx, fieldName)
 		if resolvedField == "*" {
-			return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
+			return model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
 		}
-		return model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{resolvedField}, Size: size}, true
+		return model.HitsCountInfo{Typ: model.ListByField, RequestedFields: []string{resolvedField}, Size: size}, true
 	}
 }
 

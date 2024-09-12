@@ -21,7 +21,7 @@ type AsyncSearchTestCase struct {
 	QueryJson         string
 	ResultJson        string // from ELK
 	Comment           string
-	WantedParseResult model.SearchQueryInfo
+	WantedParseResult model.HitsCountInfo
 	WantedQuery       []string
 	IsAggregation     bool // is it an aggregation query?
 }
