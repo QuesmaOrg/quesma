@@ -833,6 +833,7 @@ func TestFieldEncoding(t *testing.T) {
 		{"field9", "field9"},
 		{"field::", "field__"},
 		{"host.name", "host_name"},
+		{"Geoip.location.lat", "geoip_location_lat"},
 	}
 
 	for _, tt := range tests {

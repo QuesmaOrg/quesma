@@ -105,7 +105,7 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, chConfig *click
 	return resultColumns
 }
 
-func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameFormatter) map[schema.FieldName]CreateTableEntry {
+func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameFormatter, fieldTransformer func(field string) string) map[schema.FieldName]CreateTableEntry {
 	resultColumns := make(map[schema.FieldName]CreateTableEntry)
 
 	if schemaMapping == nil {
@@ -116,7 +116,7 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameF
 		var fType string
 
 		// We should never have dots in the field names, see 4 ADR
-		internalPropertyName := strings.Replace(field.InternalPropertyName.AsString(), ".", "::", -1)
+		internalPropertyName := fieldToColumnEncoder(field.InternalPropertyName.AsString())
 
 		switch field.Type.Name {
 		default:

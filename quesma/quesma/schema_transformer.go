@@ -9,6 +9,7 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/quesma/config"
 	"quesma/schema"
+	"quesma/util"
 	"sort"
 	"strings"
 )
@@ -159,22 +160,22 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 	for _, field := range schemaInstance.Fields {
 		if field.Type.Name == schema.QuesmaTypePoint.Name {
 
-			lon := model.NewColumnRef(field.InternalPropertyName.AsString() + "::lon")
-			lat := model.NewColumnRef(field.InternalPropertyName.AsString() + "::lat")
+			lon := model.NewColumnRef(field.InternalPropertyName.AsString() + "_lon")
+			lat := model.NewColumnRef(field.InternalPropertyName.AsString() + "_lat")
 
 			// This is a workaround. Clickhouse Point is defined as Tuple. We need to know the type of the tuple.
 			// In this step we merge two columns into single map here. Map is in elastic format.
 
 			// In this point we assume that Quesma point type is stored into two separate columns.
-			replace[field.PropertyName.AsString()] = model.NewFunction("map",
+			replace[field.InternalPropertyName.AsString()] = model.NewFunction("map",
 				model.NewLiteral("'lat'"),
 				lat,
 				model.NewLiteral("'lon'"),
 				lon)
 
 			// these a just if we need multifields support
-			replace[field.PropertyName.AsString()+".lat"] = lat
-			replace[field.PropertyName.AsString()+".lon"] = lon
+			replace[field.InternalPropertyName.AsString()+".lat"] = lat
+			replace[field.InternalPropertyName.AsString()+".lon"] = lon
 
 			// if the point is stored as a single column, we need to extract the lat and lon
 			//replace[field.PropertyName.AsString()] = model.NewFunction("give_me_point", model.NewColumnRef(field.InternalPropertyName.AsString()))
@@ -525,6 +526,28 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 }
 
+func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	visitor := model.NewBaseVisitor()
+
+	var err error
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+		return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 
 	transformationChain := []struct {
@@ -533,6 +556,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 	}{
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
+		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},

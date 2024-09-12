@@ -50,7 +50,6 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mod
 			value := col.ExtractValue(query.ctx)
 
 			sourceMap[col.ColName] = value
-
 		}
 
 		elem := model.JsonMap{

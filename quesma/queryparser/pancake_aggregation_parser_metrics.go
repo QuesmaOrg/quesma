@@ -106,7 +106,7 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 		firstExpr := getFirstExpression()
 		result = make([]model.Expr, 0, 3)
 		if col, ok := firstExpr.(model.ColumnRef); ok {
-			colName := col.ColumnName
+			colName := util.FieldToColumnEncoder(col.ColumnName)
 			// TODO we have create columns according to the schema
 			latColumn := model.NewGeoLat(colName)
 			lonColumn := model.NewGeoLon(colName)

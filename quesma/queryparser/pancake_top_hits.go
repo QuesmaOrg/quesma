@@ -89,7 +89,6 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	convertColumnRefToHitTable := func(expr model.Expr) model.Expr {
 		switch exprTyped := expr.(type) {
 		case model.ColumnRef:
-
 			return model.ColumnRef{
 				TableAlias: hitTableName,
 				ColumnName: exprTyped.ColumnName,
