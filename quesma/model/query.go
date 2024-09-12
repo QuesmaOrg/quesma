@@ -50,7 +50,6 @@ type (
 		TableName string
 
 		Highlighter Highlighter
-		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
 		Parent      string       // parent aggregation name, used in some pipeline aggregations
 		Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
 
@@ -139,7 +138,7 @@ func (q *Query) Name() string {
 // HasParentAggregation returns true <=> this aggregation has a parent aggregation, so there's no query to the DB,
 // and results are calculated based on parent aggregation's results.
 func (q *Query) HasParentAggregation() bool {
-	return q.NoDBQuery && len(q.Parent) > 0 // first condition should be enough, second just in case
+	return len(q.Parent) > 0 // first condition should be enough, second just in case
 }
 
 // IsChild returns true <=> this aggregation is a child of maybeParent (so maybeParent is its parent).

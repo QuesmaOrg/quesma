@@ -79,10 +79,6 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 
 func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) (model.JsonMap, error) {
 	aggregations := model.JsonMap{}
-	if len(queries) == 0 {
-		return aggregations, nil
-	}
-	cw.postprocessPipelineAggregations(queries, ResultSets)
 
 	for i, query := range queries {
 		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
@@ -298,32 +294,6 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncId strin
 	return &response
 }
 
-func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []*model.Query, ResultSets [][]model.QueryResultRow) {
-	queryIterationOrder := cw.sortInTopologicalOrder(queries)
-	// fmt.Println("qwerty", queryIterationOrder) let's remove all prints in this function after all pipeline aggregations are merged
-	for _, queryIndex := range queryIterationOrder {
-		query := queries[queryIndex]
-		pipelineQueryType, isPipeline := query.Type.(model.PipelineQueryType)
-		if !isPipeline || !query.HasParentAggregation() {
-			continue
-		}
-		// if we don't send the query, we need process the result ourselves
-		parentIndex := -1
-		// fmt.Println("queries", queryIndex, "parent:", query.Parent) let's remove it after all pipeline aggregations implemented
-		for i, parentQuery := range queries {
-			if parentQuery.Name() == query.Parent {
-				parentIndex = i
-				break
-			}
-		}
-		if parentIndex == -1 {
-			logger.WarnWithCtx(cw.Ctx).Msgf("parent index not found for query %v", query)
-			continue
-		}
-		ResultSets[queryIndex] = pipelineQueryType.CalculateResultWhenMissing(ResultSets[parentIndex])
-	}
-}
-
 func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sampleLimit int) *model.Query {
 	return &model.Query{
 		SelectCommand: *model.NewSelectCommand(
@@ -363,51 +333,4 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, tableName
 			nil,
 		),
 	}
-}
-
-// sortInTopologicalOrder sorts all our queries to DB, which we send to calculate response for a single query request.
-// It sorts them in a way that we can calculate them in the returned order, so any parent aggregation needs to be calculated before its child.
-// It's only really needed for pipeline aggregations, as only they have parent-child relationships.
-//
-// Probably you can create a query with loops in pipeline aggregations, but you can't do it in Kibana from Visualize view,
-// so I don't handle it here. We won't panic in such case, only log a warning/error + return non-full results, which is expected,
-// as you can't really compute cycled pipeline aggregations.
-func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []*model.Query) []int {
-	nameToIndex := make(map[string]int, len(queries))
-	for i, query := range queries {
-		nameToIndex[query.Name()] = i
-	}
-
-	// canSelect[i] == true <=> queries[i] can be selected (it has no parent aggregation, or its parent aggregation is already resolved)
-	canSelect := make([]bool, 0, len(queries))
-	for _, query := range queries {
-		// at the beginning we can select <=> no parent aggregation
-		canSelect = append(canSelect, !query.HasParentAggregation())
-	}
-	alreadySelected := make([]bool, len(queries))
-	indexesSorted := make([]int, 0, len(queries))
-
-	// it's a slow O(query_nr^2) algorithm, can be done in O(query_nr), but since query_nr is ~2-10, we don't care
-	for len(indexesSorted) < len(queries) {
-		lenStart := len(indexesSorted)
-		for i, query := range queries {
-			if !alreadySelected[i] && canSelect[i] {
-				indexesSorted = append(indexesSorted, i)
-				alreadySelected[i] = true
-				// mark all children as canSelect, as their parent is already resolved (selected)
-				for j, maybeChildQuery := range queries {
-					if maybeChildQuery.IsChild(query) {
-						canSelect[j] = true
-					}
-				}
-			}
-		}
-		lenEnd := len(indexesSorted)
-		if lenEnd == lenStart {
-			// without this check, we'd end up in an infinite loop
-			logger.WarnWithCtx(cw.Ctx).Msg("could not resolve all parent-child relationships in queries")
-			break
-		}
-	}
-	return indexesSorted
 }
