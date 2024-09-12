@@ -527,57 +527,6 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, tableName
 	}
 }
 
-//lint:ignore U1000 Not used yet
-func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName string, prefix string, limit int) *model.Query {
-	var whereClause model.Expr
-	if len(prefix) > 0 {
-		//whereClause = strconv.Quote(fieldName) + " iLIKE '" + prefix + "%'"
-		whereClause = model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral(prefix+"%"))
-	}
-	return &model.Query{
-		SelectCommand: *model.NewSelectCommand(
-			[]model.Expr{model.NewColumnRef(fieldName)},
-			nil,
-			nil,
-			model.NewTableRef(model.SingleTableNamePlaceHolder),
-			whereClause,
-			[]model.Expr{},
-			limit,
-			0,
-			false,
-			nil,
-			nil,
-		),
-	}
-}
-
-func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQuery *model.SimpleQuery, isNumeric bool) *model.Query {
-	// FromClause: (SELECT fieldName FROM table WHERE whereClause LIMIT facetsSampleSize)
-	var typ model.QueryType
-	if isNumeric {
-		typ = typical_queries.NewFacetsNumeric(cw.Ctx)
-	} else {
-		typ = typical_queries.NewFacets(cw.Ctx)
-	}
-
-	return &model.Query{
-		SelectCommand: *model.NewSelectCommand(
-			[]model.Expr{model.NewColumnRef(fieldName), model.NewCountFunc()},
-			[]model.Expr{model.NewColumnRef(fieldName)},
-			[]model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)},
-			model.NewTableRef(model.SingleTableNamePlaceHolder),
-			simpleQuery.WhereClause,
-			[]model.Expr{},
-			0,
-			facetsSampleSize,
-			false,
-			nil,
-			nil,
-		),
-		Type: typ,
-	}
-}
-
 // sortInTopologicalOrder sorts all our queries to DB, which we send to calculate response for a single query request.
 // It sorts them in a way that we can calculate them in the returned order, so any parent aggregation needs to be calculated before its child.
 // It's only really needed for pipeline aggregations, as only they have parent-child relationships.

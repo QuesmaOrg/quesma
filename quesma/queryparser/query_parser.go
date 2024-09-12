@@ -136,23 +136,6 @@ func (cw *ClickhouseQueryTranslator) buildCountQueryIfNeeded(simpleQuery *model.
 	return nil
 }
 
-func (cw *ClickhouseQueryTranslator) buildFacetsQueryIfNeeded(
-	simpleQuery *model.SimpleQuery, queryInfo model.SearchQueryInfo) *model.Query {
-
-	if queryInfo.Typ != model.Facets && queryInfo.Typ != model.FacetsNumeric {
-		return nil
-	}
-
-	query := cw.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.Typ == model.FacetsNumeric)
-	if len(query.SelectCommand.Columns) >= 2 {
-		query.SelectCommand.Columns[0] = model.NewAliasedExpr(query.SelectCommand.Columns[0], "key")
-		query.SelectCommand.Columns[1] = model.NewAliasedExpr(query.SelectCommand.Columns[1], "doc_count")
-	} else {
-		logger.WarnWithCtx(cw.Ctx).Msgf("facets query has < 2 columns. query: %+v", query)
-	}
-	return query
-}
-
 func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model.SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
 	queryAsMap := body.Clone()
 
