@@ -52,22 +52,17 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	// countQuery will be added later, depending on pancake optimization
 	countQuery := cw.buildCountQueryIfNeeded(simpleQuery, queryInfo)
 
-	facetsQuery := cw.buildFacetsQueryIfNeeded(simpleQuery, queryInfo)
-	if facetsQuery != nil {
-		queries = append(queries, facetsQuery)
-	} else {
-		// here we decide if pancake should count rows
-		addCount := countQuery != nil
+	// here we decide if pancake should count rows
+	addCount := countQuery != nil
 
-		if pancakeQueries, err := cw.PancakeParseAggregationJson(body, addCount); err == nil {
-			if len(pancakeQueries) > 0 {
-				countQuery = nil // count was taken care of by pancake
-			}
-			queries = append(queries, pancakeQueries...)
-		} else {
-			// Currently we swallow error to preserve backward compatibility, but eventually we should return it.
-			logger.ErrorWithCtx(cw.Ctx).Msgf("Error parsing pancake queries: %v.", err)
+	if pancakeQueries, err := cw.PancakeParseAggregationJson(body, addCount); err == nil {
+		if len(pancakeQueries) > 0 {
+			countQuery = nil // count was taken care of by pancake
 		}
+		queries = append(queries, pancakeQueries...)
+	} else {
+		// Currently we swallow error to preserve backward compatibility, but eventually we should return it.
+		logger.ErrorWithCtx(cw.Ctx).Msgf("Error parsing pancake queries: %v.", err)
 	}
 
 	if countQuery != nil {
