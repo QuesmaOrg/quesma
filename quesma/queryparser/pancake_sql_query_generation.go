@@ -143,7 +143,9 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 			columnId := len(bucketAggregation.selectedColumns) + i
 			direction := orderBy.Direction
 
-			rankColumn := p.isPartOf(orderBy.Expr, append(append(groupByColumns, countAliasedColumn), addGroupBys...))
+			rankColumn := p.isPartOf(orderBy.Expr, append(append(groupByColumns, addGroupBys...),
+				// We need count before window functions
+				model.NewAliasedExpr(model.NewCountFunc(), bucketAggregation.InternalNameForCount())))
 			if rankColumn != nil { // rank is part of group by
 				if direction == model.DefaultOrder {
 					direction = model.AscOrder // primarily needed for tests
