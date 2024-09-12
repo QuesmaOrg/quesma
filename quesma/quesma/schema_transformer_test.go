@@ -473,7 +473,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewFunction("count"),
+						model.NewCountFunc(),
 					},
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("products::name"),
@@ -489,7 +489,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewFunction("count"),
+						model.NewCountFunc(),
 					},
 					WhereClause: model.NewFunction(
 						"arrayExists",
@@ -511,7 +511,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewFunction("count"),
+						model.NewCountFunc(),
 					},
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("products::sku"),
@@ -527,7 +527,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewFunction("count"),
+						model.NewCountFunc(),
 					},
 					WhereClause: model.NewFunction(
 						"has",
@@ -687,14 +687,14 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 				FromClause: model.NewTableRef(model.SingleTableNamePlaceHolder),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
-					model.NewFunction("count"),
+					model.NewCountFunc(),
 				},
 			},
 			model.SelectCommand{
 				FromClause: model.NewTableRef("test"),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
-					model.NewFunction("count"),
+					model.NewCountFunc(),
 				},
 			},
 		},
@@ -705,7 +705,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 				FromClause: model.NewTableRef(model.SingleTableNamePlaceHolder),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
-					model.NewFunction("count"),
+					model.NewCountFunc(),
 				},
 				NamedCTEs: []*model.CTE{
 					{
@@ -723,7 +723,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 				FromClause: model.NewTableRef("test"),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
-					model.NewFunction("count"),
+					model.NewCountFunc(),
 				},
 				NamedCTEs: []*model.CTE{
 					{
@@ -745,7 +745,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 				FromClause: model.NewTableRef(model.SingleTableNamePlaceHolder),
 				Columns: []model.Expr{
 					model.NewColumnRef("order_date"),
-					model.NewFunction("count"),
+					model.NewCountFunc(),
 				},
 				NamedCTEs: []*model.CTE{
 					{
@@ -763,7 +763,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 				FromClause: model.NewTableRef("test"),
 				Columns: []model.Expr{
 					model.NewColumnRef("order_date"),
-					model.NewFunction("count"),
+					model.NewCountFunc(),
 				},
 				NamedCTEs: []*model.CTE{
 					{
@@ -822,7 +822,7 @@ func TestFullTextFields(t *testing.T) {
 				FromClause: model.NewTableRef("test"),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
-					model.NewFunction("count"),
+					model.NewCountFunc(),
 				},
 				WhereClause: model.NewInfixExpr(model.NewColumnRef(model.FullTextFieldNamePlaceHolder), "=", model.NewLiteral("foo")),
 			},
@@ -830,7 +830,7 @@ func TestFullTextFields(t *testing.T) {
 				FromClause: model.NewTableRef("test"),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
-					model.NewFunction("count"),
+					model.NewCountFunc(),
 				},
 				WhereClause: model.NewLiteral(false),
 			},
@@ -843,7 +843,7 @@ func TestFullTextFields(t *testing.T) {
 				FromClause: model.NewTableRef("test"),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
-					model.NewFunction("count"),
+					model.NewCountFunc(),
 				},
 				WhereClause: model.NewInfixExpr(model.NewColumnRef(model.FullTextFieldNamePlaceHolder), "=", model.NewLiteral("foo")),
 			},
@@ -851,7 +851,7 @@ func TestFullTextFields(t *testing.T) {
 				FromClause: model.NewTableRef("test"),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
-					model.NewFunction("count"),
+					model.NewCountFunc(),
 				},
 				WhereClause: model.NewInfixExpr(model.NewColumnRef("b"), "=", model.NewLiteral("foo")),
 			},
@@ -864,7 +864,7 @@ func TestFullTextFields(t *testing.T) {
 				FromClause: model.NewTableRef("test"),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
-					model.NewFunction("count"),
+					model.NewCountFunc(),
 				},
 				WhereClause: model.NewInfixExpr(model.NewColumnRef(model.FullTextFieldNamePlaceHolder), "=", model.NewLiteral("foo")),
 			},
@@ -872,7 +872,7 @@ func TestFullTextFields(t *testing.T) {
 				FromClause: model.NewTableRef("test"),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
-					model.NewFunction("count"),
+					model.NewCountFunc(),
 				},
 				WhereClause: model.Or([]model.Expr{
 					model.NewInfixExpr(model.NewColumnRef("a"), "=", model.NewLiteral("foo")),

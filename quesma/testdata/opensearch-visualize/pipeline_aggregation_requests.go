@@ -4347,11 +4347,10 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "extension" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count",
-			  count() AS "aggr__1-bucket__order_1",
 			  avgOrNull("machine.ram") AS "metric__1-bucket__1-metric_col_0"
 			FROM __quesma_table_name
 			GROUP BY "extension" AS "aggr__1-bucket__key_0"
-			ORDER BY "aggr__1-bucket__order_1" DESC, "aggr__1-bucket__key_0" ASC
+			ORDER BY "aggr__1-bucket__count" DESC, "aggr__1-bucket__key_0" ASC
 			LIMIT 6`,
 	},
 	{ // [25]
