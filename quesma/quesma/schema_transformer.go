@@ -207,8 +207,6 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 			if col, ok := e.Args[0].(model.ColumnRef); ok {
 				if expr, ok := replace[col.ColumnName+suffix]; ok {
 					return expr
-				} else {
-					// we don't have replacement here
 				}
 			}
 		}
@@ -579,11 +577,6 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		queries[k] = query
 	}
 	return queries, nil
-}
-
-type GeoIpResultTransformer struct {
-	schemaRegistry schema.Registry
-	fromTable      string
 }
 
 // ArrayResultTransformer is a transformer that transforms array columns into string representation
