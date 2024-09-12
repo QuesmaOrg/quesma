@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"quesma/model"
 	"quesma/model/metrics_aggregations"
+	"quesma/util"
 	"strconv"
 	"strings"
 )
@@ -97,9 +98,9 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 			if strings.HasSuffix(exprTyped.ColumnName, "Location") {
 				return model.NewFunction("map",
 					model.NewLiteral("'lat'"),
-					hitTableLiteral(exprTyped.ColumnName+"::lat"),
+					hitTableLiteral(util.FieldToColumnEncoder(exprTyped.ColumnName)+"_lat"),
 					model.NewLiteral("'lon'"),
-					hitTableLiteral(exprTyped.ColumnName+"::lon"),
+					hitTableLiteral(util.FieldToColumnEncoder(exprTyped.ColumnName)+"_lon"),
 				)
 			}
 			return model.ColumnRef{

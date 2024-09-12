@@ -9,6 +9,7 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/quesma/config"
 	"quesma/schema"
+	"quesma/util"
 	"sort"
 	"strings"
 )
@@ -174,9 +175,9 @@ func (s *SchemaCheckPass) applyGeoTransformations(currentSchema schema.Schema, q
 				// and if it is, it appends the lat and lon columns to the group by clause
 				field := schemaInstance.Fields[schema.FieldName(col.ColumnName)]
 				if field.Type.Name == schema.QuesmaTypePoint.Name {
-					// TODO suffixes ::lat, ::lon are hardcoded for now
-					groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lat"))
-					groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lon"))
+					// TODO suffixes _lat, _lon are hardcoded for now
+					groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+"_lat"))
+					groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+"_lon"))
 				} else {
 					groupBy = append(groupBy, groupByExpr)
 				}
@@ -191,9 +192,9 @@ func (s *SchemaCheckPass) applyGeoTransformations(currentSchema schema.Schema, q
 				// and if it is, it appends the lat and lon columns to the select clause
 				field := schemaInstance.Fields[schema.FieldName(col.ColumnName)]
 				if field.Type.Name == schema.QuesmaTypePoint.Name {
-					// TODO suffixes ::lat, ::lon are hardcoded for now
-					columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lat"))
-					columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lon"))
+					// TODO suffixes _lat, _lon are hardcoded for now
+					columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+"_lat"))
+					columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+"_lon"))
 				} else {
 					columns = append(columns, expr.Accept(b).(model.Expr))
 				}
@@ -474,12 +475,35 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 }
 
+func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	visitor := model.NewBaseVisitor()
+
+	var err error
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+		return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 
 	transformationChain := []struct {
 		TransformationName string
 		Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
 	}{
+		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
@@ -538,12 +562,12 @@ func (g *GeoIpResultTransformer) Transform(result [][]model.QueryResultRow) ([][
 	for i, rows := range result {
 		for j, row := range rows {
 			for k, col := range row.Cols {
-				if strings.Contains(col.ColName, "::lat") {
-					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, "::lat"))].Type
+				if strings.Contains(col.ColName, "_lat") {
+					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, "_lat"))].Type
 					result[i][j].Cols[k].ColType = colType
 				}
-				if strings.Contains(col.ColName, "::lon") {
-					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, "::lon"))].Type
+				if strings.Contains(col.ColName, "_lon") {
+					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, "_lon"))].Type
 					result[i][j].Cols[k].ColType = colType
 				}
 			}

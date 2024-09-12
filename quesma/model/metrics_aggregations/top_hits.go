@@ -60,15 +60,15 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mod
 
 			if col.ColType.Name == schema.QuesmaTypePoint.Name {
 				hits := make(model.JsonMap)
-				// TODO suffixes (::lat, ::lon) hardcoded for now
+				// TODO suffixes (_lat, _lon) hardcoded for now
 				// due to insufficient information in the schema
-				if strings.Contains(col.ColName, "::lon") {
+				if strings.Contains(col.ColName, "_lon") {
 					hits["lon"] = col.ExtractValue(query.ctx)
-					colName = strings.TrimSuffix(col.ColName, "::lon")
+					colName = strings.TrimSuffix(col.ColName, "_lon")
 				}
-				if strings.Contains(col.ColName, "::lat") {
+				if strings.Contains(col.ColName, "_lat") {
 					hits["lat"] = col.ExtractValue(query.ctx)
-					colName = strings.TrimSuffix(col.ColName, "::lat")
+					colName = strings.TrimSuffix(col.ColName, "_lat")
 				}
 				if _, ok := sourceMap[colName]; ok {
 					currentHits := sourceMap[colName].(model.JsonMap)

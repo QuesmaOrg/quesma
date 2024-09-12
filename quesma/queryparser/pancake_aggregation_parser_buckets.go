@@ -239,10 +239,12 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		// TODO columns names should be created according to the schema
 		var lon = model.AsString(field)
 		lon = strings.Trim(lon, "\"")
-		lon = lon + "::lon"
+		lon = lon + "_lon"
+		lon = util.FieldToColumnEncoder(lon)
 		var lat = model.AsString(field)
 		lat = strings.Trim(lat, "\"")
-		lat = lat + "::lat"
+		lat = lat + "_lat"
+		lat = util.FieldToColumnEncoder(lat)
 		toFloatFunLon := model.NewFunction("toFloat64", model.NewColumnRef(lon))
 		var infixX model.Expr
 		infixX = model.NewParenExpr(model.NewInfixExpr(toFloatFunLon, "+", model.NewLiteral(180.0)))

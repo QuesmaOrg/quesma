@@ -6,6 +6,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/schema"
+	"quesma/util"
 	"strings"
 )
 
@@ -28,7 +29,7 @@ func (v *arrayTypeResolver) dbColumnType(columName string) string {
 	//
 	// here we should resolve field by column name not field name
 	columName = strings.TrimSuffix(columName, ".keyword")
-	columName = strings.ReplaceAll(columName, "::", ".")
+	columName = util.FieldToColumnEncoder(columName)
 
 	field, ok := v.indexSchema.ResolveField(columName)
 

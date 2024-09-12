@@ -27,7 +27,7 @@ type removeFieldsTransformer struct {
 func (t *removeFieldsTransformer) Transform(document types.JSON) (types.JSON, error) {
 	for _, field := range t.fields {
 		delete(document, field.AsString())
-		delete(document, strings.Replace(field.AsString(), ".", "::", -1))
+		delete(document, strings.Replace(field.AsString(), ".", "_", -1))
 	}
 	return document, nil
 }
@@ -35,7 +35,7 @@ func (t *removeFieldsTransformer) Transform(document types.JSON) (types.JSON, er
 func IngestTransformerFor(table string, cfg *config.QuesmaConfiguration) IngestTransformer {
 	var transformers []IngestTransformer
 
-	transformers = append(transformers, &flattenMapTransformer{separator: "::"})
+	transformers = append(transformers, &flattenMapTransformer{separator: "_"})
 
 	if indexConfig, found := cfg.IndexConfig[table]; found && indexConfig.SchemaOverrides != nil {
 		// FIXME: don't get ignored fields from schema config, but store

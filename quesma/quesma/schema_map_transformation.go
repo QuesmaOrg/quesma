@@ -7,6 +7,7 @@ import (
 	"quesma/model"
 	"quesma/quesma/types"
 	"quesma/schema"
+	"quesma/util"
 	"strings"
 )
 
@@ -46,7 +47,7 @@ func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScop
 		scope = scopeWholeMap
 	}
 
-	tableColumnName := strings.ReplaceAll(fieldName, ".", "::")
+	tableColumnName := util.FieldToColumnEncoder(fieldName)
 	col, ok := v.indexSchema.Fields[schema.FieldName(tableColumnName)]
 
 	if ok {

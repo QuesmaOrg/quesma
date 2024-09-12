@@ -204,7 +204,7 @@ func (ip *IngestProcessor) buildCreateTableQueryNoOurFields(ctx context.Context,
 
 	columnsFromJson := JsonToColumns("", jsonData, 1,
 		tableConfig, nameFormatter, ignoredFields)
-	columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), nameFormatter)
+	columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), nameFormatter, fieldToColumnEncoder)
 	return columnsFromJson, columnsFromSchema
 }
 
@@ -540,7 +540,7 @@ func generateSqlStatements(createTableCmd string, alterCmd []string, insert stri
 }
 
 func fieldToColumnEncoder(field string) string {
-	return strings.Replace(field, ".", "::", -1)
+	return util.FieldToColumnEncoder(field)
 }
 
 func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
@@ -576,9 +576,11 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		ignoredFields := ip.getIgnoredFields(tableName)
 		columnsFromJson := JsonToColumns("", jsonData[0], 1,
 			tableConfig, tableFormatter, ignoredFields)
-		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter)
-		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
-		createTableCmd = createTableQuery(tableName, columns, tableConfig)
+		// This comes externally from (configuration)
+		// So we need to convert that separately
+		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter, fieldToColumnEncoder)
+		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
+		createTableCmd = createTableQuery(tableName, columnsAsString, tableConfig)
 		var err error
 		createTableCmd, err = ip.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig)
 		if err != nil {
