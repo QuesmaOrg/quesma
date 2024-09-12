@@ -240,7 +240,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 			return
 		}
 	}
-	
+
 	return
 }
 
@@ -305,7 +305,6 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 			sampleLimit,
 			false,
 			nil,
-			nil,
 		),
 		Type: typical_queries.NewCount(cw.Ctx),
 	}
@@ -327,7 +326,6 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, tableName
 			limit,
 			0,
 			true,
-			nil,
 			nil,
 		),
 	}

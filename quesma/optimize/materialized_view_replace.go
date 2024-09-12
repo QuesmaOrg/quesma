@@ -133,14 +133,6 @@ func (s *materializedViewReplace) replace(rule materializedViewReplaceRule, quer
 
 	visitor.OverrideVisitSelectCommand = func(v *model.BaseExprVisitor, query model.SelectCommand) interface{} {
 
-		var ctes []*model.SelectCommand
-		if query.CTEs != nil {
-			ctes = make([]*model.SelectCommand, 0)
-			for _, cte := range query.CTEs {
-				ctes = append(ctes, cte.Accept(v).(*model.SelectCommand))
-			}
-		}
-
 		var namedCTEs []*model.CTE
 		if query.NamedCTEs != nil {
 			for _, cte := range query.NamedCTEs {
@@ -173,7 +165,7 @@ func (s *materializedViewReplace) replace(rule materializedViewReplaceRule, quer
 					if whereReplaced {
 						replaced = true
 						from = model.NewTableRef(rule.materializedView) // config param
-						return model.NewSelectCommand(query.Columns, query.GroupBy, query.OrderBy, from, newWhere, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes, namedCTEs)
+						return model.NewSelectCommand(query.Columns, query.GroupBy, query.OrderBy, from, newWhere, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, namedCTEs)
 					}
 				}
 			} else {
@@ -184,7 +176,7 @@ func (s *materializedViewReplace) replace(rule materializedViewReplaceRule, quer
 		if query.WhereClause != nil {
 			where = query.WhereClause.Accept(v).(model.Expr)
 		}
-		return model.NewSelectCommand(query.Columns, query.GroupBy, query.OrderBy, from, where, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes, namedCTEs)
+		return model.NewSelectCommand(query.Columns, query.GroupBy, query.OrderBy, from, where, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, namedCTEs)
 
 	}
 

@@ -54,7 +54,7 @@ func BuildHitsQuery(ctx context.Context, tableName string, fieldNames []string, 
 
 	return &model.Query{
 		SelectCommand: *model.NewSelectCommand(columns, nil, query.OrderBy, model.NewTableRef(tableName),
-			query.WhereClause, []model.Expr{}, applySizeLimit(ctx, limit), 0, false, []*model.SelectCommand{}, []*model.CTE{}),
+			query.WhereClause, []model.Expr{}, applySizeLimit(ctx, limit), 0, false, []*model.CTE{}),
 	}
 }
 

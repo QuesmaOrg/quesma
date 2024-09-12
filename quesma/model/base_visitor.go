@@ -160,13 +160,6 @@ func (v *BaseExprVisitor) VisitSelectCommand(query SelectCommand) interface{} {
 		where = query.WhereClause.Accept(v).(Expr)
 	}
 
-	var ctes []*SelectCommand
-	if query.CTEs != nil {
-		ctes = make([]*SelectCommand, 0)
-		for _, cte := range query.CTEs {
-			ctes = append(ctes, cte.Accept(v).(*SelectCommand))
-		}
-	}
 	var namedCTEs []*CTE
 	if query.NamedCTEs != nil {
 		for _, cte := range query.NamedCTEs {
@@ -181,7 +174,7 @@ func (v *BaseExprVisitor) VisitSelectCommand(query SelectCommand) interface{} {
 		}
 	}
 
-	return NewSelectCommand(columns, groupBy, orderBy, from, where, limitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes, namedCTEs)
+	return NewSelectCommand(columns, groupBy, orderBy, from, where, limitBy, query.Limit, query.SampleLimit, query.IsDistinct, namedCTEs)
 }
 
 func (v *BaseExprVisitor) VisitParenExpr(p ParenExpr) interface{} {

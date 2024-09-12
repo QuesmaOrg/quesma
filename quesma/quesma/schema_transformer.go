@@ -208,7 +208,7 @@ func (s *SchemaCheckPass) applyGeoTransformations(currentSchema schema.Schema, q
 		}
 
 		return model.NewSelectCommand(columns, groupBy, e.OrderBy,
-			fromClause, e.WhereClause, e.LimitBy, e.Limit, e.SampleLimit, e.IsDistinct, e.CTEs, e.NamedCTEs)
+			fromClause, e.WhereClause, e.LimitBy, e.Limit, e.SampleLimit, e.IsDistinct, e.NamedCTEs)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)

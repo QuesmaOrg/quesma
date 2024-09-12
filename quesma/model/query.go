@@ -109,7 +109,7 @@ func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []
 		"ROW_NUMBER", nil, groupByFields, orderBy,
 	), RowNumberColumnName))
 
-	return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, whereClause, []Expr{}, 0, 0, false, []*SelectCommand{}, []*CTE{})
+	return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, whereClause, []Expr{}, 0, 0, false, []*CTE{})
 }
 
 type HitsInfo int // TODO/warning: right now difference between ListByField/ListAllFields/Normal is not very clear. It probably should be merged into 1 type.
