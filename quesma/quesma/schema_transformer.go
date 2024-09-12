@@ -8,6 +8,7 @@ import (
 	"quesma/model"
 	"quesma/model/typical_queries"
 	"quesma/quesma/config"
+	"quesma/quesma/types"
 	"quesma/schema"
 	"sort"
 	"strings"
@@ -152,63 +153,120 @@ func (s *SchemaCheckPass) applyIpTransformations(indexSchema schema.Schema, quer
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyGeoTransformations(currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
-	fromTable := query.TableName
+const quesmaTupleGeoType = "_quesma_geo_type"
+
+func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, query *model.Query) (*model.Query, error) {
+
+	replace := make(map[string]model.Expr)
+
+	for _, field := range schemaInstance.Fields {
+		if field.Type.Name == schema.QuesmaTypePoint.Name {
+
+			// This is a workaround. Clickhouse Point is defined as Tuple. We need to know the type of the tuple.
+			// In this step we merge two columns into single one. GEOs are transformed into valid JSON in GeoIpResultTransformer
+
+			// In this point we assume that Quesma point type is stored into two separate columns.
+			replace[field.PropertyName.AsString()] = model.NewFunction("tuple", model.NewLiteral(`'`+quesmaTupleGeoType+`'`), model.NewColumnRef(field.InternalPropertyName.AsString()+"::lat"), model.NewColumnRef(field.InternalPropertyName.AsString()+"::lon"))
+			replace[field.PropertyName.AsString()+".lat"] = model.NewColumnRef(field.InternalPropertyName.AsString() + "::lat")
+			replace[field.PropertyName.AsString()+".lon"] = model.NewColumnRef(field.InternalPropertyName.AsString() + "::lon")
+
+			// if the point is stored as a single column, we need to extract the lat and lon
+			//replace[field.PropertyName.AsString()] = model.NewFunction("give_me_point", model.NewColumnRef(field.InternalPropertyName.AsString()))
+			//replace[field.PropertyName.AsString()+".lat"] = model.NewFunction("give_me_lat", model.NewColumnRef(field.InternalPropertyName.AsString()))
+			//replace[field.PropertyName.AsString()+".lon"] = model.NewFunction("give_me_lon", model.NewColumnRef(field.InternalPropertyName.AsString()))
+
+		}
+	}
 
 	visitor := model.NewBaseVisitor()
-	visitor.OverrideVisitSelectCommand = func(b *model.BaseExprVisitor, e model.SelectCommand) interface{} {
-		if s.schemaRegistry == nil {
-			logger.Error().Msg("Schema registry is not set")
-			return e
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+		if expr, ok := replace[e.ColumnName]; ok {
+			return expr
 		}
-		schemaInstance, exists := s.schemaRegistry.FindSchema(schema.TableName(fromTable))
-		if !exists {
-			logger.Error().Msgf("Schema fot table %s not found", fromTable)
-			return e
+		return e
+	}
+
+	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
+
+		var suffix string
+		switch e.Name {
+		case model.QuesmaGeoLatFunction:
+			suffix = ".lat"
+		case model.QuesmaGeoLonFunction:
+			suffix = ".lon"
 		}
-		var groupBy []model.Expr
-		for _, expr := range e.GroupBy {
-			groupByExpr := expr.Accept(b).(model.Expr)
-			if col, ok := expr.(model.ColumnRef); ok {
-				// This checks if the column is of type point
-				// and if it is, it appends the lat and lon columns to the group by clause
-				field := schemaInstance.Fields[schema.FieldName(col.ColumnName)]
-				if field.Type.Name == schema.QuesmaTypePoint.Name {
-					// TODO suffixes ::lat, ::lon are hardcoded for now
-					groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lat"))
-					groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lon"))
+
+		if suffix != "" && len(e.Args) == 1 {
+			if col, ok := e.Args[0].(model.ColumnRef); ok {
+				if expr, ok := replace[col.ColumnName+suffix]; ok {
+					return expr
 				} else {
-					groupBy = append(groupBy, groupByExpr)
+					// we don't have replacement here
 				}
-			} else {
-				groupBy = append(groupBy, groupByExpr)
-			}
-		}
-		var columns []model.Expr
-		for _, expr := range e.Columns {
-			if col, ok := expr.(model.ColumnRef); ok {
-				// This checks if the column is of type point
-				// and if it is, it appends the lat and lon columns to the select clause
-				field := schemaInstance.Fields[schema.FieldName(col.ColumnName)]
-				if field.Type.Name == schema.QuesmaTypePoint.Name {
-					// TODO suffixes ::lat, ::lon are hardcoded for now
-					columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lat"))
-					columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lon"))
-				} else {
-					columns = append(columns, expr.Accept(b).(model.Expr))
-				}
-			} else {
-				columns = append(columns, expr.Accept(b).(model.Expr))
 			}
 		}
 
-		var fromClause model.Expr
-		if e.FromClause != nil {
-			fromClause = e.FromClause.Accept(b).(model.Expr)
+		return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+	}
+
+	visitor.OverrideVisitSelectCommand = func(v *model.BaseExprVisitor, query model.SelectCommand) interface{} {
+		var columns, groupBy []model.Expr
+		var orderBy []model.OrderByExpr
+		from := query.FromClause
+		where := query.WhereClause
+
+		for _, expr := range query.Columns {
+			var alias string
+			if col, ok := expr.(model.ColumnRef); ok {
+				if _, ok := replace[col.ColumnName]; ok {
+					alias = col.ColumnName
+				}
+			}
+
+			col := expr.Accept(v).(model.Expr)
+
+			if alias != "" {
+				col = model.NewAliasedExpr(col, alias)
+			}
+
+			columns = append(columns, col)
+		}
+		for _, expr := range query.GroupBy {
+			groupBy = append(groupBy, expr.Accept(v).(model.Expr))
+		}
+		for _, expr := range query.OrderBy {
+			orderBy = append(orderBy, expr.Accept(v).(model.OrderByExpr))
+		}
+		if query.FromClause != nil {
+			from = query.FromClause.Accept(v).(model.Expr)
+		}
+		if query.WhereClause != nil {
+			where = query.WhereClause.Accept(v).(model.Expr)
 		}
 
-		return model.NewSelectCommand(columns, groupBy, e.OrderBy,
-			fromClause, e.WhereClause, e.LimitBy, e.Limit, e.SampleLimit, e.IsDistinct, e.CTEs, e.NamedCTEs)
+		var ctes []*model.SelectCommand
+		if query.CTEs != nil {
+			ctes = make([]*model.SelectCommand, 0)
+			for _, cte := range query.CTEs {
+				ctes = append(ctes, cte.Accept(v).(*model.SelectCommand))
+			}
+		}
+		var namedCTEs []*model.CTE
+		if query.NamedCTEs != nil {
+			for _, cte := range query.NamedCTEs {
+				namedCTEs = append(namedCTEs, cte.Accept(v).(*model.CTE))
+			}
+		}
+
+		var limitBy []model.Expr
+		if query.LimitBy != nil {
+			for _, expr := range query.LimitBy {
+				limitBy = append(limitBy, expr.Accept(v).(model.Expr))
+			}
+		}
+
+		return model.NewSelectCommand(columns, groupBy, orderBy, from, where, limitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes, namedCTEs)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
@@ -329,9 +387,6 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 
 		cols := make([]string, 0, len(indexSchema.Fields))
 		for _, col := range indexSchema.Fields {
-			if col.Type.Name == schema.QuesmaTypePoint.Name { // Temporary workaround for kibana_flights
-				continue
-			}
 			cols = append(cols, col.InternalPropertyName.AsString())
 		}
 		sort.Strings(cols)
@@ -526,25 +581,32 @@ type GeoIpResultTransformer struct {
 }
 
 func (g *GeoIpResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
-	if g.schemaRegistry == nil {
-		logger.Error().Msg("Schema registry is not set")
-		return result, nil
-	}
-	schemaInstance, exists := g.schemaRegistry.FindSchema(schema.TableName(g.fromTable))
-	if !exists {
-		logger.Error().Msgf("Schema fot table %s not found", g.fromTable)
-		return result, nil
-	}
+
 	for i, rows := range result {
 		for j, row := range rows {
 			for k, col := range row.Cols {
-				if strings.Contains(col.ColName, "::lat") {
-					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, "::lat"))].Type
-					result[i][j].Cols[k].ColType = colType
-				}
-				if strings.Contains(col.ColName, "::lon") {
-					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, "::lon"))].Type
-					result[i][j].Cols[k].ColType = colType
+
+				if ary, ok := col.Value.([]interface{}); ok {
+					if len(ary) == 3 && ary[0] == quesmaTupleGeoType {
+
+						var lat, lon string
+
+						if s, ok := ary[1].(*string); ok {
+							lat = *s
+						}
+
+						if s, ok := ary[2].(*string); ok {
+							lon = *s
+						}
+
+						// convert to a valid GEO Point here
+						point := types.JSON{}
+						point["lat"] = lat
+						point["lon"] = lon
+
+						result[i][j].Cols[k].Value = point
+						continue
+					}
 				}
 			}
 		}

@@ -4,12 +4,8 @@ package metrics_aggregations
 
 import (
 	"context"
-	"encoding/json"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/schema"
-	"strconv"
-	"strings"
 )
 
 type TopHits struct {
@@ -50,49 +46,11 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mod
 		sourceMap := model.JsonMap{}
 
 		for _, col := range valuesForHits {
-			var withoutQuotes string
-			if unquoted, err := strconv.Unquote(col.ColName); err == nil {
-				withoutQuotes = unquoted
-			} else {
-				withoutQuotes = col.ColName
-			}
-			colName, _ := strings.CutPrefix(withoutQuotes, `windowed_`)
 
-			if col.ColType.Name == schema.QuesmaTypePoint.Name {
-				hits := make(model.JsonMap)
-				// TODO suffixes (::lat, ::lon) hardcoded for now
-				// due to insufficient information in the schema
-				if strings.Contains(col.ColName, "::lon") {
-					hits["lon"] = col.ExtractValue(query.ctx)
-					colName = strings.TrimSuffix(col.ColName, "::lon")
-				}
-				if strings.Contains(col.ColName, "::lat") {
-					hits["lat"] = col.ExtractValue(query.ctx)
-					colName = strings.TrimSuffix(col.ColName, "::lat")
-				}
-				if _, ok := sourceMap[colName]; ok {
-					currentHits := sourceMap[colName].(model.JsonMap)
-					for k, v := range currentHits {
-						hits[k] = v
-					}
-					sourceMap[colName] = hits
-				} else {
-					sourceMap[colName] = hits
-				}
+			value := col.ExtractValue(query.ctx)
 
-			} else {
-				value := col.ExtractValue(query.ctx)
-				// TODO: this is hack, we should not assume this is location
-				if strings.HasSuffix(col.ColName, "Location") {
-					if valueStr, ok := value.(string); ok {
-						var valueJson model.JsonMap
-						if err := json.Unmarshal([]byte(valueStr), &valueJson); err == nil {
-							value = valueJson
-						}
-					}
-				}
-				sourceMap[col.ColName] = value
-			}
+			sourceMap[col.ColName] = value
+
 		}
 
 		elem := model.JsonMap{

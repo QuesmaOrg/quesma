@@ -236,21 +236,21 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 
 		zoomLiteral := model.NewLiteral(precisionZoom)
 
-		// TODO columns names should be created according to the schema
-		var lon = model.AsString(field)
-		lon = strings.Trim(lon, "\"")
-		lon = lon + "::lon"
-		var lat = model.AsString(field)
-		lat = strings.Trim(lat, "\"")
-		lat = lat + "::lat"
-		toFloatFunLon := model.NewFunction("toFloat64", model.NewColumnRef(lon))
+		var lonField = model.AsString(field)
+		lonField = strings.Trim(lonField, "\"")
+		lon := model.NewGeoLon(lonField)
+		var latField = model.AsString(field)
+		latField = strings.Trim(latField, "\"")
+		lat := model.NewGeoLat(latField)
+
+		toFloatFunLon := model.NewFunction("toFloat64", lon)
 		var infixX model.Expr
 		infixX = model.NewParenExpr(model.NewInfixExpr(toFloatFunLon, "+", model.NewLiteral(180.0)))
 		infixX = model.NewParenExpr(model.NewInfixExpr(infixX, "/", model.NewLiteral(360.0)))
 		infixX = model.NewInfixExpr(infixX, "*",
 			model.NewFunction("POWER", model.NewLiteral(2), zoomLiteral))
 		xTile := model.NewFunction("FLOOR", infixX)
-		toFloatFunLat := model.NewFunction("toFloat64", model.NewColumnRef(lat))
+		toFloatFunLat := model.NewFunction("toFloat64", lat)
 		radians := model.NewFunction("RADIANS", toFloatFunLat)
 		tan := model.NewFunction("TAN", radians)
 		cos := model.NewFunction("COS", radians)

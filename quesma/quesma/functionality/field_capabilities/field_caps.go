@@ -74,6 +74,9 @@ func handleFieldCapsIndex(cfg *config.QuesmaConfiguration, schemaRegistry schema
 					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldTextSuffix), schema.QuesmaTypeText, resolvedIndex)
 					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldMapKeysSuffix), schema.QuesmaTypeText, resolvedIndex)
 					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldMapValuesSuffix), schema.QuesmaTypeText, resolvedIndex)
+				case "point":
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), ".lat"), schema.QuesmaTypeFloat, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), ".lon"), schema.QuesmaTypeFloat, resolvedIndex)
 				}
 			}
 
