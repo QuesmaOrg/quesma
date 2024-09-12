@@ -41,7 +41,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		return &model.ExecutionPlan{}, errors.New("schema registry is not set")
 	}
 
-	simpleQuery, queryInfo, highlighter, err := cw.parseQueryInternal(body)
+	simpleQuery, hitsInfo, highlighter, err := cw.parseQueryInternal(body)
 	if err != nil || !simpleQuery.CanParse {
 		logger.WarnWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
 		return &model.ExecutionPlan{}, err
@@ -50,7 +50,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	var queries []*model.Query
 
 	// countQuery will be added later, depending on pancake optimization
-	countQuery := cw.buildCountQueryIfNeeded(simpleQuery, queryInfo)
+	countQuery := cw.buildCountQueryIfNeeded(simpleQuery, hitsInfo)
 
 	// here we decide if pancake should count rows
 	addCount := countQuery != nil
@@ -69,7 +69,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		queries = append(queries, countQuery)
 	}
 
-	if listQuery := cw.buildListQueryIfNeeded(simpleQuery, queryInfo, highlighter); listQuery != nil {
+	if listQuery := cw.buildListQueryIfNeeded(simpleQuery, hitsInfo, highlighter); listQuery != nil {
 		queries = append(queries, listQuery)
 	}
 
