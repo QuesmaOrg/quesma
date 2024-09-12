@@ -184,7 +184,6 @@ type SearchQueryType int // TODO/warning: right now difference between ListByFie
 
 const (
 	Facets SearchQueryType = iota
-	FacetsNumeric
 	ListByField
 	ListAllFields
 	Normal

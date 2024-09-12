@@ -1060,98 +1060,18 @@ func sprint(i interface{}) string {
 }
 
 // Return value:
-// - facets: (Facets, field name, nrOfGroupedBy, sampleSize)
 // - listByField: (ListByField, field name, 0, LIMIT)
 // - listAllFields: (ListAllFields, "*", 0, LIMIT) (LIMIT = how many rows we want to return)
 func (cw *ClickhouseQueryTranslator) tryProcessSearchMetadata(queryMap QueryMap) model.SearchQueryInfo {
 	metadata := cw.parseMetadata(queryMap) // TODO we can remove this if we need more speed. It's a bit unnecessary call, at least for now, when we're parsing brutally.
 
-	// case 1: maybe it's a Facets request
-	if queryInfo, ok := cw.isItFacetsRequest(metadata); ok {
-		return queryInfo
-	}
-
-	// case 2: maybe it's ListByField ListAllFields request
+	// maybe it's ListByField ListAllFields request
 	if queryInfo, ok := cw.isItListRequest(metadata); ok {
 		return queryInfo
 	}
 
 	// otherwise: None
 	return model.NewSearchQueryInfoNormal()
-}
-
-// 'queryMap' - metadata part of the JSON query
-// returns (info, true) if metadata shows it's Facets request
-// returns (model.NewSearchQueryInfoNormal, false) if it's not Facets request
-func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model.SearchQueryInfo, bool) {
-	queryMap, ok := queryMap["aggs"].(QueryMap)
-	if !ok {
-		return model.NewSearchQueryInfoNormal(), false
-	}
-	queryMap, ok = queryMap["sample"].(QueryMap)
-	if !ok {
-		return model.NewSearchQueryInfoNormal(), false
-	}
-	aggs, ok := queryMap["aggs"].(QueryMap)
-	if !ok {
-		return model.NewSearchQueryInfoNormal(), false
-	}
-
-	aggsNr := len(aggs)
-	// simple "facets" aggregation, which we try to match here, will have here:
-	// * "top_values" and "sample_count" keys
-	// * aggsNr = 2 (or 4 and 'max_value', 'min_value', as remaining 2)
-	_, ok = aggs["sample_count"]
-	if !ok {
-		return model.NewSearchQueryInfoNormal(), false
-	}
-	firstNestingMap, ok := aggs["top_values"].(QueryMap)
-	if !ok {
-		return model.NewSearchQueryInfoNormal(), false
-	}
-
-	firstNestingMap, ok = firstNestingMap["terms"].(QueryMap)
-	if !ok {
-		return model.NewSearchQueryInfoNormal(), false
-	}
-
-	size, ok := cw.parseSizeExists(firstNestingMap)
-	if !ok {
-		return model.NewSearchQueryInfoNormal(), false
-	}
-	fieldNameRaw, ok := firstNestingMap["field"]
-	if !ok {
-		return model.NewSearchQueryInfoNormal(), false
-	}
-	fieldName, ok := fieldNameRaw.(string)
-	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected string", fieldNameRaw, fieldNameRaw)
-		return model.NewSearchQueryInfoNormal(), false
-	}
-	fieldName = strings.TrimSuffix(fieldName, ".keyword")
-	fieldName = cw.ResolveField(cw.Ctx, fieldName)
-
-	secondNestingMap, ok := queryMap["sampler"].(QueryMap)
-	if !ok {
-		return model.NewSearchQueryInfoNormal(), false
-	}
-	shardSize, ok := secondNestingMap["shard_size"].(float64)
-	if !ok {
-		return model.NewSearchQueryInfoNormal(), false
-	}
-
-	if aggsNr == 2 {
-		// normal facets
-		return model.SearchQueryInfo{Typ: model.Facets, FieldName: fieldName, I1: size, I2: int(shardSize)}, true
-	} else if aggsNr == 4 {
-		// maybe numeric facets
-		_, minExists := aggs["min_value"]
-		_, maxExists := aggs["max_value"]
-		if minExists && maxExists {
-			return model.SearchQueryInfo{Typ: model.FacetsNumeric, FieldName: fieldName, I1: size, I2: int(shardSize)}, true
-		}
-	}
-	return model.NewSearchQueryInfoNormal(), false
 }
 
 // 'queryMap' - metadata part of the JSON query

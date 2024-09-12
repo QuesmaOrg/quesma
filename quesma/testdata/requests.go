@@ -146,7 +146,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
     "start_time_in_millis": 1706010201964
 }`,
 		"no comment yet",
-		model.SearchQueryInfo{Typ: model.Facets, FieldName: "host.name", I1: 10, I2: 5000},
+		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
 			`SELECT sum(count(*)) OVER () AS "aggr__sample__count",
 			  sum(count("host.name")) OVER () AS "metric__sample__sample_count_col_0",
