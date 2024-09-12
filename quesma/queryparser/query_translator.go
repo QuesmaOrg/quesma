@@ -274,38 +274,6 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 		}
 		return
 	}
-	for i, query := range queries {
-		_, isFacetNumeric := query.Type.(*typical_queries.FacetsNumeric)
-		_, isFacet := query.Type.(*typical_queries.Facets)
-		if isFacetNumeric || isFacet {
-			totalCount = 0
-			for _, row := range results[i] {
-				if len(row.Cols) > 0 {
-					switch v := row.Cols[len(row.Cols)-1].Value.(type) {
-					case uint64:
-						totalCount += int(v)
-					case int:
-						totalCount += v
-					case int64:
-						totalCount += int(v)
-					default:
-						logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v %t", v, v)
-					}
-				}
-			}
-			// if we have sample limit, we need to check if we hit it. If so, return there could be more results.
-			// eq means exact count, gte means greater or equal
-			relation := "eq"
-			if query.SelectCommand.SampleLimit != 0 && totalCount == query.SelectCommand.SampleLimit {
-				relation = "gte"
-			}
-			total = &model.Total{
-				Value:    totalCount,
-				Relation: relation,
-			}
-			return
-		}
-	}
 
 	for queryIdx, query := range queries {
 		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
