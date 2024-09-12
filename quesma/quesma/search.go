@@ -770,7 +770,6 @@ func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]mo
 		transformer model.ResultTransformer
 	}{
 		{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{}},
-		{"geoIpResultTransformer", &GeoIpResultTransformer{schemaRegistry: q.schemaRegistry, fromTable: table.Name}},
 		{"arrayResultTransformer", &ArrayResultTransformer{}},
 	}
 

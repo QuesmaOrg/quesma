@@ -8,7 +8,6 @@ import (
 	"quesma/model"
 	"quesma/model/typical_queries"
 	"quesma/quesma/config"
-	"quesma/quesma/types"
 	"quesma/schema"
 	"sort"
 	"strings"
@@ -153,8 +152,6 @@ func (s *SchemaCheckPass) applyIpTransformations(indexSchema schema.Schema, quer
 	return query, nil
 }
 
-const quesmaTupleGeoType = "_quesma_geo_type"
-
 func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, query *model.Query) (*model.Query, error) {
 
 	replace := make(map[string]model.Expr)
@@ -162,13 +159,22 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 	for _, field := range schemaInstance.Fields {
 		if field.Type.Name == schema.QuesmaTypePoint.Name {
 
+			lon := model.NewColumnRef(field.InternalPropertyName.AsString() + "::lon")
+			lat := model.NewColumnRef(field.InternalPropertyName.AsString() + "::lat")
+
 			// This is a workaround. Clickhouse Point is defined as Tuple. We need to know the type of the tuple.
-			// In this step we merge two columns into single one. GEOs are transformed into valid JSON in GeoIpResultTransformer
+			// In this step we merge two columns into single map here. Map is in elastic format.
 
 			// In this point we assume that Quesma point type is stored into two separate columns.
-			replace[field.PropertyName.AsString()] = model.NewFunction("tuple", model.NewLiteral(`'`+quesmaTupleGeoType+`'`), model.NewColumnRef(field.InternalPropertyName.AsString()+"::lat"), model.NewColumnRef(field.InternalPropertyName.AsString()+"::lon"))
-			replace[field.PropertyName.AsString()+".lat"] = model.NewColumnRef(field.InternalPropertyName.AsString() + "::lat")
-			replace[field.PropertyName.AsString()+".lon"] = model.NewColumnRef(field.InternalPropertyName.AsString() + "::lon")
+			replace[field.PropertyName.AsString()] = model.NewFunction("map",
+				model.NewLiteral("'lat'"),
+				lat,
+				model.NewLiteral("'lon'"),
+				lon)
+
+			// these a just if we need multifields support
+			replace[field.PropertyName.AsString()+".lat"] = lat
+			replace[field.PropertyName.AsString()+".lon"] = lon
 
 			// if the point is stored as a single column, we need to extract the lat and lon
 			//replace[field.PropertyName.AsString()] = model.NewFunction("give_me_point", model.NewColumnRef(field.InternalPropertyName.AsString()))
@@ -578,40 +584,6 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 type GeoIpResultTransformer struct {
 	schemaRegistry schema.Registry
 	fromTable      string
-}
-
-func (g *GeoIpResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
-
-	for i, rows := range result {
-		for j, row := range rows {
-			for k, col := range row.Cols {
-
-				if ary, ok := col.Value.([]interface{}); ok {
-					if len(ary) == 3 && ary[0] == quesmaTupleGeoType {
-
-						var lat, lon string
-
-						if s, ok := ary[1].(*string); ok {
-							lat = *s
-						}
-
-						if s, ok := ary[2].(*string); ok {
-							lon = *s
-						}
-
-						// convert to a valid GEO Point here
-						point := types.JSON{}
-						point["lat"] = lat
-						point["lon"] = lon
-
-						result[i][j].Cols[k].Value = point
-						continue
-					}
-				}
-			}
-		}
-	}
-	return result, nil
 }
 
 // ArrayResultTransformer is a transformer that transforms array columns into string representation
