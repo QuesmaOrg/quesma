@@ -227,12 +227,8 @@ func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, q
 	selectCommand := query.SelectCommand
 
 	var allColumns []model.ColumnRef
-	for _, expr := range selectCommand.Columns {
-		allColumns = append(allColumns, model.GetUsedColumns(expr)...)
-	}
-	if selectCommand.WhereClause != nil {
-		allColumns = append(allColumns, model.GetUsedColumns(selectCommand.WhereClause)...)
-	}
+
+	allColumns = model.GetUsedColumns(selectCommand)
 
 	hasArrayColumn := false
 	for _, col := range allColumns {
@@ -556,6 +552,31 @@ func (g *GeoIpResultTransformer) Transform(result [][]model.QueryResultRow) ([][
 				}
 			}
 		}
+	}
+	return result, nil
+}
+
+// ArrayResultTransformer is a transformer that transforms array columns into string representation
+type ArrayResultTransformer struct {
+}
+
+func (g *ArrayResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+
+	for i, rows := range result {
+
+		for j, row := range rows {
+			for k, col := range row.Cols {
+
+				if ary, ok := col.Value.([]string); ok {
+					aryStr := make([]string, 0, len(ary))
+					for _, el := range ary {
+						aryStr = append(aryStr, fmt.Sprintf("%v", el))
+					}
+					result[i][j].Cols[k].Value = fmt.Sprintf("[%s]", strings.Join(aryStr, ","))
+				}
+			}
+		}
+
 	}
 	return result, nil
 }
