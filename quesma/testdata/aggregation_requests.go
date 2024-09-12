@@ -1314,10 +1314,10 @@ var AggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
 					model.NewQueryResultCol("aggr__origins__distinations__count", int64(21)),
 					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(21)),
-					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", `{
-																	"lat": "-34.8222",
-																	"lon": "-58.5358"
-																}`),
+					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", map[string]interface{}{
+						"lat": "-34.8222",
+						"lon": "-58.5358",
+					}),
 					model.NewQueryResultCol("top_hits_rank", int64(1)),
 				},
 			},
@@ -1329,10 +1329,10 @@ var AggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("aggr__origins__distinations__key_0", "UIO"),
 					model.NewQueryResultCol("aggr__origins__distinations__count", int64(12)),
 					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(12)),
-					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", `{
-														"lat": "-0.129166667",
-														"lon": "-78.3575"
-													}`),
+					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", map[string]interface{}{
+						"lat": "-0.129166667",
+						"lon": "-78.3575",
+					}),
 					model.NewQueryResultCol("top_hits_rank", int64(1)),
 				},
 			},
@@ -1344,10 +1344,10 @@ var AggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("aggr__origins__distinations__key_0", "YUL"),
 					model.NewQueryResultCol("aggr__origins__distinations__count", int64(11)),
 					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(11)),
-					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", `{
-																	"lat": "45.47060013",
-																	"lon": "-73.74079895"
-																}`),
+					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", map[string]interface{}{
+						"lat": "45.47060013",
+						"lon": "-73.74079895",
+					}),
 					model.NewQueryResultCol("top_hits_rank", int64(1)),
 				},
 			},
@@ -1359,10 +1359,10 @@ var AggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
 					model.NewQueryResultCol("aggr__origins__distinations__count", int64(10)),
 					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(10)),
-					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", `{
-																	"lat": "-34.8222",
-																	"lon": "-58.5358"
-																}`),
+					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", map[string]interface{}{
+						"lat": "-34.8222",
+						"lon": "-58.5358",
+					}),
 					model.NewQueryResultCol("top_hits_rank", int64(1)),
 				},
 			},
@@ -1376,10 +1376,10 @@ var AggregationTests = []AggregationTestCase{
 						model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
 						model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
 						model.NewQueryResultCol("aggr__origins__count", int64(283)),
-						model.NewQueryResultCol("top_hits__origins__originLocation_col_0", `{
-														"lat": "-0.129166667",
-														"lon": "-78.3575"
-													}`),
+						model.NewQueryResultCol("top_hits__origins__originLocation_col_0", map[string]interface{}{
+							"lat": "-0.129166667",
+							"lon": "-78.3575",
+						}),
 						model.NewQueryResultCol("top_hits__origins__originLocation_col_1", "Mariscal Sucre International Airport"),
 						model.NewQueryResultCol("top_hits_rank", int64(1)),
 					},
@@ -1389,10 +1389,10 @@ var AggregationTests = []AggregationTestCase{
 						model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
 						model.NewQueryResultCol("aggr__origins__key_0", "DLH"),
 						model.NewQueryResultCol("aggr__origins__count", int64(15)),
-						model.NewQueryResultCol("top_hits__origins__originLocation_col_0", `{
-														"lat": "46.84209824",
-														"lon": "-92.19360352"
-													}`),
+						model.NewQueryResultCol("top_hits__origins__originLocation_col_0", map[string]interface{}{
+							"lat": "46.84209824",
+							"lon": "-92.19360352",
+						}),
 						model.NewQueryResultCol("top_hits__origins__originLocation_col_1", "Duluth International Airport"),
 						model.NewQueryResultCol("top_hits_rank", int64(1)),
 					},
@@ -1443,9 +1443,8 @@ var AggregationTests = []AggregationTestCase{
 				"aggr__origins__distinations__key_0",
 				"group_table"."aggr__origins__distinations__count" AS
 				"aggr__origins__distinations__count",
-				map('lat', "hit_table"."DestLocation::lat", 'lon',
-				"hit_table"."DestLocation::lon") AS
-				"top_hits__origins__distinations__destLocation_col_0",
+				"hit_table"."DestLocation" AS 
+                "top_hits__origins__distinations__destLocation_col_0",
 				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0",
 				"group_table"."aggr__origins__distinations__key_0") AS "top_hits_rank",
 				"group_table"."aggr__origins__order_1_rank" AS "aggr__origins__order_1_rank"
@@ -1479,8 +1478,7 @@ var AggregationTests = []AggregationTestCase{
 				"aggr__origins__parent_count",
 				"group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
 				"group_table"."aggr__origins__count" AS "aggr__origins__count",
-				map('lat', "hit_table"."OriginLocation::lat", 'lon',
-				"hit_table"."OriginLocation::lon") AS
+				"hit_table"."OriginLocation" AS
 				"top_hits__origins__originLocation_col_0",
 				"hit_table"."Origin" AS "top_hits__origins__originLocation_col_1",
 				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0") AS

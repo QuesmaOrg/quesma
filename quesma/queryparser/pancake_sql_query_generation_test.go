@@ -143,6 +143,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 			actualMinusExpected, expectedMinusActual := util.MapDifference(pancakeJson,
 				expectedAggregationsPart, acceptableDifference, true, true)
+
 			if len(actualMinusExpected) != 0 {
 				pp.Println("ACTUAL diff", actualMinusExpected)
 			}
