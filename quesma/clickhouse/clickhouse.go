@@ -28,7 +28,6 @@ const (
 )
 
 type (
-	// LogManager should be renamed to Connector  -> TODO !!!
 	LogManager struct {
 		ctx            context.Context
 		cancel         context.CancelFunc
@@ -277,20 +276,6 @@ func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (retu
 		time.Sleep(sleepDuration)
 	}
 	return returnedErr
-}
-
-func Indexes(m SchemaMap) string {
-	var result strings.Builder
-	for col := range m {
-		index := GetIndexStatement(col)
-		if index != "" {
-			result.WriteString(",\n")
-			result.WriteString(util.Indent(1))
-			result.WriteString(index.Statement())
-		}
-	}
-	result.WriteString(",\n")
-	return result.String()
 }
 
 func (lm *LogManager) FindTable(tableName string) (result *Table) {
