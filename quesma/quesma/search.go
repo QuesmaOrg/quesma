@@ -765,17 +765,29 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 
 func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
-	transformer := &replaceColumNamesWithFieldNames{}
-
-	res, err := transformer.Transform(results)
-
-	if err != nil {
-		return nil, err
+	pipeline := []struct {
+		name        string
+		transformer model.ResultTransformer
+	}{
+		{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{}},
+		{"geoIpResultTransformer", &GeoIpResultTransformer{schemaRegistry: q.schemaRegistry, fromTable: table.Name}},
+		{"arrayResultTransformer", &ArrayResultTransformer{}},
 	}
 
-	// TODO this should be created in different place
-	geoIpTransformer := GeoIpResultTransformer{schemaRegistry: q.schemaRegistry, fromTable: table.Name}
-	return geoIpTransformer.Transform(res)
+	var err error
+	for _, t := range pipeline {
+
+		// TODO we should check if the transformer is applicable here
+		// for example if the schema doesn't hava array fields, we should skip the arrayResultTransformer
+		// these transformers can be cpu and mem consuming
+
+		results, err = t.transformer.Transform(results)
+		if err != nil {
+			return nil, fmt.Errorf("resuls transformer %s has failed: %w", t.name, err)
+		}
+	}
+
+	return results, nil
 }
 
 func pushPrimaryInfo(qmc *ui.QuesmaManagementConsole, Id string, QueryResp []byte, startTime time.Time) {
