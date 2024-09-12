@@ -70,7 +70,7 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 			name:            PancakeTotalCountMetricName,
 			internalName:    "metric__" + PancakeTotalCountMetricName,
 			queryType:       typical_queries.Count{},
-			selectedColumns: []model.Expr{model.NewFunction("count", model.NewLiteral("*"))},
+			selectedColumns: []model.Expr{model.NewCountFunc()},
 		}
 
 		pancakeQueries[0].layers[0].currentMetricAggregations = append(pancakeQueries[0].layers[0].currentMetricAggregations, augmentedCountAggregation)

@@ -148,7 +148,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.Facets, FieldName: "host.name", I1: 10, I2: 5000},
 		[]string{
-			`SELECT "host.name" AS "key", count() AS "doc_count"
+			`SELECT "host.name" AS "key", count(*) AS "doc_count"
 			FROM (
 			  SELECT "host.name"
 			  FROM __quesma_table_name
@@ -157,7 +157,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 				"message" iLIKE '%user%')
 			  LIMIT 20000)
 			GROUP BY "host.name"
-			ORDER BY count() DESC`,
+			ORDER BY count(*) DESC`,
 		},
 		true,
 	},
@@ -306,7 +306,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 			  "message" iLIKE '%user%') AND "message" IS NOT NULL)
 			ORDER BY "@timestamp" DESC
 			LIMIT 100`,
-			`SELECT count()
+			`SELECT count(*)
 			FROM __quesma_table_name
 			WHERE ((("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z')
 			             AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))
@@ -763,7 +763,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 				  COALESCE("event.dataset", 'unknown') AS "aggr__stats__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__stats__key_0") AS
 				  "aggr__stats__count",
-				  sum(count()) OVER (PARTITION BY "aggr__stats__key_0") AS
+				  sum(count(*)) OVER (PARTITION BY "aggr__stats__key_0") AS
 				  "aggr__stats__order_1",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0", count(*) AS "aggr__stats__series__count"
@@ -999,7 +999,7 @@ var TestsSearch = []SearchTestCase{
 		////[]model.Query{justSimplestWhere(`"type"='task'`)},
 		[]string{
 			`SELECT "message" FROM ` + TableName + ` WHERE "type"='task' LIMIT 10`,
-			`SELECT count() FROM ` + TableName,
+			`SELECT count(*) FROM ` + TableName,
 		},
 		[]string{},
 	},
@@ -1032,7 +1032,7 @@ var TestsSearch = []SearchTestCase{
 		//},
 		[]string{
 			`SELECT "message" FROM ` + TableName + ` WHERE ("type"='task' AND "task.enabled" IN (true,54)) LIMIT 10`,
-			`SELECT count() FROM ` + TableName,
+			`SELECT count(*) FROM ` + TableName,
 		},
 		[]string{},
 	},
@@ -1078,7 +1078,7 @@ var TestsSearch = []SearchTestCase{
 				`AND ("@timestamp".=parseDateTime64BestEffort('2024-01-17T10:..:18.815Z') ` +
 				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-17T10:..:18.815Z'))) ` +
 				`LIMIT 10`,
-			`SELECT count() FROM ` + TableName,
+			`SELECT count(*) FROM ` + TableName,
 		},
 		[]string{},
 	},
@@ -1121,7 +1121,7 @@ var TestsSearch = []SearchTestCase{
 			`SELECT "message" FROM ` + TableName + ` WHERE ((("user.id"='kimchy' AND "tags"='production') ` +
 				`AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age".=.0 AND "age".=.0))) ` +
 				`LIMIT 10`,
-			`SELECT count() FROM ` + TableName + ` ` +
+			`SELECT count(*) FROM ` + TableName + ` ` +
 				`WHERE ((("user.id"='kimchy' AND "tags"='production') ` +
 				`AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age".=.0 AND "age".=.0)))`,
 		},
@@ -1425,7 +1425,7 @@ var TestsSearch = []SearchTestCase{
 		model.ListAllFields,
 		//[]model.Query{newSimplestQuery()},
 		[]string{
-			`SELECT count() FROM ` + TableName,
+			`SELECT count(*) FROM ` + TableName,
 			`SELECT "message" FROM ` + TableName,
 		},
 		[]string{},
@@ -1577,7 +1577,7 @@ var TestsSearch = []SearchTestCase{
 			  sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "stream.namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count",
-			  count() AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__order_1"
 			FROM __quesma_table_name
 			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort(
 			  '2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort(
@@ -1670,7 +1670,7 @@ var TestsSearch = []SearchTestCase{
 			  , sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count",
-			  count() AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__order_1"
 			FROM __quesma_table_name
 			WHERE ("service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort(
 			  '2024-01-22T14:34:35.873Z') AND "@timestamp"<=parseDateTime64BestEffort(
@@ -1681,7 +1681,7 @@ var TestsSearch = []SearchTestCase{
 		},
 	},
 	{ // [21]
-		"count() as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count()
+		"count(*) as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count(*)
 		`{
 		"aggs": {
 			"suggestions": {
@@ -1761,7 +1761,7 @@ var TestsSearch = []SearchTestCase{
 			  sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "stream.namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count",
-			  count() AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__order_1"
 			FROM __quesma_table_name
 			WHERE (("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%')
 			  AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND
@@ -1772,7 +1772,7 @@ var TestsSearch = []SearchTestCase{
 		},
 	},
 	{ // [22]
-		"count() as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
+		"count(*) as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count(*)
 		`{
 			"aggs": {
 				"suggestions": {
@@ -1845,7 +1845,7 @@ var TestsSearch = []SearchTestCase{
 			  , sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count",
-			  count() AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__order_1"
 			FROM __quesma_table_name
 			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort(
 			  '2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort(
@@ -1856,7 +1856,7 @@ var TestsSearch = []SearchTestCase{
 		},
 	},
 	{ // [23]
-		"count() as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count()
+		"count(*) as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count(*)
 		`{
 		"aggs": {
 			"suggestions": {
@@ -1934,7 +1934,7 @@ var TestsSearch = []SearchTestCase{
 			  , sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count",
-			  count() AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__order_1"
 			FROM __quesma_table_name
 			WHERE (("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%')
 			  AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND
@@ -1945,7 +1945,7 @@ var TestsSearch = []SearchTestCase{
 		},
 	},
 	{ // [24]
-		"count() as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
+		"count(*) as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count(*)
 		`{
 			"aggs": {
 				"suggestions": {
@@ -2018,7 +2018,7 @@ var TestsSearch = []SearchTestCase{
 			  , sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count",
-			  count() AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__order_1"
 			FROM __quesma_table_name
 			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort(
 			  '2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort(
@@ -2066,7 +2066,7 @@ var TestsSearch = []SearchTestCase{
 		model.ListByField,
 		//[]model.Query{withLimit(newSimplestQuery(), 500)},
 		[]string{
-			`SELECT count() FROM ` + TableName,
+			`SELECT count(*) FROM ` + TableName,
 			`SELECT "message" FROM ` + TableName + ` LIMIT 500`,
 		},
 		[]string{},
@@ -2086,7 +2086,7 @@ var TestsSearch = []SearchTestCase{
 		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(``)},
 		[]string{
-			`SELECT count() FROM ` + TableName,
+			`SELECT count(*) FROM ` + TableName,
 			`SELECT "message" FROM ` + TableName + ` LIMIT 10`,
 		},
 		[]string{},
@@ -2145,7 +2145,7 @@ var TestsSearch = []SearchTestCase{
 		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(``)},
 		[]string{
-			`SELECT count() FROM ` + TableName,
+			`SELECT count(*) FROM ` + TableName,
 			`SELECT "message" FROM ` + TableName,
 		},
 		[]string{},
@@ -2192,7 +2192,7 @@ var TestsSearch = []SearchTestCase{
 		model.ListAllFields,
 		//[]model.Query{newSimplestQuery()},
 		[]string{
-			`SELECT count() FROM (SELECT 1 FROM ` + TableName + ` LIMIT 10000)`,
+			`SELECT count(*) FROM (SELECT 1 FROM ` + TableName + ` LIMIT 10000)`,
 			`SELECT "message" FROM __quesma_table_name LIMIT 10`,
 		},
 		[]string{},

@@ -103,7 +103,7 @@ func (p *pancakeSqlQueryGenerator) isPartOfOrderBy(alias model.AliasedExpr, orde
 func (p *pancakeSqlQueryGenerator) addPotentialParentCount(bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr) []model.AliasedExpr {
 	if query_util.IsAnyKindOfTerms(bucketAggregation.queryType) {
 		parentCountColumn := model.NewWindowFunction("sum",
-			[]model.Expr{model.NewFunction("count", model.NewLiteral("*"))},
+			[]model.Expr{model.NewCountFunc()},
 			p.generatePartitionBy(groupByColumns), []model.OrderByExpr{})
 		parentCountAliasedColumn := model.NewAliasedExpr(parentCountColumn, bucketAggregation.InternalNameForParentCount())
 		return []model.AliasedExpr{parentCountAliasedColumn}
@@ -126,12 +126,12 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 	// build count for aggr
 	var countColumn model.Expr
 	if hasMoreBucketAggregations {
-		partCountColumn := model.NewFunction("count", model.NewLiteral("*"))
+		partCountColumn := model.NewCountFunc()
 
 		countColumn = model.NewWindowFunction("sum", []model.Expr{partCountColumn},
 			p.generatePartitionBy(append(groupByColumns, addGroupBys...)), []model.OrderByExpr{})
 	} else {
-		countColumn = model.NewFunction("count", model.NewLiteral("*"))
+		countColumn = model.NewCountFunc()
 	}
 	countAliasedColumn := model.NewAliasedExpr(countColumn, bucketAggregation.InternalNameForCount())
 	addSelectColumns = append(addSelectColumns, countAliasedColumn)

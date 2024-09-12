@@ -604,7 +604,7 @@ var AggregationTests2 = []AggregationTestCase{
 			  sum(count(*)) OVER () AS "aggr__2__parent_count",
 			  "response" AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
-			  count() AS "aggr__2__order_1",
+			  count(*) AS "aggr__2__order_1",
 			  quantiles(0.010000)("timestamp") AS "metric__2__1_col_0",
 			  quantiles(0.020000)("timestamp") AS "metric__2__1_col_1",
 			  sumOrNull("count") AS "metric__2__2_col_0"
@@ -779,11 +779,11 @@ var AggregationTests2 = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
+				  count(*) AS "aggr__2__8__count", count(*) AS "aggr__2__8__order_1"
 				FROM ` + TableName + `
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0"))
@@ -1024,10 +1024,10 @@ var AggregationTests2 = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count", "limbName" AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
+				  count(*) AS "aggr__2__8__count", count(*) AS "aggr__2__8__order_1"
 				FROM ` + TableName + `
 				GROUP BY "surname" AS "aggr__2__key_0", "limbName" AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
@@ -1198,11 +1198,11 @@ var AggregationTests2 = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  COALESCE("surname", 'miss') AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
+				  count(*) AS "aggr__2__8__count", count(*) AS "aggr__2__8__order_1"
 				FROM ` + TableName + `
 				GROUP BY COALESCE("surname", 'miss') AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0"))
@@ -1402,10 +1402,10 @@ var AggregationTests2 = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count", "limbName" AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
+				  count(*) AS "aggr__2__8__count", count(*) AS "aggr__2__8__order_1"
 				FROM ` + TableName + `
 				GROUP BY "surname" AS "aggr__2__key_0", "limbName" AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
@@ -1544,7 +1544,7 @@ var AggregationTests2 = []AggregationTestCase{
 		},
 		/*
 			ExpectedSQLs: []string{
-				`SELECT count() ` +
+				`SELECT count(*) ` +
 					`FROM ` + QuotedTableName + ` ` +
 					`WHERE ("message" iLIKE '%user%' ` +
 					`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
@@ -1554,7 +1554,7 @@ var AggregationTests2 = []AggregationTestCase{
 					`WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
 					`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
 					`LIMIT 5`,
-				`SELECT ` + timestampGroupByClause + `, count() ` +
+				`SELECT ` + timestampGroupByClause + `, count(*) ` +
 					`FROM ` + QuotedTableName + ` ` +
 					`WHERE ("message" iLIKE '%user%' ` +
 					`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
@@ -2107,12 +2107,12 @@ var AggregationTests2 = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__8__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__5__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0",
-				  count(*) AS "aggr__2__8__5__count", count() AS "aggr__2__8__5__order_1"
+				  count(*) AS "aggr__2__8__5__count", count(*) AS "aggr__2__8__5__order_1"
 				FROM ` + TableName + `
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0"))
@@ -2305,12 +2305,12 @@ var AggregationTests2 = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__8__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__5__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0",
-				  count(*) AS "aggr__2__8__5__count", count() AS "aggr__2__8__5__order_1"
+				  count(*) AS "aggr__2__8__5__count", count(*) AS "aggr__2__8__5__order_1"
 				FROM ` + TableName + `
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0"))
@@ -3025,7 +3025,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  "aggr__histo__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
 				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
-				  count(*) AS "aggr__histo__0__count", count() AS "aggr__histo__0__order_1"
+				  count(*) AS "aggr__histo__0__count", count(*) AS "aggr__histo__0__order_1"
 				FROM __quesma_table_name
 				GROUP BY floor("taxful_total_price"/224.19300000000004)*224.19300000000004
 				  AS "aggr__histo__key_0", "type" AS "aggr__histo__0__key_0"))
@@ -3295,7 +3295,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  "aggr__histo__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
 				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
-				  count(*) AS "aggr__histo__0__count", count() AS "aggr__histo__0__order_1"
+				  count(*) AS "aggr__histo__0__count", count(*) AS "aggr__histo__0__order_1"
 				FROM __quesma_table_name
 				GROUP BY floor(COALESCE("taxful_total_price", 800)/224.19300000000004)*
 				  224.19300000000004 AS "aggr__histo__key_0",

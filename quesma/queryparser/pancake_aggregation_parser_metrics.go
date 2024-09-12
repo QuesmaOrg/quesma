@@ -114,7 +114,7 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 			castLon := model.NewFunction("CAST", lonColumn, model.NewLiteral(fmt.Sprintf("'%s'", "Float")))
 			result = append(result, model.NewFunction("avgOrNull", castLat))
 			result = append(result, model.NewFunction("avgOrNull", castLon))
-			result = append(result, model.NewFunction("count"))
+			result = append(result, model.NewCountFunc())
 		}
 	default:
 		logger.WarnWithCtx(ctx).Msgf("unknown metrics aggregation: %s", metricsAggr.AggrType)

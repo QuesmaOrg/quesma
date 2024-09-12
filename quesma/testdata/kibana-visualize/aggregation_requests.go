@@ -243,7 +243,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "severity" AS "aggr__0__1__key_0",
 				  "source" AS "aggr__0__1__key_1", count(*) AS "aggr__0__1__count",
-				  count() AS "aggr__0__1__order_2"
+				  count(*) AS "aggr__0__1__order_2"
 				FROM ` + TableName + `
 				WHERE ("@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z')
 				  AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z'))
@@ -424,7 +424,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  "message" AS "aggr__0__key_0", "host.name" AS "aggr__0__key_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1") AS
 				  "aggr__0__count",
-				  sum(count()) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1") AS
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1") AS
 				  "aggr__0__order_2",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				  "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
@@ -856,7 +856,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  "Cancelled" AS "aggr__0__key_0", "AvgTicketPrice" AS "aggr__0__key_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1") AS
 				  "aggr__0__count",
-				  sum(count()) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1") AS
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1") AS
 				  "aggr__0__order_2",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				  "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"

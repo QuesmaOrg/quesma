@@ -464,7 +464,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 				}
 
 				// count, present in all tests
-				mock.ExpectQuery(`SELECT count\(\) FROM ` + tableName).WillReturnRows(sqlmock.NewRows([]string{"count"}))
+				mock.ExpectQuery(`SELECT count\(\*\) FROM ` + tableName).WillReturnRows(sqlmock.NewRows([]string{"count"}))
 				// Don't care about the query's SQL in this test, it's thoroughly tested in different tests, thus ""
 				mock.ExpectQuery("").WillReturnRows(returnedBuckets)
 
@@ -530,7 +530,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 	})
 
 	test := func(t *testing.T, handlerName string, testcase testdata.FullSearchTestCase) {
-		db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 		defer db.Close()
 		lm := clickhouse.NewLogManagerWithConnection(db, table)
 		managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
@@ -540,7 +540,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 			for _, row := range testcase.ExpectedSQLResults[i] {
 				rows.AddRow(row.Cols[0].Value)
 			}
-			mock.ExpectQuery(testdata.EscapeBrackets(sql)).WillReturnRows(rows)
+			mock.ExpectQuery(sql).WillReturnRows(rows)
 		}
 
 		queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())

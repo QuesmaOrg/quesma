@@ -521,7 +521,7 @@ var AggregationTests = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "FlightDelayType" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 				  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count"
@@ -762,7 +762,7 @@ var AggregationTests = []AggregationTestCase{
 			  sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
 			  "OriginCityName" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count",
-			  count() AS "aggr__suggestions__order_1"
+			  count(*) AS "aggr__suggestions__order_1"
 			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
@@ -1441,13 +1441,13 @@ var AggregationTests = []AggregationTestCase{
 					"OriginAirportID" AS "aggr__origins__key_0",
 					sum(count(*)) OVER (PARTITION BY "aggr__origins__key_0") AS
 					"aggr__origins__count",
-					sum(count()) OVER (PARTITION BY "aggr__origins__key_0") AS
+					sum(count(*)) OVER (PARTITION BY "aggr__origins__key_0") AS
 					"aggr__origins__order_1",
 					sum(count(*)) OVER (PARTITION BY "aggr__origins__key_0") AS
 					"aggr__origins__distinations__parent_count",
 					"DestAirportID" AS "aggr__origins__distinations__key_0",
 					count(*) AS "aggr__origins__distinations__count",
-					count() AS "aggr__origins__distinations__order_1"
+					count(*) AS "aggr__origins__distinations__order_1"
 				  FROM __quesma_table_name
 				  GROUP BY "OriginAirportID" AS "aggr__origins__key_0",
 					"DestAirportID" AS "aggr__origins__distinations__key_0"))
@@ -1497,7 +1497,7 @@ var AggregationTests = []AggregationTestCase{
 			WITH quesma_top_hits_group_table AS (
 			  SELECT sum(count(*)) OVER () AS "aggr__origins__parent_count",
 				"OriginAirportID" AS "aggr__origins__key_0",
-				count(*) AS "aggr__origins__count", count() AS "aggr__origins__order_1"
+				count(*) AS "aggr__origins__count", count(*) AS "aggr__origins__order_1"
 			  FROM __quesma_table_name
 			  GROUP BY "OriginAirportID" AS "aggr__origins__key_0"
 			  ORDER BY "aggr__origins__order_1" DESC, "aggr__origins__key_0" ASC
@@ -1884,7 +1884,7 @@ var AggregationTests = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "severity" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
       			  "@timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count"
@@ -2510,7 +2510,7 @@ var AggregationTests = []AggregationTestCase{
 			  sum(count(*)) OVER () AS "aggr__sample__top_values__parent_count",
 			  "host.name" AS "aggr__sample__top_values__key_0",
 			  count(*) AS "aggr__sample__top_values__count",
-			  count() AS "aggr__sample__top_values__order_1"
+			  count(*) AS "aggr__sample__top_values__order_1"
 			FROM (
 			  SELECT "host.name"
 			  FROM ` + TableName + `
@@ -2801,7 +2801,7 @@ var AggregationTests = []AggregationTestCase{
 				  COALESCE("event.dataset", 'unknown') AS "aggr__stats__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__stats__key_0") AS
 				  "aggr__stats__count",
-				  sum(count()) OVER (PARTITION BY "aggr__stats__key_0") AS
+				  sum(count(*)) OVER (PARTITION BY "aggr__stats__key_0") AS
 				  "aggr__stats__order_1",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0", count(*) AS "aggr__stats__series__count"
@@ -3159,7 +3159,7 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "message" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  count() AS "aggr__0__order_1"
+			  count(*) AS "aggr__0__order_1"
 			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z'))
@@ -4112,7 +4112,7 @@ var AggregationTests = []AggregationTestCase{
 			  sum(count(*)) OVER () AS "aggr__sample__bytes_gauge_top__parent_count",
 			  "bytes_gauge" AS "aggr__sample__bytes_gauge_top__key_0",
 			  count(*) AS "aggr__sample__bytes_gauge_top__count",
-			  count() AS "aggr__sample__bytes_gauge_top__order_1"
+			  count(*) AS "aggr__sample__bytes_gauge_top__order_1"
 			FROM (
 			  SELECT "bytes_gauge"
 			  FROM __quesma_table_name
@@ -4592,7 +4592,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 			  "message" AS "aggr__2__key_0", 
 			  count(*) AS "aggr__2__count",
-			  count() AS "aggr__2__order_1"
+			  count(*) AS "aggr__2__order_1"
 			FROM ` + TableName + `
 			GROUP BY "message" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
@@ -5134,7 +5134,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__2__parent_count", "message" AS "aggr__0__2__key_0",
-				  count(*) AS "aggr__0__2__count", count() AS "aggr__0__2__order_1"
+				  count(*) AS "aggr__0__2__count", count(*) AS "aggr__0__2__order_1"
 				FROM ` + TableName + `
 				GROUP BY floor("rspContentLen"/2000)*2000 AS "aggr__0__key_0",
 				  "message" AS "aggr__0__2__key_0"))
@@ -6289,10 +6289,10 @@ var AggregationTests = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "host.name" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "message" AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count", count() AS "aggr__0__1__order_1"
+				  count(*) AS "aggr__0__1__count", count(*) AS "aggr__0__1__order_1"
 				FROM ` + TableName + `
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0"))
@@ -6405,16 +6405,16 @@ var AggregationTests = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "host.name" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "message" AS "aggr__0__1__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0") AS
 				  "aggr__0__1__count",
-				  sum(count()) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0") AS
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0") AS
 				  "aggr__0__1__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0") AS
 				  "aggr__0__1__2__parent_count", "message" AS "aggr__0__1__2__key_0",
-				  count(*) AS "aggr__0__1__2__count", count() AS "aggr__0__1__2__order_1"
+				  count(*) AS "aggr__0__1__2__count", count(*) AS "aggr__0__1__2__order_1"
 				FROM ` + TableName + `
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0",
@@ -6506,7 +6506,7 @@ var AggregationTests = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "host.name" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
 				FROM ` + TableName + `
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
@@ -6617,7 +6617,7 @@ var AggregationTests = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "host.name" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
 				FROM ` + TableName + `
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
@@ -6715,7 +6715,7 @@ var AggregationTests = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "host.name" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
 				FROM ` + TableName + `
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
@@ -7008,10 +7008,10 @@ var AggregationTests = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "OriginAirportID" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count()) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "DestAirportID" AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count", count() AS "aggr__0__1__order_1"
+				  count(*) AS "aggr__0__1__count", count(*) AS "aggr__0__1__order_1"
 				FROM ` + TableName + `
 				GROUP BY "OriginAirportID" AS "aggr__0__key_0",
 				  "DestAirportID" AS "aggr__0__1__key_0"))

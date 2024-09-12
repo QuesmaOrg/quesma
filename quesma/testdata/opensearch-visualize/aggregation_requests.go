@@ -755,7 +755,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  sum(count(*)) OVER () AS "aggr__2__parent_count",
 			  "response" AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
-			  count() AS "aggr__2__order_1",
+			  count(*) AS "aggr__2__order_1",
 			  maxOrNull("timestamp") AS "metric__2__1_col_0"
 			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') AND
@@ -904,7 +904,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  sum(count(*)) OVER () AS "aggr__2__parent_count",
 			  "response" AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
-			  count() AS "aggr__2__order_1",
+			  count(*) AS "aggr__2__order_1",
 			  minOrNull("timestamp") AS "metric__2__1_col_0"
 			FROM ` + TableName + `
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') AND
@@ -1079,7 +1079,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  sum(count(*)) OVER () AS "aggr__2__parent_count",
 			  "response" AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
-			  count() AS "aggr__2__order_1",
+			  count(*) AS "aggr__2__order_1",
 			  quantiles(0.010000)("timestamp") AS "metric__2__1_col_0",
 			  quantiles(0.020000)("timestamp") AS "metric__2__1_col_1",
 			  quantiles(0.250000)("timestamp") AS "metric__2__1_col_2",

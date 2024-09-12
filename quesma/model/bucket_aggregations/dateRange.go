@@ -27,27 +27,6 @@ func NewDateTimeInterval(begin, end string) DateTimeInterval {
 	}
 }
 
-// ToSQLSelectQuery returns count(...) where ... is a condition for the interval, just like we want it in SQL's SELECT
-// from elastic docs: Note that this aggregation includes the from value and excludes the to value for each range.
-func (interval DateTimeInterval) ToSQLSelectQuery(fieldName string) model.Expr {
-	if interval.Begin != UnboundedInterval && interval.End != UnboundedInterval {
-		return model.NewCountFunc(model.NewFunction("if",
-			model.NewInfixExpr(
-				model.NewInfixExpr(model.NewColumnRef(fieldName), " >= ", model.NewLiteral(interval.Begin)),
-				"AND",
-				model.NewInfixExpr(model.NewColumnRef(fieldName), " < ", model.NewLiteral(interval.End)),
-			),
-			model.NewLiteral(1), model.NewLiteral("NULL")))
-	} else if interval.Begin != UnboundedInterval {
-		return model.NewCountFunc(model.NewFunction("if",
-			model.NewInfixExpr(model.NewColumnRef(fieldName), " >= ", model.NewLiteral(interval.Begin)), model.NewLiteral(1), model.NewLiteral("NULL")))
-	} else if interval.End != UnboundedInterval {
-		return model.NewCountFunc(model.NewFunction("if",
-			model.NewInfixExpr(model.NewColumnRef(fieldName), " < ", model.NewLiteral(interval.End)), model.NewLiteral(1), model.NewLiteral("NULL")))
-	}
-	return model.NewCountFunc()
-}
-
 // BeginTimestampToSQL returns SQL select for the begin timestamp, and a boolean indicating if the select is needed
 // We query Clickhouse for this timestamp, as it's defined in Clickhouse's format, e.g. now()-1d.
 // It's only 1 more field to our SELECT query, so it shouldn't be a performance issue.
