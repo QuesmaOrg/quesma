@@ -27,13 +27,14 @@ type replaceColumNamesWithFieldNames struct {
 
 func (t *replaceColumNamesWithFieldNames) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
-	const doubleColons = "::"
+	// TODO this is hack to fix smoke test
+	const separator = "_"
 	const dot = "."
 
 	for _, rows := range result {
 		for i, row := range rows {
 			for j := range row.Cols {
-				rows[i].Cols[j].ColName = strings.ReplaceAll(row.Cols[j].ColName, doubleColons, dot)
+				rows[i].Cols[j].ColName = strings.ReplaceAll(row.Cols[j].ColName, separator, dot)
 			}
 		}
 	}
