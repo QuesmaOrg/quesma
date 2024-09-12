@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"github.com/rs/zerolog"
 	"quesma/elasticsearch"
+	"quesma/ingest"
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/telemetry"
@@ -96,6 +97,7 @@ type (
 		clickhouseStatusCache     healthCheckStatusCache
 		elasticStatusCache        healthCheckStatusCache
 		logManager                *clickhouse.LogManager
+		ingestProcessor           *ingest.IngestProcessor
 		indexManagement           elasticsearch.IndexManagement
 		phoneHomeAgent            telemetry.PhoneHomeAgent
 		schemasProvider           SchemasProvider
@@ -106,7 +108,7 @@ type (
 	}
 )
 
-func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan logger.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent, schemasProvider SchemasProvider) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *clickhouse.LogManager, ip *ingest.IngestProcessor, indexManager elasticsearch.IndexManagement, logChan <-chan logger.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent, schemasProvider SchemasProvider) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 10),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 10),
@@ -121,6 +123,7 @@ func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *cli
 		clickhouseStatusCache:     newHealthCheckStatusCache(),
 		elasticStatusCache:        newHealthCheckStatusCache(),
 		logManager:                logManager,
+		ingestProcessor:           ip,
 		indexManagement:           indexManager,
 		phoneHomeAgent:            phoneHomeAgent,
 		schemasProvider:           schemasProvider,
