@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Elastic-2.0
 package testdata
 
+import "quesma/model"
+
 // Tests for numeric facets (int64, float64).
 // Tests for string facets are already covered in "standard" queries (see testdata/requests.go, testdata/aggregation_requests.go),
 // so not repeating them here.
@@ -9,6 +11,8 @@ var TestsNumericFacets = []struct {
 	Name                     string
 	QueryJson                string
 	ResultJson               string
+	ExpectedSql              string
+	NewResultRows            []model.QueryResultRow
 	ResultRows               [][]any
 	MaxExpected              float64
 	MinExpected              float64
@@ -102,6 +106,7 @@ var TestsNumericFacets = []struct {
 							"value": 2693
 						},
 						"top_values": {
+                            "sum_other_doc_count": 2567,
 							"buckets": [
 								{
 									"doc_count": 121,
@@ -132,6 +137,57 @@ var TestsNumericFacets = []struct {
 			},
 			"start_time_in_millis": 0
 		}`,
+		ExpectedSql: `
+SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
+  sum(count(*)) OVER () AS "aggr__sample__count",
+  maxOrNull(maxOrNull("int64-field")) OVER () AS
+  "metric__sample__max_value_col_0",
+  minOrNull(minOrNull("int64-field")) OVER () AS
+  "metric__sample__min_value_col_0",
+  sum(count("int64-field")) OVER () AS "metric__sample__sample_count_col_0",
+  sum(count(*)) OVER () AS "aggr__sample__top_values__parent_count",
+  "int64-field" AS "aggr__sample__top_values__key_0",
+  count(*) AS "aggr__sample__top_values__count"
+FROM (
+  SELECT "int64-field"
+  FROM __quesma_table_name
+  LIMIT 20000)
+GROUP BY "int64-field" AS "aggr__sample__top_values__key_0"
+ORDER BY "aggr__sample__top_values__count" DESC,
+  "aggr__sample__top_values__key_0" ASC
+LIMIT 11`,
+		NewResultRows: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("metric____quesma_total_count_col_0", 2693),
+				model.NewQueryResultCol("aggr__sample__count", 2693),
+				model.NewQueryResultCol("metric__sample__max_value_col_0", 12140.860228566502),
+				model.NewQueryResultCol("metric__sample__min_value_col_0", 0),
+				model.NewQueryResultCol("metric__sample__sample_count_col_0", 2693),
+				model.NewQueryResultCol("aggr__sample__top_values__parent_count", 2693),
+				model.NewQueryResultCol("aggr__sample__top_values__key_0", 0),
+				model.NewQueryResultCol("aggr__sample__top_values__count", 121),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("metric____quesma_total_count_col_0", 2693),
+				model.NewQueryResultCol("aggr__sample__count", 2693),
+				model.NewQueryResultCol("metric__sample__max_value_col_0", 12140.860228566502),
+				model.NewQueryResultCol("metric__sample__min_value_col_0", 0),
+				model.NewQueryResultCol("metric__sample__sample_count_col_0", 2693),
+				model.NewQueryResultCol("aggr__sample__top_values__parent_count", 2693),
+				model.NewQueryResultCol("aggr__sample__top_values__key_0", 12.490585),
+				model.NewQueryResultCol("aggr__sample__top_values__count", 3),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("metric____quesma_total_count_col_0", 2693),
+				model.NewQueryResultCol("aggr__sample__count", 2693),
+				model.NewQueryResultCol("metric__sample__max_value_col_0", 12140.860228566502),
+				model.NewQueryResultCol("metric__sample__min_value_col_0", 0),
+				model.NewQueryResultCol("metric__sample__sample_count_col_0", 2693),
+				model.NewQueryResultCol("aggr__sample__top_values__parent_count", 2693),
+				model.NewQueryResultCol("aggr__sample__top_values__key_0", 26.070525),
+				model.NewQueryResultCol("aggr__sample__top_values__count", 2),
+			}},
+		},
 		ResultRows: [][]any{
 			// value, count
 			{1, uint64(2)},
