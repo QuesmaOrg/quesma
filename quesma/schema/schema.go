@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Elastic-2.0
 package schema
 
-import "strings"
+import (
+	"strings"
+)
 
 type (
 	Schema struct {

@@ -10,7 +10,6 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	chLib "quesma/clickhouse"
 	"quesma/concurrent"
-	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/index"
 	"quesma/jsonprocessor"
@@ -22,7 +21,6 @@ import (
 	"quesma/stats"
 	"quesma/telemetry"
 	"quesma/util"
-	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -117,49 +115,6 @@ func (ip *IngestProcessor) Stop() {
 
 func (ip *IngestProcessor) Close() {
 	_ = ip.chDb.Close()
-}
-
-// Indexes can be in a form of wildcard, e.g. "index-*" or even contain multiple patterns like "index-*,logs-*",
-// this method returns all matching indexes
-// empty pattern means all indexes
-// "_all" index name means all indexes
-func (ip *IngestProcessor) ResolveIndexes(ctx context.Context, patterns string) (results []string, err error) {
-	if err = ip.tableDiscovery.TableDefinitionsFetchError(); err != nil {
-		return nil, err
-	}
-
-	results = make([]string, 0)
-	if strings.Contains(patterns, ",") {
-		for _, pattern := range strings.Split(patterns, ",") {
-			if pattern == elasticsearch.AllIndexesAliasIndexName || pattern == "" {
-				results = ip.tableDiscovery.TableDefinitions().Keys()
-				slices.Sort(results)
-				return results, nil
-			} else {
-				indexes, err := ip.ResolveIndexes(ctx, pattern)
-				if err != nil {
-					return nil, err
-				}
-				results = append(results, indexes...)
-			}
-		}
-	} else {
-		if patterns == elasticsearch.AllIndexesAliasIndexName || len(patterns) == 0 {
-			results = ip.tableDiscovery.TableDefinitions().Keys()
-			slices.Sort(results)
-			return results, nil
-		} else {
-			ip.tableDiscovery.TableDefinitions().
-				Range(func(tableName string, v *chLib.Table) bool {
-					if elasticsearch.IndexMatches(patterns, tableName) {
-						results = append(results, tableName)
-					}
-					return true
-				})
-		}
-	}
-
-	return util.Distinct(results), nil
 }
 
 // updates also Table TODO stop updating table here, find a better solution

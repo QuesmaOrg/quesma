@@ -104,7 +104,7 @@ func HandleFieldCaps(ctx context.Context, cfg *config.QuesmaConfiguration, schem
 	if len(cfg.IndexConfig[index].Override) > 0 {
 		index = cfg.IndexConfig[index].Override
 	}
-	indexes, err := lm.ResolveIndexes(ctx, index)
+	indexes, err := lm.ResolveIndexPattern(ctx, index)
 	if err != nil {
 		return nil, err
 	}

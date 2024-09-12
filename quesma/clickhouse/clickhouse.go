@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math"
 	"quesma/concurrent"
-	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/index"
 	"quesma/logger"
@@ -24,11 +23,11 @@ import (
 )
 
 const (
-	timestampFieldName = "@timestamp" // it's always DateTime64 for now, don't want to waste time changing that, we don't seem to use that anyway
+	timestampFieldName             = "@timestamp" // it's always DateTime64 for now, don't want to waste time changing that, we don't seem to use that anyway
+	allElasticsearchIndicesPattern = "_all"
 )
 
 type (
-	// LogManager should be renamed to Connector  -> TODO !!!
 	LogManager struct {
 		ctx            context.Context
 		cancel         context.CancelFunc
@@ -132,39 +131,24 @@ func (lm *LogManager) Close() {
 	_ = lm.chDb.Close()
 }
 
-// Deprecated: use ResolveIndexes instead, this method will be removed once we switch to the new one
-// Indexes can be in a form of wildcard, e.g. "index-*"
-// If we have such index, we need to resolve it to a real table name.
-func (lm *LogManager) ResolveTableName(index string) (result string) {
-	lm.tableDiscovery.TableDefinitions().
-		Range(func(k string, v *Table) bool {
-			if elasticsearch.IndexMatches(index, k) {
-				result = k
-				return false
-			}
-			return true
-		})
-	return result
-}
-
-// Indexes can be in a form of wildcard, e.g. "index-*" or even contain multiple patterns like "index-*,logs-*",
-// this method returns all matching indexes
-// empty pattern means all indexes
-// "_all" index name means all indexes
-func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (results []string, err error) {
+// ResolveIndexPattern - takes incoming index pattern (e.g. "index-*" or multiple patterns like "index-*,logs-*")
+// and returns all matching indexes. Empty pattern means all indexes, "_all" index name means all indexes
+//
+//	Note: Empty pattern means all indexes, "_all" index name means all indexes
+func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (results []string, err error) {
 	if err = lm.tableDiscovery.TableDefinitionsFetchError(); err != nil {
 		return nil, err
 	}
 
 	results = make([]string, 0)
-	if strings.Contains(patterns, ",") {
-		for _, pattern := range strings.Split(patterns, ",") {
-			if pattern == elasticsearch.AllIndexesAliasIndexName || pattern == "" {
+	if strings.Contains(pattern, ",") {
+		for _, pattern := range strings.Split(pattern, ",") {
+			if pattern == allElasticsearchIndicesPattern || pattern == "" {
 				results = lm.tableDiscovery.TableDefinitions().Keys()
 				slices.Sort(results)
 				return results, nil
 			} else {
-				indexes, err := lm.ResolveIndexes(ctx, pattern)
+				indexes, err := lm.ResolveIndexPattern(ctx, pattern)
 				if err != nil {
 					return nil, err
 				}
@@ -172,14 +156,14 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 			}
 		}
 	} else {
-		if patterns == elasticsearch.AllIndexesAliasIndexName || len(patterns) == 0 {
+		if pattern == allElasticsearchIndicesPattern || len(pattern) == 0 {
 			results = lm.tableDiscovery.TableDefinitions().Keys()
 			slices.Sort(results)
 			return results, nil
 		} else {
 			lm.tableDiscovery.TableDefinitions().
 				Range(func(tableName string, v *Table) bool {
-					if elasticsearch.IndexMatches(patterns, tableName) {
+					if util.IndexPatternMatches(pattern, tableName) {
 						results = append(results, tableName)
 					}
 					return true
@@ -292,20 +276,6 @@ func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (retu
 		time.Sleep(sleepDuration)
 	}
 	return returnedErr
-}
-
-func Indexes(m SchemaMap) string {
-	var result strings.Builder
-	for col := range m {
-		index := GetIndexStatement(col)
-		if index != "" {
-			result.WriteString(",\n")
-			result.WriteString(util.Indent(1))
-			result.WriteString(index.Statement())
-		}
-	}
-	result.WriteString(",\n")
-	return result.String()
 }
 
 func (lm *LogManager) FindTable(tableName string) (result *Table) {

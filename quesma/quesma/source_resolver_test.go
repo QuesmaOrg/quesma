@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/elasticsearch"
 	"quesma/quesma/config"
+	"quesma/util"
 	"testing"
 )
 
@@ -122,7 +123,7 @@ func (s stubIndexManagement) GetSourceNames() map[string]bool {
 func (s stubIndexManagement) GetSourceNamesMatching(indexPattern string) map[string]bool {
 	var result = make(map[string]bool)
 	for _, index := range s.indexes {
-		if elasticsearch.IndexMatches(indexPattern, index) {
+		if util.IndexPatternMatches(indexPattern, index) {
 			result[index] = true
 		}
 	}
