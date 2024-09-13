@@ -63,17 +63,17 @@ func handleFieldCapsIndex(cfg *config.QuesmaConfiguration, schemaRegistry schema
 					fieldsWithAliases[name] = field
 				}
 			}
-			for fieldName, field := range fieldsWithAliases {
-				addFieldCapabilityFromSchemaRegistry(fields, fieldName.AsString(), field.Type, resolvedIndex)
+			for _, field := range fieldsWithAliases {
+				addFieldCapabilityFromSchemaRegistry(fields, field.InternalPropertyName.AsString(), field.Type, resolvedIndex)
 				switch field.Type.Name {
 				case "text":
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldKeywordSuffix), schema.QuesmaTypeKeyword, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", field.InternalPropertyName.AsString(), types.MultifieldKeywordSuffix), schema.QuesmaTypeKeyword, resolvedIndex)
 				case "keyword":
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldTextSuffix), schema.QuesmaTypeText, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", field.InternalPropertyName.AsString(), types.MultifieldTextSuffix), schema.QuesmaTypeText, resolvedIndex)
 				case "map":
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldTextSuffix), schema.QuesmaTypeText, resolvedIndex)
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldMapKeysSuffix), schema.QuesmaTypeText, resolvedIndex)
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldMapValuesSuffix), schema.QuesmaTypeText, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", field.InternalPropertyName.AsString(), types.MultifieldTextSuffix), schema.QuesmaTypeText, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", field.InternalPropertyName.AsString(), types.MultifieldMapKeysSuffix), schema.QuesmaTypeText, resolvedIndex)
+					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", field.InternalPropertyName.AsString(), types.MultifieldMapValuesSuffix), schema.QuesmaTypeText, resolvedIndex)
 				}
 			}
 

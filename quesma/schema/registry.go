@@ -76,8 +76,7 @@ func (s *schemaRegistry) populateSchemaFromDynamicConfiguration(indexName string
 			logger.Warn().Msgf("Invalid dynamic configuration: type %s (of field %s in index %s) not supported. Skipping the field.", column.Type, column.Name, indexName)
 			continue
 		}
-
-		fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: columnType}
+		fields[FieldName(util.FieldToColumnEncoder(column.Name))] = Field{PropertyName: FieldName(util.FieldToColumnEncoder(column.Name)), InternalPropertyName: FieldName(column.Name), Type: columnType}
 	}
 }
 
@@ -122,7 +121,8 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 			continue
 		}
 		if resolvedType, valid := ParseQuesmaType(field.Type.AsString()); valid {
-			fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(util.FieldToColumnEncoder(fieldName.AsString())), Type: resolvedType}
+			//fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(util.FieldToColumnEncoder(fieldName.AsString())), Type: resolvedType}
+			fields[FieldName(util.FieldToColumnEncoder(fieldName.AsString()))] = Field{PropertyName: FieldName(util.FieldToColumnEncoder(fieldName.AsString())), InternalPropertyName: FieldName(fieldName), Type: resolvedType}
 		} else {
 			logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", field.Type.AsString())
 		}
@@ -155,7 +155,7 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: QuesmaTypeKeyword}
 				}
 			} else {
-				fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: existing.Type}
+				fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: existing.InternalPropertyName, Type: existing.Type}
 			}
 		}
 	}
