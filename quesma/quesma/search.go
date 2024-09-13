@@ -653,12 +653,6 @@ func (q *QueryRunner) searchWorkerCommon(
 	var jobHitsPosition []int // it keeps the position of the hits array for each job
 
 	for i, query := range queries {
-		if query.NoDBQuery {
-			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
-			hits[i] = make([]model.QueryResultRow, 0)
-			continue
-		}
-
 		sql := query.SelectCommand.String()
 		logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
 		translatedQueryBody[i].Query = []byte(sql)

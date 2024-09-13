@@ -4,7 +4,6 @@ package model
 
 import (
 	"fmt"
-	"quesma/logger"
 	"quesma/quesma/types"
 	"regexp"
 	"sort"
@@ -124,7 +123,7 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	// THIS SHOULD PRODUCE QUERY IN  BRACES
 	var sb strings.Builder
 
-	if len(c.NamedCTEs) > 0 || len(c.CTEs) > 0 {
+	if len(c.NamedCTEs) > 0 {
 		sb.WriteString("WITH ")
 	}
 
@@ -133,37 +132,6 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 		namedCTEsAsString = append(namedCTEsAsString, cte.Accept(v).(string))
 	}
 	sb.WriteString(strings.Join(namedCTEsAsString, ", "))
-
-	const cteNamePrefix = "cte"
-	cteName := func(cteIdx int) string {
-		return fmt.Sprintf("%s_%d", cteNamePrefix, cteIdx+1)
-	}
-	cteFieldAlias := func(cteIdx, fieldIdx int) string {
-		return fmt.Sprintf("%s_%d_%d", cteNamePrefix, cteIdx+1, fieldIdx+1)
-	}
-	cteCountAlias := func(ctxIdx int) string {
-		return fmt.Sprintf("%s_%d_cnt", cteNamePrefix, ctxIdx+1)
-	}
-	if len(c.CTEs) > 0 {
-
-		if len(c.NamedCTEs) > 0 {
-			sb.WriteString(", ")
-		}
-
-		CTEsStrings := make([]string, 0, len(c.CTEs))
-		for i, cte := range c.CTEs {
-			for j, col := range cte.Columns {
-				if _, alreadyAliased := cte.Columns[j].(AliasedExpr); !alreadyAliased {
-					cte.Columns[j] = AliasedExpr{Expr: col, Alias: cteFieldAlias(i, j)}
-				} else {
-					logger.Debug().Msgf("Subquery column already aliased: %s, %+v", AsString(col), col)
-				}
-			}
-			str := fmt.Sprintf("%s AS (%s)", cteName(i), AsString(cte))
-			CTEsStrings = append(CTEsStrings, str)
-		}
-		sb.WriteString(fmt.Sprintf("%s ", strings.Join(CTEsStrings, ", ")))
-	}
 
 	sb.WriteString("SELECT ")
 	if c.IsDistinct {
@@ -220,20 +188,6 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 		} else {
 			sb.WriteString(AsString(c.FromClause))
 		}
-
-		if len(c.CTEs) > 0 {
-			for cteIdx, cte := range c.CTEs {
-				sb.WriteString(" INNER JOIN ")
-				sb.WriteString(strconv.Quote(cteName(cteIdx)))
-				sb.WriteString(" ON ")
-				for colIdx := range len(cte.Columns) - 1 { // at least so far, last one is always count() or some other metric aggr, on which we don't need to GROUP BY
-					sb.WriteString(fmt.Sprintf("%s = %s", AsString(c.Columns[colIdx]), strconv.Quote(cteFieldAlias(cteIdx, colIdx))))
-					if colIdx < len(cte.Columns)-2 {
-						sb.WriteString(" AND ")
-					}
-				}
-			}
-		}
 	}
 	if c.WhereClause != nil {
 		sb.WriteString(" WHERE ")
@@ -250,21 +204,12 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	if len(groupBy) > 0 {
 		sb.WriteString(" GROUP BY ")
 		fullGroupBy := groupBy
-		for i := range c.CTEs {
-			fullGroupBy = append(fullGroupBy, cteCountAlias(i))
-		}
 		sb.WriteString(strings.Join(fullGroupBy, ", "))
 	}
 
 	orderBy := make([]string, 0, len(c.OrderBy))
-	orderByReplaced, orderByToReplace := 0, len(c.CTEs)
 	for _, col := range c.OrderBy {
-		if col.ExchangeToAliasInCTE && orderByReplaced < orderByToReplace {
-			orderBy = append(orderBy, fmt.Sprintf("%s DESC", cteCountAlias(orderByReplaced)))
-			orderByReplaced++
-		} else {
-			orderBy = append(orderBy, AsString(col))
-		}
+		orderBy = append(orderBy, AsString(col))
 	}
 	if len(orderBy) > 0 {
 		sb.WriteString(" ORDER BY ")

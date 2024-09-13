@@ -249,13 +249,6 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 			where = query.WhereClause.Accept(v).(model.Expr)
 		}
 
-		var ctes []*model.SelectCommand
-		if query.CTEs != nil {
-			ctes = make([]*model.SelectCommand, 0)
-			for _, cte := range query.CTEs {
-				ctes = append(ctes, cte.Accept(v).(*model.SelectCommand))
-			}
-		}
 		var namedCTEs []*model.CTE
 		if query.NamedCTEs != nil {
 			for _, cte := range query.NamedCTEs {
@@ -269,8 +262,7 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 				limitBy = append(limitBy, expr.Accept(v).(model.Expr))
 			}
 		}
-
-		return model.NewSelectCommand(columns, groupBy, orderBy, from, where, limitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes, namedCTEs)
+		return model.NewSelectCommand(columns, groupBy, orderBy, from, where, limitBy, query.Limit, query.SampleLimit, query.IsDistinct,  namedCTEs)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)

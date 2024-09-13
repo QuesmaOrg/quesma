@@ -57,12 +57,6 @@ func (s *cacheQueries) Transform(queries []*model.Query, properties map[string]s
 				query.WhereClause.Accept(v)
 			}
 
-			if query.CTEs != nil {
-				for _, cte := range query.CTEs {
-					cte.Accept(v)
-				}
-			}
-
 			return query
 		}
 

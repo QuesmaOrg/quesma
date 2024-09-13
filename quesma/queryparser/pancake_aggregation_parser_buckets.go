@@ -406,7 +406,7 @@ func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldE
 
 	var mainOrderBy model.Expr = defaultMainOrderBy
 	fullOrderBy := []model.OrderByExpr{ // default
-		{Expr: mainOrderBy, Direction: defaultDirection, ExchangeToAliasInCTE: true},
+		{Expr: mainOrderBy, Direction: defaultDirection},
 	}
 	fullOrderBy = append(fullOrderBy, fieldOrderBys...)
 	direction := defaultDirection
@@ -447,7 +447,7 @@ func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldE
 		}
 
 		fullOrderBy = []model.OrderByExpr{
-			{Expr: mainOrderBy, Direction: direction, ExchangeToAliasInCTE: true},
+			{Expr: mainOrderBy, Direction: direction},
 		}
 		fullOrderBy = append(fullOrderBy, fieldOrderBys...)
 	}
