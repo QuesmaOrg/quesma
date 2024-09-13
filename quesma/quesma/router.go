@@ -98,7 +98,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return resolveIndexResult(sources)
 	})
 
-	router.Register(routes.IndexCountPath, and(method("GET"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexCountPath, and(method("GET"), matchedAgainstPattern(cfg, sr)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		cnt, err := queryRunner.handleCount(ctx, req.Params["index"])
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
@@ -137,7 +137,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
 
-	router.Register(routes.IndexSearchPath, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexSearchPath, and(method("GET", "POST"), matchedAgainstPattern(cfg, sr)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
@@ -159,7 +159,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
-	router.Register(routes.IndexAsyncSearchPath, and(method("POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexAsyncSearchPath, and(method("POST"), matchedAgainstPattern(cfg, sr)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		waitForResultsMs := 1000 // Defaults to 1 second as in docs
 		if v, ok := req.Params["wait_for_completion_timeout"]; ok {
 			if w, err := time.ParseDuration(v); err == nil {
@@ -196,7 +196,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
 
-	router.Register(routes.IndexMappingPath, and(method("PUT"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexMappingPath, and(method("PUT"), matchedAgainstPattern(cfg, sr)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
 
 		body, err := types.ExpectJSON(req.ParsedBody)
@@ -211,7 +211,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return putIndexResult(index)
 	})
 
-	router.Register(routes.IndexMappingPath, and(method("GET"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexMappingPath, and(method("GET"), matchedAgainstPattern(cfg, sr)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
 
 		foundSchema, found := sr.FindSchema(schema.TableName(index))
@@ -242,7 +242,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
 
-	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(cfg, sr)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
 		responseBody, err := field_capabilities.HandleFieldCaps(ctx, cfg, sr, req.Params["index"], lm)
 		if err != nil {
@@ -257,7 +257,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
-	router.Register(routes.TermsEnumPath, and(method("POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.TermsEnumPath, and(method("POST"), matchedAgainstPattern(cfg, sr)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		if strings.Contains(req.Params["index"], ",") {
 			return nil, errors.New("multi index terms enum is not yet supported")
 		} else {
@@ -278,7 +278,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 	})
 
-	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(cfg, sr)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
 			return nil, err
@@ -295,7 +295,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
 
-	router.Register(routes.IndexPath, and(method("PUT"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexPath, and(method("PUT"), matchedAgainstPattern(cfg, sr)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
 
 		body, err := types.ExpectJSON(req.ParsedBody)
@@ -315,7 +315,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return putIndexResult(index)
 	})
 
-	router.Register(routes.IndexPath, and(method("GET"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexPath, and(method("GET"), matchedAgainstPattern(cfg, sr)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
 
 		foundSchema, found := sr.FindSchema(schema.TableName(index))

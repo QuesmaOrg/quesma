@@ -6,6 +6,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/quesma/config"
+	"quesma/schema"
 	"quesma/util"
 	"slices"
 	"strings"
@@ -18,7 +19,7 @@ const (
 	sourceNone          = "none"
 )
 
-func ResolveSources(indexPattern string, cfg *config.QuesmaConfiguration, im elasticsearch.IndexManagement) (string, []string, []string) {
+func ResolveSources(indexPattern string, cfg *config.QuesmaConfiguration, im elasticsearch.IndexManagement, sr schema.Registry) (string, []string, []string) {
 	if elasticsearch.IsIndexPattern(indexPattern) {
 		matchesElastic := []string{}
 		matchesClickhouse := []string{}
@@ -27,6 +28,13 @@ func ResolveSources(indexPattern string, cfg *config.QuesmaConfiguration, im ela
 			for indexName := range im.GetSourceNamesMatching(pattern) {
 				if !strings.HasPrefix(indexName, ".") {
 					matchesElastic = append(matchesElastic, indexName)
+				}
+			}
+			if cfg.IndexAutodiscoveryEnabled() {
+				for tableName := range sr.AllSchemas() {
+					if config.MatchName(elasticsearch.NormalizePattern(indexPattern), string(tableName)) {
+						matchesClickhouse = append(matchesClickhouse, string(tableName))
+					}
 				}
 			}
 
