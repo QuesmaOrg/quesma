@@ -503,9 +503,9 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		TransformationName string
 		Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
 	}{
-		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
+		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},

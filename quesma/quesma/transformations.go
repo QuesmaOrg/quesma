@@ -3,8 +3,9 @@
 package quesma
 
 import (
+	"quesma/logger"
 	"quesma/model"
-	"strings"
+	"quesma/schema"
 )
 
 type TransformationPipeline struct {
@@ -23,18 +24,27 @@ func (o *TransformationPipeline) Transform(queries []*model.Query) ([]*model.Que
 }
 
 type replaceColumNamesWithFieldNames struct {
+	schemaRegistry schema.Registry
+	fromTable      string
 }
 
 func (t *replaceColumNamesWithFieldNames) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
-	// TODO fix that
-	// we need revert mapping from field name to column name
-	const doubleColons = "::"
-	const dot = "."
+	if t.schemaRegistry == nil {
+		logger.Error().Msg("Schema registry is not set")
+		return result, nil
+	}
+	schemaInstance, exists := t.schemaRegistry.FindSchema(schema.TableName(t.fromTable))
+	if !exists {
+		logger.Error().Msgf("Schema fot table %s not found", t.fromTable)
+		return result, nil
+	}
 
 	for _, rows := range result {
 		for i, row := range rows {
 			for j := range row.Cols {
-				rows[i].Cols[j].ColName = strings.ReplaceAll(row.Cols[j].ColName, doubleColons, dot)
+				if val, ok := schemaInstance.Fields[schema.FieldName(rows[i].Cols[j].ColName)]; ok {
+					rows[i].Cols[j].ColName = val.InternalPropertyName.AsString()
+				}
 			}
 		}
 	}
