@@ -369,13 +369,6 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 			}
 		}
 
-		var ctes []*model.SelectCommand
-		if selectStm.CTEs != nil {
-			ctes = make([]*model.SelectCommand, 0)
-			for _, cte := range selectStm.CTEs {
-				ctes = append(ctes, cte.Accept(b).(*model.SelectCommand))
-			}
-		}
 		var namedCTEs []*model.CTE
 		if selectStm.NamedCTEs != nil {
 			for _, cte := range selectStm.NamedCTEs {
@@ -383,7 +376,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 			}
 		}
 
-		return model.NewSelectCommand(columns, groupBy, orderBy, from, where, selectStm.LimitBy, selectStm.Limit, selectStm.SampleLimit, selectStm.IsDistinct, ctes, namedCTEs)
+		return model.NewSelectCommand(columns, groupBy, orderBy, from, where, selectStm.LimitBy, selectStm.Limit, selectStm.SampleLimit, selectStm.IsDistinct, namedCTEs)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
