@@ -121,16 +121,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 131
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1260))}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", uint64(0))}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", uint64(1))}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("value", 0),
-				model.NewQueryResultCol("value", 1260),
-				model.NewQueryResultCol("value", 1260),
-			}}},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("range_0__aggr__2__count", uint64(0)),
@@ -138,18 +128,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("range_1__aggr__2__count", uint64(1260)),
 				model.NewQueryResultCol("range_1__metric__2__1_col_0", 1),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName + ` WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
-			`SELECT count(DISTINCT "ftd_session_time") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z') AND "ftd_session_time"<1000)`,
-			`SELECT count(DISTINCT "ftd_session_time") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z') AND "ftd_session_time">=-100)`,
-			`SELECT count(if("ftd_session_time"<1000,1,NULL)), count(if("ftd_session_time">=-100,1,NULL)), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT countIf("ftd_session_time"<1000) AS "range_0__aggr__2__count",
@@ -346,15 +324,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 3
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1880))}}},
-			{},
-		},
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedSQLs: []string{
-			``,
-		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL:     "TODO",
 	},
 	{ // [2]
 		TestName: "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Sum, Buckets: Aggregation: Range",
@@ -478,16 +449,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 3
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4378))}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("sum", 0.0)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("sum", 7460679809210584.0)}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("value", 0),
-				model.NewQueryResultCol("value", 4378),
-				model.NewQueryResultCol("value", 4378),
-			}}},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("range_0__aggr__2__count", uint64(0)),
@@ -495,23 +456,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("range_1__aggr__2__count", uint64(4378)),
 				model.NewQueryResultCol("range_1__metric__2__1_col_0", 7460679809210584.0),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z')`,
-			`SELECT sumOrNull("properties.entry_time") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
-				`AND ("epoch_time_original">=0 AND "epoch_time_original"<1000))`,
-			`SELECT sumOrNull("properties.entry_time") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
-				`AND "epoch_time_original">=1000)`,
-			`SELECT count(if(("epoch_time_original">=0 AND "epoch_time_original"<1000),1,NULL)), ` +
-				`count(if("epoch_time_original">=1000,1,NULL)), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z')`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT countIf(("epoch_time_original">=0 AND "epoch_time_original"<1000)) AS
@@ -644,16 +588,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 95
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4))}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("quantile_50", []float64{46.9921875})}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("quantile_50", []float64{math.NaN()})}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("doc_count", 1),
-				model.NewQueryResultCol("doc_count", 2),
-				model.NewQueryResultCol("doc_count", 4),
-			}}},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("range_0__aggr__2__count", uint64(1)),
@@ -661,24 +595,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("range_1__aggr__2__count", uint64(2)),
 				model.NewQueryResultCol("range_1__metric__2__1_col_0", []float64{math.NaN()}),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z')`,
-			`SELECT quantiles(0.500000)("properties::entry_time") AS "quantile_50" ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
-				`AND ("properties::exoestimation_connection_speedinkbps">=0 AND "properties::exoestimation_connection_speedinkbps"<1000))`,
-			`SELECT quantiles(0.500000)("properties::entry_time") AS "quantile_50" ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
-				`AND ("properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000))`,
-			`SELECT count(if(("properties::exoestimation_connection_speedinkbps">=0 AND "properties::exoestimation_connection_speedinkbps"<1000),1,NULL)), ` +
-				`count(if(("properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000),1,NULL)), ` +
-				`count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z')`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT countIf(("properties::exoestimation_connection_speedinkbps">=0 AND
@@ -818,87 +734,29 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 91
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2786))}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("response", "200"),
-					model.NewQueryResultCol(`maxOrNull("timestamp")`, util.ParseTime("2024-05-02T21:58:16.297Z")),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("response", "503"),
-					model.NewQueryResultCol(`maxOrNull("timestamp")`, util.ParseTime("2024-05-02T15:59:12.949Z")),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("response", "200"),
-					model.NewQueryResultCol(`doc_count`, 2570),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("response", "503"),
-					model.NewQueryResultCol(`doc_count`, 94),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 5000),
 				model.NewQueryResultCol("aggr__2__key_0", "200"),
 				model.NewQueryResultCol("aggr__2__count", int64(2570)),
-				model.NewQueryResultCol("aggr__2__order_1", 2570),
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-05-02T21:58:16.297Z")),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 5000),
 				model.NewQueryResultCol("aggr__2__key_0", "503"),
 				model.NewQueryResultCol("aggr__2__count", int64(94)),
-				model.NewQueryResultCol("aggr__2__order_1", 94),
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-05-02T15:59:12.949Z")),
 			}},
 		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z'))`,
-			`WITH cte_1 AS ` +
-				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response" ` +
-				`ORDER BY count() DESC, "response" ` +
-				`LIMIT 3) ` +
-				`SELECT "response", maxOrNull("timestamp") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "response"`,
-			`SELECT "response", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response" ` +
-				`ORDER BY count() DESC, "response" ` +
-				`LIMIT 3`,
-		},
 		ExpectedPancakeSQL: `
-			SELECT
-			  sum(count(*)) OVER () AS "aggr__2__parent_count",
-			  "response" AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  count() AS "aggr__2__order_1",
+			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
+			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  maxOrNull("timestamp") AS "metric__2__1_col_0"
-			FROM ` + TableName + `
+			FROM __quesma_table_name
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z'))
 			GROUP BY "response" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
+			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
 	},
 	{ // [5]
@@ -1020,87 +878,29 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 15
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2786))}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("response", "200"),
-					model.NewQueryResultCol(`minOrNull("timestamp")`, util.ParseTime("2024-04-21T00:39:02.912Z")),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("response", "503"),
-					model.NewQueryResultCol(`minOrNull("timestamp")`, util.ParseTime("2024-04-21T03:30:25.131Z")),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("response", "200"),
-					model.NewQueryResultCol(`doc_count`, 2570),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("response", "503"),
-					model.NewQueryResultCol(`doc_count`, 94),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 5300),
 				model.NewQueryResultCol("aggr__2__key_0", "200"),
 				model.NewQueryResultCol("aggr__2__count", uint64(2570)),
-				model.NewQueryResultCol("aggr__2__order_1", 2570),
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-04-21T00:39:02.912Z")),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 5300),
 				model.NewQueryResultCol("aggr__2__key_0", "503"),
 				model.NewQueryResultCol("aggr__2__count", uint64(94)),
-				model.NewQueryResultCol("aggr__2__order_1", 94),
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-04-21T03:30:25.131Z")),
 			}},
 		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z'))`,
-			`WITH cte_1 AS ` +
-				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response" ` +
-				`ORDER BY count() DESC, "response" ` +
-				`LIMIT 3) ` +
-				`SELECT "response", minOrNull("timestamp") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "response"`,
-			`SELECT "response", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response" ` +
-				`ORDER BY count() DESC, "response" ` +
-				`LIMIT 3`,
-		},
 		ExpectedPancakeSQL: `
-			SELECT
-			  sum(count(*)) OVER () AS "aggr__2__parent_count",
-			  "response" AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  count() AS "aggr__2__order_1",
+			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
+			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  minOrNull("timestamp") AS "metric__2__1_col_0"
-			FROM ` + TableName + `
+			FROM __quesma_table_name
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z'))
 			GROUP BY "response" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
+			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
 	},
 	{ // [6]
@@ -1249,29 +1049,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 9
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2786))}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("response", "200"),
-				model.NewQueryResultCol(`quantile_1`, []time.Time{util.ParseTime("2024-04-21T06:11:13.619Z")}),
-				model.NewQueryResultCol(`quantile_2`, []time.Time{util.ParseTime("2024-04-21T12:21:13.414Z")}),
-				model.NewQueryResultCol(`quantile_25`, []time.Time{util.ParseTime("2024-04-23T18:47:45.613Z")}),
-				model.NewQueryResultCol(`quantile_50`, []time.Time{util.ParseTime("2024-04-26T20:31:45.522Z")}),
-				model.NewQueryResultCol(`quantile_75`, []time.Time{util.ParseTime("2024-04-29T19:39:15.029Z")}),
-				model.NewQueryResultCol(`quantile_95`, []time.Time{util.ParseTime("2024-05-02T11:24:42.507Z")}),
-				model.NewQueryResultCol(`quantile_99`, []time.Time{util.ParseTime("2024-05-02T16:09:28.003Z")}),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("response", "200"),
-				model.NewQueryResultCol(`doc_count`, 2570),
-			}}},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", int64(2786)),
 				model.NewQueryResultCol("aggr__2__key_0", "200"),
 				model.NewQueryResultCol("aggr__2__count", int64(2570)),
-				model.NewQueryResultCol("aggr__2__order_1", 2570),
 				model.NewQueryResultCol("metric__2__1_col_0", []time.Time{util.ParseTime("2024-04-21T06:11:13.619Z")}),
 				model.NewQueryResultCol("metric__2__1_col_1", []time.Time{util.ParseTime("2024-04-21T12:21:13.414Z")}),
 				model.NewQueryResultCol("metric__2__1_col_2", []time.Time{util.ParseTime("2024-04-23T18:47:45.613Z")}),
@@ -1281,48 +1063,9 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1_col_6", []time.Time{util.ParseTime("2024-05-02T16:09:28.003Z")}),
 			}},
 		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))`,
-			`WITH cte_1 AS ` +
-				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response" ` +
-				`ORDER BY count() DESC, "response" ` +
-				`LIMIT 3) ` +
-				`SELECT "response", ` +
-				"quantiles(0.010000)(\"timestamp\") AS \"quantile_1\", " +
-				"quantiles(0.020000)(\"timestamp\") AS \"quantile_2\", " +
-				"quantiles(0.250000)(\"timestamp\") AS \"quantile_25\", " +
-				"quantiles(0.500000)(\"timestamp\") AS \"quantile_50\", " +
-				"quantiles(0.750000)(\"timestamp\") AS \"quantile_75\", " +
-				"quantiles(0.950000)(\"timestamp\") AS \"quantile_95\", " +
-				"quantiles(0.990000)(\"timestamp\") AS \"quantile_99\" " +
-				`FROM ` + testdata.TableName + ` ` +
-				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "response"`,
-			`SELECT "response", count() FROM ` + testdata.TableName + ` ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response" ` +
-				`ORDER BY count() DESC, "response" ` +
-				`LIMIT 3`,
-		},
 		ExpectedPancakeSQL: `
-			SELECT
-			  sum(count(*)) OVER () AS "aggr__2__parent_count",
-			  "response" AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  count() AS "aggr__2__order_1",
+			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
+			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  quantiles(0.010000)("timestamp") AS "metric__2__1_col_0",
 			  quantiles(0.020000)("timestamp") AS "metric__2__1_col_1",
 			  quantiles(0.250000)("timestamp") AS "metric__2__1_col_2",
@@ -1330,11 +1073,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  quantiles(0.750000)("timestamp") AS "metric__2__1_col_4",
 			  quantiles(0.950000)("timestamp") AS "metric__2__1_col_5",
 			  quantiles(0.990000)("timestamp") AS "metric__2__1_col_6"
-			FROM ` + TableName + `
+			FROM __quesma_table_name
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))
 			GROUP BY "response" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
+			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
 	},
 	{ // [7]
@@ -1457,25 +1200,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 0
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(884))}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1714860000000/3600000)),
-					model.NewQueryResultCol("AvgTicketPrice<=0,", 0.0),
-					model.NewQueryResultCol("AvgTicketPrice<=50000,", 100.0)},
-				},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1714863600000/3600000)),
-					model.NewQueryResultCol("AvgTicketPrice<=0,", 0.0),
-					model.NewQueryResultCol("AvgTicketPrice<=50000,", 50.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1714860000000/3600000)), model.NewQueryResultCol("doc_count", 9)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1714863600000/3600000)), model.NewQueryResultCol("doc_count", 12)}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1714860000000/3600000)),
@@ -1489,19 +1213,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1_col_0", 0.0),
 				model.NewQueryResultCol("metric__2__1_col_1", 50.0),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName,
-			`SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 3600000), ` +
-				`countIf("AvgTicketPrice"<=0)/count(*)*100, ` +
-				`countIf("AvgTicketPrice"<=50000)/count(*)*100 ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 3600000) ` +
-				`ORDER BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 3600000)`,
-			`SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 3600000) ` +
-				`ORDER BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 3600000)`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
@@ -1606,21 +1317,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 17
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(13059))}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("todo")`, 23.0)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`minOrNull("todo")`, 0.0)}}},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("metric__maxAgg_col_0", 23.0),
 				model.NewQueryResultCol("metric__minAgg_col_0", 0.0),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName,
-			`SELECT maxOrNull(toHour("timestamp")) FROM ` + testdata.TableName,
-			`SELECT minOrNull(toHour("timestamp")) FROM ` + testdata.TableName,
 		},
 		ExpectedPancakeSQL: `
 			SELECT maxOrNull(toHour("timestamp")) AS "metric__maxAgg_col_0",
@@ -1723,14 +1424,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 41
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(886))}}},
-			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 0.0), model.NewQueryResultCol("doc_count", 44)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1.0), model.NewQueryResultCol("doc_count", 43)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 2.0), model.NewQueryResultCol("doc_count", 34)}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 0.0),
@@ -1744,12 +1437,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__key_0", 2.0),
 				model.NewQueryResultCol("aggr__2__count", 34),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName,
-			`SELECT toHour("timestamp"), count() FROM ` + testdata.TableName + " " +
-				`GROUP BY toHour("timestamp") ` +
-				`ORDER BY toHour("timestamp")`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT toHour("timestamp") AS "aggr__2__key_0", count(*) AS "aggr__2__count"

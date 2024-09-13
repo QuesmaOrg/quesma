@@ -8,11 +8,11 @@ Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/ClickHouse/clickhouse-go/v2
-Version : v2.28.2
-Time    : 2024-08-30T20:36:57Z
+Version : v2.28.3
+Time    : 2024-09-12T07:34:22Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.28.2/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.28.3/LICENSE:
 
 Copyright 2016-2023 ClickHouse, Inc.
 
@@ -1214,36 +1214,6 @@ Exhibit B - “Incompatible With Secondary Licenses” Notice
       This Source Code Form is “Incompatible
       With Secondary Licenses”, as defined by
       the Mozilla Public License, v. 2.0.
-
-
---------------------------------------------------------------------------------
-#### Module  : github.com/jinzhu/copier
-Version : v0.4.0
-Time    : 2023-08-09T06:33:02Z
-Licence : MIT
-
-Contents of probable licence file $GOMODCACHE/github.com/jinzhu/copier@v0.4.0/License:
-
-The MIT License (MIT)
-
-Copyright (c) 2015 Jinzhu
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 --------------------------------------------------------------------------------

@@ -87,7 +87,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) (*model.Exec
 
 	if simpleQuery.CanParse {
 
-		query = query_util.BuildHitsQuery(cw.Ctx, cw.Table.Name, "*", &simpleQuery, queryInfo.I2)
+		query = query_util.BuildHitsQuery(cw.Ctx, cw.Table.Name, []string{"*"}, &simpleQuery, queryInfo.Size)
 		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, query.SelectCommand.OrderByFieldNames(), true, false, false, cw.Table.Name)
 		query.Type = &queryType
 		query.Highlighter = highlighter
@@ -100,7 +100,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) (*model.Exec
 	return nil, fmt.Errorf("could not parse query")
 }
 
-func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query model.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {
+func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query model.SimpleQuery, searchQueryInfo model.HitsCountInfo, highlighter model.Highlighter, err error) {
 
 	// no highlighting here
 	highlighter = queryparser.NewEmptyHighlighter()
@@ -115,7 +115,7 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 
 	if eqlQuery == "" {
 		query.CanParse = false
-		return query, model.NewSearchQueryInfoNormal(), highlighter, nil
+		return query, model.NewEmptyHitsCountInfo(), highlighter, nil
 	}
 
 	// FIXME this is a naive translation.
@@ -137,7 +137,7 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Err(err).Msgf("error transforming EQL query: '%s'", eqlQuery)
 		query.CanParse = false
-		return query, model.NewSearchQueryInfoNormal(), highlighter, err
+		return query, model.NewEmptyHitsCountInfo(), highlighter, err
 	}
 
 	query.WhereClause = model.NewLiteral(where) // @TODO that's to be fixed

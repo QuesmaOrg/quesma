@@ -25,7 +25,7 @@ func (query ExtendedStats) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query ExtendedStats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query ExtendedStats) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for stats aggregation")
 		return model.JsonMap{

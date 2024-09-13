@@ -1,8 +1,9 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package clickhouse
+package ingest
 
 import (
+	"quesma/clickhouse"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,7 +33,7 @@ func TestParseSignozSchema_1(t *testing.T) {
 			"attributes_bool_value" Array(Bool) CODEC(ZSTD(1)),
 		)`
 	fieldNames := []string{"timestamp", "observed_timestamp", "id", "trace_id", "span_id", "trace_flags", "severity_text", "severity_number", "body", "resources_string_key", "resources_string_value", "attributes_string_key", "attributes_string_value", "attributes_int64_key", "attributes_int64_value", "attributes_float64_key", "attributes_float64_value", "attributes_bool_key", "attributes_bool_value"}
-	table, err := NewTable(q, nil)
+	table, err := clickhouse.NewTable(q, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, len(fieldNames), len(table.Cols))
 	for _, fieldName := range fieldNames {
@@ -69,7 +70,7 @@ func TestParseSignozSchema_2(t *testing.T) {
 			"tuple1" Tuple(a String, b String, c Tuple(c String, d Uint128)) CODEC(ZSTD(1)),
 		)`
 	fieldNames := []string{"@timestamp", "observed_timestamp", "timestampDT64_1", "timestampDT64_2", "timestampDT64_3", "id", "trace_id", "span_id", "trace_flags", "severity_text", "severity_number", "body", "resources_string_key", "resources_string_value", "attributes_string_key", "attributes_string_value", "attributes_int64_key", "attributes_int64_value", "attributes_float64_key", "attributes_float64_value", "attributes_bool_key", "attributes_bool_value", "tuple1"}
-	table, err := NewTable(q, nil)
+	table, err := clickhouse.NewTable(q, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, len(fieldNames), len(table.Cols))
 	for _, fieldName := range fieldNames {
@@ -91,7 +92,7 @@ func TestParseQuotedTablename(t *testing.T) {
 		ENGINE = MergeTree
 		ORDER BY (timestamp)`
 	fieldNames := []string{"source", "host.name", "message", "service.name", "severity"}
-	table, err := NewTable(q, nil)
+	table, err := clickhouse.NewTable(q, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, len(fieldNames), len(table.Cols))
 	for _, fieldName := range fieldNames {
@@ -110,7 +111,7 @@ func TestParseNonLetterNames(t *testing.T) {
 		ENGINE = MergeTree
 		ORDER BY (timestamp)`
 	fieldNames := []string{"index"}
-	table, err := NewTable(q, nil)
+	table, err := clickhouse.NewTable(q, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, len(fieldNames), len(table.Cols))
 	for _, fieldName := range fieldNames {
@@ -230,14 +231,14 @@ func TestParseLongNestedSchema(t *testing.T) {
 		ENGINE = MergeTree
 		ORDER BY (timestamp)`
 	fieldNames := []string{"processes", "os", "concurrent_connections", "requests", "kibana", "elasticsearch_client", "response_times", "process", "timestamp"}
-	table, err := NewTable(q, nil)
+	table, err := clickhouse.NewTable(q, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, len(fieldNames), len(table.Cols))
 	for _, fieldName := range fieldNames {
 		assert.Contains(t, table.Cols, fieldName)
 	}
-	assert.Equal(t, 3, len(table.Cols["elasticsearch_client"].Type.(MultiValueType).Cols))
-	assert.Equal(t, 5, len(table.Cols["process"].Type.(MultiValueType).Cols))
+	assert.Equal(t, 3, len(table.Cols["elasticsearch_client"].Type.(clickhouse.MultiValueType).Cols))
+	assert.Equal(t, 5, len(table.Cols["process"].Type.(clickhouse.MultiValueType).Cols))
 }
 
 func Test_parseMultiValueType(t *testing.T) {
@@ -266,26 +267,26 @@ func TestParseCreateTableWithNullable(t *testing.T) {
     		"array-tuple" Array(Tuple(nullable Nullable(String), "non-nullable" String))
 		)
 		ENGINE = Log`
-	table, err := NewTable(q, nil)
+	table, err := clickhouse.NewTable(q, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, columnNr, len(table.Cols))
 	for _, colName := range []string{"nullable-string", "nullable-date-time-1", "nullable-date-time-2", "nullable-date-time-3"} {
-		assert.True(t, table.Cols[colName].Type.isNullable(), colName)
+		assert.True(t, table.Cols[colName].Type.IsNullable(), colName)
 	}
 	for _, colName := range []string{"non-nullable-string", "nullable-array", "non-nullable-array", "tuple", "array-tuple"} {
-		assert.False(t, table.Cols[colName].Type.isNullable(), colName)
+		assert.False(t, table.Cols[colName].Type.IsNullable(), colName)
 	}
 	// base types
-	assert.True(t, table.Cols["nullable-array"].Type.(CompoundType).BaseType.isNullable())
-	assert.False(t, table.Cols["non-nullable-array"].Type.(CompoundType).BaseType.isNullable())
+	assert.True(t, table.Cols["nullable-array"].Type.(clickhouse.CompoundType).BaseType.IsNullable())
+	assert.False(t, table.Cols["non-nullable-array"].Type.(clickhouse.CompoundType).BaseType.IsNullable())
 
 	// tuple
-	assert.False(t, table.Cols["tuple"].Type.(MultiValueType).Cols[0].Type.isNullable())
-	assert.True(t, table.Cols["tuple"].Type.(MultiValueType).Cols[1].Type.isNullable())
-	assert.False(t, table.Cols["tuple"].Type.(MultiValueType).Cols[2].Type.(MultiValueType).Cols[0].Type.isNullable())
-	assert.True(t, table.Cols["tuple"].Type.(MultiValueType).Cols[2].Type.(MultiValueType).Cols[1].Type.isNullable())
+	assert.False(t, table.Cols["tuple"].Type.(clickhouse.MultiValueType).Cols[0].Type.IsNullable())
+	assert.True(t, table.Cols["tuple"].Type.(clickhouse.MultiValueType).Cols[1].Type.IsNullable())
+	assert.False(t, table.Cols["tuple"].Type.(clickhouse.MultiValueType).Cols[2].Type.(clickhouse.MultiValueType).Cols[0].Type.IsNullable())
+	assert.True(t, table.Cols["tuple"].Type.(clickhouse.MultiValueType).Cols[2].Type.(clickhouse.MultiValueType).Cols[1].Type.IsNullable())
 
 	// array(tuple)
-	assert.True(t, table.Cols["array-tuple"].Type.(CompoundType).BaseType.(MultiValueType).Cols[0].Type.isNullable())
-	assert.False(t, table.Cols["array-tuple"].Type.(CompoundType).BaseType.(MultiValueType).Cols[1].Type.isNullable())
+	assert.True(t, table.Cols["array-tuple"].Type.(clickhouse.CompoundType).BaseType.(clickhouse.MultiValueType).Cols[0].Type.IsNullable())
+	assert.False(t, table.Cols["array-tuple"].Type.(clickhouse.CompoundType).BaseType.(clickhouse.MultiValueType).Cols[1].Type.IsNullable())
 }

@@ -49,6 +49,7 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 		existsInDataSource := s.populateSchemaFromTableDefinition(definitions, indexName, fields)
 		s.populateAliases(indexConfiguration, fields, aliases)
 		s.removeIgnoredFields(indexConfiguration, fields, aliases)
+		s.removeGeoPhysicalFields(fields)
 		schemas[TableName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource)
 	}
 
@@ -67,12 +68,7 @@ func (s *schemaRegistry) populateSchemaFromDynamicConfiguration(indexName string
 			continue
 		}
 
-		// TODO replace with notion of ephemeral types (see other identical TODOs)
-		if columnType.Equal(QuesmaTypePoint) {
-			fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(strings.Replace(column.Name, ".", "::", -1)), Type: columnType}
-		} else {
-			fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: columnType}
-		}
+		fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: columnType}
 	}
 }
 
@@ -117,12 +113,7 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 			continue
 		}
 		if resolvedType, valid := ParseQuesmaType(field.Type.AsString()); valid {
-			// TODO replace with notion of ephemeral types (see other identical TODOs)
-			if resolvedType.Equal(QuesmaTypePoint) {
-				fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(strings.Replace(fieldName.AsString(), ".", "::", -1)), Type: resolvedType}
-			} else {
-				fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(fieldName), Type: resolvedType}
-			}
+			fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(strings.Replace(fieldName.AsString(), ".", "::", -1)), Type: resolvedType}
 		} else {
 			logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", field.Type.AsString())
 		}
@@ -170,6 +161,17 @@ func (s *schemaRegistry) removeIgnoredFields(indexConfiguration config.IndexConf
 		if field.Ignored {
 			delete(fields, FieldName(fieldName))
 			delete(aliases, FieldName(fieldName))
+		}
+	}
+}
+
+func (s *schemaRegistry) removeGeoPhysicalFields(fields map[FieldName]Field) {
+
+	for fieldName, field := range fields {
+		if field.Type.Name == QuesmaTypePoint.Name {
+			// do not expose geo fields to the user, it's an internal representation
+			delete(fields, fieldName+".lat")
+			delete(fields, fieldName+".lon")
 		}
 	}
 }

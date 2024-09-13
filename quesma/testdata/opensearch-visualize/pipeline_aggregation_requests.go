@@ -113,20 +113,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 8
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 0.0),
-					model.NewQueryResultCol("doc_count", 282),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 1.0),
-					model.NewQueryResultCol("doc_count", 300),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 0.0),
@@ -138,17 +124,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 300),
 				model.NewQueryResultCol("aggr__2__order_1", 1.0),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z'))`,
-			`NoDBQuery`,
-			`SELECT "day_of_week_i", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z')) ` +
-				`GROUP BY "day_of_week_i" ` +
-				`ORDER BY "day_of_week_i"`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count"
@@ -264,30 +239,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 12
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 0.0),
-					model.NewQueryResultCol(`avgOrNull("day_of_week_i")`, 0.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 1.0),
-					model.NewQueryResultCol(`avgOrNull("day_of_week_i")`, 1.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 0.0),
-					model.NewQueryResultCol("doc_count", 282),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 1.0),
-					model.NewQueryResultCol("doc_count", 300),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 0.0),
@@ -301,18 +252,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__order_1", 1.0),
 				model.NewQueryResultCol("metric__2__1-metric_col_0", 1.0),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`SELECT "day_of_week_i", avgOrNull("day_of_week_i") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY "day_of_week_i" ` +
-				`ORDER BY "day_of_week_i"`,
-			`SELECT "day_of_week_i", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY "day_of_week_i" ` +
-				`ORDER BY "day_of_week_i"`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
@@ -427,21 +366,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 10
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
-			{}, // NoDBQuery
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 0.0),
-					model.NewQueryResultCol("doc_count", 282),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 1.0),
-					model.NewQueryResultCol("doc_count", 300),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 0.0),
@@ -451,15 +375,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__key_0", 1.0),
 				model.NewQueryResultCol("aggr__2__count", uint64(300)),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`NoDBQuery`,
-			`SELECT "day_of_week_i", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY "day_of_week_i" ` +
-				`ORDER BY "day_of_week_i"`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count"
@@ -584,31 +499,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 76
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
-			{}, // NoDBQuery
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 0.0),
-					model.NewQueryResultCol(`maxOrNull("products.base_price")`, 1080.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 1.0),
-					model.NewQueryResultCol(`maxOrNull("products.base_price")`, 200.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 0.0),
-					model.NewQueryResultCol("doc_count", 282),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 1.0),
-					model.NewQueryResultCol("doc_count", 300),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 0.0),
@@ -620,19 +510,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", uint64(300)),
 				model.NewQueryResultCol("metric__2__1-metric-metric_col_0", 200.0),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`NoDBQuery`,
-			`SELECT "day_of_week_i", maxOrNull("products.base_price") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY "day_of_week_i" ` +
-				`ORDER BY "day_of_week_i"`,
-			`SELECT "day_of_week_i", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY "day_of_week_i" ` +
-				`ORDER BY "day_of_week_i"`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
@@ -750,24 +627,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 40
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2553))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 0.0),
-					model.NewQueryResultCol("doc_count", 106),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 200.0),
-					model.NewQueryResultCol("doc_count", 39),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 400.0),
-					model.NewQueryResultCol("doc_count", 21),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 0.0),
@@ -781,15 +640,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__key_0", 400.0),
 				model.NewQueryResultCol("aggr__2__count", uint64(21)),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`SELECT floor("bytes"/200)*200, count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY floor("bytes"/200)*200 ` +
-				`ORDER BY floor("bytes"/200)*200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT floor("bytes"/200)*200 AS "aggr__2__key_0",
@@ -948,54 +798,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"timed_out": false,
 				"took": 40
 			}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2553))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715196000000/600000)),
-					model.NewQueryResultCol("count()", 19.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715196600000/600000)),
-					model.NewQueryResultCol("count()", 19.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715198400000/600000)),
-					model.NewQueryResultCol("count()", 20.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715199000000/600000)),
-					model.NewQueryResultCol("count()", 32.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715199600000/600000)),
-					model.NewQueryResultCol("count()", 27.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715196000000/600000)),
-					model.NewQueryResultCol("count()", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715196600000/600000)),
-					model.NewQueryResultCol("count()", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715198400000/600000)),
-					model.NewQueryResultCol("count()", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715199000000/600000)),
-					model.NewQueryResultCol("count()", 4),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715199600000/600000)),
-					model.NewQueryResultCol("count()", 3),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1715196000000/600000)),
@@ -1022,21 +824,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", uint64(3)),
 				model.NewQueryResultCol("metric__2__1-metric_col_0", 27.0),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
-				`sumOrNull(toHour("timestamp")) ` +
-				"FROM " + testdata.TableName + " " +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
-				"count() " +
-				"FROM " + testdata.TableName + " " +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0",
@@ -1248,53 +1035,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 10
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
-			{}, // NoDBQuery
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714869000000/600000)),
-					model.NewQueryResultCol("count()", 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714869600000/600000)),
-					model.NewQueryResultCol("count()", 0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714878600000/600000)),
-					model.NewQueryResultCol("count()", 0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714879200000/600000)),
-					model.NewQueryResultCol("count()", 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714879800000/600000)),
-					model.NewQueryResultCol("count()", 6),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714880400000/600000)),
-					model.NewQueryResultCol("count()", 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714881000000/600000)),
-					model.NewQueryResultCol("count()", 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714881600000/600000)),
-					model.NewQueryResultCol("count()", 0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714882200000/600000)),
-					model.NewQueryResultCol("count()", 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714882800000/600000)),
-					model.NewQueryResultCol("count()", 0),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1714869000000/600000)),
@@ -1336,15 +1076,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1714882800000/600000)),
 				model.NewQueryResultCol("aggr__2__count", uint64(0)),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`NoDBQuery`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0",
@@ -1477,24 +1208,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 40
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2553))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 0.0),
-					model.NewQueryResultCol("doc_count", 106),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 200.0),
-					model.NewQueryResultCol("doc_count", 39),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 800.0),
-					model.NewQueryResultCol("doc_count", 21),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 0.0),
@@ -1508,15 +1221,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__key_0", 800.0),
 				model.NewQueryResultCol("aggr__2__count", uint64(21)),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`SELECT floor("bytes"/200)*200, count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY floor("bytes"/200)*200 ` +
-				`ORDER BY floor("bytes"/200)*200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT floor("bytes"/200)*200 AS "aggr__2__key_0",
@@ -1651,24 +1355,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 40
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2553))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 0.0),
-					model.NewQueryResultCol("doc_count", 106),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 200.0),
-					model.NewQueryResultCol("doc_count", 39),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 800.0),
-					model.NewQueryResultCol("doc_count", 21),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 0.0),
@@ -1682,15 +1368,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__key_0", 800.0),
 				model.NewQueryResultCol("aggr__2__count", uint64(21)),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`SELECT floor("bytes"/200)*200, count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY floor("bytes"/200)*200 ` +
-				`ORDER BY floor("bytes"/200)*200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT floor("bytes"/200)*200 AS "aggr__2__key_0",
@@ -1849,54 +1526,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"timed_out": false,
 				"took": 40
 			}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2553))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715196000000/600000)),
-					model.NewQueryResultCol("count()", 19.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715196600000/600000)),
-					model.NewQueryResultCol("count()", 19.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715198400000/600000)),
-					model.NewQueryResultCol("count()", 20.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715199000000/600000)),
-					model.NewQueryResultCol("count()", 32.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715199600000/600000)),
-					model.NewQueryResultCol("count()", 27.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715196000000/600000)),
-					model.NewQueryResultCol("count()", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715196600000/600000)),
-					model.NewQueryResultCol("count()", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715198400000/600000)),
-					model.NewQueryResultCol("count()", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715199000000/600000)),
-					model.NewQueryResultCol("count()", 4),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1715199600000/600000)),
-					model.NewQueryResultCol("count()", 3),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1715196000000/600000)),
@@ -1923,21 +1552,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", uint64(3)),
 				model.NewQueryResultCol("metric__2__1-metric_col_0", 27.0),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
-				`sumOrNull(toHour("timestamp")) ` +
-				"FROM " + testdata.TableName + " " +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
-				"count() " +
-				"FROM " + testdata.TableName + " " +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0",
@@ -2150,53 +1764,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 10
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
-			{}, // NoDBQuery
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714869000000/600000)),
-					model.NewQueryResultCol("count()", 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714869600000/600000)),
-					model.NewQueryResultCol("count()", 0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714878600000/600000)),
-					model.NewQueryResultCol("count()", 0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714879200000/600000)),
-					model.NewQueryResultCol("count()", 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714879800000/600000)),
-					model.NewQueryResultCol("count()", 6),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714880400000/600000)),
-					model.NewQueryResultCol("count()", 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714881000000/600000)),
-					model.NewQueryResultCol("count()", 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714881600000/600000)),
-					model.NewQueryResultCol("count()", 0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714882200000/600000)),
-					model.NewQueryResultCol("count()", 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1714882800000/600000)),
-					model.NewQueryResultCol("count()", 0),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1714869000000/600000)),
@@ -2238,15 +1805,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1714882800000/600000)),
 				model.NewQueryResultCol("aggr__2__count", uint64(0)),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`NoDBQuery`,
-			`SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 600000) ` +
-				`ORDER BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 600000)`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
@@ -2357,24 +1915,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 81
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715403000000/600000)),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715403600000/600000)),
-					model.NewQueryResultCol("doc_count", 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715404200000/600000)),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1715403000000/600000)),
@@ -2388,15 +1928,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1715404200000/600000)),
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
@@ -2522,38 +2053,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 121
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(207))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715403000000/600000)),
-					model.NewQueryResultCol("doc_count", 8047.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715413800000/600000)),
-					model.NewQueryResultCol("doc_count", 9261.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715414400000/600000)),
-					model.NewQueryResultCol("doc_count", 9199.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715403000000/600000)),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715413800000/600000)),
-					model.NewQueryResultCol("doc_count", 4),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715414400000/600000)),
-					model.NewQueryResultCol("doc_count", 2),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1715403000000/600000)),
@@ -2570,19 +2069,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(2)),
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 9199.0),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), maxOrNull("bytes") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
@@ -3018,42 +2504,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 60
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(141))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715818800000/600000)),
-					model.NewQueryResultCol("bytes", 4202.0),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715863800000/600000)),
-					model.NewQueryResultCol("bytes", 0.0),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715863800000/600000)),
-					model.NewQueryResultCol("bytes", 293.0),
-					model.NewQueryResultCol("doc_count", 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715863800000/600000)),
-					model.NewQueryResultCol("bytes", 1997.0),
-					model.NewQueryResultCol("doc_count", 3),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715818800000/600000)),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1715863800000/600000)),
-					model.NewQueryResultCol("doc_count", 9),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1715818800000/600000)),
@@ -3079,19 +2529,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__1-bucket__key_0", 1997.0),
 				model.NewQueryResultCol("aggr__2__1-bucket__count", uint64(3)),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), "bytes", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000), "bytes" ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000), "bytes"`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__1-bucket__key_0",
@@ -3242,32 +2679,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 32
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(202))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "252.102.14.111"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "250.85.17.229"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "249.69.222.185"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "247.240.202.244"),
-					model.NewQueryResultCol("doc_count", 3),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "247.126.133.102"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1-bucket__parent_count", uint64(202)),
@@ -3294,21 +2705,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__1-bucket__key_0", "247.126.133.102"),
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') AND ` +
-				`"timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z'))`,
-			`NoDBQuery`,
-			`SELECT "clientip", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z')) ` +
-				`AND "clientip" IS NOT NULL) ` +
-				`GROUP BY "clientip" ` +
-				`ORDER BY "clientip" DESC ` +
-				`LIMIT 5`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
@@ -3458,54 +2854,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 17
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(199))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "255.205.14.152"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "255.174.89.45"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "253.69.5.67"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "252.177.62.191"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "251.250.144.158"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "255.205.14.152"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "255.174.89.45"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "253.69.5.67"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "252.177.62.191"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "251.250.144.158"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1-bucket__parent_count", uint64(199)),
@@ -3537,30 +2885,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 1),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`WITH cte_1 AS ` +
-				`(SELECT "clientip" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "clientip" IS NOT NULL ` +
-				`GROUP BY "clientip" ` +
-				`ORDER BY "clientip" DESC ` +
-				`LIMIT 5) ` +
-				`SELECT "clientip", count(DISTINCT "geo.coordinates") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`INNER JOIN "cte_1" ON "clientip" = "cte_1_1" ` +
-				`WHERE "clientip" IS NOT NULL ` +
-				`GROUP BY "clientip", cte_1_cnt ` +
-				`ORDER BY "clientip" DESC`,
-			`SELECT "clientip", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "clientip" IS NOT NULL ` +
-				`GROUP BY "clientip" ` +
-				`ORDER BY "clientip" DESC ` +
-				`LIMIT 5`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
@@ -3735,64 +3059,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 244
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1838))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-					model.NewQueryResultCol("client_ip", "255.205.14.152"),
-					model.NewQueryResultCol(`sumOrNull("bytes")`, 13.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-					model.NewQueryResultCol("client_ip", "252.177.62.191"),
-					model.NewQueryResultCol(`sumOrNull("bytes")`, 7.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-					model.NewQueryResultCol("client_ip", "246.106.125.113"),
-					model.NewQueryResultCol(`sumOrNull("bytes")`, 7.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-					model.NewQueryResultCol("client_ip", "236.212.255.77"),
-					model.NewQueryResultCol(`sumOrNull("bytes")`, 18.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-					model.NewQueryResultCol("client_ip", "255.205.14.152"),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-					model.NewQueryResultCol("client_ip", "252.177.62.191"),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-					model.NewQueryResultCol("client_ip", "246.106.125.113"),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-					model.NewQueryResultCol("client_ip", "236.212.255.77"),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-					model.NewQueryResultCol(`count()`, 73),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-					model.NewQueryResultCol(`count()`, 25),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 0.0),
@@ -3826,34 +3092,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__1-bucket__count", uint64(1)),
 				model.NewQueryResultCol("metric__2__1-bucket__1-metric_col_0", 18.0),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`WITH cte_1 AS ` +
-				`(SELECT floor("bytes"/200)*200 AS "cte_1_1", "clientip" AS "cte_1_2", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "clientip" IS NOT NULL ` +
-				`GROUP BY floor("bytes"/200)*200, "clientip" ` +
-				`ORDER BY floor("bytes"/200)*200, "clientip" DESC ` +
-				`LIMIT 2 BY floor("bytes"/200)*200) ` +
-				`SELECT floor("bytes"/200)*200, "clientip", sumOrNull("bytes") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`INNER JOIN "cte_1" ON floor("bytes"/200)*200 = "cte_1_1" AND "clientip" = "cte_1_2" ` +
-				`WHERE "clientip" IS NOT NULL ` +
-				`GROUP BY floor("bytes"/200)*200, "clientip", cte_1_cnt ` +
-				`ORDER BY floor("bytes"/200)*200, "clientip" DESC`,
-			`SELECT floor("bytes"/200)*200, "clientip", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "clientip" IS NOT NULL ` +
-				`GROUP BY floor("bytes"/200)*200, "clientip" ` +
-				`ORDER BY floor("bytes"/200)*200, "clientip" DESC ` +
-				`LIMIT 2 BY floor("bytes"/200)*200`,
-			`SELECT floor("bytes"/200)*200, count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY floor("bytes"/200)*200 ` +
-				`ORDER BY floor("bytes"/200)*200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__1-bucket__parent_count",
@@ -3986,20 +3224,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 98
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2183))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", true),
-					model.NewQueryResultCol("doc_count", 260),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", false),
-					model.NewQueryResultCol("doc_count", 1923),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1-bucket__parent_count", uint64(2183)),
@@ -4011,21 +3235,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__1-bucket__key_0", false),
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1923)),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') AND ` +
-				`"timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z'))`,
-			`NoDBQuery`,
-			`SELECT "Cancelled", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z')) ` +
-				`AND "Cancelled" IS NOT NULL) ` +
-				`GROUP BY "Cancelled" ` +
-				`ORDER BY "Cancelled" DESC ` +
-				`LIMIT 5`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
@@ -4167,38 +3376,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 4
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(72))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1716231600000/600000)),
-					model.NewQueryResultCol(`minOrNull("memory")`, nil),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1716276600000/600000)),
-					model.NewQueryResultCol(`minOrNull("memory")`, 121360.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1716277200000/600000)),
-					model.NewQueryResultCol(`minOrNull("memory")`, nil),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1716231600000/600000)),
-					model.NewQueryResultCol("count()", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1716276600000/600000)),
-					model.NewQueryResultCol("count()", 4),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`, int64(1716277200000/600000)),
-					model.NewQueryResultCol("count()", 1),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1-bucket__key_0", int64(1716231600000/600000)),
@@ -4215,21 +3392,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", nil),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
-				`minOrNull("memory") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
-				"count() " +
-				"FROM " + testdata.TableName + " " +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
@@ -4424,57 +3586,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 11
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("bytes", 0.0),
-					model.NewQueryResultCol(`maxOrNull("memory")`, nil),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("bytes", 200.0),
-					model.NewQueryResultCol(`maxOrNull("memory")`, nil),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("bytes", 400.0),
-					model.NewQueryResultCol(`maxOrNull("memory")`, nil),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("bytes", 5296.0),
-					model.NewQueryResultCol(`maxOrNull("memory")`, 211840.2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("bytes", 16837.0),
-					model.NewQueryResultCol(`maxOrNull("memory")`, float64(452)),
-				}},
-			},
-			{}, // NoDBQuery
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("bytes", 0.0),
-					model.NewQueryResultCol("count()", 5),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("bytes", 200.0),
-					model.NewQueryResultCol("count()", 6),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("bytes", 400.0),
-					model.NewQueryResultCol("count()", 7),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("bytes", 5296.0),
-					model.NewQueryResultCol("count()", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("bytes", 16837.0),
-					model.NewQueryResultCol("count()", 1),
-				}},
-			},
-			{}, // NoDBQuery
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1-bucket__key_0", 0.0),
@@ -4501,21 +3612,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", float64(452)),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`SELECT "bytes", maxOrNull("memory") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY "bytes" ` +
-				`ORDER BY "bytes"`,
-			`NoDBQuery`,
-			`NoDBQuery`,
-			`SELECT "bytes", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY "bytes" ` +
-				`ORDER BY "bytes"`,
-			`NoDBQuery`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "bytes" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count",
@@ -5065,32 +4161,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 45
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(202))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "zip"),
-					model.NewQueryResultCol("doc_count", 225),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "rpm"),
-					model.NewQueryResultCol("doc_count", 76),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "gz"),
-					model.NewQueryResultCol("doc_count", 348),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "deb"),
-					model.NewQueryResultCol("doc_count", 224),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "css"),
-					model.NewQueryResultCol("doc_count", 298),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1-bucket__parent_count", uint64(1865)),
@@ -5117,21 +4187,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__1-bucket__key_0", "css"),
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(298)),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z'))`,
-			`NoDBQuery`,
-			`SELECT "extension", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z')) ` +
-				`AND "extension" IS NOT NULL) ` +
-				`GROUP BY "extension" ` +
-				`ORDER BY "extension" DESC ` +
-				`LIMIT 5`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
@@ -5266,38 +4321,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 54
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1865))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "deb"),
-					model.NewQueryResultCol("doc_count", 12539770587.428572),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "`zip`"),
-					model.NewQueryResultCol("doc_count", 12464949530.168888),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "rpm"),
-					model.NewQueryResultCol("doc_count", 12786004614.736841),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "deb"),
-					model.NewQueryResultCol("doc_count", 224),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "zip"),
-					model.NewQueryResultCol("doc_count", 225),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "rpm"),
-					model.NewQueryResultCol("doc_count", 76),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1-bucket__parent_count", uint64(1865)),
@@ -5321,38 +4344,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 12786004614.736841),
 			}},
 		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`WITH cte_1 AS ` +
-				`(SELECT "extension" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "extension" IS NOT NULL ` +
-				`GROUP BY "extension" ` +
-				`ORDER BY count() DESC, "extension" ` +
-				`LIMIT 5) ` +
-				`SELECT "extension", avgOrNull("machine.ram") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`INNER JOIN "cte_1" ON "extension" = "cte_1_1" ` +
-				`WHERE "extension" IS NOT NULL ` +
-				`GROUP BY "extension", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "extension"`,
-			`SELECT "extension", count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "extension" IS NOT NULL ` +
-				`GROUP BY "extension" ` +
-				`ORDER BY count() DESC, "extension" ` +
-				`LIMIT 5`,
-		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "extension" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count",
-			  count() AS "aggr__1-bucket__order_1",
 			  avgOrNull("machine.ram") AS "metric__1-bucket__1-metric_col_0"
 			FROM __quesma_table_name
 			GROUP BY "extension" AS "aggr__1-bucket__key_0"
-			ORDER BY "aggr__1-bucket__order_1" DESC, "aggr__1-bucket__key_0" ASC
+			ORDER BY "aggr__1-bucket__count" DESC, "aggr__1-bucket__key_0" ASC
 			LIMIT 6`,
 	},
 	{ // [25]
@@ -5715,283 +4713,234 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 40
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1865))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, 6920.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, 1000.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 600.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, 27400.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`count()`, 6),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-					model.NewQueryResultCol(`count()`, 9),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
-					model.NewQueryResultCol(`count()`, 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-					model.NewQueryResultCol(`count()`, 3),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 600.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-					model.NewQueryResultCol(`count()`, 15),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-					model.NewQueryResultCol(`count()`, 6),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 600.0),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-			},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, 43320.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715205600000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, 44080.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1200.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715162400000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, 50040.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715248800000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, 72640.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-					model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715205600000/43200000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1200.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715162400000/43200000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-					model.NewQueryResultCol(`count()`, 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`count()`, 3),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715248800000/43200000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`count()`, 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-					model.NewQueryResultCol(`count()`, 6),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
-					model.NewQueryResultCol(`count()`, 8),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-					model.NewQueryResultCol(`count()`, 7),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
-					model.NewQueryResultCol(`count()`, 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1200.0),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
-					model.NewQueryResultCol(`count()`, 3),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
-					model.NewQueryResultCol(`count()`, 4),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-					model.NewQueryResultCol(`count()`, 23),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`count(if("bytes">=0 AND "bytes"<1000,1,NULL))`, 168),
-					model.NewQueryResultCol(`count(if("bytes">=1000 AND "bytes"<2000,1,NULL))`, 94),
-					model.NewQueryResultCol(`count()`, 1865),
-				}},
-			},
-		},
+		/*
+			ExpectedResults: [][]model.QueryResultRow{
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1865))}}},
+				{}, // NoDBQuery
+				{
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, 6920.0),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, 1000.0),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 600.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, 27400.0),
+					}},
+				},
+				{
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
+						model.NewQueryResultCol(`count()`, 6),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
+						model.NewQueryResultCol(`count()`, 9),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
+						model.NewQueryResultCol(`count()`, 1),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
+						model.NewQueryResultCol(`count()`, 2),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
+						model.NewQueryResultCol(`count()`, 3),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 600.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
+						model.NewQueryResultCol(`count()`, 1),
+					}},
+				},
+				{
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
+						model.NewQueryResultCol(`count()`, 15),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
+						model.NewQueryResultCol(`count()`, 6),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 600.0),
+						model.NewQueryResultCol(`count()`, 1),
+					}},
+				},
+				{}, // NoDBQuery
+				{
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, 43320.0),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715205600000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, 44080.0),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1200.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715162400000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, 50040.0),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715248800000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, 72640.0),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
+						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
+					}},
+				},
+				{
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
+						model.NewQueryResultCol(`count()`, 1),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715205600000/43200000)),
+						model.NewQueryResultCol(`count()`, 1),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1200.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715162400000/43200000)),
+						model.NewQueryResultCol(`count()`, 1),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
+						model.NewQueryResultCol(`count()`, 1),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
+						model.NewQueryResultCol(`count()`, 2),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
+						model.NewQueryResultCol(`count()`, 3),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715248800000/43200000)),
+						model.NewQueryResultCol(`count()`, 1),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
+						model.NewQueryResultCol(`count()`, 2),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
+						model.NewQueryResultCol(`count()`, 6),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
+						model.NewQueryResultCol(`count()`, 8),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
+						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
+						model.NewQueryResultCol(`count()`, 7),
+					}},
+				},
+				{
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
+						model.NewQueryResultCol(`count()`, 2),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1200.0),
+						model.NewQueryResultCol(`count()`, 1),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
+						model.NewQueryResultCol(`count()`, 3),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
+						model.NewQueryResultCol(`count()`, 4),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
+						model.NewQueryResultCol(`count()`, 23),
+					}},
+				},
+				{
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol(`count(if("bytes">=0 AND "bytes"<1000,1,NULL))`, 168),
+						model.NewQueryResultCol(`count(if("bytes">=1000 AND "bytes"<2000,1,NULL))`, 94),
+						model.NewQueryResultCol(`count()`, 1865),
+					}},
+				},
+			},*/
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName,
-			`NoDBQuery`,
-			`SELECT floor("bytes"/200)*200, ` +
-				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
-				`avgOrNull("memory") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "bytes">=0 AND "bytes"<1000 ` +
-				`GROUP BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
-				`ORDER BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
-			`SELECT floor("bytes"/200)*200, ` +
-				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
-				`count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "bytes">=0 AND "bytes"<1000 ` +
-				`GROUP BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
-				`ORDER BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
-			`SELECT floor("bytes"/200)*200, ` +
-				`count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "bytes">=0 AND "bytes"<1000 ` +
-				`GROUP BY floor("bytes"/200)*200 ` +
-				`ORDER BY floor("bytes"/200)*200`,
-			`NoDBQuery`,
-			`SELECT floor("bytes"/200)*200, ` +
-				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
-				`avgOrNull("memory") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
-				`GROUP BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
-				`ORDER BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
-			`SELECT floor("bytes"/200)*200, ` +
-				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
-				`count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
-				`GROUP BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
-				`ORDER BY floor("bytes"/200)*200, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
-			`SELECT floor("bytes"/200)*200, ` +
-				`count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
-				`GROUP BY floor("bytes"/200)*200 ` +
-				`ORDER BY floor("bytes"/200)*200`,
-			`SELECT count(if("bytes">=0 AND "bytes"<1000,1,NULL)), ` +
-				`count(if("bytes">=1000 AND "bytes"<2000,1,NULL)), ` +
-				`count() ` +
-				`FROM ` + testdata.TableName,
-		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL:     "TODO",
 	},
 }

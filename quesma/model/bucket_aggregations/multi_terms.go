@@ -24,7 +24,7 @@ func (query MultiTerms) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
-func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	minimumExpectedColNr := query.fieldsNr + 1 // +1 for doc_count. Can be more, if this MultiTerms has parent aggregations, but never fewer.
 	if len(rows) > 0 && len(rows[0].Cols) < minimumExpectedColNr {
 		logger.ErrorWithCtx(query.ctx).Msgf(

@@ -15,6 +15,7 @@ import (
 	"quesma/connectors"
 	"quesma/elasticsearch"
 	"quesma/feature"
+	"quesma/ingest"
 	"quesma/licensing"
 	"quesma/logger"
 	"quesma/quesma"
@@ -84,19 +85,20 @@ func main() {
 	tableDisco := clickhouse.NewTableDiscovery(&cfg, connectionPool)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.SchemaTypeAdapter{})
 
-	connManager := connectors.NewConnectorManager(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry)
+	connManager := connectors.NewConnectorManager(&cfg, connectionPool, phoneHomeAgent, tableDisco)
 	lm := connManager.GetConnector()
-
+	//create ingest processor, very lame but for the sake of refactor
+	ip := ingest.NewEmptyIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry)
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 
-	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry)
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry) //FIXME no ingest processor here just for now
 
 	abTestingController := sender.NewSenderCoordinator(&cfg)
 	abTestingController.Start()
 
-	instance := constructQuesma(&cfg, tableDisco, lm, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender())
+	instance := constructQuesma(&cfg, tableDisco, lm, ip, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender())
 	instance.Start()
 
 	<-doneCh
@@ -114,15 +116,10 @@ func main() {
 
 }
 
-func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender) *quesma.Quesma {
-	switch cfg.Mode {
-	case config.Proxy:
-		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, false)
-	case config.ProxyInspect:
+func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender) *quesma.Quesma {
+	if cfg.TransparentProxy {
 		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, true)
-	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, sl, im, schemaRegistry, cfg, quesmaManagementConsole, logChan, abResultsrepository)
+	} else {
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, logChan, abResultsrepository)
 	}
-	logger.Panic().Msgf("unknown operation mode: %s", cfg.Mode.String())
-	panic("unreachable")
 }

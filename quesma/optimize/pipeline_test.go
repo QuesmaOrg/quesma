@@ -33,7 +33,7 @@ func Test_cacheQueries(t *testing.T) {
 			true,
 			"foo",
 			model.SelectCommand{
-				Columns:    []model.Expr{model.NewColumnRef("a"), model.NewFunction("count", model.NewColumnRef("*"))},
+				Columns:    []model.Expr{model.NewColumnRef("a"), model.NewCountFunc()},
 				FromClause: model.NewTableRef("foo"),
 				GroupBy:    []model.Expr{model.NewLiteral(1)},
 			},
@@ -167,12 +167,12 @@ func Test_dateTrunc(t *testing.T) {
 			"select a, count() from foo  group by 1",
 			"foo",
 			model.SelectCommand{
-				Columns:    []model.Expr{model.NewColumnRef("a"), model.NewFunction("count", model.NewColumnRef("*"))},
+				Columns:    []model.Expr{model.NewColumnRef("a"), model.NewCountFunc()},
 				FromClause: model.NewTableRef("foo"),
 				GroupBy:    []model.Expr{model.NewLiteral(1)},
 			},
 			model.SelectCommand{
-				Columns:    []model.Expr{model.NewColumnRef("a"), model.NewFunction("count", model.NewColumnRef("*"))},
+				Columns:    []model.Expr{model.NewColumnRef("a"), model.NewCountFunc()},
 				FromClause: model.NewTableRef("foo"),
 				GroupBy:    []model.Expr{model.NewLiteral(1)},
 			},

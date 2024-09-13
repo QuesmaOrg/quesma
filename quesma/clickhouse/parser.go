@@ -4,12 +4,7 @@ package clickhouse
 
 import (
 	"fmt"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"quesma/util"
 	"slices"
-	"strings"
 )
 
 const NestedSeparator = "::"
@@ -17,142 +12,6 @@ const NestedSeparator = "::"
 type CreateTableEntry struct {
 	ClickHouseColumnName string
 	ClickHouseType       string
-}
-
-// Rendering columns to string
-func columnsToString(columnsFromJson []CreateTableEntry,
-	columnsFromSchema map[schema.FieldName]CreateTableEntry,
-) string {
-	var result strings.Builder
-	first := true
-	for _, columnFromJson := range columnsFromJson {
-		if first {
-			first = false
-		} else {
-			result.WriteString(",\n")
-		}
-		result.WriteString(util.Indent(1))
-
-		if columnFromSchema, found := columnsFromSchema[schema.FieldName(columnFromJson.ClickHouseColumnName)]; found && !strings.Contains(columnFromJson.ClickHouseType, "Array") {
-			// Schema takes precedence over JSON (except for Arrays which are not currently handled)
-			result.WriteString(fmt.Sprintf("\"%s\" %s", columnFromSchema.ClickHouseColumnName, columnFromSchema.ClickHouseType))
-		} else {
-			result.WriteString(fmt.Sprintf("\"%s\" %s", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType))
-		}
-
-		delete(columnsFromSchema, schema.FieldName(columnFromJson.ClickHouseColumnName))
-	}
-
-	// There might be some columns from schema which were not present in the JSON
-	for _, column := range columnsFromSchema {
-		if first {
-			first = false
-		} else {
-			result.WriteString(",\n")
-		}
-		result.WriteString(util.Indent(1))
-		result.WriteString(fmt.Sprintf("\"%s\" %s", column.ClickHouseColumnName, column.ClickHouseType))
-	}
-	return result.String()
-}
-
-func JsonToColumns(namespace string, m SchemaMap, indentLvl int, chConfig *ChTableConfig, nameFormatter TableColumNameFormatter, ignoredFields []config.FieldName) []CreateTableEntry {
-	var resultColumns []CreateTableEntry
-
-	for name, value := range m {
-		listValue, isListValue := value.([]interface{})
-		if isListValue {
-			value = listValue
-		}
-		nestedValue, ok := value.(SchemaMap)
-		if (ok && nestedValue != nil && len(nestedValue) > 0) && !isListValue {
-			nested := JsonToColumns(nameFormatter.Format(namespace, name), nestedValue, indentLvl, chConfig, nameFormatter, ignoredFields)
-			resultColumns = append(resultColumns, nested...)
-		} else {
-			var fTypeString string
-			if value == nil { // HACK ALERT -> We're treating null values as strings for now, so that we don't completely discard documents with empty values
-				fTypeString = "Nullable(String)"
-			} else {
-				fType := NewType(value)
-
-				// handle "field":{} case (Elastic Agent sends such JSON fields) by ignoring them
-				if multiValueType, ok := fType.(MultiValueType); ok && len(multiValueType.Cols) == 0 {
-					logger.Warn().Msgf("Ignoring empty JSON object: \"%s\":%v (in %s)", name, value, namespace)
-					continue
-				}
-
-				fTypeString = fType.String()
-				if !strings.Contains(fTypeString, "Array") && !strings.Contains(fTypeString, "DateTime") {
-					fTypeString = "Nullable(" + fTypeString + ")"
-				}
-			}
-			// hack for now
-			if indentLvl == 1 && name == timestampFieldName && chConfig.timestampDefaultsNow {
-				fTypeString += " DEFAULT now64()"
-			}
-			// We still may have name like:
-			// "service.name": { "very.name": "value" }
-			// Before that code it would be transformed to:
-			// "service.name::very.name"
-			// So I convert it to:
-			// "service::name::very::name"
-
-			internalName := nameFormatter.Format(namespace, name)
-			resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: internalName, ClickHouseType: fTypeString})
-		}
-	}
-	return resultColumns
-}
-
-func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameFormatter) map[schema.FieldName]CreateTableEntry {
-	resultColumns := make(map[schema.FieldName]CreateTableEntry)
-
-	if schemaMapping == nil {
-		return resultColumns
-	}
-
-	for _, field := range schemaMapping.Fields {
-		var fType string
-
-		// We should never have dots in the field names, see 4 ADR
-		internalPropertyName := strings.Replace(field.InternalPropertyName.AsString(), ".", "::", -1)
-
-		switch field.Type.Name {
-		default:
-			logger.Warn().Msgf("Unsupported field type '%s' for field '%s' when trying to create a table. Ignoring that field.", field.Type.Name, field.PropertyName.AsString())
-			continue
-		case schema.QuesmaTypePoint.Name:
-			lat := nameFormatter.Format(internalPropertyName, "lat")
-			lon := nameFormatter.Format(internalPropertyName, "lon")
-			resultColumns[schema.FieldName(lat)] = CreateTableEntry{ClickHouseColumnName: lat, ClickHouseType: "Nullable(String)"}
-			resultColumns[schema.FieldName(lon)] = CreateTableEntry{ClickHouseColumnName: lon, ClickHouseType: "Nullable(String)"}
-			continue
-
-		// Simple types:
-		case schema.QuesmaTypeText.Name:
-			fType = "Nullable(String)"
-		case schema.QuesmaTypeKeyword.Name:
-			fType = "Nullable(String)"
-		case schema.QuesmaTypeLong.Name:
-			fType = "Nullable(Int64)"
-		case schema.QuesmaTypeUnsignedLong.Name:
-			fType = "Nullable(Uint64)"
-		case schema.QuesmaTypeTimestamp.Name:
-			fType = "Nullable(DateTime64)"
-		case schema.QuesmaTypeDate.Name:
-			fType = "Nullable(Date)"
-			// TODO: This (and Nullable(DateTime64) above) can be problematic for ingest when when set by user explicitly. We should either not use Nullable in this case
-			// or add some validation logic so that its handled properly.
-			// Example if someone sets `type: date` to a field in schemaOverrides AND this is a timestamp field for which we have dedicated logic (use DateTime64 + add DEFAULT now64())
-			// Ingest will FAIL creating table with "Sorting key contains nullable columns, but merge tree setting `allow_nullable_key` is disabled"
-		case schema.QuesmaTypeFloat.Name:
-			fType = "Nullable(Float64)"
-		case schema.QuesmaTypeBoolean.Name:
-			fType = "Nullable(Bool)"
-		}
-		resultColumns[schema.FieldName(internalPropertyName)] = CreateTableEntry{ClickHouseColumnName: internalPropertyName, ClickHouseType: fType}
-	}
-	return resultColumns
 }
 
 // Returns map with fields that are in 'sm', but not in our table schema 't'.
@@ -293,8 +152,8 @@ func BuildAttrsMap(m SchemaMap, config *ChTableConfig) (map[string][]interface{}
 	for _, name := range sortedKeys(m) {
 		value := m[name]
 		matched := false
-		for _, a := range config.attributes {
-			if a.Type.canConvert(value) {
+		for _, a := range config.Attributes {
+			if a.Type.CanConvert(value) {
 				result[a.KeysArrayName] = append(result[a.KeysArrayName], name)
 				result[a.ValuesArrayName] = append(result[a.ValuesArrayName], fmt.Sprintf("%v", value))
 				result[a.TypesArrayName] = append(result[a.TypesArrayName], NewType(value).String())

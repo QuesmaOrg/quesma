@@ -8,10 +8,10 @@ import (
 )
 
 func selectCnt(limit int) string {
-	return fmt.Sprintf(`SELECT count() FROM (SELECT 1 FROM %s LIMIT %d)`, TableName, limit)
+	return fmt.Sprintf(`SELECT count(*) FROM (SELECT 1 FROM %s LIMIT %d)`, TableName, limit)
 }
 func selectTotalCnt() string {
-	return fmt.Sprintf("SELECT count() FROM %s", TableName)
+	return fmt.Sprintf("SELECT count(*) FROM %s", TableName)
 }
 func selectStar(limit int) string {
 	return fmt.Sprintf("SELECT \"message\" FROM %s LIMIT %d", TableName, limit)
@@ -37,7 +37,7 @@ const IndexName = `"` + TableName + `"`
 
 var FullSearchRequests = []FullSearchTestCase{
 
-	// SearchQueryType == Normal
+	// HitsInfo == Normal
 
 	{ // [0]
 		Name: "We can't deduct hits count from the rows list, we should send count(*) LIMIT 1 request",
@@ -353,6 +353,6 @@ var FullSearchRequests = []FullSearchTestCase{
 		ExpectedSQLResults: [][]model.QueryResultRow{resultSelect(1), resultCount(123)},
 	},
 
-	// SearchQueryType == ...
+	// HitsInfo == ...
 
 }

@@ -9,6 +9,7 @@ import (
 	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/util"
 	"strconv"
 	"strings"
 	"time"
@@ -17,7 +18,7 @@ import (
 type DateHistogramIntervalType bool
 
 const (
-	DefaultMinDocCount                                      = 1
+	DefaultMinDocCount                                      = -1
 	DateHistogramFixedInterval    DateHistogramIntervalType = true
 	DateHistogramCalendarInterval DateHistogramIntervalType = false
 	defaultDateTimeType                                     = clickhouse.DateTime64
@@ -55,14 +56,18 @@ func (query *DateHistogram) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
-func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
-			"unexpected number of columns in date_histogram aggregation response, len(rows[0].Cols): "+
-				"%d, level: %d", len(rows[0].Cols), level,
+			"unexpected number of columns in date_histogram aggregation response, len(rows[0].Cols): %d",
+			len(rows[0].Cols),
 		)
 	}
+
+	// TODO:
+	// Implement default when query.minDocCount == DefaultMinDocCount, we need to return
+	// all buckets between the first bucket that matches documents and the last one.
 
 	if query.minDocCount == 0 {
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
@@ -78,6 +83,11 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 	var response []model.JsonMap
 	for _, row := range rows {
 		var key int64
+		docCount := row.LastColValue()
+		if util.ExtractInt64(docCount) < int64(query.minDocCount) {
+			continue
+		}
+
 		if query.intervalType == DateHistogramCalendarInterval {
 			key = query.getKey(row)
 		} else {
@@ -93,7 +103,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 
 		response = append(response, model.JsonMap{
 			"key":           key,
-			"doc_count":     row.LastColValue(), // used to be [level], but because some columns are duplicated, it doesn't work in 100% cases now
+			"doc_count":     docCount, // used to be [level], but because some columns are duplicated, it doesn't work in 100% cases now
 			"key_as_string": time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000"),
 		})
 	}

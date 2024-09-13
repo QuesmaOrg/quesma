@@ -80,10 +80,10 @@ func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMet
 	return
 }
 
-func (p *pancakeSqlQueryGenerator) isPartOfGroupBy(column model.Expr, groupByColumns []model.AliasedExpr) *model.AliasedExpr {
-	for _, groupByColumn := range groupByColumns {
-		if model.PartlyImplementedIsEqual(column, groupByColumn) {
-			return &groupByColumn
+func (p *pancakeSqlQueryGenerator) isPartOf(column model.Expr, aliasedColumns []model.AliasedExpr) *model.AliasedExpr {
+	for _, aliasedColumn := range aliasedColumns {
+		if model.PartlyImplementedIsEqual(column, aliasedColumn) {
+			return &aliasedColumn
 		}
 	}
 	return nil
@@ -103,7 +103,7 @@ func (p *pancakeSqlQueryGenerator) isPartOfOrderBy(alias model.AliasedExpr, orde
 func (p *pancakeSqlQueryGenerator) addPotentialParentCount(bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr) []model.AliasedExpr {
 	if query_util.IsAnyKindOfTerms(bucketAggregation.queryType) {
 		parentCountColumn := model.NewWindowFunction("sum",
-			[]model.Expr{model.NewFunction("count", model.NewLiteral("*"))},
+			[]model.Expr{model.NewCountFunc()},
 			p.generatePartitionBy(groupByColumns), []model.OrderByExpr{})
 		parentCountAliasedColumn := model.NewAliasedExpr(parentCountColumn, bucketAggregation.InternalNameForParentCount())
 		return []model.AliasedExpr{parentCountAliasedColumn}
@@ -126,12 +126,12 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 	// build count for aggr
 	var countColumn model.Expr
 	if hasMoreBucketAggregations {
-		partCountColumn := model.NewFunction("count", model.NewLiteral("*"))
+		partCountColumn := model.NewCountFunc()
 
 		countColumn = model.NewWindowFunction("sum", []model.Expr{partCountColumn},
 			p.generatePartitionBy(append(groupByColumns, addGroupBys...)), []model.OrderByExpr{})
 	} else {
-		countColumn = model.NewFunction("count", model.NewLiteral("*"))
+		countColumn = model.NewCountFunc()
 	}
 	countAliasedColumn := model.NewAliasedExpr(countColumn, bucketAggregation.InternalNameForCount())
 	addSelectColumns = append(addSelectColumns, countAliasedColumn)
@@ -143,7 +143,9 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 			columnId := len(bucketAggregation.selectedColumns) + i
 			direction := orderBy.Direction
 
-			rankColumn := p.isPartOfGroupBy(orderBy.Expr, append(groupByColumns, addGroupBys...))
+			rankColumn := p.isPartOf(orderBy.Expr, append(append(groupByColumns, addGroupBys...),
+				// We need count before window functions
+				model.NewAliasedExpr(model.NewCountFunc(), bucketAggregation.InternalNameForCount())))
 			if rankColumn != nil { // rank is part of group by
 				if direction == model.DefaultOrder {
 					direction = model.AscOrder // primarily needed for tests
@@ -323,7 +325,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			combinatorWhere = append(combinatorWhere, subGroup.WhereClause)
 			for _, selectAfter := range selectsAfter {
 				var withCombinator model.Expr
-				if p.isPartOfGroupBy(selectAfter.Expr, groupBys) != nil {
+				if p.isPartOf(selectAfter.Expr, groupBys) != nil {
 					withCombinator = selectAfter.Expr
 				} else {
 					withIfCombinator, err := p.addIfCombinator(selectAfter.Expr, subGroup.WhereClause)

@@ -26,7 +26,7 @@ func (query PercentileRanks) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows in percentile ranks response")
 		return make(model.JsonMap)
@@ -36,7 +36,7 @@ func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResult
 	// And because of complete separation in if/else, I guess it might (should) be slightly faster (?)
 	if query.Keyed {
 		valueMap := make(model.JsonMap)
-		for i, percentileRank := range rows[0].Cols[level:] {
+		for i, percentileRank := range rows[0].Cols {
 			// It always needs to have .Y or .YZ at the end, so 1 or 2 digits after the dot, and dot is mandatory.
 			// Also, can't be .00, needs to be .0
 			cutValue := query.cutValues[i]
@@ -60,7 +60,7 @@ func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResult
 		}
 	} else {
 		buckets := make([]model.JsonMap, 0)
-		for i, percentileRank := range rows[0].Cols[level:] {
+		for i, percentileRank := range rows[0].Cols {
 			// It always needs to have .Y or .YZ at the end, so 1 or 2 digits after the dot, and dot is mandatory.
 			// Also, can't be .00, needs to be .0
 			cutValue := query.cutValues[i]

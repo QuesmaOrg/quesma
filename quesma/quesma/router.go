@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
+	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
 	"quesma/quesma/config"
@@ -30,7 +31,7 @@ import (
 	"time"
 )
 
-func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {
+func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {
 
 	// some syntactic sugar
 	method := mux.IsHTTPMethod
@@ -48,7 +49,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			return nil, err
 		}
 
-		results, err := bulk.Write(ctx, nil, body, lm, cfg, phoneHomeAgent)
+		results, err := bulk.Write(ctx, nil, body, ip, cfg, phoneHomeAgent)
 		return bulkInsertResult(results, err)
 	})
 
@@ -66,7 +67,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			}, nil
 		}
 
-		err = doc.Write(ctx, req.Params["index"], body, lm, cfg)
+		err = doc.Write(ctx, req.Params["index"], body, ip, cfg)
 		if err != nil {
 			return &mux.Result{
 				Body:       string(queryparser.BadRequestParseError(err)),
@@ -85,7 +86,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			return nil, err
 		}
 
-		results, err := bulk.Write(ctx, &index, body, lm, cfg, phoneHomeAgent)
+		results, err := bulk.Write(ctx, &index, body, ip, cfg, phoneHomeAgent)
 		return bulkInsertResult(results, err)
 	})
 

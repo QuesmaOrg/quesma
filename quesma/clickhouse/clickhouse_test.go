@@ -4,128 +4,15 @@ package clickhouse
 
 import (
 	"context"
-	"encoding/json"
 	"quesma/concurrent"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
-	"quesma/schema"
 	"strings"
 	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
-
-var hasOthersConfig = &ChTableConfig{
-	hasTimestamp:                          false,
-	timestampDefaultsNow:                  false,
-	engine:                                "MergeTree",
-	orderBy:                               "(timestamp)",
-	partitionBy:                           "",
-	primaryKey:                            "",
-	ttl:                                   "",
-	attributes:                            []Attribute{},
-	castUnsupportedAttrValueTypesToString: false,
-	preferCastingToOthers:                 false,
-}
-
-// inserting row with 2 non-schema fields
-// they are added to "others" column as JSON (one is nested)
-func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
-	rowToInsert := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","non-schema2":"2","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z","non-schema1":{"a":"b"}}`
-	var emptyMap TableMap
-	// TODO fix columns
-	fieldsMap := concurrent.NewMapWith("tableName", &Table{
-		Cols: map[string]*Column{
-			"host::name":    nil,
-			"message":       nil,
-			"service::name": nil,
-			"severity":      nil,
-			"timestamp":     nil,
-			"source":        nil,
-		},
-	})
-
-	tableName, exists := fieldsMap.Load("tableName")
-	assert.True(t, exists)
-	f := func(t1, t2 TableMap) {
-		lm := NewLogManager(fieldsMap, &config.QuesmaConfiguration{})
-		alter, onlySchemaFields, nonSchemaFields, err := lm.GenerateIngestContent(tableName, types.MustJSON(rowToInsert), nil, hasOthersConfig)
-		assert.NoError(t, err)
-		j, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
-		assert.NoError(t, err)
-		assert.Equal(t, 0, len(alter))
-		m := make(SchemaMap)
-		err = json.Unmarshal([]byte(j), &m)
-		assert.NoError(t, err)
-	}
-
-	// both cases need to be OK
-	f(emptyMap, *fieldsMap)
-	f(*fieldsMap, emptyMap)
-}
-
-// TODO update this test now it doesn't do many useful things
-/*
-// inserting row with 0 non-schema fields, but support for it
-func TestInsertNonSchemaFields_2(t *testing.T) {
-	rowToInsert := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z"}`
-	var emptyMap TableMap
-	// TODO fix columns
-	fieldsMap := TableMap{
-		"tableName": &Table{
-			Cols: map[string]*Column{
-				"host.name":    nil,
-				"message":      nil,
-				"service.name": nil,
-				"severity":     nil,
-				"timestamp":    nil,
-				"source":       nil,
-			},
-		},
-	}
-
-	f := func(t1, t2 TableMap) {
-		lm := NewLogManagerNoConnection(emptyMap, fieldsMap)
-		j, err := lm.BuildInsertJson("tableName", rowToInsert, hasOthersConfig)
-		assert.NoError(t, err)
-		fmt.Println(j)
-		m := make(SchemaMap)
-		err = json.Unmarshal([]byte(j), &m)
-		assert.NoError(t, err)
-		nestedJson, ok := m["others"].(SchemaMap)
-		assert.True(t, ok)
-		assert.Equal(t, 0, len(nestedJson))
-	}
-
-	// both cases need to be OK
-	f(emptyMap, fieldsMap)
-	f(fieldsMap, emptyMap)
-}
-*/
-
-func TestAddTimestamp(t *testing.T) {
-	tableConfig := &ChTableConfig{
-		hasTimestamp:                          true,
-		timestampDefaultsNow:                  true,
-		engine:                                "MergeTree",
-		orderBy:                               "(@timestamp)",
-		partitionBy:                           "",
-		primaryKey:                            "",
-		ttl:                                   "",
-		attributes:                            []Attribute{},
-		castUnsupportedAttrValueTypesToString: false,
-		preferCastingToOthers:                 false,
-	}
-	nameFormatter := DefaultColumnNameFormatter()
-	lm := NewLogManagerEmpty()
-	lm.schemaRegistry = schema.StaticRegistry{}
-	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
-	columnsFromJson, columnsFromSchema := lm.buildCreateTableQueryNoOurFields(context.Background(), "tableName", jsonData, tableConfig, nameFormatter)
-	columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData))
-	query := createTableQuery(tableName, columns, tableConfig)
-	assert.True(t, strings.Contains(query, timestampFieldName))
-}
 
 func TestJsonToFieldsMap(t *testing.T) {
 	mExpected := SchemaMap{
@@ -511,21 +398,21 @@ func TestRemovingNonSchemaFields(t *testing.T) {
 
 func TestJsonFlatteningToStringAttr(t *testing.T) {
 	config := &ChTableConfig{
-		hasTimestamp:         true,
-		timestampDefaultsNow: true,
-		engine:               "MergeTree",
-		orderBy:              "(timestamp)",
-		partitionBy:          "",
-		primaryKey:           "",
-		ttl:                  "",
-		attributes: []Attribute{
+		HasTimestamp:         true,
+		TimestampDefaultsNow: true,
+		Engine:               "MergeTree",
+		OrderBy:              "(timestamp)",
+		PartitionBy:          "",
+		PrimaryKey:           "",
+		Ttl:                  "",
+		Attributes: []Attribute{
 			NewDefaultInt64Attribute(),
 			NewDefaultFloat64Attribute(),
 			NewDefaultBoolAttribute(),
 			NewDefaultStringAttribute(),
 		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 	m := SchemaMap{
 		"host.name": SchemaMap{
@@ -546,18 +433,18 @@ func TestJsonFlatteningToStringAttr(t *testing.T) {
 
 func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 	config := &ChTableConfig{
-		hasTimestamp:         true,
-		timestampDefaultsNow: true,
-		engine:               "MergeTree",
-		orderBy:              "(timestamp)",
-		partitionBy:          "",
-		primaryKey:           "",
-		ttl:                  "",
-		attributes: []Attribute{
+		HasTimestamp:         true,
+		TimestampDefaultsNow: true,
+		Engine:               "MergeTree",
+		OrderBy:              "(timestamp)",
+		PartitionBy:          "",
+		PrimaryKey:           "",
+		Ttl:                  "",
+		Attributes: []Attribute{
 			NewDefaultStringAttribute(),
 		},
-		castUnsupportedAttrValueTypesToString: true,
-		preferCastingToOthers:                 true,
+		CastUnsupportedAttrValueTypesToString: true,
+		PreferCastingToOthers:                 true,
 	}
 	m := SchemaMap{
 		"b1": true,
@@ -627,24 +514,24 @@ func TestCreateTableString_1(t *testing.T) {
 			},
 		},
 		Config: &ChTableConfig{
-			hasTimestamp:         true,
-			timestampDefaultsNow: true,
-			engine:               "MergeTree",
-			orderBy:              "(@timestamp)",
-			partitionBy:          "",
-			primaryKey:           "",
-			ttl:                  "",
-			attributes: []Attribute{
+			HasTimestamp:         true,
+			TimestampDefaultsNow: true,
+			Engine:               "MergeTree",
+			OrderBy:              "(@timestamp)",
+			PartitionBy:          "",
+			PrimaryKey:           "",
+			Ttl:                  "",
+			Attributes: []Attribute{
 				NewDefaultInt64Attribute(),
 				NewDefaultStringAttribute(),
 				NewDefaultBoolAttribute(),
 			},
-			castUnsupportedAttrValueTypesToString: false,
-			preferCastingToOthers:                 false,
+			CastUnsupportedAttrValueTypesToString: false,
+			PreferCastingToOthers:                 false,
 		},
-		indexes: []IndexStatement{
-			getIndexStatement("body"),
-			getIndexStatement("severity"),
+		Indexes: []IndexStatement{
+			GetIndexStatement("body"),
+			GetIndexStatement("severity"),
 		},
 	}
 	expectedRows := []string{
@@ -676,7 +563,7 @@ func TestCreateTableString_1(t *testing.T) {
 		`ORDER BY (@timestamp)`,
 		"",
 	}
-	createTableString := table.createTableString()
+	createTableString := table.CreateTableString()
 	for _, row := range strings.Split(createTableString, "\n") {
 		assert.Contains(t, expectedRows, strings.TrimSpace(row))
 	}
@@ -712,18 +599,18 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 			},
 		},
 		Config: &ChTableConfig{
-			hasTimestamp:         true,
-			timestampDefaultsNow: true,
-			engine:               "MergeTree",
-			orderBy:              "(@timestamp)",
-			partitionBy:          "",
-			primaryKey:           "",
-			ttl:                  "",
-			attributes: []Attribute{
+			HasTimestamp:         true,
+			TimestampDefaultsNow: true,
+			Engine:               "MergeTree",
+			OrderBy:              "(@timestamp)",
+			PartitionBy:          "",
+			PrimaryKey:           "",
+			Ttl:                  "",
+			Attributes: []Attribute{
 				NewDefaultInt64Attribute(),
 			},
-			castUnsupportedAttrValueTypesToString: true,
-			preferCastingToOthers:                 true,
+			CastUnsupportedAttrValueTypesToString: true,
+			PreferCastingToOthers:                 true,
 		},
 	}
 	expectedRows := []string{
@@ -744,7 +631,7 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 		`ORDER BY (@timestamp)`,
 		"",
 	}
-	createTableString := table.createTableString()
+	createTableString := table.CreateTableString()
 	for _, row := range strings.Split(createTableString, "\n") {
 		assert.Contains(t, expectedRows, strings.TrimSpace(row))
 	}
@@ -888,10 +775,10 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
 			tableDefinitions.Store(tt.tables)
-			lm := &LogManager{tableDiscovery: newTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tt.tables)}
-			indexes, err := lm.ResolveIndexes(context.Background(), tt.patterns)
+			lm := &LogManager{tableDiscovery: NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tt.tables)}
+			indexes, err := lm.ResolveIndexPattern(context.Background(), tt.patterns)
 			assert.NoError(t, err)
-			assert.Equalf(t, tt.resolved, indexes, tt.patterns, "ResolveIndexes(%v)", tt.patterns)
+			assert.Equalf(t, tt.resolved, indexes, tt.patterns, "ResolveIndexPattern(%v)", tt.patterns)
 		})
 	}
 }

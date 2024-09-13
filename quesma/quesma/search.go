@@ -95,7 +95,7 @@ func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id str
 
 // returns -1 when table name could not be resolved
 func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int64, error) {
-	indexes, err := q.logManager.ResolveIndexes(ctx, indexPattern)
+	indexes, err := q.logManager.ResolveIndexPattern(ctx, indexPattern)
 	if err != nil {
 		return 0, err
 	}
@@ -653,12 +653,6 @@ func (q *QueryRunner) searchWorkerCommon(
 	var jobHitsPosition []int // it keeps the position of the hits array for each job
 
 	for i, query := range queries {
-		if query.NoDBQuery {
-			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
-			hits[i] = make([]model.QueryResultRow, 0)
-			continue
-		}
-
 		sql := query.SelectCommand.String()
 		logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
 		translatedQueryBody[i].Query = []byte(sql)
@@ -765,17 +759,28 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 
 func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
-	transformer := &replaceColumNamesWithFieldNames{}
-
-	res, err := transformer.Transform(results)
-
-	if err != nil {
-		return nil, err
+	pipeline := []struct {
+		name        string
+		transformer model.ResultTransformer
+	}{
+		{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{}},
+		{"arrayResultTransformer", &ArrayResultTransformer{}},
 	}
 
-	// TODO this should be created in different place
-	geoIpTransformer := GeoIpResultTransformer{schemaRegistry: q.schemaRegistry, fromTable: table.Name}
-	return geoIpTransformer.Transform(res)
+	var err error
+	for _, t := range pipeline {
+
+		// TODO we should check if the transformer is applicable here
+		// for example if the schema doesn't hava array fields, we should skip the arrayResultTransformer
+		// these transformers can be cpu and mem consuming
+
+		results, err = t.transformer.Transform(results)
+		if err != nil {
+			return nil, fmt.Errorf("resuls transformer %s has failed: %w", t.name, err)
+		}
+	}
+
+	return results, nil
 }
 
 func pushPrimaryInfo(qmc *ui.QuesmaManagementConsole, Id string, QueryResp []byte, startTime time.Time) {

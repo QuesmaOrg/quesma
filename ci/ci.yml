@@ -18,7 +18,7 @@ services:
       - "9200:8080"
     volumes:
       - ./quesma/logs/:/var/quesma/logs
-      - ./quesma/config/ci-config.yaml:/mnt/ci-config.yaml
+      - ../examples/kibana-sample-data/quesma/config/local-dev.yaml:/mnt/ci-config.yaml
     restart: unless-stopped
   log-generator:
     build: log-generator

@@ -35,13 +35,13 @@ func (query Filters) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
-func (query Filters) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query Filters) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	var value any = nil
 	if len(rows) > 0 {
 		if len(rows[0].Cols) > 0 {
 			value = rows[0].Cols[len(rows[0].Cols)-1].Value
 		} else {
-			logger.ErrorWithCtx(query.ctx).Msgf("unexpected number of columns in filters aggregation response, len(rows[0].Cols): %d, level: %d", len(rows[0].Cols), level)
+			logger.ErrorWithCtx(query.ctx).Msgf("unexpected number of columns in filters aggregation response, len(rows[0].Cols): %d", len(rows[0].Cols))
 		}
 	}
 	return model.JsonMap{
@@ -74,7 +74,7 @@ func (query Filters) CombinatorGroups() (result []CombinatorGroup) {
 }
 
 func (query Filters) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
-	return query.TranslateSqlResponseToJson(rows, 0)
+	return query.TranslateSqlResponseToJson(rows)
 }
 
 func (query Filters) CombinatorSplit() []model.QueryType {

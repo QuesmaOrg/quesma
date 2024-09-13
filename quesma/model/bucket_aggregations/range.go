@@ -30,29 +30,6 @@ func (interval Interval) String() string {
 	return interval.floatToString(interval.Begin) + "-" + interval.floatToString(interval.End)
 }
 
-// ToSQLSelectQuery returns count(...) where ... is a condition for the interval, just like we want it in SQL's SELECT
-func (interval Interval) ToSQLSelectQuery(columnExpr model.Expr) model.Expr {
-	var sqlLeft, sqlRight, sql model.Expr
-	if !interval.IsOpeningBoundInfinite() {
-		sqlLeft = model.NewInfixExpr(columnExpr, ">=", model.NewLiteral(interval.Begin))
-	}
-	if !interval.IsClosingBoundInfinite() {
-		sqlRight = model.NewInfixExpr(columnExpr, "<", model.NewLiteral(interval.End))
-	}
-	switch {
-	case sqlLeft != nil && sqlRight != nil:
-		sql = model.NewInfixExpr(sqlLeft, "AND", sqlRight)
-	case sqlLeft != nil:
-		sql = sqlLeft
-	case sqlRight != nil:
-		sql = sqlRight
-	default:
-		return model.NewFunction("count")
-	}
-	// count(if(sql, 1, NULL))
-	return model.NewFunction("count", model.NewFunction("if", sql, model.NewLiteral(1), model.NewLiteral("NULL")))
-}
-
 func (interval Interval) ToWhereClause(field model.Expr) model.Expr { // returns a condition for the interval, just like we want it in SQL's WHERE
 	var sqlLeft, sqlRight model.Expr
 	if !interval.IsOpeningBoundInfinite() {
@@ -122,7 +99,7 @@ func (query Range) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
-func (query Range) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query Range) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) != 1 {
 		logger.ErrorWithCtx(query.ctx).Msgf("unexpected %d of rows in range aggregation response. Expected 1.", len(rows))
 		return model.JsonMap{}

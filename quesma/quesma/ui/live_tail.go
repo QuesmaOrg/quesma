@@ -9,6 +9,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui/internal/builder"
 	"quesma/util"
+	"strconv"
 	"strings"
 )
 
@@ -85,7 +86,7 @@ document.body.addEventListener('htmx:afterSwap', function(event) {
 
 	buffer.Html(`<h3>Details</h3>`)
 	buffer.Html(`<ul>`)
-	buffer.Html("<li><small>Mode: ").Text(qmc.cfg.Mode.String()).Html("</small></li>")
+	buffer.Html("<li><small>Transparent proxy: ").Text(strconv.FormatBool(qmc.cfg.TransparentProxy)).Html("</small></li>")
 	buffer.Html(`</ul>`)
 
 	buffer.Html("\n</div>")

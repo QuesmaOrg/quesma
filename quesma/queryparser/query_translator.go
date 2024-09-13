@@ -7,17 +7,13 @@ import (
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/model/bucket_aggregations"
 	"quesma/model/typical_queries"
 	"quesma/queryparser/query_util"
-	"quesma/queryprocessor"
 	"quesma/quesma/config"
 	"quesma/schema"
 	"quesma/util"
 	"strings"
 )
-
-const facetsSampleSize = 20000
 
 type JsonMap = map[string]interface{}
 
@@ -79,124 +75,20 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 	return &response, nil
 }
 
-// DFS algorithm
-// 'aggregatorsLevel' - index saying which (sub)aggregation we're handling
-// 'selectLevel' - which field from select we're grouping by at current level (or not grouping by, if query.Aggregators[aggregatorsLevel].Empty == true)
-func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *model.Query,
-	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) model.JsonMap {
-	// check if we finish
-	if aggregatorsLevel == len(query.Aggregators) {
-		return query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)
-	}
-
-	currentAggregator := query.Aggregators[aggregatorsLevel]
-	subResult := make(model.JsonMap, 1)
-
-	if len(ResultSet) == 0 {
-		// We still should preserve `meta` field if it's there.
-		// (we don't preserve it if it's in subaggregations, as we cut them off in case of empty parent aggregation)
-		// Both cases tested with Elasticsearch in proxy mode, and our tests.
-		if metaAdded := cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel); metaAdded {
-			return model.JsonMap{
-				currentAggregator.Name: subResult,
-			}
-		} else {
-			return model.JsonMap{}
-		}
-	}
-
-	// fmt.Println("level1 :/", level1, " level2 B):", level2)
-	// or we need to go deeper
-	if currentAggregator.SplitOverHowManyFields == 0 {
-		subSubResult := cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel)
-		// Keyed and Filters aggregations are special and need to be wrapped in "buckets"
-		if currentAggregator.Keyed || currentAggregator.Filters {
-			subResult["buckets"] = subSubResult
-		} else {
-			subResult = subSubResult
-		}
-	} else {
-		var bucketsReturnMap []model.JsonMap
-		// normally it's just 1. It used to be just 1 before multi_terms aggregation, where we usually split over > 1 field
-		qp := queryprocessor.NewQueryProcessor(cw.Ctx)
-		weSplitOverHowManyFields := currentAggregator.SplitOverHowManyFields
-
-		// leaf bucket aggregation
-		if aggregatorsLevel == len(query.Aggregators)-1 && query.Type.AggregationType() == model.BucketAggregation {
-			subResult = cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
-			if buckets, exist := subResult["buckets"]; exist {
-				for i, bucket := range buckets.([]model.JsonMap) {
-					if i < len(ResultSet) {
-						bucket[model.KeyAddedByQuesma] = ResultSet[i].Cols[selectLevel].Value
-					}
-				}
-			}
-		} else { // need to split here into buckets
-			buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
-			for _, bucket := range buckets {
-				potentialNewBuckets := cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
-				potentialNewBuckets[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
-				bucketsReturnMap = append(bucketsReturnMap, potentialNewBuckets)
-			}
-			subResult["buckets"] = bucketsReturnMap
-		}
-	}
-
-	_ = cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel)
-
-	return model.JsonMap{
-		currentAggregator.Name: subResult,
-	}
-}
-
-// addMetadataIfNeeded adds metadata to the `result` dictionary, if needed.
-func (cw *ClickhouseQueryTranslator) addMetadataIfNeeded(query *model.Query, result model.JsonMap, aggregatorsLevel int) (added bool) {
-	if query.Metadata == nil {
-		return false
-	}
-
-	desiredLevel := len(query.Aggregators) - 1
-	if _, ok := query.Type.(bucket_aggregations.Filters); ok {
-		desiredLevel = len(query.Aggregators) - 2
-	}
-	if aggregatorsLevel == desiredLevel {
-		result["meta"] = query.Metadata
-		return true
-	}
-	return false
-}
-
 func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) (model.JsonMap, error) {
 	aggregations := model.JsonMap{}
-	if len(queries) == 0 {
-		return aggregations, nil
-	}
-	cw.postprocessPipelineAggregations(queries, ResultSets)
-
-	wasPancake := false
 
 	for i, query := range queries {
-		if i >= len(ResultSets) || query_util.IsNonAggregationQuery(query) {
-			continue
-		}
-		var aggregation model.JsonMap
-
 		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
-			wasPancake = true
-			var err error
-			aggregation, err = pancake.RenderAggregationJson(cw.Ctx, ResultSets[i])
+			if i >= len(ResultSets) {
+				continue
+			}
+			aggregation, err := pancake.RenderAggregationJson(cw.Ctx, ResultSets[i])
 			if err != nil {
 				return nil, err
 			}
-		} else {
-			aggregation = cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
-		}
-		if len(aggregation) != 0 {
-			mergeKey := model.KeyAddedByQuesma
-			if wasPancake {
-				mergeKey = "key"
-			}
-			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation, mergeKey)
+
+			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation, "key")
 		}
 	}
 	return aggregations, nil
@@ -227,7 +119,7 @@ func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results []
 		logger.ErrorWithCtx(cw.Ctx).Msgf("hits query type is nil: %v", hitsQuery)
 		return queriesWithoutHits, resultsWithoutHits, nil
 	}
-	hitsPartOfResponse := hitsQuery.Type.TranslateSqlResponseToJson(hitsResultSet, 0)
+	hitsPartOfResponse := hitsQuery.Type.TranslateSqlResponseToJson(hitsResultSet)
 
 	hitsResponse := hitsPartOfResponse["hits"].(model.SearchHits)
 	return queriesWithoutHits, resultsWithoutHits, &hitsResponse
@@ -273,38 +165,6 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 			Relation: relationCount,
 		}
 		return
-	}
-	for i, query := range queries {
-		_, isFacetNumeric := query.Type.(*typical_queries.FacetsNumeric)
-		_, isFacet := query.Type.(*typical_queries.Facets)
-		if isFacetNumeric || isFacet {
-			totalCount = 0
-			for _, row := range results[i] {
-				if len(row.Cols) > 0 {
-					switch v := row.Cols[len(row.Cols)-1].Value.(type) {
-					case uint64:
-						totalCount += int(v)
-					case int:
-						totalCount += v
-					case int64:
-						totalCount += int(v)
-					default:
-						logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v %t", v, v)
-					}
-				}
-			}
-			// if we have sample limit, we need to check if we hit it. If so, return there could be more results.
-			// eq means exact count, gte means greater or equal
-			relation := "eq"
-			if query.SelectCommand.SampleLimit != 0 && totalCount == query.SelectCommand.SampleLimit {
-				relation = "gte"
-			}
-			total = &model.Total{
-				Value:    totalCount,
-				Relation: relation,
-			}
-			return
-		}
 	}
 
 	for queryIdx, query := range queries {
@@ -379,8 +239,6 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 		}
 	}
 
-	// TODO: Look for biggest aggregation
-
 	return
 }
 
@@ -432,60 +290,6 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncId strin
 	return &response
 }
 
-func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []*model.Query, ResultSets [][]model.QueryResultRow) {
-	queryIterationOrder := cw.sortInTopologicalOrder(queries)
-	// fmt.Println("qwerty", queryIterationOrder) let's remove all prints in this function after all pipeline aggregations are merged
-	for _, queryIndex := range queryIterationOrder {
-		query := queries[queryIndex]
-		pipelineQueryType, isPipeline := query.Type.(model.PipelineQueryType)
-		if !isPipeline || !query.HasParentAggregation() {
-			continue
-		}
-		// if we don't send the query, we need process the result ourselves
-		parentIndex := -1
-		// fmt.Println("queries", queryIndex, "parent:", query.Parent) let's remove it after all pipeline aggregations implemented
-		for i, parentQuery := range queries {
-			if parentQuery.Name() == query.Parent {
-				parentIndex = i
-				break
-			}
-		}
-		if parentIndex == -1 {
-			logger.WarnWithCtx(cw.Ctx).Msgf("parent index not found for query %v", query)
-			continue
-		}
-		ResultSets[queryIndex] = pipelineQueryType.CalculateResultWhenMissing(ResultSets[parentIndex])
-	}
-}
-
-/* This would be used in optimizer-2 by Krzysiek. Remove this [August 2024]+ if still not used.
-func (cw *ClickhouseQueryTranslator) combineQueries(queries []*model.Query) {
-	// TODO SET IS_PIPELINE = TRUE FOR PIPELINES!
-	for _, query := range queries {
-		if !query.NoDBQuery || query.IsPipeline {
-			continue
-		}
-
-		fmt.Println("NoDBQuery", query)
-		parentIndex := -1
-		for i, parentCandidate := range queries {
-			if len(parentCandidate.Aggregators) == len(query.Aggregators)+1 && parentCandidate.Name() == query.Parent {
-				parentIndex = i
-				break
-			}
-		}
-		if parentIndex == -1 {
-			logger.WarnWithCtx(cw.Ctx).Msgf("parent index not found for query %v", query)
-			continue
-		}
-		fmt.Println("parentIdx:", parentIndex)
-		parentQuery := queries[parentIndex]
-		parentQuery.SelectCommand.orderBy = append(parentQuery.SelectCommand.orderBy,
-			model.OrderByExpr{Expr: parentQuery.SelectCommand.Columns[len(parentQuery.SelectCommand.Columns)-1:], Direction: model.DescOrder})
-	}
-}
-*/
-
 func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sampleLimit int) *model.Query {
 	return &model.Query{
 		SelectCommand: *model.NewSelectCommand(
@@ -499,14 +303,13 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 			sampleLimit,
 			false,
 			nil,
-			nil,
 		),
 		Type: typical_queries.NewCount(cw.Ctx),
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query *model.SimpleQuery, limit int) *model.Query {
-	return query_util.BuildHitsQuery(cw.Ctx, model.SingleTableNamePlaceHolder, fieldName, query, limit)
+func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldNames []string, query *model.SimpleQuery, limit int) *model.Query {
+	return query_util.BuildHitsQuery(cw.Ctx, model.SingleTableNamePlaceHolder, fieldNames, query, limit)
 }
 
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, tableName string, whereClause model.Expr, limit int) *model.Query {
@@ -522,105 +325,6 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, tableName
 			0,
 			true,
 			nil,
-			nil,
 		),
 	}
-}
-
-//lint:ignore U1000 Not used yet
-func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName string, prefix string, limit int) *model.Query {
-	var whereClause model.Expr
-	if len(prefix) > 0 {
-		//whereClause = strconv.Quote(fieldName) + " iLIKE '" + prefix + "%'"
-		whereClause = model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral(prefix+"%"))
-	}
-	return &model.Query{
-		SelectCommand: *model.NewSelectCommand(
-			[]model.Expr{model.NewColumnRef(fieldName)},
-			nil,
-			nil,
-			model.NewTableRef(model.SingleTableNamePlaceHolder),
-			whereClause,
-			[]model.Expr{},
-			limit,
-			0,
-			false,
-			nil,
-			nil,
-		),
-	}
-}
-
-func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQuery *model.SimpleQuery, isNumeric bool) *model.Query {
-	// FromClause: (SELECT fieldName FROM table WHERE whereClause LIMIT facetsSampleSize)
-	var typ model.QueryType
-	if isNumeric {
-		typ = typical_queries.NewFacetsNumeric(cw.Ctx)
-	} else {
-		typ = typical_queries.NewFacets(cw.Ctx)
-	}
-
-	return &model.Query{
-		SelectCommand: *model.NewSelectCommand(
-			[]model.Expr{model.NewColumnRef(fieldName), model.NewCountFunc()},
-			[]model.Expr{model.NewColumnRef(fieldName)},
-			[]model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)},
-			model.NewTableRef(model.SingleTableNamePlaceHolder),
-			simpleQuery.WhereClause,
-			[]model.Expr{},
-			0,
-			facetsSampleSize,
-			false,
-			nil,
-			nil,
-		),
-		Type: typ,
-	}
-}
-
-// sortInTopologicalOrder sorts all our queries to DB, which we send to calculate response for a single query request.
-// It sorts them in a way that we can calculate them in the returned order, so any parent aggregation needs to be calculated before its child.
-// It's only really needed for pipeline aggregations, as only they have parent-child relationships.
-//
-// Probably you can create a query with loops in pipeline aggregations, but you can't do it in Kibana from Visualize view,
-// so I don't handle it here. We won't panic in such case, only log a warning/error + return non-full results, which is expected,
-// as you can't really compute cycled pipeline aggregations.
-func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []*model.Query) []int {
-	nameToIndex := make(map[string]int, len(queries))
-	for i, query := range queries {
-		nameToIndex[query.Name()] = i
-	}
-
-	// canSelect[i] == true <=> queries[i] can be selected (it has no parent aggregation, or its parent aggregation is already resolved)
-	canSelect := make([]bool, 0, len(queries))
-	for _, query := range queries {
-		// at the beginning we can select <=> no parent aggregation
-		canSelect = append(canSelect, !query.HasParentAggregation())
-	}
-	alreadySelected := make([]bool, len(queries))
-	indexesSorted := make([]int, 0, len(queries))
-
-	// it's a slow O(query_nr^2) algorithm, can be done in O(query_nr), but since query_nr is ~2-10, we don't care
-	for len(indexesSorted) < len(queries) {
-		lenStart := len(indexesSorted)
-		for i, query := range queries {
-			if !alreadySelected[i] && canSelect[i] {
-				indexesSorted = append(indexesSorted, i)
-				alreadySelected[i] = true
-				// mark all children as canSelect, as their parent is already resolved (selected)
-				for j, maybeChildQuery := range queries {
-					if maybeChildQuery.IsChild(query) {
-						canSelect[j] = true
-					}
-				}
-			}
-		}
-		lenEnd := len(indexesSorted)
-		if lenEnd == lenStart {
-			// without this check, we'd end up in an infinite loop
-			logger.WarnWithCtx(cw.Ctx).Msg("could not resolve all parent-child relationships in queries")
-			break
-		}
-	}
-	return indexesSorted
 }

@@ -98,6 +98,9 @@ func NewFunction(name string, args ...Expr) FunctionExpr {
 }
 
 func NewCountFunc(args ...Expr) FunctionExpr {
+	if len(args) == 0 {
+		args = []Expr{NewWildcardExpr}
+	}
 	return NewFunction("count", args...)
 }
 
@@ -144,9 +147,8 @@ const (
 )
 
 type OrderByExpr struct {
-	Expr                 Expr
-	Direction            OrderByDirection
-	ExchangeToAliasInCTE bool
+	Expr      Expr
+	Direction OrderByDirection
 }
 
 func (o OrderByExpr) Accept(v ExprVisitor) interface{} {

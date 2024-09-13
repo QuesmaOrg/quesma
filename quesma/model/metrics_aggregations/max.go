@@ -21,8 +21,8 @@ func (query Max) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query Max) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	return metricsTranslateSqlResponseToJsonWithFieldTypeCheck(query.ctx, rows, level, query.fieldType)
+func (query Max) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+	return metricsTranslateSqlResponseToJsonWithFieldTypeCheck(query.ctx, rows, query.fieldType)
 }
 
 func (query Max) String() string {

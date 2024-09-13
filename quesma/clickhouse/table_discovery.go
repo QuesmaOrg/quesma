@@ -83,7 +83,7 @@ func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema
 	return tables
 }
 
-func newTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB, tables TableMap) TableDiscovery {
+func NewTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB, tables TableMap) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(&tables)
 	result := &tableDiscovery{
@@ -101,7 +101,7 @@ func (td *tableDiscovery) TableDefinitionsFetchError() error {
 }
 
 func (td *tableDiscovery) TableAutodiscoveryEnabled() bool {
-	return td.cfg.IndexConfig == nil
+	return len(td.cfg.IndexConfig) == 0
 }
 
 func (td *tableDiscovery) LastAccessTime() time.Time {
@@ -236,18 +236,18 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				DatabaseName: databaseName,
 				Cols:         columnsMap,
 				Config: &ChTableConfig{
-					attributes:                            []Attribute{},
-					castUnsupportedAttrValueTypesToString: true,
-					preferCastingToOthers:                 true,
+					Attributes:                            []Attribute{},
+					CastUnsupportedAttrValueTypesToString: true,
+					PreferCastingToOthers:                 true,
 				},
 				CreateTableQuery:             resTable.createTableQuery,
 				DiscoveredTimestampFieldName: timestampFieldName,
 			}
 			if containsAttributes(resTable.columnTypes) {
-				table.Config.attributes = []Attribute{NewDefaultStringAttribute()}
+				table.Config.Attributes = []Attribute{NewDefaultStringAttribute()}
 			}
 
-			table.applyIndexConfig(cfg)
+			table.ApplyIndexConfig(cfg)
 			tableMap.Store(tableName, &table)
 
 			logger.Debug().Msgf("schema for table [%s] loaded", tableName)
@@ -313,13 +313,13 @@ func resolveColumn(colName, colType string) *Column {
 			isNullable = true
 			arrayType = strings.TrimSuffix(strings.TrimPrefix(arrayType, "Nullable("), ")")
 		}
-		goType := ResolveType(arrayType)
-		if goType != nil {
+		GoType := ResolveType(arrayType)
+		if GoType != nil {
 			return &Column{
 				Name: colName,
 				Type: CompoundType{
 					Name:     "Array",
-					BaseType: BaseType{Name: arrayType, goType: goType, Nullable: isNullable},
+					BaseType: BaseType{Name: arrayType, GoType: GoType, Nullable: isNullable},
 				},
 			}
 		} else if isTupleType(arrayType) {
@@ -363,7 +363,7 @@ func resolveColumn(colName, colType string) *Column {
 			Name: colName,
 			Type: BaseType{
 				Name:   "Int32",
-				goType: NewBaseType("Int32").goType,
+				GoType: NewBaseType("Int32").GoType,
 			},
 		}
 	}
@@ -372,12 +372,12 @@ func resolveColumn(colName, colType string) *Column {
 	if strings.HasPrefix(colType, "DateTime") {
 		colType = removePrecision(colType)
 	}
-	if goType := ResolveType(colType); goType != nil {
+	if GoType := ResolveType(colType); GoType != nil {
 		return &Column{
 			Name: colName,
 			Type: BaseType{
 				Name:     colType,
-				goType:   NewBaseType(colType).goType,
+				GoType:   NewBaseType(colType).GoType,
 				Nullable: isNullable,
 			},
 		}
@@ -388,7 +388,7 @@ func resolveColumn(colName, colType string) *Column {
 			Name: colName,
 			Type: BaseType{
 				Name:     typeName,
-				goType:   NewBaseType("Unknown").goType,
+				GoType:   NewBaseType("Unknown").GoType,
 				Nullable: isNullable,
 			},
 		}

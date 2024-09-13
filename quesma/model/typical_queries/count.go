@@ -19,7 +19,7 @@ func (query Count) AggregationType() model.AggregationType {
 	return model.TypicalAggregation
 }
 
-func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	return make(model.JsonMap, 0)
 }
 
