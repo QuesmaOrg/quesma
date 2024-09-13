@@ -697,7 +697,9 @@ func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, table
 		return err
 	}
 
-	if isVirtualTable {
+	var logVirtualTableDDL bool // maybe this should be a part of the config or sth
+
+	if isVirtualTable && logVirtualTableDDL {
 		for _, statement := range statements {
 			if strings.HasPrefix(statement, "ALTER") || strings.HasPrefix(statement, "CREATE") {
 				logger.InfoWithCtx(ctx).Msgf("VIRTUAL DDL EXECUTION: %s", statement)

@@ -22,6 +22,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/single_table"
 	"quesma/telemetry"
 	"quesma/tracing"
 	"syscall"
@@ -87,6 +88,10 @@ func main() {
 
 	connManager := connectors.NewConnectorManager(&cfg, connectionPool, phoneHomeAgent, tableDisco)
 	lm := connManager.GetConnector()
+
+	// Ensure single table exists. This table have to be created before ingest processor starts
+	single_table.EnsureSingleTableExists(connectionPool)
+
 	//create ingest processor, very lame but for the sake of refactor
 	ip := ingest.NewEmptyIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry)
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
