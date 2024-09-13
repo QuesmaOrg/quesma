@@ -9,6 +9,7 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/quesma/config"
 	"quesma/schema"
+	"quesma/single_table"
 	"sort"
 	"strings"
 )
@@ -292,23 +293,106 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 		logger.Warn().Msg("applyPhysicalFromExpression: physical table name is not set")
 	}
 
+	indexConf, ok := s.cfg[query.TableName]
+	if !ok {
+		return query, fmt.Errorf("index configuration not found for table %s", query.TableName)
+	}
+
+	useSingleTable := indexConf.UseSingleTable
+
 	// TODO compute physical from expression based on single table or union or whatever ....
-	physicalFromExpression := model.NewTableRef(query.TableName)
+
+	tableName := query.TableName
+	if useSingleTable {
+		tableName = single_table.TableName
+	}
+
+	/* TODO add this back
+	table := s.logManager.GetTable(tableName)
+	if table == nil {
+		logger.Error().Msgf("Table %s not found", tableName)
+		return query, nil
+	}
+
+	tableRef := model.NewTableRefWithDatabaseName(table.Name, table.DatabaseName)
+	*/
+	tableRef := model.NewTableRef(tableName)
 
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
 		if e.Name == model.SingleTableNamePlaceHolder {
-			return physicalFromExpression
+			return tableRef
 		}
 		return e
+	}
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+		// TODO is this nessessery?
+		if useSingleTable {
+			if e.ColumnName == "timestamp" || e.ColumnName == "epoch_time" || e.ColumnName == `"epoch_time"` {
+				return model.NewColumnRef("@timestamp")
+			}
+		}
+		return e
+	}
+
+	visitor.OverrideVisitSelectCommand = func(b *model.BaseExprVisitor, selectStm model.SelectCommand) interface{} {
+		var columns, groupBy []model.Expr
+		var orderBy []model.OrderByExpr
+		from := selectStm.FromClause
+		where := selectStm.WhereClause
+
+		for _, expr := range selectStm.Columns {
+			columns = append(columns, expr.Accept(b).(model.Expr))
+		}
+		for _, expr := range selectStm.GroupBy {
+			groupBy = append(groupBy, expr.Accept(b).(model.Expr))
+		}
+		for _, expr := range selectStm.OrderBy {
+			orderBy = append(orderBy, expr.Accept(b).(model.OrderByExpr))
+		}
+		if selectStm.FromClause != nil {
+			from = selectStm.FromClause.Accept(b).(model.Expr)
+		}
+		if selectStm.WhereClause != nil {
+			where = selectStm.WhereClause.Accept(b).(model.Expr)
+		}
+
+		if useSingleTable {
+			indexWhere := model.NewInfixExpr(model.NewColumnRef(single_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", query.TableName)))
+
+			if selectStm.WhereClause != nil {
+				where = model.And([]model.Expr{selectStm.WhereClause.Accept(b).(model.Expr), indexWhere})
+			} else {
+				where = indexWhere
+			}
+		}
+
+		var ctes []*model.SelectCommand
+		if selectStm.CTEs != nil {
+			ctes = make([]*model.SelectCommand, 0)
+			for _, cte := range selectStm.CTEs {
+				ctes = append(ctes, cte.Accept(b).(*model.SelectCommand))
+			}
+		}
+		var namedCTEs []*model.CTE
+		if selectStm.NamedCTEs != nil {
+			for _, cte := range selectStm.NamedCTEs {
+				namedCTEs = append(namedCTEs, cte.Accept(b).(*model.CTE))
+			}
+		}
+
+		return model.NewSelectCommand(columns, groupBy, orderBy, from, where, selectStm.LimitBy, selectStm.Limit, selectStm.SampleLimit, selectStm.IsDistinct, ctes, namedCTEs)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
+
 	return query, nil
+
 }
 
 func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
