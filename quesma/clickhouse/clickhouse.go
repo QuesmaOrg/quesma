@@ -11,6 +11,7 @@ import (
 	"quesma/end_user_errors"
 	"quesma/index"
 	"quesma/logger"
+	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 
@@ -120,6 +121,7 @@ type discoveredTable struct {
 	comment            string
 	createTableQuery   string
 	timestampFieldName string
+	virtualTable       bool
 }
 
 func (lm *LogManager) ReloadTables() {
@@ -343,7 +345,7 @@ func NewLogManagerEmpty() *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
 	cfg := &config.QuesmaConfiguration{}
-	return &LogManager{tableDiscovery: NewTableDiscovery(cfg, nil), cfg: cfg,
+	return &LogManager{tableDiscovery: NewTableDiscovery(cfg, nil, persistence.NewStaticJSONDatabase()), cfg: cfg,
 		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 

@@ -18,6 +18,7 @@ import (
 	"quesma/ingest"
 	"quesma/licensing"
 	"quesma/logger"
+	"quesma/persistence"
 	"quesma/quesma"
 	"quesma/quesma/config"
 	"quesma/quesma/ui"
@@ -83,7 +84,9 @@ func main() {
 	phoneHomeAgent := telemetry.NewPhoneHomeAgent(&cfg, connectionPool, licenseMod.License.ClientID)
 	phoneHomeAgent.Start()
 
-	tableDisco := clickhouse.NewTableDiscovery(&cfg, connectionPool)
+	virtualTableStorage := persistence.NewElasticJSONDatabase(cfg.Elasticsearch.Url.String(), "quesma_virtual_tables")
+
+	tableDisco := clickhouse.NewTableDiscovery(&cfg, connectionPool, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.SchemaTypeAdapter{})
 
 	connManager := connectors.NewConnectorManager(&cfg, connectionPool, phoneHomeAgent, tableDisco)
@@ -93,7 +96,7 @@ func main() {
 	single_table.EnsureSingleTableExists(connectionPool)
 
 	//create ingest processor, very lame but for the sake of refactor
-	ip := ingest.NewEmptyIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry)
+	ip := ingest.NewEmptyIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage)
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())

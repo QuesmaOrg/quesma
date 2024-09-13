@@ -5,10 +5,12 @@ package clickhouse
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"quesma/end_user_errors"
 	"quesma/logger"
+	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/schema"
 	"quesma/single_table"
@@ -48,16 +50,18 @@ type tableDiscovery struct {
 	tableDefinitionsLastReloadUnixSec atomic.Int64
 	forceReloadCh                     chan chan<- struct{}
 	ReloadTablesError                 error
+	virtualTableStorage               persistence.JSONDatabase
 }
 
-func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB) TableDiscovery {
+func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB, virtualTablesDB persistence.JSONDatabase) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
 	result := &tableDiscovery{
-		cfg:              cfg,
-		dbConnPool:       dbConnPool,
-		tableDefinitions: &tableDefinitions,
-		forceReloadCh:    make(chan chan<- struct{}),
+		cfg:                 cfg,
+		dbConnPool:          dbConnPool,
+		tableDefinitions:    &tableDefinitions,
+		forceReloadCh:       make(chan chan<- struct{}),
+		virtualTableStorage: virtualTablesDB,
 	}
 	result.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 	return result
@@ -146,9 +150,57 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 			configuredTables = td.configureTables(tables, databaseName)
 		}
 	}
+	configuredTables = td.readVirtualTables(configuredTables)
+
 	td.ReloadTablesError = nil
 	td.verify(configuredTables)
 	td.populateTableDefinitions(configuredTables, databaseName, td.cfg)
+}
+
+func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discoveredTable) map[string]discoveredTable {
+	virtualTables, err := td.virtualTableStorage.List()
+	if err != nil {
+		logger.Error().Msgf("could not list virtual tables: %v", err)
+		return configuredTables
+	}
+
+	for _, virtualTable := range virtualTables {
+		data, ok, err := td.virtualTableStorage.Get(virtualTable)
+		if err != nil {
+			logger.Error().Msgf("could not read virtual table %s: %v", virtualTable, err)
+			continue
+		}
+		if !ok {
+			logger.Warn().Msgf("virtual table %s not found", virtualTable)
+			continue
+		}
+		var readVirtualTable single_table.VirtualTable
+		err = json.Unmarshal([]byte(data), &readVirtualTable)
+		if err != nil {
+			logger.Error().Msgf("could not unmarshal virtual table %s: %v", virtualTable, err)
+		}
+		discoTable := discoveredTable{
+			name:        virtualTable,
+			columnTypes: make(map[string]string),
+		}
+
+		var columns []single_table.VirtualTableColumn
+		err = json.Unmarshal([]byte(readVirtualTable.Columns), &columns)
+		if err != nil {
+			logger.Error().Msgf("could not unmarshal virtual table columns %s: %v", virtualTable, err)
+		}
+
+		for _, col := range columns {
+			discoTable.columnTypes[col.Name] = col.Type
+		}
+
+		discoTable.comment = "Virtual table. Version: " + readVirtualTable.StoredAt
+		discoTable.createTableQuery = "n/a"
+		discoTable.config = config.IndexConfiguration{}
+
+		configuredTables[virtualTable] = discoTable
+	}
+	return configuredTables
 }
 
 // configureTables confronts the tables discovered in the database with the configuration provided by the user, returning final list of tables managed by Quesma
@@ -173,7 +225,7 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]string, d
 				comment := td.tableComment(databaseName, table)
 				createTableQuery := td.createTableQuery(databaseName, table)
 				// we assume here that @timestamp field is always present in the table, or it's explicitly configured
-				configuredTables[table] = discoveredTable{table, columns, indexConfig, comment, createTableQuery, ""}
+				configuredTables[table] = discoveredTable{table, columns, indexConfig, comment, createTableQuery, "", false}
 			}
 		} else {
 			notConfiguredTables = append(notConfiguredTables, table)
@@ -202,7 +254,7 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]strin
 		} else {
 			maybeTimestampField = td.tableTimestampField(databaseName, table, ClickHouse)
 		}
-		configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField}
+		configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField, true}
 
 	}
 	for tableName, table := range configuredTables {
@@ -254,6 +306,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				},
 				CreateTableQuery:             resTable.createTableQuery,
 				DiscoveredTimestampFieldName: timestampFieldName,
+				VirtualTable:                 resTable.virtualTable,
 			}
 			if containsAttributes(resTable.columnTypes) {
 				table.Config.Attributes = []Attribute{NewDefaultStringAttribute()}

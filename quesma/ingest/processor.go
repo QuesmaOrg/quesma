@@ -14,6 +14,7 @@ import (
 	"quesma/index"
 	"quesma/jsonprocessor"
 	"quesma/logger"
+	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
@@ -57,6 +58,7 @@ type (
 		ingestCounter             int64
 		ingestFieldStatistics     IngestFieldStatistics
 		ingestFieldStatisticsLock sync.Mutex
+		virtualTableStorage       persistence.JSONDatabase
 	}
 	TableMap  = concurrent.Map[string, *chLib.Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -331,6 +333,13 @@ func (ip *IngestProcessor) generateNewColumns(
 
 	table.Cols = newColumns
 
+	if table.VirtualTable {
+		err := ip.storeVirtualTable(table)
+		if err != nil {
+			logger.Error().Msgf("error storing virtual table: %v", err)
+		}
+	}
+
 	for i := len(deleteIndexes) - 1; i >= 0; i-- {
 		attrsMap[chLib.DeprecatedAttributesKeyColumn] = append(attrsMap[chLib.DeprecatedAttributesKeyColumn][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesKeyColumn][deleteIndexes[i]+1:]...)
 		attrsMap[chLib.DeprecatedAttributesValueType] = append(attrsMap[chLib.DeprecatedAttributesValueType][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesValueType][deleteIndexes[i]+1:]...)
@@ -419,14 +428,15 @@ func (ip *IngestProcessor) shouldAlterColumns(table *chLib.Table, attrsMap map[s
 	attrKeys := getAttributesByArrayName(chLib.DeprecatedAttributesKeyColumn, attrsMap)
 	alterColumnIndexes := make([]int, 0)
 
-	limit := alwaysAddColumnLimit
 	// this is special case for single table storage
 	// we do always add columns for single table storage
 	if table.Name == single_table.TableName {
-		limit = alterColumnUpperLimit
+		if len(table.Cols) > alterColumnUpperLimit {
+			logger.Warn().Msgf("Single table has more than %d columns (alwaysAddColumnLimit)", alterColumnUpperLimit)
+		}
 	}
 
-	if len(table.Cols) < limit {
+	if len(table.Cols) < alwaysAddColumnLimit || table.Name == single_table.TableName {
 		// We promote all non-schema fields to columns
 		// therefore we need to add all attrKeys indexes to alterColumnIndexes
 		for i := 0; i < len(attrKeys); i++ {
@@ -622,12 +632,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], tableConfig)
 
-		/*
-			if tableDefinitionChangeOnly {
-				continue
-			}
-		*/
-
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
 		}
@@ -642,13 +646,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
 	}
 
-	/*
-		if tableDefinitionChangeOnly {
-			return nil, nil
-		}
-
-	*/
-
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
 	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
@@ -660,27 +657,35 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 
 	indexConf, ok := lm.cfg.IndexConfig[tableName]
 	if ok && indexConf.UseSingleTable {
-		err := lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, true)
 
-		if err != nil {
-			return fmt.Errorf("error processing insert query - schema only: %v", err)
+		/* TODO check if it's needed
+		jsonCopy := make([]types.JSON, len(jsonData))
+		for i, j := range jsonData {
+			jsonCopy[i] = j.Clone()
 		}
 
-		// process JSON and alter both tables
-		// original  - table definition only
-		// single_table -  table definition and real table
+		*/
+
+		err := lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, true)
+		if err != nil {
+			// we ignore an error here, because we want to process the data and don't lose it
+			logger.ErrorWithCtx(ctx).Msgf("error processing insert query - virtual table schema update: %v", err)
+		}
 
 		pipeline := jsonprocessor.IngestTransformerPipeline{}
 		pipeline = append(pipeline, &single_table.IngestAddIndexNameTransformer{IndexName: tableName})
 		pipeline = append(pipeline, transformer)
-		transformer = pipeline
 		tableName = single_table.TableName
 
-		return lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, false)
+		err = lm.processInsertQueryInternal(ctx, single_table.TableName, jsonData, pipeline, tableFormatter, false)
+		if err != nil {
+			return fmt.Errorf("error processing insert query to a single table: %w", err)
+		}
 
-	} else {
-		return lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, false)
+		return nil
 	}
+
+	return lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, false)
 
 }
 
@@ -700,6 +705,9 @@ func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, table
 				logger.InfoWithCtx(ctx).Msgf("VIRTUAL DDL EXECUTION: %s", statement)
 			}
 		}
+	}
+
+	if isVirtualTable {
 		return nil
 	}
 
@@ -736,6 +744,9 @@ func (ip *IngestProcessor) execute(ctx context.Context, query string) error {
 
 func (ip *IngestProcessor) executeStatements(ctx context.Context, queries []string) error {
 	for _, q := range queries {
+		if strings.HasPrefix("ALTER", q) || strings.HasPrefix("CREATE", q) {
+			logger.InfoWithCtx(ctx).Msgf("DDL query execution: %s", q)
+		}
 		err := ip.execute(ctx, q)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error executing query: %v", err)
@@ -785,6 +796,38 @@ func (ip *IngestProcessor) FindTable(tableName string) (result *chLib.Table) {
 	return result
 }
 
+func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
+
+	now := time.Now()
+
+	table.Comment = "Virtual table. Version: " + now.Format(time.RFC3339)
+
+	var columns []single_table.VirtualTableColumn
+
+	for _, col := range table.Cols {
+		columns = append(columns, single_table.VirtualTableColumn{
+			Name: col.Name,
+			Type: col.Type.String(),
+		})
+	}
+
+	dataColumns, err := json.MarshalIndent(columns, "", "  ")
+
+	vTable := &single_table.VirtualTable{
+		StoredAt: now.String(),
+		Columns:  string(dataColumns),
+	}
+
+	data, err := json.MarshalIndent(vTable, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	//fmt.Println("PUT VIRTUAL TABLE", table.Name, string(data))
+
+	return ip.virtualTableStorage.Put(table.Name, string(data))
+}
+
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
 func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 	t := ip.FindTable(table.Name)
@@ -793,6 +836,12 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 
 		table.ApplyIndexConfig(ip.cfg)
 
+		if table.VirtualTable {
+			err := ip.storeVirtualTable(table)
+			if err != nil {
+				logger.Error().Msgf("error storing virtual table: %v", err)
+			}
+		}
 		ip.tableDiscovery.TableDefinitions().Store(table.Name, table)
 		return true
 	}
@@ -805,9 +854,9 @@ func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
-func NewEmptyIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry) *IngestProcessor {
+func NewEmptyIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry}
+	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage}
 }
 
 func NewIngestProcessor(tables *TableMap, cfg *config.QuesmaConfiguration) *IngestProcessor {
@@ -815,14 +864,16 @@ func NewIngestProcessor(tables *TableMap, cfg *config.QuesmaConfiguration) *Inge
 	tableDefinitions.Store(tables)
 	return &IngestProcessor{chDb: nil, tableDiscovery: chLib.NewTableDiscoveryWith(cfg, nil, *tables),
 		cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(),
-		ingestFieldStatistics: make(IngestFieldStatistics)}
+		ingestFieldStatistics: make(IngestFieldStatistics),
+		virtualTableStorage:   persistence.NewStaticJSONDatabase(),
+	}
 }
 
 func NewIngestProcessorEmpty() *IngestProcessor {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
 	cfg := &config.QuesmaConfiguration{}
-	return &IngestProcessor{tableDiscovery: chLib.NewTableDiscovery(cfg, nil), cfg: cfg,
+	return &IngestProcessor{tableDiscovery: chLib.NewTableDiscovery(cfg, nil, persistence.NewStaticJSONDatabase()), cfg: cfg,
 		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 

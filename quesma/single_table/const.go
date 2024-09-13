@@ -13,8 +13,8 @@ const IndexNameColumn = "__quesma_index_name"
 const singleTableDDL = `
 CREATE TABLE IF NOT EXISTS "quesma_all_logs"
 (
-    "attributes_string_key"   Array(String),
-    "attributes_string_value" Array(String),
+    "attributes_values" Map(String, String),
+    "attributes_metadata" Map(String, String),
 
     "@timestamp"        DateTime64 DEFAULT now64(),
     "__quesma_index_name" LowCardinality(String) COMMENT 'Index name of the entry',
@@ -37,4 +37,16 @@ func EnsureSingleTableExists(db *sql.DB) {
 	} else {
 		logger.Info().Msgf("Single table '%v' created", TableName)
 	}
+}
+
+// Here are defintion of JSON objects that are used to store virtual tables in JSON database
+
+type VirtualTableColumn struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+type VirtualTable struct {
+	StoredAt string `json:"stored_at"`
+	Columns  string `json:"columns"` // here we keep columns as a JSON string, we don't want to exceed limit of fields in
 }
