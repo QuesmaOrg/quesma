@@ -659,12 +659,7 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	tableFormatter TableColumNameFormatter) error {
 
 	indexConf, ok := lm.cfg.IndexConfig[tableName]
-	if !ok {
-		return fmt.Errorf("index config not found for index: %s", tableName)
-	}
-
-	useSingleTable := indexConf.UseSingleTable
-	if useSingleTable {
+	if ok && indexConf.UseSingleTable {
 		err := lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, true)
 
 		if err != nil {
