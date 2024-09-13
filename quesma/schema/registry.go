@@ -40,7 +40,7 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 	definitions := s.dataSourceTableProvider.TableDefinitions()
 	schemas := make(map[TableName]Schema)
 	if len(*s.indexConfiguration) == 0 { // no index configs => table auto-discovery is enabled
-		for tableName, _ := range definitions {
+		for tableName := range definitions {
 			fields := make(map[FieldName]Field)
 			existsInDataSource := s.populateSchemaFromTableDefinition(definitions, tableName, fields)
 			schemas[TableName(tableName)] = NewSchema(fields, existsInDataSource)
