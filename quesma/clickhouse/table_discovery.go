@@ -101,7 +101,7 @@ func (td *tableDiscovery) TableDefinitionsFetchError() error {
 }
 
 func (td *tableDiscovery) TableAutodiscoveryEnabled() bool {
-	return td.cfg.IndexConfig == nil
+	return len(td.cfg.IndexConfig) == 0
 }
 
 func (td *tableDiscovery) LastAccessTime() time.Time {
