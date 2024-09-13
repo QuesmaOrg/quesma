@@ -236,12 +236,12 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 
 		zoomLiteral := model.NewLiteral(precisionZoom)
 
-		var lonField = model.AsString(field)
-		lonField = strings.Trim(lonField, "\"")
-		lon := model.NewGeoLon(lonField)
-		var latField = model.AsString(field)
-		latField = strings.Trim(latField, "\"")
-		lat := model.NewGeoLat(latField)
+		fieldName, err := strconv.Unquote(model.AsString(field))
+		if err != nil {
+			return false, err
+		}
+		lon := model.NewGeoLon(fieldName)
+		lat := model.NewGeoLat(fieldName)
 
 		toFloatFunLon := model.NewFunction("toFloat64", lon)
 		var infixX model.Expr
