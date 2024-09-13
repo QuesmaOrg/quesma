@@ -132,8 +132,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			req := &mux.Request{Params: map[string]string{"index": tt.pattern}, Body: tt.body}
-			sr := schema.StaticRegistry{}
-			assert.Equalf(t, tt.want, matchedAgainstPattern(&tt.configuration, sr).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
+			assert.Equalf(t, tt.want, matchedAgainstPattern(&tt.configuration, schema.StaticRegistry{}).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
 		})
 	}
 }
