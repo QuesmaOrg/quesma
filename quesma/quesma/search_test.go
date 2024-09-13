@@ -5,6 +5,7 @@ package quesma
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
@@ -453,20 +454,24 @@ func TestNumericFacetsQueries(t *testing.T) {
 	for i, tt := range testdata.TestsNumericFacets {
 		for _, handlerName := range handlers {
 			t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-				db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+				db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 				defer db.Close()
 				lm := clickhouse.NewLogManagerWithConnection(db, table)
 				managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
-				returnedBuckets := sqlmock.NewRows([]string{"", ""})
-				for _, row := range tt.ResultRows {
-					returnedBuckets.AddRow(row[0], row[1])
+				colNames := make([]string, 0, len(tt.NewResultRows[0].Cols))
+				for _, col := range tt.NewResultRows[0].Cols {
+					colNames = append(colNames, col.ColName)
 				}
-
-				// count, present in all tests
-				mock.ExpectQuery(`SELECT count\(\*\) FROM ` + tableName).WillReturnRows(sqlmock.NewRows([]string{"count"}))
-				// Don't care about the query's SQL in this test, it's thoroughly tested in different tests, thus ""
-				mock.ExpectQuery("").WillReturnRows(returnedBuckets)
+				returnedBuckets := sqlmock.NewRows(colNames)
+				for _, row := range tt.NewResultRows {
+					values := make([]driver.Value, 0, len(row.Cols))
+					for _, col := range row.Cols {
+						values = append(values, col.Value)
+					}
+					returnedBuckets.AddRow(values...)
+				}
+				mock.ExpectQuery(tt.ExpectedSql).WillReturnRows(returnedBuckets)
 
 				queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
 				var response []byte
@@ -492,17 +497,28 @@ func TestNumericFacetsQueries(t *testing.T) {
 				} else {
 					responsePart = responseMap["response"].(model.JsonMap)
 				}
-				// check max
-				assert.Equal(t, tt.MaxExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["max_value"].(model.JsonMap)["value"].(float64))
-				// check min
-				assert.Equal(t, tt.MinExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["min_value"].(model.JsonMap)["value"].(float64))
-				// check hits count (in 3 different places)
-				assert.Equal(t, tt.CountExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["sample_count"].(model.JsonMap)["value"].(float64))
-				assert.Equal(t, tt.CountExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["doc_count"].(float64))
-				// TODO restore line below when track_total_hits works!!
-				// assert.Equal(t, tt.CountExpected, responsePart["hits"].(model.JsonMap)["total"].(model.JsonMap)["value"].(float64))
-				// check sum_other_doc_count (sum of all doc_counts that are not in top 10 facets)
-				assert.Equal(t, tt.SumOtherDocCountExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["top_values"].(model.JsonMap)["sum_other_doc_count"].(float64))
+
+				acceptableDifference := []string{"probability", "seed", "bg_count", model.KeyAddedByQuesma,
+					"doc_count_error_upper_bound", "__quesma_total_count"}
+				expectedJson := types.MustJSON(tt.ResultJson)["response"].(model.JsonMap)
+
+				// Eventually we should remove two below lines
+				expectedJson = expectedJson["aggregations"].(model.JsonMap)
+				responsePart = responsePart["aggregations"].(model.JsonMap)
+
+				actualMinusExpected, expectedMinusActual := util.MapDifference(responsePart,
+					expectedJson, acceptableDifference, true, true)
+				if len(actualMinusExpected) != 0 {
+					pp.Println("ACTUAL diff", actualMinusExpected)
+				}
+				if len(expectedMinusActual) != 0 {
+					pp.Println("EXPECTED diff", expectedMinusActual)
+				}
+				//pp.Println("ACTUAL", pancakeJson)
+				//pp.Println("EXPECTED", expectedAggregationsPart)
+				assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
+				assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
+
 			})
 		}
 	}
