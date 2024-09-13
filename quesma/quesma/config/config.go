@@ -351,11 +351,6 @@ func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfigurat
 	return err
 }
 
-//func countPrimaryKeys(config IndexConfiguration) (count int) {
-//	for _, configuration := range config.SchemaOverrides.Fields {
-//		if configuration.IsPrimaryKey {
-//			count++
-//		}
-//	}
-//	return count
-//}
+func (c *QuesmaConfiguration) IndexAutodiscoveryEnabled() bool {
+	return len(c.IndexConfig) == 0
+}

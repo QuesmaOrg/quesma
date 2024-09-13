@@ -62,7 +62,7 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 					return false
 				}
 			}
-			if len(configuration.IndexConfig) == 0 { //auto-discovery enabled
+			if configuration.IndexAutodiscoveryEnabled() {
 				for tableName := range sr.AllSchemas() {
 					if config.MatchName(elasticsearch.NormalizePattern(indexPattern), string(tableName)) {
 						return true
@@ -80,7 +80,7 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 			}
 			return false
 		} else {
-			if len(configuration.IndexConfig) == 0 { //auto-discovery enabled !!
+			if configuration.IndexAutodiscoveryEnabled() {
 				for tableName := range sr.AllSchemas() {
 					if config.MatchName(elasticsearch.NormalizePattern(indexPattern), string(tableName)) {
 						return true

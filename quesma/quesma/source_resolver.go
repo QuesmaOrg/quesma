@@ -30,7 +30,7 @@ func ResolveSources(indexPattern string, cfg *config.QuesmaConfiguration, im ela
 					matchesElastic = append(matchesElastic, indexName)
 				}
 			}
-			if len(cfg.IndexConfig) == 0 { // auto-discovery is enabled
+			if cfg.IndexAutodiscoveryEnabled() {
 				for tableName := range sr.AllSchemas() {
 					if config.MatchName(elasticsearch.NormalizePattern(indexPattern), string(tableName)) {
 						matchesClickhouse = append(matchesClickhouse, string(tableName))
