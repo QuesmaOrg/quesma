@@ -20,6 +20,8 @@ func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
 	return f.tables
 }
 
+func (f fixedTableProvider) AutodiscoveryEnabled() bool { return false }
+
 func Test_ipRangeTransform(t *testing.T) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
