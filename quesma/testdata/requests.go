@@ -146,9 +146,13 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
     "start_time_in_millis": 1706010201964
 }`,
 		"no comment yet",
-		model.SearchQueryInfo{Typ: model.Facets, FieldName: "host.name", I1: 10, I2: 5000},
+		model.HitsCountInfo{Typ: model.Normal},
 		[]string{
-			`SELECT "host.name" AS "key", count(*) AS "doc_count"
+			`SELECT sum(count(*)) OVER () AS "aggr__sample__count",
+			  sum(count("host.name")) OVER () AS "metric__sample__sample_count_col_0",
+			  sum(count(*)) OVER () AS "aggr__sample__top_values__parent_count",
+			  "host.name" AS "aggr__sample__top_values__key_0",
+			  count(*) AS "aggr__sample__top_values__count"
 			FROM (
 			  SELECT "host.name"
 			  FROM __quesma_table_name
@@ -156,8 +160,10 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 				AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND
 				"message" iLIKE '%user%')
 			  LIMIT 20000)
-			GROUP BY "host.name"
-			ORDER BY count(*) DESC`,
+			GROUP BY "host.name" AS "aggr__sample__top_values__key_0"
+			ORDER BY "aggr__sample__top_values__count" DESC,
+			  "aggr__sample__top_values__key_0" ASC
+			LIMIT 11`,
 		},
 		true,
 	},
@@ -297,7 +303,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
     "start_time_in_millis": 1706021975538
 }
 `, "there should be 97 results, I truncated most of them",
-		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"message"}, FieldName: "message", I1: 0, I2: 100},
+		model.HitsCountInfo{Typ: model.ListByField, RequestedFields: []string{"message"}, Size: 100},
 		[]string{
 			`SELECT "message"
 			FROM __quesma_table_name
@@ -550,7 +556,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}
 	}`,
 		"Truncated most results. TODO Check what's at the end of response, probably count?",
-		model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: 500},
+		model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: 500},
 		[]string{
 			`SELECT "@timestamp", "host.name", "message", "properties::isreg"
 			FROM __quesma_table_name
@@ -690,7 +696,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }
 `,
 		"no comment yet",
-		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"@timestamp"}, FieldName: "@timestamp", I2: 100},
+		model.HitsCountInfo{Typ: model.ListByField, RequestedFields: []string{"@timestamp"}, Size: 100},
 		[]string{
 			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
 			  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0",
@@ -745,7 +751,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }`,
 		`{}`,
 		"no comment yet",
-		model.SearchQueryInfo{Typ: model.Normal},
+		model.HitsCountInfo{Typ: model.Normal},
 		[]string{
 			`SELECT "aggr__stats__parent_count", "aggr__stats__key_0", "aggr__stats__count",
 			  "aggr__stats__series__key_0", "aggr__stats__series__count"
@@ -854,7 +860,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 			"start_time_in_millis": 1706551812665
 		}`,
 		"no comment yet",
-		model.SearchQueryInfo{Typ: model.Normal},
+		model.HitsCountInfo{Typ: model.Normal},
 		[]string{
 			`SELECT minOrNull("@timestamp") AS "metric__earliest_timestamp_col_0",
 			  maxOrNull("@timestamp") AS "metric__latest_timestamp_col_0",
@@ -876,7 +882,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}`,
 		``,
 		"no comment yet",
-		model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: 50},
+		model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: 50},
 		[]string{
 			`SELECT "@timestamp", "host.name", "message", "properties::isreg"
 			FROM __quesma_table_name
@@ -942,7 +948,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}`,
 		``,
 		"happens e.g. in Explorer > Field Statistics view",
-		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"properties::isreg"}, FieldName: "properties::isreg", I1: 0, I2: 100},
+		model.HitsCountInfo{Typ: model.ListByField, RequestedFields: []string{"properties::isreg"}, Size: 100},
 		[]string{
 			`SELECT "properties::isreg"
 				FROM __quesma_table_name
@@ -1562,7 +1568,7 @@ var TestsSearch = []SearchTestCase{
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
 				`AND "stream.namespace" IS NOT NULL)`,
 		},
-		model.Facets,
+		model.Normal,
 		////[]model.Query{
 		//	justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`),
 		//},
@@ -1656,7 +1662,7 @@ var TestsSearch = []SearchTestCase{
 			`("service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z')))`,
 		},
-		model.Facets,
+		model.Normal,
 		////[]model.Query{
 		//	justSimplestWhere(`("service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z')))`),
 		//},
@@ -1744,7 +1750,7 @@ var TestsSearch = []SearchTestCase{
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))) ` +
 				`AND "stream.namespace" IS NOT NULL)`,
 		},
-		model.Facets,
+		model.Normal,
 		////[]model.Query{
 		//	justSimplestWhere(`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`),
 		//},
@@ -1829,7 +1835,7 @@ var TestsSearch = []SearchTestCase{
 			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
 		},
-		model.Facets,
+		model.Normal,
 		////[]model.Query{
 		//	justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`),
 		//},
@@ -1917,7 +1923,7 @@ var TestsSearch = []SearchTestCase{
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`,
 		},
-		model.Facets,
+		model.Normal,
 		////[]model.Query{
 		//	justSimplestWhere(`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`),
 		//},
@@ -2000,7 +2006,7 @@ var TestsSearch = []SearchTestCase{
 			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
 		},
-		model.Facets,
+		model.Normal,
 		////[]model.Query{
 		//	justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`),
 		//},
