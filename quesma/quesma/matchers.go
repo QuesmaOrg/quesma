@@ -8,6 +8,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
 	"quesma/quesma/types"
+	"quesma/schema"
 	"quesma/tracing"
 	"strings"
 )
@@ -44,7 +45,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.Reque
 	})
 }
 
-func matchedAgainstPattern(configuration *config.QuesmaConfiguration) mux.RequestMatcher {
+func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.Registry) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
 		if elasticsearch.IsInternalIndex(indexPattern) {
@@ -61,7 +62,13 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration) mux.Reques
 					return false
 				}
 			}
-
+			if len(configuration.IndexConfig) == 0 { //auto-discovery enabled
+				for tableName, _ := range sr.AllSchemas() {
+					if config.MatchName(elasticsearch.NormalizePattern(indexPattern), string(tableName)) {
+						return true
+					}
+				}
+			}
 			for _, pattern := range indexPatterns {
 				for _, indexName := range configuration.IndexConfig {
 					if config.MatchName(elasticsearch.NormalizePattern(pattern), indexName.Name) {
@@ -73,6 +80,13 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration) mux.Reques
 			}
 			return false
 		} else {
+			if len(configuration.IndexConfig) == 0 { //auto-discovery enabled !!
+				for tableName, _ := range sr.AllSchemas() {
+					if config.MatchName(elasticsearch.NormalizePattern(indexPattern), string(tableName)) {
+						return true
+					}
+				}
+			}
 			for _, index := range configuration.IndexConfig {
 				pattern := elasticsearch.NormalizePattern(indexPattern)
 				if config.MatchName(pattern, index.Name) {
