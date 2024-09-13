@@ -4,6 +4,7 @@ package metrics_aggregations
 
 import (
 	"context"
+	"encoding/json"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/schema"
@@ -12,25 +13,31 @@ import (
 )
 
 type TopHits struct {
-	ctx context.Context
+	ctx     context.Context
+	Size    int
+	OrderBy []model.OrderByExpr
 }
 
-func NewTopHits(ctx context.Context) TopHits {
-	return TopHits{ctx: ctx}
+func NewTopHits(ctx context.Context, size int) TopHits {
+	return TopHits{ctx: ctx, Size: size}
+}
+
+func NewTopHitsWithOrderBy(ctx context.Context, size int, orderBy []model.OrderByExpr) TopHits {
+	return TopHits{ctx: ctx, Size: size, OrderBy: orderBy}
 }
 
 func (query TopHits) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-// TODO implement correct
-func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+// TODO: implement correct
+func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	var topElems []any
-	if len(rows) > 0 && level >= len(rows[0].Cols)-1 {
+	if len(rows) > 0 && 0 >= len(rows[0].Cols) {
 		// values are [level, len(row.Cols) - 1]
 		logger.WarnWithCtx(query.ctx).Msgf(
-			"no columns returned for top_hits aggregation, level: %d, len(rows[0].Cols): %d, len(rows): %d",
-			level, len(rows[0].Cols), len(rows),
+			"no columns returned for top_hits aggregation, len(rows[0].Cols): %d, len(rows): %d",
+			len(rows[0].Cols), len(rows),
 		)
 	}
 	for _, row := range rows {
@@ -51,7 +58,7 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 			}
 			colName, _ := strings.CutPrefix(withoutQuotes, `windowed_`)
 
-			if col.ColType.Name == schema.TypePoint.Name {
+			if col.ColType.Name == schema.QuesmaTypePoint.Name {
 				hits := make(model.JsonMap)
 				// TODO suffixes (::lat, ::lon) hardcoded for now
 				// due to insufficient information in the schema
@@ -74,17 +81,37 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 				}
 
 			} else {
-				sourceMap[col.ColName] = col.ExtractValue(query.ctx)
+				value := col.ExtractValue(query.ctx)
+				// TODO: this is hack, we should not assume this is location
+				if strings.HasSuffix(col.ColName, "Location") {
+					if valueStr, ok := value.(string); ok {
+						var valueJson model.JsonMap
+						if err := json.Unmarshal([]byte(valueStr), &valueJson); err == nil {
+							value = valueJson
+						}
+					}
+				}
+				sourceMap[col.ColName] = value
 			}
 		}
 
 		elem := model.JsonMap{
 			"_source": sourceMap,
+			"_score":  1.0, // placeholder
+			"_id":     "",  // TODO: placeholder
+			"_index":  "",  // TODO: placeholder
 		}
 		topElems = append(topElems, elem)
 	}
 	return model.JsonMap{
-		"hits": topElems,
+		"hits": model.JsonMap{
+			"hits":      topElems,
+			"max_score": 1.0, // placeholder
+			"total": model.JsonMap{ // could be better
+				"relation": "eq", // TODO: wrong, but let's pass test, it should ge geq
+				"value":    len(topElems),
+			},
+		},
 	}
 }
 

@@ -30,29 +30,6 @@ func (interval Interval) String() string {
 	return interval.floatToString(interval.Begin) + "-" + interval.floatToString(interval.End)
 }
 
-// ToSQLSelectQuery returns count(...) where ... is a condition for the interval, just like we want it in SQL's SELECT
-func (interval Interval) ToSQLSelectQuery(columnExpr model.Expr) model.Expr {
-	var sqlLeft, sqlRight, sql model.Expr
-	if !interval.IsOpeningBoundInfinite() {
-		sqlLeft = model.NewInfixExpr(columnExpr, ">=", model.NewLiteral(interval.Begin))
-	}
-	if !interval.IsClosingBoundInfinite() {
-		sqlRight = model.NewInfixExpr(columnExpr, "<", model.NewLiteral(interval.End))
-	}
-	switch {
-	case sqlLeft != nil && sqlRight != nil:
-		sql = model.NewInfixExpr(sqlLeft, "AND", sqlRight)
-	case sqlLeft != nil:
-		sql = sqlLeft
-	case sqlRight != nil:
-		sql = sqlRight
-	default:
-		return model.NewFunction("count")
-	}
-	// count(if(sql, 1, NULL))
-	return model.NewFunction("count", model.NewFunction("if", sql, model.NewLiteral(1), model.NewLiteral("NULL")))
-}
-
 func (interval Interval) ToWhereClause(field model.Expr) model.Expr { // returns a condition for the interval, just like we want it in SQL's WHERE
 	var sqlLeft, sqlRight model.Expr
 	if !interval.IsOpeningBoundInfinite() {
@@ -122,7 +99,7 @@ func (query Range) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
-func (query Range) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query Range) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) != 1 {
 		logger.ErrorWithCtx(query.ctx).Msgf("unexpected %d of rows in range aggregation response. Expected 1.", len(rows))
 		return model.JsonMap{}
@@ -177,9 +154,13 @@ func (query Range) DoesNotHaveGroupBy() bool {
 
 func (query Range) CombinatorGroups() (result []CombinatorGroup) {
 	for intervalIdx, interval := range query.Intervals {
+		prefix := fmt.Sprintf("range_%d__", intervalIdx)
+		if len(query.Intervals) == 1 {
+			prefix = ""
+		}
 		result = append(result, CombinatorGroup{
 			idx:         intervalIdx,
-			Prefix:      fmt.Sprintf("range_%d__", intervalIdx),
+			Prefix:      prefix,
 			Key:         interval.String(),
 			WhereClause: interval.ToWhereClause(query.Expr),
 		})
@@ -191,4 +172,12 @@ func (query Range) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup
 	interval := query.Intervals[subGroup.idx]
 	count := rows[0].Cols[len(rows[0].Cols)-1].Value
 	return query.responseForInterval(interval, count)
+}
+
+func (query Range) CombinatorSplit() []model.QueryType {
+	result := make([]model.QueryType, 0, len(query.Intervals))
+	for _, interval := range query.Intervals {
+		result = append(result, NewRange(query.ctx, query.Expr, []Interval{interval}, query.Keyed))
+	}
+	return result
 }

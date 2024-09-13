@@ -54,46 +54,24 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 
 	facetsQuery := cw.buildFacetsQueryIfNeeded(simpleQuery, queryInfo)
 	if facetsQuery != nil {
-
-		if countQuery != nil {
-			queries = append(queries, countQuery)
-		}
-
 		queries = append(queries, facetsQuery)
 	} else {
+		// here we decide if pancake should count rows
+		addCount := countQuery != nil
 
-		var pancakeApplied bool
-
-		// this is an alternative implementation
-		pancakeOptimizerProps, disabled := cw.Config.IndexConfig[cw.IncomingIndexName].GetOptimizerConfiguration(PancakeOptimizerName)
-		if !disabled && pancakeOptimizerProps["mode"] == "apply" {
-
-			// here we deside if pancake should count rows
-			addCount := countQuery != nil
-
-			if pancakeQueries, err := cw.PancakeParseAggregationJson(body, addCount); err == nil {
-				queries = append(queries, pancakeQueries...)
-				pancakeApplied = true
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("Error parsing pancake queries: %v. Falling back to the standard implementation.", err)
+		if pancakeQueries, err := cw.PancakeParseAggregationJson(body, addCount); err == nil {
+			if len(pancakeQueries) > 0 {
+				countQuery = nil // count was taken care of by pancake
 			}
+			queries = append(queries, pancakeQueries...)
+		} else {
+			// Currently we swallow error to preserve backward compatibility, but eventually we should return it.
+			logger.ErrorWithCtx(cw.Ctx).Msgf("Error parsing pancake queries: %v.", err)
 		}
+	}
 
-		// this is a standard implementation
-		if !pancakeApplied {
-			aggregationQueries, err := cw.ParseAggregationJson(body)
-			if err != nil {
-				logger.WarnWithCtx(cw.Ctx).Msgf("error parsing aggregation: %v", err)
-				return &model.ExecutionPlan{}, err
-			}
-
-			if countQuery != nil {
-				queries = append(queries, countQuery)
-			}
-
-			queries = append(queries, aggregationQueries...)
-
-		}
+	if countQuery != nil {
+		queries = append(queries, countQuery)
 	}
 
 	if listQuery := cw.buildListQueryIfNeeded(simpleQuery, queryInfo, highlighter); listQuery != nil {
@@ -408,11 +386,8 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	}
 	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
 
-	timestampColumnName, err := cw.Table.GetTimestampFieldName()
-	if err != nil {
-		logger.Warn().Msgf("id query executed, but not timestamp field configured")
-		return model.NewSimpleQuery(nil, true)
-	}
+	timestampColumnName := model.TimestampFieldName
+
 	if len(ids) == 0 {
 		logger.Warn().Msgf("parsing error: empty _id array")
 		return model.NewSimpleQuery(nil, false)
@@ -991,7 +966,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 		case clickhouse.NotExists:
 			// TODO this is a workaround for the case when the field is a point
 			if schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name)); exists {
-				if value, ok := schemaInstance.ResolveFieldByInternalName(fieldName); ok && value.Type.Equal(schema.TypePoint) {
+				if value, ok := schemaInstance.ResolveFieldByInternalName(fieldName); ok && value.Type.Equal(schema.QuesmaTypePoint) {
 					return model.NewSimpleQuery(sql, true)
 				}
 			}

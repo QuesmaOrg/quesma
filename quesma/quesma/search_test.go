@@ -4,6 +4,7 @@ package quesma
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
@@ -31,11 +32,12 @@ const defaultAsyncSearchTimeout = 1000
 
 const tableName = model.SingleTableNamePlaceHolder
 
+var DefaultConfig = config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
+
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
 
 func TestAsyncSearchHandler(t *testing.T) {
 	// logger.InitSimpleLoggerForTests()
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 
 	table := concurrent.NewMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
@@ -64,16 +66,10 @@ func TestAsyncSearchHandler(t *testing.T) {
 		Tables: map[schema.TableName]schema.Schema{
 			model.SingleTableNamePlaceHolder: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeKeyword},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeKeyword},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeKeyword},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeKeyword},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeKeyword},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeKeyword},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeKeyword},
+					"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+					"properties::isreg": {PropertyName: "properties::isreg", InternalPropertyName: "properties::isreg", Type: schema.QuesmaTypeInteger},
 				},
 			},
 		},
@@ -81,26 +77,15 @@ func TestAsyncSearchHandler(t *testing.T) {
 
 	for i, tt := range testdata.TestsAsyncSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
-			for _, wantedRegex := range tt.WantedRegexes {
-				if tt.WantedParseResult.Typ == model.ListAllFields {
-					// Normally we always want to escape, but in ListAllFields (SELECT *) we have (permutation1|permutation2|...)
-					// and we don't want to escape those ( and ) characters. So we don't escape [:WHERE], and escape [WHERE:]
-					// Hackish, but fastest way to get it done.
-					splitIndex := strings.Index(wantedRegex, "WHERE")
-					if splitIndex != -1 {
-						wantedRegex = wantedRegex[:splitIndex] + testdata.EscapeBrackets(wantedRegex[splitIndex:])
-					}
-				} else {
-					wantedRegex = testdata.EscapeBrackets(wantedRegex)
-				}
-				mock.ExpectQuery(wantedRegex).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			for _, query := range tt.WantedQuery {
+				mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
@@ -112,7 +97,6 @@ func TestAsyncSearchHandler(t *testing.T) {
 }
 
 func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	table := clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
@@ -126,34 +110,32 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
 				},
 			},
 		},
 	}
 	for i, tt := range testdata.AggregationTestsWithSpecialCharactersInFieldNames {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-			managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
-			for _, expectedSql := range tt.ExpectedSQLs {
-				mock.ExpectQuery(testdata.EscapeBrackets(expectedSql)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
-			}
+			mock.ExpectQuery(tt.ExpectedPancakeSQL).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 
-			queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryRequestJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
@@ -179,46 +161,50 @@ var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
 })
 
 func TestSearchHandler(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			model.SingleTableNamePlaceHolder: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeKeyword},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeKeyword},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeKeyword},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeKeyword},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeKeyword},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeKeyword},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeKeyword},
+					"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 				},
 			},
 		},
 	}
 	for i, tt := range testdata.TestsSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+			var db *sql.DB
+			var mock sqlmock.Sqlmock
+			if len(tt.WantedRegexes) > 0 {
+				db, mock = util.InitSqlMockWithPrettyPrint(t, false)
+			} else {
+				db, mock = util.InitSqlMockWithPrettySqlAndPrint(t, false)
+			}
 			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
-			for _, wantedRegex := range tt.WantedRegexes {
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			if len(tt.WantedRegexes) > 0 {
+				for _, wantedRegex := range tt.WantedRegexes {
 
-				// This test reuses test cases suited for query generator
-				// In this case pipeline transformations are triggered by query runner.
-				// So we should have a different expectation here.
+					// This test reuses test cases suited for query generator
+					// In this case pipeline transformations are triggered by query runner.
+					// So we should have a different expectation here.
 
-				// HACK. we change expectations here
-				wantedRegex = strings.ReplaceAll(wantedRegex, model.FullTextFieldNamePlaceHolder, "message")
+					// HACK. we change expectations here
+					wantedRegex = strings.ReplaceAll(wantedRegex, model.FullTextFieldNamePlaceHolder, "message")
 
-				mock.ExpectQuery(testdata.EscapeWildcard(testdata.EscapeBrackets(wantedRegex))).
-					WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+					mock.ExpectQuery(testdata.EscapeWildcard(testdata.EscapeBrackets(wantedRegex))).
+						WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+				}
+			} else {
+				for _, query := range tt.WantedQueries {
+					mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+				}
 			}
-			queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
-			_, _ = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+			var err error
+			_, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
+			assert.NoError(t, err)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -229,21 +215,11 @@ func TestSearchHandler(t *testing.T) {
 
 // TODO this test gives wrong results??
 func TestSearchHandlerNoAttrsConfig(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+					"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 				},
 			},
 		},
@@ -254,11 +230,11 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, _ = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -269,36 +245,38 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 }
 
 func TestAsyncSearchFilter(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+					"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 				},
 			},
 		},
 	}
 	for _, tt := range testdata.TestSearchFilter {
 		t.Run(tt.Name, func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+			var db *sql.DB
+			var mock sqlmock.Sqlmock
+			if len(tt.WantedRegexes) > 0 {
+				db, mock = util.InitSqlMockWithPrettyPrint(t, false)
+			} else {
+				db, mock = util.InitSqlMockWithPrettySqlAndPrint(t, false)
+			}
 			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
-			for _, wantedRegex := range tt.WantedRegexes {
-				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			if len(tt.WantedRegexes) > 0 {
+				for _, wantedRegex := range tt.WantedRegexes {
+					mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+				}
+			} else {
+				for _, query := range tt.WantedQueries {
+					mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+				}
 			}
-			queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, _ = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -312,21 +290,20 @@ func TestAsyncSearchFilter(t *testing.T) {
 // (testing of creating response is lacking), because of `sqlmock` limitation.
 // It can't return uint64, thus creating response code panics because of that.
 func TestHandlingDateTimeFields(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
 				},
 			},
 		},
@@ -372,25 +349,57 @@ func TestHandlingDateTimeFields(t *testing.T) {
 			}}]}}
 		}`
 	}
-	expectedSelectStatementRegex := map[string]string{
-		dateTimeTimestampField:      `SELECT toInt64(toUnixTimestamp("timestamp") / 60), count() FROM`,
-		dateTime64TimestampField:    `SELECT toInt64(toUnixTimestamp64Milli("timestamp64") / 60000), count() FROM`,
-		dateTime64OurTimestampField: `SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() FROM`,
+	expectedSelectStatement := map[string]string{
+		dateTimeTimestampField: `SELECT toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0",
+									  count(*) AS "aggr__0__count"
+									FROM __quesma_table_name
+									WHERE ((("timestamp64">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z')
+									  AND "timestamp64"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')) AND
+									  ("timestamp">=parseDateTimeBestEffort('2024-01-29T15:36:36.491Z') AND
+									  "timestamp"<=parseDateTimeBestEffort('2024-01-29T18:11:36.491Z'))) AND NOT ((
+									  "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND
+									  "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))))
+									GROUP BY toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0"
+									ORDER BY "aggr__0__key_0" ASC`,
+		dateTime64TimestampField: `SELECT toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
+									  "aggr__0__key_0", count(*) AS "aggr__0__count"
+									FROM __quesma_table_name
+									WHERE ((("timestamp64">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z')
+									  AND "timestamp64"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')) AND
+									  ("timestamp">=parseDateTimeBestEffort('2024-01-29T15:36:36.491Z') AND
+									  "timestamp"<=parseDateTimeBestEffort('2024-01-29T18:11:36.491Z'))) AND NOT ((
+									  "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND
+									  "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))))
+									GROUP BY toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
+									  "aggr__0__key_0"
+									ORDER BY "aggr__0__key_0" ASC`,
+		dateTime64OurTimestampField: `SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS "aggr__0__key_0"
+										  , count(*) AS "aggr__0__count"
+										FROM __quesma_table_name
+										WHERE ((("timestamp64">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z')
+										  AND "timestamp64"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')) AND
+										  ("timestamp">=parseDateTimeBestEffort('2024-01-29T15:36:36.491Z') AND
+										  "timestamp"<=parseDateTimeBestEffort('2024-01-29T18:11:36.491Z'))) AND NOT ((
+										  "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND
+										  "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))))
+										GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
+										  "aggr__0__key_0"
+										ORDER BY "aggr__0__key_0" ASC`,
 	}
 
-	db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+	db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-	managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
 	for _, fieldName := range []string{dateTimeTimestampField, dateTime64TimestampField, dateTime64OurTimestampField} {
 
-		mock.ExpectQuery(testdata.EscapeBrackets(expectedSelectStatementRegex[fieldName])).
+		mock.ExpectQuery(expectedSelectStatement[fieldName]).
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
 
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
-		queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
+		queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
 		response, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(query(fieldName)), defaultAsyncSearchTimeout, true)
 		assert.NoError(t, err)
 
@@ -408,20 +417,19 @@ func TestHandlingDateTimeFields(t *testing.T) {
 // (top 10 values, "other" value, min/max).
 // Both `_search`, and `_async_search` handlers are tested.
 func TestNumericFacetsQueries(t *testing.T) {
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+					"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.QuesmaTypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
 				},
 			},
 		},
@@ -448,7 +456,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 				db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 				defer db.Close()
 				lm := clickhouse.NewLogManagerWithConnection(db, table)
-				managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+				managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
 				returnedBuckets := sqlmock.NewRows([]string{"", ""})
 				for _, row := range tt.ResultRows {
@@ -456,11 +464,11 @@ func TestNumericFacetsQueries(t *testing.T) {
 				}
 
 				// count, present in all tests
-				mock.ExpectQuery(`SELECT count\(\) FROM ` + tableName).WillReturnRows(sqlmock.NewRows([]string{"count"}))
+				mock.ExpectQuery(`SELECT count\(\*\) FROM ` + tableName).WillReturnRows(sqlmock.NewRows([]string{"count"}))
 				// Don't care about the query's SQL in this test, it's thoroughly tested in different tests, thus ""
 				mock.ExpectQuery("").WillReturnRows(returnedBuckets)
 
-				queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
+				queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
 				var response []byte
 				var err error
 				if handlerName == "handleSearch" {
@@ -502,20 +510,11 @@ func TestNumericFacetsQueries(t *testing.T) {
 
 func TestSearchTrackTotalCount(t *testing.T) {
 
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	s := schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
-			"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-			"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-			"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-			"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-			"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-			"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
-			"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-			"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-			"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+			"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 		},
 	}
 
@@ -525,29 +524,26 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		Cols: map[string]*clickhouse.Column{
 			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
-			"message": {
-				Name: "message",
-				Type: clickhouse.NewBaseType("String"),
-			},
+			"message": {Name: "message", Type: clickhouse.NewBaseType("String")},
 		},
 		Created: true,
 	})
 
 	test := func(t *testing.T, handlerName string, testcase testdata.FullSearchTestCase) {
-		db, mock := util.InitSqlMockWithPrettyPrint(t, false)
+		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 		defer db.Close()
 		lm := clickhouse.NewLogManagerWithConnection(db, table)
-		managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+		managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
 		for i, sql := range testcase.ExpectedSQLs {
 			rows := sqlmock.NewRows([]string{testcase.ExpectedSQLResults[i][0].Cols[0].ColName})
 			for _, row := range testcase.ExpectedSQLResults[i] {
 				rows.AddRow(row.Cols[0].Value)
 			}
-			mock.ExpectQuery(testdata.EscapeBrackets(sql)).WillReturnRows(rows)
+			mock.ExpectQuery(sql).WillReturnRows(rows)
 		}
 
-		queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
+		queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
 
 		var response []byte
 		var err error

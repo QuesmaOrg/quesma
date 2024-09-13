@@ -681,13 +681,13 @@ func TestIsSqlEqual(t *testing.T) {
 		{"a OR (b AND c)", "a OR (c AND b)", true},
 		{"a OR (b AND c)", "a OR (c OR b)", false},
 		{
-			`SELECT count() FROM add-this WHERE \"timestamp\"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') AND \"timestamp\">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')`,
-			`SELECT count() FROM add-this WHERE \"timestamp\">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND \"timestamp\"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
+			`SELECT count(*) FROM add-this WHERE \"timestamp\"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') AND \"timestamp\">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')`,
+			`SELECT count(*) FROM add-this WHERE \"timestamp\">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND \"timestamp\"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
 			true,
 		},
 		{
-			`SELECT count() FROM "logs-generic-default" WHERE ("FlightDelay" == true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
-			`SELECT count() FROM "logs-generic-default" WHERE ("FlightDelay" == true AND (("timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') AND "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')) OR ("timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z')))) AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
+			`SELECT count(*) FROM "logs-generic-default" WHERE ("FlightDelay" == true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
+			`SELECT count(*) FROM "logs-generic-default" WHERE ("FlightDelay" == true AND (("timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') AND "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')) OR ("timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z')))) AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 			true,
 		},
 	}
@@ -819,5 +819,28 @@ func TestExtractInt64(t *testing.T) {
 	for _, tt := range []any{1.1, "1"} {
 		_, success := ExtractInt64Maybe(tt)
 		assert.False(t, success)
+	}
+}
+
+func TestFieldEncoding(t *testing.T) {
+	tests := []struct {
+		field string
+		want  string
+	}{
+		{"@timestamp", "@timestamp"},
+		{"timestamp", "timestamp"},
+		{"9field", "_9field"},
+		{"field9", "field9"},
+		{"field::", "field__"},
+		{"host.name", "host_name"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.field, func(t *testing.T) {
+			got := FieldToColumnEncoder(tt.field)
+			if got != tt.want {
+				t.Errorf("FieldToColumnEncoder(%q) = %q; want %q", tt.field, got, tt.want)
+			}
+		})
 	}
 }

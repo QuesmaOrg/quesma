@@ -3,6 +3,7 @@
 package schema_test
 
 import (
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/quesma/config"
@@ -44,9 +45,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "some_table",
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
-				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
-				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "String"},
+				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}},
 				true),
 			found: true,
 		},
@@ -72,9 +73,10 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "some_table",
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
-				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
-				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: ""},
+				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}},
+
 				true),
 			found: true,
 		},
@@ -99,9 +101,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "some_table",
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
-				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
-				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: ""},
+				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}},
 				true),
 			found: true,
 		},
@@ -124,9 +126,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "some_table",
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
-				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
-				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword},
+				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}},
 				true),
 			found: true,
 		},
@@ -143,7 +145,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			},
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{}},
 			tableName:      "some_table",
-			want:           schema.NewSchema(map[schema.FieldName]schema.Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword}}, false),
+			want:           schema.NewSchema(map[schema.FieldName]schema.Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword}}, false),
 			found:          true,
 		},
 		{
@@ -166,9 +168,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				}}},
 			tableName: "some_table",
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
-				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
-				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword},
+				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}},
 				true),
 			found: true,
 		},
@@ -193,9 +195,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "some_table",
 			want: schema.NewSchemaWithAliases(map[schema.FieldName]schema.Field{
-				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
-				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}, map[schema.FieldName]schema.FieldName{
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword},
+				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}}, map[schema.FieldName]schema.FieldName{
 				"message_alias": "message",
 			}, true),
 			found: true,
@@ -223,9 +225,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "some_table",
 			want: schema.NewSchemaWithAliases(map[schema.FieldName]schema.Field{
-				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
-				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}, map[schema.FieldName]schema.FieldName{
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: ""},
+				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}}, map[schema.FieldName]schema.FieldName{
 				"message_alias": "message",
 			}, true),
 			found: true,
@@ -263,7 +265,12 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				t.Errorf("FindSchema() got1 = %v, want %v", resultFound, tt.found)
 			}
 			if !reflect.DeepEqual(resultSchema, tt.want) {
+				pp.Println("Expected:")
+				pp.Println(tt.want)
+				pp.Println("Actual:")
+				pp.Println(resultSchema)
 				t.Errorf("FindSchema() got = %v, want %v", resultSchema, tt.want)
+
 			}
 		})
 	}
@@ -289,13 +296,15 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 
 	expectedSchema := schema.NewSchema(map[schema.FieldName]schema.Field{
-		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
-		"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-		"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
+		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "String"},
+		"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
+		"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}},
 		true)
 	resultSchema, resultFound := s.FindSchema(schema.TableName(tableName))
 	assert.True(t, resultFound, "schema not found")
 	if !reflect.DeepEqual(resultSchema, expectedSchema) {
+		pp.Println("Expected:", expectedSchema)
+		pp.Println("Actual:", resultSchema)
 		t.Errorf("FindSchema() got = %v, want %v", resultSchema, expectedSchema)
 	}
 
@@ -307,14 +316,17 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 	})
 
 	expectedSchema = schema.NewSchema(map[schema.FieldName]schema.Field{
-		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
-		"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-		"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong},
-		"new_column": {PropertyName: "new_column", InternalPropertyName: "new_column", Type: schema.TypeText}},
+		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "String"},
+		"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
+		"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"},
+		"new_column": {PropertyName: "new_column", InternalPropertyName: "new_column", Type: schema.QuesmaTypeText}},
 		true)
 	resultSchema, resultFound = s.FindSchema(schema.TableName(tableName))
 	assert.True(t, resultFound, "schema not found")
 	if !reflect.DeepEqual(resultSchema, expectedSchema) {
+		pp.Println("Expected:", expectedSchema)
+		pp.Println("Actual:", resultSchema)
+
 		t.Errorf("FindSchema() got = %v, want %v", resultSchema, expectedSchema)
 	}
 }

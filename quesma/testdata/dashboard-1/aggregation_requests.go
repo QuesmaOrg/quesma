@@ -152,64 +152,46 @@ var AggregationTests = []testdata.AggregationTestCase{
 				}
 			}
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4636))}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
-					model.NewQueryResultCol("avgOrNull(rspContentLen)", 42516.52153947081),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
-					model.NewQueryResultCol("avgOrNull(rspContentLen)", 658654099),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
-					model.NewQueryResultCol("doc_count", 4573),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
-					model.NewQueryResultCol("doc_count", 4573),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-			},
-		},
+		/*
+			ExpectedResults: [][]model.QueryResultRow{
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4636))}}},
+				{
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
+						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
+						model.NewQueryResultCol("avgOrNull(rspContentLen)", 42516.52153947081),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
+						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
+						model.NewQueryResultCol("avgOrNull(rspContentLen)", 658654099),
+					}},
+				},
+				{
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
+						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
+						model.NewQueryResultCol("doc_count", 4573),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
+						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
+						model.NewQueryResultCol("doc_count", 1),
+					}},
+				},
+				{
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
+						model.NewQueryResultCol("doc_count", 4573),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
+						model.NewQueryResultCol("doc_count", 1),
+					}},
+				},
+			}, */
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName + ` WHERE "reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<='2024-04-24T11:10:23.606Z' `,
-			`SELECT floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000, avgOrNull("rspContentLen") ` +
-				`FROM ` + testdata.TableName + ` WHERE "reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<='2024-04-24T11:10:23.606Z'  ` +
-				`GROUP BY floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000 ` +
-				`ORDER BY floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000`,
-			`SELECT floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000, count() ` +
-				`FROM ` + testdata.TableName + ` WHERE "reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<='2024-04-24T11:10:23.606Z'  ` +
-				`GROUP BY floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000 ` +
-				`ORDER BY floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000`,
-			`SELECT floor("rspContentLen" / 2000000.000000) * 2000000.000000, count() FROM ` + testdata.TableName + ` ` +
-				`WHERE "reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<='2024-04-24T11:10:23.606Z'  ` +
-				`GROUP BY floor("rspContentLen" / 2000000.000000) * 2000000.000000 ` +
-				`ORDER BY floor("rspContentLen" / 2000000.000000) * 2000000.000000`,
-			`SELECT floor("rspContentLen" / 2000000.000000) * 2000000.000000, count() FROM ` + testdata.TableName + ` ` +
-				`WHERE "reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<='2024-04-24T11:10:23.606Z'  ` +
-				`GROUP BY floor("rspContentLen" / 2000000.000000) * 2000000.000000 ` +
-				`ORDER BY floor("rspContentLen" / 2000000.000000) * 2000000.000000`,
-		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL:     "TODO",
 	},
 	{ // [1]
 		TestName: "dashboard-1: bug, used to be infinite loop",
@@ -375,89 +357,75 @@ var AggregationTests = []testdata.AggregationTestCase{
 				}
 			}
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4800))}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713957330000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
-					model.NewQueryResultCol("quantile_95", []float64{77}),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713957330000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
-					model.NewQueryResultCol("quantile_95", []float64{71}),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713957360000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
-					model.NewQueryResultCol("quantile_95", []float64{80.44999999999999}),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713957360000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
-					model.NewQueryResultCol("quantile_95", []float64{63}),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713957360000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 5.0),
-					model.NewQueryResultCol("quantile_95", []float64{83.8}),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713957330000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
-					model.NewQueryResultCol("doc_count", 159),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713957330000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
-					model.NewQueryResultCol("doc_count", 8),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713957360000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
-					model.NewQueryResultCol("doc_count", 52),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713957360000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
-					model.NewQueryResultCol("doc_count", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713957360000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 5.0),
-					model.NewQueryResultCol("doc_count", 5),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713957330000/30000)),
-					model.NewQueryResultCol("doc_count", 167),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713957360000/30000)),
-					model.NewQueryResultCol("doc_count", 78),
-				}},
-			},
-		},
+		/*
+			ExpectedResults: [][]model.QueryResultRow{
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4800))}}},
+				{
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", int64(1713957330000/30000)),
+						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
+						model.NewQueryResultCol("quantile_95", []float64{77}),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", int64(1713957330000/30000)),
+						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
+						model.NewQueryResultCol("quantile_95", []float64{71}),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", int64(1713957360000/30000)),
+						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
+						model.NewQueryResultCol("quantile_95", []float64{80.44999999999999}),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", int64(1713957360000/30000)),
+						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
+						model.NewQueryResultCol("quantile_95", []float64{63}),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", int64(1713957360000/30000)),
+						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 5.0),
+						model.NewQueryResultCol("quantile_95", []float64{83.8}),
+					}},
+				},
+				{
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", int64(1713957330000/30000)),
+						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
+						model.NewQueryResultCol("doc_count", 159),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", int64(1713957330000/30000)),
+						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
+						model.NewQueryResultCol("doc_count", 8),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", int64(1713957360000/30000)),
+						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
+						model.NewQueryResultCol("doc_count", 52),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", int64(1713957360000/30000)),
+						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
+						model.NewQueryResultCol("doc_count", 21),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", int64(1713957360000/30000)),
+						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 5.0),
+						model.NewQueryResultCol("doc_count", 5),
+					}},
+				},
+				{
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", int64(1713957330000/30000)),
+						model.NewQueryResultCol("doc_count", 167),
+					}},
+					{Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", int64(1713957360000/30000)),
+						model.NewQueryResultCol("doc_count", 78),
+					}},
+				},
+			}, */
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.TableName + ` WHERE "reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<='2024-04-24T11:30:46.279Z' `,
-			"SELECT toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), floor(" + `"billingRegion"` + " / 0.020000) * 0.020000, quantiles(0.950000)(\"latency\") AS \"quantile_95\" " +
-				`FROM ` + testdata.TableName + ` WHERE "reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<='2024-04-24T11:30:46.279Z'  ` +
-				"GROUP BY toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), " + `floor("billingRegion" / 0.020000) * 0.020000 ` +
-				"ORDER BY toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), " + `floor("billingRegion" / 0.020000) * 0.020000`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), floor(" + `"billingRegion" / 0.020000) * 0.020000, count() ` +
-				`FROM ` + testdata.TableName + ` WHERE "reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<='2024-04-24T11:30:46.279Z'  ` +
-				"GROUP BY toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), " + `floor("billingRegion" / 0.020000) * 0.020000 ` +
-				"ORDER BY toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), " + `floor("billingRegion" / 0.020000) * 0.020000`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), count() " +
-				`FROM ` + testdata.TableName + ` WHERE "reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<='2024-04-24T11:30:46.279Z'  ` +
-				"GROUP BY toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000) " +
-				"ORDER BY toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000)",
-		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL:     "TODO",
 	},
 }

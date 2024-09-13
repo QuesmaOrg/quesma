@@ -66,10 +66,9 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 	}
 
 	layer := func(bucket *pancakeModelBucketAggregation, metrics ...*pancakeModelMetricAggregation) *pancakeModelLayer {
-		return &pancakeModelLayer{
-			nextBucketAggregation:     bucket,
-			currentMetricAggregations: metrics,
-		}
+		layer := newPancakeModelLayer(bucket)
+		layer.currentMetricAggregations = metrics
+		return layer
 	}
 
 	pancake := func(panLayers ...*pancakeModelLayer) *pancakeModel {

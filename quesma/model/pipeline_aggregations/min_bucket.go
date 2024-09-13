@@ -24,7 +24,7 @@ func (query MinBucket) AggregationType() model.AggregationType {
 	return model.PipelineMetricsAggregation
 }
 
-func (query MinBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query MinBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for min bucket aggregation")
 		return model.JsonMap{}

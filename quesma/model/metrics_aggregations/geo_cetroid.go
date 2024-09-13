@@ -19,7 +19,21 @@ func (query GeoCentroid) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query GeoCentroid) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query GeoCentroid) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+	if len(rows) == 0 {
+		return model.JsonMap{}
+	}
+	if len(rows[0].Cols) == 3 {
+		// new logic
+		return model.JsonMap{
+			"count": rows[0].Cols[2].Value,
+			"location": model.JsonMap{
+				"lat": rows[0].Cols[0].Value,
+				"lon": rows[0].Cols[1].Value,
+			},
+		}
+	}
+	// TODO: Remove after pancakes
 	location := model.JsonMap{
 		"lat": rows[0].Cols[3].Value,
 		"lon": rows[0].Cols[4].Value,

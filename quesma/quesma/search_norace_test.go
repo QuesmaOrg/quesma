@@ -16,7 +16,6 @@ import (
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
@@ -41,29 +40,28 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 			logChan := logger.InitOnlyChannelLoggerForTests()
-			managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 			go managementConsole.RunOnlyChannelProcessor()
 			s := schema.StaticRegistry{
 				Tables: map[schema.TableName]schema.Schema{
 					"logs-generic-default": {
 						Fields: map[schema.FieldName]schema.Field{
-							"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-							"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-							"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-							"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-							"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-							"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
-							"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-							"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-							"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+							"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+							"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+							"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
+							"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
+							"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+							"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.QuesmaTypeKeyword},
+							"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
+							"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
+							"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
 						},
 					},
 				},
 			}
 
-			queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
 			newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
 			_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(tt.QueryRequestJson))
 
@@ -109,30 +107,29 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	defer db.Close()
 
 	lm := clickhouse.NewLogManagerWithConnection(db, table)
-	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {}}}
 	logChan := logger.InitOnlyChannelLoggerForTests()
-	managementConsole := ui.NewQuesmaManagementConsole(&cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
+	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 	go managementConsole.RunOnlyChannelProcessor()
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
 				},
 			},
 		},
 	}
 
-	queryRunner := NewQueryRunner(lm, &cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
+	queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
 	for _, testNr := range testNrs {
 		newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
 		_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(testdata.UnsupportedQueriesTests[testNr].QueryRequestJson))

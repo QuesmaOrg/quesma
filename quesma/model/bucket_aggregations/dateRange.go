@@ -27,27 +27,6 @@ func NewDateTimeInterval(begin, end string) DateTimeInterval {
 	}
 }
 
-// ToSQLSelectQuery returns count(...) where ... is a condition for the interval, just like we want it in SQL's SELECT
-// from elastic docs: Note that this aggregation includes the from value and excludes the to value for each range.
-func (interval DateTimeInterval) ToSQLSelectQuery(fieldName string) model.Expr {
-	if interval.Begin != UnboundedInterval && interval.End != UnboundedInterval {
-		return model.NewCountFunc(model.NewFunction("if",
-			model.NewInfixExpr(
-				model.NewInfixExpr(model.NewColumnRef(fieldName), " >= ", model.NewLiteral(interval.Begin)),
-				"AND",
-				model.NewInfixExpr(model.NewColumnRef(fieldName), " < ", model.NewLiteral(interval.End)),
-			),
-			model.NewLiteral(1), model.NewLiteral("NULL")))
-	} else if interval.Begin != UnboundedInterval {
-		return model.NewCountFunc(model.NewFunction("if",
-			model.NewInfixExpr(model.NewColumnRef(fieldName), " >= ", model.NewLiteral(interval.Begin)), model.NewLiteral(1), model.NewLiteral("NULL")))
-	} else if interval.End != UnboundedInterval {
-		return model.NewCountFunc(model.NewFunction("if",
-			model.NewInfixExpr(model.NewColumnRef(fieldName), " < ", model.NewLiteral(interval.End)), model.NewLiteral(1), model.NewLiteral("NULL")))
-	}
-	return model.NewCountFunc()
-}
-
 // BeginTimestampToSQL returns SQL select for the begin timestamp, and a boolean indicating if the select is needed
 // We query Clickhouse for this timestamp, as it's defined in Clickhouse's format, e.g. now()-1d.
 // It's only 1 more field to our SELECT query, so it shouldn't be a performance issue.
@@ -106,7 +85,7 @@ func (query DateRange) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
-func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) != 1 {
 		logger.ErrorWithCtx(query.ctx).Msgf("unexpected number of rows in date_range aggregation response, len: %d", len(rows))
 		return nil
@@ -196,6 +175,9 @@ func (query DateRange) DoesNotHaveGroupBy() bool {
 func (query DateRange) CombinatorGroups() (result []CombinatorGroup) {
 	for intervalIdx, interval := range query.Intervals {
 		prefix := fmt.Sprintf("range_%d__", intervalIdx)
+		if len(query.Intervals) == 1 {
+			prefix = ""
+		}
 		result = append(result, CombinatorGroup{
 			idx:         intervalIdx,
 			Prefix:      prefix,
@@ -228,4 +210,12 @@ func (query DateRange) CombinatorTranslateSqlResponseToJson(subGroup CombinatorG
 	}
 
 	return response
+}
+
+func (query DateRange) CombinatorSplit() []model.QueryType {
+	result := make([]model.QueryType, 0, len(query.Intervals))
+	for _, interval := range query.Intervals {
+		result = append(result, NewDateRange(query.ctx, query.FieldName, query.Format, []DateTimeInterval{interval}, query.SelectColumnsNr))
+	}
+	return result
 }

@@ -12,8 +12,6 @@ import (
 
 var AggregationTests2 = []AggregationTestCase{
 	{ // [42]
-		// FIXME results for this test are not 100% correct for day/week intervals (maybe others too)
-		// see https://github.com/QuesmaOrg/quesma/issues/307
 		TestName: "histogram with all possible calendar_intervals",
 		QueryRequestJson: `
 		{
@@ -33,8 +31,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "minute",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				},
 				"hour1": {
@@ -49,8 +46,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "hour",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				},
 				"day1": {
@@ -65,8 +61,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "day",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				},
 				"week1": {
@@ -81,8 +76,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "week",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				},
 				"month1": {
@@ -97,8 +91,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "month",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				},
 				"quarter1": {
@@ -113,8 +106,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "quarter",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				},
 				"year1": {
@@ -129,8 +121,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"calendar_interval": "year",
 						"field": "@timestamp",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				}
 			},
@@ -285,16 +276,16 @@ var AggregationTests2 = []AggregationTestCase{
 						}
 					]
 				},
-				"day2": {
+				"day1": {
 					"buckets": [
 						{
-							"key_as_string": "2024-06-10T00:00:00.000",
-							"key": 1717977600000,
+							"key_as_string": "2024-06-09T22:00:00.000",
+							"key": 1717970400000,
 							"doc_count": 33
 						}
 					]
 				},
-				"day1": {
+				"day2": {
 					"buckets": [
 						{
 							"key_as_string": "2024-06-10T00:00:00.000",
@@ -305,77 +296,6 @@ var AggregationTests2 = []AggregationTestCase{
 				}
 			}
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(33))}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`, int64(1717980400000/86400000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`, int64(1717980400000/86400000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718024400000/3600000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718024400000/3600000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`, int64(1718025840000/60000)),
-					model.NewQueryResultCol("count()", uint64(9)),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`, int64(1718025900000/60000)),
-					model.NewQueryResultCol("count()", uint64(24)),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`, int64(1718025840000/60000)),
-					model.NewQueryResultCol("count()", uint64(9)),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`, int64(1718025900000/60000)),
-					model.NewQueryResultCol("count()", uint64(24)),
-				}},
-			},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfMonth("@timestamp")))`, int64(1717192800000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfMonth("@timestamp")))`, int64(1717192800000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfQuarter("@timestamp")))`, int64(1711922400000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfQuarter("@timestamp")))`, int64(1711922400000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfWeek("@timestamp")))`, int64(1717970400000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfWeek("@timestamp")))`, int64(1717970400000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfYear("@timestamp")))`, int64(1704063600000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli(toStartOfYear("@timestamp")))`, int64(1704063600000)),
-				model.NewQueryResultCol("count()", uint64(33)),
-			}}},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__day1__key_0", int64(1717980400000/86400000)),
@@ -388,7 +308,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__day2__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__hour1__key_0", int64(1718024400000/3600000)),
+				model.NewQueryResultCol("aggr__hour1__key_0", int64(1718031600000/3600000)),
 				model.NewQueryResultCol("aggr__hour1__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -397,11 +317,11 @@ var AggregationTests2 = []AggregationTestCase{
 			}}},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("aggr__minute1__key_0", int64(1718025840000/60000)),
+					model.NewQueryResultCol("aggr__minute1__key_0", int64(1718033040000/60000)),
 					model.NewQueryResultCol("aggr__minute1__count", uint64(9)),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("aggr__minute1__key_0", int64(1718025900000/60000)),
+					model.NewQueryResultCol("aggr__minute1__key_0", int64(1718033100000/60000)),
 					model.NewQueryResultCol("aggr__minute1__count", uint64(24)),
 				}},
 			},
@@ -416,7 +336,7 @@ var AggregationTests2 = []AggregationTestCase{
 				}},
 			},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__month1__key_0", int64(1717192800000)),
+				model.NewQueryResultCol("aggr__month1__key_0", int64(1717200000000)),
 				model.NewQueryResultCol("aggr__month1__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -424,7 +344,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__month2__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__quarter1__key_0", int64(1711922400000)),
+				model.NewQueryResultCol("aggr__quarter1__key_0", int64(1711929600000)),
 				model.NewQueryResultCol("aggr__quarter1__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -432,7 +352,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__quarter2__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__week1__key_0", int64(1717970400000)),
+				model.NewQueryResultCol("aggr__week1__key_0", int64(1717977600000)),
 				model.NewQueryResultCol("aggr__week1__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -440,7 +360,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__week2__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__year1__key_0", int64(1704063600000)),
+				model.NewQueryResultCol("aggr__year1__key_0", int64(1704067200000)),
 				model.NewQueryResultCol("aggr__year1__count", uint64(33)),
 			}}},
 			{{Cols: []model.QueryResultCol{
@@ -448,71 +368,13 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__year2__count", uint64(33)),
 			}}},
 		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + TableName,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000`,
-		},
 		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
-			  "aggr__day1__key_0", count(*) AS "aggr__day1__count"
+			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+              "@timestamp",'Europe/Warsaw'))*1000) / 86400000) AS "aggr__day1__key_0",
+			  count(*) AS "aggr__day1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
-			  "aggr__day1__key_0"
+			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+              "@timestamp",'Europe/Warsaw'))*1000) / 86400000) AS "aggr__day1__key_0"
 			ORDER BY "aggr__day1__key_0" ASC`,
 		ExpectedAdditionalPancakeSQLs: []string{
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
@@ -521,11 +383,12 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) AS
 			  "aggr__day2__key_0"
 			ORDER BY "aggr__day2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
-			  "aggr__hour1__key_0", count(*) AS "aggr__hour1__count"
+			`SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+			"@timestamp",'Europe/Warsaw'))*1000) / 3600000) AS "aggr__hour1__key_0",
+			count(*) AS "aggr__hour1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
-			  "aggr__hour1__key_0"
+			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+			"@timestamp",'Europe/Warsaw'))*1000) / 3600000) AS "aggr__hour1__key_0"
 			ORDER BY "aggr__hour1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__hour2__key_0", count(*) AS "aggr__hour2__count"
@@ -533,11 +396,12 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
 			  "aggr__hour2__key_0"
 			ORDER BY "aggr__hour2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
-			  "aggr__minute1__key_0", count(*) AS "aggr__minute1__count"
+			`SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+			"@timestamp",'Europe/Warsaw'))*1000) / 60000) AS "aggr__minute1__key_0",
+			count(*) AS "aggr__minute1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
-			  "aggr__minute1__key_0"
+			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+			"@timestamp",'Europe/Warsaw'))*1000) / 60000) AS "aggr__minute1__key_0"
 			ORDER BY "aggr__minute1__key_0" ASC`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 			  "aggr__minute2__key_0", count(*) AS "aggr__minute2__count"
@@ -545,52 +409,52 @@ var AggregationTests2 = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 			  "aggr__minute2__key_0"
 			ORDER BY "aggr__minute2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
-			  "aggr__month1__key_0", count(*) AS "aggr__month1__count"
+			`SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
+    		  AS "aggr__month1__key_0", count(*) AS "aggr__month1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
-			  "aggr__month1__key_0"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
+			  AS "aggr__month1__key_0"
 			ORDER BY "aggr__month1__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
+			`SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__month2__key_0", count(*) AS "aggr__month2__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 AS
+			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__month2__key_0"
 			ORDER BY "aggr__month2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
-			  "aggr__quarter1__key_0", count(*) AS "aggr__quarter1__count"
+			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
+    		  AS "aggr__quarter1__key_0", count(*) AS "aggr__quarter1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
+			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 AS
 			  "aggr__quarter1__key_0"
 			ORDER BY "aggr__quarter1__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
+			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__quarter2__key_0", count(*) AS "aggr__quarter2__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 AS
+			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__quarter2__key_0"
 			ORDER BY "aggr__quarter2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
+			`SELECT  toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000 AS
 			  "aggr__week1__key_0", count(*) AS "aggr__week1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
-			  "aggr__week1__key_0"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
+			  AS "aggr__week1__key_0"
 			ORDER BY "aggr__week1__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
+			`SELECT toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__week2__key_0", count(*) AS "aggr__week2__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 AS
+			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__week2__key_0"
 			ORDER BY "aggr__week2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
-			  "aggr__year1__key_0", count(*) AS "aggr__year1__count"
+			`SELECT toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
+    		  AS "aggr__year1__key_0", count(*) AS "aggr__year1__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
-			  "aggr__year1__key_0"
+			GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'Europe/Warsaw'))))*1000
+			  AS "aggr__year1__key_0"
 			ORDER BY "aggr__year1__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
+			`SELECT toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__year2__key_0", count(*) AS "aggr__year2__count"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 AS
+			GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("@timestamp",'UTC'))))*1000 AS
 			  "aggr__year2__key_0"
 			ORDER BY "aggr__year2__key_0" ASC`,
 		},
@@ -724,95 +588,27 @@ var AggregationTests2 = []AggregationTestCase{
 			"timed_out": false,
 			"took": 9
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2786))}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("response", "200"),
-				model.NewQueryResultCol(`quantile_1`, []time.Time{util.ParseTime("2024-04-21T06:11:13.619Z")}),
-				model.NewQueryResultCol(`quantile_2`, []time.Time{util.ParseTime("2024-04-21T12:21:13.414Z")}),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("response", "200"),
-				model.NewQueryResultCol(`sumOrNull("count")`, 10),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("response", "200"),
-				model.NewQueryResultCol(`doc_count`, 2570),
-			}}},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 2786),
 				model.NewQueryResultCol("aggr__2__key_0", "200"),
 				model.NewQueryResultCol("aggr__2__count", 2570),
-				model.NewQueryResultCol("aggr__2__order_1", 2570),
 				model.NewQueryResultCol("metric__2__1_col_0", []time.Time{util.ParseTime("2024-04-21T06:11:13.619Z")}),
 				model.NewQueryResultCol("metric__2__1_col_1", []time.Time{util.ParseTime("2024-04-21T12:21:13.414Z")}),
 				model.NewQueryResultCol("metric__2__2_col_0", 10),
 			}},
 		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))`,
-			`WITH cte_1 AS ` +
-				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response" ` +
-				`ORDER BY count() DESC, "response" ` +
-				`LIMIT 3) ` +
-				`SELECT "response", ` +
-				"quantiles(0.010000)(\"timestamp\") AS \"quantile_1\", " +
-				"quantiles(0.020000)(\"timestamp\") AS \"quantile_2\" " +
-				`FROM ` + TableName + ` ` +
-				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "response"`,
-			`WITH cte_1 AS ` +
-				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response" ` +
-				`ORDER BY count() DESC, "response" ` +
-				`LIMIT 3) ` +
-				`SELECT "response", sumOrNull("count") ` +
-				`FROM ` + TableName + ` ` +
-				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "response"`,
-			`SELECT "response", count() FROM ` + TableName + ` ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`AND "response" IS NOT NULL) ` +
-				`GROUP BY "response" ` +
-				`ORDER BY count() DESC, "response" ` +
-				`LIMIT 3`,
-		},
 		ExpectedPancakeSQL: `
-			SELECT
-			  sum(count(*)) OVER () AS "aggr__2__parent_count",
-			  "response" AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  count() AS "aggr__2__order_1",
+			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
+			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  quantiles(0.010000)("timestamp") AS "metric__2__1_col_0",
 			  quantiles(0.020000)("timestamp") AS "metric__2__1_col_1",
 			  sumOrNull("count") AS "metric__2__2_col_0"
-			FROM ` + TableName + `
+			FROM __quesma_table_name
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))
 			GROUP BY "response" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
+			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
 	},
 	{ // [44]
@@ -920,126 +716,60 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(24)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 20 BY "surname"`,
-			`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-			  "aggr__2__8__count", "aggr__2__8__order_1"
+			  "aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count"
 			FROM (
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-				"aggr__2__8__count", "aggr__2__8__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
+				"aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count",
+				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__count" DESC, "aggr__2__8__key_0" ASC) AS
 				"aggr__2__8__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__2__8__count"
+				FROM __quesma_table_name
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20)
@@ -1167,192 +897,102 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a3"),
-					model.NewQueryResultCol("limbName", "b31"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a3"),
-					model.NewQueryResultCol("limbName", "b32"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a3"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			// nil in the middle
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34324),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b11"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34324),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", nil),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34324),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(24)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 24),
 			}},
 			// nil at the beginningą
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", nil),
 				model.NewQueryResultCol("aggr__2__8__count", int64(57)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 57),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b22"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			// nil at the end
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a3"),
 				model.NewQueryResultCol("aggr__2__count_1", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b31"),
 				model.NewQueryResultCol("aggr__2__8__count_1", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a3"),
 				model.NewQueryResultCol("aggr__2__count_1", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b32"),
 				model.NewQueryResultCol("aggr__2__8__count_1", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a3"),
 				model.NewQueryResultCol("aggr__2__count_1", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", nil),
 				model.NewQueryResultCol("aggr__2__8__count_1", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", "limbName", count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE ("surname" IS NOT NULL AND "limbName" IS NOT NULL) ` +
-				`GROUP BY "surname", "limbName", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, "limbName" ` +
-				`LIMIT 20 BY "surname"`,
-			`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-			  "aggr__2__8__count", "aggr__2__8__order_1"
+			  "aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count"
 			FROM (
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-				"aggr__2__8__count", "aggr__2__8__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
+				"aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count",
+				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__count" DESC, "aggr__2__8__key_0" ASC) AS
 				"aggr__2__8__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count", "limbName" AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__2__8__count"
+				FROM __quesma_table_name
 				GROUP BY "surname" AS "aggr__2__key_0", "limbName" AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
@@ -1463,123 +1103,60 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "miss"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "miss"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "miss"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "miss"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "miss"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(24)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`WITH cte_1 AS (` +
-				`SELECT COALESCE("surname",'miss') AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY COALESCE("surname",'miss') ` +
-				`ORDER BY count() DESC, COALESCE("surname",'miss') ` +
-				`LIMIT 200) ` +
-				`SELECT COALESCE("surname",'miss'), COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON COALESCE("surname",'miss') = "cte_1_1" ` +
-				`GROUP BY COALESCE("surname",'miss'), COALESCE("limbName",'__missing__'), cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, COALESCE("surname",'miss'), count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 20 BY COALESCE("surname",'miss')`,
-			`SELECT COALESCE("surname",'miss'), count() ` +
-				`FROM ` + TableName + ` ` +
-				`GROUP BY COALESCE("surname",'miss') ` +
-				`ORDER BY count() DESC, COALESCE("surname",'miss') ` +
-				`LIMIT 200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-			  "aggr__2__8__count", "aggr__2__8__order_1"
+			  "aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count"
 			FROM (
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-				"aggr__2__8__count", "aggr__2__8__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
+				"aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count",
+				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__count" DESC, "aggr__2__8__key_0" ASC) AS
 				"aggr__2__8__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  COALESCE("surname", 'miss') AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__2__8__count"
+				FROM __quesma_table_name
 				GROUP BY COALESCE("surname", 'miss') AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20)
@@ -1689,155 +1266,83 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b11"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(24)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", nil),
 				model.NewQueryResultCol("aggr__2__count", int64(55)),
-				model.NewQueryResultCol("aggr__2__order_1", 55),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", nil),
 				model.NewQueryResultCol("aggr__2__count", int64(55)),
-				model.NewQueryResultCol("aggr__2__order_1", 55),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "lala"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__8__key_0", nil),
 				model.NewQueryResultCol("aggr__2__8__count", uint64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", uint64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b22"),
 				model.NewQueryResultCol("aggr__2__8__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", "limbName", count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE ("surname" IS NOT NULL AND "limbName" IS NOT NULL) ` +
-				`GROUP BY "surname", "limbName", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, "limbName" ` +
-				`LIMIT 20 BY "surname"`,
-			`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-			  "aggr__2__8__count", "aggr__2__8__order_1"
+			  "aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count"
 			FROM (
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-				"aggr__2__8__count", "aggr__2__8__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
+				"aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count",
+				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__count" DESC, "aggr__2__8__key_0" ASC) AS
 				"aggr__2__8__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__parent_count", "limbName" AS "aggr__2__8__key_0",
-				  count(*) AS "aggr__2__8__count", count() AS "aggr__2__8__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__2__8__count"
+				FROM __quesma_table_name
 				GROUP BY "surname" AS "aggr__2__key_0", "limbName" AS "aggr__2__8__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
@@ -1855,16 +1360,14 @@ var AggregationTests2 = []AggregationTestCase{
 					"date_histogram": {
 						"field": "@timestamp",
 						"fixed_interval": "30s",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					},
 					"aggs": {
 						"3": {
 							"date_histogram": {
 								"field": "@timestamp",
 								"fixed_interval": "40s",
-								"min_doc_count": 1,
-								"time_zone": "Europe/Warsaw"
+								"min_doc_count": 1
 							}
 						}
 					}
@@ -1977,7 +1480,7 @@ var AggregationTests2 = []AggregationTestCase{
 		},
 		/*
 			ExpectedSQLs: []string{
-				`SELECT count() ` +
+				`SELECT count(*) ` +
 					`FROM ` + QuotedTableName + ` ` +
 					`WHERE ("message" iLIKE '%user%' ` +
 					`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
@@ -1987,7 +1490,7 @@ var AggregationTests2 = []AggregationTestCase{
 					`WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
 					`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
 					`LIMIT 5`,
-				`SELECT ` + timestampGroupByClause + `, count() ` +
+				`SELECT ` + timestampGroupByClause + `, count(*) ` +
 					`FROM ` + QuotedTableName + ` ` +
 					`WHERE ("message" iLIKE '%user%' ` +
 					`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
@@ -2123,7 +1626,7 @@ var AggregationTests2 = []AggregationTestCase{
 							"3": {
 								"buckets": [
 									{
-										"key": null,
+										"key": 5,
 										"doc_count": 1
 									}
 								]
@@ -2143,19 +1646,6 @@ var AggregationTests2 = []AggregationTestCase{
 			"timed_out": false,
 			"took": 10
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(6))}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 9100.0),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 9700.0),
-					model.NewQueryResultCol("doc_count", 2),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 9100.0),
@@ -2166,21 +1656,9 @@ var AggregationTests2 = []AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 9700.0),
 				model.NewQueryResultCol("aggr__2__count", 2),
-				model.NewQueryResultCol("aggr__2__3__key_0", nil),
+				model.NewQueryResultCol("aggr__2__3__key_0", 5),
 				model.NewQueryResultCol("aggr__2__3__count", 1),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
-			`SELECT floor("bytes"/100.000000)*100.000000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
-				`GROUP BY floor("bytes"/100.000000)*100.000000 ` +
-				`ORDER BY floor("bytes"/100.000000)*100.000000`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
@@ -2193,15 +1671,15 @@ var AggregationTests2 = []AggregationTestCase{
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank"
 			  FROM (
-				SELECT floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
+				SELECT floor("bytes"/100)*100 AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0",
+				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0",
 				  count(*) AS "aggr__2__3__count"
 				FROM ` + TableName + `
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
-				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
+				GROUP BY floor("bytes"/100)*100 AS "aggr__2__key_0",
+				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
 	},
 	{ // [50] TODO: what about nulls in histogram? Maybe they should be treated like in terms?
@@ -2328,7 +1806,7 @@ var AggregationTests2 = []AggregationTestCase{
 							"3": {
 								"buckets": [
 									{
-										"key": null,
+										"key": 5,
 										"doc_count": 1
 									}
 								]
@@ -2348,19 +1826,6 @@ var AggregationTests2 = []AggregationTestCase{
 			"timed_out": false,
 			"took": 10
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(6))}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 9100.0),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", 9700.0),
-					model.NewQueryResultCol("doc_count", 2),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 9100.0),
@@ -2371,21 +1836,9 @@ var AggregationTests2 = []AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", 9700.0),
 				model.NewQueryResultCol("aggr__2__count", 2),
-				model.NewQueryResultCol("aggr__2__3__key_0", nil),
+				model.NewQueryResultCol("aggr__2__3__key_0", 5),
 				model.NewQueryResultCol("aggr__2__3__count", 1),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
-			`SELECT floor("bytes"/100.000000)*100.000000, count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
-				`GROUP BY floor("bytes"/100.000000)*100.000000 ` +
-				`ORDER BY floor("bytes"/100.000000)*100.000000`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3__key_0",
@@ -2398,15 +1851,15 @@ var AggregationTests2 = []AggregationTestCase{
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
 				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank"
 			  FROM (
-				SELECT floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
+				SELECT floor("bytes"/100)*100 AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0",
+				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0",
 				  count(*) AS "aggr__2__3__count"
 				FROM ` + TableName + `
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
-				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
-				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
+				GROUP BY floor("bytes"/100)*100 AS "aggr__2__key_0",
+				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
 	},
 	{ // [51]
@@ -2527,153 +1980,67 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__count", 1036),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", int64(1036)),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__count", 1036),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", int64(1036)),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "b12"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(24)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "b21"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 17),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 20 BY "surname"`,
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname"`,
-			`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__8__count", "aggr__2__8__5__parent_count",
-			  "aggr__2__8__5__key_0", "aggr__2__8__5__count", "aggr__2__8__5__order_1"
+			  "aggr__2__8__count", "aggr__2__8__5__parent_count", "aggr__2__8__5__key_0",
+			  "aggr__2__8__5__count"
 			FROM (
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__8__count", "aggr__2__8__5__parent_count",
-				"aggr__2__8__5__key_0", "aggr__2__8__5__count", "aggr__2__8__5__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
+				"aggr__2__8__count", "aggr__2__8__5__parent_count", "aggr__2__8__5__key_0",
+				"aggr__2__8__5__count",
+				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__5__order_1" DESC, "aggr__2__8__5__key_0" ASC) AS
+				"aggr__2__8__5__count" DESC, "aggr__2__8__5__key_0" ASC) AS
 				"aggr__2__8__5__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__8__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__5__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0",
-				  count(*) AS "aggr__2__8__5__count", count() AS "aggr__2__8__5__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__2__8__5__count"
+				FROM __quesma_table_name
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__5__order_1_rank"<=20)
@@ -2802,156 +2169,1046 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1720352001739
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "__missing__"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("count()", 34),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__count", 1036),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", int64(1036)),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(21)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
 				model.NewQueryResultCol("aggr__2__count", int64(1036)),
-				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__count", 1036),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", int64(1036)),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "b12"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(24)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "b21"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", 34290),
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
 				model.NewQueryResultCol("aggr__2__count", int64(34)),
-				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__parent_count", 34),
 				model.NewQueryResultCol("aggr__2__8__5__key_0", "__missing__"),
 				model.NewQueryResultCol("aggr__2__8__5__count", int64(17)),
-				model.NewQueryResultCol("aggr__2__8__5__order_1", 17),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 20 BY "surname"`,
-			`WITH cte_1 AS (` +
-				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200) ` +
-				`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname"`,
-			`SELECT "surname", count() ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__8__count", "aggr__2__8__5__parent_count",
-			  "aggr__2__8__5__key_0", "aggr__2__8__5__count", "aggr__2__8__5__order_1"
+			  "aggr__2__8__count", "aggr__2__8__5__parent_count", "aggr__2__8__5__key_0",
+			  "aggr__2__8__5__count"
 			FROM (
 			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__8__count", "aggr__2__8__5__parent_count",
-				"aggr__2__8__5__key_0", "aggr__2__8__5__count", "aggr__2__8__5__order_1",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
+				"aggr__2__8__count", "aggr__2__8__5__parent_count", "aggr__2__8__5__key_0",
+				"aggr__2__8__5__count",
+				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__5__order_1" DESC, "aggr__2__8__5__key_0" ASC) AS
+				"aggr__2__8__5__count" DESC, "aggr__2__8__5__key_0" ASC) AS
 				"aggr__2__8__5__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count()) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__8__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__8__5__parent_count",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0",
-				  count(*) AS "aggr__2__8__5__count", count() AS "aggr__2__8__5__order_1"
-				FROM ` + TableName + `
+				  count(*) AS "aggr__2__8__5__count"
+				FROM __quesma_table_name
 				GROUP BY "surname" AS "aggr__2__key_0",
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__5__key_0"))
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__5__order_1_rank"<=20)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__5__order_1_rank" ASC`,
+	},
+	{ // [53]
+		TestName: "terms order by quantile, simplest - only one percentile",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"aggs": {
+								"2": {
+									"percentiles": {
+										"field": "docker.cpu.total.pct",
+										"keyed": false,
+										"percents": [
+								  			75
+										]
+									}
+								}
+							},
+							"terms": {
+								"field": "container.name",
+								"order": {
+									"2.75": "desc"
+								},
+								"shard_size": 25,
+								"size": 5
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "@timestamp",
+						"fixed_interval": "12h",
+						"min_doc_count": 1
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "docker.container.created",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"bool": {
+								"minimum_should_match": 1,
+								"should": [
+									{
+										"term": {
+				  							"data_stream.dataset": {
+												"value": "docker.cpu"
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"range": {
+								"@timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-08-18T07:54:12.291Z",
+									"lte": "2024-09-02T07:54:12.291Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1720352002293,
+			"expiration_time_in_millis": 1720352062445,
+			"id": "FnpTUXdfTTZLUlBtQVo1YzBTVFBseEEcM19IaHdFWG5RN1d1eV9VaUcxenYwdzo0MTc0MA==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"key": 1706011200000,
+								"key_as_string": "2024-01-23T12:00:00.000",
+								"doc_count": 5,
+								"1": {
+									"buckets": [
+										{
+											"key": "x",
+											"doc_count": 2,
+											"2": {
+												"values": [
+													{
+														"key": 75,
+														"value": 349.95000000000005
+													}
+												]
+											}
+										},
+ 										{
+											"key": "y",
+											"doc_count": 1,
+											"2": {
+												"values": [
+													{
+														"key": 75,
+														"value": 100.2
+													}
+												]
+											}
+										}
+									],
+									"sum_other_doc_count": 2
+								}
+							},
+							{
+								"key": 1706054400000,
+								"key_as_string": "2024-01-24T00:00:00.000",
+								"doc_count": 5,
+								"1": {
+									"buckets": [
+										{
+											"key": "a",
+											"doc_count": 3,
+											"2": {
+												"values": [
+													{
+														"key": 75,
+														"value": 5
+													}
+												]
+											}
+										}
+									],
+									"sum_other_doc_count": 2
+								}
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 50427
+					}
+				},
+				"timed_out": false,
+				"took": 554
+			},
+			"start_time_in_millis": 1720352001739
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706011200000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "x"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(2)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 349.95000000000005),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{349.95000000000005}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706011200000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "y"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(1)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 100.2),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{100.2}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706054400000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "a"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(3)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 5),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{5}),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
+			  "aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
+			  "metric__0__1__2_col_0"
+			FROM (
+			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
+				"aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
+				"metric__0__1__2_col_0",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__order_1_rank"
+			  FROM (
+				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
+				  "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
+				  "aggr__0__1__parent_count", "container.name" AS "aggr__0__1__key_0",
+				  count(*) AS "aggr__0__1__count",
+				  quantiles(0.750000)("docker.cpu.total.pct") AS "aggr__0__1__order_1",
+				  quantiles(0.750000)("docker.cpu.total.pct") AS "metric__0__1__2_col_0"
+				FROM __quesma_table_name
+				WHERE ("data_stream.dataset"='docker.cpu' AND ("@timestamp">=
+				  parseDateTime64BestEffort('2024-08-18T07:54:12.291Z') AND "@timestamp"<=
+				  parseDateTime64BestEffort('2024-09-02T07:54:12.291Z')))
+				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
+				  "aggr__0__key_0", "container.name" AS "aggr__0__1__key_0"))
+			WHERE "aggr__0__1__order_1_rank"<=6
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+	},
+	{ // [54]
+		TestName: "terms order by quantile - more percentiles",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"aggs": {
+								"2": {
+									"percentiles": {
+										"field": "docker.cpu.total.pct",
+										"keyed": false,
+										"percents": [
+								  			10, 75, 99
+										]
+									}
+								}
+							},
+							"terms": {
+								"field": "container.name",
+								"order": {
+									"2.75": "desc"
+								},
+								"shard_size": 25,
+								"size": 5
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "@timestamp",
+						"fixed_interval": "12h",
+						"min_doc_count": 1
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "docker.container.created",
+					"format": "date_time"
+				}
+			],
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1720352002293,
+			"expiration_time_in_millis": 1720352062445,
+			"id": "FnpTUXdfTTZLUlBtQVo1YzBTVFBseEEcM19IaHdFWG5RN1d1eV9VaUcxenYwdzo0MTc0MA==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"key": 1706011200000,
+								"key_as_string": "2024-01-23T12:00:00.000",
+								"doc_count": 5,
+								"1": {
+									"buckets": [
+										{
+											"key": "x",
+											"doc_count": 2,
+											"2": {
+												"values": [
+													{
+														"key": 10,
+														"value": 349.95000000000005
+													},
+													{
+														"key": 75,
+														"value": 10.1
+													},
+													{
+														"key": 99,
+														"value": 20.2
+													}
+												]
+											}
+										},
+ 										{
+											"key": "y",
+											"doc_count": 1,
+											"2": {
+												"values": [
+													{
+														"key": 10,
+														"value": 100.2
+													},
+													{
+														"key": 75,
+														"value": 11.1
+													},
+													{
+														"key": 99,
+														"value": 21.2
+													}
+												]
+											}
+										}
+									],
+									"sum_other_doc_count": 2
+								}
+							},
+							{
+								"key": 1706054400000,
+								"key_as_string": "2024-01-24T00:00:00.000",
+								"doc_count": 5,
+								"1": {
+									"buckets": [
+										{
+											"key": "a",
+											"doc_count": 3,
+											"2": {
+												"values": [
+													{
+														"key": 10,
+														"value": 5
+													},
+													{
+														"key": 75,
+														"value": 12.1
+													},
+													{
+														"key": 99,
+														"value": 22.2
+													}
+												]
+											}
+										}
+									],
+									"sum_other_doc_count": 2
+								}
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 50427
+					}
+				},
+				"timed_out": false,
+				"took": 554
+			},
+			"start_time_in_millis": 1720352001739
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706011200000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "x"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(2)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 349.95000000000005),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{349.95000000000005}),
+				model.NewQueryResultCol("metric__0__1__2_col_1", []float64{10.1}),
+				model.NewQueryResultCol("metric__0__1__2_col_2", []float64{20.2}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706011200000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "y"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(1)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 100.2),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{100.2}),
+				model.NewQueryResultCol("metric__0__1__2_col_1", []float64{11.1}),
+				model.NewQueryResultCol("metric__0__1__2_col_2", []float64{21.2}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1706054400000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(5)),
+				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
+				model.NewQueryResultCol("aggr__0__1__key_0", "a"),
+				model.NewQueryResultCol("aggr__0__1__count", int64(3)),
+				model.NewQueryResultCol("aggr__0__1__order_1", 5),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{5}),
+				model.NewQueryResultCol("metric__0__1__2_col_1", []float64{12.1}),
+				model.NewQueryResultCol("metric__0__1__2_col_2", []float64{22.2}),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
+			  "aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
+			  "metric__0__1__2_col_0", "metric__0__1__2_col_1", "metric__0__1__2_col_2"
+			FROM (
+			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
+				"aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
+				"metric__0__1__2_col_0", "metric__0__1__2_col_1", "metric__0__1__2_col_2",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
+				,
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__order_1_rank"
+			  FROM (
+				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
+				  "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
+				  "aggr__0__1__parent_count", "container.name" AS "aggr__0__1__key_0",
+				  count(*) AS "aggr__0__1__count",
+				  quantiles(0.750000)("docker.cpu.total.pct") AS "aggr__0__1__order_1",
+				  quantiles(0.100000)("docker.cpu.total.pct") AS "metric__0__1__2_col_0",
+				  quantiles(0.750000)("docker.cpu.total.pct") AS "metric__0__1__2_col_1",
+				  quantiles(0.990000)("docker.cpu.total.pct") AS "metric__0__1__2_col_2"
+				FROM __quesma_table_name
+				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
+				  "aggr__0__key_0", "container.name" AS "aggr__0__1__key_0"))
+			WHERE "aggr__0__1__order_1_rank"<=6
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+	},
+	{ // [55]
+		TestName: "simple histogram with null values, no missing parameter",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"sample": {
+					"aggs": {
+						"histo": {
+							"histogram": {
+								"field": "taxful_total_price",
+								"interval": 224.19300000000004
+							}
+						}
+					},
+					"sampler": {
+						"shard_size": 5000
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 0,
+			"expiration_time_in_millis": 0,
+			"id": "quesma_async_0191e0d2-589d-7dd9-8ac9-7f51fdf2f8af",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"sample": {
+						"doc_count": 1978,
+						"histo": {
+							"buckets": [
+								{
+									"doc_count": 1960,
+									"key": 0
+								},
+								{
+									"doc_count": 17,
+									"key": 224.19300000000004
+								}
+							]
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 5934
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__sample__histo__count", 1960),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", 224.19300000000004),
+				model.NewQueryResultCol("aggr__sample__histo__count", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", nil),
+				model.NewQueryResultCol("aggr__sample__histo__count", 1),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__sample__count",
+			  floor("taxful_total_price"/224.19300000000004)*224.19300000000004 AS
+			  "aggr__sample__histo__key_0", count(*) AS "aggr__sample__histo__count"
+			FROM (
+			  SELECT "taxful_total_price"
+			  FROM __quesma_table_name
+			  LIMIT 20000)
+			GROUP BY floor("taxful_total_price"/224.19300000000004)*224.19300000000004 AS
+			  "aggr__sample__histo__key_0"
+			ORDER BY "aggr__sample__histo__key_0" ASC`,
+	},
+	{ // [56]
+		TestName: "histogram with null values, no missing parameter, and some subaggregation",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"histo": {
+					"histogram": {
+						"field": "taxful_total_price",
+						"interval": 224.19300000000004
+					},
+					"aggs": {
+						"0": {
+							"terms": {
+								"field": "type"
+							}
+						}
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 0,
+			"expiration_time_in_millis": 0,
+			"id": "quesma_async_0191e0d2-589d-7dd9-8ac9-7f51fdf2f8af",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"histo": {
+						"buckets": [
+							{
+								"doc_count": 1960,
+								"key": 0,
+								"0": {
+									"buckets": [
+										{
+											"doc_count": 42,
+											"key": "order"
+										},
+										{
+											"doc_count": 1,
+											"key": "disorder"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 1917
+								}
+							},
+							{
+								"doc_count": 17,
+								"key": 224.19300000000004
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 5934
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "disorder"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 224.19300000000004),
+				model.NewQueryResultCol("aggr__histo__count", 17),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 17),
+				model.NewQueryResultCol("aggr__histo__0__key_0", nil),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", nil),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "a"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", nil),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "b"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__histo__key_0", "aggr__histo__count",
+			  "aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+			  "aggr__histo__0__count"
+			FROM (
+			  SELECT "aggr__histo__key_0", "aggr__histo__count",
+				"aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+				"aggr__histo__0__count",
+				dense_rank() OVER (ORDER BY "aggr__histo__key_0" ASC) AS
+				"aggr__histo__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__histo__key_0" ORDER BY
+				"aggr__histo__0__count" DESC, "aggr__histo__0__key_0" ASC) AS
+				"aggr__histo__0__order_1_rank"
+			  FROM (
+				SELECT floor("taxful_total_price"/224.19300000000004)*224.19300000000004 AS
+				  "aggr__histo__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
+				  count(*) AS "aggr__histo__0__count"
+				FROM __quesma_table_name
+				GROUP BY floor("taxful_total_price"/224.19300000000004)*224.19300000000004
+				  AS "aggr__histo__key_0", "type" AS "aggr__histo__0__key_0"))
+			WHERE "aggr__histo__0__order_1_rank"<=11
+			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
+	},
+	{ // [57]
+		TestName: "simple histogram with null values and missing parameter",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"sample": {
+					"aggs": {
+						"histo": {
+							"histogram": {
+								"field": "taxful_total_price",
+								"interval": 224.19300000000004,
+								"missing": 80
+							}
+						}
+					},
+					"sampler": {
+						"shard_size": 5000
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 0,
+			"expiration_time_in_millis": 0,
+			"id": "quesma_async_0191e0d2-589d-7dd9-8ac9-7f51fdf2f8af",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"sample": {
+						"doc_count": 1978,
+						"histo": {
+							"buckets": [
+								{
+									"doc_count": 1960,
+									"key": 0
+								},
+								{
+									"doc_count": 17,
+									"key": 80
+								},
+								{
+									"doc_count": 1,
+									"key": 224.19300000000004
+								}
+							]
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 5934
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__sample__histo__count", 1960),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", 80),
+				model.NewQueryResultCol("aggr__sample__histo__count", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", 224.19300000000004),
+				model.NewQueryResultCol("aggr__sample__histo__count", 1),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__sample__count",
+			  floor(COALESCE("taxful_total_price", 80)/224.19300000000004)*
+			  224.19300000000004 AS "aggr__sample__histo__key_0",
+			  count(*) AS "aggr__sample__histo__count"
+			FROM (
+			  SELECT "taxful_total_price"
+			  FROM __quesma_table_name
+			  LIMIT 20000)
+			GROUP BY floor(COALESCE("taxful_total_price", 80)/224.19300000000004)*
+			  224.19300000000004 AS "aggr__sample__histo__key_0"
+			ORDER BY "aggr__sample__histo__key_0" ASC`,
+	},
+	{ // [58]
+		TestName: "histogram with null values, missing parameter, and some subaggregation",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"histo": {
+					"histogram": {
+						"field": "taxful_total_price",
+						"interval": 224.19300000000004,
+						"missing": 800
+					},
+					"aggs": {
+						"0": {
+							"terms": {
+								"field": "type"
+							}
+						}
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 0,
+			"expiration_time_in_millis": 0,
+			"id": "quesma_async_0191e0d2-589d-7dd9-8ac9-7f51fdf2f8af",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"histo": {
+						"buckets": [
+							{
+								"doc_count": 1960,
+								"key": 0,
+								"0": {
+									"buckets": [
+										{
+											"doc_count": 42,
+											"key": "order"
+										},
+										{
+											"doc_count": 1,
+											"key": "disorder"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 1917
+								}
+							},
+							{
+								"doc_count": 17,
+								"key": 224.19300000000004
+							},
+							{
+								"doc_count": 15,
+								"key": 800,
+								"0": {
+									"buckets": [
+										{
+											"doc_count": 1,
+											"key": "a"
+										},
+										{
+											"doc_count": 1,
+											"key": "b"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 13
+								}
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 5934
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "disorder"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 224.19300000000004),
+				model.NewQueryResultCol("aggr__histo__count", 17),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 17),
+				model.NewQueryResultCol("aggr__histo__0__key_0", nil),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 800),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "a"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 800),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "b"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__histo__key_0", "aggr__histo__count",
+			  "aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+			  "aggr__histo__0__count"
+			FROM (
+			  SELECT "aggr__histo__key_0", "aggr__histo__count",
+				"aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+				"aggr__histo__0__count",
+				dense_rank() OVER (ORDER BY "aggr__histo__key_0" ASC) AS
+				"aggr__histo__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__histo__key_0" ORDER BY
+				"aggr__histo__0__count" DESC, "aggr__histo__0__key_0" ASC) AS
+				"aggr__histo__0__order_1_rank"
+			  FROM (
+				SELECT floor(COALESCE("taxful_total_price", 800)/224.19300000000004)*
+				  224.19300000000004 AS "aggr__histo__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
+				  count(*) AS "aggr__histo__0__count"
+				FROM __quesma_table_name
+				GROUP BY floor(COALESCE("taxful_total_price", 800)/224.19300000000004)*
+				  224.19300000000004 AS "aggr__histo__key_0",
+				  "type" AS "aggr__histo__0__key_0"))
+			WHERE "aggr__histo__0__order_1_rank"<=11
+			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
 	},
 }

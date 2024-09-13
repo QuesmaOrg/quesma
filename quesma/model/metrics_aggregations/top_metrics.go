@@ -11,25 +11,37 @@ import (
 )
 
 type TopMetrics struct {
-	ctx                context.Context
-	isSortFieldPresent bool
+	ctx       context.Context
+	Size      int
+	SortBy    string
+	SortOrder model.OrderByDirection
 }
 
-func NewTopMetrics(ctx context.Context, isSortFieldPresent bool) TopMetrics {
-	return TopMetrics{ctx: ctx, isSortFieldPresent: isSortFieldPresent}
+func NewTopMetrics(ctx context.Context, size int, sortBy string, sortOrder string) TopMetrics {
+	var order model.OrderByDirection
+	switch sortOrder {
+	case "asc":
+		order = model.AscOrder
+	case "desc":
+		order = model.DescOrder
+	default:
+		logger.WarnWithCtx(ctx).Msgf("invalid sort order: %s, defaulting to desc", sortOrder)
+		order = model.DescOrder
+	}
+	return TopMetrics{ctx: ctx, Size: size, SortBy: sortBy, SortOrder: order}
 }
 
 func (query TopMetrics) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	var topElems []any
-	if len(rows) > 0 && level >= len(rows[0].Cols)-1 {
+	if len(rows) > 0 && 0 >= len(rows[0].Cols)-1 {
 		// values are [level, len(row.Cols) - 1]
 		logger.WarnWithCtx(query.ctx).Msgf(
-			"no columns returned for top_metrics aggregation, level: %d, len(rows[0].Cols): %d, len(rows): %d",
-			level, len(rows[0].Cols), len(rows),
+			"no columns returned for top_metrics aggregation, len(rows[0].Cols): %d, len(rows): %d",
+			len(rows[0].Cols), len(rows),
 		)
 	}
 	for _, row := range rows {
@@ -40,13 +52,13 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 
 		var sortVal []any
 		var valuesForMetrics []model.QueryResultCol
-		if query.isSortFieldPresent {
+		if len(query.SortBy) > 0 {
 			// per convention, we know that value we sorted by is in the last column (if it exists)
 			lastIndex := len(row.Cols) - 1 // last column is the sort column, we don't return it
 			sortVal = append(sortVal, row.Cols[lastIndex].Value)
-			valuesForMetrics = row.Cols[level:lastIndex]
+			valuesForMetrics = row.Cols[:lastIndex]
 		} else {
-			valuesForMetrics = row.Cols[level:]
+			valuesForMetrics = row.Cols
 		}
 
 		metrics := make(model.JsonMap)

@@ -81,7 +81,7 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration, 
 		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
 		transformationPipeline: TransformationPipeline{
 			transformers: []model.QueryTransformer{
-				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry, logManager: lm}, // this can be a part of another plugin
+				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry},
 			},
 		},
 		schemaRegistry:  schemaRegistry,
@@ -95,7 +95,7 @@ func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id str
 
 // returns -1 when table name could not be resolved
 func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int64, error) {
-	indexes, err := q.logManager.ResolveIndexes(ctx, indexPattern)
+	indexes, err := q.logManager.ResolveIndexPattern(ctx, indexPattern)
 	if err != nil {
 		return 0, err
 	}
@@ -182,7 +182,7 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 
 		translatedQueryBody, results, err := q.searchWorker(ctx, plan, table, doneCh, optAsync)
 		if err != nil {
-			doneCh <- AsyncSearchWithError{err: err}
+			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 			return
 		}
 
@@ -537,12 +537,12 @@ func (q *QueryRunner) runQueryJobsSequence(ctx context.Context, jobs []QueryJob)
 	var performance = make([]clickhouse.PerformanceResult, 0)
 	for _, job := range jobs {
 		rows, perf, err := job(ctx)
+		performance = append(performance, perf)
 		if err != nil {
-			return nil, nil, err
+			return nil, performance, err
 		}
 
 		results = append(results, rows)
-		performance = append(performance, perf)
 	}
 	return results, performance, nil
 }
@@ -583,11 +583,11 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 	// consume
 	for range len(jobs) {
 		res := <-collector
+		performances[res.jobId] = res.perf
 		if res.err == nil {
 			results[res.jobId] = res.rows
-			performances[res.jobId] = res.perf
 		} else {
-			return nil, nil, res.err
+			return nil, performances, res.err
 		}
 	}
 
@@ -631,7 +631,8 @@ func (q *QueryRunner) makeJob(table *clickhouse.Table, query *model.Query) Query
 
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
-			return nil, clickhouse.PerformanceResult{}, err
+			performance.Error = err
+			return nil, performance, err
 		}
 
 		return rows, performance, nil
@@ -679,6 +680,17 @@ func (q *QueryRunner) searchWorkerCommon(
 
 	jobResults, performance, err := q.runQueryJobs(ctx, jobs)
 	if err != nil {
+		for jobId, resultPosition := range jobHitsPosition {
+
+			if jobId < len(performance) {
+				p := performance[jobId]
+				translatedQueryBody[resultPosition].QueryID = p.QueryID
+				translatedQueryBody[resultPosition].Duration = p.Duration
+				translatedQueryBody[resultPosition].ExplainPlan = p.ExplainPlan
+				translatedQueryBody[resultPosition].RowsReturned = p.RowsReturned
+				translatedQueryBody[resultPosition].Error = p.Error
+			}
+		}
 		return
 	}
 
@@ -753,17 +765,37 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 
 func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
-	transformer := &replaceColumNamesWithFieldNames{}
-
-	res, err := transformer.Transform(results)
-
-	if err != nil {
-		return nil, err
+	pipeline := []struct {
+		name        string
+		transformer model.ResultTransformer
+	}{
+		{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{}},
+		{"geoIpResultTransformer", &GeoIpResultTransformer{schemaRegistry: q.schemaRegistry, fromTable: table.Name}},
+		{"arrayResultTransformer", &ArrayResultTransformer{}},
 	}
 
-	// TODO this should be created in different place
-	geoIpTransformer := GeoIpResultTransformer{schemaRegistry: q.schemaRegistry, fromTable: table.Name}
-	return geoIpTransformer.Transform(res)
+	var err error
+	for _, t := range pipeline {
+
+		// TODO we should check if the transformer is applicable here
+		// for example if the schema doesn't hava array fields, we should skip the arrayResultTransformer
+		// these transformers can be cpu and mem consuming
+
+		results, err = t.transformer.Transform(results)
+		if err != nil {
+			return nil, fmt.Errorf("resuls transformer %s has failed: %w", t.name, err)
+		}
+	}
+
+	return results, nil
+}
+
+func pushPrimaryInfo(qmc *ui.QuesmaManagementConsole, Id string, QueryResp []byte, startTime time.Time) {
+	qmc.PushPrimaryInfo(&ui.QueryDebugPrimarySource{
+		Id:          Id,
+		QueryResp:   QueryResp,
+		PrimaryTook: time.Since(startTime),
+	})
 }
 
 func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []types.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {

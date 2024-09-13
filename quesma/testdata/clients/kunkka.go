@@ -21,8 +21,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				"0": {
 					"date_histogram": {
 						"field": "@timestamp",
-						"calendar_interval": "1h",
-						"time_zone": "Europe/Warsaw"
+						"calendar_interval": "1h"
 					},
 					"aggs": {
 						"1": {
@@ -147,49 +146,6 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			},
 			"start_time_in_millis": 1718983683775
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(37))}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718794800000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("spent")`, 6.600000023841858),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718798400000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("spent")`, 12.100000143051147),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718802000000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("spent")`, 4.399999976158142),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718802000000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("spent")`, 1.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718802000000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718794800000/3600000)),
-					model.NewQueryResultCol(`count()`, 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718798400000/3600000)),
-					model.NewQueryResultCol(`count()`, 3),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718802000000/3600000)),
-					model.NewQueryResultCol(`count()`, 2),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__key_0", int64(1718794800000/3600000)),
@@ -212,27 +168,6 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__2-bucket___col_0", uint64(1)),
 				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 1.0),
 			}},
-		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM (SELECT 1 FROM ` + testdata.TableName + ` LIMIT 10000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("spent") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ` + fullTextFieldName + ` iLIKE '%started%' ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ` + fullTextFieldName + ` iLIKE '%started%' ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
@@ -347,8 +282,8 @@ var KunkkaTests = []testdata.AggregationTestCase{
 									"doc_count": 0
 								},
 								"doc_count": 2,
-								"key": 1718794800000,
-								"key_as_string": "2024-06-19T11:00:00.000"
+								"key": 1718787600000,
+								"key_as_string": "2024-06-19T09:00:00.000"
 							},
 							{
 								"1": {
@@ -361,8 +296,8 @@ var KunkkaTests = []testdata.AggregationTestCase{
 									"doc_count": 0
 								},
 								"doc_count": 3,
-								"key": 1718798400000,
-								"key_as_string": "2024-06-19T12:00:00.000"
+								"key": 1718791200000,
+								"key_as_string": "2024-06-19T10:00:00.000"
 							},
 							{
 								"1": {
@@ -375,8 +310,8 @@ var KunkkaTests = []testdata.AggregationTestCase{
 									"doc_count": 1
 								},
 								"doc_count": 2,
-								"key": 1718802000000,
-								"key_as_string": "2024-06-19T13:00:00.000"
+								"key": 1718794800000,
+								"key_as_string": "2024-06-19T11:00:00.000"
 							}
 						]
 					}
@@ -394,49 +329,6 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			},
 			"start_time_in_millis": 1718983683775
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(37))}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718794800000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("spent")`, 6.600000023841858),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718798400000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("spent")`, 12.100000143051147),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718802000000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("spent")`, 4.399999976158142),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718802000000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("spent")`, 1.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718802000000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718794800000/3600000)),
-					model.NewQueryResultCol(`count()`, 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718798400000/3600000)),
-					model.NewQueryResultCol(`count()`, 3),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718802000000/3600000)),
-					model.NewQueryResultCol(`count()`, 2),
-				}},
-			},
-		},
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__key_0", int64(1718794800000/3600000)),
@@ -460,37 +352,17 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 1.0),
 			}},
 		},
-		ExpectedSQLs: []string{
-			`SELECT count() FROM (SELECT 1 FROM ` + testdata.TableName + ` LIMIT 10000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("spent") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "message" iLIKE '%started%' ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "message" iLIKE '%started%' ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-		},
 		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
-			  "aggr__0__key_0", count(*) AS "aggr__0__count",
+			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+  			  "@timestamp", 'Europe/Warsaw'))*1000) / 3600000) AS "aggr__0__key_0",
+			  count(*) AS "aggr__0__count",
 			  sumOrNull("spent") AS "metric__0__1_col_0",
 			  countIf(` + fullTextFieldName + ` iLIKE '%started%') AS "aggr__0__2-bucket__count",
 			  sumOrNullIf("multiplier", ` + fullTextFieldName + ` iLIKE '%started%') AS
 			  "metric__0__2-bucket__2-metric_col_0"
 			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
-			  "aggr__0__key_0"
+			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+  			  "@timestamp", 'Europe/Warsaw'))*1000) / 3600000) AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 	},
 	{ // [2]
@@ -955,367 +827,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			},
 			"start_time_in_millis": 1718989977671
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(181))}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("count()", uint64(181))}}},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`count()`, 3),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718413200000/3600000)),
-					model.NewQueryResultCol(`count()`, 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`count()`, 6),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718503200000/3600000)),
-					model.NewQueryResultCol(`count()`, 2),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718578800000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("earned")`, 4.400000095367432),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718413200000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("earned")`, 4.400000095367432),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("earned")`, 15.400000095367432),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718503200000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("earned")`, 6.6000001430511475),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718578800000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("earned")`, 0.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 2.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 3.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 1.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 1.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 1.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 1.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 2.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 3.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718496000000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 3.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`count()`, 6),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718542800000/3600000)),
-					model.NewQueryResultCol(`count()`, 3),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("earned")`, 15.400000095367432),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718542800000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("earned")`, 5.5),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718542800000/3600000)),
-					model.NewQueryResultCol(`count()`, 3),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 3.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718542800000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 9.0),
-				}},
-			},
-			{},
-			{},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718542800000/3600000)),
-					model.NewQueryResultCol(`count()`, 3),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 1.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718542800000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 9.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`, int64(1718409600000/3600000)),
-					model.NewQueryResultCol(`sumOrNull("multiplier")`, 3.0),
-				}},
-			},
-			{},
-		},
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE "isOK"==false`,
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z')))`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("earned") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%abc%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%abc%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%bcd%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%bcd%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%cde%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%cde%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%abc%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-02T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-21T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%abc%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z')))`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("earned") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE ("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%abc%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%abc%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%bcd%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%bcd%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%cde%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%cde%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%abc%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("multiplier") ` +
-				`FROM ` + testdata.TableName + ` ` +
-				`WHERE (("isOK"==false AND ("@timestamp">=parseDateTime64BestEffort('2024-06-01T17:16:16.749Z') AND ` +
-				`"@timestamp"<=parseDateTime64BestEffort('2024-06-20T21:59:59.999Z'))) ` +
-				`AND "message" iLIKE '%abc%') ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL:     "TODO",
 	},
 }

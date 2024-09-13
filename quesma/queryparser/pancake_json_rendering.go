@@ -8,7 +8,9 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"quesma/model/metrics_aggregations"
 	"quesma/util"
+	"strconv"
 	"strings"
 )
 
@@ -38,7 +40,40 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 	return
 }
 
+// selectTopHitsRows: select columns for top_hits/top_metrics and rename them to original column names.
+// There is refactoring opportunity once we move completely to pancakes and remove re-name logic from this method.
+func (p *pancakeJSONRenderer) selectTopHitsRows(topAggr *pancakeModelMetricAggregation, rows []model.QueryResultRow) (result []model.QueryResultRow) {
+	for _, row := range rows {
+		var newCols []model.QueryResultCol
+		for _, col := range row.Cols {
+			if strings.HasPrefix(col.ColName, topAggr.InternalNamePrefix()) {
+				numStr := strings.TrimPrefix(col.ColName, topAggr.InternalNamePrefix())
+				if num, err := strconv.Atoi(numStr); err == nil {
+					var overrideName string
+					if num < 0 || num >= len(topAggr.selectedColumns) {
+						logger.WarnWithCtx(p.ctx).Msgf("invalid top_hits column index %d", num)
+					} else {
+						selectedColumn := topAggr.selectedColumns[num]
+						if colRef, ok := selectedColumn.(model.ColumnRef); ok {
+							overrideName = colRef.ColumnName
+						}
+					}
+					if len(overrideName) > 0 {
+						col.ColName = overrideName
+					}
+					newCols = append(newCols, col)
+				}
+			}
+		}
+		result = append(result, model.QueryResultRow{Index: row.Index, Cols: newCols})
+	}
+	return
+}
+
 func (p *pancakeJSONRenderer) selectPrefixRows(prefix string, rows []model.QueryResultRow) (result []model.QueryResultRow) {
+	if prefix == "" {
+		return rows
+	}
 	for _, row := range rows {
 		var newCols []model.QueryResultCol
 		for _, col := range row.Cols {
@@ -140,7 +175,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 	switch queryType := layer.nextBucketAggregation.queryType.(type) {
 	case bucket_aggregations.SamplerInterface, bucket_aggregations.FilterAgg:
 		selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), rows)
-		aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows, 0)
+		aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows)
 		subAggr, err := p.layerToJSON(remainingLayers[1:], rows)
 		if err != nil {
 			return nil, err
@@ -195,8 +230,14 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 	layer := remainingLayers[0]
 
 	for _, metric := range layer.currentMetricAggregations {
-		metricRows := p.selectMetricRows(metric.internalName+"_col_", rows)
-		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
+		var metricRows []model.QueryResultRow
+		switch metric.queryType.(type) {
+		case metrics_aggregations.TopMetrics, metrics_aggregations.TopHits:
+			metricRows = p.selectTopHitsRows(metric, rows)
+		default:
+			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
+		}
+		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows)
 		// TODO: maybe add metadata also here? probably not needed
 	}
 
@@ -220,7 +261,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
 		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
 
-		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, 0)
+		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows)
 
 		if len(buckets) == 0 { // without this we'd generate {"buckets": []} in the response, which Elastic doesn't do.
 			if layer.nextBucketAggregation.metadata != nil {

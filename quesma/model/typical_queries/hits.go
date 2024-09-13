@@ -21,14 +21,15 @@ import (
 // We treat it here as if it was a normal aggregation, even though it's technically not completely correct.
 // But it works, and because of that we can unify response creation part of Quesma, so it's very useful.
 type Hits struct {
-	ctx            context.Context
-	table          *clickhouse.Table
-	highlighter    *model.Highlighter
-	sortFieldNames []string
-	addSource      bool // true <=> we add hit.Source field to the response
-	addScore       bool // true <=> we add hit.Score field to the response (whose value is always 1)
-	addVersion     bool // true <=> we add hit.Version field to the response (whose value is always 1)
-	indexName      string
+	ctx                context.Context
+	table              *clickhouse.Table
+	highlighter        *model.Highlighter
+	sortFieldNames     []string
+	addSource          bool // true <=> we add hit.Source field to the response
+	addScore           bool // true <=> we add hit.Score field to the response (whose value is always 1)
+	addVersion         bool // true <=> we add hit.Version field to the response (whose value is always 1)
+	indexName          string
+	timestampFieldName string
 }
 
 func NewHits(ctx context.Context, table *clickhouse.Table, highlighter *model.Highlighter,
@@ -47,7 +48,7 @@ func (query Hits) AggregationType() model.AggregationType {
 	return model.TypicalAggregation
 }
 
-func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	hits := make([]model.SearchHit, 0, len(rows))
 	for i, row := range rows {
 		hit := model.NewSearchHit(query.indexName)
@@ -132,11 +133,18 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 	}
 }
 
+func (query Hits) WithTimestampField(fieldName string) Hits {
+	query.timestampFieldName = fieldName
+	return query
+}
+
 func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) string {
-	tsFieldName, err := query.table.GetTimestampFieldName()
-	if err != nil {
+
+	if query.timestampFieldName == "" {
 		return defaultID
 	}
+
+	tsFieldName := query.timestampFieldName
 
 	var pseudoUniqueId string
 

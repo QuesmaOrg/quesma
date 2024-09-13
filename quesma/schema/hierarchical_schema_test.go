@@ -9,12 +9,12 @@ import (
 
 func Test_SchemaToHierarchicalSchema(t *testing.T) {
 	s := NewSchemaWithAliases(map[FieldName]Field{
-		"id":                     {PropertyName: "id", InternalPropertyName: "id", Type: TypeInteger},
-		"total_amount":           {PropertyName: "total_amount", InternalPropertyName: "total_amount", Type: TypeFloat},
-		"product.name":           {PropertyName: "product.name", InternalPropertyName: "product::name", Type: TypeText},
-		"product.product_id":     {PropertyName: "product.product_id", InternalPropertyName: "product::product_id", Type: TypeInteger},
-		"triple.nested.example1": {PropertyName: "triple.nested.example1", InternalPropertyName: "triple::nested::example1", Type: TypeText},
-		"triple.nested.example2": {PropertyName: "triple.nested.example2", InternalPropertyName: "triple::nested::example2", Type: TypeKeyword},
+		"id":                     {PropertyName: "id", InternalPropertyName: "id", Type: QuesmaTypeInteger},
+		"total_amount":           {PropertyName: "total_amount", InternalPropertyName: "total_amount", Type: QuesmaTypeFloat},
+		"product.name":           {PropertyName: "product.name", InternalPropertyName: "product::name", Type: QuesmaTypeText},
+		"product.product_id":     {PropertyName: "product.product_id", InternalPropertyName: "product::product_id", Type: QuesmaTypeInteger},
+		"triple.nested.example1": {PropertyName: "triple.nested.example1", InternalPropertyName: "triple::nested::example1", Type: QuesmaTypeText},
+		"triple.nested.example2": {PropertyName: "triple.nested.example2", InternalPropertyName: "triple::nested::example2", Type: QuesmaTypeKeyword},
 	}, map[FieldName]FieldName{}, true)
 
 	hs := SchemaToHierarchicalSchema(&s)

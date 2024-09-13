@@ -1,13 +1,14 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
 
-package clickhouse
+package ingest
 
 import (
 	"context"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"quesma/clickhouse"
 	"quesma/concurrent"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -38,16 +39,16 @@ func TestGetTypeName(t *testing.T) {
 }
 
 func TestValidateIngest(t *testing.T) {
-	floatCol := &Column{Name: "float_field", Type: BaseType{
+	floatCol := &clickhouse.Column{Name: "float_field", Type: clickhouse.BaseType{
 		Name:   "Float64",
-		goType: NewBaseType("float64").goType,
+		GoType: clickhouse.NewBaseType("float64").GoType,
 	}}
 
 	invalidJson := validateValueAgainstType("float", 1, floatCol)
 	assert.Equal(t, 0, len(invalidJson))
-	StringCol := &Column{Name: "float_field", Type: BaseType{
+	StringCol := &clickhouse.Column{Name: "float_field", Type: clickhouse.BaseType{
 		Name:   "String",
-		goType: NewBaseType("string").goType,
+		GoType: clickhouse.NewBaseType("string").GoType,
 	}}
 
 	invalidJson = validateValueAgainstType("string", 1, StringCol)
@@ -64,13 +65,6 @@ func EscapeBrackets(s string) string {
 }
 
 func TestIngestValidation(t *testing.T) {
-
-	quesmaConfig := &config.QuesmaConfiguration{
-		IndexConfig: map[string]config.IndexConfiguration{
-			"test_table": {},
-		},
-	}
-
 	// Trying to ingest a field with a different type than the one defined in the table
 	// will end with populating attributes_string_key with the field name and attributes_string_value with the field value
 	inputJson := []string{
@@ -129,42 +123,42 @@ func TestIngestValidation(t *testing.T) {
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"uint8_field":255}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"uint8_field":"1000"},"attributes_metadata":{"uint8_field":"v1;Int64"}}`, tableName),
 	}
-	tableMap := concurrent.NewMapWith(tableName, &Table{
+	tableMap := concurrent.NewMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: NewChTableConfigFourAttrs(),
-		Cols: map[string]*Column{
-			"string_field": {Name: "string_field", Type: BaseType{
+		Cols: map[string]*clickhouse.Column{
+			"string_field": {Name: "string_field", Type: clickhouse.BaseType{
 				Name:   "String",
-				goType: NewBaseType("String").goType,
+				GoType: clickhouse.NewBaseType("String").GoType,
 			}},
-			"int_field": {Name: "int_field", Type: BaseType{
+			"int_field": {Name: "int_field", Type: clickhouse.BaseType{
 				Name:   "Int64",
-				goType: NewBaseType("Int64").goType,
+				GoType: clickhouse.NewBaseType("Int64").GoType,
 			}},
-			"int32_field": {Name: "int32_field", Type: BaseType{
+			"int32_field": {Name: "int32_field", Type: clickhouse.BaseType{
 				Name:   "Int32",
-				goType: NewBaseType("Int32").goType,
+				GoType: clickhouse.NewBaseType("Int32").GoType,
 			}},
-			"uint8_field": {Name: "uint8_field", Type: BaseType{
+			"uint8_field": {Name: "uint8_field", Type: clickhouse.BaseType{
 				Name:   "UInt8",
-				goType: NewBaseType("UInt8").goType,
+				GoType: clickhouse.NewBaseType("UInt8").GoType,
 			}},
-			"float_field": {Name: "float_field", Type: BaseType{
+			"float_field": {Name: "float_field", Type: clickhouse.BaseType{
 				Name:   "Float32",
-				goType: NewBaseType("Float32").goType,
+				GoType: clickhouse.NewBaseType("Float32").GoType,
 			}},
-			"string_array_field": {Name: "string_array_field", Type: CompoundType{
+			"string_array_field": {Name: "string_array_field", Type: clickhouse.CompoundType{
 				Name: "Array",
-				BaseType: BaseType{
+				BaseType: clickhouse.BaseType{
 					Name:   "String",
-					goType: NewBaseType("String").goType,
+					GoType: clickhouse.NewBaseType("String").GoType,
 				},
 			}},
-			"int_array_field": {Name: "int_array_field", Type: CompoundType{
+			"int_array_field": {Name: "int_array_field", Type: clickhouse.CompoundType{
 				Name: "Array",
-				BaseType: BaseType{
+				BaseType: clickhouse.BaseType{
 					Name:   "Int64",
-					goType: NewBaseType("Int64").goType,
+					GoType: clickhouse.NewBaseType("Int64").GoType,
 				},
 			}},
 		},
@@ -172,15 +166,14 @@ func TestIngestValidation(t *testing.T) {
 	})
 	for i := range inputJson {
 		db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-		lm := NewLogManagerEmpty()
-		lm.chDb = db
-		lm.cfg = quesmaConfig
-		lm.tableDiscovery = newTableDiscoveryWith(quesmaConfig, nil, *tableMap)
+		ip := NewIngestProcessorEmpty()
+		ip.chDb = db
+		ip.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
 
 		defer db.Close()
 
 		mock.ExpectExec(EscapeBrackets(expectedInsertJsons[i])).WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 0))
-		err := lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON((inputJson[i]))}, &IngestTransformer{}, &columNameFormatter{separator: "::"})
+		err := ip.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON((inputJson[i]))}, &IngestTransformer{}, &columNameFormatter{separator: "::"})
 		assert.NoError(t, err)
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatal("there were unfulfilled expections:", err)

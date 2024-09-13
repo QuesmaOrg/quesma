@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Elastic-2.0
 package schema
 
-import "strings"
+import (
+	"strings"
+)
 
 type (
 	Schema struct {
@@ -16,7 +18,8 @@ type (
 		PropertyName FieldName
 		// InternalPropertyName is how the field is represented in the data source
 		InternalPropertyName FieldName
-		Type                 Type
+		InternalPropertyType string
+		Type                 QuesmaType
 	}
 	TableName string
 	FieldName string

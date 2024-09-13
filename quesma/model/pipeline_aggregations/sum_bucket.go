@@ -24,7 +24,7 @@ func (query SumBucket) AggregationType() model.AggregationType {
 	return model.PipelineMetricsAggregation
 }
 
-func (query SumBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query SumBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for average bucket aggregation")
 		return model.JsonMap{}

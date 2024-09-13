@@ -30,8 +30,7 @@ var AggregationTestsWithSpecialCharactersInFieldNames = []AggregationTestCase{
 					"date_histogram": {
 						"field": "-@timestamp",
 						"fixed_interval": "12h",
-						"min_doc_count": 1,
-						"time_zone": "Europe/Warsaw"
+						"min_doc_count": 1
 					}
 				}
 			},
@@ -144,23 +143,33 @@ var AggregationTestsWithSpecialCharactersInFieldNames = []AggregationTestCase{
 				}
 			}
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{}, // checking only the SQLs is enough for now
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + TableName + ` WHERE "message\$\*\%\:\;" IS NOT NULL`,
-			`SELECT toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000), ` +
-				`minOrNull("-@bytes") AS "windowed_-@bytes", ` +
-				`minOrNull("-@timestamp") AS "windowed_-@timestamp" ` +
-				`FROM (SELECT "-@bytes", "-@timestamp", ROW_NUMBER() ` +
-				`OVER (PARTITION BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000) ORDER BY "-@timestamp" DESC) ` +
-				`AS "row_number", "message\$\*\%\:\;" FROM ` + TableName + ` WHERE "message\$\*\%\:\;" IS NOT NULL) ` +
-				`WHERE ("message\$\*\%\:\;" IS NOT NULL ` +
-				`AND "row_number"<=1) ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000), count() FROM ` + TableName + ` ` +
-				`WHERE "message\$\*\%\:\;\" IS NOT NULL ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000)`,
-		},
+		ExpectedPancakeResults: []model.QueryResultRow{}, // checking only the SQLs is enough for now
+		ExpectedPancakeSQL: `WITH quesma_top_hits_group_table AS (
+			  SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
+				toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000) AS
+				"aggr__0__key_0", count(*) AS "aggr__0__count"
+			  FROM __quesma_table_name
+			  WHERE "message$*%:;" IS NOT NULL
+			  GROUP BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000) AS
+				"aggr__0__key_0"
+			  ORDER BY "aggr__0__key_0" ASC) ,
+			quesma_top_hits_join AS (
+			  SELECT "group_table"."metric____quesma_total_count_col_0" AS
+				"metric____quesma_total_count_col_0",
+				"group_table"."aggr__0__key_0" AS "aggr__0__key_0",
+				"group_table"."aggr__0__count" AS "aggr__0__count",
+				"-@bytes" AS "top_metrics__0__1_col_0",
+				"-@timestamp" AS "top_metrics__0__1_col_1",
+				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__0__key_0" ORDER BY
+				"-@timestamp" DESC) AS "top_hits_rank"
+			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__0__key_0"=
+				toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000))
+			  WHERE "message$*%:;" IS NOT NULL)
+			SELECT "metric____quesma_total_count_col_0", "aggr__0__key_0", "aggr__0__count",
+			  "top_metrics__0__1_col_0", "top_metrics__0__1_col_1", "top_hits_rank"
+			FROM "quesma_top_hits_join"
+			WHERE "top_hits_rank"<=1
+			ORDER BY "aggr__0__key_0" ASC, "top_hits_rank" ASC`,
 	},
 }

@@ -28,8 +28,9 @@ type pancakeModelLayer struct {
 	childrenPipelineAggregations []*pancakeModelPipelineAggregation
 }
 
-func newPancakeModelLayer() *pancakeModelLayer {
+func newPancakeModelLayer(nextBucketAggregation *pancakeModelBucketAggregation) *pancakeModelLayer {
 	return &pancakeModelLayer{
+		nextBucketAggregation:        nextBucketAggregation,
 		currentMetricAggregations:    make([]*pancakeModelMetricAggregation, 0),
 		currentPipelineAggregations:  make([]*pancakeModelPipelineAggregation, 0),
 		childrenPipelineAggregations: make([]*pancakeModelPipelineAggregation, 0),
@@ -92,7 +93,29 @@ func newPancakeModelPipelineAggregation(name string, previousAggrNames []string,
 const pancakeBucketAggregationNoLimit = 0
 const noSampleLimit = 0
 
-// Helper functions
+// Naming functions
+func (p pancakeModelMetricAggregation) InternalNamePrefix() string {
+	return p.internalName + "_col_"
+}
+
+func (p pancakeModelMetricAggregation) InternalNameForCol(id int) string {
+	return fmt.Sprintf("%s%d", p.InternalNamePrefix(), id)
+}
+
+func (p pancakeModelBucketAggregation) ShallowClone() pancakeModelBucketAggregation {
+	return pancakeModelBucketAggregation{
+		name:                    p.name,
+		internalName:            p.internalName,
+		queryType:               p.queryType,
+		selectedColumns:         p.selectedColumns,
+		orderBy:                 p.orderBy,
+		limit:                   p.limit,
+		isKeyed:                 p.isKeyed,
+		metadata:                p.metadata,
+		filterOurEmptyKeyBucket: p.filterOurEmptyKeyBucket,
+	}
+}
+
 func (p pancakeModelBucketAggregation) InternalNameForKeyPrefix() string {
 	return fmt.Sprintf("%skey", p.internalName)
 }

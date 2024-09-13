@@ -4,10 +4,12 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/util"
 	"strconv"
 	"strings"
 	"time"
@@ -16,7 +18,7 @@ import (
 type DateHistogramIntervalType bool
 
 const (
-	DefaultMinDocCount                                      = 1
+	DefaultMinDocCount                                      = -1
 	DateHistogramFixedInterval    DateHistogramIntervalType = true
 	DateHistogramCalendarInterval DateHistogramIntervalType = false
 	defaultDateTimeType                                     = clickhouse.DateTime64
@@ -26,14 +28,15 @@ type DateHistogram struct {
 	ctx               context.Context
 	field             model.Expr // name of the field, e.g. timestamp
 	interval          string
+	timezone          string
 	minDocCount       int
 	intervalType      DateHistogramIntervalType
 	fieldDateTimeType clickhouse.DateTimeType
 }
 
-func NewDateHistogram(ctx context.Context, field model.Expr, interval string,
+func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone string,
 	minDocCount int, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
-	return &DateHistogram{ctx: ctx, field: field, interval: interval,
+	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone,
 		minDocCount: minDocCount, intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
 }
 
@@ -53,22 +56,38 @@ func (query *DateHistogram) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
-func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
-			"unexpected number of columns in date_histogram aggregation response, len(rows[0].Cols): "+
-				"%d, level: %d", len(rows[0].Cols), level,
+			"unexpected number of columns in date_histogram aggregation response, len(rows[0].Cols): %d",
+			len(rows[0].Cols),
 		)
 	}
+
+	// TODO:
+	// Implement default when query.minDocCount == DefaultMinDocCount, we need to return
+	// all buckets between the first bucket that matches documents and the last one.
 
 	if query.minDocCount == 0 {
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
+	// key is in `query.timezone` time, and we need it to be UTC
+	wantedTimezone, err := time.LoadLocation(query.timezone)
+	if err != nil {
+		logger.ErrorWithCtx(query.ctx).Msgf("time.LoadLocation error: %v", err)
+		wantedTimezone = time.UTC
+	}
+
 	var response []model.JsonMap
 	for _, row := range rows {
 		var key int64
+		docCount := row.LastColValue()
+		if util.ExtractInt64(docCount) < int64(query.minDocCount) {
+			continue
+		}
+
 		if query.intervalType == DateHistogramCalendarInterval {
 			key = query.getKey(row)
 		} else {
@@ -76,11 +95,16 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 			key = query.getKey(row) * intervalInMilliseconds
 		}
 
-		intervalStart := time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000")
+		ts := time.UnixMilli(key).UTC()
+		intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), wantedTimezone)
+
+		_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
+		key -= int64(timezoneOffsetInSeconds * 1000) // seconds -> milliseconds
+
 		response = append(response, model.JsonMap{
 			"key":           key,
-			"doc_count":     row.LastColValue(), // used to be [level], but because some columns are duplicated, it doesn't work in 100% cases now
-			"key_as_string": intervalStart,
+			"doc_count":     docCount, // used to be [level], but because some columns are duplicated, it doesn't work in 100% cases now
+			"key_as_string": time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000"),
 		})
 	}
 
@@ -134,17 +158,25 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 		logger.ErrorWithCtx(query.ctx).Msgf("invalid date type for DateHistogram %+v. Using DateTime64 as default.", query)
 		dateTimeType = defaultDateTimeType
 	}
-	return clickhouse.TimestampGroupBy(query.field, dateTimeType, interval)
+	return clickhouse.TimestampGroupByWithTimezone(query.field, dateTimeType, interval, query.timezone)
 }
 
 func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
+	const defaultTimezone = "UTC"
 	exprForBiggerIntervals := func(toIntervalStartFuncName string) model.Expr {
 		// returned expr as string:
-		// "1000 * toInt64(toUnixTimestamp(toStartOf[Week|Month|Quarter|Year](timestamp)))"
-		toStartOf := model.NewFunction(toIntervalStartFuncName, query.field)
-		toUnixTimestamp := model.NewFunction("toUnixTimestamp", toStartOf)
-		toInt64 := model.NewFunction("toInt64", toUnixTimestamp)
-		return model.NewInfixExpr(toInt64, "*", model.NewLiteral(1000))
+		// 1000 * toInt64(toUnixTimestamp(toStartOf[Week|Month|Quarter|Year](toTimeZone(timestamp, timezone)))
+
+		timezone := query.timezone
+		if timezone == "" {
+			timezone = defaultTimezone
+		}
+		timestampFieldWithOffset := model.NewFunction("toTimezone", query.field, model.NewLiteral(fmt.Sprintf("'%s'", timezone)))
+
+		toStartOf := model.NewFunction(toIntervalStartFuncName, timestampFieldWithOffset) // toStartOfMonth(...) or toStartOfWeek(...)
+		toUnixTimestamp := model.NewFunction("toUnixTimestamp", toStartOf)                // toUnixTimestamp(toStartOf...)
+		toInt64 := model.NewFunction("toInt64", toUnixTimestamp)                          // toInt64(toUnixTimestamp(...))
+		return model.NewInfixExpr(toInt64, "*", model.NewLiteral(1000))                   // toInt64(...)*1000
 	}
 
 	// calendar_interval: minute/hour/day are the same as fixed_interval: 1m/1h/1d

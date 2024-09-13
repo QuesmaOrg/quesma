@@ -4,7 +4,6 @@ package config
 
 import (
 	"fmt"
-	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
@@ -12,29 +11,31 @@ import (
 
 func TestQuesmaConfigurationLoading(t *testing.T) {
 
-	os.Setenv(configFileLocationEnvVar, "./test_config.yaml")
+	os.Setenv(configFileLocationEnvVar, "./test_config_v2.yaml")
 
 	logLevelPassedAsEnvVar := "debug"
 	licenseKeyPassedAsEnvVar := "arbitraty-license-key"
 	os.Setenv("QUESMA_logging_level", logLevelPassedAsEnvVar) // overrides what's in the config file
 	os.Setenv("QUESMA_licenseKey", licenseKeyPassedAsEnvVar)  // overrides what's in the config file
-	cfg := Load()
+	cfg := LoadV2Config()
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("error validating config: %v", err)
 	}
 
-	assert.Equal(t, licenseKeyPassedAsEnvVar, cfg.LicenseKey)
-	assert.Equal(t, DualWriteQueryClickhouse, cfg.Mode)
-	assert.Equal(t, 8080, int(cfg.PublicTcpPort))
-	assert.Equal(t, "http://localhost:9200", cfg.Elasticsearch.Url.String())
-	assert.Equal(t, "clickhouse://localhost:9000", cfg.ClickHouse.Url.String())
-	assert.Equal(t, true, cfg.IngestStatistics)
-	assert.Equal(t, "logs", cfg.Logging.Path)
-	assert.Equal(t, logLevelPassedAsEnvVar, cfg.Logging.Level.String())
-	assert.Equal(t, 10, len(cfg.IndexConfig))
+	legacyCfg := cfg.TranslateToLegacyConfig()
+
+	assert.Equal(t, licenseKeyPassedAsEnvVar, legacyCfg.LicenseKey)
+	assert.Equal(t, false, legacyCfg.TransparentProxy)
+	assert.Equal(t, 8080, int(legacyCfg.PublicTcpPort))
+	assert.Equal(t, "http://localhost:9200", legacyCfg.Elasticsearch.Url.String())
+	assert.Equal(t, "clickhouse://localhost:9000", legacyCfg.ClickHouse.Url.String())
+	assert.Equal(t, true, legacyCfg.IngestStatistics)
+	assert.Equal(t, "logs", legacyCfg.Logging.Path)
+	assert.Equal(t, logLevelPassedAsEnvVar, legacyCfg.Logging.Level.String())
+	assert.Equal(t, 10, len(legacyCfg.IndexConfig))
 
 	findIndexConfig := func(name string) *IndexConfiguration {
-		if configuration, found := cfg.IndexConfig[name]; found {
+		if configuration, found := legacyCfg.IndexConfig[name]; found {
 			return &configuration
 		} else {
 			return nil
@@ -56,52 +57,6 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 			assert.Equal(t, tt.enabled, ic.Disabled)
 		})
 	}
-}
-
-func TestClickHouseAndHydrolixConfigurationMutuallyExclusive(t *testing.T) {
-	os.Setenv(configFileLocationEnvVar, "./test_config.yaml")
-
-	os.Setenv("QUESMA_hydrolix_url", "clickhouse://hydrolixhost.org:8080")
-	cfg := Load()
-
-	var validationErr error
-	err := cfg.Validate()
-
-	validationErr = multierror.Append(validationErr, fmt.Errorf("only one of ClickHouse and Hydrolix can be configured"))
-	if multiErr, ok := err.(*multierror.Error); !ok {
-		t.Errorf("Expected a multierror, got: %v", err)
-	} else {
-		assert.Equal(t, 1, multiErr.Len())
-		assert.Contains(t, multiErr.Errors, fmt.Errorf("only one of ClickHouse and Hydrolix can be configured"))
-	}
-
-	assert.Equal(t, "clickhouse://hydrolixhost.org:8080", cfg.ClickHouse.Url.String())
-}
-
-func TestHydrolixConfigurationLandsInClickHouseConfig(t *testing.T) {
-	os.Setenv(configFileLocationEnvVar, "./test_config.yaml")
-
-	os.Setenv("QUESMA_hydrolix_url", "clickhouse://hydrolixhost.org:8080")
-	os.Setenv("QUESMA_hydrolix_user", "user")
-	os.Setenv("QUESMA_hydrolix_password", "pass")
-	os.Setenv("QUESMA_hydrolix_database", "dbname")
-	cfg := Load()
-
-	var validationErr error
-	err := cfg.Validate()
-
-	validationErr = multierror.Append(validationErr, fmt.Errorf("only one of ClickHouse and Hydrolix can be configured"))
-	if multiErr, ok := err.(*multierror.Error); !ok {
-		t.Errorf("Expected a multierror, got: %v", err)
-	} else {
-		assert.Equal(t, 1, multiErr.Len())
-		assert.Contains(t, multiErr.Errors, fmt.Errorf("only one of ClickHouse and Hydrolix can be configured"))
-	}
-
-	assert.Equal(t, "clickhouse://hydrolixhost.org:8080", cfg.ClickHouse.Url.String())
-	assert.Equal(t, "user", cfg.ClickHouse.User)
-	assert.Equal(t, "pass", cfg.ClickHouse.Password)
-	assert.Equal(t, "dbname", cfg.ClickHouse.Database)
 }
 
 func TestMatchName(t *testing.T) {

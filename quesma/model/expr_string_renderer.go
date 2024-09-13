@@ -30,7 +30,11 @@ func (v *renderer) VisitColumnRef(e ColumnRef) interface{} {
 	name = strings.TrimSuffix(name, "::keyword") // TODO is this needed?
 	name = strings.TrimSuffix(name, types.MultifieldMapKeysSuffix)
 	name = strings.TrimSuffix(name, types.MultifieldMapValuesSuffix)
-	return strconv.Quote(name)
+	if len(e.TableAlias) > 0 {
+		return fmt.Sprintf("%s.%s", strconv.Quote(e.TableAlias), strconv.Quote(name))
+	} else {
+		return strconv.Quote(name)
+	}
 }
 
 func (v *renderer) VisitPrefixExpr(e PrefixExpr) interface{} {
@@ -62,19 +66,7 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 }
 
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
-
-	if l.Value == "*" {
-		return "*"
-	}
-
-	switch l.Value.(type) {
-	case string:
-		return fmt.Sprintf("%s", l.Value)
-	case float64:
-		return fmt.Sprintf("%f", l.Value)
-	default:
-		return fmt.Sprintf("%v", l.Value)
-	}
+	return fmt.Sprintf("%v", l.Value)
 }
 
 func (v *renderer) VisitInfix(e InfixExpr) interface{} {

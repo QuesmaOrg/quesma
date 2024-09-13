@@ -9,6 +9,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"quesma/util"
 	"sort"
 	"strconv"
 	"strings"
@@ -47,6 +48,11 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.queryType = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
 
 		field, _ := cw.parseFieldFieldMaybeScript(histogram, "histogram")
+		field, didWeAddMissing := cw.addMissingParameterIfPresent(field, histogram)
+		if !didWeAddMissing {
+			aggregation.filterOutEmptyKeyBucket = true
+		}
+
 		var col model.Expr
 		if interval != 1.0 {
 			// col as string is: fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
@@ -72,14 +78,16 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 		field := cw.parseFieldField(dateHistogram, "date_histogram")
 		minDocCount := cw.parseMinDocCount(dateHistogram)
+		timezone := cw.parseStringField(dateHistogram, "time_zone", "")
 		interval, intervalType := cw.extractInterval(dateHistogram)
 		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 
 		if dateTimeType == clickhouse.Invalid {
-			return false, fmt.Errorf("invalid date time type for field %s", field)
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid date time type for field %s", field)
 		}
 
-		dateHistogramAggr := bucket_aggregations.NewDateHistogram(cw.Ctx, field, interval, minDocCount, intervalType, dateTimeType)
+		dateHistogramAggr := bucket_aggregations.NewDateHistogram(
+			cw.Ctx, field, interval, timezone, minDocCount, intervalType, dateTimeType)
 		aggregation.queryType = dateHistogramAggr
 
 		sqlQuery := dateHistogramAggr.GenerateSQL()
@@ -99,28 +107,10 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			return false, fmt.Errorf("%s is not a map, but %T, value: %v", termsType, termsRaw, termsRaw)
 		}
 
-		// Parse 'missing' parameter. It can be any type.
-		var missingPlaceholder any
-		if terms["missing"] != nil {
-			missingPlaceholder = terms["missing"]
-		}
-
 		fieldExpression := cw.parseFieldField(terms, termsType)
-
-		// apply missing placeholder if it is set
-		if missingPlaceholder != nil {
-			var value model.LiteralExpr
-
-			// Maybe we should check the input type against the schema?
-			// Right now we quote if it's a string.
-			switch val := missingPlaceholder.(type) {
-			case string:
-				value = model.NewLiteral("'" + val + "'")
-			default:
-				value = model.NewLiteral(missingPlaceholder)
-			}
-
-			fieldExpression = model.NewFunction("COALESCE", fieldExpression, value)
+		fieldExpression, didWeAddMissing := cw.addMissingParameterIfPresent(fieldExpression, terms)
+		if !didWeAddMissing {
+			aggregation.filterOutEmptyKeyBucket = true
 		}
 
 		size := 10
@@ -137,9 +127,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)
 		aggregation.limit = size
 		aggregation.orderBy = orderBy
-		if missingPlaceholder == nil {
-			aggregation.filterOutEmptyKeyBucket = true
-		}
 
 		delete(queryMap, termsType)
 		return success, nil
@@ -224,12 +211,12 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("geotile_grid is not a map, but %T, value: %v", geoTileGridRaw, geoTileGridRaw)
 		}
-		var precision float64
+		var precisionZoom float64
 		precisionRaw, ok := geoTileGrid["precision"]
 		if ok {
 			switch cutValueTyped := precisionRaw.(type) {
 			case float64:
-				precision = cutValueTyped
+				precisionZoom = cutValueTyped
 			}
 		}
 		field := cw.parseFieldField(geoTileGrid, "geotile_grid")
@@ -237,7 +224,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 
 		// That's bucket (group by) formula for geotile_grid
 		// zoom/x/y
-		//	SELECT precision as zoom,
+		//	SELECT precisionZoom as zoom,
 		//	    FLOOR(((toFloat64("Location::lon") + 180.0) / 360.0) * POWER(2, zoom)) AS x_tile,
 		//	    FLOOR(
 		//	        (
@@ -246,6 +233,8 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		//	    ) AS y_tile, count()
 		//	FROM
 		//	     kibana_sample_data_flights Group by zoom, x_tile, y_tile
+
+		zoomLiteral := model.NewLiteral(precisionZoom)
 
 		// TODO columns names should be created according to the schema
 		var lon = model.AsString(field)
@@ -259,8 +248,8 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		infixX = model.NewParenExpr(model.NewInfixExpr(toFloatFunLon, "+", model.NewLiteral(180.0)))
 		infixX = model.NewParenExpr(model.NewInfixExpr(infixX, "/", model.NewLiteral(360.0)))
 		infixX = model.NewInfixExpr(infixX, "*",
-			model.NewFunction("POWER", model.NewLiteral(2), model.NewLiteral("zoom")))
-		xTile := model.NewAliasedExpr(model.NewFunction("FLOOR", infixX), "x_tile")
+			model.NewFunction("POWER", model.NewLiteral(2), zoomLiteral))
+		xTile := model.NewFunction("FLOOR", infixX)
 		toFloatFunLat := model.NewFunction("toFloat64", model.NewColumnRef(lat))
 		radians := model.NewFunction("RADIANS", toFloatFunLat)
 		tan := model.NewFunction("TAN", radians)
@@ -274,11 +263,10 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 					model.NewInfixExpr(model.NewInfixExpr(model.NewLiteral(1), "-", Log), "/",
 						model.NewLiteral("PI()"))), "/",
 				model.NewLiteral(2.0)), "*",
-			model.NewFunction("POWER", model.NewLiteral(2), model.NewLiteral("zoom")))
-		yTile := model.NewAliasedExpr(
-			model.NewFunction("FLOOR", FloorContent), "y_tile")
+			model.NewFunction("POWER", model.NewLiteral(2), zoomLiteral))
+		yTile := model.NewFunction("FLOOR", FloorContent)
 
-		aggregation.selectedColumns = append(aggregation.selectedColumns, model.NewAliasedExpr(model.NewLiteral(precision), "zoom"))
+		aggregation.selectedColumns = append(aggregation.selectedColumns, model.NewLiteral(fmt.Sprintf("CAST(%f AS Float32)", precisionZoom)))
 		aggregation.selectedColumns = append(aggregation.selectedColumns, xTile)
 		aggregation.selectedColumns = append(aggregation.selectedColumns, yTile)
 
@@ -310,6 +298,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 
 func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap QueryMap, aggregationName string) model.Expr {
 	notFoundValue := model.NewLiteral("")
+
 	aggsRaw, exists := queryMap["aggs"]
 	if !exists {
 		logger.WarnWithCtx(cw.Ctx).Msgf("no aggs in queryMap, queryMap: %+v", queryMap)
@@ -320,31 +309,62 @@ func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap Query
 		logger.WarnWithCtx(cw.Ctx).Msgf("aggs is not a map, but %T, value: %v. Skipping", aggsRaw, aggsRaw)
 		return notFoundValue
 	}
-	if aggMapRaw, exists := aggs[aggregationName]; exists {
-		aggMap, ok := aggMapRaw.(QueryMap)
-		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("aggregation %s is not a map, but %T, value: %v. Skipping", aggregationName, aggMapRaw, aggMapRaw)
-			return notFoundValue
+
+	var percentileNameWeLookFor string
+	weTrySplitByDot := false
+
+	// We try 2 things here:
+	// First (always): maybe there exists an aggregation with exactly this name
+	// Second (if aggregation_name == X.Y): maybe it's aggregationName.some_value, e.g. "2.75", when "2" aggregation is a percentile, and 75 is its value
+	aggregationNamesToTry := []string{aggregationName}
+	splitByDot := strings.Split(aggregationName, ".")
+	if len(splitByDot) == 2 {
+		weTrySplitByDot = true
+		percentileNameWeLookFor = splitByDot[1]
+		aggregationNamesToTry = append(aggregationNamesToTry, splitByDot[0])
+	}
+
+	for _, aggNameToTry := range aggregationNamesToTry {
+		currentAggMapRaw, exists := aggs[aggNameToTry]
+		if !exists {
+			continue
 		}
 
-		agg, success := cw.tryMetricsAggregation(aggMap)
+		currentAggMap, ok := currentAggMapRaw.(QueryMap)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("aggregation %s is not a map, but %T, value: %v. Skipping",
+				aggregationName, currentAggMapRaw, currentAggMapRaw)
+			continue
+		}
+
+		agg, success := cw.tryMetricsAggregation(currentAggMap)
 		if !success {
 			logger.WarnWithCtx(cw.Ctx).Msgf("failed to parse metric aggregation: %v", agg)
-			return notFoundValue
+			continue
 		}
 
 		// we build a temporary query only to extract the name of the metric
 		columns, err := generateMetricSelectedColumns(cw.Ctx, agg)
 		if err != nil {
-			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("failed to generate metric selected columns")
-			return notFoundValue
+			continue
 		}
-		if len(columns) != 1 {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("invalid number of columns, expected: 1, got: %d", len(columns))
-			return notFoundValue
+
+		if aggNameToTry == aggregationName {
+			if len(columns) != 1 {
+				continue
+			}
+			return columns[0]
+		} else if weTrySplitByDot {
+			userPercents := util.MapKeysSortedByValue(agg.Percentiles)
+			for i, percentileName := range userPercents {
+				if percentileName == percentileNameWeLookFor {
+					return columns[i]
+				}
+			}
 		}
-		return columns[0]
 	}
+
+	logger.ErrorWithCtx(cw.Ctx).Msgf("no given metric aggregation found (name: %v, queryMap: %+v)", aggregationName, queryMap)
 	return notFoundValue
 }
 
@@ -433,4 +453,25 @@ func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldE
 	}
 
 	return fullOrderBy
+}
+
+// addMissingParameterIfPresent parses 'missing' parameter. It can be any type.
+func (cw *ClickhouseQueryTranslator) addMissingParameterIfPresent(field model.Expr,
+	aggrQueryMap QueryMap) (updatedField model.Expr, didWeAddMissing bool) {
+
+	if aggrQueryMap["missing"] == nil {
+		return field, false
+	}
+
+	// Maybe we should check the input type against the schema?
+	// Right now we quote if it's a string.
+	var value model.LiteralExpr
+	switch val := aggrQueryMap["missing"].(type) {
+	case string:
+		value = model.NewLiteral("'" + val + "'")
+	default:
+		value = model.NewLiteral(val)
+	}
+
+	return model.NewFunction("COALESCE", field, value), true
 }

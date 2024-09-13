@@ -62,7 +62,7 @@ func (p pancakePipelinesProcessor) calcSingleMetricPipeline(layer *pancakeModelL
 
 	pipelineRows := p.selectPipelineRows(pipeline.queryType, rows, layer.nextBucketAggregation)
 	resultRows := pipeline.queryType.CalculateResultWhenMissing(pipelineRows)
-	resultPerPipeline[pipeline.name] = pipeline.queryType.TranslateSqlResponseToJson(resultRows, 0) // TODO: fill level?
+	resultPerPipeline[pipeline.name] = pipeline.queryType.TranslateSqlResponseToJson(resultRows)
 
 	for _, pipelineChild := range layer.findPipelineChildren(pipeline) {
 		childResults := p.calcSingleMetricPipeline(layer, pipelineChild, resultRows)
@@ -107,7 +107,7 @@ func (p pancakePipelinesProcessor) currentPipelineBucketAggregations(layer, next
 			}
 			jsonResults := make([]model.JsonMap, len(pipelineResults))
 			for i, pipelineResult := range pipelineResults {
-				jsonResults[i] = childPipeline.queryType.TranslateSqlResponseToJson([]model.QueryResultRow{pipelineResult}, 0)
+				jsonResults[i] = childPipeline.queryType.TranslateSqlResponseToJson([]model.QueryResultRow{pipelineResult})
 			}
 			resultRowsPerPipeline[pipelineName] = jsonResults
 		}

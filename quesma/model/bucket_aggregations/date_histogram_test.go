@@ -20,6 +20,6 @@ func TestTranslateSqlResponseToJson(t *testing.T) {
 			{"key": int64(56962370) * 30_000, "doc_count": 14, "key_as_string": "2024-02-25T14:25:00.000"},
 		},
 	}
-	response := (&DateHistogram{interval: interval, intervalType: DateHistogramFixedInterval}).TranslateSqlResponseToJson(resultRows, 1)
+	response := (&DateHistogram{interval: interval, intervalType: DateHistogramFixedInterval}).TranslateSqlResponseToJson(resultRows)
 	assert.Equal(t, expectedResponse, response)
 }

@@ -20,13 +20,13 @@ import (
 
 func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *clickhouse.LogManager,
 	schemaRegistry schema.Registry, qmc *ui.QuesmaManagementConsole) ([]byte, error) {
-	if resolvedTableName := lm.ResolveTableName(index); resolvedTableName == "" {
+	if indices, err := lm.ResolveIndexPattern(ctx, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
 		logger.Error().Msg(errorMsg)
 		return nil, fmt.Errorf(errorMsg)
 	} else {
 		return handleTermsEnumRequest(ctx, body, &queryparser.ClickhouseQueryTranslator{
-			ClickhouseLM: lm, Table: lm.FindTable(resolvedTableName), SchemaRegistry: schemaRegistry, Ctx: context.Background(),
+			ClickhouseLM: lm, Table: lm.FindTable(indices[0]), SchemaRegistry: schemaRegistry, Ctx: context.Background(),
 		}, qmc)
 	}
 }

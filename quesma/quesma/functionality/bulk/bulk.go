@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"quesma/clickhouse"
+	"quesma/ingest"
 	"quesma/jsonprocessor"
 	"quesma/logger"
 	"quesma/queryparser"
@@ -63,7 +64,7 @@ type (
 	}
 )
 
-func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *clickhouse.LogManager,
+func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor,
 	cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []BulkItem, err error) {
 	defer recovery.LogPanic()
 
@@ -82,7 +83,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *cli
 		return []BulkItem{}, err
 	}
 
-	sendToClickhouse(ctx, clickhouseDocumentsToInsert, phoneHomeAgent, cfg, lm)
+	sendToClickhouse(ctx, clickhouseDocumentsToInsert, phoneHomeAgent, cfg, ip)
 
 	return results, nil
 }
@@ -186,7 +187,7 @@ func sendToElastic(elasticRequestBody []byte, cfg *config.QuesmaConfiguration, e
 	return nil
 }
 
-func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, phoneHomeAgent telemetry.PhoneHomeAgent, cfg *config.QuesmaConfiguration, lm *clickhouse.LogManager) {
+func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, phoneHomeAgent telemetry.PhoneHomeAgent, cfg *config.QuesmaConfiguration, ip *ingest.IngestProcessor) {
 	for indexName, documents := range clickhouseDocumentsToInsert {
 		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 
@@ -206,7 +207,7 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 
 			nameFormatter := clickhouse.DefaultColumnNameFormatter()
 			transformer := jsonprocessor.IngestTransformerFor(indexName, cfg)
-			err := lm.ProcessInsertQuery(ctx, indexName, inserts, transformer, nameFormatter)
+			err := ip.ProcessInsertQuery(ctx, indexName, inserts, transformer, nameFormatter)
 
 			for _, document := range documents {
 				bulkSingleResponse := BulkSingleResponse{

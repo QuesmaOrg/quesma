@@ -3,10 +3,9 @@
 package quesma
 
 import (
-	"fmt"
-	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/schema"
 	"strings"
 )
 
@@ -18,24 +17,26 @@ import (
 //
 
 type arrayTypeResolver struct {
-	table *clickhouse.Table
+	indexSchema schema.Schema
 }
 
-func (v *arrayTypeResolver) dbColumnType(fieldName string) string {
+func (v *arrayTypeResolver) dbColumnType(columName string) string {
 
 	//
 	// This is a HACK to get the column database type from the schema
 	//
 	//
-	fieldName = strings.TrimSuffix(fieldName, ".keyword")
+	// here we should resolve field by column name not field name
+	columName = strings.TrimSuffix(columName, ".keyword")
+	columName = strings.ReplaceAll(columName, "::", ".")
 
-	tableColumnName := strings.ReplaceAll(fieldName, ".", "::")
-	col, ok := v.table.Cols[tableColumnName]
-	if ok {
-		return col.Type.String()
+	field, ok := v.indexSchema.ResolveField(columName)
+
+	if !ok {
+		return ""
 	}
 
-	return ""
+	return field.InternalPropertyType
 }
 
 func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
@@ -47,13 +48,9 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 		column, ok := e.Left.(model.ColumnRef)
 		if ok {
 			dbType := resolver.dbColumnType(column.ColumnName)
-
 			if strings.HasPrefix(dbType, "Array") {
-
 				op := strings.ToUpper(e.Op)
-
 				switch {
-
 				case (op == "ILIKE" || op == "LIKE") && dbType == "Array(String)":
 
 					variableName := "x"
@@ -64,7 +61,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 					return model.NewFunction("has", e.Left, e.Right.Accept(b).(model.Expr))
 
 				default:
-					logger.Warn().Msgf("Unhandled array infix operation  %s, column %v (%v)", e.Op, column.ColumnName, dbType)
+					logger.Error().Msgf("Unhandled array infix operation  %s, column %v (%v)", e.Op, column.ColumnName, dbType)
 				}
 			}
 		}
@@ -77,23 +74,22 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 	}
 
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
-		if len(e.Args) == 1 {
+
+		if len(e.Args) > 0 {
 			arg := e.Args[0]
 			column, ok := arg.(model.ColumnRef)
 			if ok {
 				dbType := resolver.dbColumnType(column.ColumnName)
 				if strings.HasPrefix(dbType, "Array") {
-					switch {
-
-					case e.Name == "sumOrNull" && dbType == "Array(Int64)":
-						fnName := model.LiteralExpr{Value: fmt.Sprintf("'%s'", e.Name)}
-						wrapped := model.NewFunction("arrayReduce", fnName, column)
-						wrapped = model.NewFunction(e.Name, wrapped)
-						return wrapped
-
-					default:
-						logger.Warn().Msgf("Unhandled array function %s, column %v (%v)", e.Name, column.ColumnName, dbType)
-
+					if strings.HasPrefix(e.Name, "sum") {
+						// here we apply -Array combinator to the sum function
+						// https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators#-array
+						//
+						// TODO this can be rewritten to transform all aggregate functions as well
+						//
+						e.Name = strings.ReplaceAll(e.Name, "sum", "sumArray")
+					} else {
+						logger.Error().Msgf("Unhandled array function %s, column %v (%v)", e.Name, column.ColumnName, dbType)
 					}
 				}
 			}

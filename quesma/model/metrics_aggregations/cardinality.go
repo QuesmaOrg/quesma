@@ -19,8 +19,8 @@ func (query Cardinality) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query Cardinality) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	return metricsTranslateSqlResponseToJson(query.ctx, rows, level)
+func (query Cardinality) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+	return metricsTranslateSqlResponseToJson(query.ctx, rows)
 }
 
 func (query Cardinality) String() string {

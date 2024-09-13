@@ -21,12 +21,12 @@ func (query FilterAgg) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
-func (query FilterAgg) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query FilterAgg) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for filter aggregation")
 		return make(model.JsonMap, 0)
 	}
-	return model.JsonMap{"doc_count": rows[0].Cols[level].Value}
+	return model.JsonMap{"doc_count": rows[0].Cols[0].Value}
 }
 
 func (query FilterAgg) String() string {
@@ -47,5 +47,9 @@ func (query FilterAgg) CombinatorGroups() (result []CombinatorGroup) {
 }
 
 func (query FilterAgg) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
-	return query.TranslateSqlResponseToJson(rows, 0)
+	return query.TranslateSqlResponseToJson(rows)
+}
+
+func (query FilterAgg) CombinatorSplit() []model.QueryType {
+	return []model.QueryType{query}
 }

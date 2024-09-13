@@ -51,6 +51,10 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 		}
 	}
 
+	if len(topLevel.children) == 0 { // it's fine to have no aggregations
+		return []*model.Query{}, nil
+	}
+
 	// Phase 2: Translate aggregation tree into pancake model
 	transformer := newPancakeTransformer(cw.Ctx)
 	pancakeQueries, err := transformer.aggregationTreeToPancakes(topLevel)
@@ -66,7 +70,7 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 			name:            PancakeTotalCountMetricName,
 			internalName:    "metric__" + PancakeTotalCountMetricName,
 			queryType:       typical_queries.Count{},
-			selectedColumns: []model.Expr{model.NewFunction("count", model.NewLiteral("*"))},
+			selectedColumns: []model.Expr{model.NewCountFunc()},
 		}
 
 		pancakeQueries[0].layers[0].currentMetricAggregations = append(pancakeQueries[0].layers[0].currentMetricAggregations, augmentedCountAggregation)
@@ -174,7 +178,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 
 	for k, v := range queryMap {
 		// should be empty by now. If it's not, it's an unsupported/unrecognized type of aggregation.
-		logger.WarnWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).
+		logger.ErrorWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).
 			Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
 		// TODO: remove hard fail. Temporary to make development easier
 		return nil, fmt.Errorf("unsupported aggregation type: (%v: %v), value type: %T", k, v, v)

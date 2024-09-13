@@ -15,7 +15,7 @@ type PancakeQueryType struct {
 	pancakeAggregation *pancakeModel
 }
 
-func (p PancakeQueryType) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (p PancakeQueryType) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	panic("not a real aggregation, it should not be never used")
 }
 

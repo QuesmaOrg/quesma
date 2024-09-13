@@ -19,7 +19,7 @@ type FieldAtIndex = int // for facets/histogram what Cols[i] means
 type QueryResultCol struct {
 	ColName string // quoted, e.g. `"message"`
 	Value   interface{}
-	ColType schema.Type
+	ColType schema.QuesmaType
 }
 
 func NewQueryResultCol(colName string, value interface{}) QueryResultCol {

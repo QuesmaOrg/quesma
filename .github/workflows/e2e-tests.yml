@@ -1,6 +1,7 @@
 name: E2E tests
 
-on: # @TODO TBD WHEN WE RUN
+on: # @TODO should we run it on PRs?
+  merge_group:
   push:
     branches: [ "main" ]
   workflow_dispatch:
@@ -75,7 +76,7 @@ jobs:
 
       - name: Build and start docker compose
         timeout-minutes: 10
-        run: docker compose -f ci/e2e-old.yml up -d
+        run: docker compose -f ci/e2e.yml up -d
 
       - name: Wait until Elasticsearch is up
         timeout-minutes: 6

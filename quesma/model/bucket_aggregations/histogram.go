@@ -23,11 +23,11 @@ func (query Histogram) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
-func (query Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in histogram aggregation response, len(rows[0].Cols): "+
-				"%d, level: %d", len(rows[0].Cols), level,
+				"%d", len(rows[0].Cols),
 		)
 	}
 

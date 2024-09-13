@@ -24,7 +24,7 @@ func (query AverageBucket) AggregationType() model.AggregationType {
 	return model.PipelineMetricsAggregation
 }
 
-func (query AverageBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+func (query AverageBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	return translateSqlResponseToJsonCommon(query.ctx, rows, query.String())
 }
 
