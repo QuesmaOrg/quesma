@@ -211,11 +211,13 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 		for _, column := range columns {
 			oldName := column.Name
-			column.Name = util.FieldToColumnEncoder(oldName)
-			columnsCopy[util.FieldToColumnEncoder(oldName)] = column
+			newColumn := schema.Column{}
+			newColumn.Name = util.FieldToColumnEncoder(oldName)
+			newColumn.Type = column.Type
+			//newColumn.OldName = oldName
+			columnsCopy[util.FieldToColumnEncoder(oldName)] = newColumn
 		}
-		columns = columnsCopy
-		sr.UpdateDynamicConfiguration(schema.TableName(index), schema.Table{Columns: columns})
+		sr.UpdateDynamicConfiguration(schema.TableName(index), schema.Table{Columns: columnsCopy})
 
 		return putIndexResult(index)
 	})
@@ -318,8 +320,17 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			return putIndexResult(index)
 		}
 		columns := elasticsearch.ParseMappings("", mappings.(map[string]interface{}))
+		columnsCopy := make(map[string]schema.Column)
 
-		sr.UpdateDynamicConfiguration(schema.TableName(index), schema.Table{Columns: columns})
+		for _, column := range columns {
+			oldName := column.Name
+			newColumn := schema.Column{}
+			newColumn.Name = util.FieldToColumnEncoder(oldName)
+			newColumn.Type = column.Type
+			//newColumn.OldName = oldName
+			columnsCopy[util.FieldToColumnEncoder(oldName)] = newColumn
+		}
+		sr.UpdateDynamicConfiguration(schema.TableName(index), schema.Table{Columns: columnsCopy})
 
 		return putIndexResult(index)
 	})
