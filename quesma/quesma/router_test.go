@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
+	"quesma/schema"
 	"testing"
 )
 
@@ -131,8 +132,8 @@ func Test_matchedAgainstPattern(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			req := &mux.Request{Params: map[string]string{"index": tt.pattern}, Body: tt.body}
-
-			assert.Equalf(t, tt.want, matchedAgainstPattern(&tt.configuration).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
+			sr := schema.StaticRegistry{}
+			assert.Equalf(t, tt.want, matchedAgainstPattern(&tt.configuration, sr).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
 		})
 	}
 }
