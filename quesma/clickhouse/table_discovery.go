@@ -270,7 +270,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 
 	existing := td.tableDefinitions.Load()
 	existing.Range(func(key string, table *Table) bool {
-		if table.DefinitionOnly {
+		if table.VirtualTable {
 			return true
 		}
 		if !tableMap.Has(key) {

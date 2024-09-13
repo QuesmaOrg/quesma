@@ -18,6 +18,7 @@ import (
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/schema"
+	"quesma/single_table"
 	"quesma/stats"
 	"quesma/telemetry"
 	"quesma/util"
@@ -166,10 +167,20 @@ func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, erro
 	return count, nil
 }
 
-func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, query string, config *chLib.ChTableConfig) (string, error) {
+func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, query string, config *chLib.ChTableConfig, name string, tableDefinitionChangeOnly bool) (string, error) {
 	table, err := chLib.NewTable(query, config)
 	if err != nil {
 		return "", err
+	}
+
+	// This is a HACK.
+	// CreateQueryParser assumes that the table name is in the form of "database.table"
+	// in this case we don't have a database name, so we need to add it
+	if tableDefinitionChangeOnly {
+		table.Name = name
+		table.DatabaseName = ""
+		table.Comment = "Definition only. This is not a real table."
+		table.VirtualTable = true
 	}
 
 	// if exists only then createTable
@@ -407,7 +418,15 @@ func generateNonSchemaFields(attrsMap map[string][]interface{}) ([]NonSchemaFiel
 func (ip *IngestProcessor) shouldAlterColumns(table *chLib.Table, attrsMap map[string][]interface{}) (bool, []int) {
 	attrKeys := getAttributesByArrayName(chLib.DeprecatedAttributesKeyColumn, attrsMap)
 	alterColumnIndexes := make([]int, 0)
-	if len(table.Cols) < alwaysAddColumnLimit {
+
+	limit := alwaysAddColumnLimit
+	// this is special case for single table storage
+	// we do always add columns for single table storage
+	if table.Name == single_table.TableName {
+		limit = alterColumnUpperLimit
+	}
+
+	if len(table.Cols) < limit {
 		// We promote all non-schema fields to columns
 		// therefore we need to add all attrKeys indexes to alterColumnIndexes
 		for i := 0; i < len(attrKeys); i++ {
@@ -415,6 +434,7 @@ func (ip *IngestProcessor) shouldAlterColumns(table *chLib.Table, attrsMap map[s
 		}
 		return true, alterColumnIndexes
 	}
+
 	if len(table.Cols) > alterColumnUpperLimit {
 		return false, nil
 	}
@@ -546,8 +566,7 @@ func fieldToColumnEncoder(field string) string {
 func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
-	tableFormatter TableColumNameFormatter,
-) ([]string, error) {
+	tableFormatter TableColumNameFormatter, tableDefinitionChangeOnly bool) ([]string, error) {
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
@@ -580,7 +599,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
 		createTableCmd = createTableQuery(tableName, columns, tableConfig)
 		var err error
-		createTableCmd, err = ip.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig)
+		createTableCmd, err = ip.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig, tableName, tableDefinitionChangeOnly)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error createTableObjectAndAttributes, can't create table: %v", err)
 			return nil, err
@@ -602,6 +621,13 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	for i, preprocessedJson := range preprocessedJsons {
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], tableConfig)
+
+		/*
+			if tableDefinitionChangeOnly {
+				continue
+			}
+		*/
+
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
 		}
@@ -616,22 +642,75 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
 	}
 
+	/*
+		if tableDefinitionChangeOnly {
+			return nil, nil
+		}
+
+	*/
+
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
 	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
 }
 
-func (ip *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName string,
+func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
-	statements, err := ip.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter)
+
+	indexConf, ok := lm.cfg.IndexConfig[tableName]
+	if !ok {
+		return fmt.Errorf("index config not found for index: %s", tableName)
+	}
+
+	useSingleTable := indexConf.UseSingleTable
+	if useSingleTable {
+		err := lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, true)
+
+		if err != nil {
+			return fmt.Errorf("error processing insert query - schema only: %v", err)
+		}
+
+		// process JSON and alter both tables
+		// original  - table definition only
+		// single_table -  table definition and real table
+
+		pipeline := jsonprocessor.IngestTransformerPipeline{}
+		pipeline = append(pipeline, &single_table.IngestAddIndexNameTransformer{IndexName: tableName})
+		pipeline = append(pipeline, transformer)
+		transformer = pipeline
+		tableName = single_table.TableName
+
+		return lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, false)
+
+	} else {
+		return lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, false)
+	}
+
+}
+
+func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, tableName string,
+	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	tableFormatter TableColumNameFormatter, isVirtualTable bool) error {
+	statements, err := ip.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter, isVirtualTable)
 	if err != nil {
 		return err
 	}
+
+	if isVirtualTable {
+		for _, statement := range statements {
+			if strings.HasPrefix(statement, "ALTER") || strings.HasPrefix(statement, "CREATE") {
+				logger.InfoWithCtx(ctx).Msgf("VIRTUAL DDL EXECUTION: %s", statement)
+			}
+		}
+		return nil
+	}
+
 	// We expect to have date format set to `best_effort`
 	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
 		"date_time_input_format": "best_effort",
 	}))
+
 	return ip.executeStatements(ctx, statements)
 }
 
