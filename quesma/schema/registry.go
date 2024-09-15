@@ -5,7 +5,8 @@ package schema
 import (
 	"quesma/logger"
 	"quesma/quesma/config"
-	"strings"
+	"quesma/util"
+	"sync"
 )
 
 type (
@@ -13,13 +14,21 @@ type (
 		AllSchemas() map[TableName]Schema
 		FindSchema(name TableName) (Schema, bool)
 		UpdateDynamicConfiguration(name TableName, table Table)
+		UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName)
 	}
-	schemaRegistry struct {
+	FieldEncodingKey struct {
+		TableName string
+		FieldName string
+	}
+	EncodedFieldName string
+	schemaRegistry   struct {
 		// index configuration overrides always take precedence
 		indexConfiguration      *map[string]config.IndexConfiguration
 		dataSourceTableProvider TableProvider
 		dataSourceTypeAdapter   typeAdapter
 		dynamicConfiguration    map[string]Table
+		fieldEncodingsLock      sync.RWMutex
+		fieldEncodings          map[FieldEncodingKey]EncodedFieldName
 	}
 	typeAdapter interface {
 		Convert(string) (QuesmaType, bool)
@@ -38,25 +47,50 @@ type (
 	}
 )
 
+func (s *schemaRegistry) getInternalToPublicFieldEncodings(tableName string) map[EncodedFieldName]string {
+	fieldsEncodingsPerIndex := make(map[string]EncodedFieldName)
+	s.fieldEncodingsLock.RLock()
+	for key, value := range s.fieldEncodings {
+		if key.TableName == tableName {
+			fieldsEncodingsPerIndex[key.FieldName] = EncodedFieldName(value)
+		}
+	}
+	s.fieldEncodingsLock.RUnlock()
+	internalToPublicFieldsEncodings := make(map[EncodedFieldName]string)
+
+	for key, value := range fieldsEncodingsPerIndex {
+		internalToPublicFieldsEncodings[value] = key
+	}
+
+	return internalToPublicFieldsEncodings
+}
+
 func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 	definitions := s.dataSourceTableProvider.TableDefinitions()
 	schemas := make(map[TableName]Schema)
+
 	if s.dataSourceTableProvider.AutodiscoveryEnabled() {
 		for tableName, table := range definitions {
+			// TODO here we should check if table contains persistent field encodings
+			// in column comments and if so use them to populate internalToPublicFieldsEncodings
+			internalToPublicFieldsEncodings := s.getInternalToPublicFieldEncodings(tableName)
 			fields := make(map[FieldName]Field)
-			existsInDataSource := s.populateSchemaFromTableDefinition(definitions, tableName, fields)
+			existsInDataSource := s.populateSchemaFromTableDefinition(definitions, tableName, fields, internalToPublicFieldsEncodings)
 			schemas[TableName(tableName)] = NewSchema(fields, existsInDataSource, table.DatabaseName)
 		}
 		return schemas, nil
 	}
 
 	for indexName, indexConfiguration := range *s.indexConfiguration {
+		// TODO here we should check if table contains persistent field encodings
+		// in column comments and if so use them to populate internalToPublicFieldsEncodings
+		internalToPublicFieldsEncodings := s.getInternalToPublicFieldEncodings(indexName)
+
 		fields := make(map[FieldName]Field)
 		aliases := make(map[FieldName]FieldName)
-
 		s.populateSchemaFromDynamicConfiguration(indexName, fields)
 		s.populateSchemaFromStaticConfiguration(indexConfiguration, fields)
-		existsInDataSource := s.populateSchemaFromTableDefinition(definitions, indexName, fields)
+		existsInDataSource := s.populateSchemaFromTableDefinition(definitions, indexName, fields, internalToPublicFieldsEncodings)
 		s.populateAliases(indexConfiguration, fields, aliases)
 		s.removeIgnoredFields(indexConfiguration, fields, aliases)
 		s.removeGeoPhysicalFields(fields)
@@ -109,12 +143,21 @@ func (s *schemaRegistry) UpdateDynamicConfiguration(name TableName, table Table)
 	s.dynamicConfiguration[name.AsString()] = table
 }
 
+func (s *schemaRegistry) UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName) {
+	s.fieldEncodingsLock.Lock()
+	defer s.fieldEncodingsLock.Unlock()
+	for key, value := range encodings {
+		s.fieldEncodings[key] = EncodedFieldName(value)
+	}
+}
+
 func NewSchemaRegistry(tableProvider TableProvider, configuration *config.QuesmaConfiguration, dataSourceTypeAdapter typeAdapter) Registry {
 	return &schemaRegistry{
 		indexConfiguration:      &configuration.IndexConfig,
 		dataSourceTableProvider: tableProvider,
 		dataSourceTypeAdapter:   dataSourceTypeAdapter,
 		dynamicConfiguration:    make(map[string]Table),
+		fieldEncodings:          make(map[FieldEncodingKey]EncodedFieldName),
 	}
 }
 
@@ -127,7 +170,9 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 			continue
 		}
 		if resolvedType, valid := ParseQuesmaType(field.Type.AsString()); valid {
-			fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(strings.Replace(fieldName.AsString(), ".", "::", -1)), Type: resolvedType}
+			// encode internalPropertyName according to defined rules
+			internalPropertyName := util.FieldToColumnEncoder(fieldName.AsString())
+			fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(internalPropertyName), Type: resolvedType}
 		} else {
 			logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", field.Type.AsString())
 		}
@@ -145,13 +190,19 @@ func (s *schemaRegistry) populateAliases(indexConfiguration config.IndexConfigur
 	}
 }
 
-func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[string]Table, indexName string, fields map[FieldName]Field) (existsInDataSource bool) {
+func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[string]Table, indexName string, fields map[FieldName]Field, internalToPublicFieldsEncodings map[EncodedFieldName]string) (existsInDataSource bool) {
 	tableDefinition, found := definitions[indexName]
 	if found {
 		logger.Debug().Msgf("loading schema for table %s", indexName)
 
 		for _, column := range tableDefinition.Columns {
-			propertyName := FieldName(strings.Replace(column.Name, "::", ".", -1))
+			var propertyName FieldName
+			if internalField, ok := internalToPublicFieldsEncodings[EncodedFieldName(column.Name)]; ok {
+				propertyName = FieldName(internalField)
+			} else {
+				// if field encoding is not found, use the column name as the property name
+				propertyName = FieldName(column.Name)
+			}
 			if existing, exists := fields[propertyName]; !exists {
 				if quesmaType, resolved := s.dataSourceTypeAdapter.Convert(column.Type); resolved {
 					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), InternalPropertyType: column.Type, Type: quesmaType}

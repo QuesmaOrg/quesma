@@ -149,18 +149,18 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		model.HitsCountInfo{Typ: model.Normal},
 		[]string{
 			`SELECT sum(count(*)) OVER () AS "aggr__sample__count",
-			  sum(count("host.name")) OVER () AS "metric__sample__sample_count_col_0",
+			  sum(count("host_name")) OVER () AS "metric__sample__sample_count_col_0",
 			  sum(count(*)) OVER () AS "aggr__sample__top_values__parent_count",
-			  "host.name" AS "aggr__sample__top_values__key_0",
+			  "host_name" AS "aggr__sample__top_values__key_0",
 			  count(*) AS "aggr__sample__top_values__count"
 			FROM (
-			  SELECT "host.name"
+			  SELECT "host_name"
 			  FROM __quesma_table_name
 			  WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z')
 				AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND
 				"message" iLIKE '%user%')
 			  LIMIT 20000)
-			GROUP BY "host.name" AS "aggr__sample__top_values__key_0"
+			GROUP BY "host_name" AS "aggr__sample__top_values__key_0"
 			ORDER BY "aggr__sample__top_values__count" DESC,
 			  "aggr__sample__top_values__key_0" ASC
 			LIMIT 11`,
@@ -558,7 +558,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"Truncated most results. TODO Check what's at the end of response, probably count?",
 		model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: 500},
 		[]string{
-			`SELECT "@timestamp", "host.name", "message", "properties::isreg"
+			`SELECT "@timestamp", "host_name", "message", "properties_isreg"
 			FROM __quesma_table_name
 			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort(
 			  '2024-01-23T14:43:19.481Z') AND "@timestamp"<=parseDateTime64BestEffort(
@@ -867,7 +867,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 			  count(*) AS "metric____quesma_total_count_col_0"
 			FROM __quesma_table_name
 			WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND
-			  "host.name" iLIKE '%poseidon%')`,
+			  "host_name" iLIKE '%poseidon%')`,
 		},
 		true,
 	},
@@ -884,7 +884,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: 50},
 		[]string{
-			`SELECT "@timestamp", "host.name", "message", "properties::isreg"
+			`SELECT "@timestamp", "host_name", "message", "properties_isreg"
 			FROM __quesma_table_name
 			LIMIT 50`,
 		},
@@ -950,13 +950,13 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"happens e.g. in Explorer > Field Statistics view",
 		model.HitsCountInfo{Typ: model.ListByField, RequestedFields: []string{"properties::isreg"}, Size: 100},
 		[]string{
-			`SELECT "properties::isreg"
+			`SELECT "properties_isreg"
 				FROM __quesma_table_name
 				WHERE (((toUnixTimestamp64Milli("epoch_time")>=1.710171234276e+12 AND
 				  toUnixTimestamp64Milli("epoch_time")<=1.710172134276e+12) AND (
 				  toUnixTimestamp64Milli("epoch_time")>=1.710171234276e+12 AND
 				  toUnixTimestamp64Milli("epoch_time")<=1.710172134276e+12)) AND
-				  "properties::isreg" IS NOT NULL)
+				  "properties_isreg" IS NOT NULL)
 				LIMIT 100`,
 		},
 		false,

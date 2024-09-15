@@ -146,11 +146,11 @@ var AggregationTestsWithSpecialCharactersInFieldNames = []AggregationTestCase{
 		ExpectedPancakeResults: []model.QueryResultRow{}, // checking only the SQLs is enough for now
 		ExpectedPancakeSQL: `WITH quesma_top_hits_group_table AS (
 			  SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-				toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000) AS
+				toInt64(toUnixTimestamp64Milli("__timestamp") / 43200000) AS
 				"aggr__0__key_0", count(*) AS "aggr__0__count"
 			  FROM __quesma_table_name
-			  WHERE "message$*%:;" IS NOT NULL
-			  GROUP BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000) AS
+			  WHERE "message_____" IS NOT NULL
+			  GROUP BY toInt64(toUnixTimestamp64Milli("__timestamp") / 43200000) AS
 				"aggr__0__key_0"
 			  ORDER BY "aggr__0__key_0" ASC) ,
 			quesma_top_hits_join AS (
@@ -158,14 +158,14 @@ var AggregationTestsWithSpecialCharactersInFieldNames = []AggregationTestCase{
 				"metric____quesma_total_count_col_0",
 				"group_table"."aggr__0__key_0" AS "aggr__0__key_0",
 				"group_table"."aggr__0__count" AS "aggr__0__count",
-				"-@bytes" AS "top_metrics__0__1_col_0",
-				"-@timestamp" AS "top_metrics__0__1_col_1",
+				"__bytes" AS "top_metrics__0__1_col_0",
+				"__timestamp" AS "top_metrics__0__1_col_1",
 				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__0__key_0" ORDER BY
-				"-@timestamp" DESC) AS "top_hits_rank"
+				"__timestamp" DESC) AS "top_hits_rank"
 			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
 				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__0__key_0"=
-				toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000))
-			  WHERE "message$*%:;" IS NOT NULL)
+				toInt64(toUnixTimestamp64Milli("__timestamp") / 43200000))
+			  WHERE "message_____" IS NOT NULL)
 			SELECT "metric____quesma_total_count_col_0", "aggr__0__key_0", "aggr__0__count",
 			  "top_metrics__0__1_col_0", "top_metrics__0__1_col_1", "top_hits_rank"
 			FROM "quesma_top_hits_join"

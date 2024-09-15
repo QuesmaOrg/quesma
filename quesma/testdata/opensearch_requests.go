@@ -80,24 +80,24 @@ var OpensearchSearchTests = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		WantedSql: []string{
-			`("-@timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND "-@timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))`,
+			`("__timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND "__timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))`,
 		},
 		WantedQueryType: model.ListAllFields,
 		WantedQueries: []string{
-			`SELECT "-@bytes", "-@timestamp", "message$*%:;"
+			`SELECT "__bytes", "__timestamp", "message_____"
 			FROM __quesma_table_name
-			WHERE ("-@timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z')
-			           AND "-@timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))
-			ORDER BY "-@timestamp" DESC LIMIT 500`,
+			WHERE ("__timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z')
+			           AND "__timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))
+			ORDER BY "__timestamp" DESC LIMIT 500`,
 			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-			  toInt64((toUnixTimestamp64Milli("-@timestamp")+timeZoneOffset(toTimezone(
-			  "-@timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0",
+			  toInt64((toUnixTimestamp64Milli("__timestamp")+timeZoneOffset(toTimezone(
+			  "__timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			WHERE ("-@timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND
-			  "-@timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))
-			GROUP BY toInt64((toUnixTimestamp64Milli("-@timestamp")+timeZoneOffset(
-			  toTimezone("-@timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0"
+			WHERE ("__timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND
+			  "__timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))
+			GROUP BY toInt64((toUnixTimestamp64Milli("__timestamp")+timeZoneOffset(
+			  toTimezone("__timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 		},
 	},
@@ -173,17 +173,17 @@ var OpensearchSearchTests = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		WantedSql: []string{
-			`("-@timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND "-@timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))`,
+			`("__timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND "__timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))`,
 		},
 		WantedQueryType: model.Normal,
 		WantedQueries: []string{
 			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-       		  toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000) AS "aggr__2__key_0",
+			  toInt64(toUnixTimestamp64Milli("__timestamp") / 30000) AS "aggr__2__key_0",
        		  count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			WHERE ("-@timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z')
-			           AND "-@timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))
-			GROUP BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000) AS "aggr__2__key_0"
+			WHERE ("__timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z')
+			           AND "__timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))
+			GROUP BY toInt64(toUnixTimestamp64Milli("__timestamp") / 30000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 		},
 	},

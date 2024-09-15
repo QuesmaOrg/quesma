@@ -123,7 +123,8 @@ func TestAddTimestamp(t *testing.T) {
 	ip.schemaRegistry = schema.StaticRegistry{}
 	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
 	columnsFromJson, columnsFromSchema := ip.buildCreateTableQueryNoOurFields(context.Background(), "tableName", jsonData, tableConfig, nameFormatter)
-	columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData))
+	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
+	columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(jsonData))
 	query := createTableQuery(tableName, columns, tableConfig)
 	assert.True(t, strings.Contains(query, timestampFieldName))
 }

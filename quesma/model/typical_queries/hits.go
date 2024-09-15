@@ -9,6 +9,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/util"
 	"reflect"
 	"strconv"
 	"time"
@@ -110,14 +111,19 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 		}
 		columnName := col.ColName
 		hit.Fields[columnName] = toInterfaceArray(col.Value)
-		if query.highlighter.ShouldHighlight(columnName) {
+		// TODO using using util.FieldToColumnEncoder is a workaround
+		// we first build highlighter tokens using internal representation
+		// then we do postprocessing changing columns to public fields
+		// and then highlighter build json using public one
+		// which is incorrect
+		if query.highlighter.ShouldHighlight(util.FieldToColumnEncoder(columnName)) {
 			// check if we have a string here and if so, highlight it
 			switch valueAsString := col.Value.(type) {
 			case string:
-				hit.Highlight[columnName] = query.highlighter.HighlightValue(columnName, valueAsString)
+				hit.Highlight[columnName] = query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), valueAsString)
 			case *string:
 				if valueAsString != nil {
-					hit.Highlight[columnName] = query.highlighter.HighlightValue(columnName, *valueAsString)
+					hit.Highlight[columnName] = query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), *valueAsString)
 				}
 			default:
 				logger.WarnWithCtx(query.ctx).Msgf("unknown type for hit highlighting: %T, value: %v", col.Value, col.Value)

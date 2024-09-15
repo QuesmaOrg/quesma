@@ -10,6 +10,7 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/quesma/config"
 	"quesma/schema"
+	"quesma/util"
 	"sort"
 	"strings"
 )
@@ -159,23 +160,22 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 
 	for _, field := range schemaInstance.Fields {
 		if field.Type.Name == schema.QuesmaTypePoint.Name {
-
-			lon := model.NewColumnRef(field.InternalPropertyName.AsString() + "::lon")
-			lat := model.NewColumnRef(field.InternalPropertyName.AsString() + "::lat")
+			lon := model.NewColumnRef(field.InternalPropertyName.AsString() + "_lon")
+			lat := model.NewColumnRef(field.InternalPropertyName.AsString() + "_lat")
 
 			// This is a workaround. Clickhouse Point is defined as Tuple. We need to know the type of the tuple.
 			// In this step we merge two columns into single map here. Map is in elastic format.
 
 			// In this point we assume that Quesma point type is stored into two separate columns.
-			replace[field.PropertyName.AsString()] = model.NewFunction("map",
+			replace[field.InternalPropertyName.AsString()] = model.NewFunction("map",
 				model.NewLiteral("'lat'"),
 				lat,
 				model.NewLiteral("'lon'"),
 				lon)
 
 			// these a just if we need multifields support
-			replace[field.PropertyName.AsString()+".lat"] = lat
-			replace[field.PropertyName.AsString()+".lon"] = lon
+			replace[field.InternalPropertyName.AsString()+".lat"] = lat
+			replace[field.InternalPropertyName.AsString()+".lon"] = lon
 
 			// if the point is stored as a single column, we need to extract the lat and lon
 			//replace[field.PropertyName.AsString()] = model.NewFunction("give_me_point", model.NewColumnRef(field.InternalPropertyName.AsString()))
@@ -358,13 +358,9 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 		return query, fmt.Errorf("index configuration not found for table %s", query.TableName)
 	}
 
-	useCommonTable := indexConf.UseCommonTable
+	useSingleTable := indexConf.UseCommonTable
 
 	physicalFromExpression := model.NewTableRefWithDatabaseName(query.TableName, currentSchema.DatabaseName)
-
-	if useCommonTable {
-		physicalFromExpression = model.NewTableRef(common_table.TableName)
-	}
 
 	visitor := model.NewBaseVisitor()
 
@@ -377,7 +373,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 		// TODO is this nessessery?
-		if useCommonTable {
+		if useSingleTable {
 			if e.ColumnName == "timestamp" || e.ColumnName == "epoch_time" || e.ColumnName == `"epoch_time"` {
 				return model.NewColumnRef("@timestamp")
 			}
@@ -407,8 +403,8 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 			where = selectStm.WhereClause.Accept(b).(model.Expr)
 		}
 
-		// add filter for common table, if needed
-		if useCommonTable && from == physicalFromExpression {
+		// add filter for single table, if needed
+		if useSingleTable && from == physicalFromExpression {
 			indexWhere := model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", query.TableName)))
 
 			if selectStm.WhereClause != nil {
@@ -606,11 +602,42 @@ func (s *SchemaCheckPass) handleDottedTColumnNames(indexSchema schema.Schema, qu
 		if strings.Contains(e.ColumnName, ".") {
 			logger.Warn().Msgf("Dotted column name found: %s", e.ColumnName)
 			//return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
+			return e
 		}
 		return e
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+}
+
+func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	visitor := model.NewBaseVisitor()
+
+	var err error
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+		if _, ok := indexSchema.ResolveField(e.ColumnName); ok {
+			// TODO util.FieldToColumnEncoder is a shortcut here
+			// we should use the schema to get the internal name
+			// however for now it's part of schema.registry not schema.Schema
+			// so we don't have direct access to it
+			return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
+		} else {
+			return e
+		}
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if err != nil {
+		return nil, err
+	}
 
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
@@ -626,6 +653,11 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 	}{
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
+		// FieldEncodingTransformation should be after WildcardExpansion
+		// because WildcardExpansion expands the wildcard to all fields
+		// and columns are expanded as PublicFieldName, so we need to encode them
+		// or in other words use internal field names
+		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},

@@ -28,9 +28,8 @@ func (v *arrayTypeResolver) dbColumnType(columName string) string {
 	//
 	// here we should resolve field by column name not field name
 	columName = strings.TrimSuffix(columName, ".keyword")
-	columName = strings.ReplaceAll(columName, "::", ".")
 
-	field, ok := v.indexSchema.ResolveField(columName)
+	field, ok := v.indexSchema.ResolveFieldByInternalName(columName)
 
 	if !ok {
 		return ""

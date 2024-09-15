@@ -52,27 +52,26 @@ func TestAsyncSearchHandler(t *testing.T) {
 				Name: "message",
 				Type: clickhouse.NewBaseType("String"),
 			},
-			"host.name": {
-				Name: "host.name",
+			"host_name": {
+				Name: "host_name",
 				Type: clickhouse.NewBaseType("LowCardinality(String)"),
 			},
-			"properties::isreg": {
-				Name: "properties::isreg",
+			"properties_isreg": {
+				Name: "properties_isreg",
 				Type: clickhouse.NewBaseType("UInt8"),
 			},
 		},
 		Created: true,
 	})
+	fields := map[schema.FieldName]schema.Field{
+		"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+		"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+		"host.name":         {PropertyName: "host.name", InternalPropertyName: "host_name", Type: schema.QuesmaTypeObject},
+		"properties::isreg": {PropertyName: "properties::isreg", InternalPropertyName: "properties_isreg", Type: schema.QuesmaTypeInteger},
+	}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			model.SingleTableNamePlaceHolder: {
-				Fields: map[schema.FieldName]schema.Field{
-					"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
-					"properties::isreg": {PropertyName: "properties::isreg", InternalPropertyName: "properties::isreg", Type: schema.QuesmaTypeInteger},
-				},
-			},
+			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
 
@@ -102,31 +101,34 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
-			"-@timestamp":  {Name: "-@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String")},
-			"-@bytes":      {Name: "-@bytes", Type: clickhouse.NewBaseType("Int64")},
+			"__timestamp":  {Name: "__timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"message_____": {Name: "message_____", Type: clickhouse.NewBaseType("String")},
+			"__bytes":      {Name: "__bytes", Type: clickhouse.NewBaseType("Int64")},
 		},
 		Created: true,
+	}
+	fields := map[schema.FieldName]schema.Field{
+		"host.name":         {PropertyName: "host.name", InternalPropertyName: "host_name", Type: schema.QuesmaTypeObject},
+		"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+		"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
+		"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
+		"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+		"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name_keyword", Type: schema.QuesmaTypeKeyword},
+		"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "flightdelay", Type: schema.QuesmaTypeText},
+		"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "cancelled", Type: schema.QuesmaTypeText},
+		"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "flightdelaymin", Type: schema.QuesmaTypeText},
+		"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
+		"message$*%:;":      {PropertyName: "message$*%:;", InternalPropertyName: "message_____", Type: schema.QuesmaTypeText},
+		"-@timestamp":       {PropertyName: "-@timestamp", InternalPropertyName: "__timestamp", Type: schema.QuesmaTypeDate},
+		"-@bytes":           {PropertyName: "-@bytes", InternalPropertyName: "__bytes", Type: schema.QuesmaTypeInteger},
 	}
 
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			tableName: {
-				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
-				},
-			},
+			tableName: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
+
 	for i, tt := range testdata.AggregationTestsWithSpecialCharactersInFieldNames {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
@@ -162,13 +164,13 @@ var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
 })
 
 func TestSearchHandler(t *testing.T) {
+	fields := map[schema.FieldName]schema.Field{
+		"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+	}
+
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			model.SingleTableNamePlaceHolder: {
-				Fields: map[schema.FieldName]schema.Field{
-					"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
-				},
-			},
+			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
 	for i, tt := range testdata.TestsSearch {
