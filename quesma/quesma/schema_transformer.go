@@ -413,7 +413,8 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 			where = selectStm.WhereClause.Accept(b).(model.Expr)
 		}
 
-		if useSingleTable {
+		// add filter for single table, if needed
+		if useSingleTable && from == tableRef {
 			indexWhere := model.NewInfixExpr(model.NewColumnRef(single_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", query.TableName)))
 
 			if selectStm.WhereClause != nil {
@@ -602,6 +603,29 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 }
 
+func (s *SchemaCheckPass) handleDottedTColumnNames(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		if strings.Contains(e.ColumnName, ".") {
+
+			logger.Warn().Msgf("Dotted column name found: %s", e.ColumnName)
+			return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
+		}
+
+		return e
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 
 	transformationChain := []struct {
@@ -617,6 +641,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 		{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
+		{TransformationName: "DottedColumnNames", Transformation: s.handleDottedTColumnNames},
 	}
 
 	for k, query := range queries {
