@@ -13,8 +13,8 @@ func TestNewElasticPersistence(t *testing.T) {
 
 	var p JSONDatabase
 
-	// change to true if you want to test non-trivial persistence
-	if false {
+	// change to false if you want to test non-trivial persistence
+	if true {
 		p = NewStaticJSONDatabase()
 	} else {
 		indexName := fmt.Sprintf("quesma_test_%d", time.Now().UnixMicro())
