@@ -354,13 +354,13 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 	useSingleTable := indexConf.UseSingleTable
 
-  physicalFromExpression := model.NewTableRefWithDatabaseName(query.TableName, currentSchema.DatabaseName)
+	physicalFromExpression := model.NewTableRefWithDatabaseName(query.TableName, currentSchema.DatabaseName)
 
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
 		if e.Name == model.SingleTableNamePlaceHolder {
-			return tableRef
+			return physicalFromExpression
 		}
 		return e
 	}
@@ -398,7 +398,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 		}
 
 		// add filter for single table, if needed
-		if useSingleTable && from == tableRef {
+		if useSingleTable && from == physicalFromExpression {
 			indexWhere := model.NewInfixExpr(model.NewColumnRef(single_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", query.TableName)))
 
 			if selectStm.WhereClause != nil {

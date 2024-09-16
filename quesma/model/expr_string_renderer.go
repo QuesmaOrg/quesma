@@ -117,7 +117,7 @@ func (v *renderer) VisitTableRef(e TableRef) interface{} {
 		}
 	}
 
-  if identifierRegexp.MatchString(e.Name) {
+	if identifierRegexp.MatchString(e.Name) {
 		result = append(result, e.Name)
 	} else {
 		result = append(result, strconv.Quote(e.Name))
