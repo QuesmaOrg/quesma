@@ -594,11 +594,10 @@ func (s *SchemaCheckPass) handleDottedTColumnNames(indexSchema schema.Schema, qu
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 
 		if strings.Contains(e.ColumnName, ".") {
-
 			logger.Warn().Msgf("Dotted column name found: %s", e.ColumnName)
-			return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
+			//return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
+			return e
 		}
-
 		return e
 	}
 
