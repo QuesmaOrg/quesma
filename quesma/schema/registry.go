@@ -60,7 +60,7 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 		s.populateAliases(indexConfiguration, fields, aliases)
 		s.removeIgnoredFields(indexConfiguration, fields, aliases)
 		s.removeGeoPhysicalFields(fields)
-		tableDefinition, _ := definitions[indexName]
+		tableDefinition := definitions[indexName]
 		schemas[TableName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource, tableDefinition.DatabaseName)
 	}
 
