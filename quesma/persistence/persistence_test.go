@@ -4,6 +4,8 @@ package persistence
 
 import (
 	"fmt"
+	"net/url"
+	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"testing"
 	"time"
@@ -18,7 +20,22 @@ func TestNewElasticPersistence(t *testing.T) {
 		p = NewStaticJSONDatabase()
 	} else {
 		indexName := fmt.Sprintf("quesma_test_%d", time.Now().UnixMicro())
-		p = NewElasticJSONDatabase("http://localhost:9200", indexName)
+
+		realUrl, err := url.Parse("http://localhost:9200")
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var cfgUrl config.Url = config.Url(*realUrl)
+
+		cfg := config.ElasticsearchConfiguration{
+			Url:      &cfgUrl,
+			User:     "",
+			Password: "",
+		}
+
+		p = NewElasticJSONDatabase(cfg, indexName)
 	}
 
 	m1 := make(types.JSON)
