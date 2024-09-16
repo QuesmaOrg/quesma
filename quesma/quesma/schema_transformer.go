@@ -354,23 +354,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 	useSingleTable := indexConf.UseSingleTable
 
-	// TODO compute physical from expression based on single table or union or whatever ....
-
-	tableName := query.TableName
-	if useSingleTable {
-		tableName = single_table.TableName
-	}
-
-	/* TODO add this back
-	table := s.logManager.GetTable(tableName)
-	if table == nil {
-		logger.Error().Msgf("Table %s not found", tableName)
-		return query, nil
-	}
-
-	tableRef := model.NewTableRefWithDatabaseName(table.Name, table.DatabaseName)
-	*/
-	tableRef := model.NewTableRef(tableName)
+  physicalFromExpression := model.NewTableRefWithDatabaseName(query.TableName, currentSchema.DatabaseName)
 
 	visitor := model.NewBaseVisitor()
 

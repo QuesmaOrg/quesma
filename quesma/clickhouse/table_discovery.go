@@ -83,6 +83,7 @@ func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema
 				Type: column.Type.String(),
 			}
 		}
+		table.DatabaseName = value.DatabaseName
 		tables[tableName] = table
 		return true
 	})
@@ -222,7 +223,7 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]string, d
 				comment := td.tableComment(databaseName, table)
 				createTableQuery := td.createTableQuery(databaseName, table)
 				// we assume here that @timestamp field is always present in the table, or it's explicitly configured
-				configuredTables[table] = discoveredTable{table, columns, indexConfig, comment, createTableQuery, "", false}
+				configuredTables[table] = discoveredTable{table, databaseName, columns, indexConfig, comment, createTableQuery, "", false}
 			}
 		} else {
 			notConfiguredTables = append(notConfiguredTables, table)
@@ -251,7 +252,7 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]strin
 		} else {
 			maybeTimestampField = td.tableTimestampField(databaseName, table, ClickHouse)
 		}
-		configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField, true}
+		configuredTables[table] = discoveredTable{table, databaseName, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField, true}
 
 	}
 	for tableName, table := range configuredTables {

@@ -104,7 +104,7 @@ func newSchemaFromColumns(fields map[string]schema.Column) schema.Schema {
 			Type:                 parsedType,
 		}
 	}
-	return schema.NewSchema(schemaFields, true)
+	return schema.NewSchema(schemaFields, true, "")
 }
 
 func TestParseMappings_KibanaSampleFlights(t *testing.T) {
