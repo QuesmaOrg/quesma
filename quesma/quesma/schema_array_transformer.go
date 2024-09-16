@@ -100,3 +100,87 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 	}
 	return visitor
 }
+
+func checkIfGoupingByArrayColumn(stm model.SelectCommand, resolver arrayTypeResolver) bool {
+
+	isArrayColumn := func(e model.Expr) bool {
+		columnIsArray := false
+		findArrayColumn := model.NewBaseVisitor()
+
+		findArrayColumn.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+			dbType := resolver.dbColumnType(e.ColumnName)
+			if strings.HasPrefix(dbType, "Array") {
+				columnIsArray = true
+			}
+			return e
+		}
+
+		e.Accept(findArrayColumn)
+
+		return columnIsArray
+	}
+
+	visitor := model.NewBaseVisitor()
+
+	var found bool
+
+	visitor.OverrideVisitSelectCommand = func(b *model.BaseExprVisitor, e model.SelectCommand) interface{} {
+
+		for _, expr := range e.GroupBy {
+
+			if isArrayColumn(expr) {
+				found = true
+			}
+		}
+
+		for _, expr := range e.Columns {
+			expr.Accept(b)
+		}
+
+		if e.FromClause != nil {
+			e.FromClause.Accept(b)
+		}
+
+		for _, cte := range e.NamedCTEs {
+			cte.Accept(b)
+		}
+
+		return e
+	}
+
+	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
+
+		if strings.HasPrefix(e.Name, "sum") || strings.HasPrefix(e.Name, "count") {
+
+			if len(e.Args) > 0 {
+				arg := e.Args[0]
+
+				if isArrayColumn(arg) {
+					found = true
+				}
+
+			}
+
+		}
+		return e
+	}
+
+	stm.Accept(visitor)
+
+	return found
+}
+
+func NewArrayJoinVisitor(resolver arrayTypeResolver) model.ExprVisitor {
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+		dbType := resolver.dbColumnType(e.ColumnName)
+		if strings.HasPrefix(dbType, "Array") {
+			return model.NewFunction("arrayJoin", e)
+		}
+		return e
+	}
+
+	return visitor
+}
