@@ -362,7 +362,6 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
-	logger.Info().Msgf("PRZMYSLAW QUERY ---> [%s]", query.SelectCommand.String())
 
 	return query, nil
 }
