@@ -21,7 +21,7 @@ type InstallationIDPayload struct {
 }
 
 type LicensePayload struct {
-	LicenseKey []byte `json:"license_key"`
+	LicenseKey string `json:"license_key"`
 }
 
 // obtainLicenseKey presents an InstallationId to the license server and receives a LicenseKey in return
@@ -46,7 +46,7 @@ func (l *LicenseModule) obtainLicenseKey() (err error) {
 	if err = json.Unmarshal(body, &licenseResponse); err != nil {
 		return err
 	}
-	l.LicenseKey = licenseResponse.LicenseKey
+	l.LicenseKey = []byte(licenseResponse.LicenseKey)
 	fmt.Printf("License key obtained and set successfully, key=[%s.....%s]\n", string(l.LicenseKey[:8]), string(l.LicenseKey[len(l.LicenseKey)-8:]))
 	return nil
 }
@@ -68,7 +68,7 @@ func (l *LicenseModule) processLicense() error {
 
 func (l *LicenseModule) fetchLicense() (a *License, err error) {
 	var payloadBytes []byte
-	if payloadBytes, err = json.Marshal(LicensePayload{LicenseKey: l.LicenseKey}); err != nil {
+	if payloadBytes, err = json.Marshal(LicensePayload{LicenseKey: string(l.LicenseKey)}); err != nil {
 		return nil, err
 	}
 	resp, err := http.Post(verifyLicenseEndpoint, "application/json", bytes.NewReader(payloadBytes))
