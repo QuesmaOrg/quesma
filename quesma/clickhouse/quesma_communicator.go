@@ -160,7 +160,10 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 	//
 
 	settings := make(clickhouse.Settings)
-	settings["readonly"] = "1"
+	// this "readonly" setting turned out to be causing problems with Hydrolix queries
+	// the queries looked pretty legit, but the key difference was the use of schema (`FROM "schema"."tableName"`)
+	// to be revisited in the future
+	// settings["readonly"] = "1"
 	settings["allow_ddl"] = "0"
 
 	if query.OptimizeHints != nil {
@@ -185,7 +188,6 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 		performanceResult.Error = err
 		return nil, performanceResult, end_user_errors.GuessClickhouseErrorType(err).InternalDetails("clickhouse: query failed. err: %v, query: %v", err, queryAsString)
 	}
-
 	res, err = read(rows, fields, rowToScan)
 
 	elapsed := span.End(nil)

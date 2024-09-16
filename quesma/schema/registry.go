@@ -29,7 +29,8 @@ type (
 		AutodiscoveryEnabled() bool
 	}
 	Table struct {
-		Columns map[string]Column
+		Columns      map[string]Column
+		DatabaseName string
 	}
 	Column struct {
 		Name string
@@ -41,10 +42,10 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 	definitions := s.dataSourceTableProvider.TableDefinitions()
 	schemas := make(map[TableName]Schema)
 	if s.dataSourceTableProvider.AutodiscoveryEnabled() {
-		for tableName := range definitions {
+		for tableName, table := range definitions {
 			fields := make(map[FieldName]Field)
 			existsInDataSource := s.populateSchemaFromTableDefinition(definitions, tableName, fields)
-			schemas[TableName(tableName)] = NewSchema(fields, existsInDataSource)
+			schemas[TableName(tableName)] = NewSchema(fields, existsInDataSource, table.DatabaseName)
 		}
 		return schemas, nil
 	}
@@ -59,7 +60,11 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 		s.populateAliases(indexConfiguration, fields, aliases)
 		s.removeIgnoredFields(indexConfiguration, fields, aliases)
 		s.removeGeoPhysicalFields(fields)
-		schemas[TableName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource)
+		if tableDefinition, ok := definitions[indexName]; ok {
+			schemas[TableName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource, tableDefinition.DatabaseName)
+		} else {
+			schemas[TableName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource, "")
+		}
 	}
 
 	return schemas, nil

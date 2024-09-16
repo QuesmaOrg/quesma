@@ -12,6 +12,9 @@ type (
 		Aliases             map[FieldName]FieldName
 		ExistsInDataSource  bool
 		internalNameToField map[FieldName]Field
+		// DatabaseName is the name of the database/schema in the data source,
+		// which in query prepends the physical table name e.g. 'FROM databaseName.tableName'
+		DatabaseName string
 	}
 	Field struct {
 		// PropertyName is how users refer to the field
@@ -25,7 +28,7 @@ type (
 	FieldName string
 )
 
-func NewSchemaWithAliases(fields map[FieldName]Field, aliases map[FieldName]FieldName, existsInDataSource bool) Schema {
+func NewSchemaWithAliases(fields map[FieldName]Field, aliases map[FieldName]FieldName, existsInDataSource bool, databaseName string) Schema {
 	internalNameToField := make(map[FieldName]Field)
 	for _, field := range fields {
 		internalNameToField[field.InternalPropertyName] = field
@@ -35,11 +38,12 @@ func NewSchemaWithAliases(fields map[FieldName]Field, aliases map[FieldName]Fiel
 		Aliases:             aliases,
 		ExistsInDataSource:  existsInDataSource,
 		internalNameToField: internalNameToField,
+		DatabaseName:        databaseName,
 	}
 }
 
-func NewSchema(fields map[FieldName]Field, existsInDataSource bool) Schema {
-	return NewSchemaWithAliases(fields, map[FieldName]FieldName{}, existsInDataSource)
+func NewSchema(fields map[FieldName]Field, existsInDataSource bool, databaseName string) Schema {
+	return NewSchemaWithAliases(fields, map[FieldName]FieldName{}, existsInDataSource, databaseName)
 }
 
 func (f FieldName) AsString() string {

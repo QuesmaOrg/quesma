@@ -127,7 +127,10 @@ func (s DistinctExpr) Accept(v ExprVisitor) interface{} {
 type TableRef struct {
 	Name string
 	// to be considered - alias (e.g. FROM tableName AS t)
-	// to be considered - database prefix (e.g. FROM databaseName.tableName)
+
+	// DatabaseName is optional and represents what in database realm is called 'schema', e.g. 'FROM databaseName.tableName'
+	// ClickHouse calls this 'database' so we stick to that; FWIW - Hydrolix calls this a 'project'.
+	DatabaseName string
 }
 
 func NewTableRef(name string) TableRef {
@@ -136,6 +139,10 @@ func NewTableRef(name string) TableRef {
 
 func (t TableRef) Accept(v ExprVisitor) interface{} {
 	return v.VisitTableRef(t)
+}
+
+func NewTableRefWithDatabaseName(name, databaseName string) TableRef {
+	return TableRef{Name: name, DatabaseName: databaseName}
 }
 
 type OrderByDirection int8
