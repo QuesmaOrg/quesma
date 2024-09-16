@@ -347,7 +347,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 	}
 
 	// TODO compute physical from expression based on single table or union or whatever ....
-	physicalFromExpression := model.NewTableRef(query.TableName)
+	physicalFromExpression := model.NewTableRefWithDatabaseName(query.TableName, currentSchema.DatabaseName)
 
 	visitor := model.NewBaseVisitor()
 
@@ -362,6 +362,8 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
+	logger.Info().Msgf("PRZMYSLAW QUERY ---> [%s]", query.SelectCommand.String())
+
 	return query, nil
 }
 

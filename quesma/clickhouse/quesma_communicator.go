@@ -185,8 +185,8 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 		performanceResult.Error = err
 		return nil, performanceResult, end_user_errors.GuessClickhouseErrorType(err).InternalDetails("clickhouse: query failed. err: %v, query: %v", err, queryAsString)
 	}
-
-	res, err = read(rows, fields, rowToScan)
+	logger.Info().Msgf("PRZEMYSLAW query executed: [%s]", queryAsString)
+	res, err = read(rows, fields, rowToScan) // TODO: HERE WE ERROR
 
 	elapsed := span.End(nil)
 	performanceResult.Duration = elapsed
