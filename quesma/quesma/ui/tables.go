@@ -53,6 +53,8 @@ func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 
 			allColumnNamesMap := make(map[string]struct{})
 
+			var filteredTableNames []string
+
 			for _, tableName := range tableNames {
 
 				indexConf, ok := qmc.cfg.IndexConfig[tableName]
@@ -68,10 +70,17 @@ func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 				if !ok {
 					continue
 				}
+
+				if !table.VirtualTable {
+					continue
+				}
+
 				for k := range table.Cols {
 					allColumnNamesMap[k] = struct{}{}
 				}
+				filteredTableNames = append(filteredTableNames, tableName)
 			}
+			tableNames = filteredTableNames
 
 			allColumnNames := make([]string, 0, len(allColumnNamesMap))
 

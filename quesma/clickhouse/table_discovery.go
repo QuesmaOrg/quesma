@@ -192,6 +192,7 @@ func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discover
 		discoTable.comment = "Virtual table. Version: " + readVirtualTable.StoredAt
 		discoTable.createTableQuery = "n/a"
 		discoTable.config = config.IndexConfiguration{}
+		discoTable.virtualTable = true
 
 		configuredTables[virtualTable] = discoTable
 	}

@@ -4,7 +4,6 @@ package persistence
 
 import (
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/quesma/types"
 	"testing"
 	"time"
@@ -14,6 +13,7 @@ func TestNewElasticPersistence(t *testing.T) {
 
 	var p JSONDatabase
 
+	// change to true if you want to test non-trivial persistence
 	if false {
 		p = NewStaticJSONDatabase()
 	} else {
@@ -39,6 +39,9 @@ func TestNewElasticPersistence(t *testing.T) {
 	}
 
 	m1str, err := m1.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = p.Put("t1", string(m1str))
 	if err != nil {
@@ -46,7 +49,6 @@ func TestNewElasticPersistence(t *testing.T) {
 	}
 
 	d2str, ok, err := p.Get("t1")
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,10 +57,7 @@ func TestNewElasticPersistence(t *testing.T) {
 		t.Fatal("expected ok")
 	}
 
-	pp.Println(d2str)
-
 	d2 := types.MustJSON(d2str)
-
 	if d2["foo"] != "bar" {
 		t.Fatal("expected bar")
 	}
