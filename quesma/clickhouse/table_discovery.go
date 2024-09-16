@@ -174,6 +174,7 @@ func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discover
 			logger.Warn().Msgf("virtual table %s not found", virtualTable)
 			continue
 		}
+
 		var readVirtualTable single_table.VirtualTable
 		err = json.Unmarshal([]byte(data), &readVirtualTable)
 		if err != nil {
@@ -184,13 +185,7 @@ func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discover
 			columnTypes: make(map[string]string),
 		}
 
-		var columns []single_table.VirtualTableColumn
-		err = json.Unmarshal([]byte(readVirtualTable.Columns), &columns)
-		if err != nil {
-			logger.Error().Msgf("could not unmarshal virtual table columns %s: %v", virtualTable, err)
-		}
-
-		for _, col := range columns {
+		for _, col := range readVirtualTable.Columns {
 			discoTable.columnTypes[col.Name] = col.Type
 		}
 

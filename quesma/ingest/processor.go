@@ -658,14 +658,6 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	indexConf, ok := lm.cfg.IndexConfig[tableName]
 	if ok && indexConf.UseSingleTable {
 
-		/* TODO check if it's needed
-		jsonCopy := make([]types.JSON, len(jsonData))
-		for i, j := range jsonData {
-			jsonCopy[i] = j.Clone()
-		}
-
-		*/
-
 		err := lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, true)
 		if err != nil {
 			// we ignore an error here, because we want to process the data and don't lose it
@@ -811,20 +803,15 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 		})
 	}
 
-	dataColumns, err := json.MarshalIndent(columns, "", "  ")
-
 	vTable := &single_table.VirtualTable{
-		StoredAt: now.String(),
-		Columns:  string(dataColumns),
+		StoredAt: now.Format(time.RFC3339),
+		Columns:  columns,
 	}
 
 	data, err := json.MarshalIndent(vTable, "", "  ")
 	if err != nil {
 		return err
 	}
-
-	//fmt.Println("PUT VIRTUAL TABLE", table.Name, string(data))
-
 	return ip.virtualTableStorage.Put(table.Name, string(data))
 }
 

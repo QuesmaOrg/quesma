@@ -47,6 +47,6 @@ type VirtualTableColumn struct {
 }
 
 type VirtualTable struct {
-	StoredAt string `json:"stored_at"`
-	Columns  string `json:"columns"` // here we keep columns as a JSON string, we don't want to exceed limit of fields in
+	StoredAt string               `json:"stored_at"`
+	Columns  []VirtualTableColumn `json:"columns"`
 }

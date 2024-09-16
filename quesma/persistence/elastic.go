@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"quesma/quesma/types"
 )
 
 type ElasticJSONDatabase struct {
@@ -16,6 +17,13 @@ type ElasticJSONDatabase struct {
 	IndexName string
 
 	httpClient *http.Client
+}
+
+// This is a wrapper to make document a single field doc.
+// We can have documents with more than 1000 fields.
+// This is a limitation of Elasticsearch. It's not a real document database.
+type Wrapper struct {
+	Content string `json:"content"`
 }
 
 func NewElasticJSONDatabase(url, indexName string) *ElasticJSONDatabase {
@@ -29,9 +37,20 @@ func NewElasticJSONDatabase(url, indexName string) *ElasticJSONDatabase {
 
 func (p *ElasticJSONDatabase) Put(key string, data string) error {
 
-	elasticsearchURL := fmt.Sprintf("%s/%s/_doc?id=%s", p.URL, p.IndexName, key)
+	elasticsearchURL := fmt.Sprintf("%s/%s/_update/%s", p.URL, p.IndexName, key)
 
-	req, err := http.NewRequest("POST", elasticsearchURL, bytes.NewBuffer([]byte(data)))
+	w := Wrapper{Content: data}
+
+	updateContent := types.JSON{}
+	updateContent["doc"] = w
+	updateContent["doc_as_upsert"] = true
+
+	jsonData, err := json.Marshal(updateContent)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", elasticsearchURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
@@ -89,7 +108,13 @@ func (p *ElasticJSONDatabase) Get(key string) (string, bool, error) {
 		return "", false, fmt.Errorf("failed to get from elastic: %v", resp.Status)
 	}
 
-	return string(jsonAsBytes), true, err
+	wrapper := Wrapper{}
+	err = json.Unmarshal(jsonAsBytes, &wrapper)
+	if err != nil {
+		return "", false, err
+	}
+
+	return wrapper.Content, true, err
 }
 
 func (p *ElasticJSONDatabase) List() ([]string, error) {
