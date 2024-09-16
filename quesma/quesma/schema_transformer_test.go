@@ -20,6 +20,8 @@ func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
 	return f.tables
 }
 
+func (f fixedTableProvider) AutodiscoveryEnabled() bool { return false }
+
 func Test_ipRangeTransform(t *testing.T) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
@@ -258,8 +260,11 @@ func Test_ipRangeTransform(t *testing.T) {
 			TableName: "kibana_sample_data_flights",
 			SelectCommand: model.SelectCommand{
 				FromClause: model.NewTableRef("kibana_sample_data_flights"),
-				Columns: []model.Expr{model.NewColumnRef("DestLocation::lat"),
-					model.NewColumnRef("DestLocation::lon")},
+				Columns: []model.Expr{model.NewAliasedExpr(model.NewFunction("map",
+					model.NewLiteral("'lat'"),
+					model.NewColumnRef("DestLocation::lat"),
+					model.NewLiteral("'lon'"),
+					model.NewColumnRef("DestLocation::lon")), "DestLocation")},
 			}},
 	}
 	queries := [][]*model.Query{

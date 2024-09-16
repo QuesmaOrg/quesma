@@ -39,6 +39,7 @@ type TableDiscovery interface {
 	LastAccessTime() time.Time
 	LastReloadTime() time.Time
 	ForceReloadCh() <-chan chan<- struct{}
+	AutodiscoveryEnabled() bool
 }
 
 type tableDiscovery struct {
@@ -105,8 +106,8 @@ func (td *tableDiscovery) TableDefinitionsFetchError() error {
 	return td.ReloadTablesError
 }
 
-func (td *tableDiscovery) TableAutodiscoveryEnabled() bool {
-	return len(td.cfg.IndexConfig) == 0
+func (td *tableDiscovery) AutodiscoveryEnabled() bool {
+	return td.cfg.IndexAutodiscoveryEnabled()
 }
 
 func (td *tableDiscovery) LastAccessTime() time.Time {
@@ -144,7 +145,7 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 		td.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 		return
 	} else {
-		if td.TableAutodiscoveryEnabled() {
+		if td.AutodiscoveryEnabled() {
 			configuredTables = td.autoConfigureTables(tables, databaseName)
 		} else {
 			configuredTables = td.configureTables(tables, databaseName)

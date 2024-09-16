@@ -335,6 +335,5 @@ type fixedTableProvider struct {
 	tables map[string]schema.Table
 }
 
-func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
-	return f.tables
-}
+func (f fixedTableProvider) TableDefinitions() map[string]schema.Table { return f.tables }
+func (f fixedTableProvider) AutodiscoveryEnabled() bool                { return false }

@@ -7,7 +7,6 @@ import (
 	"quesma/model"
 	"quesma/model/metrics_aggregations"
 	"strconv"
-	"strings"
 )
 
 func (p *pancakeSqlQueryGenerator) quotedLiteral(name string) model.LiteralExpr {
@@ -83,9 +82,6 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	groupTableName := "group_table"
 	hitTableName := "hit_table"
 
-	hitTableLiteral := func(reference string) model.Expr {
-		return model.NewLiteral(strconv.Quote(hitTableName) + "." + strconv.Quote(reference))
-	}
 	groupTableLiteral := func(reference string) model.Expr {
 		return model.NewLiteral(strconv.Quote(groupTableName) + "." + strconv.Quote(reference))
 	}
@@ -93,15 +89,7 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	convertColumnRefToHitTable := func(expr model.Expr) model.Expr {
 		switch exprTyped := expr.(type) {
 		case model.ColumnRef:
-			// TODO: hack alert, we treat geo here in unique way
-			if strings.HasSuffix(exprTyped.ColumnName, "Location") {
-				return model.NewFunction("map",
-					model.NewLiteral("'lat'"),
-					hitTableLiteral(exprTyped.ColumnName+"::lat"),
-					model.NewLiteral("'lon'"),
-					hitTableLiteral(exprTyped.ColumnName+"::lon"),
-				)
-			}
+
 			return model.ColumnRef{
 				TableAlias: hitTableName,
 				ColumnName: exprTyped.ColumnName,
