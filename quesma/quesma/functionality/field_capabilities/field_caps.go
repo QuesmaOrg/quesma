@@ -16,6 +16,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/util"
+	"slices"
 )
 
 func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, fieldType schema.QuesmaType, index string) {
@@ -50,7 +51,7 @@ func handleFieldCapsIndex(cfg *config.QuesmaConfiguration, schemaRegistry schema
 
 		if schemaDefinition, found := schemaRegistry.FindSchema(schema.TableName(resolvedIndex)); found {
 			indexConfig, configured := cfg.IndexConfig[resolvedIndex]
-			if configured && indexConfig.Disabled {
+			if configured && !slices.Contains(indexConfig.QueryTarget, config.ClickhouseTarget) {
 				continue
 			}
 

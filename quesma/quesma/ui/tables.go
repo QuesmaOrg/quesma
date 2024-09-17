@@ -8,7 +8,9 @@ import (
 	"quesma/clickhouse"
 	"quesma/common_table"
 	"quesma/end_user_errors"
+	"quesma/quesma/config"
 	"quesma/util"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -60,7 +62,7 @@ func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 					continue
 				}
 
-				if indexConf.Disabled || !indexConf.UseCommonTable {
+				if (!slices.Contains(indexConf.QueryTarget, config.ClickhouseTarget) && !slices.Contains(indexConf.IngestTarget, config.ClickhouseTarget)) || !indexConf.UseCommonTable {
 					continue
 				}
 
@@ -405,7 +407,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 
 	buffer.Html("\n<table>")
 	buffer.Html(`<tr class="tableName" id="quesma-config">`)
-	buffer.Html(`<th colspan=2><h2>`)
+	buffer.Html(`<th colspan=4><h2>`)
 	buffer.Html(`Quesma Config`)
 	buffer.Html(`</h2></th>`)
 	buffer.Html(`</tr>`)
@@ -415,7 +417,10 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 	buffer.Html(`Name Pattern`)
 	buffer.Html(`</th>`)
 	buffer.Html(`<th>`)
-	buffer.Html(`Disabled?`)
+	buffer.Html(`Query targets`)
+	buffer.Html(`</th>`)
+	buffer.Html(`<th>`)
+	buffer.Html(`Ingest targets`)
 	buffer.Html(`</th>`)
 
 	buffer.Html(`</tr>`)
@@ -425,12 +430,14 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 		buffer.Html(`<td>`)
 		buffer.Text(cfg.Name)
 		buffer.Html(`</td>`)
+
+		// TODO: these are not the backend connector names, but config.ElasticsearchTarget and config.ClickhouseTarget
+		// constants
 		buffer.Html(`<td>`)
-		if cfg.Disabled {
-			buffer.Text("true")
-		} else {
-			buffer.Text("false")
-		}
+		buffer.Text(strings.Join(cfg.QueryTarget, ", "))
+		buffer.Html(`</td>`)
+		buffer.Html(`<td>`)
+		buffer.Text(strings.Join(cfg.IngestTarget, ", "))
 		buffer.Html(`</td>`)
 
 		buffer.Html(`</tr>`)

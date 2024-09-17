@@ -10,6 +10,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/tracing"
+	"slices"
 	"strings"
 )
 
@@ -33,7 +34,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.Reque
 			}
 			if idx%2 == 0 {
 				indexConfig, found := configuration.IndexConfig[extractIndexName(s)]
-				if found && !indexConfig.Disabled {
+				if found && slices.Contains(indexConfig.IngestTarget, config.ClickhouseTarget) {
 					return true
 				}
 			}
@@ -45,6 +46,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.Reque
 	})
 }
 
+// Query path only (looks at QueryTarget)
 func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.Registry) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
@@ -72,7 +74,7 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 			for _, pattern := range indexPatterns {
 				for _, indexName := range configuration.IndexConfig {
 					if config.MatchName(elasticsearch.NormalizePattern(pattern), indexName.Name) {
-						if !configuration.IndexConfig[indexName.Name].Disabled {
+						if slices.Contains(configuration.IndexConfig[indexName.Name].QueryTarget, config.ClickhouseTarget) {
 							return true
 						}
 					}
@@ -91,7 +93,7 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 				pattern := elasticsearch.NormalizePattern(indexPattern)
 				if config.MatchName(pattern, index.Name) {
 					if indexConfig, exists := configuration.IndexConfig[index.Name]; exists {
-						return !indexConfig.Disabled
+						return slices.Contains(indexConfig.QueryTarget, config.ClickhouseTarget)
 					}
 				}
 			}
@@ -99,6 +101,30 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 			return false
 		}
 	})
+}
+
+// check whether exact index name is enabled
+func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool) mux.RequestMatcher {
+	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
+		if elasticsearch.IsInternalIndex(req.Params["index"]) {
+			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])
+			return false
+		}
+		indexConfig, exists := cfg.IndexConfig[req.Params["index"]]
+		if queryPath {
+			return exists && slices.Contains(indexConfig.QueryTarget, config.ClickhouseTarget)
+		} else {
+			return exists && slices.Contains(indexConfig.IngestTarget, config.ClickhouseTarget)
+		}
+	})
+}
+
+func matchedExactQueryPath(cfg *config.QuesmaConfiguration) mux.RequestMatcher {
+	return matchedExact(cfg, true)
+}
+
+func matchedExactIngestPath(cfg *config.QuesmaConfiguration) mux.RequestMatcher {
+	return matchedExact(cfg, false)
 }
 
 // Returns false if the body contains a Kibana internal search.

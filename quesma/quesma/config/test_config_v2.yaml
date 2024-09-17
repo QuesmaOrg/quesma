@@ -29,6 +29,8 @@ processors:
     type: quesma-v1-processor-query
     config:
       indexes:
+        example-elastic-index:
+          target: [ my-minimal-elasticsearch ]
         example-index:
           target: [ my-clickhouse-data-source ]
         kibana_sample_data_ecommerce:
@@ -76,6 +78,8 @@ processors:
     type: quesma-v1-processor-ingest
     config:
       indexes:
+        example-elastic-index:
+          target: [ my-minimal-elasticsearch ]
         example-index:
           target: [ my-clickhouse-data-source ]
         kibana_sample_data_ecommerce:

@@ -19,6 +19,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/stats"
 	"quesma/telemetry"
+	"slices"
 	"sync"
 )
 
@@ -117,7 +118,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 		}
 
 		indexConfig, found := cfg.IndexConfig[index]
-		if !found || indexConfig.Disabled {
+		if !found || slices.Contains(indexConfig.IngestTarget, config.ElasticsearchTarget) {
 			// Bulk entry for Elastic - forward the request as-is
 			opBytes, err := rawOp.Bytes()
 			if err != nil {
@@ -134,7 +135,8 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 			elasticRequestBody = append(elasticRequestBody, '\n')
 
 			elasticBulkEntries = append(elasticBulkEntries, entryWithResponse)
-		} else {
+		}
+		if found && slices.Contains(indexConfig.IngestTarget, config.ClickhouseTarget) {
 			// Bulk entry for Clickhouse
 			if operation != "create" && operation != "index" {
 				// Elastic also fails the entire bulk in such case
@@ -191,7 +193,7 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 	for indexName, documents := range clickhouseDocumentsToInsert {
 		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 
-		config.RunConfigured(ctx, cfg, indexName, make(types.JSON), func() error {
+		config.RunConfiguredIngest(ctx, cfg, indexName, make(types.JSON), func() error {
 			for _, document := range documents {
 				stats.GlobalStatistics.Process(cfg, indexName, document.document, clickhouse.NestedSeparator)
 			}
