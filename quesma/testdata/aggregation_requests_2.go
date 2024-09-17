@@ -3211,4 +3211,116 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE "aggr__histo__0__order_1_rank"<=11
 			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
 	},
+	{ // [58]
+		TestName: "date_histogram with missing",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"histo": {
+					"date_histogram": {
+						"field": "customer_birth_date",
+						"fixed_interval": "90000ms",
+						"missing": "2024-02-02T13"
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 0,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 4675,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"histo": {
+					"buckets": [
+						{
+							"key_as_string": "2024-02-02T13:00:00.000Z",
+							"key": 1706878800000,
+							"doc_count": 4675
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 0),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "disorder"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 224.19300000000004),
+				model.NewQueryResultCol("aggr__histo__count", 17),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 17),
+				model.NewQueryResultCol("aggr__histo__0__key_0", nil),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 800),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "a"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", 800),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "b"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__histo__key_0", "aggr__histo__count",
+			  "aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+			  "aggr__histo__0__count"
+			FROM (
+			  SELECT "aggr__histo__key_0", "aggr__histo__count",
+				"aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+				"aggr__histo__0__count",
+				dense_rank() OVER (ORDER BY "aggr__histo__key_0" ASC) AS
+				"aggr__histo__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__histo__key_0" ORDER BY
+				"aggr__histo__0__count" DESC, "aggr__histo__0__key_0" ASC) AS
+				"aggr__histo__0__order_1_rank"
+			  FROM (
+				SELECT floor(COALESCE("taxful_total_price", 800)/224.19300000000004)*
+				  224.19300000000004 AS "aggr__histo__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
+				  count(*) AS "aggr__histo__0__count"
+				FROM __quesma_table_name
+				GROUP BY floor(COALESCE("taxful_total_price", 800)/224.19300000000004)*
+				  224.19300000000004 AS "aggr__histo__key_0",
+				  "type" AS "aggr__histo__0__key_0"))
+			WHERE "aggr__histo__0__order_1_rank"<=11
+			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
+	},
 }

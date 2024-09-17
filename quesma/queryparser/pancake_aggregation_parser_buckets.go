@@ -77,6 +77,10 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			return false, fmt.Errorf("date_histogram is not a map, but %T, value: %v", dateHistogramRaw, dateHistogramRaw)
 		}
 		field := cw.parseFieldField(dateHistogram, "date_histogram")
+
+		// if missing is present, it's in [strict_date_optional_time || epoch_millis] format
+		// (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
+
 		minDocCount := cw.parseMinDocCount(dateHistogram)
 		timezone := cw.parseStringField(dateHistogram, "time_zone", "")
 		interval, intervalType := cw.extractInterval(dateHistogram)
