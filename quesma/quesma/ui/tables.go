@@ -43,8 +43,6 @@ func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 			}
 		}
 
-		tableNames = append([]string{single_table.TableName}, tableNames...)
-
 		catchAllLogs, ok := schema.Load(single_table.TableName)
 		if !ok {
 			buffer.Html(fmt.Sprintf("<p>Table %s is not available.</p>", single_table.TableName))
@@ -81,6 +79,11 @@ func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 				filteredTableNames = append(filteredTableNames, tableName)
 			}
 			tableNames = filteredTableNames
+
+			tableNames = append([]string{single_table.TableName}, tableNames...)
+			for k := range catchAllLogs.Cols {
+				allColumnNamesMap[k] = struct{}{}
+			}
 
 			allColumnNames := make([]string, 0, len(allColumnNamesMap))
 
