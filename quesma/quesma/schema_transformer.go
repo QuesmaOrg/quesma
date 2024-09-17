@@ -356,6 +356,10 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 	physicalFromExpression := model.NewTableRefWithDatabaseName(query.TableName, currentSchema.DatabaseName)
 
+	if useSingleTable {
+		physicalFromExpression = model.NewTableRef(single_table.TableName)
+	}
+
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
@@ -596,7 +600,6 @@ func (s *SchemaCheckPass) handleDottedTColumnNames(indexSchema schema.Schema, qu
 		if strings.Contains(e.ColumnName, ".") {
 			logger.Warn().Msgf("Dotted column name found: %s", e.ColumnName)
 			//return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
-			return e
 		}
 		return e
 	}
