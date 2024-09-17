@@ -6,13 +6,22 @@ import (
 	"fmt"
 )
 
+const (
+	ElasticsearchTarget = "elasticsearch"
+	ClickhouseTarget    = "clickhouse"
+)
+
 type IndexConfiguration struct {
-	Name     string `koanf:"name"`
-	Disabled bool   `koanf:"disabled"`
-	// TODO to be deprecated
+	Name            string                            `koanf:"name"`
+	Disabled        bool                              `koanf:"disabled"`
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
 	Override        string                            `koanf:"override"`
+	Target          []string                          `koanf:"target"`
+
+	// Computed based on the overall configuration
+	QueryTarget  []string
+	IngestTarget []string
 }
 
 func (c IndexConfiguration) String() string {
