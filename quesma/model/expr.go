@@ -137,12 +137,12 @@ func NewTableRef(name string) TableRef {
 	return TableRef{Name: name}
 }
 
-func (t TableRef) Accept(v ExprVisitor) interface{} {
-	return v.VisitTableRef(t)
-}
-
 func NewTableRefWithDatabaseName(name, databaseName string) TableRef {
 	return TableRef{Name: name, DatabaseName: databaseName}
+}
+
+func (t TableRef) Accept(v ExprVisitor) interface{} {
+	return v.VisitTableRef(t)
 }
 
 type OrderByDirection int8

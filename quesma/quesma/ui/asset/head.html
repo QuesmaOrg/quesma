@@ -492,6 +492,27 @@
             background-color: #dddddd;
         }
 
+        #quesma_all_logs table {
+            border-collapse: collapse;
+            table-layout: fixed;
+        //width: 98%;
+            word-wrap: break-word;
+            font-size: small;
+        }
+
+
+        #quesma_all_logs table tr th {
+            /* Rotate the text */
+            writing-mode: vertical-lr; /* Vertical text */
+            transform: rotate(180deg); /* Rotate the text to flip */
+            height: 300px; /* Adjust the height to fit the rotated text */
+        }
+
+        #quesma_all_logs table th, td {
+            border: 1px solid #000; /* Adds a solid black border to both header and data cells */
+            padding: 10px;
+        }
+
         #schemas table {
             border-collapse: collapse;
             table-layout: fixed;
