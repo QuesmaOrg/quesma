@@ -295,7 +295,7 @@ func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, q
 
 	var visitor model.ExprVisitor
 
-	if checkIfGoupingByArrayColumn(query.SelectCommand, arrayTypeResolver) {
+	if checkIfGroupingByArrayColumn(query.SelectCommand, arrayTypeResolver) {
 		visitor = NewArrayJoinVisitor(arrayTypeResolver)
 	} else {
 		visitor = NewArrayTypeVisitor(arrayTypeResolver)

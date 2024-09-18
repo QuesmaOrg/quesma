@@ -101,7 +101,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 	return visitor
 }
 
-func checkIfGoupingByArrayColumn(stm model.SelectCommand, resolver arrayTypeResolver) bool {
+func checkIfGroupingByArrayColumn(selectCommand model.SelectCommand, resolver arrayTypeResolver) bool {
 
 	isArrayColumn := func(e model.Expr) bool {
 		columnIsArray := false
@@ -165,7 +165,7 @@ func checkIfGoupingByArrayColumn(stm model.SelectCommand, resolver arrayTypeReso
 		return e
 	}
 
-	stm.Accept(visitor)
+	selectCommand.Accept(visitor)
 
 	return found
 }
