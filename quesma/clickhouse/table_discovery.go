@@ -8,12 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"quesma/common_table"
 	"quesma/end_user_errors"
 	"quesma/logger"
 	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/schema"
-	"quesma/single_table"
 	"quesma/util"
 	"strings"
 	"sync/atomic"
@@ -177,7 +177,7 @@ func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discover
 			continue
 		}
 
-		var readVirtualTable single_table.VirtualTable
+		var readVirtualTable common_table.VirtualTable
 		err = json.Unmarshal([]byte(data), &readVirtualTable)
 		if err != nil {
 			logger.Error().Msgf("could not unmarshal virtual table %s: %v", virtualTable, err)
@@ -209,11 +209,11 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]string, d
 
 		// single logs table is our internal table, user shouldn't configure it at all
 		// and we should always include it in the list of tables managed by Quesma
-		isAllLogs := table == single_table.TableName
+		isCommonTable := table == common_table.TableName
 
-		if indexConfig, found := td.cfg.IndexConfig[table]; found || isAllLogs {
+		if indexConfig, found := td.cfg.IndexConfig[table]; found || isCommonTable {
 
-			if isAllLogs {
+			if isCommonTable {
 				indexConfig = config.IndexConfiguration{}
 			}
 

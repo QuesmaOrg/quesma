@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"quesma/clickhouse"
+	"quesma/common_table"
 	"quesma/end_user_errors"
-	"quesma/single_table"
 	"quesma/util"
 	"sort"
 	"strings"
@@ -37,15 +37,15 @@ func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 		sort.Strings(tableNames)
 
 		for i, v := range tableNames {
-			if v == single_table.TableName {
+			if v == common_table.TableName {
 				// Remove element by value
 				tableNames = append(tableNames[:i], tableNames[i+1:]...)
 			}
 		}
 
-		catchAllLogs, ok := schema.Load(single_table.TableName)
+		commonTable, ok := schema.Load(common_table.TableName)
 		if !ok {
-			buffer.Html(fmt.Sprintf("<p>Table %s is not available.</p>", single_table.TableName))
+			buffer.Html(fmt.Sprintf("<p>Table %s is not available.</p>", common_table.TableName))
 
 		} else {
 
@@ -60,7 +60,7 @@ func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 					continue
 				}
 
-				if indexConf.Disabled || !indexConf.UseSingleTable {
+				if indexConf.Disabled || !indexConf.UseCommonTable {
 					continue
 				}
 
@@ -80,8 +80,8 @@ func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 			}
 			tableNames = filteredTableNames
 
-			tableNames = append([]string{single_table.TableName}, tableNames...)
-			for k := range catchAllLogs.Cols {
+			tableNames = append([]string{common_table.TableName}, tableNames...)
+			for k := range commonTable.Cols {
 				allColumnNamesMap[k] = struct{}{}
 			}
 
@@ -105,7 +105,7 @@ func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 			buffer.Html("</tr>")
 
 			for _, columnName := range allColumnNames {
-				quesmaAllLogsCol, hasQuesmaAllLogs := catchAllLogs.Cols[columnName]
+				commonTableCol, existsInCommonTable := commonTable.Cols[columnName]
 
 				buffer.Html("<tr>")
 				buffer.Html("<td>")
@@ -119,10 +119,10 @@ func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 						continue
 					}
 
-					if tableName == single_table.TableName {
-						if hasQuesmaAllLogs {
+					if tableName == common_table.TableName {
+						if existsInCommonTable {
 							buffer.Html("<td>")
-							buffer.Text(quesmaAllLogsCol.Type.StringWithNullable())
+							buffer.Text(commonTableCol.Type.StringWithNullable())
 							buffer.Html("</td>")
 						} else {
 							buffer.Html("<td>MISSING</td>")
@@ -132,8 +132,8 @@ func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 						if ok {
 							buffer.Html("<td>")
 
-							if hasQuesmaAllLogs {
-								if quesmaAllLogsCol.Type.StringWithNullable() != colType.Type.StringWithNullable() {
+							if existsInCommonTable {
+								if commonTableCol.Type.StringWithNullable() != colType.Type.StringWithNullable() {
 									buffer.Text(colType.Type.StringWithNullable())
 								} else {
 									buffer.Text("✔")
@@ -235,8 +235,8 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 				buffer.Html(`</h3>`)
 			}
 
-			if table.Name == single_table.TableName {
-				buffer.Html(`<h3><a href="/tables/quesma_all_logs" >table statistics</a></h3>`)
+			if table.Name == common_table.TableName {
+				buffer.Html(`<h3><a href="/tables/common_table_stats" >table statistics</a></h3>`)
 			}
 
 			buffer.Html(`</th>`)

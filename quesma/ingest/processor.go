@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	chLib "quesma/clickhouse"
+	"quesma/common_table"
 	"quesma/concurrent"
 	"quesma/end_user_errors"
 	"quesma/index"
@@ -19,7 +20,6 @@ import (
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/schema"
-	"quesma/single_table"
 	"quesma/stats"
 	"quesma/telemetry"
 	"quesma/util"
@@ -428,15 +428,15 @@ func (ip *IngestProcessor) shouldAlterColumns(table *chLib.Table, attrsMap map[s
 	attrKeys := getAttributesByArrayName(chLib.DeprecatedAttributesKeyColumn, attrsMap)
 	alterColumnIndexes := make([]int, 0)
 
-	// this is special case for single table storage
-	// we do always add columns for single table storage
-	if table.Name == single_table.TableName {
+	// this is special case for common table storage
+	// we do always add columns for common table storage
+	if table.Name == common_table.TableName {
 		if len(table.Cols) > alterColumnUpperLimit {
-			logger.Warn().Msgf("Single table has more than %d columns (alwaysAddColumnLimit)", alterColumnUpperLimit)
+			logger.Warn().Msgf("Common table has more than %d columns (alwaysAddColumnLimit)", alterColumnUpperLimit)
 		}
 	}
 
-	if len(table.Cols) < alwaysAddColumnLimit || table.Name == single_table.TableName {
+	if len(table.Cols) < alwaysAddColumnLimit || table.Name == common_table.TableName {
 		// We promote all non-schema fields to columns
 		// therefore we need to add all attrKeys indexes to alterColumnIndexes
 		for i := 0; i < len(attrKeys); i++ {
@@ -656,7 +656,7 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	tableFormatter TableColumNameFormatter) error {
 
 	indexConf, ok := lm.cfg.IndexConfig[tableName]
-	if ok && indexConf.UseSingleTable {
+	if ok && indexConf.UseCommonTable {
 
 		err := lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, true)
 		if err != nil {
@@ -665,13 +665,13 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 		}
 
 		pipeline := jsonprocessor.IngestTransformerPipeline{}
-		pipeline = append(pipeline, &single_table.IngestAddIndexNameTransformer{IndexName: tableName})
+		pipeline = append(pipeline, &common_table.IngestAddIndexNameTransformer{IndexName: tableName})
 		pipeline = append(pipeline, transformer)
-		tableName = single_table.TableName
+		tableName = common_table.TableName
 
-		err = lm.processInsertQueryInternal(ctx, single_table.TableName, jsonData, pipeline, tableFormatter, false)
+		err = lm.processInsertQueryInternal(ctx, common_table.TableName, jsonData, pipeline, tableFormatter, false)
 		if err != nil {
-			return fmt.Errorf("error processing insert query to a single table: %w", err)
+			return fmt.Errorf("error processing insert query to a common table: %w", err)
 		}
 
 		return nil
@@ -794,16 +794,16 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 
 	table.Comment = "Virtual table. Version: " + now.Format(time.RFC3339)
 
-	var columns []single_table.VirtualTableColumn
+	var columns []common_table.VirtualTableColumn
 
 	for _, col := range table.Cols {
-		columns = append(columns, single_table.VirtualTableColumn{
+		columns = append(columns, common_table.VirtualTableColumn{
 			Name: col.Name,
 			Type: col.Type.String(),
 		})
 	}
 
-	vTable := &single_table.VirtualTable{
+	vTable := &common_table.VirtualTable{
 		StoredAt: now.Format(time.RFC3339),
 		Columns:  columns,
 	}

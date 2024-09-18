@@ -4,12 +4,12 @@ package quesma
 
 import (
 	"fmt"
+	"quesma/common_table"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/typical_queries"
 	"quesma/quesma/config"
 	"quesma/schema"
-	"quesma/single_table"
 	"sort"
 	"strings"
 )
@@ -352,12 +352,12 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 		return query, fmt.Errorf("index configuration not found for table %s", query.TableName)
 	}
 
-	useSingleTable := indexConf.UseSingleTable
+	useCommonTable := indexConf.UseCommonTable
 
 	physicalFromExpression := model.NewTableRefWithDatabaseName(query.TableName, currentSchema.DatabaseName)
 
-	if useSingleTable {
-		physicalFromExpression = model.NewTableRef(single_table.TableName)
+	if useCommonTable {
+		physicalFromExpression = model.NewTableRef(common_table.TableName)
 	}
 
 	visitor := model.NewBaseVisitor()
@@ -371,7 +371,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 		// TODO is this nessessery?
-		if useSingleTable {
+		if useCommonTable {
 			if e.ColumnName == "timestamp" || e.ColumnName == "epoch_time" || e.ColumnName == `"epoch_time"` {
 				return model.NewColumnRef("@timestamp")
 			}
@@ -401,9 +401,9 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 			where = selectStm.WhereClause.Accept(b).(model.Expr)
 		}
 
-		// add filter for single table, if needed
-		if useSingleTable && from == physicalFromExpression {
-			indexWhere := model.NewInfixExpr(model.NewColumnRef(single_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", query.TableName)))
+		// add filter for common table, if needed
+		if useCommonTable && from == physicalFromExpression {
+			indexWhere := model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", query.TableName)))
 
 			if selectStm.WhereClause != nil {
 				where = model.And([]model.Expr{selectStm.WhereClause.Accept(b).(model.Expr), indexWhere})

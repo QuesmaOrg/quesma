@@ -17,7 +17,7 @@ type IndexConfiguration struct {
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
 	Override        string                            `koanf:"override"`
-	UseSingleTable  bool                              `koanf:"useSingleTable"`
+	UseCommonTable  bool                              `koanf:"useCommonTable"`
 	Target          []string                          `koanf:"target"`
 
 	// Computed based on the overall configuration
@@ -31,7 +31,7 @@ func (c IndexConfiguration) String() string {
 		c.Disabled,
 		c.SchemaOverrides.String(),
 		c.Override,
-		c.UseSingleTable,
+		c.UseCommonTable,
 	)
 
 	return str
