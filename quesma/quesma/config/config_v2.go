@@ -69,9 +69,14 @@ type BackendConnector struct {
 }
 
 type Processor struct {
-	Name   string              `koanf:"name"`
-	Type   ProcessorType       `koanf:"type"`
-	Config QuesmaConfiguration `koanf:"config"`
+	Name   string                `koanf:"name"`
+	Type   ProcessorType         `koanf:"type"`
+	Config QuesmaProcessorConfig `koanf:"config"`
+}
+
+// Configuration of QuesmaV1ProcessorQuery and QuesmaV1ProcessorIngest
+type QuesmaProcessorConfig struct {
+	IndexConfig map[string]IndexConfiguration `koanf:"indexes"`
 }
 
 func LoadV2Config() QuesmaNewConfiguration {
@@ -296,6 +301,18 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 	if !slices.Contains(getAllowedProcessorTypes(), p.Type) {
 		return fmt.Errorf("processor type not recognized, only `quesma-v1-processor-noop`, `quesma-v1-processor-query` and `quesma-v1-processor-ingest` are supported at this moment")
 	}
+	if p.Type == QuesmaV1ProcessorQuery || p.Type == QuesmaV1ProcessorIngest {
+		for indexName, indexConfig := range p.Config.IndexConfig {
+			if len(indexConfig.Target) != 1 {
+				return fmt.Errorf("configuration of index %s must have exactly one target", indexName)
+			}
+			for _, target := range indexConfig.Target {
+				if c.getBackendConnectorByName(target) == nil {
+					return fmt.Errorf("invalid target %s in configuration of index %s", target, indexName)
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -427,12 +444,51 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		} else {
 			queryPipeline, ingestPipeline = c.Pipelines[1], c.Pipelines[0]
 		}
+		queryProcessor, ingestProcessor := c.getProcessorByName(queryPipeline.Processors[0]), c.getProcessorByName(ingestPipeline.Processors[0])
 
-		queryProcessor, _ := c.getProcessorByName(queryPipeline.Processors[0]), c.getProcessorByName(ingestPipeline.Processors[0])
+		elasticBackendName := c.getElasticsearchBackendConnector().Name
+		relationalDBBackend, _ := c.getRelationalDBBackendConnector()
+		relationalDBBackendName := relationalDBBackend.Name
 
 		conf.IndexConfig = make(map[string]IndexConfiguration)
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
-			indexConfig.Name = indexName
+			processedConfig := indexConfig
+			processedConfig.Name = indexName
+
+			if slices.Contains(indexConfig.Target, elasticBackendName) {
+				processedConfig.QueryTarget = append(processedConfig.QueryTarget, ElasticsearchTarget)
+			}
+			if slices.Contains(indexConfig.Target, relationalDBBackendName) {
+				processedConfig.QueryTarget = append(processedConfig.QueryTarget, ClickhouseTarget)
+			}
+
+			conf.IndexConfig[indexName] = processedConfig
+		}
+		for indexName, indexConfig := range ingestProcessor.Config.IndexConfig {
+			processedConfig, found := conf.IndexConfig[indexName]
+			if !found {
+				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s was configured in ingest processor, but is missing from query processor", indexConfig))
+				continue
+			}
+
+			if slices.Contains(indexConfig.Target, elasticBackendName) {
+				processedConfig.IngestTarget = append(processedConfig.IngestTarget, ElasticsearchTarget)
+			}
+			if slices.Contains(indexConfig.Target, relationalDBBackendName) {
+				processedConfig.IngestTarget = append(processedConfig.IngestTarget, ClickhouseTarget)
+			}
+
+			conf.IndexConfig[indexName] = processedConfig
+		}
+		// For now, users of IndexConfig don't actually look at the QueryTarget and IngestTarget fields,
+		// and the only valid cases are Query+Ingest to Elasticsearch or Query+Ingest to ClickHouse. Emulate those
+		// behaviors by settings Disabled:
+		for indexName, indexConfig := range conf.IndexConfig {
+			if slices.Contains(indexConfig.QueryTarget, elasticBackendName) {
+				indexConfig.Disabled = true
+			} else {
+				indexConfig.Disabled = false
+			}
 			conf.IndexConfig[indexName] = indexConfig
 		}
 	}
