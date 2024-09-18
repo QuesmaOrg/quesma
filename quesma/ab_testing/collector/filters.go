@@ -8,6 +8,10 @@ type probabilisticSampler struct {
 	ratio float64
 }
 
+func (*probabilisticSampler) name() string {
+	return "probabilisticSampler"
+}
+
 func (t *probabilisticSampler) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
 
 	if rand.Float64() > t.ratio {

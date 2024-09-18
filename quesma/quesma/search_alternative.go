@@ -123,15 +123,40 @@ func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, r
 	}
 
 	// TODO is should be enabled in a different way. it's not an optimizer
-	_, disabled = q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration("elastic_ab_testing")
+	cfg, disabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration("elastic_ab_testing")
 	if !disabled {
-		return q.askElasticAsAnAlternative(ctx, resolvedTableName, plan, queryTranslator, body, table, isAsync)
+		return q.askElasticAsAnAlternative(ctx, resolvedTableName, plan, queryTranslator, body, table, isAsync, cfg)
 	}
 
 	return nil, nil
 }
 
-func (q *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON, table *clickhouse.Table, isAsync bool) (*model.ExecutionPlan, executionPlanExecutor) {
+func (q *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON, table *clickhouse.Table, isAsync bool, props map[string]string) (*model.ExecutionPlan, executionPlanExecutor) {
+
+	// the name of "B" responses
+	alternativeName := "elastic"
+
+	// Here we should use backend connector
+	//
+	elasticUrl := q.cfg.Elasticsearch.Url.String()
+	user := q.cfg.Elasticsearch.User
+	pass := q.cfg.Elasticsearch.Password
+
+	if url, ok := props["url"]; ok {
+		elasticUrl = url
+	}
+
+	if u, ok := props["user"]; ok {
+		user = u
+	}
+
+	if p, ok := props["password"]; ok {
+		pass = p
+	}
+
+	if name, ok := props["name"]; ok {
+		alternativeName = name
+	}
 
 	requestBody, err := body.Bytes()
 	if err != nil {
@@ -143,16 +168,28 @@ func (q *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTab
 		QueryRowsTransformers: []model.QueryRowsTransformer{},
 		Queries:               []*model.Query{},
 		StartTime:             plan.StartTime,
-		Name:                  "elastic",
+		Name:                  alternativeName,
 	}
 
-	url := q.cfg.Elasticsearch.Url.JoinPath(plan.IndexPattern, "_search").String()
+	url := fmt.Sprintf("%s/%s/_search", elasticUrl, plan.IndexPattern)
 
 	return alternativePlan, func(ctx context.Context) ([]byte, error) {
 
-		// TODO: add user/pass
+		client := &http.Client{}
 
-		resp, err := http.Post(url, "application/json", bytes.NewBuffer(requestBody))
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
+
+		if err != nil {
+			return nil, err
+		}
+
+		if user != "" && pass != "" {
+			req.SetBasicAuth(user, pass)
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := client.Do(req)
 		if err != nil {
 			return nil, err
 		}

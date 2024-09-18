@@ -16,6 +16,10 @@ type elasticSearchFanout struct {
 	errorCount int
 }
 
+func (t *elasticSearchFanout) name() string {
+	return "elasticSearchFanout"
+}
+
 func (t *elasticSearchFanout) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
 
 	// TODO collect and send in bulk every 10 seconds or 1000 records for example

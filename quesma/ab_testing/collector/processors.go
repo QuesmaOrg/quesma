@@ -4,11 +4,16 @@ package collector
 
 import (
 	"encoding/json"
+	"fmt"
 	"quesma/quesma/types"
 )
 
 // unifySyncAsyncResponse is a processor that processes that removes async "wrapper" from the response
 type unifySyncAsyncResponse struct {
+}
+
+func (t *unifySyncAsyncResponse) name() string {
+	return "unifySyncAsyncResponse"
 }
 
 func (t *unifySyncAsyncResponse) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
@@ -36,12 +41,16 @@ func (t *unifySyncAsyncResponse) process(in EnrichedResults) (out EnrichedResult
 
 	respA, err := deAsync(in.A.Body)
 	if err != nil {
-		return in, false, err
+		err := fmt.Errorf("failed to unify A response: %w", err)
+		in.Errors = append(in.Errors, err.Error())
+		return in, false, nil
 	}
 
 	respB, err := deAsync(in.B.Body)
 	if err != nil {
-		return in, false, err
+		err := fmt.Errorf("failed to unify B response: %w", err)
+		in.Errors = append(in.Errors, err.Error())
+		return in, false, nil
 	}
 
 	in.A.Body = respA
