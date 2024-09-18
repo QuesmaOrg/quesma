@@ -113,6 +113,11 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			aggregation.filterOutEmptyKeyBucket = true
 		}
 
+		if fieldExpression == model.NewColumnRef("category") {
+			fmt.Println("KK changing")
+			fieldExpression = model.NewFunction("arrayJoin", fieldExpression)
+		}
+
 		size := 10
 		if sizeRaw, ok := terms["size"]; ok {
 			if sizeParsed, ok := sizeRaw.(float64); ok {

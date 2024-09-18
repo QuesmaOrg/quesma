@@ -4,6 +4,7 @@ package quesma
 
 import (
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/typical_queries"
@@ -275,7 +276,7 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	arrayTypeResolver := arrayTypeResolver{indexSchema: indexSchema}
-
+	pp.Println(indexSchema)
 	// check if the query has array columns
 
 	allColumns := model.GetUsedColumns(query.SelectCommand)
@@ -283,11 +284,13 @@ func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, q
 	hasArrayColumn := false
 	for _, col := range allColumns {
 		dbType := arrayTypeResolver.dbColumnType(col.ColumnName)
+		fmt.Println("dbType", dbType)
 		if strings.HasPrefix(dbType, "Array") {
 			hasArrayColumn = true
 			break
 		}
 	}
+	fmt.Println("HAS ARRAY", hasArrayColumn)
 	// no array columns, no need to transform
 	if !hasArrayColumn {
 		return query, nil

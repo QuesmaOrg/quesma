@@ -3,6 +3,7 @@
 package quesma
 
 import (
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/schema"
@@ -74,12 +75,14 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 	}
 
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
-
+		fmt.Println("WTF 1")
 		if len(e.Args) > 0 {
 			arg := e.Args[0]
 			column, ok := arg.(model.ColumnRef)
+			fmt.Println("WTF 2", column)
 			if ok {
 				dbType := resolver.dbColumnType(column.ColumnName)
+				fmt.Println("WTF 3", dbType)
 				if strings.HasPrefix(dbType, "Array") {
 					if strings.HasPrefix(e.Name, "sum") {
 						// here we apply -Array combinator to the sum function

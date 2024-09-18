@@ -4,6 +4,7 @@ package metrics_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -32,6 +33,7 @@ func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(
 	var value, valueAsString any = nil, nil
 	if resultRowsAreFine(ctx, rows) {
 		valueAsAny := rows[0].Cols[len(rows[0].Cols)-1].Value
+		fmt.Printf("KK %v %T\n", valueAsAny, valueAsAny)
 		if valueAsTime, ok := valueAsAny.(time.Time); ok {
 			value = valueAsTime.UnixMilli()
 			valueAsString = valueAsTime.Format(time.RFC3339Nano)

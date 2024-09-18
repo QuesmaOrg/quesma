@@ -24,6 +24,8 @@ func (query Terms) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
+var q = 1
+
 func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
