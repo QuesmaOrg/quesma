@@ -25,6 +25,10 @@ func (t *probabilisticSampler) process(in EnrichedResults) (out EnrichedResults,
 type mismatchedOnlyFilter struct {
 }
 
+func (t *mismatchedOnlyFilter) name() string {
+	return "mismatchedOnlyFilter"
+}
+
 func (t *mismatchedOnlyFilter) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
 
 	if in.Mismatch.IsOK {
