@@ -19,7 +19,6 @@ import (
 	"quesma/quesma/types"
 	"quesma/stats"
 	"quesma/telemetry"
-	"slices"
 	"sync"
 )
 
@@ -118,7 +117,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 		}
 
 		indexConfig, found := cfg.IndexConfig[index]
-		if !found || slices.Contains(indexConfig.IngestTarget, config.ElasticsearchTarget) {
+		if !found || indexConfig.IsElasticIngestEnabled() {
 			// Bulk entry for Elastic - forward the request as-is
 			opBytes, err := rawOp.Bytes()
 			if err != nil {
@@ -136,7 +135,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 
 			elasticBulkEntries = append(elasticBulkEntries, entryWithResponse)
 		}
-		if found && slices.Contains(indexConfig.IngestTarget, config.ClickhouseTarget) {
+		if found && indexConfig.IsClickhouseIngestEnabled() {
 			// Bulk entry for Clickhouse
 			if operation != "create" && operation != "index" {
 				// Elastic also fails the entire bulk in such case

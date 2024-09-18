@@ -15,7 +15,6 @@ import (
 	"quesma/quesma/config"
 	"quesma/schema"
 	"quesma/util"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -218,7 +217,7 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]string, d
 				indexConfig = config.IndexConfiguration{}
 			}
 
-			if !isCommonTable && !slices.Contains(indexConfig.QueryTarget, config.ClickhouseTarget) && !slices.Contains(indexConfig.IngestTarget, config.ClickhouseTarget) {
+			if !isCommonTable && !indexConfig.IsClickhouseQueryEnabled() && !indexConfig.IsClickhouseIngestEnabled() {
 				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 			} else {
 				comment := td.tableComment(databaseName, table)

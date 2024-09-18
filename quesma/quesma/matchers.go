@@ -10,7 +10,6 @@ import (
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/tracing"
-	"slices"
 	"strings"
 )
 
@@ -34,7 +33,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.Reque
 			}
 			if idx%2 == 0 {
 				indexConfig, found := configuration.IndexConfig[extractIndexName(s)]
-				if found && slices.Contains(indexConfig.IngestTarget, config.ClickhouseTarget) {
+				if found && indexConfig.IsClickhouseIngestEnabled() {
 					return true
 				}
 			}
@@ -74,7 +73,7 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 			for _, pattern := range indexPatterns {
 				for _, indexName := range configuration.IndexConfig {
 					if config.MatchName(elasticsearch.NormalizePattern(pattern), indexName.Name) {
-						if slices.Contains(configuration.IndexConfig[indexName.Name].QueryTarget, config.ClickhouseTarget) {
+						if configuration.IndexConfig[indexName.Name].IsClickhouseQueryEnabled() {
 							return true
 						}
 					}
@@ -93,7 +92,7 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 				pattern := elasticsearch.NormalizePattern(indexPattern)
 				if config.MatchName(pattern, index.Name) {
 					if indexConfig, exists := configuration.IndexConfig[index.Name]; exists {
-						return slices.Contains(indexConfig.QueryTarget, config.ClickhouseTarget)
+						return indexConfig.IsClickhouseQueryEnabled()
 					}
 				}
 			}
@@ -112,9 +111,9 @@ func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool) mux.RequestMa
 		}
 		indexConfig, exists := cfg.IndexConfig[req.Params["index"]]
 		if queryPath {
-			return exists && slices.Contains(indexConfig.QueryTarget, config.ClickhouseTarget)
+			return exists && indexConfig.IsClickhouseQueryEnabled()
 		} else {
-			return exists && slices.Contains(indexConfig.IngestTarget, config.ClickhouseTarget)
+			return exists && indexConfig.IsClickhouseIngestEnabled()
 		}
 	})
 }

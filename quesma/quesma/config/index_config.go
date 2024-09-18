@@ -4,6 +4,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 )
 
 const (
@@ -42,4 +43,20 @@ func (c IndexConfiguration) GetOptimizerConfiguration(optimizerName string) (pro
 		return optimizer.Properties, optimizer.Disabled
 	}
 	return nil, true
+}
+
+func (c IndexConfiguration) IsElasticQueryEnabled() bool {
+	return slices.Contains(c.QueryTarget, ElasticsearchTarget)
+}
+
+func (c IndexConfiguration) IsElasticIngestEnabled() bool {
+	return slices.Contains(c.IngestTarget, ElasticsearchTarget)
+}
+
+func (c IndexConfiguration) IsClickhouseQueryEnabled() bool {
+	return slices.Contains(c.QueryTarget, ClickhouseTarget)
+}
+
+func (c IndexConfiguration) IsClickhouseIngestEnabled() bool {
+	return slices.Contains(c.IngestTarget, ClickhouseTarget)
 }

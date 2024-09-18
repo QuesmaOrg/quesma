@@ -8,9 +8,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/common_table"
 	"quesma/end_user_errors"
-	"quesma/quesma/config"
 	"quesma/util"
-	"slices"
 	"sort"
 	"strings"
 )
@@ -62,7 +60,7 @@ func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 					continue
 				}
 
-				if (!slices.Contains(indexConf.QueryTarget, config.ClickhouseTarget) && !slices.Contains(indexConf.IngestTarget, config.ClickhouseTarget)) || !indexConf.UseCommonTable {
+				if (!indexConf.IsClickhouseQueryEnabled() && !indexConf.IsClickhouseIngestEnabled()) || !indexConf.UseCommonTable {
 					continue
 				}
 

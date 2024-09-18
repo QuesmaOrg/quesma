@@ -6,7 +6,6 @@ import (
 	"context"
 	"quesma/logger"
 	"quesma/quesma/types"
-	"slices"
 	"sync/atomic"
 )
 
@@ -26,7 +25,7 @@ func RunConfiguredIngest(ctx context.Context, cfg *QuesmaConfiguration, indexNam
 			logger.InfoWithCtx(ctx).Msgf("index '%s' is not configured, skipping", indexName)
 			return nil
 		}
-		if !slices.Contains(matchingConfig.IngestTarget, ClickhouseTarget) {
+		if !matchingConfig.IsClickhouseIngestEnabled() {
 			logger.InfoWithCtx(ctx).Msgf("index '%s' is disabled, ignoring", indexName)
 			return nil
 		} else {
