@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Elastic-2.0
 package schema
 
-// Used in tests:
-
+// StaticRegistry is an implementation of Registry interface MEANT TO BE USED ONLY IN TESTS
+// This is due to the original schemaRegistry having a heavily side-effecting nature.
+// In the future we might revisit this design - have schema being fed by external components and ditch this implementation.
 type StaticRegistry struct {
 	Tables               map[TableName]Schema
 	DynamicConfiguration map[string]Table
