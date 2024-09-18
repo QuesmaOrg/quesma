@@ -73,7 +73,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "some_table",
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
-				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: ""},
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "LowCardinality(String)"},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
 				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}},
 
@@ -168,7 +168,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				}}},
 			tableName: "some_table",
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
-				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword},
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "LowCardinality(String)"},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
 				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}},
 				true, ""),
@@ -195,7 +195,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "some_table",
 			want: schema.NewSchemaWithAliases(map[schema.FieldName]schema.Field{
-				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword},
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "LowCardinality(String)"},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
 				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}}, map[schema.FieldName]schema.FieldName{
 				"message_alias": "message",
@@ -225,7 +225,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "some_table",
 			want: schema.NewSchemaWithAliases(map[schema.FieldName]schema.Field{
-				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: ""},
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "LowCardinality(String)"},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
 				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}}, map[schema.FieldName]schema.FieldName{
 				"message_alias": "message",
