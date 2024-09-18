@@ -6,21 +6,32 @@ import (
 	"fmt"
 )
 
+const (
+	ElasticsearchTarget = "elasticsearch"
+	ClickhouseTarget    = "clickhouse"
+)
+
 type IndexConfiguration struct {
-	Name     string `koanf:"name"`
-	Disabled bool   `koanf:"disabled"`
-	// TODO to be deprecated
+	Name            string                            `koanf:"name"`
+	Disabled        bool                              `koanf:"disabled"`
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
 	Override        string                            `koanf:"override"`
+	UseCommonTable  bool                              `koanf:"useCommonTable"`
+	Target          []string                          `koanf:"target"`
+
+	// Computed based on the overall configuration
+	QueryTarget  []string
+	IngestTarget []string
 }
 
 func (c IndexConfiguration) String() string {
-	var str = fmt.Sprintf("\n\t\t%s, disabled: %t, schema overrides: %s, override: %s",
+	var str = fmt.Sprintf("\n\t\t%s, disabled: %t, schema overrides: %s, override: %s, useSingleTable: %t",
 		c.Name,
 		c.Disabled,
 		c.SchemaOverrides.String(),
 		c.Override,
+		c.UseCommonTable,
 	)
 
 	return str

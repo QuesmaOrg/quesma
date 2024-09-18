@@ -58,6 +58,11 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
+	router.HandleFunc("/tables/common_table_stats", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qmc.generateQuesmaAllLogs()
+		_, _ = writer.Write(buf)
+	})
+
 	router.HandleFunc("/schemas", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateSchemas()
 		_, _ = writer.Write(buf)

@@ -116,6 +116,7 @@ func (v *renderer) VisitTableRef(e TableRef) interface{} {
 			result = append(result, strconv.Quote(e.DatabaseName))
 		}
 	}
+
 	if identifierRegexp.MatchString(e.Name) {
 		result = append(result, e.Name)
 	} else {
