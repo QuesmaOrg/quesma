@@ -42,7 +42,7 @@ func Test_matchedAgainstConfig(t *testing.T) {
 
 			req := &mux.Request{Params: map[string]string{"index": tt.index}, Body: tt.body}
 
-			assert.Equalf(t, tt.want, matchedExact(&tt.config).Matches(req), "matchedAgainstConfig(%v), index: %s", tt.config, tt.index)
+			assert.Equalf(t, tt.want, matchedExactQueryPath(&tt.config).Matches(req), "matchedExactQueryPath(%v), index: %s", tt.config, tt.index)
 		})
 	}
 }
@@ -137,8 +137,14 @@ func Test_matchedAgainstPattern(t *testing.T) {
 	}
 }
 
-func indexConfig(name string, disabled bool) config.QuesmaConfiguration {
-	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {Name: name, Disabled: disabled}}}
+func indexConfig(name string, elastic bool) config.QuesmaConfiguration {
+	var targets []string
+	if elastic {
+		targets = []string{config.ElasticsearchTarget}
+	} else {
+		targets = []string{config.ClickhouseTarget}
+	}
+	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {Name: name, QueryTarget: targets, IngestTarget: targets}}}
 }
 
 func Test_matchedAgainstBulkBody(t *testing.T) {

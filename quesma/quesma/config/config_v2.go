@@ -480,17 +480,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			conf.IndexConfig[indexName] = processedConfig
 		}
-		// For now, users of IndexConfig don't actually look at the QueryTarget and IngestTarget fields,
-		// and the only valid cases are Query+Ingest to Elasticsearch or Query+Ingest to ClickHouse. Emulate those
-		// behaviors by settings Disabled:
-		for indexName, indexConfig := range conf.IndexConfig {
-			if slices.Contains(indexConfig.QueryTarget, elasticBackendName) {
-				indexConfig.Disabled = true
-			} else {
-				indexConfig.Disabled = false
-			}
-			conf.IndexConfig[indexName] = indexConfig
-		}
 	}
 
 	if errAcc != nil {

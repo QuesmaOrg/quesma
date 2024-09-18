@@ -217,7 +217,7 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]string, d
 				indexConfig = config.IndexConfiguration{}
 			}
 
-			if indexConfig.Disabled {
+			if !isCommonTable && !indexConfig.IsClickhouseQueryEnabled() && !indexConfig.IsClickhouseIngestEnabled() {
 				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 			} else {
 				comment := td.tableComment(databaseName, table)
