@@ -470,6 +470,10 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 		}
 	}
 
+	if len(newColumns) == 0 {
+		return nil, fmt.Errorf("applyWildcardExpansion: no columns found in the query")
+	}
+
 	query.SelectCommand.Columns = newColumns
 
 	return query, nil

@@ -335,31 +335,27 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return nil, err
 	}
 
-	var resolvedTableName string
 	var table *clickhouse.Table
 	var currentSchema schema.Schema
-
-	var resolvedIndexes []string
-
-	for _, idx := range sourcesClickhouse {
-		if len(q.cfg.IndexConfig[idx].Override) > 0 {
-			idx = q.cfg.IndexConfig[idx].Override
-		}
-		resolvedIndexes = append(resolvedIndexes, idx)
-	}
+	resolvedIndexes := sourcesClickhouse
 
 	if len(resolvedIndexes) == 1 {
-		resolvedTableName = resolvedIndexes[0] // we got exactly one table here because of the check above
+		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
+		resolvedTableName := indexName
 
 		// TODO this will be removed
+		if len(q.cfg.IndexConfig[indexName].Override) > 0 {
+			resolvedTableName = q.cfg.IndexConfig[indexName].Override
+		}
+
+		resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.TableName(indexName))
+		if !ok {
+			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
+		}
+
 		table, _ = tables.Load(resolvedTableName)
 		if table == nil {
 			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
-		}
-
-		resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.TableName(resolvedTableName))
-		if !ok {
-			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
 		currentSchema = resolvedSchema
@@ -368,17 +364,29 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		// here we filter out indexes that are not stored in the common table
 		var virtualOnlyTables []string
-		for _, resolvedTableName = range resolvedIndexes {
-			table, _ = tables.Load(resolvedTableName)
-			if table == nil {
-				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
+		for _, indexName := range resolvedIndexes {
+			tableName := indexName
+			if len(q.cfg.IndexConfig[indexName].Override) > 0 {
+				tableName = q.cfg.IndexConfig[indexName].Override
 			}
 
+			table, _ = tables.Load(tableName)
+			if table == nil {
+				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", indexName)).Details("Table: %s", indexName)
+			}
 			if table.VirtualTable {
-				virtualOnlyTables = append(virtualOnlyTables, resolvedTableName)
+				virtualOnlyTables = append(virtualOnlyTables, indexName)
 			}
 		}
 		resolvedIndexes = virtualOnlyTables
+
+		if len(resolvedIndexes) == 0 {
+			if optAsync != nil {
+				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
+			} else {
+				return queryparser.EmptySearchResponse(ctx), nil
+			}
+		}
 
 		commonTable, ok := tables.Load(common_table.TableName)
 		if !ok {
@@ -390,7 +398,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			Fields:             make(map[schema.FieldName]schema.Field),
 			Aliases:            make(map[schema.FieldName]schema.FieldName),
 			ExistsInDataSource: false,
-			DatabaseName:       "",
+			DatabaseName:       "", // it doesn't matter here, common table will be used
 		}
 
 		for _, idx := range resolvedIndexes {
@@ -401,13 +409,14 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 			for fieldName, _ := range scm.Fields {
 				// here we construct our runtime  schema by merging fields from all resolved indexes
+				fmt.Println("XXX ", idx, fieldName, scm.Fields[fieldName])
+
 				resolvedSchema.Fields[fieldName] = scm.Fields[fieldName]
 			}
 		}
 
 		currentSchema = resolvedSchema
 		table = commonTable
-		resolvedTableName = common_table.TableName
 	}
 
 	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes, q.cfg)
@@ -440,7 +449,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	plan.Name = model.MainExecutionPlan
 
 	// Some flags may trigger alternative execution plans, this is primary for dev
-	alternativePlan, alternativePlanExecutor := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedTableName, plan, queryTranslator, body, table, optAsync != nil)
+	alternativePlan, alternativePlanExecutor := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedIndexes, plan, queryTranslator, body, table, optAsync != nil)
 
 	var optComparePlansCh chan<- executionPlanResult
 

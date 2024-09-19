@@ -1182,6 +1182,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 
 			// sortMap has only 1 key, so we can just iterate over it
 			for k, v := range sortMap {
+				// TODO replace cw.Table.GetFieldInfo with schema.Field[]
 				if strings.HasPrefix(k, "_") && cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, k)) == clickhouse.NotExists {
 					// we're skipping ELK internal fields, like "_doc", "_id", etc.
 					continue
