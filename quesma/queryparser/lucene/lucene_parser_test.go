@@ -129,12 +129,3 @@ func TestResolvePropertyNamesWhenTranslatingToSQL(t *testing.T) {
 		})
 	}
 }
-
-type fixedFieldNameResolver struct {
-	namesMap map[string]string
-}
-
-func (f fixedFieldNameResolver) ResolveFieldName(fieldName string) (string, bool) {
-	name, exists := f.namesMap[fieldName]
-	return name, exists
-}

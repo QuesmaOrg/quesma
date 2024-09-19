@@ -407,10 +407,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", idx)).Details("Table: %s", idx)
 			}
 
-			for fieldName, _ := range scm.Fields {
+			for fieldName := range scm.Fields {
 				// here we construct our runtime  schema by merging fields from all resolved indexes
-				fmt.Println("XXX ", idx, fieldName, scm.Fields[fieldName])
-
 				resolvedSchema.Fields[fieldName] = scm.Fields[fieldName]
 			}
 		}

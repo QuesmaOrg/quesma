@@ -742,21 +742,6 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.S
 	return model.NewSimpleQuery(whereStmtFromLucene, true)
 }
 
-type schemaRegistryAdapter struct {
-	tableName string
-	schema.Registry
-}
-
-func (s schemaRegistryAdapter) ResolveFieldName(fieldName string) (string, bool) {
-	if resolvedSchema, exists := s.Registry.FindSchema(schema.TableName(s.tableName)); exists {
-		if field, fieldFound := resolvedSchema.ResolveField(fieldName); fieldFound {
-			return field.InternalPropertyName.AsString(), true
-		}
-	}
-
-	return fieldName, false
-}
-
 func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) model.SimpleQuery {
 	if query, ok := queryMap["query"]; ok {
 		if queryAsMap, ok := query.(QueryMap); ok {
