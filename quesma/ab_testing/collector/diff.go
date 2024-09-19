@@ -4,11 +4,16 @@ package collector
 
 import (
 	"encoding/json"
+	"fmt"
 	"quesma/jsondiff"
 	"quesma/quesma/types"
 )
 
 type diffTransformer struct {
+}
+
+func (t *diffTransformer) name() string {
+	return "diffTransformer"
 }
 
 func (t *diffTransformer) mostCommonMismatchType(mismatches []jsondiff.JSONMismatch) (string, int) {
@@ -38,12 +43,20 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 
 	jsonA, err := types.ParseJSON(in.A.Body)
 	if err != nil {
-		return in, false, err
+		in.Mismatch.IsOK = false
+		in.Mismatch.Message = fmt.Sprintf("failed to parse A response: %v", err)
+		err = fmt.Errorf("failed to parse A response: %w", err)
+		in.Errors = append(in.Errors, err.Error())
+		return in, false, nil
 	}
 
 	jsonB, err := types.ParseJSON(in.B.Body)
 	if err != nil {
-		return in, false, err
+		in.Mismatch.IsOK = false
+		in.Mismatch.Message = fmt.Sprintf("failed to parse B response: %v", err)
+		err = fmt.Errorf("failed to parse B response: %w", err)
+		in.Errors = append(in.Errors, err.Error())
+		return in, false, nil
 	}
 
 	mismatches, err := d.Diff(jsonA, jsonB)
@@ -56,7 +69,7 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 		b, err := json.MarshalIndent(mismatches, "", " ")
 
 		if err != nil {
-			return in, false, err
+			return in, false, fmt.Errorf("failed to marshal mismatches: %w", err)
 		}
 
 		in.Mismatch.Mismatches = string(b)

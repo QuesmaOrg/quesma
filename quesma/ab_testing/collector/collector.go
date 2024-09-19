@@ -33,14 +33,16 @@ type EnrichedResults struct {
 	Mismatch        ResponseMismatch `json:"response_mismatch"`
 	QuesmaVersion   string           `json:"quesma_version"`
 	QuesmaBuildHash string           `json:"quesma_hash"`
+	Errors          []string         `json:"errors,omitempty"`
 }
 
 type pipelineProcessor interface {
+	name() string
 	process(in EnrichedResults) (out EnrichedResults, drop bool, err error)
 }
 
 type processorErrorMessage struct {
-	processor pipelineProcessor
+	processor string
 	err       error
 }
 
@@ -152,7 +154,7 @@ func (r *InMemoryCollector) receiveHealthAndErrorsLoop() {
 		select {
 
 		case msg := <-r.processorErrorQueue:
-			logger.WarnWithCtx(r.ctx).Msgf("Processor returned an error: %v %v", msg.processor, msg.err)
+			logger.WarnWithCtx(r.ctx).Msgf("Processor '%s' returned an error: %v", msg.processor, msg.err)
 
 			errorCount += 1
 
@@ -189,7 +191,7 @@ func (r *InMemoryCollector) processResult(result ab_testing.Result) {
 	for _, processor := range r.pipeline {
 		if res, drop, err = processor.process(res); err != nil {
 			r.processorErrorQueue <- processorErrorMessage{
-				processor: processor,
+				processor: processor.name(),
 				err:       err,
 			}
 			return
