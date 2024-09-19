@@ -381,8 +381,22 @@ func Test_ipRangeTransform(t *testing.T) {
 				}},
 		},
 	}
+
 	for k := range queries {
 		t.Run(strconv.Itoa(k), func(t *testing.T) {
+
+			queriesToTransform := queries[k]
+
+			for _, q := range queriesToTransform {
+
+				currentSchema, ok := s.FindSchema(schema.TableName(q.TableName))
+				if !ok {
+					t.Fatalf("schema not found for table %s", q.TableName)
+				}
+				q.Schema = currentSchema
+				q.Indexes = []string{q.TableName}
+			}
+
 			resultQueries, err := transform.Transform(queries[k])
 			assert.NoError(t, err)
 			assert.Equal(t, expectedQueries[k].SelectCommand.String(), resultQueries[0].SelectCommand.String())
