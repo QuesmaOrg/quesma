@@ -5,6 +5,7 @@ package lucene
 import (
 	"context"
 	"quesma/model"
+	"quesma/schema"
 	"strconv"
 	"testing"
 )
@@ -83,9 +84,14 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`title:()`, `false`},
 		{`() a`, `((false OR false) OR ("title" = 'a' OR "text" = 'a'))`}, // a bit weird, but 'false OR false' is OK as I think nothing should match '()'
 	}
+
+	currentSchema := schema.Schema{
+		Fields: map[schema.FieldName]schema.Field{},
+	}
+
 	for i, tt := range append(properQueries, randomQueriesWithPossiblyIncorrectInput...) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			parser := newLuceneParser(context.Background(), defaultFieldNames, fixedFieldNameResolver{})
+			parser := newLuceneParser(context.Background(), defaultFieldNames, currentSchema)
 			got := model.AsString(parser.translateToSQL(tt.query))
 			if got != tt.want {
 				t.Errorf("\ngot  [%q]\nwant [%q]", got, tt.want)
@@ -95,18 +101,27 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 }
 
 func TestResolvePropertyNamesWhenTranslatingToSQL(t *testing.T) {
+
 	defaultFieldNames := []string{"title", "text"}
 	var properQueries = []struct {
-		query        string
-		nameResolver fieldNameResolver
-		want         string
+		query   string
+		mapping map[string]string
+		want    string
 	}{
-		{query: `title:"The Right Way" AND text:go!!`, nameResolver: fixedFieldNameResolver{}, want: `("title" = 'The Right Way' AND "text" = 'go!!')`},
-		{query: `age:>10`, nameResolver: fixedFieldNameResolver{namesMap: map[string]string{"age": "foo"}}, want: `"foo" > '10'`},
+		{query: `title:"The Right Way" AND text:go!!`, mapping: map[string]string{}, want: `("title" = 'The Right Way' AND "text" = 'go!!')`},
+		{query: `age:>10`, mapping: map[string]string{"age": "foo"}, want: `"foo" > '10'`},
 	}
 	for i, tt := range properQueries {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			parser := newLuceneParser(context.Background(), defaultFieldNames, tt.nameResolver)
+			fields := make(map[schema.FieldName]schema.Field)
+
+			for k, v := range tt.mapping {
+				fields[schema.FieldName(k)] = schema.Field{PropertyName: schema.FieldName(k), InternalPropertyName: schema.FieldName(v)}
+			}
+
+			currentSchema := schema.Schema{Fields: fields}
+
+			parser := newLuceneParser(context.Background(), defaultFieldNames, currentSchema)
 			got := model.AsString(parser.translateToSQL(tt.query))
 			if got != tt.want {
 				t.Errorf("\ngot  [%q]\nwant [%q]", got, tt.want)
