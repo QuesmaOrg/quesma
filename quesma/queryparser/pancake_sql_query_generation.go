@@ -5,6 +5,7 @@ package queryparser
 import (
 	"errors"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/model/metrics_aggregations"
@@ -41,6 +42,7 @@ func (p *pancakeSqlQueryGenerator) generatePartitionBy(groupByColumns []model.Al
 
 // TODO: Implement more if needed.
 func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
+	pp.Println(origExpr, queryType)
 	switch origFunc := origExpr.(type) {
 	case model.FunctionExpr:
 		switch origFunc.Name {
@@ -52,6 +54,9 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 			// TODO: I debate whether make that default
 			// This is ClickHouse specific: https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators
 			return model.NewFunction(origFunc.Name+"State", origFunc.Args...), origFunc.Name + "Merge", nil
+		}
+		if strings.HasPrefix(origFunc.Name, "quantiles") {
+			return origFunc, "sumArray", nil
 		}
 	}
 	debugQueryType := "<nil>"
@@ -68,13 +73,16 @@ func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMet
 
 		if hasMoreBucketAggregations {
 			partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(column, metric.queryType)
+			pp.Println("partColumn", partColumn, "aggFunctionName", aggFunctionName)
 			if err != nil {
 				return nil, err
 			}
 			finalColumn = model.NewWindowFunction(aggFunctionName, []model.Expr{partColumn},
 				p.generatePartitionBy(groupByColumns), []model.OrderByExpr{})
+			pp.Println("finalColumn", finalColumn)
 		}
 		aliasedColumn := model.NewAliasedExpr(finalColumn, metric.InternalNameForCol(columnId))
+		pp.Println("aliasedColumn", aliasedColumn)
 		addSelectColumns = append(addSelectColumns, aliasedColumn)
 	}
 	return

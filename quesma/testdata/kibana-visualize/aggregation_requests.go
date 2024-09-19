@@ -850,4 +850,207 @@ var AggregationTests = []testdata.AggregationTestCase{
 			WHERE "aggr__0__order_1_rank"<=3
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
+	{ // [59]
+		TestName: "percentile with subaggregation (so, combinator). Visualize, Pie, Slice by: top5 of Cancelled, DistanceKilometers, Metric: 95th Percentile",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"aggs": {
+								"2": {
+									"percentiles": {
+										"field": "DistanceKilometers",
+										"percents": [
+											95
+										]
+									}
+								}
+							},
+							"histogram": {
+								"extended_bounds": {
+									"max": 19538.82056368213,
+									"min": 0
+								},
+								"field": "DistanceKilometers",
+								"interval": 5000,
+								"min_doc_count": 0
+							}
+						},
+						"2": {
+							"percentiles": {
+								"field": "DistanceKilometers",
+								"percents": [
+									95
+								]
+							}
+						}
+					},
+					"terms": {
+						"field": "Cancelled",
+						"order": {
+							"2.95": "desc"
+						},
+						"shard_size": 25,
+						"size": 5
+					}
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		// Response changed a bit from the original:
+		// In bool terms, Elastic returns "key": 0, "key_as_string": "false", we return "key": false.
+		// Kibana works fine with both ways.
+		ExpectedResponse: `
+		{
+			"response": {
+				"took": 19,
+				"timed_out": false,
+				"_shards": {
+					"total": 1,
+					"successful": 1,
+					"skipped": 0,
+					"failed": 0
+				},
+				"hits": {
+					"total": {
+						"value": 3393,
+						"relation": "eq"
+					},
+					"max_score": null,
+					"hits": []
+				},
+				"aggregations": {
+					"0": {
+						"doc_count_error_upper_bound": 0,
+						"sum_other_doc_count": 0,
+						"buckets": [
+							{
+								"1": {
+									"buckets": [
+										{
+											"2": {
+												"values": {
+													"95.0": 4476.3921875
+												}
+											},
+											"key": 0,
+											"doc_count": 908
+										}
+									]
+								},
+								"2": {
+									"values": {
+										"95.0": 15480.335426897316
+									}
+								},
+								"key": false,
+								"doc_count": 2974
+							},
+							{
+								"1": {
+									"buckets": [
+										{
+											"2": {
+												"values": {
+													"95.0": 4188.7347656249985
+												}
+											},
+											"key": 0,
+											"doc_count": 137
+										},
+										{
+											"2": {
+												"values": {
+													"95.0": 9842.6279296875
+												}
+											},
+											"key": 5000,
+											"doc_count": 186
+										}
+									]
+								},
+								"2": {
+									"values": {
+										"95.0": 14463.254101562497
+									}
+								},
+								"key": true,
+								"doc_count": 419
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", 0),
+				model.NewQueryResultCol("aggr__0__key_0", false),
+				model.NewQueryResultCol("aggr__0__count", 2974),
+				model.NewQueryResultCol("aggr__0__order_1", 15480.335426897316),
+				model.NewQueryResultCol("metric__0__2_col_0", []float64{15480.335426897316}),
+				model.NewQueryResultCol("aggr__0__1__key_0", 0.0),
+				model.NewQueryResultCol("aggr__0__1__count", 908),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{4476.3921875}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", 0),
+				model.NewQueryResultCol("aggr__0__key_0", true),
+				model.NewQueryResultCol("aggr__0__count", 419),
+				model.NewQueryResultCol("aggr__0__order_1", 14463.254101562497),
+				model.NewQueryResultCol("metric__0__2_col_0", []float64{14463.254101562497}),
+				model.NewQueryResultCol("aggr__0__1__key_0", 0.0),
+				model.NewQueryResultCol("aggr__0__1__count", 137),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{4188.7347656249985}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", 0),
+				model.NewQueryResultCol("aggr__0__key_0", true),
+				model.NewQueryResultCol("aggr__0__count", 419),
+				model.NewQueryResultCol("aggr__0__order_1", 14463.254101562497),
+				model.NewQueryResultCol("metric__0__2_col_0", []float64{14463.254101562497}),
+				model.NewQueryResultCol("aggr__0__1__key_0", 5000.0),
+				model.NewQueryResultCol("aggr__0__1__count", 186),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{9842.6279296875}),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+			  "aggr__0__order_1", "metric__0__2_col_0", "aggr__0__1__key_0",
+			  "aggr__0__1__count", "metric__0__1__2_col_0"
+			FROM (
+			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+				"aggr__0__order_1", "metric__0__2_col_0", "aggr__0__1__key_0",
+				"aggr__0__1__count", "metric__0__1__2_col_0",
+				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
+				AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
+			  FROM (
+				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+				  "Cancelled" AS "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sumArray(quantiles(0.950000)("DistanceKilometers")) OVER (PARTITION BY
+				  "aggr__0__key_0") AS "aggr__0__order_1",
+				  sumArray(quantiles(0.950000)("DistanceKilometers")) OVER (PARTITION BY
+				  "aggr__0__key_0") AS "metric__0__2_col_0",
+				  floor("DistanceKilometers"/5000)*5000 AS "aggr__0__1__key_0",
+				  count(*) AS "aggr__0__1__count",
+				  quantiles(0.950000)("DistanceKilometers") AS "metric__0__1__2_col_0"
+				FROM __quesma_table_name
+				GROUP BY "Cancelled" AS "aggr__0__key_0",
+				  floor("DistanceKilometers"/5000)*5000 AS "aggr__0__1__key_0"))
+			WHERE "aggr__0__order_1_rank"<=6
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+	},
 }
