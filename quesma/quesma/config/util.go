@@ -11,7 +11,7 @@ import (
 
 var insertCounter = atomic.Int32{}
 
-func RunConfigured(ctx context.Context, cfg *QuesmaConfiguration, indexName string, body types.JSON, action func() error) error {
+func RunConfiguredIngest(ctx context.Context, cfg *QuesmaConfiguration, indexName string, body types.JSON, action func() error) error {
 	if len(cfg.IndexConfig) == 0 {
 		logger.InfoWithCtx(ctx).Msgf("%s  --> clickhouse, body(shortened): %s", indexName, body.ShortString())
 		err := action()
@@ -25,7 +25,7 @@ func RunConfigured(ctx context.Context, cfg *QuesmaConfiguration, indexName stri
 			logger.InfoWithCtx(ctx).Msgf("index '%s' is not configured, skipping", indexName)
 			return nil
 		}
-		if matchingConfig.Disabled {
+		if !matchingConfig.IsClickhouseIngestEnabled() {
 			logger.InfoWithCtx(ctx).Msgf("index '%s' is disabled, ignoring", indexName)
 			return nil
 		} else {

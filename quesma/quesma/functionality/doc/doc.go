@@ -21,7 +21,7 @@ func Write(ctx context.Context, tableName string, body types.JSON, ip *ingest.In
 		return nil
 	}
 
-	return config.RunConfigured(ctx, cfg, tableName, body, func() error {
+	return config.RunConfiguredIngest(ctx, cfg, tableName, body, func() error {
 		if len(cfg.IndexConfig[tableName].Override) > 0 {
 			tableName = cfg.IndexConfig[tableName].Override
 		}

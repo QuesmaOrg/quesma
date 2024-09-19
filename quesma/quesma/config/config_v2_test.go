@@ -32,7 +32,7 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 	assert.Equal(t, true, legacyCfg.IngestStatistics)
 	assert.Equal(t, "logs", legacyCfg.Logging.Path)
 	assert.Equal(t, logLevelPassedAsEnvVar, legacyCfg.Logging.Level.String())
-	assert.Equal(t, 10, len(legacyCfg.IndexConfig))
+	assert.Equal(t, 11, len(legacyCfg.IndexConfig))
 
 	findIndexConfig := func(name string) *IndexConfiguration {
 		if configuration, found := legacyCfg.IndexConfig[name]; found {
@@ -43,18 +43,21 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
-		enabled bool
+		name         string
+		queryTarget  []string
+		ingestTarget []string
 	}{
-		{"logs-generic-default", false},
-		{"device-logs", false},
+		{"logs-generic-default", []string{ClickhouseTarget}, []string{ClickhouseTarget}},
+		{"device-logs", []string{ClickhouseTarget}, []string{ClickhouseTarget}},
+		{"example-elastic-index", []string{ElasticsearchTarget}, []string{ElasticsearchTarget}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ic := findIndexConfig(tt.name)
 			assert.NotNil(t, ic)
-			assert.Equal(t, tt.enabled, ic.Disabled)
+			assert.Equal(t, tt.queryTarget, ic.QueryTarget)
+			assert.Equal(t, tt.ingestTarget, ic.IngestTarget)
 		})
 	}
 }

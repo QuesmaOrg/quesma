@@ -53,11 +53,11 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return bulkInsertResult(results, err)
 	})
 
-	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExactQueryPath(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		return elasticsearchInsertResult(`{"_shards":{"total":1,"successful":1,"failed":0}}`, http.StatusOK), nil
 	})
 
-	router.Register(routes.IndexDocPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexDocPath, and(method("POST"), matchedExactIngestPath(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
@@ -78,7 +78,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return indexDocResult(req.Params["index"], http.StatusOK)
 	})
 
-	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExactIngestPath(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
 
 		body, err := types.ExpectNDJSON(req.ParsedBody)
@@ -330,18 +330,6 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	})
 
 	return router
-}
-
-// check whether exact index name is enabled
-func matchedExact(config *config.QuesmaConfiguration) mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
-		if elasticsearch.IsInternalIndex(req.Params["index"]) {
-			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])
-			return false
-		}
-		indexConfig, exists := config.IndexConfig[req.Params["index"]]
-		return exists && !indexConfig.Disabled
-	})
 }
 
 func elasticsearchCountResult(body int64, statusCode int) (*mux.Result, error) {

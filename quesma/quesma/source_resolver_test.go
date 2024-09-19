@@ -26,7 +26,7 @@ func TestResolveSources(t *testing.T) {
 			name: "Index only in Clickhouse,pattern:",
 			args: args{
 				indexPattern: "test",
-				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"test": {}}},
+				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"test": {QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget}}}},
 				im:           NewFixedIndexManagement(),
 			},
 			want: sourceClickhouse,
@@ -35,7 +35,7 @@ func TestResolveSources(t *testing.T) {
 			name: "Index only in Clickhouse,pattern:",
 			args: args{
 				indexPattern: "*",
-				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"test": {}}},
+				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"test": {QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget}}}},
 				im:           NewFixedIndexManagement(),
 			},
 			want: sourceClickhouse,
@@ -62,16 +62,16 @@ func TestResolveSources(t *testing.T) {
 			name: "Indexes both in Elasticsearch and Clickhouse",
 			args: args{
 				indexPattern: "*",
-				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"kibana-sample-data-logs": {}}},
+				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"kibana-sample-data-logs": {QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget}}}},
 				im:           NewFixedIndexManagement("logs-generic-default"),
 			},
 			want: sourceBoth,
 		},
 		{
-			name: "Indexes both in Elasticsearch and Clickhouse, but explicitly disabled",
+			name: "Indexes both in Elasticsearch and Clickhouse, but configured to Elastic",
 			args: args{
 				indexPattern: "*",
-				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"logs-generic-default": {Disabled: true}}},
+				cfg:          config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"logs-generic-default": {QueryTarget: []string{config.ElasticsearchTarget}, IngestTarget: []string{config.ElasticsearchTarget}}}},
 				im:           NewFixedIndexManagement("logs-generic-default"),
 			},
 			want: sourceElasticsearch,

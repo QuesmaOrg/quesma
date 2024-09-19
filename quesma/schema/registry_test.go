@@ -282,7 +282,7 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 	tableName := "some_table"
 	cfg := config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
-			tableName: {Disabled: false},
+			tableName: {QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget}},
 		},
 	}
 	tableDiscovery := fixedTableProvider{tables: map[string]schema.Table{
