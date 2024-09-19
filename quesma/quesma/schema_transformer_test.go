@@ -75,7 +75,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			}},
 		}}
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
+	transform := &SchemaCheckPass{cfg: indexConfig}
 
 	selectColumns := []model.Expr{model.NewColumnRef("message")}
 
@@ -422,13 +422,7 @@ func Test_arrayType(t *testing.T) {
 		},
 	}
 
-	schemaRegistry := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
-			"kibana_sample_data_ecommerce": indexSchema,
-		},
-	}
-
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: schemaRegistry}
+	transform := &SchemaCheckPass{cfg: indexConfig}
 
 	tests := []struct {
 		name     string
@@ -564,6 +558,8 @@ func Test_arrayType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.query.Schema = indexSchema
+			tt.query.Indexes = []string{tt.query.TableName}
 			actual, err := transform.Transform([]*model.Query{tt.query})
 			assert.NoError(t, err)
 
@@ -603,7 +599,7 @@ func TestApplyWildCard(t *testing.T) {
 		},
 	}
 
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
+	transform := &SchemaCheckPass{cfg: indexConfig}
 
 	tests := []struct {
 		name     string
@@ -693,7 +689,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 	td.Store(tableDefinition.Name, &tableDefinition)
 
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
+	transform := &SchemaCheckPass{cfg: indexConfig}
 
 	tests := []struct {
 		name     string
@@ -809,6 +805,8 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 			query := &model.Query{
 				TableName:     "test",
 				SelectCommand: tt.input,
+				Schema:        indexSchema,
+				Indexes:       []string{"test"},
 			}
 
 			expectedAsString := model.AsString(tt.expected)
@@ -952,7 +950,7 @@ func TestFullTextFields(t *testing.T) {
 			}
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-			transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
+			transform := &SchemaCheckPass{cfg: indexConfig}
 
 			indexSchema, ok := s.FindSchema("test")
 			if !ok {

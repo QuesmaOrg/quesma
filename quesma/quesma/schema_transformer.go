@@ -15,8 +15,7 @@ import (
 )
 
 type SchemaCheckPass struct {
-	cfg            map[string]config.IndexConfiguration
-	schemaRegistry schema.Registry
+	cfg map[string]config.IndexConfiguration
 }
 
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
@@ -609,13 +608,17 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 func (s *SchemaCheckPass) handleDottedTColumnNames(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
+	var doCompensation bool
+
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 
 		if strings.Contains(e.ColumnName, ".") {
 			logger.Warn().Msgf("Dotted column name found: %s", e.ColumnName)
-			return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
+			if doCompensation {
+				return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
+			}
 		}
 		return e
 	}

@@ -112,7 +112,7 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	go managementConsole.RunOnlyChannelProcessor()
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
 					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},

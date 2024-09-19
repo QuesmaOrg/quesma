@@ -82,7 +82,7 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration, 
 		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
 		transformationPipeline: TransformationPipeline{
 			transformers: []model.QueryTransformer{
-				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry},
+				&SchemaCheckPass{cfg: cfg.IndexConfig},
 			},
 		},
 		schemaRegistry:  schemaRegistry,
