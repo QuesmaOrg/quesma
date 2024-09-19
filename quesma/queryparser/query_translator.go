@@ -20,13 +20,14 @@ type JsonMap = map[string]interface{}
 type ClickhouseQueryTranslator struct {
 	ClickhouseLM *clickhouse.LogManager
 
-	Schema schema.Schema // This should be use instead
+	Schema schema.Schema
 	Ctx    context.Context
 
 	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 
-	IncomingIndexName string
-	Config            *config.QuesmaConfiguration
+	Indexes []string
+
+	Config *config.QuesmaConfiguration
 
 	// TODO this will be removed
 	Table *clickhouse.Table

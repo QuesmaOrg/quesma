@@ -348,8 +348,8 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 	}
 
 	var useCommonTable bool
-	if len(query.MatchedIndexes) == 1 {
-		indexConf, ok := s.cfg[query.MatchedIndexes[0]]
+	if len(query.Indexes) == 1 {
+		indexConf, ok := s.cfg[query.Indexes[0]]
 		if !ok {
 			return query, fmt.Errorf("index configuration not found for table %s", query.TableName)
 		}
@@ -411,7 +411,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 			var indexWhere []model.Expr
 
-			for _, indexName := range query.MatchedIndexes {
+			for _, indexName := range query.Indexes {
 				indexWhere = append(indexWhere, model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", indexName))))
 			}
 

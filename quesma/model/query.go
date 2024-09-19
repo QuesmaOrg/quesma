@@ -48,9 +48,9 @@ type (
 		TransformationHistory TransformationHistory // it can be optional
 
 		Type      QueryType
-		TableName string // TODO delete this and use MatchedIndexes instead
+		TableName string // TODO delete this and use Indexes instead
 
-		MatchedIndexes []string // list of indexes we're going to use for this query
+		Indexes []string // list of indexes we're going to use for this query
 
 		// this is schema for current query, this schema should be used in pipeline processing
 		Schema schema.Schema

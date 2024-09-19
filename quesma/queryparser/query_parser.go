@@ -81,10 +81,10 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		}
 	}
 
-	// Here we add physical table name.
-	// This is a temporary solution, we should resolve table name later
 	for _, query := range queries {
-		query.TableName = cw.Table.Name
+		query.TableName = cw.Table.Name // TODO remove this line
+		query.Indexes = cw.Indexes
+		query.Schema = cw.Schema
 	}
 
 	plan := &model.ExecutionPlan{
@@ -109,7 +109,7 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	if fullQuery != nil {
 		highlighter.SetTokensToHighlight(fullQuery.SelectCommand)
 		// TODO: pass right arguments
-		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, fullQuery.SelectCommand.OrderByFieldNames(), true, false, false, cw.IncomingIndexName)
+		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, fullQuery.SelectCommand.OrderByFieldNames(), true, false, false, cw.Indexes)
 		fullQuery.Type = &queryType
 		fullQuery.Highlighter = highlighter
 	}
@@ -380,6 +380,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	}
 
 	var whereStmt model.Expr
+	// TODO replace with cw.Schema
 	if v, ok := cw.Table.Cols[timestampColumnName]; ok {
 		switch v.Type.String() {
 		case clickhouse.DateTime64.String():

@@ -335,7 +335,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return nil, err
 	}
 
-	var incomingIndexName string
 	var resolvedTableName string
 	var table *clickhouse.Table
 	var currentSchema schema.Schema
@@ -411,7 +410,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		resolvedTableName = common_table.TableName
 	}
 
-	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer, incomingIndexName, q.cfg)
+	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes, q.cfg)
 
 	plan, err := queryTranslator.ParseQuery(body)
 
@@ -432,7 +431,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 
 	for _, query := range plan.Queries {
-		query.MatchedIndexes = resolvedIndexes
+		query.Indexes = resolvedIndexes
 		query.Schema = currentSchema
 	}
 
