@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"quesma/ab_testing"
 	"quesma/clickhouse"
+	"quesma/common_table"
 	"quesma/concurrent"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
@@ -316,9 +317,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
 			return nil, quesma_errors.ErrIndexNotExists()
 		}
-	} else if len(sourcesClickhouse) > 1 { // async search never worked for multiple indexes, TODO fix
-		logger.WarnWithCtx(ctx).Msgf("requires union of multiple tables [%s], not yet supported, picking just one", indexPattern)
-		sourcesClickhouse = sourcesClickhouse[1:2]
 	}
 
 	var responseBody []byte
@@ -337,20 +335,83 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return nil, err
 	}
 
-	resolvedTableName := sourcesClickhouse[0] // we got exactly one table here because of the check above
+	var incomingIndexName string
+	var resolvedTableName string
+	var table *clickhouse.Table
+	var currentSchema schema.Schema
 
-	incomingIndexName := resolvedTableName
-	if len(q.cfg.IndexConfig[resolvedTableName].Override) > 0 {
-		resolvedTableName = q.cfg.IndexConfig[resolvedTableName].Override
+	var resolvedIndexes []string
+
+	for _, idx := range sourcesClickhouse {
+		if len(q.cfg.IndexConfig[idx].Override) > 0 {
+			idx = q.cfg.IndexConfig[idx].Override
+		}
+		resolvedIndexes = append(resolvedIndexes, idx)
 	}
 
-	// TODO this will be removed
-	table, _ := tables.Load(resolvedTableName)
-	if table == nil {
-		return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
+	if len(resolvedIndexes) == 1 {
+		resolvedTableName = resolvedIndexes[0] // we got exactly one table here because of the check above
+
+		// TODO this will be removed
+		table, _ = tables.Load(resolvedTableName)
+		if table == nil {
+			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
+		}
+
+		resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.TableName(resolvedTableName))
+		if !ok {
+			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
+		}
+
+		currentSchema = resolvedSchema
+
+	} else {
+
+		// here we filter out indexes that are not stored in the common table
+		var virtualOnlyTables []string
+		for _, resolvedTableName = range resolvedIndexes {
+			table, _ = tables.Load(resolvedTableName)
+			if table == nil {
+				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
+			}
+
+			if table.VirtualTable {
+				virtualOnlyTables = append(virtualOnlyTables, resolvedTableName)
+			}
+		}
+		resolvedIndexes = virtualOnlyTables
+
+		commonTable, ok := tables.Load(common_table.TableName)
+		if !ok {
+			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", common_table.TableName)).Details("Table: %s", common_table.TableName)
+		}
+
+		// Let's build a  union of schemas
+		resolvedSchema := schema.Schema{
+			Fields:             make(map[schema.FieldName]schema.Field),
+			Aliases:            make(map[schema.FieldName]schema.FieldName),
+			ExistsInDataSource: false,
+			DatabaseName:       "",
+		}
+
+		for _, idx := range resolvedIndexes {
+			scm, ok := q.schemaRegistry.FindSchema(schema.TableName(idx))
+			if !ok {
+				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", idx)).Details("Table: %s", idx)
+			}
+
+			for fieldName, _ := range scm.Fields {
+				// here we construct our runtime  schema by merging fields from all resolved indexes
+				resolvedSchema.Fields[fieldName] = scm.Fields[fieldName]
+			}
+		}
+
+		currentSchema = resolvedSchema
+		table = commonTable
+		resolvedTableName = common_table.TableName
 	}
 
-	queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName, q.cfg)
+	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer, incomingIndexName, q.cfg)
 
 	plan, err := queryTranslator.ParseQuery(body)
 
@@ -368,6 +429,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		bodyAsBytes, _ := body.Bytes()
 		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
 		return responseBody, errors.New(string(responseBody))
+	}
+
+	for _, query := range plan.Queries {
+		query.MatchedIndexes = resolvedIndexes
+		query.Schema = currentSchema
 	}
 
 	plan.IndexPattern = indexPattern

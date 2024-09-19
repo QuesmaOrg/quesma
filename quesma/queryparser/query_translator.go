@@ -19,14 +19,17 @@ type JsonMap = map[string]interface{}
 
 type ClickhouseQueryTranslator struct {
 	ClickhouseLM *clickhouse.LogManager
-	Table        *clickhouse.Table // TODO this will be removed
-	Ctx          context.Context
+
+	Schema schema.Schema // This should be use instead
+	Ctx    context.Context
 
 	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 
-	SchemaRegistry    schema.Registry
 	IncomingIndexName string
 	Config            *config.QuesmaConfiguration
+
+	// TODO this will be removed
+	Table *clickhouse.Table
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()

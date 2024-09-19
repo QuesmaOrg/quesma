@@ -347,12 +347,17 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 		logger.Warn().Msg("applyPhysicalFromExpression: physical table name is not set")
 	}
 
-	indexConf, ok := s.cfg[query.TableName]
-	if !ok {
-		return query, fmt.Errorf("index configuration not found for table %s", query.TableName)
+	var useCommonTable bool
+	if len(query.MatchedIndexes) == 1 {
+		indexConf, ok := s.cfg[query.MatchedIndexes[0]]
+		if !ok {
+			return query, fmt.Errorf("index configuration not found for table %s", query.TableName)
+		}
+		useCommonTable = indexConf.UseCommonTable
+	} else {
+		// we can handle querying multiple indexes from common table only
+		useCommonTable = true
 	}
-
-	useCommonTable := indexConf.UseCommonTable
 
 	physicalFromExpression := model.NewTableRefWithDatabaseName(query.TableName, currentSchema.DatabaseName)
 
@@ -403,12 +408,19 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 		// add filter for common table, if needed
 		if useCommonTable && from == physicalFromExpression {
-			indexWhere := model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", query.TableName)))
+
+			var indexWhere []model.Expr
+
+			for _, indexName := range query.MatchedIndexes {
+				indexWhere = append(indexWhere, model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", indexName))))
+			}
+
+			indicesWhere := model.Or(indexWhere)
 
 			if selectStm.WhereClause != nil {
-				where = model.And([]model.Expr{selectStm.WhereClause.Accept(b).(model.Expr), indexWhere})
+				where = model.And([]model.Expr{selectStm.WhereClause.Accept(b).(model.Expr), indicesWhere})
 			} else {
-				where = indexWhere
+				where = indicesWhere
 			}
 		}
 
@@ -599,7 +611,7 @@ func (s *SchemaCheckPass) handleDottedTColumnNames(indexSchema schema.Schema, qu
 
 		if strings.Contains(e.ColumnName, ".") {
 			logger.Warn().Msgf("Dotted column name found: %s", e.ColumnName)
-			//return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
+			return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
 		}
 		return e
 	}
@@ -633,15 +645,10 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 	for k, query := range queries {
 		var err error
 
-		indexSchema, ok := s.schemaRegistry.FindSchema(schema.TableName(query.TableName))
-		if !ok {
-			return nil, fmt.Errorf("schema not found: %s", query.TableName)
-		}
-
 		for _, transformation := range transformationChain {
 
 			inputQuery := query.SelectCommand.String()
-			query, err = transformation.Transformation(indexSchema, query)
+			query, err = transformation.Transformation(query.Schema, query)
 			if err != nil {
 				return nil, err
 			}

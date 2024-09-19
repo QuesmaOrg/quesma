@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
@@ -35,11 +34,6 @@ func NewEmptyHighlighter() model.Highlighter {
 }
 
 func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.ExecutionPlan, error) {
-
-	if cw.SchemaRegistry == nil {
-		logger.Error().Msg("Schema registry is not set")
-		return &model.ExecutionPlan{}, errors.New("schema registry is not set")
-	}
 
 	simpleQuery, hitsInfo, highlighter, err := cw.parseQueryInternal(body)
 	if err != nil || !simpleQuery.CanParse {
@@ -743,7 +737,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.S
 	query := queryMap["query"].(string) // query: (Required, string)
 
 	// we always call `TranslateToSQL` - Lucene parser returns "false" in case of invalid query
-	whereStmtFromLucene := lucene.TranslateToSQL(cw.Ctx, query, fields, schemaRegistryAdapter{tableName: cw.Table.Name, Registry: cw.SchemaRegistry})
+	whereStmtFromLucene := lucene.TranslateToSQL(cw.Ctx, query, fields, cw.Schema)
 	return model.NewSimpleQuery(whereStmtFromLucene, true)
 }
 
@@ -943,11 +937,11 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			), "=", model.NewLiteral("0"))
 		case clickhouse.NotExists:
 			// TODO this is a workaround for the case when the field is a point
-			if schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name)); exists {
-				if value, ok := schemaInstance.ResolveFieldByInternalName(fieldName); ok && value.Type.Equal(schema.QuesmaTypePoint) {
-					return model.NewSimpleQuery(sql, true)
-				}
+			schemaInstance := cw.Schema
+			if value, ok := schemaInstance.ResolveFieldByInternalName(fieldName); ok && value.Type.Equal(schema.QuesmaTypePoint) {
+				return model.NewSimpleQuery(sql, true)
 			}
+
 			attrs := cw.Table.GetAttributesList()
 			stmts := make([]model.Expr, len(attrs))
 			for i, a := range attrs {
@@ -1276,16 +1270,9 @@ func createSortColumn(fieldName, ordering string) (model.OrderByExpr, error) {
 // to distinguish it from other fields
 func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName string) string {
 	// Alias resolution should occur *after* the query is parsed, not during the parsing
-	if cw.SchemaRegistry == nil {
-		logger.Error().Msg("Schema registry is not set")
-		return fieldName
-	}
-	schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name))
-	if !exists {
-		logger.Error().Msgf("Schema for table [%s] not found, this should never happen", cw.Table.Name)
-		return fieldName
-	}
-	// TODO this should be handled eventually at schema level
+
+	schemaInstance := cw.Schema
+
 	fieldName = strings.TrimSuffix(fieldName, ".keyword")
 	fieldName = strings.TrimSuffix(fieldName, ".text")
 
