@@ -460,7 +460,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewFunction("sumArrayOrNull", model.NewColumnRef("products::quantity")),
+						model.NewFunction("sumOrNull", model.NewFunction("arrayJoin", model.NewColumnRef("products::quantity"))),
 					},
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
 				},
