@@ -56,6 +56,9 @@ type tableDiscovery struct {
 
 type tableMetadata struct {
 	colType string
+	// currently column contains original field value
+	// we use it as persistent storage and load it
+	// in the case when we don't control ingest
 	comment string
 }
 
