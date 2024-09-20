@@ -629,7 +629,9 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 			// so we don't have direct access to it
 			return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
 		} else {
-			return e
+			// Not sure what we should do here
+			// This should not happen at all.
+			return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
 		}
 	}
 
@@ -645,6 +647,63 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 	return query, nil
 }
 
+func (s *SchemaCheckPass) applyRuntimeMapping(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	if query.RuntimeMapping == nil {
+		return query, nil
+	}
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		if mapping, ok := query.RuntimeMapping[e.ColumnName]; ok {
+			fmt.Println("XXX runtime mapping found for column", e.ColumnName, "expr", model.AsString(mapping.Expr))
+			return mapping.Expr
+		}
+		return e
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+}
+
+// it convers out internal date time related fuction to clickhouse functions
+func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
+
+		switch e.Name {
+
+		case model.DateHourFunction:
+			if len(e.Args) != 1 {
+				return e
+			}
+			return model.NewFunction("toHour", e.Args[0].Accept(b).(model.Expr))
+
+			// TODO this is a place for over date/time related functions
+			// add more
+
+		default:
+			return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+		}
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 
 	transformationChain := []struct {
@@ -653,6 +712,8 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 	}{
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
+		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMapping},
+		{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse},
 		// FieldEncodingTransformation should be after WildcardExpansion
 		// because WildcardExpansion expands the wildcard to all fields
 		// and columns are expanded as PublicFieldName, so we need to encode them

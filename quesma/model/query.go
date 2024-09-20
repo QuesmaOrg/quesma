@@ -51,6 +51,8 @@ type (
 
 		Highlighter Highlighter
 
+		RuntimeMapping map[string]RuntimeMapping
+
 		// dictionary to add as 'meta' field in the response.
 		// WARNING: it's probably not passed everywhere where it's needed, just in one place.
 		// But it works for the test + our dashboards, so let's fix it later if necessary.
@@ -67,6 +69,13 @@ type (
 		String() string
 	}
 )
+
+// RuntimeMapping is a mapping of a field to a runtime expression
+type RuntimeMapping struct {
+	Field string
+	Type  string
+	Expr  Expr
+}
 
 const MainExecutionPlan = "main"
 const AlternativeExecutionPlan = "alternative"
