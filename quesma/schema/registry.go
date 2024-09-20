@@ -9,6 +9,8 @@ import (
 	"sync"
 )
 
+// TODO we should rethink naming and types used in this package
+
 type (
 	Registry interface {
 		AllSchemas() map[TableName]Schema
@@ -16,6 +18,7 @@ type (
 		UpdateDynamicConfiguration(name TableName, table Table)
 		UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName)
 	}
+
 	FieldEncodingKey struct {
 		TableName string
 		FieldName string
