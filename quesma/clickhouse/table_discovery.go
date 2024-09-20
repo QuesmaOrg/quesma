@@ -283,7 +283,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				}
 			}
 			if col != AttributesValuesColumn && col != AttributesMetadataColumn {
-				column := resolveColumn(col, columnMetadata{}.colType)
+				column := resolveColumn(col, columnMeta.colType)
 				if column != nil {
 					column.Comment = columnMeta.comment
 					columnsMap[col] = column
