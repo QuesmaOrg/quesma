@@ -614,7 +614,9 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 func (s *SchemaCheckPass) handleDottedTColumnNames(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
-	var doCompensation bool
+	// TODO this is a workaround for now,
+	// if we set true dashboards are working but not tests
+	doCompensation := false
 
 	visitor := model.NewBaseVisitor()
 
@@ -624,7 +626,7 @@ func (s *SchemaCheckPass) handleDottedTColumnNames(indexSchema schema.Schema, qu
 			logger.Warn().Msgf("Dotted column name found: %s", e.ColumnName)
 
 			if doCompensation {
-				return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
+				return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
 			}
 
 		}

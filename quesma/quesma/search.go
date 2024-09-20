@@ -811,6 +811,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 	}
 	allReferencedFields = append(allReferencedFields, query.SelectCommand.OrderByFieldNames()...)
 
+	// TODO This should be done using query.Schema instead of table
 	for _, property := range allReferencedFields {
 		queryTranslatorValue, ok := queryTranslator.(*queryparser.ClickhouseQueryTranslator)
 		if ok {
@@ -823,7 +824,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 	return results
 }
 
-func (q *QueryRunner) postProcessResults(plan model.ExecutionPlan, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
 	if len(plan.Queries) == 0 {
 		return nil, fmt.Errorf("postProcessResults: plan.Queries is empty")
