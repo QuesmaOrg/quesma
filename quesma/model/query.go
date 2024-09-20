@@ -51,7 +51,7 @@ type (
 
 		Highlighter Highlighter
 
-		RuntimeMapping map[string]RuntimeMapping
+		RuntimeMappings map[string]RuntimeMapping
 
 		// dictionary to add as 'meta' field in the response.
 		// WARNING: it's probably not passed everywhere where it's needed, just in one place.

@@ -644,9 +644,9 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyRuntimeMapping(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyRuntimeMappings(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
-	if query.RuntimeMapping == nil {
+	if query.RuntimeMappings == nil {
 		return query, nil
 	}
 
@@ -654,7 +654,7 @@ func (s *SchemaCheckPass) applyRuntimeMapping(indexSchema schema.Schema, query *
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 
-		if mapping, ok := query.RuntimeMapping[e.ColumnName]; ok {
+		if mapping, ok := query.RuntimeMappings[e.ColumnName]; ok {
 			return mapping.Expr
 		}
 		return e
@@ -709,7 +709,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		// Section 1: from logical to physical
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
-		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMapping},
+		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMappings},
 
 		// Section 2: generic schema based transformations
 		//

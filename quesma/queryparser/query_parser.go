@@ -73,7 +73,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		queries = append(queries, listQuery)
 	}
 
-	runtimeMapping := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
+	runtimeMappings := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
 
 	// we apply post query transformer for certain aggregation types
 	// this should be a part of the query parsing process
@@ -93,7 +93,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	// This is a temporary solution, we should resolve table name later
 	for _, query := range queries {
 		query.TableName = cw.Table.Name
-		query.RuntimeMapping = runtimeMapping
+		query.RuntimeMappings = runtimeMappings
 	}
 
 	plan := &model.ExecutionPlan{
