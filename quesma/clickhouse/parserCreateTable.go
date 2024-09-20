@@ -188,7 +188,13 @@ func parseColumn(q string, i int) (int, Column) {
 
 	// COMMENT
 	if i+7 < len(q) && q[i:i+7] == "COMMENT" {
-		return -1, col // TODO unsupported: parse comment, last thing to parse, let's do it later
+		// TODO should be good enough for now
+		for {
+			i++
+			if q[i] == ',' {
+				break
+			}
+		}
 	}
 
 	if i == -1 || i >= len(q) || (q[i] != ',' && q[i] != ')') {

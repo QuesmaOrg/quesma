@@ -28,9 +28,9 @@ func TestSearchOpensearch(t *testing.T) {
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
-			"-@timestamp":  {Name: "-@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String")},
-			"-@bytes":      {Name: "-@bytes", Type: clickhouse.NewBaseType("Int64")},
+			"__timestamp":  {Name: "__timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"message_____": {Name: "message_____", Type: clickhouse.NewBaseType("String")},
+			"__bytes":      {Name: "__bytes", Type: clickhouse.NewBaseType("Int64")},
 		},
 		Created: true,
 	}
@@ -39,9 +39,9 @@ func TestSearchOpensearch(t *testing.T) {
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
-			"-@timestamp":  {PropertyName: "-@timestamp", InternalPropertyName: "-@timestamp", Type: schema.QuesmaTypeDate},
-			"message$*%:;": {PropertyName: "message$*%:;", InternalPropertyName: "message$*%:;", Type: schema.QuesmaTypeText},
-			"-@bytes":      {PropertyName: "-@bytes", InternalPropertyName: "-@bytes", Type: schema.QuesmaTypeLong},
+			"-@timestamp":  {PropertyName: "-@timestamp", InternalPropertyName: "__timestamp", Type: schema.QuesmaTypeDate},
+			"message$*%:;": {PropertyName: "message$*%:;", InternalPropertyName: "message_____", Type: schema.QuesmaTypeText},
+			"-@bytes":      {PropertyName: "-@bytes", InternalPropertyName: "__bytes", Type: schema.QuesmaTypeLong},
 		},
 	}
 
@@ -174,24 +174,22 @@ func TestHighlighter(t *testing.T) {
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
-			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String")},
-			"host.name":    {Name: "host.name", Type: clickhouse.NewBaseType("String")},
-			"@timestamp":   {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"message_____": {Name: "message_____", Type: clickhouse.NewBaseType("String")},
+			"host_name":    {Name: "host_name", Type: clickhouse.NewBaseType("String")},
+			"_timestamp":   {Name: "_timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
 		Created: true,
 	}
+	fields := map[schema.FieldName]schema.Field{
+		"messeage$*%:;": {PropertyName: "message$*%:;", InternalPropertyName: "message_____", Type: schema.QuesmaTypeText},
+		"host.name":     {PropertyName: "host.name", InternalPropertyName: "host_name", Type: schema.QuesmaTypeObject},
+		"@timestamp":    {PropertyName: "@timestamp", InternalPropertyName: "_timestamp", Type: schema.QuesmaTypeDate},
+	}
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			tableName: {
-				Fields: map[schema.FieldName]schema.Field{
-					"messeage$*%:;": {PropertyName: "message$*%:;", InternalPropertyName: "message$*%:;", Type: schema.QuesmaTypeText},
-					"host.name":     {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
-					"@timestamp":    {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
-				},
-			},
+			tableName: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
-
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
@@ -219,7 +217,8 @@ func TestHighlighter(t *testing.T) {
 	assert.NoError(t, err)
 
 	getIthHighlight := func(i int) model.JsonMap {
-		return responseAsMap["hits"].(model.JsonMap)["hits"].([]interface{})[i].(model.JsonMap)["highlight"].(model.JsonMap)
+		hits := responseAsMap["hits"].(model.JsonMap)["hits"]
+		return hits.([]interface{})[i].(model.JsonMap)["highlight"].(model.JsonMap)
 	}
 
 	assert.Equal(t, model.JsonMap{"host.name": []any{}}, getIthHighlight(0)) // no highlight

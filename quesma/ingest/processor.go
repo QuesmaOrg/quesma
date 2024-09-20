@@ -569,10 +569,6 @@ func generateSqlStatements(createTableCmd string, alterCmd []string, insert stri
 	return statements
 }
 
-func fieldToColumnEncoder(field string) string {
-	return strings.Replace(field, ".", "::", -1)
-}
-
 func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
@@ -589,14 +585,35 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		}
 		processed = append(processed, result)
 	}
+	jsonData = processed
+
+	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
+	// we are doing two passes, e.g. calling transformFieldName twice
+	// first time we populate encodings map
+	// second time we do field encoding
+	// This is because we need to know all field encodings before we start
+	// transforming fields, otherwise we would mutate json and populating encodings
+	// which would introduce side effects
+	// This can be done in one pass, but it would be more complex
+	// and requires some rewrite of json flattening
+	for _, jsonValue := range jsonData {
+		flattenJson := jsonprocessor.FlattenMap(jsonValue, ".")
+		for field := range flattenJson {
+			encodedField := util.FieldToColumnEncoder(field)
+			encodings[schema.FieldEncodingKey{TableName: tableName, FieldName: field}] =
+				schema.EncodedFieldName(encodedField)
+		}
+	}
+	if ip.schemaRegistry != nil {
+		ip.schemaRegistry.UpdateFieldEncodings(encodings)
+	}
 	// Do field encoding here, once for all jsons
 	// This is in-place operation
 	for _, jsonValue := range jsonData {
 		transformFieldName(jsonValue, func(field string) string {
-			return fieldToColumnEncoder(field)
+			return util.FieldToColumnEncoder(field)
 		})
 	}
-	jsonData = processed
 	table := ip.FindTable(tableName)
 	var tableConfig *chLib.ChTableConfig
 	var createTableCmd string
@@ -605,9 +622,13 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		ignoredFields := ip.getIgnoredFields(tableName)
 		columnsFromJson := JsonToColumns("", jsonData[0], 1,
 			tableConfig, tableFormatter, ignoredFields)
+		// This comes externally from (configuration)
+		// So we need to convert that separately
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter)
-		columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema), Indexes(jsonData[0]))
-		createTableCmd = createTableQuery(tableName, columns, tableConfig)
+		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(jsonData[0]))
+		// TODO createTableCmd should contain information about field encodings
+		// in column comments
+		createTableCmd = createTableQuery(tableName, columnsAsString, tableConfig)
 		var err error
 		createTableCmd, err = ip.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig, tableName, tableDefinitionChangeOnly)
 		if err != nil {
@@ -648,6 +669,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
+
 	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
 }
 

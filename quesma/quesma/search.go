@@ -829,7 +829,7 @@ func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]mo
 		name        string
 		transformer model.ResultTransformer
 	}{
-		{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{}},
+		{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{schemaRegistry: q.schemaRegistry, fromTable: table.Name}},
 		{"arrayResultTransformer", &ArrayResultTransformer{}},
 	}
 
