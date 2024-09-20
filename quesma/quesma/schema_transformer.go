@@ -628,11 +628,8 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 			// however for now it's part of schema.registry not schema.Schema
 			// so we don't have direct access to it
 			return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
-		} else {
-			// Not sure what we should do here
-			// This should not happen at all.
-			return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
 		}
+		return e
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
@@ -658,7 +655,6 @@ func (s *SchemaCheckPass) applyRuntimeMapping(indexSchema schema.Schema, query *
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 
 		if mapping, ok := query.RuntimeMapping[e.ColumnName]; ok {
-			fmt.Println("XXX runtime mapping found for column", e.ColumnName, "expr", model.AsString(mapping.Expr))
 			return mapping.Expr
 		}
 		return e
@@ -710,10 +706,13 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		TransformationName string
 		Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
 	}{
+		// Section 1: from logical to physical
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMapping},
-		{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse},
+
+		// Section 2: generic schema based transformations
+		//
 		// FieldEncodingTransformation should be after WildcardExpansion
 		// because WildcardExpansion expands the wildcard to all fields
 		// and columns are expanded as PublicFieldName, so we need to encode them
@@ -721,11 +720,16 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
-		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
+
+		// Section 3: clickhouse specific transformations
+		{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse},
 		{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
 		{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 		{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
+
+		// Section 4: compensations and checks
+		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 		{TransformationName: "DottedColumnNames", Transformation: s.handleDottedTColumnNames},
 	}
 
