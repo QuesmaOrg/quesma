@@ -18,9 +18,9 @@ func Test_tableVerifier_verify(t1 *testing.T) {
 			name: "valid table",
 			table: discoveredTable{
 				name: "table",
-				columnTypes: map[string]string{
-					"column1": "String",
-					"column2": "Int32",
+				columnTypes: map[string]tableMetadata{
+					"column1": tableMetadata{colType: "String"},
+					"column2": tableMetadata{colType: "Int32"},
 				},
 			},
 			isValid:    true,
@@ -30,9 +30,9 @@ func Test_tableVerifier_verify(t1 *testing.T) {
 			name: "table with invalid column names",
 			table: discoveredTable{
 				name: "table",
-				columnTypes: map[string]string{
-					"column1": "String",
-					"foo.bar": "Int32",
+				columnTypes: map[string]tableMetadata{
+					"column1": tableMetadata{colType: "String"},
+					"foo.bar": tableMetadata{colType: "Int32"},
 				},
 			},
 			isValid:    false,
