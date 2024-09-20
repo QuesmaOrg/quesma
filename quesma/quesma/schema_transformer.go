@@ -358,6 +358,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 		useCommonTable = true
 	}
 
+	// TODO here we should read table name from `query.Schema`
 	physicalFromExpression := model.NewTableRefWithDatabaseName(query.TableName, currentSchema.DatabaseName)
 
 	if useCommonTable {

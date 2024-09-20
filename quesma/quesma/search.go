@@ -335,7 +335,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return nil, err
 	}
 
-	var table *clickhouse.Table
+	var table *clickhouse.Table // TODO we should use schema here only
 	var currentSchema schema.Schema
 	resolvedIndexes := sourcesClickhouse
 
@@ -343,7 +343,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
 		resolvedTableName := indexName
 
-		// TODO this will be removed
 		if len(q.cfg.IndexConfig[indexName].Override) > 0 {
 			resolvedTableName = q.cfg.IndexConfig[indexName].Override
 		}
@@ -435,11 +434,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		bodyAsBytes, _ := body.Bytes()
 		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
 		return responseBody, errors.New(string(responseBody))
-	}
-
-	for _, query := range plan.Queries {
-		query.Indexes = resolvedIndexes
-		query.Schema = currentSchema
 	}
 
 	plan.IndexPattern = indexPattern
