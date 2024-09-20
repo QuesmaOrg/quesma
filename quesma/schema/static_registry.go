@@ -8,6 +8,7 @@ package schema
 type StaticRegistry struct {
 	Tables               map[TableName]Schema
 	DynamicConfiguration map[string]Table
+	FieldEncodings       map[FieldEncodingKey]EncodedFieldName
 }
 
 func (e StaticRegistry) AllSchemas() map[TableName]Schema {
@@ -28,4 +29,13 @@ func (e StaticRegistry) FindSchema(name TableName) (Schema, bool) {
 
 func (e StaticRegistry) UpdateDynamicConfiguration(name TableName, table Table) {
 	e.DynamicConfiguration[name.AsString()] = table
+}
+
+func (e StaticRegistry) UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName) {
+	if e.FieldEncodings == nil {
+		e.FieldEncodings = map[FieldEncodingKey]EncodedFieldName{}
+	}
+	for k, v := range encodings {
+		e.FieldEncodings[k] = EncodedFieldName(v)
+	}
 }

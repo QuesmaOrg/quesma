@@ -28,7 +28,7 @@ func Test_ipRangeTransform(t *testing.T) {
 	const COALESCEPrimitive = "COALESCE"
 	const StringLiteral = "String"
 	const IpFieldContent = "'111.42.223.209/16'"
-	IpFieldName := strconv.Quote("clientip")
+	IpFieldName := "clientip"
 
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_logs": {
@@ -66,15 +66,22 @@ func Test_ipRangeTransform(t *testing.T) {
 	tableDiscovery :=
 		fixedTableProvider{tables: map[string]schema.Table{
 			"kibana_sample_data_flights": {Columns: map[string]schema.Column{
-				"DestLocation": {Name: "DestLocation", Type: "geo_point"},
+				"destlocation": {Name: "destlocation", Type: "geo_point"},
 				"clientip":     {Name: "clientip", Type: "ip"},
 			}},
 			"kibana_sample_data_logs_nested": {Columns: map[string]schema.Column{
-				"DestLocation":     {Name: "DestLocation", Type: "geo_point"},
-				"nested::clientip": {Name: "nested::clientip", Type: "ip"},
+				"destlocation":    {Name: "destlocation", Type: "geo_point"},
+				"nested_clientip": {Name: "nested_clientip", Type: "ip"},
 			}},
 		}}
+	fieldEncodings := map[schema.FieldEncodingKey]schema.EncodedFieldName{
+		{
+			TableName: "kibana_sample_data_logs_nested", FieldName: "DestLocation"}: "destlocation",
+		{
+			TableName: "kibana_sample_data_logs_nested", FieldName: "nested.clientip"}: "nested_clientip",
+	}
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+	s.UpdateFieldEncodings(fieldEncodings)
 	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
 
 	selectColumns := []model.Expr{model.NewColumnRef("message")}
@@ -123,7 +130,7 @@ func Test_ipRangeTransform(t *testing.T) {
 									Expr: &model.FunctionExpr{
 										Name: COALESCEPrimitive,
 										Args: []model.Expr{
-											&model.ColumnRef{ColumnName: "nested::clientip"},
+											&model.ColumnRef{ColumnName: "nested_clientip"},
 											&model.LiteralExpr{Value: "'0.0.0.0'"},
 										},
 									},
@@ -262,9 +269,9 @@ func Test_ipRangeTransform(t *testing.T) {
 				FromClause: model.NewTableRef("kibana_sample_data_flights"),
 				Columns: []model.Expr{model.NewAliasedExpr(model.NewFunction("map",
 					model.NewLiteral("'lat'"),
-					model.NewColumnRef("DestLocation::lat"),
+					model.NewColumnRef("destlocation_lat"),
 					model.NewLiteral("'lon'"),
-					model.NewColumnRef("DestLocation::lon")), "DestLocation")},
+					model.NewColumnRef("destlocation_lon")), "destlocation")},
 			}},
 	}
 	queries := [][]*model.Query{
@@ -288,7 +295,7 @@ func Test_ipRangeTransform(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_logs_nested"),
 					Columns:    selectColumns,
 					WhereClause: &model.InfixExpr{
-						Left:  &model.ColumnRef{ColumnName: "nested::clientip"},
+						Left:  &model.ColumnRef{ColumnName: "nested.clientip"},
 						Op:    "=",
 						Right: &model.LiteralExpr{Value: IpFieldContent},
 					},
@@ -365,7 +372,7 @@ func Test_ipRangeTransform(t *testing.T) {
 						},
 						Op: "AND",
 						Right: &model.InfixExpr{
-							Left:  &model.LiteralExpr{Value: strconv.Quote("clientip")},
+							Left:  &model.LiteralExpr{Value: "clientip"},
 							Op:    "iLIKE",
 							Right: &model.LiteralExpr{Value: IpFieldContent},
 						},
@@ -397,20 +404,17 @@ func Test_arrayType(t *testing.T) {
 			Name: "kibana_sample_data_ecommerce",
 		},
 	}
-
-	indexSchema := schema.Schema{
-		Fields: map[schema.FieldName]schema.Field{
-			"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
-			"products.name":     {PropertyName: "products.name", InternalPropertyName: "products::name", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
-			"products.quantity": {PropertyName: "products.quantity", InternalPropertyName: "products::quantity", InternalPropertyType: "Array(Int64)", Type: schema.QuesmaTypeArray},
-			"products.sku":      {PropertyName: "products.sku", InternalPropertyName: "products::sku", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
-			"order_date":        {PropertyName: "order_date", InternalPropertyName: "order_date", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
-		},
+	fields := map[schema.FieldName]schema.Field{
+		"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
+		"products.name":     {PropertyName: "products.name", InternalPropertyName: "products_name", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
+		"products.quantity": {PropertyName: "products.quantity", InternalPropertyName: "products_quantity", InternalPropertyType: "Array(Int64)", Type: schema.QuesmaTypeArray},
+		"products.sku":      {PropertyName: "products.sku", InternalPropertyName: "products_sku", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
+		"order_date":        {PropertyName: "order_date", InternalPropertyName: "order_date", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
 	}
 
 	schemaRegistry := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
-			"kibana_sample_data_ecommerce": indexSchema,
+			"kibana_sample_data_ecommerce": schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
 
@@ -434,7 +438,7 @@ func Test_arrayType(t *testing.T) {
 				TableName: "kibana_sample_data_ecommerce",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
-					Columns:    []model.Expr{model.NewColumnRef("@timestamp"), model.NewColumnRef("order_date"), model.NewColumnRef("products::name"), model.NewColumnRef("products::quantity"), model.NewColumnRef("products::sku")},
+					Columns:    []model.Expr{model.NewColumnRef("@timestamp"), model.NewColumnRef("order_date"), model.NewColumnRef("products_name"), model.NewColumnRef("products_quantity"), model.NewColumnRef("products_sku")},
 				},
 			},
 		},
@@ -448,7 +452,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewFunction("sumOrNull", model.NewColumnRef("products::quantity")),
+						model.NewFunction("sumOrNull", model.NewColumnRef("products_quantity")),
 					},
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
 				},
@@ -460,7 +464,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewFunction("sumOrNull", model.NewFunction("arrayJoin", model.NewColumnRef("products::quantity"))),
+						model.NewFunction("sumOrNull", model.NewFunction("arrayJoin", model.NewColumnRef("products_quantity"))),
 					},
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
 				},
@@ -481,7 +485,7 @@ func Test_arrayType(t *testing.T) {
 						model.NewCountFunc(),
 					},
 					WhereClause: model.NewInfixExpr(
-						model.NewColumnRef("products::name"),
+						model.NewColumnRef("products_name"),
 						"ILIKE",
 						model.NewLiteral("%foo%"),
 					),
@@ -499,7 +503,7 @@ func Test_arrayType(t *testing.T) {
 					WhereClause: model.NewFunction(
 						"arrayExists",
 						model.NewLambdaExpr([]string{"x"}, model.NewInfixExpr(model.NewLiteral("x"), "ILIKE", model.NewLiteral("%foo%"))),
-						model.NewColumnRef("products::name")),
+						model.NewColumnRef("products_name")),
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
 				},
 			},
@@ -519,7 +523,7 @@ func Test_arrayType(t *testing.T) {
 						model.NewCountFunc(),
 					},
 					WhereClause: model.NewInfixExpr(
-						model.NewColumnRef("products::sku"),
+						model.NewColumnRef("products_sku"),
 						"=",
 						model.NewLiteral("'XYZ'"),
 					),
@@ -536,7 +540,7 @@ func Test_arrayType(t *testing.T) {
 					},
 					WhereClause: model.NewFunction(
 						"has",
-						model.NewColumnRef("products::sku"),
+						model.NewColumnRef("products_sku"),
 						model.NewLiteral("'XYZ'")),
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
 				},

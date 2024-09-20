@@ -504,7 +504,7 @@ func (td *tableDiscovery) readTables(database string) (map[string]map[string]str
 
 	logger.Debug().Msgf("describing tables: %s", database)
 
-	rows, err := td.dbConnPool.Query("SELECT table, name, type FROM system.columns WHERE database = ?", database)
+	rows, err := td.dbConnPool.Query("SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
 	if err != nil {
 		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
 		return map[string]map[string]string{}, err
@@ -512,8 +512,8 @@ func (td *tableDiscovery) readTables(database string) (map[string]map[string]str
 	defer rows.Close()
 	columnsPerTable := make(map[string]map[string]string)
 	for rows.Next() {
-		var table, colName, colType string
-		if err := rows.Scan(&table, &colName, &colType); err != nil {
+		var table, colName, colType, comment string
+		if err := rows.Scan(&table, &colName, &colType, &comment); err != nil {
 			return map[string]map[string]string{}, err
 		}
 		if _, ok := columnsPerTable[table]; !ok {

@@ -28,7 +28,7 @@ func (t *columNameFormatter) Format(namespace, columnName string) string {
 }
 
 func DefaultColumnNameFormatter() TableColumNameFormatter {
-	return &columNameFormatter{separator: "::"}
+	return &columNameFormatter{separator: "_"}
 }
 
 // Code doesn't need to be pretty, 99.9% it's just for our purposes

@@ -23,7 +23,18 @@ type CreateTableEntry struct {
 // Rendering columns to string
 func columnsToString(columnsFromJson []CreateTableEntry,
 	columnsFromSchema map[schema.FieldName]CreateTableEntry,
+	fieldEncodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
+	tableName string,
 ) string {
+
+	reverseFieldEncoding := make(map[schema.EncodedFieldName]schema.FieldEncodingKey)
+
+	for k, v := range fieldEncodings {
+		if k.TableName == tableName {
+			reverseFieldEncoding[v] = k
+		}
+	}
+
 	var result strings.Builder
 	first := true
 	for _, columnFromJson := range columnsFromJson {
@@ -36,9 +47,9 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 
 		if columnFromSchema, found := columnsFromSchema[schema.FieldName(columnFromJson.ClickHouseColumnName)]; found && !strings.Contains(columnFromJson.ClickHouseType, "Array") {
 			// Schema takes precedence over JSON (except for Arrays which are not currently handled)
-			result.WriteString(fmt.Sprintf("\"%s\" %s", columnFromSchema.ClickHouseColumnName, columnFromSchema.ClickHouseType))
+			result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromSchema.ClickHouseColumnName, columnFromSchema.ClickHouseType+" COMMENT ", reverseFieldEncoding[schema.EncodedFieldName(columnFromSchema.ClickHouseColumnName)].FieldName))
 		} else {
-			result.WriteString(fmt.Sprintf("\"%s\" %s", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType))
+			result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType+" COMMENT ", reverseFieldEncoding[schema.EncodedFieldName(columnFromJson.ClickHouseColumnName)].FieldName))
 		}
 
 		delete(columnsFromSchema, schema.FieldName(columnFromJson.ClickHouseColumnName))
@@ -52,7 +63,7 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 			result.WriteString(",\n")
 		}
 		result.WriteString(util.Indent(1))
-		result.WriteString(fmt.Sprintf("\"%s\" %s", column.ClickHouseColumnName, column.ClickHouseType))
+		result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", column.ClickHouseColumnName, column.ClickHouseType+" COMMENT ", reverseFieldEncoding[schema.EncodedFieldName(column.ClickHouseColumnName)].FieldName))
 	}
 	return result.String()
 }
@@ -114,10 +125,10 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameF
 
 	for _, field := range schemaMapping.Fields {
 		var fType string
-
-		// We should never have dots in the field names, see 4 ADR
-		internalPropertyName := strings.Replace(field.InternalPropertyName.AsString(), ".", "::", -1)
-
+		// TODO we are using util.FieldToColumnEncoder directly here
+		// due to the fact that field encodings map is part of schema.Registry
+		// not schema.Schema and we don't have access to it here.
+		internalPropertyName := util.FieldToColumnEncoder(field.InternalPropertyName.AsString())
 		switch field.Type.Name {
 		default:
 			logger.Warn().Msgf("Unsupported field type '%s' for field '%s' when trying to create a table. Ignoring that field.", field.Type.Name, field.PropertyName.AsString())
