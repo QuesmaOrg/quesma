@@ -193,7 +193,7 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 			return
 		}
 
-		results, err = q.postProcessResults(table, results)
+		results, err = q.postProcessResults(plan, results)
 		if err != nil {
 			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 		}
@@ -823,13 +823,20 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 	return results
 }
 
-func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+func (q *QueryRunner) postProcessResults(plan model.ExecutionPlan, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+
+	if len(plan.Queries) == 0 {
+		return nil, fmt.Errorf("postProcessResults: plan.Queries is empty")
+	}
+
+	// maybe model.Schema should be part of ExecutionPlan instead of Query
+	indexSchema := plan.Queries[0].Schema
 
 	pipeline := []struct {
 		name        string
 		transformer model.ResultTransformer
 	}{
-		{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{schemaRegistry: q.schemaRegistry, fromTable: table.Name}},
+		{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{indexSchema: indexSchema}},
 		{"arrayResultTransformer", &ArrayResultTransformer{}},
 	}
 
