@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package elasticsearch
+package kibana
 
 import (
 	"fmt"
@@ -40,10 +40,10 @@ func TestDateManager_MissingInDateHistogramToUnixTimestamp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%v", tt.missing), func(t *testing.T) {
-			dm := DateManager{}
-			gotUnixTs, gotParsingSucceded := dm.MissingInDateHistogramToUnixTimestamp(tt.missing)
+			dm := NewDateManager()
+			gotUnixTs, gotParsingSucceeded := dm.MissingInDateHistogramToUnixTimestamp(tt.missing)
 			assert.Equalf(t, tt.wantUnixTimestamp, gotUnixTs, "MissingInDateHistogramToUnixTimestamp(%v)", tt.missing)
-			assert.Equalf(t, tt.wantParsingSucceded, gotParsingSucceded, "MissingInDateHistogramToUnixTimestamp(%v)", tt.missing)
+			assert.Equalf(t, tt.wantParsingSucceded, gotParsingSucceeded, "MissingInDateHistogramToUnixTimestamp(%v)", tt.missing)
 		})
 	}
 }
