@@ -42,7 +42,6 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow) mo
 
 	percentileIdx := -1
 	for _, res := range rows[0].Cols {
-		fmt.Println("res", res)
 		if !strings.HasPrefix(res.ColName, "metric") {
 			continue
 		}
@@ -54,8 +53,6 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow) mo
 		percentile, percentileAsString, percentileIsNanOrInvalid := query.processResult(res.ColName, res.Value)
 
 		percentileNameToReturn := query.createPercentileNameToReturn(query.percentileNames[percentileIdx])
-
-		fmt.Println(percentile, percentileAsString, percentileIsNanOrInvalid)
 
 		if percentileIsNanOrInvalid {
 			valueMap[percentileNameToReturn] = nil
