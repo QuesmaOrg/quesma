@@ -639,8 +639,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  "severity" AS "aggr__0__key_0", "source" AS "aggr__0__key_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1") AS
 				  "aggr__0__count",
-				  uniqMerge(uniqState("severity")) OVER (PARTITION BY "aggr__0__key_0",
-				  "aggr__0__key_1") AS "aggr__0__order_2",
+				  "metric__0__2_col_0" AS "aggr__0__order_2",
 				  uniqMerge(uniqState("severity")) OVER (PARTITION BY "aggr__0__key_0",
 				  "aggr__0__key_1") AS "metric__0__2_col_0",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
@@ -848,6 +847,1299 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				  "aggr__0__1__key_0"))
 			WHERE "aggr__0__order_1_rank"<=3
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+	},
+	{ // [4]
+		TestName: "nowy-ez Quite simple multi_terms, but with non-string keys. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"2-bucket": {
+							"aggs": {
+								"2-metric": {
+									"max": {
+										"field": "DistanceKilometers"
+									}
+								}
+							},
+							"filter": {
+								"bool": {
+									"filter": [
+										{
+											"bool": {
+												"minimum_should_match": 1,
+												"should": [
+													{
+														"exists": {
+															"field": "bytes_gauge"
+														}
+													}
+												]
+											}
+										}
+									],
+									"must": [],
+									"must_not": [],
+									"should": []
+								}
+							}
+						}
+					},
+					"terms": {
+						"field": "AvgTicketPrice",
+						"order": {
+							"2-bucket>2-metric": "desc"
+						},
+						"size": 2
+					}
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"0": {
+					"buckets": [
+						{
+							"2-bucket": {
+								"2-metric": {
+									"value": 19538.8203125
+								},
+								"doc_count": 1
+							},
+							"doc_count": 1,
+							"key": 590.92822265625
+						},
+						{
+							"2-bucket": {
+								"2-metric": {
+									"value": 19285.5078125
+								},
+								"doc_count": 1
+							},
+							"doc_count": 1,
+							"key": 830.0374755859375
+						}
+					],
+					"doc_count_error_upper_bound": -1,
+					"sum_other_doc_count": 1867
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 1879
+				}
+			},
+			"timed_out": false,
+			"took": 6
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1869)),
+				model.NewQueryResultCol("aggr__0__key_0", 590.92822265625),
+				model.NewQueryResultCol("aggr__0__count", int64(1)),
+				model.NewQueryResultCol("aggr__0__2-bucket__count", int64(1)),
+				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 19538.8203125),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1869)),
+				model.NewQueryResultCol("aggr__0__key_0", 830.0374755859375),
+				model.NewQueryResultCol("aggr__0__count", int64(1)),
+				model.NewQueryResultCol("aggr__0__2-bucket__count", int64(1)),
+				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 19285.5078125),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+			  "AvgTicketPrice" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
+			  "metric__0__2-bucket__2-metric_col_0" AS "aggr__0__order_1",
+			  countIf("bytes_gauge" IS NOT NULL) AS "aggr__0__2-bucket__count",
+			  maxOrNullIf("DistanceKilometers", "bytes_gauge" IS NOT NULL) AS
+			  "metric__0__2-bucket__2-metric_col_0"
+			FROM __quesma_table_name
+			GROUP BY "AvgTicketPrice" AS "aggr__0__key_0"
+			ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC
+			LIMIT 3`,
+	},
+	{ // [5]
+		TestName: "stats Quite simple multi_terms, but with non-string keys. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"stats": {
+								"field": "FlightDelayMin"
+							}
+						}
+					},
+					"terms": {
+						"field": "Carrier",
+						"order": [
+							{"1.min": "desc"},
+							{"1.count": "desc"},
+							{"1.avg": "desc"},
+							{"1.max": "asc"},
+							{"1.sum": "desc"}
+						],
+						"shard_size": 25,
+						"size": 3
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-09-07T15:30:24.239Z",
+									"lte": "2024-09-22T15:30:24.239Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"0": {
+					"buckets": [
+						{
+							"1": {
+								"avg": 41.278625954198475,
+								"count": 524,
+								"max": 360.0,
+								"min": 0.0,
+								"sum": 21630.0
+							},
+							"doc_count": 524,
+							"key": "ES-Air"
+						},
+						{
+							"1": {
+								"avg": 46.87155963302752,
+								"count": 545,
+								"max": 360.0,
+								"min": 0.0,
+								"sum": 25545.0
+							},
+							"doc_count": 545,
+							"key": "JetBeats"
+						}
+					],
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 800
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2132
+				}
+			},
+			"timed_out": false,
+			"took": 0
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1869)),
+				model.NewQueryResultCol("aggr__0__key_0", "ES-Air"),
+				model.NewQueryResultCol("aggr__0__count", int64(524)),
+				model.NewQueryResultCol("aggr__0__order_1", 0.0),
+				model.NewQueryResultCol("aggr__0__order_2", 524),
+				model.NewQueryResultCol("aggr__0__order_3", 41.278625954198475),
+				model.NewQueryResultCol("aggr__0__order_4", 360.0),
+				model.NewQueryResultCol("aggr__0__order_5", 21630.0),
+				model.NewQueryResultCol("metric__0__1_col_0", 524),
+				model.NewQueryResultCol("metric__0__1_col_1", 0.0),
+				model.NewQueryResultCol("metric__0__1_col_2", 360.0),
+				model.NewQueryResultCol("metric__0__1_col_3", 41.278625954198475),
+				model.NewQueryResultCol("metric__0__1_col_4", 21630.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1869)),
+				model.NewQueryResultCol("aggr__0__key_0", "JetBeats"),
+				model.NewQueryResultCol("aggr__0__count", int64(545)),
+				model.NewQueryResultCol("aggr__0__order_1", 0.0),
+				model.NewQueryResultCol("aggr__0__order_2", 545),
+				model.NewQueryResultCol("aggr__0__order_3", 46.87155963302752),
+				model.NewQueryResultCol("aggr__0__order_4", 360.0),
+				model.NewQueryResultCol("aggr__0__order_5", 25545.0),
+				model.NewQueryResultCol("metric__0__1_col_0", 545),
+				model.NewQueryResultCol("metric__0__1_col_1", 0.0),
+				model.NewQueryResultCol("metric__0__1_col_2", 360.0),
+				model.NewQueryResultCol("metric__0__1_col_3", 46.87155963302752),
+				model.NewQueryResultCol("metric__0__1_col_4", 25545.0),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+			  "Carrier" AS "aggr__0__key_0",
+			  count(*) AS "aggr__0__count",
+			  "metric__0__1_col_1" AS "aggr__0__order_1",
+			  "metric__0__1_col_0" AS "aggr__0__order_2",
+			  "metric__0__1_col_3" AS "aggr__0__order_3",
+			  "metric__0__1_col_2" AS "aggr__0__order_4",
+			  "metric__0__1_col_4" AS "aggr__0__order_5",
+			  count("FlightDelayMin") AS "metric__0__1_col_0",
+			  minOrNull("FlightDelayMin") AS "metric__0__1_col_1",
+			  maxOrNull("FlightDelayMin") AS "metric__0__1_col_2",
+			  avgOrNull("FlightDelayMin") AS "metric__0__1_col_3",
+			  sumOrNull("FlightDelayMin") AS "metric__0__1_col_4"
+			FROM __quesma_table_name
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-09-07T15:30:24.239Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-09-22T15:30:24.239Z'))
+			GROUP BY "Carrier" AS "aggr__0__key_0"
+			ORDER BY "aggr__0__order_1" DESC, "aggr__0__order_2" DESC,
+			  "aggr__0__order_3" DESC, "aggr__0__order_4" ASC, "aggr__0__order_5" DESC,
+			  "aggr__0__key_0" ASC
+			LIMIT 4`,
+	},
+	{ // [5]
+		TestName: "stats Quite simple multi_terms, but with non-string keys. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"extended_stats": {
+								"field": "FlightDelayMin"
+							}
+						}
+					},
+					"terms": {
+						"field": "Carrier",
+						"order": [
+							{"1.min": "desc"},
+							{"1.count": "desc"},
+							{"1.avg": "desc"},
+							{"1.max": "asc"},
+							{"1.sum": "desc"},
+							{"1.sum_of_squares": "desc"},
+							{"1.variance": "desc"},
+							{"1.variance_population": "desc"},
+							{"1.variance_sampling": "desc"},
+							{"1.std_deviation": "desc"},
+							{"1.std_deviation_population": "desc"},
+							{"1.std_deviation_sampling": "desc"},
+						],
+						"shard_size": 25,
+						"size": 3
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-09-07T15:30:24.239Z",
+									"lte": "2024-09-22T15:30:24.239Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"0": {
+					"buckets": [
+						{
+							"1": {
+								"avg": 48.67620751341681,
+								"count": 559,
+								"max": 360.0,
+								"min": 0.0,
+								"std_deviation": 98.0222164000509,
+								"std_deviation_bounds": {
+									"lower": -147.36822528668498,
+									"lower_population": -147.36822528668498,
+									"lower_sampling": -147.5438137077322,
+									"upper": 244.7206403135186,
+									"upper_population": 244.7206403135186,
+									"upper_sampling": 244.89622873456582
+								},
+								"std_deviation_population": 98.0222164000509,
+								"std_deviation_sampling": 98.1100106105745,
+								"sum": 27210.0,
+								"sum_of_squares": 6695550.0,
+								"variance": 9608.354907978406,
+								"variance_population": 9608.354907978406,
+								"variance_sampling": 9625.574182007042
+							},
+							"doc_count": 524,
+							"key": "ES-Air"
+						}
+					],
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 1345
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2132
+				}
+			},
+			"timed_out": false,
+			"took": 1
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1869)),
+				model.NewQueryResultCol("aggr__0__key_0", "ES-Air"),
+				model.NewQueryResultCol("aggr__0__count", int64(524)),
+				model.NewQueryResultCol("aggr__0__order_1", 0.0),
+				model.NewQueryResultCol("aggr__0__order_2", 524),
+				model.NewQueryResultCol("aggr__0__order_3", 41.278625954198475),
+				model.NewQueryResultCol("aggr__0__order_4", 360.0),
+				model.NewQueryResultCol("aggr__0__order_5", 21630.0),
+				model.NewQueryResultCol("aggr__0__order_6", 21630.0),
+				model.NewQueryResultCol("aggr__0__order_7", 21630.0),
+				model.NewQueryResultCol("aggr__0__order_8", 21630.0),
+				model.NewQueryResultCol("aggr__0__order_9", 21630.0),
+				model.NewQueryResultCol("aggr__0__order_10", 21630.0),
+				model.NewQueryResultCol("aggr__0__order_11", 21630.0),
+				model.NewQueryResultCol("aggr__0__order_12", 21630.0),
+				model.NewQueryResultCol("metric__0__1_col_0", 559),
+				model.NewQueryResultCol("metric__0__1_col_1", 0.0),
+				model.NewQueryResultCol("metric__0__1_col_2", 360.0),
+				model.NewQueryResultCol("metric__0__1_col_3", 48.67620751341681),
+				model.NewQueryResultCol("metric__0__1_col_4", 27210.0),
+				model.NewQueryResultCol("metric__0__1_col_5", 6695550.0),
+				model.NewQueryResultCol("metric__0__1_col_6", 9608.354907978406),
+				model.NewQueryResultCol("metric__0__1_col_7", 9625.574182007042),
+				model.NewQueryResultCol("metric__0__1_col_8", 98.0222164000509),
+				model.NewQueryResultCol("metric__0__1_col_9", 98.1100106105745),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+			  "Carrier" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
+			  "metric__0__1_col_1" AS "aggr__0__order_1",
+			  "metric__0__1_col_0" AS "aggr__0__order_2",
+			  "metric__0__1_col_3" AS "aggr__0__order_3",
+			  "metric__0__1_col_2" AS "aggr__0__order_4",
+			  "metric__0__1_col_4" AS "aggr__0__order_5",
+			  "metric__0__1_col_5" AS "aggr__0__order_6",
+			  "metric__0__1_col_6" AS "aggr__0__order_7",
+			  "metric__0__1_col_6" AS "aggr__0__order_8",
+			  "metric__0__1_col_7" AS "aggr__0__order_9",
+			  "metric__0__1_col_8" AS "aggr__0__order_10",
+			  "metric__0__1_col_8" AS "aggr__0__order_11",
+			  "metric__0__1_col_9" AS "aggr__0__order_12",
+			  count("FlightDelayMin") AS "metric__0__1_col_0",
+			  minOrNull("FlightDelayMin") AS "metric__0__1_col_1",
+			  maxOrNull("FlightDelayMin") AS "metric__0__1_col_2",
+			  avgOrNull("FlightDelayMin") AS "metric__0__1_col_3",
+			  sumOrNull("FlightDelayMin") AS "metric__0__1_col_4",
+			  sumOrNull("FlightDelayMin"*"FlightDelayMin") AS "metric__0__1_col_5",
+			  varPop("FlightDelayMin") AS "metric__0__1_col_6",
+			  varSamp("FlightDelayMin") AS "metric__0__1_col_7",
+			  stddevPop("FlightDelayMin") AS "metric__0__1_col_8",
+			  stddevSamp("FlightDelayMin") AS "metric__0__1_col_9"
+			FROM __quesma_table_name
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-09-07T15:30:24.239Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-09-22T15:30:24.239Z'))
+			GROUP BY "Carrier" AS "aggr__0__key_0"
+			ORDER BY "aggr__0__order_1" DESC, "aggr__0__order_2" DESC,
+			  "aggr__0__order_3" DESC, "aggr__0__order_4" ASC, "aggr__0__order_5" DESC,
+			  "aggr__0__order_6" DESC, "aggr__0__order_7" DESC, "aggr__0__order_8" DESC,
+			  "aggr__0__order_9" DESC, "aggr__0__order_10" DESC, "aggr__0__order_11" DESC,
+			  "aggr__0__order_12" DESC, "aggr__0__key_0" ASC
+			LIMIT 4`,
+	},
+	{ // [6]
+		TestName: "nowy-hard Multi_terms without subaggregations. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"aggs": {
+								"2-bucket": {
+									"aggs": {
+										"2-metric": {
+											"top_metrics": {
+												"metrics": {
+													"field": "DistanceKilometers"
+												},
+												"size": 1,
+												"sort": {
+													"timestamp": "desc"
+												}
+											}
+										}
+									},
+									"filter": {
+										"bool": {
+											"filter": [
+												{
+													"bool": {
+														"minimum_should_match": 1,
+														"should": [
+															{
+																"exists": {
+																	"field": "bytes_gauge"
+																}
+															}
+														]
+													}
+												}
+											],
+											"must": [],
+											"must_not": [],
+											"should": []
+										}
+									}
+								}
+							},
+							"date_histogram": {
+								"extended_bounds": {
+									"max": 1726937198309,
+									"min": 1725641198309
+								},
+								"field": "timestamp",
+								"fixed_interval": "12h",
+								"time_zone": "Europe/Warsaw"
+							}
+						},
+						"2-bucket": {
+							"aggs": {
+								"2-metric": {
+									"top_metrics": {
+										"metrics": {
+											"field": "DistanceKilometers"
+										},
+										"size": 1,
+										"sort": {
+											"timestamp": "desc"
+										}
+									}
+								}
+							},
+							"filter": {
+								"bool": {
+									"filter": [
+										{
+											"bool": {
+												"minimum_should_match": 1,
+												"should": [
+													{
+														"exists": {
+															"field": "bytes_gauge"
+														}
+													}
+												]
+											}
+										}
+									],
+									"must": [],
+									"must_not": [],
+									"should": []
+								}
+							}
+						}
+					},
+					"terms": {
+						"field": "AvgTicketPrice",
+						"order": {
+							"2-bucket>2-metric": "desc"
+						},
+						"size": 12
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-09-06T16:46:38.309Z",
+									"lte": "2024-09-21T16:46:38.309Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+    "completion_time_in_millis": 1726937127128,
+    "expiration_time_in_millis": 1726937187124,
+    "id": "Fm9QLU5BRXFoVEwyQk1WWC1XalJ1R2cccjdQX1ljN3hSYktWdjNya1RCY3BSdzoxMjM5Mg==",
+    "is_partial": false,
+    "is_running": false,
+    "response": {
+        "_shards": {
+            "failed": 0,
+            "skipped": 0,
+            "successful": 1,
+            "total": 1
+        },
+        "aggregations": {
+            "other-filter": {
+                "buckets": {
+                    "": {
+                        "1": {
+                            "buckets": [
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 8619.34375
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-09T09:56:35.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 140
+                                    },
+                                    "doc_count": 140,
+                                    "key": 1725832800000,
+                                    "key_as_string": "2024-09-09T00:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 11549.353515625
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-09T21:58:01.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 178
+                                    },
+                                    "doc_count": 178,
+                                    "key": 1725876000000,
+                                    "key_as_string": "2024-09-09T12:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 10641.537109375
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-10T09:59:52.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 146
+                                    },
+                                    "doc_count": 146,
+                                    "key": 1725919200000,
+                                    "key_as_string": "2024-09-10T00:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 1701.499755859375
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-10T21:52:28.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 148
+                                    },
+                                    "doc_count": 148,
+                                    "key": 1725962400000,
+                                    "key_as_string": "2024-09-10T12:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 7793.39404296875
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-11T09:59:36.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 152
+                                    },
+                                    "doc_count": 152,
+                                    "key": 1726005600000,
+                                    "key_as_string": "2024-09-11T00:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 1369.3848876953125
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-11T21:57:40.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 183
+                                    },
+                                    "doc_count": 183,
+                                    "key": 1726048800000,
+                                    "key_as_string": "2024-09-11T12:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 1214.8907470703125
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-12T09:56:41.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 159
+                                    },
+                                    "doc_count": 159,
+                                    "key": 1726092000000,
+                                    "key_as_string": "2024-09-12T00:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 6939.1640625
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-12T21:57:08.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 162
+                                    },
+                                    "doc_count": 162,
+                                    "key": 1726135200000,
+                                    "key_as_string": "2024-09-12T12:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 944.9686279296875
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-13T09:58:42.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 158
+                                    },
+                                    "doc_count": 158,
+                                    "key": 1726178400000,
+                                    "key_as_string": "2024-09-13T00:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 1430.16845703125
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-13T21:49:52.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 185
+                                    },
+                                    "doc_count": 185,
+                                    "key": 1726221600000,
+                                    "key_as_string": "2024-09-13T12:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 849.2630615234375
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-14T09:58:59.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 167
+                                    },
+                                    "doc_count": 167,
+                                    "key": 1726264800000,
+                                    "key_as_string": "2024-09-14T00:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 11978.9404296875
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-14T21:58:48.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 175
+                                    },
+                                    "doc_count": 175,
+                                    "key": 1726308000000,
+                                    "key_as_string": "2024-09-14T12:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 13363.5703125
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-15T09:36:43.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 124
+                                    },
+                                    "doc_count": 124,
+                                    "key": 1726351200000,
+                                    "key_as_string": "2024-09-15T00:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 2847.25927734375
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-15T21:59:45.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 96
+                                    },
+                                    "doc_count": 96,
+                                    "key": 1726394400000,
+                                    "key_as_string": "2024-09-15T12:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 786.3991088867188
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-16T09:58:03.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 161
+                                    },
+                                    "doc_count": 161,
+                                    "key": 1726437600000,
+                                    "key_as_string": "2024-09-16T00:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 6931.236328125
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-16T21:55:19.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 171
+                                    },
+                                    "doc_count": 171,
+                                    "key": 1726480800000,
+                                    "key_as_string": "2024-09-16T12:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 2516.546875
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-17T09:54:08.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 179
+                                    },
+                                    "doc_count": 179,
+                                    "key": 1726524000000,
+                                    "key_as_string": "2024-09-17T00:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 15174.02734375
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-17T21:57:01.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 147
+                                    },
+                                    "doc_count": 147,
+                                    "key": 1726567200000,
+                                    "key_as_string": "2024-09-17T12:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 8283.8486328125
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-18T09:58:39.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 158
+                                    },
+                                    "doc_count": 158,
+                                    "key": 1726610400000,
+                                    "key_as_string": "2024-09-18T00:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 2528.18603515625
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-18T21:56:12.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 161
+                                    },
+                                    "doc_count": 161,
+                                    "key": 1726653600000,
+                                    "key_as_string": "2024-09-18T12:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 15433.140625
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-19T09:59:21.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 164
+                                    },
+                                    "doc_count": 164,
+                                    "key": 1726696800000,
+                                    "key_as_string": "2024-09-19T00:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 9012.6015625
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-19T21:52:11.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 142
+                                    },
+                                    "doc_count": 142,
+                                    "key": 1726740000000,
+                                    "key_as_string": "2024-09-19T12:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 6177.84326171875
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-20T09:55:02.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 175
+                                    },
+                                    "doc_count": 175,
+                                    "key": 1726783200000,
+                                    "key_as_string": "2024-09-20T00:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 10378.4765625
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-20T21:59:20.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 147
+                                    },
+                                    "doc_count": 147,
+                                    "key": 1726826400000,
+                                    "key_as_string": "2024-09-20T12:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 5910.21630859375
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-21T09:59:21.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 147
+                                    },
+                                    "doc_count": 147,
+                                    "key": 1726869600000,
+                                    "key_as_string": "2024-09-21T00:00:00.000+02:00"
+                                },
+                                {
+                                    "2-bucket": {
+                                        "2-metric": {
+                                            "top": [
+                                                {
+                                                    "metrics": {
+                                                        "DistanceKilometers": 11077.248046875
+                                                    },
+                                                    "sort": [
+                                                        "2024-09-21T16:42:22.000Z"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "doc_count": 107
+                                    },
+                                    "doc_count": 107,
+                                    "key": 1726912800000,
+                                    "key_as_string": "2024-09-21T12:00:00.000+02:00"
+                                }
+                            ]
+                        },
+                        "2-bucket": {
+                            "2-metric": {
+                                "top": [
+                                    {
+                                        "metrics": {
+                                            "DistanceKilometers": 11077.248046875
+                                        },
+                                        "sort": [
+                                            "2024-09-21T16:42:22.000Z"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "doc_count": 4032
+                        },
+                        "doc_count": 4032
+                    }
+                }
+            }
+        },
+        "hits": {
+            "hits": [],
+            "max_score": null,
+            "total": {
+                "relation": "eq",
+                "value": 4044
+            }
+        },
+        "timed_out": false,
+        "took": 4
+    },
+    "start_time_in_millis": 1726937127124
+}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1716834210000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 4),
+				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(4)),
+				model.NewQueryResultCol("aggr__0__1__key_0", "artemis"),
+				model.NewQueryResultCol("aggr__0__1__key_1", "error"),
+				model.NewQueryResultCol("aggr__0__1__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1716834210000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 4),
+				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(4)),
+				model.NewQueryResultCol("aggr__0__1__key_0", "artemis"),
+				model.NewQueryResultCol("aggr__0__1__key_1", "info"),
+				model.NewQueryResultCol("aggr__0__1__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1716834210000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 4),
+				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(4)),
+				model.NewQueryResultCol("aggr__0__1__key_0", "jupiter"),
+				model.NewQueryResultCol("aggr__0__1__key_1", "info"),
+				model.NewQueryResultCol("aggr__0__1__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1716834270000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 16),
+				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(15)),
+				model.NewQueryResultCol("aggr__0__1__key_0", "apollo"),
+				model.NewQueryResultCol("aggr__0__1__key_1", "info"),
+				model.NewQueryResultCol("aggr__0__1__count", 2),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1716834270000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 16),
+				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(15)),
+				model.NewQueryResultCol("aggr__0__1__key_0", "cassandra"),
+				model.NewQueryResultCol("aggr__0__1__key_1", "debug"),
+				model.NewQueryResultCol("aggr__0__1__count", 1),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
+			  "aggr__0__1__key_0", "aggr__0__1__key_1", "aggr__0__1__count"
+			FROM (
+			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
+				"aggr__0__1__key_0", "aggr__0__1__key_1", "aggr__0__1__count",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
+				,
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__count" DESC, "aggr__0__1__key_0" ASC, "aggr__0__1__key_1" ASC)
+				AS "aggr__0__1__order_1_rank"
+			  FROM (
+				SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
+				  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 30000) AS
+				  "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
+				  "aggr__0__1__parent_count", "severity" AS "aggr__0__1__key_0",
+				  "source" AS "aggr__0__1__key_1", count(*) AS "aggr__0__1__count"
+				FROM __quesma_table_name
+				WHERE ("@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z')
+				  AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z'))
+				GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
+				  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 30000) AS
+				  "aggr__0__key_0", "severity" AS "aggr__0__1__key_0",
+				  "source" AS "aggr__0__1__key_1"))
+			WHERE "aggr__0__1__order_1_rank"<=3
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 }

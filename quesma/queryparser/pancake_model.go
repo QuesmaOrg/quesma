@@ -102,6 +102,16 @@ func (p pancakeModelMetricAggregation) InternalNameForCol(id int) string {
 	return fmt.Sprintf("%s%d", p.InternalNamePrefix(), id)
 }
 
+func (p pancakeModelMetricAggregation) InternalNameWithoutPrefix() string {
+	possiblePrefixes := []string{"metric", "top_hits", "top_metrics"}
+	for _, prefix := range possiblePrefixes {
+		if strings.HasPrefix(p.internalName, prefix) {
+			return strings.TrimPrefix(p.internalName, prefix)
+		}
+	}
+	return p.internalName
+}
+
 func (p pancakeModelBucketAggregation) ShallowClone() pancakeModelBucketAggregation {
 	return pancakeModelBucketAggregation{
 		name:                    p.name,
@@ -142,6 +152,10 @@ func (p pancakeModelBucketAggregation) InternalNameForParentCount() string {
 	return fmt.Sprintf("%sparent_count", p.internalName)
 }
 
+func (p pancakeModelBucketAggregation) InternalNameWithoutPrefix() string {
+	return strings.TrimPrefix(p.internalName, "aggr")
+}
+
 func (p pancakeModelBucketAggregation) isInternalNameCountColumn(internalName string) bool {
 	return strings.HasSuffix(internalName, "count")
 }
@@ -159,4 +173,12 @@ func (p *pancakeModelLayer) findPipelineChildren(pipeline *pancakeModelPipelineA
 		}
 	}
 	return children
+}
+
+func (p *pancakeModel) allMetricAggregations() []*pancakeModelMetricAggregation {
+	allMetric := make([]*pancakeModelMetricAggregation, 0)
+	for _, layer := range p.layers {
+		allMetric = append(allMetric, layer.currentMetricAggregations...)
+	}
+	return allMetric
 }

@@ -2460,7 +2460,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "container.name" AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count",
-				  quantiles(0.750000)("docker.cpu.total.pct") AS "aggr__0__1__order_1",
+				  "metric__0__1__2_col_0" AS "aggr__0__1__order_1",
 				  quantiles(0.750000)("docker.cpu.total.pct") AS "metric__0__1__2_col_0"
 				FROM __quesma_table_name
 				WHERE ("data_stream.dataset"='docker.cpu' AND ("@timestamp">=
@@ -2695,7 +2695,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "container.name" AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count",
-				  quantiles(0.750000)("docker.cpu.total.pct") AS "aggr__0__1__order_1",
+				  "metric__0__1__2_col_1" AS "aggr__0__1__order_1",
 				  quantiles(0.100000)("docker.cpu.total.pct") AS "metric__0__1__2_col_0",
 				  quantiles(0.750000)("docker.cpu.total.pct") AS "metric__0__1__2_col_1",
 				  quantiles(0.990000)("docker.cpu.total.pct") AS "metric__0__1__2_col_2"

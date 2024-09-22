@@ -109,3 +109,26 @@ func (query ExtendedStats) getValue(row model.QueryResultRow, functionName strin
 	}
 	return "NaN"
 }
+
+func (query ExtendedStats) ColumnId(name string) int {
+	nameToColumnId := map[string]int{
+		"count":                    0,
+		"min":                      1,
+		"max":                      2,
+		"avg":                      3,
+		"sum":                      4,
+		"sum_of_squares":           5,
+		"variance":                 6,
+		"variance_population":      6,
+		"variance_sampling":        7,
+		"std_deviation":            8,
+		"std_deviation_population": 8,
+		"std_deviation_sampling":   9,
+	}
+
+	if columnId, ok := nameToColumnId[name]; ok {
+		return columnId
+	}
+	logger.ErrorWithCtx(query.ctx).Msgf("extended_stats column %s not found", name)
+	return -1
+}

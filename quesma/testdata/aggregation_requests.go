@@ -6325,8 +6325,7 @@ var AggregationTests = []AggregationTestCase{
 				"aggr__0__1__count" DESC, "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0", "aggr__0__1__key_0" ORDER
-				BY "aggr__0__1__2__count" DESC, "aggr__0__1__key_0" ASC,
-				"aggr__0__1__2__key_0" ASC) AS "aggr__0__1__2__order_1_rank"
+				BY "aggr__0__1__2__count" DESC, "aggr__0__1__2__key_0" ASC) AS "aggr__0__1__2__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "host.name" AS "aggr__0__key_0",
@@ -6852,7 +6851,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 			  "name" AS "aggr__2__key_0", 
 			  count(*) AS "aggr__2__count",
-  			  sumOrNull("total") AS "aggr__2__order_1",
+  			  "metric__2__1_col_0" AS "aggr__2__order_1",
   			  sumOrNull("total") AS "metric__2__1_col_0"
 			FROM ` + TableName + `
 			WHERE NOT ((("abc">=0 AND "abc"<600) OR "type" iLIKE '%def%'))

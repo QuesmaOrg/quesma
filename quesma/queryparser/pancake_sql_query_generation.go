@@ -40,7 +40,8 @@ func (p *pancakeSqlQueryGenerator) generatePartitionBy(groupByColumns []model.Al
 }
 
 // TODO: Implement more if needed.
-func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
+func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (
+	accumExpr model.Expr, aggrFuncName string, err error) {
 	switch origFunc := origExpr.(type) {
 	case model.FunctionExpr:
 		switch origFunc.Name {
@@ -152,7 +153,8 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 				}
 			} else { // we need new columns for rank
 				orderByExpr := orderBy.Expr
-				if hasMoreBucketAggregations {
+				_, orderByAlreadyDone := orderByExpr.(model.ColumnRef)
+				if hasMoreBucketAggregations && !orderByAlreadyDone {
 					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderByExpr, nil)
 					if err != nil {
 						return nil, nil, nil, nil, nil, err

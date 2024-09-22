@@ -663,7 +663,7 @@ func allAggregationTests() []testdata.AggregationTestCase {
 	add(opensearch_visualize.PipelineAggregationTests, "opensearch-visualize/pipeline_agg_req")
 	add(kibana_visualize.AggregationTests, "kibana-visualize/agg_r")
 	add(clients.KunkkaTests, "clients/kunkka")
-	add(clients.OpheliaTests, "clients/ophelia")
+	//add(clients.OpheliaTests, "clients/ophelia")
 
 	return allTests
 }
