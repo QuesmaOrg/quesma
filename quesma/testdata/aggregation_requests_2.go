@@ -3216,11 +3216,39 @@ var AggregationTests2 = []AggregationTestCase{
 		QueryRequestJson: `
 		{
 			"aggs": {
-				"histo": {
+				"histo1": {
 					"date_histogram": {
 						"field": "customer_birth_date",
 						"fixed_interval": "90000ms",
 						"missing": "2024-02-02T13"
+					}
+				},
+				"histo2": {
+					"date_histogram": {
+						"field": "customer_birth_date",
+						"fixed_interval": "90000ms",
+						"missing": "2024-02-02T13:00:00"
+					}
+				},
+				"histo3": {
+					"date_histogram": {
+						"field": "customer_birth_date",
+						"fixed_interval": "90000ms",
+						"missing": "2024-02-02T13:00:00.000"
+					}
+				},
+				"histo4": {
+					"date_histogram": {
+						"field": "customer_birth_date",
+						"fixed_interval": "90000ms",
+						"missing": "2024-02-02T13:00:00+07:00"
+					}
+				},
+				"histo5": {
+					"date_histogram": {
+						"field": "customer_birth_date",
+						"fixed_interval": "90000ms",
+						"missing": "2024-02-02T13:00:00.000+07:00"
 					}
 				}
 			},
@@ -3247,11 +3275,47 @@ var AggregationTests2 = []AggregationTestCase{
 				"hits": []
 			},
 			"aggregations": {
-				"histo": {
+				"histo1": {
 					"buckets": [
 						{
-							"key_as_string": "2024-02-02T13:00:00.000Z",
+							"key_as_string": "2024-02-02T13:00:00.000",
 							"key": 1706878800000,
+							"doc_count": 4675
+						}
+					]
+				},
+				"histo2": {
+					"buckets": [
+						{
+							"key_as_string": "2024-02-02T13:00:00.000",
+							"key": 1706878800000,
+							"doc_count": 4675
+						}
+					]
+				},
+				"histo3": {
+					"buckets": [
+						{
+							"key_as_string": "2024-02-02T13:00:00.000",
+							"key": 1706878800000,
+							"doc_count": 4675
+						}
+					]
+				},
+				"histo4": {
+					"buckets": [
+						{
+							"key_as_string": "2024-02-02T06:00:00.000",
+							"key": 1706853600000,
+							"doc_count": 4675
+						}
+					]
+				},
+				"histo5": {
+					"buckets": [
+						{
+							"key_as_string": "2024-02-02T06:00:00.000",
+							"key": 1706853600000,
 							"doc_count": 4675
 						}
 					]
@@ -3260,67 +3324,65 @@ var AggregationTests2 = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__histo__key_0", 0),
-				model.NewQueryResultCol("aggr__histo__count", 1960),
-				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
-				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
-				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__histo__key_0", 0),
-				model.NewQueryResultCol("aggr__histo__count", 1960),
-				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
-				model.NewQueryResultCol("aggr__histo__0__key_0", "disorder"),
-				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__histo__key_0", 224.19300000000004),
-				model.NewQueryResultCol("aggr__histo__count", 17),
-				model.NewQueryResultCol("aggr__histo__0__parent_count", 17),
-				model.NewQueryResultCol("aggr__histo__0__key_0", nil),
-				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__histo__key_0", 800),
-				model.NewQueryResultCol("aggr__histo__count", 15),
-				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
-				model.NewQueryResultCol("aggr__histo__0__key_0", "a"),
-				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__histo__key_0", 800),
-				model.NewQueryResultCol("aggr__histo__count", 15),
-				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
-				model.NewQueryResultCol("aggr__histo__0__key_0", "b"),
-				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+				model.NewQueryResultCol("aggr__histo1__key_0", int64(18965320)),
+				model.NewQueryResultCol("aggr__histo1__count", int64(4675)),
 			}},
 		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo2__key_0", int64(18965320)),
+				model.NewQueryResultCol("aggr__histo2__count", int64(4675)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo3__key_0", int64(18965320)),
+				model.NewQueryResultCol("aggr__histo3__count", int64(4675)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo4__key_0", int64(18965040)),
+				model.NewQueryResultCol("aggr__histo4__count", int64(4675)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo5__key_0", int64(18965040)),
+				model.NewQueryResultCol("aggr__histo5__count", int64(4675)),
+			}}},
+		},
 		ExpectedPancakeSQL: `
-			SELECT "aggr__histo__key_0", "aggr__histo__count",
-			  "aggr__histo__0__parent_count", "aggr__histo__0__key_0",
-			  "aggr__histo__0__count"
-			FROM (
-			  SELECT "aggr__histo__key_0", "aggr__histo__count",
-				"aggr__histo__0__parent_count", "aggr__histo__0__key_0",
-				"aggr__histo__0__count",
-				dense_rank() OVER (ORDER BY "aggr__histo__key_0" ASC) AS
-				"aggr__histo__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__histo__key_0" ORDER BY
-				"aggr__histo__0__count" DESC, "aggr__histo__0__key_0" ASC) AS
-				"aggr__histo__0__order_1_rank"
-			  FROM (
-				SELECT floor(COALESCE("taxful_total_price", 800)/224.19300000000004)*
-				  224.19300000000004 AS "aggr__histo__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
-				  "aggr__histo__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
-				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
-				  count(*) AS "aggr__histo__0__count"
-				FROM __quesma_table_name
-				GROUP BY floor(COALESCE("taxful_total_price", 800)/224.19300000000004)*
-				  224.19300000000004 AS "aggr__histo__key_0",
-				  "type" AS "aggr__histo__0__key_0"))
-			WHERE "aggr__histo__0__order_1_rank"<=11
-			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
+			SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
+			  (1706878800000))) / 90000) AS "aggr__histo1__key_0",
+			  count(*) AS "aggr__histo1__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			  toDateTime(1706878800000))) / 90000) AS "aggr__histo1__key_0"
+			ORDER BY "aggr__histo1__key_0" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
+			  (1706878800000))) / 90000) AS "aggr__histo2__key_0",
+			  count(*) AS "aggr__histo2__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			  toDateTime(1706878800000))) / 90000) AS "aggr__histo2__key_0"
+			ORDER BY "aggr__histo2__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
+			  (1706878800000))) / 90000) AS "aggr__histo3__key_0",
+			  count(*) AS "aggr__histo3__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			  toDateTime(1706878800000))) / 90000) AS "aggr__histo3__key_0"
+			ORDER BY "aggr__histo3__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
+			  (1706853600000))) / 90000) AS "aggr__histo4__key_0",
+			  count(*) AS "aggr__histo4__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			  toDateTime(1706853600000))) / 90000) AS "aggr__histo4__key_0"
+			ORDER BY "aggr__histo4__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
+			  (1706853600000))) / 90000) AS "aggr__histo5__key_0",
+			  count(*) AS "aggr__histo5__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			  toDateTime(1706853600000))) / 90000) AS "aggr__histo5__key_0"
+			ORDER BY "aggr__histo5__key_0" ASC`,
+		},
 	},
 }

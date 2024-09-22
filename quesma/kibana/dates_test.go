@@ -10,10 +10,11 @@ import (
 
 func TestDateManager_MissingInDateHistogramToUnixTimestamp(t *testing.T) {
 	tests := []struct {
-		missing             any
-		wantUnixTimestamp   int64
-		wantParsingSucceded bool
+		missing              any
+		wantUnixTimestamp    int64
+		wantParsingSucceeded bool
 	}{
+		{nil, -1, false},
 		{"2024", 1704067200000, true},
 		{int64(123), 123, true},
 		{"4234324223", 4234324223, true},
@@ -26,24 +27,20 @@ func TestDateManager_MissingInDateHistogramToUnixTimestamp(t *testing.T) {
 		{"2024-02-02", 1706832000000, true},
 		{"2024-02-3", -1, false},
 		{"2024-02-30", -1, false},
-		{"2024-02-25T13:00:00", 1, true},
-		{nil, -1, false},
-		{"2024-02-25T13", 1, true},
+		{"2024-02-25T1", 1708822800000, true}, // this fails in Kibana, so we're better
+		{"2024-02-25T13:00:00", 1708866000000, true},
 		{"2024-02-25 13:00:00", -1, false},
-		{"2024-02-25T13:1", -1, false},
-		{"2024-02-25T13:11", -1, true},
+		{"2024-02-25T13:11", 1708866660000, true},
 		{"2024-02-25T25:00:00", -1, false},
-		//{"2024-02-25T13:00:00+05:00", 1, true},
-		//{123456789, 123456789, true},
-		//{123456789.23, 123456789, true},
-		//{543510004234324320.32, 543510004234324320, true},
+		{"2024-02-25T13:00:00+05", 1708848000000, true},
+		{"2024-02-25T13:00:00+05:00", 1708848000000, true},
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%v", tt.missing), func(t *testing.T) {
 			dm := NewDateManager()
 			gotUnixTs, gotParsingSucceeded := dm.MissingInDateHistogramToUnixTimestamp(tt.missing)
 			assert.Equalf(t, tt.wantUnixTimestamp, gotUnixTs, "MissingInDateHistogramToUnixTimestamp(%v)", tt.missing)
-			assert.Equalf(t, tt.wantParsingSucceded, gotParsingSucceeded, "MissingInDateHistogramToUnixTimestamp(%v)", tt.missing)
+			assert.Equalf(t, tt.wantParsingSucceeded, gotParsingSucceeded, "MissingInDateHistogramToUnixTimestamp(%v)", tt.missing)
 		})
 	}
 }

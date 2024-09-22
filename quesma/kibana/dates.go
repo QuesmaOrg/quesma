@@ -18,7 +18,8 @@ func NewDateManager() DateManager {
 // >= 10000 means unix timestamp with that value
 const yearOrTsDelimiter = 10000
 
-var acceptableDateTimeFormats = []string{"2006", "2006-01", "2006-01-02", "2006-01-02"}
+var acceptableDateTimeFormats = []string{"2006", "2006-01", "2006-01-02", "2006-01-02", "2006-01-02T15",
+	"2006-01-02T15:04", "2006-01-02T15:04:05", "2006-01-02T15:04:05Z07", "2006-01-02T15:04:05Z07:00"}
 
 func (dm DateManager) MissingInDateHistogramToUnixTimestamp(missing any) (unixTimestamp int64, parsingSucceeded bool) {
 	asInt, success := util.ExtractInt64Maybe(missing)

@@ -6,6 +6,7 @@ package queryparser
 import (
 	"fmt"
 	"quesma/clickhouse"
+	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -80,6 +81,26 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 
 		// if missing is present, it's in [strict_date_optional_time || epoch_millis] format
 		// (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
+		didWeAddMissing := false
+		if missingRaw, exists := dateHistogram["missing"]; exists {
+			if missing, ok := missingRaw.(string); ok {
+				dateManager := kibana.NewDateManager()
+				timestamp, parsingTimestampOk := dateManager.MissingInDateHistogramToUnixTimestamp(missing)
+				if parsingTimestampOk {
+					field = model.NewFunction("COALESCE", field,
+						model.NewFunction("toDateTime", model.NewLiteral(timestamp)))
+					didWeAddMissing = true
+				} else {
+					logger.ErrorWithCtx(cw.Ctx).Msgf("unknown format of missing in date_histogram: %v", missing)
+				}
+			} else {
+				logger.ErrorWithCtx(cw.Ctx).Msgf("missing %v is not a string, but: %T", missingRaw, missingRaw)
+			}
+		}
+
+		if !didWeAddMissing {
+			aggregation.filterOutEmptyKeyBucket = true
+		}
 
 		minDocCount := cw.parseMinDocCount(dateHistogram)
 		timezone := cw.parseStringField(dateHistogram, "time_zone", "")
