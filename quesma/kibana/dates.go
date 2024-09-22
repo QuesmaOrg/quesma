@@ -14,20 +14,18 @@ func NewDateManager() DateManager {
 	return DateManager{}
 }
 
-// when missing is a string and its value as int < 10000, so e.g. "9999", it means 01.01.9999
-// >= 10000 means unix timestamp with that value
-const yearOrTsDelimiter = 10000
-
 var acceptableDateTimeFormats = []string{"2006", "2006-01", "2006-01-02", "2006-01-02", "2006-01-02T15",
 	"2006-01-02T15:04", "2006-01-02T15:04:05", "2006-01-02T15:04:05Z07", "2006-01-02T15:04:05Z07:00"}
 
+// MissingInDateHistogramToUnixTimestamp parses date_histogram's missing field.
+// If missing is present, it's in [strict_date_optional_time || epoch_millis] format
+// (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
 func (dm DateManager) MissingInDateHistogramToUnixTimestamp(missing any) (unixTimestamp int64, parsingSucceeded bool) {
-	asInt, success := util.ExtractInt64Maybe(missing)
-	if success {
+	if asInt, success := util.ExtractInt64Maybe(missing); success {
 		return asInt, true
 	}
-	asFloat, success := util.ExtractFloat64Maybe(missing)
-	if success {
+
+	if asFloat, success := util.ExtractFloat64Maybe(missing); success {
 		return int64(asFloat), true
 	}
 
@@ -36,18 +34,20 @@ func (dm DateManager) MissingInDateHistogramToUnixTimestamp(missing any) (unixTi
 		return -1, false
 	}
 
-	// if the string is a number >= 10000, it's already a unix timestamp
-	var err error
-	if asInt, err = strconv.ParseInt(asString, 10, 64); err == nil && asInt >= yearOrTsDelimiter {
+	// * When missing is a single number >= 10000, it's already a unix timestamp (e.g. "10000" -> 10000th second after 01.01.1970)
+	//   And we'll fall into one of the ifs below.
+	// * When missing is a single number < 10000, it's a year, so "2345" -> 01.01.2345 00:00
+	//   It'll be caught be one of the formats from the loop below.
+	const yearOrTsDelimiter = 10000
+
+	if asInt, err := strconv.ParseInt(asString, 10, 64); err == nil && asInt >= yearOrTsDelimiter {
 		return dm.MissingInDateHistogramToUnixTimestamp(asInt)
-	}
-	if asFloat, err = strconv.ParseFloat(asString, 64); err == nil && asFloat >= yearOrTsDelimiter {
+	} else if asFloat, err := strconv.ParseFloat(asString, 64); err == nil && asFloat >= yearOrTsDelimiter {
 		return dm.MissingInDateHistogramToUnixTimestamp(asFloat)
 	}
 
-	var date time.Time
 	for _, format := range acceptableDateTimeFormats {
-		if date, err = time.Parse(format, asString); err == nil {
+		if date, err := time.Parse(format, asString); err == nil {
 			return date.UnixMilli(), true
 		}
 	}

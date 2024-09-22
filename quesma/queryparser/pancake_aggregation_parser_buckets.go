@@ -79,8 +79,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 		field := cw.parseFieldField(dateHistogram, "date_histogram")
 
-		// if missing is present, it's in [strict_date_optional_time || epoch_millis] format
-		// (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
 		didWeAddMissing := false
 		if missingRaw, exists := dateHistogram["missing"]; exists {
 			if missing, ok := missingRaw.(string); ok {
