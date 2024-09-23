@@ -19,7 +19,7 @@ type metricsAggregation struct {
 	Fields              []model.Expr            // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
 	OrderBy             []model.OrderByExpr     // only for top_hits
 	FieldType           clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
-	Percentiles         map[string]float64      // Only for percentiles aggregation
+	Percentiles         map[string]float64      // Only for percentiles and percentile_ranks aggregation
 	Keyed               bool                    // Only for percentiles aggregation
 	CutValues           []string                // Only for percentile_ranks
 	SortBy              string                  // Only for top_metrics
