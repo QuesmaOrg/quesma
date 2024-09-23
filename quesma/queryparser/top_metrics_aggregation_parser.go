@@ -70,7 +70,7 @@ func (cw *ClickhouseQueryTranslator) getFieldNames(fields []interface{}) (exprs 
 	for _, field := range fields {
 		if fName, ok := field.(QueryMap)["field"]; ok {
 			if fieldName, ok := fName.(string); ok {
-				exprs = append(exprs, model.NewColumnRef(cw.ResolveField(cw.Ctx, fieldName)))
+				exprs = append(exprs, model.NewColumnRef(fieldName))
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("field %v is not a string (type: %T). Might be correct, might not. Check it out.", fName, fName)
 			}
