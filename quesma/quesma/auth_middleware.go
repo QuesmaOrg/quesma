@@ -8,6 +8,12 @@ import (
 	"time"
 )
 
+const cacheWipeInterval = 10 * time.Minute
+
+// authMiddleware a simple implementation of an authentication middleware,
+// which checks if the Authorization header and validates it against Elasticsearch.
+// If the validation is positive, the Authorization header is stored in a cache to avoid unnecessary calls to Elasticsearch preceding each request.
+// The cache is wiped every 10 minutes - all at once, perhaps this might be revisited in the future.
 type authMiddleware struct {
 	nextHttpHandler   http.Handler
 	authHeaderCache   sync.Map
@@ -17,7 +23,7 @@ type authMiddleware struct {
 
 func NewAuthMiddleware(next http.Handler, esConf config.ElasticsearchConfiguration) http.Handler {
 	esClient := elasticsearch.NewSimpleClient(&esConf)
-	middleware := &authMiddleware{nextHttpHandler: next, esClient: *esClient, cacheWipeInterval: 10 * time.Minute}
+	middleware := &authMiddleware{nextHttpHandler: next, esClient: *esClient, cacheWipeInterval: cacheWipeInterval}
 	go middleware.startCacheWipeScheduler()
 	return middleware
 }
