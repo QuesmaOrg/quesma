@@ -7,6 +7,7 @@ services:
       - QUESMA_CONFIG_FILE=/mnt/ci-config.yaml
       - QUESMA_logging_path=/var/quesma/logs
       - QUESMA_logging_fileLogging=true
+      - QUESMA_disableAuth=true
     depends_on:
       clickhouse:
         condition: service_healthy
