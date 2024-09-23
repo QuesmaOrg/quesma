@@ -144,9 +144,9 @@ func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) mo
 	case "quantile":
 		return metrics_aggregations.NewQuantile(ctx, util.MapKeysSortedByValue(metricsAggr.Percentiles), metricsAggr.Keyed, metricsAggr.FieldType)
 	case "top_hits":
-		return metrics_aggregations.NewTopHits(ctx, metricsAggr.Fields, metricsAggr.Size, metricsAggr.OrderBy)
+		return metrics_aggregations.NewTopHits(ctx, metricsAggr.Size, metricsAggr.OrderBy)
 	case "top_metrics":
-		return metrics_aggregations.NewTopMetrics(ctx, metricsAggr.Fields, metricsAggr.Size, metricsAggr.SortBy, metricsAggr.Order)
+		return metrics_aggregations.NewTopMetrics(ctx, metricsAggr.Size, metricsAggr.SortBy, metricsAggr.Order)
 	case "value_count":
 		return metrics_aggregations.NewValueCount(ctx)
 	case "percentile_ranks":

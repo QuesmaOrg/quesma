@@ -4,21 +4,20 @@ package metrics_aggregations
 
 import (
 	"context"
-	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"strconv"
+	"strings"
 )
 
 type TopMetrics struct {
-	ctx                context.Context
-	originalFieldNames []model.Expr // original, so just like in Kibana's request
-	Size               int
-	SortBy             string
-	SortOrder          model.OrderByDirection
+	ctx       context.Context
+	Size      int
+	SortBy    string
+	SortOrder model.OrderByDirection
 }
 
-func NewTopMetrics(ctx context.Context, originalFieldNames []model.Expr, size int, sortBy string, sortOrder string) *TopMetrics {
+func NewTopMetrics(ctx context.Context, size int, sortBy string, sortOrder string) *TopMetrics {
 	var order model.OrderByDirection
 	switch sortOrder {
 	case "asc":
@@ -29,7 +28,7 @@ func NewTopMetrics(ctx context.Context, originalFieldNames []model.Expr, size in
 		logger.WarnWithCtx(ctx).Msgf("invalid sort order: %s, defaulting to desc", sortOrder)
 		order = model.DescOrder
 	}
-	return &TopMetrics{ctx: ctx, originalFieldNames: originalFieldNames, Size: size, SortBy: sortBy, SortOrder: order}
+	return &TopMetrics{ctx: ctx, Size: size, SortBy: sortBy, SortOrder: order}
 }
 
 func (query *TopMetrics) AggregationType() model.AggregationType {
@@ -62,14 +61,15 @@ func (query *TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow)
 		}
 
 		metrics := make(model.JsonMap)
-		for i, col := range valuesForMetrics {
-			originalFieldName := model.AsString(query.originalFieldNames[i])
-			fmt.Println(originalFieldName, "colName:", col.ColName)
-			fieldNameProperlyQuoted, err := strconv.Unquote(originalFieldName)
-			if err != nil {
-				fieldNameProperlyQuoted = originalFieldName
+		for _, col := range valuesForMetrics {
+			var withoutQuotes string
+			if unquoted, err := strconv.Unquote(col.ColName); err == nil {
+				withoutQuotes = unquoted
+			} else {
+				withoutQuotes = col.ColName
 			}
-			metrics[fieldNameProperlyQuoted] = col.ExtractValue(query.ctx)
+			colName, _ := strings.CutPrefix(withoutQuotes, `windowed_`)
+			metrics[colName] = col.ExtractValue(query.ctx)
 		}
 		elem := model.JsonMap{
 			"sort":    sortVal,

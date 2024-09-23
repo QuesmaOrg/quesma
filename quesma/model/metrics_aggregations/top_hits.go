@@ -6,18 +6,16 @@ import (
 	"context"
 	"quesma/logger"
 	"quesma/model"
-	"strconv"
 )
 
 type TopHits struct {
-	ctx                context.Context
-	originalFieldNames []model.Expr // original, so just like in Kibana's request
-	Size               int
-	OrderBy            []model.OrderByExpr
+	ctx     context.Context
+	Size    int
+	OrderBy []model.OrderByExpr
 }
 
-func NewTopHits(ctx context.Context, originalFieldNames []model.Expr, size int, orderBy []model.OrderByExpr) *TopHits {
-	return &TopHits{ctx: ctx, originalFieldNames: originalFieldNames, Size: size, OrderBy: orderBy}
+func NewTopHits(ctx context.Context, size int, orderBy []model.OrderByExpr) *TopHits {
+	return &TopHits{ctx: ctx, Size: size, OrderBy: orderBy}
 }
 
 func (query *TopHits) AggregationType() model.AggregationType {
@@ -43,15 +41,11 @@ func (query *TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mo
 		valuesForHits := row.Cols
 		sourceMap := model.JsonMap{}
 
-		for i, col := range valuesForHits {
+		for _, col := range valuesForHits {
 
-			originalFieldName := model.AsString(query.originalFieldNames[i])
-			fieldNameProperlyQuoted, err := strconv.Unquote(originalFieldName)
-			if err != nil {
-				fieldNameProperlyQuoted = originalFieldName
-			}
 			value := col.ExtractValue(query.ctx)
-			sourceMap[fieldNameProperlyQuoted] = value
+
+			sourceMap[col.ColName] = value
 
 		}
 
