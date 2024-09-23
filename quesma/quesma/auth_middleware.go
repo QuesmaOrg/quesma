@@ -5,18 +5,22 @@ import (
 	"quesma/elasticsearch"
 	"quesma/quesma/config"
 	"sync"
+	"time"
 )
 
 type authMiddleware struct {
-	nextHttpHandler http.Handler
-	authHeaderCache sync.Map
-	esConf          config.ElasticsearchConfiguration
-	esClient        elasticsearch.SimpleClient
+	nextHttpHandler   http.Handler
+	authHeaderCache   sync.Map
+	cacheWipeInterval time.Duration
+	esConf            config.ElasticsearchConfiguration
+	esClient          elasticsearch.SimpleClient
 }
 
 func NewAuthMiddleware(next http.Handler, esConf config.ElasticsearchConfiguration) http.Handler {
 	esClient := elasticsearch.NewSimpleClient(&esConf)
-	return &authMiddleware{nextHttpHandler: next, esClient: *esClient}
+	middleware := &authMiddleware{nextHttpHandler: next, esClient: *esClient, cacheWipeInterval: 10 * time.Minute}
+	go middleware.startCacheWipeScheduler()
+	return middleware
 }
 
 func (a *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -38,4 +42,20 @@ func (a *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.nextHttpHandler.ServeHTTP(w, r)
+}
+
+func (a *authMiddleware) startCacheWipeScheduler() {
+	ticker := time.NewTicker(a.cacheWipeInterval)
+	defer ticker.Stop()
+	for {
+		<-ticker.C
+		a.wipeCache()
+	}
+}
+
+func (a *authMiddleware) wipeCache() {
+	a.authHeaderCache.Range(func(key, value interface{}) bool {
+		a.authHeaderCache.Delete(key)
+		return true
+	})
 }

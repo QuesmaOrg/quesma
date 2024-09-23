@@ -22,6 +22,8 @@ import (
 	"time"
 )
 
+const concurrentClientsLimit = 100 // FIXME this should be configurable
+
 type simultaneousClientsLimiter struct {
 	counter atomic.Int64
 	handler http.Handler
@@ -98,9 +100,9 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 	})
 	var limitedHandler http.Handler
 	if config.DisableAuth {
-		limitedHandler = newSimultaneousClientsLimiter(handler, 100) // FIXME this should be configurable
+		limitedHandler = newSimultaneousClientsLimiter(handler, concurrentClientsLimit)
 	} else {
-		limitedHandler = newSimultaneousClientsLimiter(NewAuthMiddleware(handler, config.Elasticsearch), 100)
+		limitedHandler = newSimultaneousClientsLimiter(NewAuthMiddleware(handler, config.Elasticsearch), concurrentClientsLimit)
 	}
 
 	return &dualWriteHttpProxy{
