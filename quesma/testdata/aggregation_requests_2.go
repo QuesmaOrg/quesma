@@ -2706,6 +2706,125 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [55]
+		TestName: "terms order by percentile_ranks",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"percentile_ranks": {
+								"field": "DistanceKilometers",
+								"values": [
+									0, 50
+								]
+							}
+						}
+					},
+					"terms": {
+						"field": "Cancelled",
+						"order": {
+							"1.0": "desc"
+						},
+						"shard_size": 25,
+						"size": 5
+					}
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"is_partial": false,
+			"is_running": false,
+			"start_time_in_millis": 1727114076973,
+			"expiration_time_in_millis": 1727546076973,
+			"completion_time_in_millis": 1727114076978,
+			"response": {
+				"took": 5,
+				"timed_out": false,
+				"_shards": {
+					"total": 1,
+					"successful": 1,
+					"skipped": 0,
+					"failed": 0
+				},
+				"hits": {
+					"total": {
+						"value": 212,
+						"relation": "eq"
+					},
+					"max_score": null,
+					"hits": []
+				},
+				"aggregations": {
+					"0": {
+						"doc_count_error_upper_bound": 0,
+						"sum_other_doc_count": 0,
+						"buckets": [
+							{
+								"1": {
+									"values": {
+										"0.0": 3.314917127071823,
+										"50.0": 6.441097753551789
+									}
+								},
+								"key": 0,
+								"doc_count": 181
+							},
+							{
+								"1": {
+									"values": {
+										"0.0": 3.225806451612903,
+										"50.0": 9.813812484840025
+									}
+								},
+								"key": 1,
+								"doc_count": 31
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", 212),
+				model.NewQueryResultCol("aggr__0__key_0", 0),
+				model.NewQueryResultCol("aggr__0__count", int64(181)),
+				model.NewQueryResultCol("aggr__0__order_1", 3.314917127071823),
+				model.NewQueryResultCol("metric__0__1_col_0", 3.314917127071823),
+				model.NewQueryResultCol("metric__0__1_col_1", 6.441097753551789),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", 212),
+				model.NewQueryResultCol("aggr__0__key_0", 1),
+				model.NewQueryResultCol("aggr__0__count", int64(31)),
+				model.NewQueryResultCol("aggr__0__order_1", 3.225806451612903),
+				model.NewQueryResultCol("metric__0__1_col_0", 3.225806451612903),
+				model.NewQueryResultCol("metric__0__1_col_1", 9.813812484840025),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+			  "Cancelled" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
+			  countIf("DistanceKilometers"<=0)/count(*)*100 AS "aggr__0__order_1",
+			  countIf("DistanceKilometers"<=0)/count(*)*100 AS "metric__0__1_col_0",
+			  countIf("DistanceKilometers"<=50)/count(*)*100 AS "metric__0__1_col_1"
+			FROM __quesma_table_name
+			GROUP BY "Cancelled" AS "aggr__0__key_0"
+			ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC
+			LIMIT 6`,
+	},
+	{ // [56]
 		TestName: "simple histogram with null values, no missing parameter",
 		QueryRequestJson: `
 		{
@@ -2802,7 +2921,7 @@ var AggregationTests2 = []AggregationTestCase{
 			  "aggr__sample__histo__key_0"
 			ORDER BY "aggr__sample__histo__key_0" ASC`,
 	},
-	{ // [56]
+	{ // [57]
 		TestName: "histogram with null values, no missing parameter, and some subaggregation",
 		QueryRequestJson: `
 		{
@@ -2945,7 +3064,7 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE "aggr__histo__0__order_1_rank"<=11
 			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
 	},
-	{ // [57]
+	{ // [58]
 		TestName: "simple histogram with null values and missing parameter",
 		QueryRequestJson: `
 		{
@@ -3048,7 +3167,7 @@ var AggregationTests2 = []AggregationTestCase{
 			  224.19300000000004 AS "aggr__sample__histo__key_0"
 			ORDER BY "aggr__sample__histo__key_0" ASC`,
 	},
-	{ // [58]
+	{ // [59]
 		TestName: "histogram with null values, missing parameter, and some subaggregation",
 		QueryRequestJson: `
 		{
@@ -3211,7 +3330,7 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE "aggr__histo__0__order_1_rank"<=11
 			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
 	},
-	{ // [59]
+	{ // [60]
 		TestName: "simple date_histogram with null values, no missing parameter",
 		QueryRequestJson: `
 		{
@@ -3309,7 +3428,7 @@ var AggregationTests2 = []AggregationTestCase{
 			  "aggr__sample__histo__key_0"
 			ORDER BY "aggr__sample__histo__key_0" ASC`,
 	},
-	{ // [60]
+	{ // [61]
 		TestName: "date_histogram with null values, no missing parameter, and some subaggregation",
 		QueryRequestJson: `
 		{
@@ -3453,7 +3572,7 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE "aggr__histo__0__order_1_rank"<=11
 			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
 	},
-	{ // [61]
+	{ // [62]
 		TestName: "date_histogram with null values, missing parameter, and some subaggregation",
 		QueryRequestJson: `
 		{
@@ -3618,7 +3737,7 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE "aggr__histo__0__order_1_rank"<=11
 			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
 	},
-	{ // [62]
+	{ // [63]
 		TestName: "date_histogram with missing, different formats",
 		QueryRequestJson: `
 		{
