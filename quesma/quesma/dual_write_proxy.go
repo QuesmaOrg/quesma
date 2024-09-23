@@ -26,6 +26,8 @@ type simultaneousClientsLimiter struct {
 	counter atomic.Int64
 	handler http.Handler
 	limit   int64
+
+	//authCache sync.Map
 }
 
 func newSimultaneousClientsLimiter(handler http.Handler, limit int64) *simultaneousClientsLimiter {
@@ -47,6 +49,59 @@ func (c *simultaneousClientsLimiter) ServeHTTP(w http.ResponseWriter, r *http.Re
 
 	c.counter.Add(1)
 	defer c.counter.Add(-1)
+
+	//authHeader := r.Header.Get("Authorization")
+	//if authHeader == "" {
+	//	w.Header().Set("WWW-Authenticate", `Basic realm="restricted"`)
+	//	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	//	return
+	//}
+	//authParts := strings.SplitN(authHeader, " ", 2)
+	//if len(authParts) != 2 || authParts[0] != "Basic" {
+	//	logger.Warn().Msg("Something borked with auth hdr")
+	//	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	//	return
+	//}
+	//decodedUserAndPass, _ := base64.StdEncoding.DecodeString(authParts[1])
+	//pair := strings.SplitN(string(decodedUserAndPass), ":", 2)
+	//if len(pair) != 2 {
+	//	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	//	return
+	//}
+	//if _, ok := c.authCache.Load(authHeader); !ok {
+	//	//check auth
+	//	//if auth is ok, store it in cache
+	//	c.authCache.Store(authHeader, struct{}{})
+	//	//if auth is not ok, return unauthorized
+	//} else {
+	//
+	//}
+	//auth := r.Header.Get("Authorization")
+	//if auth == "" {
+	//	w.Header().Set("WWW-Authenticate", `Basic realm="restricted"`)
+	//	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	//	return
+	//}
+	//
+	//authParts := strings.SplitN(auth, " ", 2)
+	//if len(authParts) != 2 || authParts[0] != "Basic" {
+	//	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	//	return
+	//}
+	//
+	//payload, _ := base64.StdEncoding.DecodeString(authParts[1])
+	//pair := strings.SplitN(string(payload), ":", 2)
+	//logger.Info().Msgf("PRZEMYSLAW - [%s] called out as [%s] with pass [%s]", r.URL, pair[0], pair[1])
+	//if len(pair) != 2 {
+	//	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	//	return
+	//}
+	//if !((pair[0] != "elastic" && pair[1] != "pwpw") ||
+	//	(pair[0] != "q1" && pair[1] != "q2") ||
+	//	(pair[0] != "kibana" && pair[1] != "kibanana")) {
+	//	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	//	return
+	//}
 
 	c.handler.ServeHTTP(w, r)
 }
@@ -97,8 +152,12 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 
 		routerInstance.reroute(req.Context(), w, req, reqBody, pathRouter, logManager)
 	})
-
-	limitedHandler := newSimultaneousClientsLimiter(handler, 100) // FIXME this should be configurable
+	var limitedHandler http.Handler
+	if config.DisableAuth {
+		limitedHandler = newSimultaneousClientsLimiter(handler, 100) // FIXME this should be configurable
+	} else {
+		limitedHandler = newSimultaneousClientsLimiter(NewAuthMiddleware(handler, config.Elasticsearch), 100)
+	}
 
 	return &dualWriteHttpProxy{
 		elasticRouter:  pathRouter,
