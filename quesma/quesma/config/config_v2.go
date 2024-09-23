@@ -43,6 +43,7 @@ type QuesmaNewConfiguration struct {
 	Processors                 []Processor          `koanf:"processors"`
 	Pipelines                  []Pipeline           `koanf:"pipelines"`
 	DisableTelemetry           bool                 `koanf:"disableTelemetry"`
+	DisableAuth                bool                 `koanf:"disableAuth"`
 }
 
 type Pipeline struct {
@@ -407,6 +408,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.QuesmaInternalTelemetryUrl = telemetryUrl
 		conf.Logging.RemoteLogDrainUrl = telemetryUrl
 	}
+	conf.DisableAuth = c.DisableAuth
 	conf.Logging = c.Logging
 	conf.InstallationId = c.InstallationId
 	conf.LicenseKey = c.LicenseKey
