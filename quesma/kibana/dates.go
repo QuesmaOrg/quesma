@@ -46,6 +46,8 @@ func (dm DateManager) MissingInDateHistogramToUnixTimestamp(missing any) (unixTi
 		return dm.MissingInDateHistogramToUnixTimestamp(asFloat)
 	}
 
+	// It could be replaced with iso8601.ParseString() after the fixes to 1.4.0:
+	// https://github.com/relvacode/iso8601/pull/26
 	for _, format := range acceptableDateTimeFormats {
 		if date, err := time.Parse(format, asString); err == nil {
 			return date.UnixMilli(), true
