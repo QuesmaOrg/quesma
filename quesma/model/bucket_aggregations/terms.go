@@ -7,7 +7,6 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
-	"strings"
 )
 
 type Terms struct {
@@ -48,21 +47,14 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 	}
 
 	if !query.significant {
-		sumOtherDocCount := 0
-		if query.isPancake(rows[0]) { // TODO: remove this after change to pancake-only
-			sumOtherDocCount = int(util.ExtractInt64(query.parentCount(rows[0]))) - query.sumDocCounts(rows)
-		}
-
+		sumOtherDocCount := int(util.ExtractInt64(query.parentCount(rows[0]))) - query.sumDocCounts(rows)
 		return model.JsonMap{
 			"sum_other_doc_count":         sumOtherDocCount,
 			"doc_count_error_upper_bound": 0,
 			"buckets":                     response,
 		}
 	} else {
-		var parentDocCount int64
-		if query.isPancake(rows[0]) { // TODO: remove this after change to pancake-only
-			parentDocCount = util.ExtractInt64(query.parentCount(rows[0]))
-		}
+		parentDocCount := util.ExtractInt64(query.parentCount(rows[0]))
 		return model.JsonMap{
 			"buckets":   response,
 			"doc_count": parentDocCount,
@@ -108,12 +100,4 @@ func (query Terms) key(row model.QueryResultRow) any {
 
 func (query Terms) parentCount(row model.QueryResultRow) any {
 	return row.Cols[len(row.Cols)-3].Value
-}
-
-// Soon-to-be deprecated. TODO: Remove after change to pancake-only
-func (query Terms) isPancake(row model.QueryResultRow) bool {
-	if len(row.Cols) < 3 {
-		return false
-	}
-	return strings.HasSuffix(row.Cols[len(row.Cols)-3].ColName, "parent_count")
 }

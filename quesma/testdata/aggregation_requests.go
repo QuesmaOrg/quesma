@@ -1175,7 +1175,7 @@ var AggregationTests = []AggregationTestCase{
 										}
 									],
 									"doc_count_error_upper_bound": 0,
-									"sum_other_doc_count": 0
+									"sum_other_doc_count": 250
 								},
 								"doc_count": 283,
 								"key": "UIO",
@@ -1205,7 +1205,7 @@ var AggregationTests = []AggregationTestCase{
 							},
 							{
 								"distinations": {
-									"sum_other_doc_count": 0,
+									"sum_other_doc_count": 4,
 									"buckets": [
 										{
 											"destLocation": {
@@ -1261,7 +1261,7 @@ var AggregationTests = []AggregationTestCase{
 										}
 									]
 								},
-								"doc_count": 15,
+								"doc_count": 25,
 								"key": "DLH",
 								"originLocation": {
 									"hits": {
@@ -1289,7 +1289,7 @@ var AggregationTests = []AggregationTestCase{
 							}
 						],
 						"doc_count_error_upper_bound": 0,
-						"sum_other_doc_count": 12716
+						"sum_other_doc_count": 12706
 					}
 				},
 				"hits": {
@@ -1311,9 +1311,9 @@ var AggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
 					model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
 					model.NewQueryResultCol("aggr__origins__count", int64(283)),
+					model.NewQueryResultCol("aggr__origins__distinations__parent_count", int64(283)),
 					model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
 					model.NewQueryResultCol("aggr__origins__distinations__count", int64(21)),
-					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(21)),
 					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", map[string]interface{}{
 						"lat": "-34.8222",
 						"lon": "-58.5358",
@@ -1326,9 +1326,9 @@ var AggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
 					model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
 					model.NewQueryResultCol("aggr__origins__count", int64(283)),
+					model.NewQueryResultCol("aggr__origins__distinations__parent_count", int64(283)),
 					model.NewQueryResultCol("aggr__origins__distinations__key_0", "UIO"),
 					model.NewQueryResultCol("aggr__origins__distinations__count", int64(12)),
-					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(12)),
 					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", map[string]interface{}{
 						"lat": "-0.129166667",
 						"lon": "-78.3575",
@@ -1340,10 +1340,10 @@ var AggregationTests = []AggregationTestCase{
 				Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
 					model.NewQueryResultCol("aggr__origins__key_0", "DLH"),
-					model.NewQueryResultCol("aggr__origins__count", int64(15)),
+					model.NewQueryResultCol("aggr__origins__count", int64(25)),
+					model.NewQueryResultCol("aggr__origins__distinations__parent_count", int64(25)),
 					model.NewQueryResultCol("aggr__origins__distinations__key_0", "YUL"),
 					model.NewQueryResultCol("aggr__origins__distinations__count", int64(11)),
-					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(11)),
 					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", map[string]interface{}{
 						"lat": "45.47060013",
 						"lon": "-73.74079895",
@@ -1355,10 +1355,10 @@ var AggregationTests = []AggregationTestCase{
 				Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
 					model.NewQueryResultCol("aggr__origins__key_0", "DLH"),
-					model.NewQueryResultCol("aggr__origins__count", int64(15)),
+					model.NewQueryResultCol("aggr__origins__count", int64(25)),
+					model.NewQueryResultCol("aggr__origins__distinations__parent_count", int64(25)),
 					model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
 					model.NewQueryResultCol("aggr__origins__distinations__count", int64(10)),
-					model.NewQueryResultCol("aggr__origins__distinations__order_1", int64(10)),
 					model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", map[string]interface{}{
 						"lat": "-34.8222",
 						"lon": "-58.5358",
