@@ -117,7 +117,7 @@ func (lm *LogManager) Stop() {
 type discoveredTable struct {
 	name               string
 	databaseName       string
-	columnTypes        map[string]string
+	columnTypes        map[string]columnMetadata
 	config             config.IndexConfiguration
 	comment            string
 	createTableQuery   string
