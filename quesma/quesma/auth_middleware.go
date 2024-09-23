@@ -12,7 +12,6 @@ type authMiddleware struct {
 	nextHttpHandler   http.Handler
 	authHeaderCache   sync.Map
 	cacheWipeInterval time.Duration
-	esConf            config.ElasticsearchConfiguration
 	esClient          elasticsearch.SimpleClient
 }
 
