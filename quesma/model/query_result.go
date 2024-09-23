@@ -31,16 +31,7 @@ type QueryResultRow struct {
 	Cols  []QueryResultCol
 }
 
-func NewQueryResultRowEmpty(index string) QueryResultRow {
-	return QueryResultRow{Index: index}
-}
-
 const KeyAddedByQuesma = "Quesma_key_JR*#@(DF*GAsFfS!/LI" // created in a way that there shouldn't be a field of this name
-
-const (
-	ResultColKeyIndex      FieldAtIndex = iota // for facets Col[0] == Key. TODO remove after facets->pancake
-	ResultColDocCountIndex                     // for facets Col[1] == DocCount. TODO remove after facets->pancake
-)
 
 // String returns the string representation of the column in format `"<colName>": <value>`, properly quoted.
 func (c QueryResultCol) String(ctx context.Context) string {
