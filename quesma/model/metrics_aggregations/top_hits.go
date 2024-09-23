@@ -6,28 +6,26 @@ import (
 	"context"
 	"quesma/logger"
 	"quesma/model"
+	"strconv"
 )
 
 type TopHits struct {
-	ctx     context.Context
-	Size    int
-	OrderBy []model.OrderByExpr
+	ctx                context.Context
+	originalFieldNames []model.Expr // original, so just like in Kibana's request
+	Size               int
+	OrderBy            []model.OrderByExpr
 }
 
-func NewTopHits(ctx context.Context, size int) TopHits {
-	return TopHits{ctx: ctx, Size: size}
+func NewTopHits(ctx context.Context, originalFieldNames []model.Expr, size int, orderBy []model.OrderByExpr) *TopHits {
+	return &TopHits{ctx: ctx, originalFieldNames: originalFieldNames, Size: size, OrderBy: orderBy}
 }
 
-func NewTopHitsWithOrderBy(ctx context.Context, size int, orderBy []model.OrderByExpr) TopHits {
-	return TopHits{ctx: ctx, Size: size, OrderBy: orderBy}
-}
-
-func (query TopHits) AggregationType() model.AggregationType {
+func (query *TopHits) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
 // TODO: implement correct
-func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+func (query *TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	var topElems []any
 	if len(rows) > 0 && 0 >= len(rows[0].Cols) {
 		// values are [level, len(row.Cols) - 1]
@@ -45,11 +43,15 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mod
 		valuesForHits := row.Cols
 		sourceMap := model.JsonMap{}
 
-		for _, col := range valuesForHits {
+		for i, col := range valuesForHits {
 
+			originalFieldName := model.AsString(query.originalFieldNames[i])
+			fieldNameProperlyQuoted, err := strconv.Unquote(originalFieldName)
+			if err != nil {
+				fieldNameProperlyQuoted = originalFieldName
+			}
 			value := col.ExtractValue(query.ctx)
-
-			sourceMap[col.ColName] = value
+			sourceMap[fieldNameProperlyQuoted] = value
 
 		}
 
@@ -73,6 +75,6 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mod
 	}
 }
 
-func (query TopHits) String() string {
+func (query *TopHits) String() string {
 	return "top_hits"
 }

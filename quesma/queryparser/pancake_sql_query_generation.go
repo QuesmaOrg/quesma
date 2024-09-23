@@ -282,7 +282,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	for _, layer := range aggregation.layers {
 		for _, metric := range layer.currentMetricAggregations {
 			switch metric.queryType.(type) {
-			case metrics_aggregations.TopMetrics, metrics_aggregations.TopHits:
+			case *metrics_aggregations.TopMetrics, *metrics_aggregations.TopHits:
 				optTopHitsOrMetrics = metric
 			default:
 				hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount

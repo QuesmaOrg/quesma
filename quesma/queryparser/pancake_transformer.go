@@ -46,9 +46,9 @@ func (a *pancakeTransformer) generateUniqueInternalName(origName string, aggrNam
 func (a *pancakeTransformer) generateMetricInternalName(aggrNames []string, queryType model.QueryType) string {
 	prefix := "metric"
 	switch queryType.(type) {
-	case metrics_aggregations.TopMetrics:
+	case *metrics_aggregations.TopMetrics:
 		prefix = "top_metrics"
-	case metrics_aggregations.TopHits:
+	case *metrics_aggregations.TopHits:
 		prefix = "top_hits"
 	}
 	origName := fmt.Sprintf("%s__%s", prefix, strings.Join(aggrNames, "__"))
@@ -301,7 +301,7 @@ func (a *pancakeTransformer) createTopHitAndTopMetricsPancakes(pancake *pancakeM
 		metricsWithoutTopHits := make([]*pancakeModelMetricAggregation, 0, len(layer.currentMetricAggregations))
 		for metricIdx, metric := range layer.currentMetricAggregations {
 			switch metric.queryType.(type) {
-			case metrics_aggregations.TopMetrics, metrics_aggregations.TopHits:
+			case *metrics_aggregations.TopMetrics, *metrics_aggregations.TopHits:
 				isLastLayer := layerIdx == len(pancake.layers)-1
 				isOnlyAggregationOnLayer := len(layer.currentMetricAggregations) == 1 ||
 					// if we have several top_metrics at bottom layer we can still optimize last one

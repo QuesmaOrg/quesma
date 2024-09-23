@@ -7,17 +7,17 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"strconv"
-	"strings"
 )
 
 type TopMetrics struct {
-	ctx       context.Context
-	Size      int
-	SortBy    string
-	SortOrder model.OrderByDirection
+	ctx                context.Context
+	originalFieldNames []model.Expr // original, so just like in Kibana's request
+	Size               int
+	SortBy             string
+	SortOrder          model.OrderByDirection
 }
 
-func NewTopMetrics(ctx context.Context, size int, sortBy string, sortOrder string) TopMetrics {
+func NewTopMetrics(ctx context.Context, originalFieldNames []model.Expr, size int, sortBy string, sortOrder string) *TopMetrics {
 	var order model.OrderByDirection
 	switch sortOrder {
 	case "asc":
@@ -28,17 +28,16 @@ func NewTopMetrics(ctx context.Context, size int, sortBy string, sortOrder strin
 		logger.WarnWithCtx(ctx).Msgf("invalid sort order: %s, defaulting to desc", sortOrder)
 		order = model.DescOrder
 	}
-	return TopMetrics{ctx: ctx, Size: size, SortBy: sortBy, SortOrder: order}
+	return &TopMetrics{ctx: ctx, originalFieldNames: originalFieldNames, Size: size, SortBy: sortBy, SortOrder: order}
 }
 
-func (query TopMetrics) AggregationType() model.AggregationType {
+func (query *TopMetrics) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+func (query *TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	var topElems []any
 	if len(rows) > 0 && 0 >= len(rows[0].Cols)-1 {
-		// values are [level, len(row.Cols) - 1]
 		logger.WarnWithCtx(query.ctx).Msgf(
 			"no columns returned for top_metrics aggregation, len(rows[0].Cols): %d, len(rows): %d",
 			len(rows[0].Cols), len(rows),
@@ -62,15 +61,13 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 		}
 
 		metrics := make(model.JsonMap)
-		for _, col := range valuesForMetrics {
-			var withoutQuotes string
-			if unquoted, err := strconv.Unquote(col.ColName); err == nil {
-				withoutQuotes = unquoted
-			} else {
-				withoutQuotes = col.ColName
+		for i, col := range valuesForMetrics {
+			originalFieldName := model.AsString(query.originalFieldNames[i])
+			fieldNameProperlyQuoted, err := strconv.Unquote(originalFieldName)
+			if err != nil {
+				fieldNameProperlyQuoted = originalFieldName
 			}
-			colName, _ := strings.CutPrefix(withoutQuotes, `windowed_`)
-			metrics[colName] = col.ExtractValue(query.ctx)
+			metrics[fieldNameProperlyQuoted] = col.ExtractValue(query.ctx)
 		}
 		elem := model.JsonMap{
 			"sort":    sortVal,
@@ -83,6 +80,6 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 	}
 }
 
-func (query TopMetrics) String() string {
+func (query *TopMetrics) String() string {
 	return "top_metrics"
 }

@@ -50,10 +50,10 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	var topOrderBy []model.OrderByExpr
 
 	switch queryType := topHits.queryType.(type) {
-	case metrics_aggregations.TopHits:
+	case *metrics_aggregations.TopHits:
 		topOrderBy = queryType.OrderBy
 		sizeLimit = queryType.Size
-	case metrics_aggregations.TopMetrics:
+	case *metrics_aggregations.TopMetrics:
 		if len(queryType.SortBy) > 0 {
 			topOrderBy = []model.OrderByExpr{
 				model.NewOrderByExpr(
