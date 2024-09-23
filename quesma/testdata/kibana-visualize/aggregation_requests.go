@@ -1040,10 +1040,10 @@ var AggregationTests = []testdata.AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 				  "Cancelled" AS "aggr__0__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sumArray(quantiles(0.950000)("DistanceKilometers")) OVER (PARTITION BY
-				  "aggr__0__key_0") AS "aggr__0__order_1",
-				  sumArray(quantiles(0.950000)("DistanceKilometers")) OVER (PARTITION BY
-				  "aggr__0__key_0") AS "metric__0__2_col_0",
+				  quantilesMerge(0.950000)(quantilesState(0.950000)("DistanceKilometers"))
+				  OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__order_1",
+				  quantilesMerge(0.950000)(quantilesState(0.950000)("DistanceKilometers"))
+				  OVER (PARTITION BY "aggr__0__key_0") AS "metric__0__2_col_0",
 				  floor("DistanceKilometers"/5000)*5000 AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count",
 				  quantiles(0.950000)("DistanceKilometers") AS "metric__0__1__2_col_0"

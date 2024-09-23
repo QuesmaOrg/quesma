@@ -54,10 +54,9 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 			return model.NewFunction(origFunc.Name+"State", origFunc.Args...), origFunc.Name + "Merge", nil
 		}
 
-		// We use sumArray here, because "quantiles" returns an array.
-		// We probably could simplify the code a bit to use "quantile" instead, and just "sum" here.
 		if strings.HasPrefix(origFunc.Name, "quantiles") {
-			return origFunc, "sumArray", nil
+			return model.NewFunction(strings.Replace(origFunc.Name, "quantiles", "quantilesState", 1), origFunc.Args...),
+				strings.Replace(origFunc.Name, "quantiles", "quantilesMerge", 1), nil
 		}
 	}
 	debugQueryType := "<nil>"
