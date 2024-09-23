@@ -178,6 +178,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 		typeName    string
 		isAttribute bool
 		warning     *string
+		comment     string
 	}
 
 	buffer := newBufferWithHead()
@@ -222,7 +223,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 			buffer.Html(`<tr class="tableName"`)
 			buffer.Html(fmt.Sprintf(` id="%s"`, id))
 			buffer.Html(`>`)
-			buffer.Html(`<th colspan=2><h2>`)
+			buffer.Html(`<th colspan=3><h2>`)
 			buffer.Html(`Table: `)
 			buffer.Text(table.Name)
 
@@ -249,6 +250,9 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 			buffer.Html(`<th>`)
 			buffer.Html(`Type`)
 			buffer.Html(`</th>`)
+			buffer.Html(`<th>`)
+			buffer.Html(`Comment`)
+			buffer.Html(`</th>`)
 			buffer.Html(`</tr>`)
 
 			var columnNames []string
@@ -266,6 +270,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 				}
 
 				c.isAttribute = false
+				c.comment = table.Cols[k].Comment
 
 				columnNames = append(columnNames, k)
 				columnMap[k] = c
@@ -354,13 +359,20 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 					buffer.Text(*column.warning)
 					buffer.Html(`</span>`)
 				}
-
 				buffer.Html(`</td>`)
+
+				buffer.Html(`<td class="columnComment">`)
+				if column.comment != "" {
+					buffer.Text(column.comment)
+				} else {
+					buffer.Html(`&mdash;`) // something that doesn't look like a comment
+				}
+
 				buffer.Html(`</tr>`)
 			}
 
 			buffer.Html("<tr>")
-			buffer.Html(`<td colspan=2 class="create-table-query">`)
+			buffer.Html(`<td colspan=3 class="create-table-query">`)
 			query := table.CreateTableQuery
 			// indent first line
 			query = strings.Replace(query, "(", "(\n", 1)
