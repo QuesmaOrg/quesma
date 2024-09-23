@@ -129,15 +129,18 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			logger.WarnWithCtx(cw.Ctx).Msg("no values in percentile_ranks. Using empty array.")
 		}
 
+		percentiles := make(map[string]float64, len(cutValuesRaw))
 		cutValues := make([]string, 0, len(cutValuesRaw))
 		for _, cutValue := range cutValuesRaw {
 			switch cutValueTyped := cutValue.(type) {
 			case float64:
 				asFloat := strconv.FormatFloat(cutValueTyped, 'f', -1, 64)
 				cutValues = append(cutValues, asFloat)
+				percentiles[asFloat] = cutValueTyped
 			case int64:
 				asInt := strconv.FormatInt(cutValueTyped, 10)
 				cutValues = append(cutValues, asInt)
+				percentiles[asInt] = float64(cutValueTyped)
 			default:
 				logger.WarnWithCtx(cw.Ctx).Msgf("cutValue in percentile_ranks is not a number, but %T, value: %v. Skipping.", cutValue, cutValue)
 			}
@@ -154,11 +157,12 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		}
 
 		return metricsAggregation{
-			AggrType:  "percentile_ranks",
-			Fields:    []model.Expr{cw.parseFieldField(percentileRanks, "percentile_ranks")},
-			FieldType: metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
-			Keyed:     keyed,
-			CutValues: cutValues,
+			AggrType:    "percentile_ranks",
+			Fields:      []model.Expr{cw.parseFieldField(percentileRanks, "percentile_ranks")},
+			FieldType:   metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
+			Keyed:       keyed,
+			CutValues:   cutValues,
+			Percentiles: percentiles,
 		}, true
 	}
 

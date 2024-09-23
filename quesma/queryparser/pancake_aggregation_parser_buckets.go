@@ -5,6 +5,7 @@ package queryparser
 
 import (
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/kibana"
 	"quesma/logger"
@@ -379,6 +380,7 @@ func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap Query
 			return columns[0]
 		} else if weTrySplitByDot {
 			userPercents := util.MapKeysSortedByValue(agg.Percentiles)
+			pp.Println(agg, percentileNameWeLookFor)
 			for i, percentileName := range userPercents {
 				if percentileName == percentileNameWeLookFor {
 					return columns[i]
