@@ -87,7 +87,7 @@ Decision drivers:
 * Minimal Elasticsearch instance is required for Quesma to work anyway, so we're not putting any additional burden on the user.
 
 Limitations:
-* when accessing Quesma-managed endpoints, there's no notion of RBAC - there's no way to restrict access to specific endpoints based on users/their roles
+* When accessing Quesma-managed endpoints, there's no notion of RBAC - there's no way to restrict access to specific endpoints based on users/their roles. **Therefore, anyone who can authenticate to Elasticsearch is able to access all Quesma-managed endpoints.**
 * PKI realm is not supported
 
 **Note:** SAML realm needs to be handled separately - while we just pass `Authorization` headers of all kinds it **should** work, there might be some gotchas which require more testing. For now, it's not a case.
