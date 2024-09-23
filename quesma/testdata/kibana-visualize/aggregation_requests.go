@@ -639,8 +639,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  "severity" AS "aggr__0__key_0", "source" AS "aggr__0__key_1",
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1") AS
 				  "aggr__0__count",
-				  uniqMerge(uniqState("severity")) OVER (PARTITION BY "aggr__0__key_0",
-				  "aggr__0__key_1") AS "aggr__0__order_2",
+				  "metric__0__2_col_0" AS "aggr__0__order_2",
 				  uniqMerge(uniqState("severity")) OVER (PARTITION BY "aggr__0__key_0",
 				  "aggr__0__key_1") AS "metric__0__2_col_0",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
