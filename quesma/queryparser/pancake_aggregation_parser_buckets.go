@@ -5,13 +5,11 @@ package queryparser
 
 import (
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
-	"quesma/util"
 	"sort"
 	"strconv"
 	"strings"
@@ -317,91 +315,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		return
 	}
 	success = false
-	return
-}
-
-// TODO: for "X.Y" we only try Y to be a percentile. It can be something else, like e.g. one part of (extended_)stats aggregation.
-// It can be clicked out in Kibana's Visualize, so we probably need to implement it.
-func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap QueryMap, fullAggregationPath string) (
-	foundExpr model.Expr, found bool) {
-	// fullAggregationPath can be agg1>agg2>agg3, here we descend to just agg3
-	a := strings.Split(fullAggregationPath, ">")
-	for _, aggName := range a[:len(a)-1] {
-		pp.Println(a, queryMap)
-		if aggs, ok := queryMap["aggs"].(QueryMap); ok {
-			if queryMap, ok = aggs[aggName].(QueryMap); !ok {
-				logger.ErrorWithCtx(cw.Ctx).Msgf("can't find metric aggregation %s", fullAggregationPath)
-			}
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("aggs is not a map, but %T, value: %v. Skipping", aggs, aggs)
-			return
-		}
-	}
-	aggs, ok := queryMap["aggs"].(QueryMap)
-	if !ok {
-		logger.ErrorWithCtx(cw.Ctx).Msgf("can't find metric aggregation %s, no aggs in leaf", fullAggregationPath)
-	}
-	pp.Println("QUERY:", queryMap)
-
-	fullAggregationPath = a[len(a)-1]
-	var percentileNameWeLookFor string
-	weTrySplitByDot := false
-
-	// We try 2 things here:
-	// First (always): maybe there exists an aggregation with exactly this name
-	// Second (if aggregation_name == X.Y): maybe it's aggregationName.some_value, e.g. "2.75", when "2" aggregation is a percentile, and 75 is its value
-	aggregationNamesToTry := []string{fullAggregationPath}
-	splitByDot := strings.Split(fullAggregationPath, ".")
-	if len(splitByDot) == 2 {
-		weTrySplitByDot = true
-		percentileNameWeLookFor = splitByDot[1]
-		aggregationNamesToTry = append(aggregationNamesToTry, splitByDot[0])
-	}
-
-	for _, aggNameToTry := range aggregationNamesToTry {
-		currentAggMapRaw, exists := aggs[aggNameToTry]
-		if !exists {
-			continue
-		}
-
-		currentAggMap, ok := currentAggMapRaw.(QueryMap)
-		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("aggregation %s is not a map, but %T, value: %v. Skipping",
-				fullAggregationPath, currentAggMapRaw, currentAggMapRaw)
-			continue
-		}
-
-		agg, success := cw.tryMetricsAggregation(currentAggMap)
-		if !success {
-			logger.WarnWithCtx(cw.Ctx).Msgf("failed to parse metric aggregation: %v", agg)
-			continue
-		}
-
-		// we build a temporary query only to extract the name of the metric
-		columns, err := generateMetricSelectedColumns(cw.Ctx, agg)
-		pp.Println(columns)
-		pp.Println("agg", agg)
-		if err != nil {
-			continue
-		}
-
-		if aggNameToTry == fullAggregationPath {
-			if len(columns) != 1 {
-				continue
-			}
-			pp.Println(columns[0])
-			return columns[0], true
-		} else if weTrySplitByDot {
-			userPercents := util.MapKeysSortedByValue(agg.Percentiles)
-			for i, percentileName := range userPercents {
-				if percentileName == percentileNameWeLookFor {
-					return columns[i], true
-				}
-			}
-		}
-	}
-
-	logger.ErrorWithCtx(cw.Ctx).Msgf("no given metric aggregation found (name: %v, queryMap: %+v)", fullAggregationPath, queryMap)
 	return
 }
 
