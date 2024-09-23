@@ -850,7 +850,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			WHERE "aggr__0__order_1_rank"<=3
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
-	{ // [59]
+	{ // [4]
 		TestName: "percentile with subaggregation (so, combinator). Visualize, Pie, Slice by: top5 of Cancelled, DistanceKilometers, Metric: 95th Percentile",
 		QueryRequestJson: `
 		{
