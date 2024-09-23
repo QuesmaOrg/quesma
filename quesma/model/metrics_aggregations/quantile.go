@@ -42,9 +42,7 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow) mo
 
 	percentileIdx := -1
 	for _, res := range rows[0].Cols {
-		if !strings.HasPrefix(res.ColName, "metric") && !strings.HasPrefix(res.ColName, "quantile") {
-			// TODO remove second part of if after removing old aggregation logic!
-			// In the new one, all quantile columns start with just "metric"
+		if !strings.HasPrefix(res.ColName, "metric") {
 			continue
 		}
 

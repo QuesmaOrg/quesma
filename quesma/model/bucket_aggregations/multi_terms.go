@@ -57,7 +57,7 @@ func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 		response = append(response, bucket)
 	}
 	sumOtherDocCount := 0
-	if len(rows) > 0 && query.isPancake(rows[0]) { // TODO: remove this after change to pancake-only
+	if len(rows) > 0 {
 		sumOtherDocCount = int(util.ExtractInt64(query.parentCount(rows[0]))) - query.sumDocCounts(rows)
 	}
 	return model.JsonMap{
@@ -104,12 +104,4 @@ func (query MultiTerms) parentCountIdx(row model.QueryResultRow) int {
 }
 func (query MultiTerms) parentCount(row model.QueryResultRow) any {
 	return row.Cols[query.parentCountIdx(row)].Value
-}
-
-// Soon-to-be deprecated. TODO: Remove after change to pancake-only
-func (query MultiTerms) isPancake(row model.QueryResultRow) bool {
-	if query.parentCountIdx(row) < 0 {
-		return false
-	}
-	return strings.HasSuffix(row.Cols[query.parentCountIdx(row)].ColName, "parent_count")
 }
