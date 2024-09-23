@@ -11,9 +11,10 @@ import (
 const cacheWipeInterval = 10 * time.Minute
 
 // authMiddleware a simple implementation of an authentication middleware,
-// which checks if the Authorization header and validates it against Elasticsearch.
+// which checks the Authorization header and validates it against Elasticsearch.
+//
 // If the validation is positive, the Authorization header is stored in a cache to avoid unnecessary calls to Elasticsearch preceding each request.
-// The cache is wiped every 10 minutes - all at once, perhaps this might be revisited in the future.
+// The cache is wiped every 10 minutes - all at once, perhaps this could be revisited in the future.
 type authMiddleware struct {
 	nextHttpHandler   http.Handler
 	authHeaderCache   sync.Map
