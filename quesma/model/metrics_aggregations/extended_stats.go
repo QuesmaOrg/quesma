@@ -5,6 +5,7 @@ package metrics_aggregations
 import (
 	"context"
 	"fmt"
+	"math"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
@@ -104,8 +105,10 @@ func (query ExtendedStats) getValue(row model.QueryResultRow, functionName strin
 		logger.WarnWithCtx(query.ctx).Msgf("unknown function name: %s, row: %+v", functionName, row)
 		return nil
 	}
-	if row.Cols[column].Value != nil {
-		return row.Cols[column].Value
+
+	valueAsFloat, isFloat := row.Cols[column].Value.(float64)
+	if row.Cols[column].Value == nil || (isFloat && math.IsNaN(valueAsFloat)) {
+		return "NaN"
 	}
-	return "NaN"
+	return row.Cols[column].Value
 }
