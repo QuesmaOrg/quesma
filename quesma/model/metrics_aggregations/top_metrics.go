@@ -4,6 +4,7 @@ package metrics_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"strconv"
@@ -63,6 +64,7 @@ func (query *TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow)
 		metrics := make(model.JsonMap)
 		for i, col := range valuesForMetrics {
 			originalFieldName := model.AsString(query.originalFieldNames[i])
+			fmt.Println(originalFieldName, "colName:", col.ColName)
 			fieldNameProperlyQuoted, err := strconv.Unquote(originalFieldName)
 			if err != nil {
 				fieldNameProperlyQuoted = originalFieldName

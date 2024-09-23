@@ -17,6 +17,7 @@ const keyedDefaultValuePercentileRanks = true
 type metricsAggregation struct {
 	AggrType            string
 	Fields              []model.Expr            // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
+	originalFieldNames  []string                // only for top_hits/top_metrics
 	OrderBy             []model.OrderByExpr     // only for top_hits
 	FieldType           clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
 	Percentiles         map[string]float64      // Only for percentiles aggregation
