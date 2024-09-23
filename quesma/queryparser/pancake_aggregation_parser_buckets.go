@@ -89,10 +89,10 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 						model.NewFunction("toDateTime", model.NewLiteral(timestamp)))
 					didWeAddMissing = true
 				} else {
-					logger.ErrorWithCtx(cw.Ctx).Msgf("unknown format of missing in date_histogram: %v", missing)
+					logger.ErrorWithCtx(cw.Ctx).Msgf("unknown format of missing in date_histogram: %v. Skipping it.", missing)
 				}
 			} else {
-				logger.ErrorWithCtx(cw.Ctx).Msgf("missing %v is not a string, but: %T", missingRaw, missingRaw)
+				logger.ErrorWithCtx(cw.Ctx).Msgf("missing %v is not a string, but: %T. Skipping it.", missingRaw, missingRaw)
 			}
 		}
 
