@@ -1,3 +1,5 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
 package quesma
 
 import (
@@ -14,7 +16,7 @@ const cacheWipeInterval = 10 * time.Minute
 // which checks the Authorization header and validates it against Elasticsearch.
 //
 // If the validation is positive, the Authorization header is stored in a cache to avoid unnecessary calls to Elasticsearch preceding each request.
-// The cache is wiped every 10 minutes - all at once, perhaps this could be revisited in the future.
+// The cache is wiped every 10 minutes - all items at once, perhaps this could be revisited in the future.
 type authMiddleware struct {
 	nextHttpHandler   http.Handler
 	authHeaderCache   sync.Map
