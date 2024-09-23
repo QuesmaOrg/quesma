@@ -5,7 +5,6 @@ package quesma
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -246,19 +245,9 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 	reqBody []byte, isManagement bool) chan elasticResult {
 	elkResponseChan := make(chan elasticResult)
 
-	// If the request is authenticated, we should not override it with the configured user
-	if req.Header.Get("Authorization") == "" && r.config.Elasticsearch.User != "" {
-		logger.Info().Msgf("PRZEMYSLAW - req to [%s] not auth'd, FALLBACK TO QUESMA MEGAUSER", req.URL)
+	// If Quesma is exposing unauthenticated API but underlying Elasticsearch requires authentication, we should add it
+	if r.config.DisableAuth && req.Header.Get("Authorization") == "" && r.config.Elasticsearch.User != "" {
 		req.SetBasicAuth(r.config.Elasticsearch.User, r.config.Elasticsearch.Password)
-	} else {
-		auth := req.Header.Get("Authorization")
-		authParts := strings.SplitN(auth, " ", 2)
-		if len(authParts) != 2 {
-			logger.Info().Msg("PRZEMYSLAW - authParts != 2")
-		}
-		payload, _ := base64.StdEncoding.DecodeString(authParts[1])
-		pair := strings.SplitN(string(payload), ":", 2)
-		logger.Info().Msgf("PRZEMYSLAW - req to [%s] already auth'd as [%s] [%s]", req.URL, pair[0], pair[1])
 	}
 
 	go func() {
