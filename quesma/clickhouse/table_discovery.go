@@ -87,8 +87,9 @@ func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema
 		table := schema.Table{Columns: make(map[string]schema.Column)}
 		for _, column := range value.Cols {
 			table.Columns[column.Name] = schema.Column{
-				Name: column.Name,
-				Type: column.Type.String(),
+				Name:    column.Name,
+				Type:    column.Type.String(),
+				Comment: column.Comment,
 			}
 		}
 		table.DatabaseName = value.DatabaseName
