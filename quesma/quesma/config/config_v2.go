@@ -411,7 +411,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	// This is perhaps a little oversimplification, **but** in case any of the FE connectors has auth disabled, we disable auth for the whole incomming traffic
 	// After all, the "duality" of frontend connectors is still an architectural choice we tend to question
 	for _, fConn := range c.FrontendConnectors {
-		if fConn.DisableAuth == true {
+		if fConn.DisableAuth {
 			conf.DisableAuth = true
 		}
 	}
