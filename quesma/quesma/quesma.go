@@ -5,6 +5,7 @@ package quesma
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -245,10 +246,16 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 	reqBody []byte, isManagement bool) chan elasticResult {
 	elkResponseChan := make(chan elasticResult)
 
-	// If Quesma is exposing unauthenticated API but underlying Elasticsearch requires authentication, we should add it
+	// If Quesma is exposing unauthenticated API but underlying Elasticsearch requires authentication, we should add the
 	if r.config.DisableAuth && req.Header.Get("Authorization") == "" && r.config.Elasticsearch.User != "" {
+		logger.DebugWithCtx(ctx).Msgf("[AUTH] [%s] routed to Elasticsearch, need add auth header to the request", req.URL)
 		req.SetBasicAuth(r.config.Elasticsearch.User, r.config.Elasticsearch.Password)
 	}
+
+	authParts := strings.SplitN(req.Header.Get("Authorization"), " ", 2)
+	decodedUserAndPass, _ := base64.StdEncoding.DecodeString(authParts[1])
+	pair := strings.SplitN(string(decodedUserAndPass), ":", 2)
+	logger.DebugWithCtx(ctx).Msgf("[AUTH] [%s] routed to Elasticsearch, called by user [%s]", req.URL, pair[0])
 
 	go func() {
 		elkResponseChan <- recordRequestToElastic(req.URL.Path, r.quesmaManagementConsole, func() elasticResult {
