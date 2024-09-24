@@ -3,12 +3,11 @@
 package quesma
 
 import (
-	"encoding/base64"
 	"net/http"
 	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/quesma/config"
-	"strings"
+	"quesma/util"
 	"sync"
 	"time"
 )
@@ -41,20 +40,22 @@ func (a *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authParts := strings.SplitN(auth, " ", 2)
-	decodedUserAndPass, _ := base64.StdEncoding.DecodeString(authParts[1])
-	pair := strings.SplitN(string(decodedUserAndPass), ":", 2)
+	var userName string
+	if val, err := util.ExtractUsernameFromBasicAuthHeader(auth); err != nil {
+		logger.Warn().Msgf("Failed to extract username from auth header: %v", err)
+		userName = val
+	}
 	if _, ok := a.authHeaderCache.Load(auth); ok {
-		logger.Info().Msgf("[AUTH] [%s] called by [%s] - credentials loaded from cache", r.URL, pair[0])
+		logger.Info().Msgf("[AUTH] [%s] called by [%s] - credentials loaded from cache", r.URL, userName)
 		a.nextHttpHandler.ServeHTTP(w, r)
 		return
 	}
 
 	if authenticated := a.esClient.Authenticate(r.Context(), auth); authenticated {
-		logger.DebugWithCtx(r.Context()).Msgf("[AUTH] [%s] called by [%s] - authenticated against Elasticsearch, storing in cache", r.URL, pair[0])
+		logger.DebugWithCtx(r.Context()).Msgf("[AUTH] [%s] called by [%s] - authenticated against Elasticsearch, storing in cache", r.URL, userName)
 		a.authHeaderCache.Store(auth, struct{}{})
 	} else {
-		logger.DebugWithCtx(r.Context()).Msgf("[AUTH] [%s] called by [%s] - authentication against Elasticsearch failed", r.URL, pair[0])
+		logger.DebugWithCtx(r.Context()).Msgf("[AUTH] [%s] called by [%s] - authentication against Elasticsearch failed", r.URL, userName)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}

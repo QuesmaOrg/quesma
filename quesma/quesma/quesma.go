@@ -5,7 +5,6 @@ package quesma
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -30,6 +29,7 @@ import (
 	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/tracing"
+	"quesma/util"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -252,10 +252,12 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 		req.SetBasicAuth(r.config.Elasticsearch.User, r.config.Elasticsearch.Password)
 	}
 
-	authParts := strings.SplitN(req.Header.Get("Authorization"), " ", 2)
-	decodedUserAndPass, _ := base64.StdEncoding.DecodeString(authParts[1])
-	pair := strings.SplitN(string(decodedUserAndPass), ":", 2)
-	logger.DebugWithCtx(ctx).Msgf("[AUTH] [%s] routed to Elasticsearch, called by user [%s]", req.URL, pair[0])
+	var userName string
+	if val, err := util.ExtractUsernameFromBasicAuthHeader(req.Header.Get("Authorization")); err != nil {
+		logger.Warn().Msgf("Failed to extract username from auth header: %v", err)
+		userName = val
+	}
+	logger.DebugWithCtx(ctx).Msgf("[AUTH] [%s] routed to Elasticsearch, called by user [%s]", req.URL, userName)
 
 	go func() {
 		elkResponseChan <- recordRequestToElastic(req.URL.Path, r.quesmaManagementConsole, func() elasticResult {
