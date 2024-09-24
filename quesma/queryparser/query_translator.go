@@ -4,6 +4,8 @@ package queryparser
 
 import (
 	"context"
+	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -12,7 +14,6 @@ import (
 	"quesma/quesma/config"
 	"quesma/schema"
 	"quesma/util"
-	"strings"
 )
 
 type JsonMap = map[string]interface{}
@@ -130,11 +131,14 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 	// a) we have count query -> we're done
 	// b) we have hits or facets -> we're done
 	// c) we don't have above: we return len(biggest resultset(all aggregations))
+	fmt.Printf("queries:\n%+v\n", queries)
 	totalCount := -1
 	relationCount := "eq"
 	for i, query := range queries {
+		fmt.Printf("%+v %+v", query, *query)
 		if query.Type != nil {
 			if _, isCount := query.Type.(typical_queries.Count); isCount {
+				fmt.Println(results[i])
 				if len(results[i]) > 0 && len(results[i][0].Cols) > 0 {
 					switch v := results[i][0].Cols[0].Value.(type) {
 					case uint64:
@@ -174,44 +178,19 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 				if len(results[queryIdx]) == 0 {
 					continue
 				}
-				totalCount = 0
-				for rowIdx, row := range results[queryIdx] {
-					// sum over all rows
-					if len(row.Cols) == 0 {
-						continue
-					}
-
-					// if group by key exists + it's the same as last, we have already counted it and need to continue
-					newKey := true
-					if rowIdx != 0 { // for first row we always have a new key
-						for colIdx, cell := range row.Cols {
-							// find first group by key
-							if strings.HasSuffix(cell.ColName, "__key_0") {
-								if row.Cols[colIdx].Value == results[queryIdx][rowIdx-1].Cols[colIdx].Value {
-									newKey = false
-								}
-								break
-							}
-						}
-					}
-					if !newKey {
-						continue
-					}
-
-					// find the count column
-					for _, cell := range row.Cols {
-						// FIXME THIS is hardcoded for now, as we don't have a way to get the name of the column
-						if cell.ColName == "metric____quesma_total_count_col_0" {
-							switch v := cell.Value.(type) {
-							case uint64:
-								totalCount += int(v)
-							case int:
-								totalCount += v
-							case int64:
-								totalCount += int(v)
-							default:
-								logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v %t", v, v)
-							}
+				firstRow := results[queryIdx][0]
+				for _, cell := range firstRow.Cols {
+					// FIXME THIS is hardcoded for now, as we don't have a way to get the name of the column
+					if cell.ColName == "metric____quesma_total_count_col_0" {
+						switch v := cell.Value.(type) {
+						case uint64:
+							totalCount = int(v)
+						case int:
+							totalCount = v
+						case int64:
+							totalCount = int(v)
+						default:
+							logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v %t", v, v)
 						}
 					}
 				}
@@ -227,6 +206,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 	for i, query := range queries {
 		if _, hasHits := query.Type.(*typical_queries.Hits); hasHits {
 			totalCount = len(results[i])
+			fmt.Println("dupa", totalCount)
 			relation := "eq"
 			if query.SelectCommand.Limit != 0 && totalCount == query.SelectCommand.Limit {
 				relation = "gte"
@@ -247,6 +227,8 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	var total *model.Total
 	queries, ResultSets, total = cw.makeTotalCount(queries, ResultSets) // get hits and remove it from queries
 	queries, ResultSets, hits = cw.makeHits(queries, ResultSets)        // get hits and remove it from queries
+
+	pp.Println(hits)
 
 	aggregations, err := cw.MakeAggregationPartOfResponse(queries, ResultSets)
 

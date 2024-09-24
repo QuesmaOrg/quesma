@@ -452,3 +452,28 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 		_ = cw.MakeSearchResponse([]*model.Query{{Highlighter: NewEmptyHighlighter()}}, [][]model.QueryResultRow{{resultRow}})
 	}
 }
+
+func Test_makeTotalCount(t *testing.T) {
+	tests := []struct {
+		name          string
+		resultsFromDB [][]model.QueryResultRow
+		wantTotal     *model.Total
+	}{
+		{
+			name: "a",
+			resultsFromDB: [][]model.QueryResultRow{}
+		},
+	}
+	cw := ClickhouseQueryTranslator{}
+	query := &model.Query{
+		SelectCommand: nil,
+		Type:          PancakeQueryType{},
+		OptimizeHints: model.NewQueryExecutionHints(),
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cw.makeTotalCount([]*model.Query{query}, tt.resultsFromDB)
+		})
+	}
+}
