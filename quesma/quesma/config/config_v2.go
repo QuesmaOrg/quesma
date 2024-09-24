@@ -333,8 +333,8 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 	if p.Type == QuesmaV1ProcessorQuery || p.Type == QuesmaV1ProcessorIngest {
 		for indexName, indexConfig := range p.Config.IndexConfig {
 			if p.Type == QuesmaV1ProcessorQuery {
-				if len(indexConfig.Target) != 1 {
-					return fmt.Errorf("configuration of index %s must have exactly one target (query processor)", indexName)
+				if len(indexConfig.Target) != 1 && len(indexConfig.Target) != 2 {
+					return fmt.Errorf("configuration of index %s must have one or two targets (query processor)", indexName)
 				}
 			} else {
 				if len(indexConfig.Target) != 1 && len(indexConfig.Target) != 2 {
@@ -496,6 +496,19 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			}
 			if slices.Contains(indexConfig.Target, relationalDBBackendName) {
 				processedConfig.QueryTarget = append(processedConfig.QueryTarget, ClickhouseTarget)
+			}
+
+			if len(indexConfig.QueryTarget) == 2 && !(indexConfig.QueryTarget[0] == ClickhouseTarget && indexConfig.QueryTarget[1] == ElasticsearchTarget) {
+				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration - when you specify two targets, Elastic has to be the primary one and ClickHouse has to be the secondary one", indexName))
+				continue
+			}
+			if len(indexConfig.QueryTarget) == 2 {
+				// Turn on A/B testing
+				processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+				processedConfig.Optimizers["elastic_ab_testing"] = OptimizerConfiguration{
+					Disabled:   false,
+					Properties: map[string]string{},
+				}
 			}
 
 			conf.IndexConfig[indexName] = processedConfig
