@@ -8,6 +8,7 @@ import (
 	"quesma/concurrent"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
+	"quesma/schema"
 	"strconv"
 	"testing"
 )
@@ -46,9 +47,11 @@ func TestAlterTable(t *testing.T) {
 	}
 	fieldsMap := concurrent.NewMapWith("tableName", table)
 
+	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
+
 	ip := NewIngestProcessor(fieldsMap, &config.QuesmaConfiguration{})
 	for i := range rowsToInsert {
-		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig)
+		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig, encodings)
 		assert.NoError(t, err)
 		insert, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
 		assert.Equal(t, expectedInsert[i], insert)
@@ -96,6 +99,9 @@ func TestAlterTableHeuristic(t *testing.T) {
 		{1000, 100, 10},
 		{1000, 1000, 1},
 	}
+
+	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
+
 	for _, tc := range testcases {
 		const tableName = "tableName"
 		table := &clickhouse.Table{
@@ -124,7 +130,7 @@ func TestAlterTableHeuristic(t *testing.T) {
 
 		assert.Equal(t, int64(0), ip.ingestCounter)
 		for i := range rowsToInsert {
-			_, _, _, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig)
+			_, _, _, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig, encodings)
 			assert.NoError(t, err)
 		}
 		assert.Equal(t, tc.expected, len(table.Cols))
