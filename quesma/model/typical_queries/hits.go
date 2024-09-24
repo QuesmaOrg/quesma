@@ -53,9 +53,6 @@ func (query Hits) AggregationType() model.AggregationType {
 
 func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 
-	// TODO add proper handling of multiple indexes
-	// right now return result row for multiple index
-
 	hits := make([]model.SearchHit, 0, len(rows))
 
 	lookForCommonTableIndexColumn := true
