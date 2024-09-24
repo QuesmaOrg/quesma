@@ -43,7 +43,6 @@ type QuesmaNewConfiguration struct {
 	Processors                 []Processor          `koanf:"processors"`
 	Pipelines                  []Pipeline           `koanf:"pipelines"`
 	DisableTelemetry           bool                 `koanf:"disableTelemetry"`
-	DisableAuth                bool                 `koanf:"disableAuth"`
 }
 
 type Pipeline struct {
@@ -54,9 +53,10 @@ type Pipeline struct {
 }
 
 type FrontendConnector struct {
-	Name   string                         `koanf:"name"`
-	Type   string                         `koanf:"type"`
-	Config FrontendConnectorConfiguration `koanf:"config"`
+	Name        string                         `koanf:"name"`
+	Type        string                         `koanf:"type"`
+	Config      FrontendConnectorConfiguration `koanf:"config"`
+	DisableAuth bool                           `koanf:"disableAuth"`
 }
 
 type FrontendConnectorConfiguration struct {
@@ -408,7 +408,13 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.QuesmaInternalTelemetryUrl = telemetryUrl
 		conf.Logging.RemoteLogDrainUrl = telemetryUrl
 	}
-	conf.DisableAuth = c.DisableAuth
+	// This is perhaps a little oversimplification, **but** in case any of the FE connectors has auth disabled, we disable auth for the whole incomming traffic
+	// After all, the "duality" of frontend connectors is still an architectural choice we tend to question
+	for _, fConn := range c.FrontendConnectors {
+		if fConn.DisableAuth == true {
+			conf.DisableAuth = true
+		}
+	}
 	conf.Logging = c.Logging
 	conf.InstallationId = c.InstallationId
 	conf.LicenseKey = c.LicenseKey
