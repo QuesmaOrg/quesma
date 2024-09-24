@@ -7,6 +7,7 @@ import (
 	"math"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/schema"
 	"slices"
 	"strconv"
 	"strings"
@@ -36,18 +37,16 @@ type (
 		ctx               context.Context
 		tokens            []token
 		defaultFieldNames []string
-		fieldNameResolver fieldNameResolver
 		// This is a little awkward, at some point we should remove `WhereStatement` and just return the statement from `BuildWhereStatement`
 		// However, given parsing implementation, it's easier to keep it for now.
 		WhereStatement model.Expr
-	}
-	fieldNameResolver interface {
-		ResolveFieldName(fieldName string) (string, bool)
+
+		currentSchema schema.Schema
 	}
 )
 
-func newLuceneParser(ctx context.Context, defaultFieldNames []string, resolver fieldNameResolver) luceneParser {
-	return luceneParser{ctx: ctx, defaultFieldNames: defaultFieldNames, tokens: make([]token, 0), fieldNameResolver: resolver}
+func newLuceneParser(ctx context.Context, defaultFieldNames []string, currentSchema schema.Schema) luceneParser {
+	return luceneParser{ctx: ctx, defaultFieldNames: defaultFieldNames, tokens: make([]token, 0), currentSchema: currentSchema}
 }
 
 const fuzzyOperator = '~'
@@ -73,8 +72,8 @@ var specialOperators = map[string]token{
 	string(rightParenthesis): rightParenthesisToken{},
 }
 
-func TranslateToSQL(ctx context.Context, query string, fields []string, resolver fieldNameResolver) model.Expr {
-	parser := newLuceneParser(ctx, fields, resolver)
+func TranslateToSQL(ctx context.Context, query string, fields []string, currentSchema schema.Schema) model.Expr {
+	parser := newLuceneParser(ctx, fields, currentSchema)
 	return parser.translateToSQL(query)
 }
 

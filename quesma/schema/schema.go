@@ -8,10 +8,10 @@ import (
 
 type (
 	Schema struct {
-		Fields              map[FieldName]Field
-		Aliases             map[FieldName]FieldName
-		ExistsInDataSource  bool
-		internalNameToField map[FieldName]Field
+		Fields             map[FieldName]Field
+		Aliases            map[FieldName]FieldName
+		ExistsInDataSource bool
+
 		// DatabaseName is the name of the database/schema in the data source,
 		// which in query prepends the physical table name e.g. 'FROM databaseName.tableName'
 		DatabaseName string
@@ -29,16 +29,12 @@ type (
 )
 
 func NewSchemaWithAliases(fields map[FieldName]Field, aliases map[FieldName]FieldName, existsInDataSource bool, databaseName string) Schema {
-	internalNameToField := make(map[FieldName]Field)
-	for _, field := range fields {
-		internalNameToField[field.InternalPropertyName] = field
-	}
+
 	return Schema{
-		Fields:              fields,
-		Aliases:             aliases,
-		ExistsInDataSource:  existsInDataSource,
-		internalNameToField: internalNameToField,
-		DatabaseName:        databaseName,
+		Fields:             fields,
+		Aliases:            aliases,
+		ExistsInDataSource: existsInDataSource,
+		DatabaseName:       databaseName,
 	}
 }
 
@@ -59,11 +55,13 @@ func (t TableName) AsString() string {
 }
 
 func (s Schema) ResolveFieldByInternalName(fieldName string) (Field, bool) {
-	if field, exists := s.internalNameToField[FieldName(fieldName)]; exists {
-		return field, true
-	} else {
-		return Field{}, false
+
+	for _, field := range s.Fields {
+		if field.InternalPropertyName.AsString() == fieldName {
+			return field, true
+		}
 	}
+	return Field{}, false
 }
 
 func (s Schema) ResolveField(fieldName string) (Field, bool) {

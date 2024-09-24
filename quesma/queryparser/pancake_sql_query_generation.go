@@ -53,6 +53,11 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 			// This is ClickHouse specific: https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators
 			return model.NewFunction(origFunc.Name+"State", origFunc.Args...), origFunc.Name + "Merge", nil
 		}
+
+		if strings.HasPrefix(origFunc.Name, "quantiles") {
+			return model.NewFunction(strings.Replace(origFunc.Name, "quantiles", "quantilesState", 1), origFunc.Args...),
+				strings.Replace(origFunc.Name, "quantiles", "quantilesMerge", 1), nil
+		}
 	}
 	debugQueryType := "<nil>"
 	if queryType != nil {
@@ -277,7 +282,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	for _, layer := range aggregation.layers {
 		for _, metric := range layer.currentMetricAggregations {
 			switch metric.queryType.(type) {
-			case metrics_aggregations.TopMetrics, metrics_aggregations.TopHits:
+			case *metrics_aggregations.TopMetrics, *metrics_aggregations.TopHits:
 				optTopHitsOrMetrics = metric
 			default:
 				hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount

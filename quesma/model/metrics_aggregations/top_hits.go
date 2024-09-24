@@ -14,20 +14,16 @@ type TopHits struct {
 	OrderBy []model.OrderByExpr
 }
 
-func NewTopHits(ctx context.Context, size int) TopHits {
-	return TopHits{ctx: ctx, Size: size}
+func NewTopHits(ctx context.Context, size int, orderBy []model.OrderByExpr) *TopHits {
+	return &TopHits{ctx: ctx, Size: size, OrderBy: orderBy}
 }
 
-func NewTopHitsWithOrderBy(ctx context.Context, size int, orderBy []model.OrderByExpr) TopHits {
-	return TopHits{ctx: ctx, Size: size, OrderBy: orderBy}
-}
-
-func (query TopHits) AggregationType() model.AggregationType {
+func (query *TopHits) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
 // TODO: implement correct
-func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+func (query *TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	var topElems []any
 	if len(rows) > 0 && 0 >= len(rows[0].Cols) {
 		// values are [level, len(row.Cols) - 1]
@@ -73,6 +69,6 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mod
 	}
 }
 
-func (query TopHits) String() string {
+func (query *TopHits) String() string {
 	return "top_hits"
 }

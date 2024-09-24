@@ -12,6 +12,7 @@ import (
 	"quesma/util"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -29,15 +30,15 @@ type Hits struct {
 	addSource          bool // true <=> we add hit.Source field to the response
 	addScore           bool // true <=> we add hit.Score field to the response (whose value is always 1)
 	addVersion         bool // true <=> we add hit.Version field to the response (whose value is always 1)
-	indexName          string
+	indexes            []string
 	timestampFieldName string
 }
 
 func NewHits(ctx context.Context, table *clickhouse.Table, highlighter *model.Highlighter,
-	sortFieldNames []string, addSource, addScore, addVersion bool, incomingIndexName string) Hits {
+	sortFieldNames []string, addSource, addScore, addVersion bool, indexes []string) Hits {
 
 	return Hits{ctx: ctx, table: table, highlighter: highlighter, sortFieldNames: sortFieldNames,
-		addSource: addSource, addScore: addScore, addVersion: addVersion, indexName: incomingIndexName}
+		addSource: addSource, addScore: addScore, addVersion: addVersion, indexes: indexes}
 }
 
 const (
@@ -50,9 +51,14 @@ func (query Hits) AggregationType() model.AggregationType {
 }
 
 func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+
+	// TODO add proper handling of multiple indexes
+	// right now return result row for multiple index
+	indexName := query.indexes[0]
+
 	hits := make([]model.SearchHit, 0, len(rows))
 	for i, row := range rows {
-		hit := model.NewSearchHit(query.indexName)
+		hit := model.NewSearchHit(indexName)
 		if query.addScore {
 			hit.Score = defaultScore
 		}
@@ -169,5 +175,5 @@ func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) st
 }
 
 func (query Hits) String() string {
-	return fmt.Sprintf("hits(table: %v)", query.indexName)
+	return fmt.Sprintf("hits(indexes: %v)", strings.Join(query.indexes, ", "))
 }
