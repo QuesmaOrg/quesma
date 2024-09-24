@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"quesma/clickhouse"
+	"quesma/common_table"
 	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/model"
@@ -54,11 +55,35 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 
 	// TODO add proper handling of multiple indexes
 	// right now return result row for multiple index
-	indexName := query.indexes[0]
 
 	hits := make([]model.SearchHit, 0, len(rows))
+
+	lookForCommonTableIndexColumn := true
+
 	for i, row := range rows {
+
+		// sane default
+		indexName := query.indexes[0]
+
+		// we don't look for common table index column if we didn't find it in the first row
+		if lookForCommonTableIndexColumn {
+			var found bool
+			for _, cell := range row.Cols {
+				if cell.ColName == common_table.IndexNameColumn {
+					indexName = cell.Value.(string)
+					found = true
+					break
+				}
+			}
+			if !found {
+				lookForCommonTableIndexColumn = false
+			} else {
+				// TODO remove index from row
+			}
+		}
+
 		hit := model.NewSearchHit(indexName)
+
 		if query.addScore {
 			hit.Score = defaultScore
 		}
@@ -112,6 +137,12 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 	}
 
 	for _, col := range resultRow.Cols {
+
+		// skip internal columns
+		if col.ColName == common_table.IndexNameColumn {
+			continue
+		}
+
 		if col.Value == nil {
 			continue // We don't return empty value
 		}
