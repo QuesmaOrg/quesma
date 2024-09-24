@@ -347,8 +347,8 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 					return fmt.Errorf("configuration of index %s must have one or two targets (query processor)", indexName)
 				}
 			} else {
-				if len(indexConfig.Target) != 1 && len(indexConfig.Target) != 2 {
-					return fmt.Errorf("configuration of index %s must have one or two targets (ingest processor)", indexName)
+				if len(indexConfig.Target) > 2 {
+					return fmt.Errorf("configuration of index %s must have at most two targets (ingest processor)", indexName)
 				}
 			}
 

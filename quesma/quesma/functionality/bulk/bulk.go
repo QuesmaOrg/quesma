@@ -145,6 +145,37 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 
 			clickhouseDocumentsToInsert[index] = append(clickhouseDocumentsToInsert[index], entryWithResponse)
 		}
+		if indexConfig.IsIngestDisabled() {
+			bulkSingleResponse := BulkSingleResponse{
+				Shards: BulkShardsResponse{
+					Failed:     1,
+					Successful: 0,
+					Total:      1,
+				},
+				Status: 403,
+				Type:   "_doc",
+				Error: queryparser.Error{
+					RootCause: []queryparser.RootCause{
+						{
+							Type:   "index_closed_exception",
+							Reason: fmt.Sprintf("index %s is not routed to any connector", index),
+						},
+					},
+					Type:   "index_closed_exception",
+					Reason: fmt.Sprintf("index %s is not routed to any connector", index),
+				},
+			}
+			switch operation {
+			case "create":
+				entryWithResponse.response.Create = bulkSingleResponse
+
+			case "index":
+				entryWithResponse.response.Index = bulkSingleResponse
+
+			default:
+				return fmt.Errorf("unsupported bulk operation type: %s. Document: %v", operation, document)
+			}
+		}
 		return nil
 	})
 
