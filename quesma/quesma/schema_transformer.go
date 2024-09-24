@@ -354,13 +354,10 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 	var useCommonTable bool
 	if len(query.Indexes) == 1 {
-		indexConf, ok := s.cfg[query.Indexes[0]]
-		if !ok {
-			return query, fmt.Errorf("index configuration not found for table %s", query.TableName)
+		if indexConf, ok := s.cfg[query.Indexes[0]]; ok {
+			useCommonTable = indexConf.UseCommonTable
 		}
-		useCommonTable = indexConf.UseCommonTable
-	} else {
-		// we can handle querying multiple indexes from common table only
+	} else { // we can handle querying multiple indexes from common table only
 		useCommonTable = true
 	}
 
