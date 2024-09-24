@@ -81,8 +81,8 @@ func Test_ipRangeTransform(t *testing.T) {
 			TableName: "kibana_sample_data_logs_nested", FieldName: "nested.clientip"}: "nested_clientip",
 	}
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+	transform := &SchemaCheckPass{cfg: indexConfig}
 	s.UpdateFieldEncodings(fieldEncodings)
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
 
 	selectColumns := []model.Expr{model.NewColumnRef("message")}
 
@@ -388,8 +388,22 @@ func Test_ipRangeTransform(t *testing.T) {
 				}},
 		},
 	}
+
 	for k := range queries {
 		t.Run(strconv.Itoa(k), func(t *testing.T) {
+
+			queriesToTransform := queries[k]
+
+			for _, q := range queriesToTransform {
+
+				currentSchema, ok := s.FindSchema(schema.TableName(q.TableName))
+				if !ok {
+					t.Fatalf("schema not found for table %s", q.TableName)
+				}
+				q.Schema = currentSchema
+				q.Indexes = []string{q.TableName}
+			}
+
 			resultQueries, err := transform.Transform(queries[k])
 			assert.NoError(t, err)
 			assert.Equal(t, expectedQueries[k].SelectCommand.String(), resultQueries[0].SelectCommand.String())
@@ -412,13 +426,11 @@ func Test_arrayType(t *testing.T) {
 		"order_date":        {PropertyName: "order_date", InternalPropertyName: "order_date", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
 	}
 
-	schemaRegistry := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
-			"kibana_sample_data_ecommerce": schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
-		},
+	indexSchema := schema.Schema{
+		Fields: fields,
 	}
 
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: schemaRegistry}
+	transform := &SchemaCheckPass{cfg: indexConfig}
 
 	tests := []struct {
 		name     string
@@ -554,6 +566,8 @@ func Test_arrayType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.query.Schema = indexSchema
+			tt.query.Indexes = []string{tt.query.TableName}
 			actual, err := transform.Transform([]*model.Query{tt.query})
 			assert.NoError(t, err)
 
@@ -593,7 +607,7 @@ func TestApplyWildCard(t *testing.T) {
 		},
 	}
 
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
+	transform := &SchemaCheckPass{cfg: indexConfig}
 
 	tests := []struct {
 		name     string
@@ -683,7 +697,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 	td.Store(tableDefinition.Name, &tableDefinition)
 
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
+	transform := &SchemaCheckPass{cfg: indexConfig}
 
 	tests := []struct {
 		name     string
@@ -799,6 +813,8 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 			query := &model.Query{
 				TableName:     "test",
 				SelectCommand: tt.input,
+				Schema:        indexSchema,
+				Indexes:       []string{"test"},
 			}
 
 			expectedAsString := model.AsString(tt.expected)
@@ -942,7 +958,7 @@ func TestFullTextFields(t *testing.T) {
 			}
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-			transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
+			transform := &SchemaCheckPass{cfg: indexConfig}
 
 			indexSchema, ok := s.FindSchema("test")
 			if !ok {

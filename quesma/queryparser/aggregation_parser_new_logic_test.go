@@ -55,7 +55,7 @@ func Test3AggregationParserNewLogic(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: s.Tables[schema.TableName(tableName)]}
 
 	for i, test := range testdata.NewLogicTestCases {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
