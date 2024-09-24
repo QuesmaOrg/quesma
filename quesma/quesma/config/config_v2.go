@@ -74,6 +74,10 @@ type Processor struct {
 	Config QuesmaProcessorConfig `koanf:"config"`
 }
 
+// An index configuration under this name in IndexConfig
+// specifies the default configuration for all (non-configured) indexes
+const DefaultWildcardIndexName = "*"
+
 // Configuration of QuesmaV1ProcessorQuery and QuesmaV1ProcessorIngest
 type QuesmaProcessorConfig struct {
 	IndexConfig map[string]IndexConfiguration `koanf:"indexes"`
@@ -274,6 +278,9 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 					return fmt.Errorf("index '%s' is defined in query processor, but not in ingest processor", indexName)
 				}
 			}
+			if _, found := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; !found {
+				return fmt.Errorf("the default index configuration (under the name '%s') must be defined in the query processor", DefaultWildcardIndexName)
+			}
 			for indexName, queryIndexConf := range queryProcessor.Config.IndexConfig {
 				ingestIndexConf := ingestProcessor.Config.IndexConfig[indexName]
 				if queryIndexConf.Override != ingestIndexConf.Override {
@@ -332,6 +339,9 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 	}
 	if p.Type == QuesmaV1ProcessorQuery || p.Type == QuesmaV1ProcessorIngest {
 		for indexName, indexConfig := range p.Config.IndexConfig {
+			if indexName != DefaultWildcardIndexName && strings.ContainsAny(indexName, "*,") {
+				return fmt.Errorf("index name '%s' in processor configuration is an index pattern, not allowed", indexName)
+			}
 			if p.Type == QuesmaV1ProcessorQuery {
 				if len(indexConfig.Target) != 1 && len(indexConfig.Target) != 2 {
 					return fmt.Errorf("configuration of index %s must have one or two targets (query processor)", indexName)
@@ -447,6 +457,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	conf.InstallationId = c.InstallationId
 	conf.LicenseKey = c.LicenseKey
 	conf.IngestStatistics = c.IngestStatistics
+	conf.AutodiscoveryEnabled = false
 	conf.Connectors = make(map[string]RelationalDbConfiguration)
 	relDBConn, connType, err := c.getRelationalDBConf()
 	if err != nil {
@@ -529,6 +540,19 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			conf.IndexConfig[indexName] = processedConfig
 		}
+
+		// Handle default index configuration
+		defaultConfig := conf.IndexConfig[DefaultWildcardIndexName]
+		if len(defaultConfig.QueryTarget) != 1 {
+			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
+		}
+		if defaultConfig.QueryTarget[0] == ClickhouseTarget {
+			conf.AutodiscoveryEnabled = true
+		}
+		if !reflect.DeepEqual(defaultConfig.IngestTarget, []string{ElasticsearchTarget}) {
+			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of ingest processor is not currently supported", DefaultWildcardIndexName))
+		}
+		delete(conf.IndexConfig, DefaultWildcardIndexName)
 	}
 
 	if errAcc != nil {

@@ -70,6 +70,8 @@ processors:
                 type: "keyword"
               severity:
                 type: "keyword"
+        "*":
+          target: [ my-minimal-elasticsearch ]
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
@@ -113,6 +115,8 @@ processors:
                 type: "keyword"
               severity:
                 type: "keyword"
+        "*":
+          target: [ my-minimal-elasticsearch ]
 pipelines:
   - name: my-pipeline-elasticsearch-query-clickhouse
     frontendConnectors: [ elastic-query ]
