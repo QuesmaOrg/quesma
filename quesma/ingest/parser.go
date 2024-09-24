@@ -20,6 +20,17 @@ type CreateTableEntry struct {
 	ClickHouseType       string
 }
 
+func reverseFieldEncoding(fieldEncodings map[schema.FieldEncodingKey]schema.EncodedFieldName, tableName string) map[schema.EncodedFieldName]schema.FieldEncodingKey {
+	res := make(map[schema.EncodedFieldName]schema.FieldEncodingKey)
+
+	for k, v := range fieldEncodings {
+		if k.TableName == tableName {
+			res[v] = k
+		}
+	}
+	return res
+}
+
 // Rendering columns to string
 func columnsToString(columnsFromJson []CreateTableEntry,
 	columnsFromSchema map[schema.FieldName]CreateTableEntry,
@@ -27,13 +38,7 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 	tableName string,
 ) string {
 
-	reverseFieldEncoding := make(map[schema.EncodedFieldName]schema.FieldEncodingKey)
-
-	for k, v := range fieldEncodings {
-		if k.TableName == tableName {
-			reverseFieldEncoding[v] = k
-		}
-	}
+	reverseMap := reverseFieldEncoding(fieldEncodings, tableName)
 
 	var result strings.Builder
 	first := true
@@ -47,9 +52,9 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 
 		if columnFromSchema, found := columnsFromSchema[schema.FieldName(columnFromJson.ClickHouseColumnName)]; found && !strings.Contains(columnFromJson.ClickHouseType, "Array") {
 			// Schema takes precedence over JSON (except for Arrays which are not currently handled)
-			result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromSchema.ClickHouseColumnName, columnFromSchema.ClickHouseType+" COMMENT ", reverseFieldEncoding[schema.EncodedFieldName(columnFromSchema.ClickHouseColumnName)].FieldName))
+			result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromSchema.ClickHouseColumnName, columnFromSchema.ClickHouseType+" COMMENT ", reverseMap[schema.EncodedFieldName(columnFromSchema.ClickHouseColumnName)].FieldName))
 		} else {
-			result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType+" COMMENT ", reverseFieldEncoding[schema.EncodedFieldName(columnFromJson.ClickHouseColumnName)].FieldName))
+			result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType+" COMMENT ", reverseMap[schema.EncodedFieldName(columnFromJson.ClickHouseColumnName)].FieldName))
 		}
 
 		delete(columnsFromSchema, schema.FieldName(columnFromJson.ClickHouseColumnName))
@@ -63,7 +68,7 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 			result.WriteString(",\n")
 		}
 		result.WriteString(util.Indent(1))
-		result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", column.ClickHouseColumnName, column.ClickHouseType+" COMMENT ", reverseFieldEncoding[schema.EncodedFieldName(column.ClickHouseColumnName)].FieldName))
+		result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", column.ClickHouseColumnName, column.ClickHouseType+" COMMENT ", reverseMap[schema.EncodedFieldName(column.ClickHouseColumnName)].FieldName))
 	}
 	return result.String()
 }
