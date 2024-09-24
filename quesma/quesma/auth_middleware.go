@@ -43,7 +43,7 @@ func (a *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if authenticated := a.esClient.Authenticate(auth); authenticated {
+	if authenticated := a.esClient.Authenticate(r.Context(), auth); authenticated {
 		a.authHeaderCache.Store(auth, struct{}{})
 	} else {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)

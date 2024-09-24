@@ -4,10 +4,12 @@ package elasticsearch
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"quesma/logger"
 	"quesma/quesma/config"
 	"time"
 )
@@ -31,18 +33,18 @@ func NewSimpleClient(configuration *config.ElasticsearchConfiguration) *SimpleCl
 		config: configuration,
 	}
 }
-func (es *SimpleClient) Request(method, endpoint string, payload interface{}) (*http.Response, error) {
+func (es *SimpleClient) Request(ctx context.Context, method, endpoint string, payload interface{}) (*http.Response, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
-	return es.doRequest(method, endpoint, body, nil)
+	return es.doRequest(ctx, method, endpoint, body, nil)
 }
 
-func (es *SimpleClient) Authenticate(authHeader string) bool {
-	resp, err := es.doRequest("GET", "_security/_authenticate", nil, http.Header{"Authorization": {authHeader}})
+func (es *SimpleClient) Authenticate(ctx context.Context, authHeader string) bool {
+	resp, err := es.doRequest(ctx, "GET", "_security/_authenticate", nil, http.Header{"Authorization": {authHeader}})
 	if err != nil {
-		fmt.Println("Error sending request:", err)
+		logger.ErrorWithCtx(ctx).Msgf("error sending request: %v", err)
 		return false
 	}
 	defer resp.Body.Close()
@@ -51,8 +53,8 @@ func (es *SimpleClient) Authenticate(authHeader string) bool {
 }
 
 // doRequest can override auth headers specified in the config, use with care!
-func (es *SimpleClient) doRequest(method, endpoint string, body []byte, headers http.Header) (*http.Response, error) {
-	req, err := http.NewRequest(method, fmt.Sprintf("%s/%s", es.config.Url, endpoint), bytes.NewBuffer(body))
+func (es *SimpleClient) doRequest(ctx context.Context, method, endpoint string, body []byte, headers http.Header) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/%s", es.config.Url, endpoint), bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
