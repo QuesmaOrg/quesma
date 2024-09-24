@@ -77,8 +77,6 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 			}
 			if !found {
 				lookForCommonTableIndexColumn = false
-			} else {
-				// TODO remove index from row
 			}
 		}
 
