@@ -5,6 +5,7 @@ package quesma
 import (
 	"net/http"
 	"quesma/elasticsearch"
+	"quesma/logger"
 	"quesma/quesma/config"
 	"sync"
 	"time"
@@ -53,6 +54,11 @@ func (a *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *authMiddleware) startCacheWipeScheduler() {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error().Msgf("Recovered from panic during auth middleware cache wiping: [%v]", r)
+		}
+	}()
 	ticker := time.NewTicker(a.cacheWipeInterval)
 	defer ticker.Stop()
 	for {

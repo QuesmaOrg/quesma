@@ -9,7 +9,10 @@ import (
 	"fmt"
 	"net/http"
 	"quesma/quesma/config"
+	"time"
 )
+
+const esRequestTimeout = 5 * time.Second
 
 type SimpleClient struct {
 	client *http.Client
@@ -21,6 +24,7 @@ func NewSimpleClient(configuration *config.ElasticsearchConfiguration) *SimpleCl
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
+		Timeout: esRequestTimeout,
 	}
 	return &SimpleClient{
 		client: client,
