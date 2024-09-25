@@ -43,8 +43,8 @@ type QuesmaConfiguration struct {
 	PublicTcpPort              network.Port                  `koanf:"port"`
 	IngestStatistics           bool                          `koanf:"ingestStatistics"`
 	QuesmaInternalTelemetryUrl *Url                          `koanf:"internalTelemetryUrl"`
-	AutodiscoveryEnabled       bool
 	DisableAuth                bool                          `koanf:"disableAuth"`
+	AutodiscoveryEnabled       bool
 }
 
 type LoggingConfiguration struct {
