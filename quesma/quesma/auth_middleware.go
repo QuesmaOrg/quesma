@@ -41,9 +41,10 @@ func (a *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var userName string
-	if val, err := util.ExtractUsernameFromBasicAuthHeader(auth); err != nil {
+	if user, err := util.ExtractUsernameFromBasicAuthHeader(auth); err == nil {
+		userName = user
+	} else {
 		logger.Warn().Msgf("Failed to extract username from auth header: %v", err)
-		userName = val
 	}
 	if _, ok := a.authHeaderCache.Load(auth); ok {
 		logger.Debug().Msgf("[AUTH] [%s] called by [%s] - credentials loaded from cache", r.URL, userName)

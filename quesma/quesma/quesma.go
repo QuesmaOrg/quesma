@@ -253,9 +253,10 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 	}
 
 	var userName string
-	if val, err := util.ExtractUsernameFromBasicAuthHeader(req.Header.Get("Authorization")); err != nil {
+	if user, err := util.ExtractUsernameFromBasicAuthHeader(req.Header.Get("Authorization")); err == nil {
+		userName = user
+	} else {
 		logger.Warn().Msgf("Failed to extract username from auth header: %v", err)
-		userName = val
 	}
 	logger.DebugWithCtx(ctx).Msgf("[AUTH] [%s] routed to Elasticsearch, called by user [%s]", req.URL, userName)
 
