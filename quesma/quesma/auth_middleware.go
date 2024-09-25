@@ -46,7 +46,7 @@ func (a *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		userName = val
 	}
 	if _, ok := a.authHeaderCache.Load(auth); ok {
-		logger.Info().Msgf("[AUTH] [%s] called by [%s] - credentials loaded from cache", r.URL, userName)
+		logger.Debug().Msgf("[AUTH] [%s] called by [%s] - credentials loaded from cache", r.URL, userName)
 		a.nextHttpHandler.ServeHTTP(w, r)
 		return
 	}
