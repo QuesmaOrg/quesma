@@ -364,7 +364,7 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 		errAcc = multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("frontend connector named %s referenced in %s not found in configuration", pipeline.FrontendConnectors[0], pipeline.Name)))
 	}
 
-	if len(pipeline.BackendConnectors) != 0 && len(pipeline.BackendConnectors) > 2 {
+	if len(pipeline.BackendConnectors) == 0 || len(pipeline.BackendConnectors) > 2 {
 		return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline must define exactly one or two backend connectors, %d defined", len(pipeline.BackendConnectors))))
 	}
 	if !slices.Contains(c.definedBackendConnectorNames(), pipeline.BackendConnectors[0]) {
