@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"quesma/common_table"
 	"quesma/logger"
 	"quesma/schema"
 	"quesma/util"
@@ -84,6 +85,11 @@ func (r *QueryResultRow) String(ctx context.Context) string {
 	str.WriteString(util.Indent(1) + "{\n")
 	i := 0
 	for _, col := range r.Cols {
+		// skip internal columns
+		if col.ColName == common_table.IndexNameColumn {
+			continue
+		}
+
 		colStr := col.String(ctx)
 		if len(colStr) > 0 {
 			if i > 0 {

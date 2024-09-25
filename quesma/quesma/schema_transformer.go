@@ -470,6 +470,10 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 		for _, col := range cols {
 			newColumns = append(newColumns, model.NewColumnRef(col))
 		}
+
+		if len(query.Indexes) > 1 {
+			newColumns = append(newColumns, model.NewColumnRef(common_table.IndexNameColumn))
+		}
 	}
 
 	if len(newColumns) == 0 {
