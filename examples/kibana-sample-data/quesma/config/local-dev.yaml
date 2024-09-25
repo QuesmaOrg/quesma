@@ -4,6 +4,7 @@ frontendConnectors:
     type: elasticsearch-fe-ingest
     config:
       listenPort: 8080
+      disableAuth: true
   - name: elastic-query
     type: elasticsearch-fe-query
     config:
