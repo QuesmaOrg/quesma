@@ -58,6 +58,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	})
 
 	router.Register(routes.IndexDocPath, and(method("POST"), matchedExactIngestPath(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		index := req.Params["index"]
 
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
@@ -67,7 +68,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			}, nil
 		}
 
-		err = doc.Write(ctx, req.Params["index"], body, ip, cfg)
+		result, err := doc.Write(ctx, &index, body, ip, cfg, phoneHomeAgent)
 		if err != nil {
 			return &mux.Result{
 				Body:       string(queryparser.BadRequestParseError(err)),
@@ -75,7 +76,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			}, nil
 		}
 
-		return indexDocResult(req.Params["index"], http.StatusOK)
+		return indexDocResult(result)
 	})
 
 	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExactIngestPath(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -418,24 +419,12 @@ func resolveIndexResult(sources elasticsearch.Sources) (*mux.Result, error) {
 		StatusCode: http.StatusOK}, nil
 }
 
-func indexDocResult(index string, statusCode int) (*mux.Result, error) {
-	body, err := json.Marshal(indexDocResponse{
-		Id:          "fakeId",
-		Index:       index,
-		PrimaryTerm: 1,
-		SeqNo:       0,
-		Shards: shardsResponse{
-			Failed:     0,
-			Successful: 1,
-			Total:      1,
-		},
-		Version: 1,
-		Result:  "created",
-	})
+func indexDocResult(bulkItem bulk.BulkItem) (*mux.Result, error) {
+	body, err := json.Marshal(bulkItem.Index)
 	if err != nil {
 		return nil, err
 	}
-	return elasticsearchInsertResult(string(body), statusCode), nil
+	return elasticsearchInsertResult(string(body), http.StatusOK), nil
 }
 
 func putIndexResult(index string) (*mux.Result, error) {
@@ -473,20 +462,6 @@ func getIndexResult(index string, mappings map[string]any) (*mux.Result, error) 
 }
 
 type (
-	indexDocResponse struct {
-		Id          string         `json:"_id"`
-		Index       string         `json:"_index"`
-		PrimaryTerm int            `json:"_primary_term"`
-		SeqNo       int            `json:"_seq_no"`
-		Shards      shardsResponse `json:"_shards"`
-		Version     int            `json:"_version"`
-		Result      string         `json:"result"`
-	}
-	shardsResponse struct {
-		Failed     int `json:"failed"`
-		Successful int `json:"successful"`
-		Total      int `json:"total"`
-	}
 	putIndexResponse struct {
 		Acknowledged       bool   `json:"acknowledged"`
 		ShardsAcknowledged bool   `json:"shards_acknowledged"`
