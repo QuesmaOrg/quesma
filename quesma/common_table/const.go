@@ -41,7 +41,6 @@ func EnsureCommonTableExists(db *sql.DB) {
 
 // Here are defintion of JSON objects that are used to store virtual tables in JSON database
 
-
 const VirtualTableElasticIndexName = "quesma_virtual_tables"
 const VirtualTableStructVersion = "1"
 
@@ -50,7 +49,6 @@ type VirtualTableColumn struct {
 	Type    string `json:"type"`
 	Comment string `json:"comment"`
 }
-
 
 type VirtualTable struct {
 	Version  string               `json:"version"`
