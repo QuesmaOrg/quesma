@@ -491,8 +491,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		queryProcessor, ingestProcessor := c.getProcessorByName(queryPipeline.Processors[0]), c.getProcessorByName(ingestPipeline.Processors[0])
 
 		elasticBackendName := c.getElasticsearchBackendConnector().Name
-		relationalDBBackend, _ := c.getRelationalDBBackendConnector()
-		relationalDBBackendName := relationalDBBackend.Name
+		var relationalDBBackendName string
+		if relationalDBBackend, _ := c.getRelationalDBBackendConnector(); relationalDBBackend != nil {
+			relationalDBBackendName = relationalDBBackend.Name
+		}
 
 		conf.IndexConfig = make(map[string]IndexConfiguration)
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
