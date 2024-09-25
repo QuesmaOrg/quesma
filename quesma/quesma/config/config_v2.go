@@ -363,6 +363,7 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 	if !slices.Contains(c.definedFrontedConnectorNames(), pipeline.FrontendConnectors[0]) {
 		errAcc = multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("frontend connector named %s referenced in %s not found in configuration", pipeline.FrontendConnectors[0], pipeline.Name)))
 	}
+
 	if len(pipeline.BackendConnectors) != 0 && len(pipeline.BackendConnectors) > 2 {
 		return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline must define exactly one or two backend connectors, %d defined", len(pipeline.BackendConnectors))))
 	}
@@ -374,6 +375,7 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 			errAcc = multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[1], pipeline.Name)))
 		}
 	}
+
 	if len(pipeline.Processors) != 1 {
 		return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline must have exactly one processor, [%s] has %d defined", pipeline.Name, len(pipeline.Processors))))
 	}
@@ -489,6 +491,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			queryPipeline, ingestPipeline = c.Pipelines[1], c.Pipelines[0]
 		}
 		queryProcessor, ingestProcessor := c.getProcessorByName(queryPipeline.Processors[0]), c.getProcessorByName(ingestPipeline.Processors[0])
+
+		if queryProcessor.Type == QuesmaV1ProcessorNoOp && ingestProcessor.Type == QuesmaV1ProcessorNoOp {
+			conf.TransparentProxy = true
+		}
 
 		elasticBackendName := c.getElasticsearchBackendConnector().Name
 		var relationalDBBackendName string
