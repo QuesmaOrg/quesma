@@ -33,7 +33,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.Reque
 			}
 			if idx%2 == 0 {
 				indexConfig, found := configuration.IndexConfig[extractIndexName(s)]
-				if found && indexConfig.IsClickhouseIngestEnabled() {
+				if found && (indexConfig.IsClickhouseIngestEnabled() || indexConfig.IsIngestDisabled()) {
 					return true
 				}
 			}
@@ -113,7 +113,7 @@ func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool) mux.RequestMa
 		if queryPath {
 			return exists && indexConfig.IsClickhouseQueryEnabled()
 		} else {
-			return exists && indexConfig.IsClickhouseIngestEnabled()
+			return exists && (indexConfig.IsClickhouseIngestEnabled() || indexConfig.IsIngestDisabled())
 		}
 	})
 }

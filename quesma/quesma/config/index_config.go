@@ -60,3 +60,7 @@ func (c IndexConfiguration) IsClickhouseQueryEnabled() bool {
 func (c IndexConfiguration) IsClickhouseIngestEnabled() bool {
 	return slices.Contains(c.IngestTarget, ClickhouseTarget)
 }
+
+func (c IndexConfiguration) IsIngestDisabled() bool {
+	return len(c.IngestTarget) == 0
+}
