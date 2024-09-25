@@ -100,13 +100,13 @@ var expectedInserts = [][]string{
 	[]string{EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","service_name":"frontend","severity":"debug","source":"rhel"}`)},
 	[]string{
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "service_name" Nullable(String)`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "service_name" 'service.name'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "service_name" 'quesmaMetadata:fieldName=service.name&v=1'`),
 
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "severity" 'severity'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "severity" 'quesmaMetadata:fieldName=severity&v=1'`),
 
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "source" Nullable(String)`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "source" 'source'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "source" 'quesmaMetadata:fieldName=source&v=1'`),
 
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","service_name":"frontend","severity":"debug","source":"rhel"}`),
 	},
@@ -115,11 +115,11 @@ var expectedInserts = [][]string{
 	},
 	[]string{
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random1" Array(String)`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "random1" 'random1'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "random1" 'quesmaMetadata:fieldName=random1&v=1'`),
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random2" Nullable(String)`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "random2" 'random2'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "random2" 'quesmaMetadata:fieldName=random2&v=1'`),
 		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "severity" 'severity'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "severity" 'quesmaMetadata:fieldName=severity&v=1'`),
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
 	},
 }
