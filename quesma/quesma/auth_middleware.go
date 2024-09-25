@@ -36,6 +36,7 @@ func NewAuthMiddleware(next http.Handler, esConf config.ElasticsearchConfigurati
 func (a *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	auth := r.Header.Get("Authorization")
 	if auth == "" {
+		logger.Warn().Msgf("[AUTH] [%s] called without authorisation header, consider applying `disableAuth` option to the frontend connector to enable unauthorized access", r.URL)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}

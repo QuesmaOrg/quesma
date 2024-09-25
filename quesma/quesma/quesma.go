@@ -248,7 +248,7 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 
 	// If Quesma is exposing unauthenticated API but underlying Elasticsearch requires authentication, we should add the
 	if r.config.DisableAuth && req.Header.Get("Authorization") == "" && r.config.Elasticsearch.User != "" {
-		logger.DebugWithCtx(ctx).Msgf("[AUTH] [%s] routed to Elasticsearch, need add auth header to the request", req.URL)
+		logger.DebugWithCtx(ctx).Msgf("path=%s routed to Elasticsearch, need add auth header to the request", req.URL)
 		req.SetBasicAuth(r.config.Elasticsearch.User, r.config.Elasticsearch.Password)
 	}
 
