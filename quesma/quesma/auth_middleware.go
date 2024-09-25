@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const cacheWipeInterval = 10 * time.Second
+const cacheWipeInterval = 10 * time.Minute
 
 // authMiddleware a simple implementation of an authentication middleware,
 // which checks the Authorization header and validates it against Elasticsearch.
