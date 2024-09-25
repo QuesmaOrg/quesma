@@ -353,8 +353,10 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 	}
 
 	var useCommonTable bool
-	if indexConf, ok := s.cfg[query.Indexes[0]]; ok {
-		useCommonTable = indexConf.UseCommonTable
+	if len(query.Indexes) == 1 {
+		if indexConf, ok := s.cfg[query.Indexes[0]]; ok {
+			useCommonTable = indexConf.UseCommonTable
+		}
 	} else { // we can handle querying multiple indexes from common table only
 		useCommonTable = true
 	}
