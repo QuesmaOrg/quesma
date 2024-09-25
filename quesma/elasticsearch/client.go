@@ -41,6 +41,14 @@ func (es *SimpleClient) Request(ctx context.Context, method, endpoint string, pa
 	return es.doRequest(ctx, method, endpoint, body, nil)
 }
 
+func (es *SimpleClient) RequestWithHeaders(ctx context.Context, method, endpoint string, payload interface{}, headers http.Header) (*http.Response, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return es.doRequest(ctx, method, endpoint, body, headers)
+}
+
 func (es *SimpleClient) Authenticate(ctx context.Context, authHeader string) bool {
 	resp, err := es.doRequest(ctx, "GET", "_security/_authenticate", nil, http.Header{"Authorization": {authHeader}})
 	if err != nil {
@@ -62,7 +70,11 @@ func (es *SimpleClient) doRequest(ctx context.Context, method, endpoint string, 
 		req.SetBasicAuth(es.config.User, es.config.Password)
 	}
 	if headers != nil {
-		req.Header = headers
+		for key, values := range headers {
+			for _, value := range values {
+				req.Header.Set(key, value)
+			}
+		}
 	}
 	req.Header.Set("Content-Type", "application/json")
 	return es.client.Do(req)

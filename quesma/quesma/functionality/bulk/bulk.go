@@ -3,13 +3,13 @@
 package bulk
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"quesma/clickhouse"
+	"quesma/elasticsearch"
 	"quesma/ingest"
 	"quesma/jsonprocessor"
 	"quesma/logger"
@@ -157,10 +157,8 @@ func sendToElastic(elasticRequestBody []byte, cfg *config.QuesmaConfiguration, e
 		return nil
 	}
 
-	req, _ := http.NewRequest("POST", cfg.Elasticsearch.Url.String()+"/_bulk", bytes.NewBuffer(elasticRequestBody))
-	req.Header.Set("Content-Type", "application/x-ndjson")
-	client := http.Client{} // FIXME
-	response, err := client.Do(req)
+	esClient := elasticsearch.NewSimpleClient(&cfg.Elasticsearch)
+	response, err := esClient.RequestWithHeaders(context.Background(), "POST", "/_bulk", elasticRequestBody, http.Header{"Content-Type": {"application/x-ndjson"}})
 	if err != nil {
 		return err
 	}
