@@ -70,11 +70,9 @@ func (es *SimpleClient) doRequest(ctx context.Context, method, endpoint string, 
 		req.SetBasicAuth(es.config.User, es.config.Password)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if headers != nil {
-		for key, values := range headers {
-			for _, value := range values {
-				req.Header.Set(key, value)
-			}
+	for key, values := range headers {
+		for _, value := range values {
+			req.Header.Set(key, value)
 		}
 	}
 	return es.client.Do(req)
