@@ -3,6 +3,7 @@
 package model
 
 import (
+	"quesma/schema"
 	"time"
 )
 
@@ -47,7 +48,12 @@ type (
 		TransformationHistory TransformationHistory // it can be optional
 
 		Type      QueryType
-		TableName string
+		TableName string // TODO delete this and use Indexes instead
+
+		Indexes []string // list of indexes we're going to use for this query
+
+		// this is schema for current query, this schema should be used in pipeline processing
+		Schema schema.Schema
 
 		Highlighter Highlighter
 

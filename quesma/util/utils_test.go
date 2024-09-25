@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
+	"net/http"
 	"reflect"
 	"strconv"
 	"testing"
@@ -840,6 +841,64 @@ func TestFieldEncoding(t *testing.T) {
 			got := FieldToColumnEncoder(tt.field)
 			if got != tt.want {
 				t.Errorf("FieldToColumnEncoder(%q) = %q; want %q", tt.field, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractUsernameFromBasicAuthHeader(t *testing.T) {
+	tests := []struct {
+		name        string
+		authHeader  string
+		expected    string
+		expectError bool
+	}{
+		{
+			name:        "valid header",
+			authHeader:  "Basic dXNlcm5hbWU6cGFzc3dvcmQ=",
+			expected:    "username",
+			expectError: false,
+		},
+		{
+			name:        "invalid format",
+			authHeader:  "InvalidHeader",
+			expected:    "",
+			expectError: true,
+		},
+		{
+			name:        "invalid base64",
+			authHeader:  "Basic invalidbase64",
+			expected:    "",
+			expectError: true,
+		},
+		{
+			name:        "invalid decoded format",
+			authHeader:  "Basic dXNlcm5hbWU=",
+			expected:    "",
+			expectError: true,
+		},
+		{
+			name:        "bearer token", // untested, it is used when Kibana/Elasticsearch are set up with SAML/OIDC
+			authHeader:  "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJeyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJeyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ",
+			expected:    "",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := &http.Request{
+				Header: http.Header{
+					"Authorization": {tt.authHeader},
+				},
+			}
+			authHeader := req.Header.Get("Authorization")
+			username, err := ExtractUsernameFromBasicAuthHeader(authHeader)
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, username)
 			}
 		})
 	}

@@ -44,6 +44,7 @@ type QuesmaConfiguration struct {
 	IngestStatistics           bool                          `koanf:"ingestStatistics"`
 	QuesmaInternalTelemetryUrl *Url                          `koanf:"internalTelemetryUrl"`
 	AutodiscoveryEnabled       bool
+	DisableAuth                bool                          `koanf:"disableAuth"`
 }
 
 type LoggingConfiguration struct {

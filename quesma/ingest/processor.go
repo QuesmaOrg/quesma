@@ -298,11 +298,14 @@ func getAttributesByArrayName(arrayName string,
 func (ip *IngestProcessor) generateNewColumns(
 	attrsMap map[string][]interface{},
 	table *chLib.Table,
-	alteredAttributesIndexes []int) []string {
+	alteredAttributesIndexes []int,
+	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) []string {
 	var alterCmd []string
 	attrKeys := getAttributesByArrayName(chLib.DeprecatedAttributesKeyColumn, attrsMap)
 	attrTypes := getAttributesByArrayName(chLib.DeprecatedAttributesValueType, attrsMap)
 	var deleteIndexes []int
+
+	reverseMap := reverseFieldEncoding(encodings, table.Name)
 
 	// HACK Alert:
 	// We must avoid altering the table.Cols map and reading at the same time.
@@ -324,10 +327,20 @@ func (ip *IngestProcessor) generateNewColumns(
 			modifiers = "Nullable"
 			columnType = fmt.Sprintf("Nullable(%s)", attrTypes[i])
 		}
-		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, attrKeys[i], columnType)
 
-		newColumns[attrKeys[i]] = &chLib.Column{Name: attrKeys[i], Type: chLib.NewBaseType(attrTypes[i]), Modifiers: modifiers}
+		propertyName := attrKeys[i]
+		field, ok := reverseMap[schema.EncodedFieldName(attrKeys[i])]
+		if ok {
+			propertyName = field.FieldName
+		}
+
+		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, attrKeys[i], columnType)
+		newColumns[attrKeys[i]] = &chLib.Column{Name: attrKeys[i], Type: chLib.NewBaseType(attrTypes[i]), Modifiers: modifiers, Comment: propertyName}
 		alterCmd = append(alterCmd, alterTable)
+
+		alterColumn := fmt.Sprintf("ALTER TABLE \"%s\" COMMENT COLUMN \"%s\" '%s'", table.Name, attrKeys[i], propertyName)
+		alterCmd = append(alterCmd, alterColumn)
+
 		deleteIndexes = append(deleteIndexes, i)
 	}
 
@@ -483,7 +496,7 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	data types.JSON,
 	inValidJson types.JSON,
 	config *chLib.ChTableConfig,
-) ([]string, types.JSON, []NonSchemaField, error) {
+	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]string, types.JSON, []NonSchemaField, error) {
 
 	jsonAsBytesSlice, err := json.Marshal(data)
 
@@ -527,7 +540,7 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	var alterCmd []string
 	atomic.AddInt64(&ip.ingestCounter, 1)
 	if ok, alteredAttributesIndexes := ip.shouldAlterColumns(table, attrsMap); ok {
-		alterCmd = ip.generateNewColumns(attrsMap, table, alteredAttributesIndexes)
+		alterCmd = ip.generateNewColumns(attrsMap, table, alteredAttributesIndexes, encodings)
 	}
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
@@ -651,7 +664,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	}
 	for i, preprocessedJson := range preprocessedJsons {
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
-			invalidJsons[i], tableConfig)
+			invalidJsons[i], tableConfig, encodings)
 
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
@@ -820,8 +833,9 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 
 	for _, col := range table.Cols {
 		columns = append(columns, common_table.VirtualTableColumn{
-			Name: col.Name,
-			Type: col.Type.String(),
+			Name:    col.Name,
+			Type:    col.Type.String(),
+			Comment: col.Comment,
 		})
 	}
 

@@ -197,7 +197,7 @@ func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discover
 		}
 
 		for _, col := range readVirtualTable.Columns {
-			discoTable.columnTypes[col.Name] = columnMetadata{colType: col.Type}
+			discoTable.columnTypes[col.Name] = columnMetadata{colType: col.Type, comment: col.Comment}
 		}
 
 		discoTable.comment = "Virtual table. Version: " + readVirtualTable.StoredAt

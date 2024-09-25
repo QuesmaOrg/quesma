@@ -4,6 +4,7 @@ frontendConnectors:
     type: elasticsearch-fe-query
     config:
       listenPort: 8080
+      disableAuth: true
   - name: elasticsearch-API-for-filebeat
     type: elasticsearch-fe-ingest
     config:

@@ -59,7 +59,8 @@ type FrontendConnector struct {
 }
 
 type FrontendConnectorConfiguration struct {
-	ListenPort network.Port `koanf:"listenPort"`
+	ListenPort  network.Port `koanf:"listenPort"`
+	DisableAuth bool         `koanf:"disableAuth"`
 }
 
 type BackendConnector struct {
@@ -453,6 +454,13 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.QuesmaInternalTelemetryUrl = telemetryUrl
 		conf.Logging.RemoteLogDrainUrl = telemetryUrl
 	}
+	// This is perhaps a little oversimplification, **but** in case any of the FE connectors has auth disabled, we disable auth for the whole incomming traffic
+	// After all, the "duality" of frontend connectors is still an architectural choice we tend to question
+	for _, fConn := range c.FrontendConnectors {
+		if fConn.Config.DisableAuth {
+			conf.DisableAuth = true
+		}
+	}
 	conf.Logging = c.Logging
 	conf.InstallationId = c.InstallationId
 	conf.LicenseKey = c.LicenseKey
@@ -494,8 +502,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		queryProcessor, ingestProcessor := c.getProcessorByName(queryPipeline.Processors[0]), c.getProcessorByName(ingestPipeline.Processors[0])
 
 		elasticBackendName := c.getElasticsearchBackendConnector().Name
-		relationalDBBackend, _ := c.getRelationalDBBackendConnector()
-		relationalDBBackendName := relationalDBBackend.Name
+		var relationalDBBackendName string
+		if relationalDBBackend, _ := c.getRelationalDBBackendConnector(); relationalDBBackend != nil {
+			relationalDBBackendName = relationalDBBackend.Name
+		}
 
 		conf.IndexConfig = make(map[string]IndexConfiguration)
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {

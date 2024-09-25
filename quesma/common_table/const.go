@@ -42,8 +42,9 @@ func EnsureCommonTableExists(db *sql.DB) {
 // Here are defintion of JSON objects that are used to store virtual tables in JSON database
 
 type VirtualTableColumn struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	Comment string `json:"comment"`
 }
 
 type VirtualTable struct {

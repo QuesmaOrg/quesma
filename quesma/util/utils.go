@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
@@ -872,4 +873,24 @@ func FieldToColumnEncoder(field string) string {
 		newField = "_" + newField
 	}
 	return newField
+}
+
+// ExtractUsernameFromBasicAuthHeader takes the basic auth header and extracts username from it
+func ExtractUsernameFromBasicAuthHeader(authHeader string) (string, error) {
+	authParts := strings.SplitN(authHeader, " ", 2)
+	if len(authParts) != 2 {
+		return "", fmt.Errorf("invalid authorization header format")
+	}
+	if authParts[0] == "Bearer" {
+		return "", fmt.Errorf("cannot extract username from Bearer token")
+	}
+	decodedUserAndPass, err := base64.StdEncoding.DecodeString(authParts[1])
+	if err != nil {
+		return "", err
+	}
+	pair := strings.SplitN(string(decodedUserAndPass), ":", 2)
+	if len(pair) != 2 {
+		return "", fmt.Errorf("invalid decoded authorization format")
+	}
+	return pair[0], nil
 }
