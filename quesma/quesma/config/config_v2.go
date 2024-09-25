@@ -53,14 +53,14 @@ type Pipeline struct {
 }
 
 type FrontendConnector struct {
-	Name        string                         `koanf:"name"`
-	Type        string                         `koanf:"type"`
-	Config      FrontendConnectorConfiguration `koanf:"config"`
-	DisableAuth bool                           `koanf:"disableAuth"`
+	Name   string                         `koanf:"name"`
+	Type   string                         `koanf:"type"`
+	Config FrontendConnectorConfiguration `koanf:"config"`
 }
 
 type FrontendConnectorConfiguration struct {
-	ListenPort network.Port `koanf:"listenPort"`
+	ListenPort  network.Port `koanf:"listenPort"`
+	DisableAuth bool         `koanf:"disableAuth"`
 }
 
 type BackendConnector struct {
@@ -411,7 +411,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	// This is perhaps a little oversimplification, **but** in case any of the FE connectors has auth disabled, we disable auth for the whole incomming traffic
 	// After all, the "duality" of frontend connectors is still an architectural choice we tend to question
 	for _, fConn := range c.FrontendConnectors {
-		if fConn.DisableAuth {
+		if fConn.Config.DisableAuth {
 			conf.DisableAuth = true
 		}
 	}
