@@ -150,7 +150,7 @@ func ingestProcessorsNonEmpty(cfg *clickhouse.ChTableConfig) []ingestProcessorHe
 			},
 			Created: created,
 		})
-		lms = append(lms, ingestProcessorHelper{NewIngestProcessor(full, &config.QuesmaConfiguration{}), created})
+		lms = append(lms, ingestProcessorHelper{NewIngestProcessorTableMapConfigEmpty(full, &config.QuesmaConfiguration{}), created})
 	}
 	return lms
 }

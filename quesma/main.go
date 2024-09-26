@@ -96,7 +96,7 @@ func main() {
 	common_table.EnsureCommonTableExists(connectionPool)
 
 	//create ingest processor, very lame but for the sake of refactor
-	ip := ingest.NewEmptyIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage)
+	ip := ingest.NewIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage)
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())

@@ -52,7 +52,7 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	tableName, exists := fieldsMap.Load("tableName")
 	assert.True(t, exists)
 	f := func(t1, t2 TableMap) {
-		ip := NewIngestProcessor(fieldsMap, &config.QuesmaConfiguration{})
+		ip := NewIngestProcessorTableMapConfigEmpty(fieldsMap, &config.QuesmaConfiguration{})
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(tableName, types.MustJSON(rowToInsert), nil, hasOthersConfig, encodings)
 		assert.NoError(t, err)
 		j, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
@@ -814,7 +814,7 @@ func TestLogManager_GetTable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
 			tableDefinitions.Store(&tt.predefinedTables)
-			ip := NewIngestProcessor(&tt.predefinedTables, &config.QuesmaConfiguration{})
+			ip := NewIngestProcessorTableMapConfigEmpty(&tt.predefinedTables, &config.QuesmaConfiguration{})
 			assert.Equalf(t, tt.found, ip.FindTable(tt.tableNamePattern) != nil, "GetTable(%v)", tt.tableNamePattern)
 		})
 	}
