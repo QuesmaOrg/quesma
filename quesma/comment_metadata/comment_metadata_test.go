@@ -74,6 +74,20 @@ func TestUnmarshallCommentMetadata(t *testing.T) {
 			},
 			fail: false,
 		},
+		{
+			name:  "with human comments invalid version ",
+			input: "some comment here  quesmaMetadataV2:foo=bar  and here ",
+			want: map[string]string{
+				"foo": "bar",
+			},
+			fail: true,
+		},
+		{
+			name:  "no metadata ",
+			input: "some comment here    and here ",
+			want:  nil,
+			fail:  false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -84,10 +98,19 @@ func TestUnmarshallCommentMetadata(t *testing.T) {
 				if err == nil {
 					t.Fatal("Expecting error, got nil")
 				}
+				return
 			} else {
 				if err != nil {
 					t.Fatal("Unexpected error ", err)
 				}
+			}
+
+			if tt.want == nil && cm != nil {
+				t.Fatal("Expecting nil, got ", cm)
+			}
+
+			if tt.want == nil && cm == nil {
+				return
 			}
 
 			assert.Equal(t, tt.want, cm.Values)

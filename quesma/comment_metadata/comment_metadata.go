@@ -40,7 +40,7 @@ func UnmarshallCommentMetadata(s string) (*CommentMetadata, error) {
 	groups := rx.FindStringSubmatch(s)
 
 	if len(groups) == 0 {
-		return nil, fmt.Errorf("quesma metadata not found")
+		return nil, nil // no metadata, we return nil here, that's not an error
 	}
 
 	if len(groups) != 3 {

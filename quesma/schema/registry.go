@@ -203,14 +203,18 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 				// is empty, read them from persistent storage, e.g. column comment
 			} else if len(column.Comment) > 0 {
 				propertyName = FieldName(column.Name)
+
 				metadata, err := comment_metadata.UnmarshallCommentMetadata(column.Comment)
 				if err != nil {
 					logger.Warn().Msgf("error unmarshalling column '%s' (table: %s)  comment metadata: %s %v", indexName, column.Name, column.Comment, err)
 				} else {
-					if fieldName, ok := metadata.Values[comment_metadata.ElasticFieldName]; ok {
-						propertyName = FieldName(fieldName)
+					if metadata != nil {
+						if fieldName, ok := metadata.Values[comment_metadata.ElasticFieldName]; ok {
+							propertyName = FieldName(fieldName)
+						}
 					}
 				}
+
 			} else {
 				// if field encoding is not found, use the column name as the property name
 				propertyName = FieldName(column.Name)
