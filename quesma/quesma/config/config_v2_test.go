@@ -72,6 +72,25 @@ func TestQuesmaTransparentProxyConfiguration(t *testing.T) {
 	assert.True(t, legacyConf.TransparentProxy)
 }
 
+func TestQuesmaAddingHydrolixTablesToExistingElasticsearch(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/quesma_adding_two_hydrolix_tables.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+	assert.False(t, legacyConf.TransparentProxy)
+	assert.Equal(t, 2, len(legacyConf.IndexConfig))
+	siemIndexConf := legacyConf.IndexConfig["siem"]
+	logsIndexConf := legacyConf.IndexConfig["logs"]
+
+	assert.Equal(t, []string{"clickhouse"}, siemIndexConf.QueryTarget)
+	assert.Equal(t, []string{"clickhouse"}, siemIndexConf.IngestTarget)
+
+	assert.Equal(t, []string{"elasticsearch"}, logsIndexConf.QueryTarget)
+	assert.Equal(t, []string{"elasticsearch"}, logsIndexConf.IngestTarget)
+}
+
 func TestMatchName(t *testing.T) {
 	type args struct {
 		indexName        string
