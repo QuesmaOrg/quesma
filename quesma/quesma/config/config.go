@@ -44,6 +44,7 @@ type QuesmaConfiguration struct {
 	IngestStatistics           bool                          `koanf:"ingestStatistics"`
 	QuesmaInternalTelemetryUrl *Url                          `koanf:"internalTelemetryUrl"`
 	DisableAuth                bool                          `koanf:"disableAuth"`
+	AutodiscoveryEnabled       bool
 }
 
 type LoggingConfiguration struct {
@@ -180,6 +181,9 @@ func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, r
 }
 
 func (c *QuesmaConfiguration) validateIndexName(indexName string, result error) error {
+	if indexName == DefaultWildcardIndexName {
+		return result
+	}
 	if strings.Contains(indexName, "*") || indexName == "_all" {
 		result = multierror.Append(result, fmt.Errorf("wildcard patterns are not allowed in index configuration: %s", indexName))
 	}
@@ -353,5 +357,5 @@ func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfigurat
 }
 
 func (c *QuesmaConfiguration) IndexAutodiscoveryEnabled() bool {
-	return len(c.IndexConfig) == 0
+	return c.AutodiscoveryEnabled
 }

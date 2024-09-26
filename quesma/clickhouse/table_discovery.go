@@ -197,6 +197,14 @@ func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discover
 		if err != nil {
 			logger.Error().Msgf("could not unmarshal virtual table %s: %v", virtualTable, err)
 		}
+
+		if readVirtualTable.Version != common_table.VirtualTableStructVersion {
+			// migration is not supported yet
+			// we simply skip the table
+			logger.Warn().Msgf("skipping virtual table %s, version mismatch, actual '%s',  expecting '%s'", virtualTable, readVirtualTable.Version, common_table.VirtualTableStructVersion)
+			continue
+		}
+
 		discoTable := discoveredTable{
 			name:        virtualTable,
 			columnTypes: make(map[string]columnMetadata),

@@ -75,6 +75,10 @@ type Processor struct {
 	Config QuesmaProcessorConfig `koanf:"config"`
 }
 
+// An index configuration under this name in IndexConfig
+// specifies the default configuration for all (non-configured) indexes
+const DefaultWildcardIndexName = "*"
+
 // Configuration of QuesmaV1ProcessorQuery and QuesmaV1ProcessorIngest
 type QuesmaProcessorConfig struct {
 	IndexConfig map[string]IndexConfiguration `koanf:"indexes"`
@@ -275,6 +279,9 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 					return fmt.Errorf("index '%s' is defined in query processor, but not in ingest processor", indexName)
 				}
 			}
+			if _, found := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; !found {
+				return fmt.Errorf("the default index configuration (under the name '%s') must be defined in the query processor", DefaultWildcardIndexName)
+			}
 			for indexName, queryIndexConf := range queryProcessor.Config.IndexConfig {
 				ingestIndexConf := ingestProcessor.Config.IndexConfig[indexName]
 				if queryIndexConf.Override != ingestIndexConf.Override {
@@ -333,13 +340,16 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 	}
 	if p.Type == QuesmaV1ProcessorQuery || p.Type == QuesmaV1ProcessorIngest {
 		for indexName, indexConfig := range p.Config.IndexConfig {
+			if indexName != DefaultWildcardIndexName && strings.ContainsAny(indexName, "*,") {
+				return fmt.Errorf("index name '%s' in processor configuration is an index pattern, not allowed", indexName)
+			}
 			if p.Type == QuesmaV1ProcessorQuery {
-				if len(indexConfig.Target) != 1 {
-					return fmt.Errorf("configuration of index %s must have exactly one target (query processor)", indexName)
+				if len(indexConfig.Target) != 1 && len(indexConfig.Target) != 2 {
+					return fmt.Errorf("configuration of index %s must have one or two targets (query processor)", indexName)
 				}
 			} else {
-				if len(indexConfig.Target) != 1 && len(indexConfig.Target) != 2 {
-					return fmt.Errorf("configuration of index %s must have one or two targets (ingest processor)", indexName)
+				if len(indexConfig.Target) > 2 {
+					return fmt.Errorf("configuration of index %s must have at most two targets (ingest processor)", indexName)
 				}
 			}
 
@@ -363,7 +373,8 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 	if !slices.Contains(c.definedFrontedConnectorNames(), pipeline.FrontendConnectors[0]) {
 		errAcc = multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("frontend connector named %s referenced in %s not found in configuration", pipeline.FrontendConnectors[0], pipeline.Name)))
 	}
-	if len(pipeline.BackendConnectors) != 0 && len(pipeline.BackendConnectors) > 2 {
+
+	if len(pipeline.BackendConnectors) == 0 || len(pipeline.BackendConnectors) > 2 {
 		return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline must define exactly one or two backend connectors, %d defined", len(pipeline.BackendConnectors))))
 	}
 	if !slices.Contains(c.definedBackendConnectorNames(), pipeline.BackendConnectors[0]) {
@@ -374,6 +385,7 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 			errAcc = multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[1], pipeline.Name)))
 		}
 	}
+
 	if len(pipeline.Processors) != 1 {
 		return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline must have exactly one processor, [%s] has %d defined", pipeline.Name, len(pipeline.Processors))))
 	}
@@ -455,6 +467,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	conf.InstallationId = c.InstallationId
 	conf.LicenseKey = c.LicenseKey
 	conf.IngestStatistics = c.IngestStatistics
+	conf.AutodiscoveryEnabled = false
 	conf.Connectors = make(map[string]RelationalDbConfiguration)
 	relDBConn, connType, err := c.getRelationalDBConf()
 	if err != nil {
@@ -490,6 +503,11 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 		queryProcessor, ingestProcessor := c.getProcessorByName(queryPipeline.Processors[0]), c.getProcessorByName(ingestPipeline.Processors[0])
 
+		if queryProcessor.Type == QuesmaV1ProcessorNoOp && ingestProcessor.Type == QuesmaV1ProcessorNoOp {
+			conf.TransparentProxy = true
+			goto END
+		}
+
 		elasticBackendName := c.getElasticsearchBackendConnector().Name
 		var relationalDBBackendName string
 		if relationalDBBackend, _ := c.getRelationalDBBackendConnector(); relationalDBBackend != nil {
@@ -506,6 +524,19 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			}
 			if slices.Contains(indexConfig.Target, relationalDBBackendName) {
 				processedConfig.QueryTarget = append(processedConfig.QueryTarget, ClickhouseTarget)
+			}
+
+			if len(indexConfig.QueryTarget) == 2 && !(indexConfig.QueryTarget[0] == ClickhouseTarget && indexConfig.QueryTarget[1] == ElasticsearchTarget) {
+				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration - when you specify two targets, Elastic has to be the primary one and ClickHouse has to be the secondary one", indexName))
+				continue
+			}
+			if len(indexConfig.QueryTarget) == 2 {
+				// Turn on A/B testing
+				processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+				processedConfig.Optimizers["elastic_ab_testing"] = OptimizerConfiguration{
+					Disabled:   false,
+					Properties: map[string]string{},
+				}
 			}
 
 			conf.IndexConfig[indexName] = processedConfig
@@ -526,8 +557,22 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			conf.IndexConfig[indexName] = processedConfig
 		}
+
+		// Handle default index configuration
+		defaultConfig := conf.IndexConfig[DefaultWildcardIndexName]
+		if len(defaultConfig.QueryTarget) != 1 {
+			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
+		}
+		if defaultConfig.QueryTarget[0] == ClickhouseTarget {
+			conf.AutodiscoveryEnabled = true
+		}
+		if !reflect.DeepEqual(defaultConfig.IngestTarget, []string{ElasticsearchTarget}) {
+			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of ingest processor is not currently supported", DefaultWildcardIndexName))
+		}
+		delete(conf.IndexConfig, DefaultWildcardIndexName)
 	}
 
+END:
 	if errAcc != nil {
 		var multiErr *multierror.Error
 		if errors.As(errAcc, &multiErr) {
