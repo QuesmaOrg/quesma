@@ -10,9 +10,8 @@ import (
 
 const ElasticFieldName = "fieldName"
 
-const commentMetadataVersion = "1"
-const metadataPrefix = "quesmaMetadata:"
-const versionParameter = "v"
+const metadataVersion = "1"
+const metadataPrefix = "quesmaMetadata"
 
 type CommentMetadata struct {
 	Values map[string]string
@@ -30,14 +29,13 @@ func (c *CommentMetadata) Marshall() string {
 	for k, v := range c.Values {
 		params.Add(k, v)
 	}
-	params.Add(versionParameter, commentMetadataVersion)
 
-	return metadataPrefix + params.Encode()
+	return metadataPrefix + "V" + metadataVersion + ":" + params.Encode()
 }
 
 func UnmarshallCommentMetadata(s string) (*CommentMetadata, error) {
 
-	rx := regexp.MustCompile(metadataPrefix + `([^\s]+)`)
+	rx := regexp.MustCompile(metadataPrefix + `V([0-9+]):([^\s]+)`)
 
 	groups := rx.FindStringSubmatch(s)
 
@@ -45,28 +43,24 @@ func UnmarshallCommentMetadata(s string) (*CommentMetadata, error) {
 		return nil, fmt.Errorf("quesma metadata not found")
 	}
 
-	if len(groups) != 2 {
+	if len(groups) != 3 {
 		return nil, fmt.Errorf("invalid metadata format")
 	}
 
-	s = groups[1]
+	version := groups[1]
+	metadata := groups[2]
 
-	params, err := url.ParseQuery(s)
+	params, err := url.ParseQuery(metadata)
 	if err != nil {
 		return nil, err
 	}
 
-	version := params.Get(versionParameter)
-
-	if version != commentMetadataVersion {
+	if version != metadataVersion {
 		return nil, fmt.Errorf("invalid metadata version: %s", version)
 	}
 
 	values := make(map[string]string)
 	for k, v := range params {
-		if k == versionParameter {
-			continue
-		}
 		values[k] = v[0]
 	}
 

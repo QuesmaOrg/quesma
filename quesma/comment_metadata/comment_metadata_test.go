@@ -19,14 +19,14 @@ func TestCommentMetadata_Marshall(t *testing.T) {
 			input: map[string]string{
 				"foo": "bar",
 			},
-			want: "quesmaMetadata:foo=bar&v=1",
+			want: "quesmaMetadataV1:foo=bar",
 		},
 		{
 			name: "test2",
 			input: map[string]string{
 				"łąś": "żółć",
 			},
-			want: "quesmaMetadata:v=1&%C5%82%C4%85%C5%9B=%C5%BC%C3%B3%C5%82%C4%87",
+			want: "quesmaMetadataV1:%C5%82%C4%85%C5%9B=%C5%BC%C3%B3%C5%82%C4%87",
 		},
 	}
 
@@ -52,7 +52,7 @@ func TestUnmarshallCommentMetadata(t *testing.T) {
 	}{
 		{
 			name:  "simple",
-			input: "quesmaMetadata:foo=bar&v=1",
+			input: "quesmaMetadataV1:foo=bar",
 			want: map[string]string{
 				"foo": "bar",
 			},
@@ -60,7 +60,7 @@ func TestUnmarshallCommentMetadata(t *testing.T) {
 		},
 		{
 			name:  "with special characters",
-			input: "quesmaMetadata:v=1&%C5%82%C4%85%C5%9B=%C5%BC%C3%B3%C5%82%C4%87",
+			input: "quesmaMetadataV1:%C5%82%C4%85%C5%9B=%C5%BC%C3%B3%C5%82%C4%87",
 			want: map[string]string{
 				"łąś": "żółć",
 			},
@@ -68,7 +68,7 @@ func TestUnmarshallCommentMetadata(t *testing.T) {
 		},
 		{
 			name:  "with human comments ",
-			input: "some comment here  quesmaMetadata:foo=bar&v=1  and here ",
+			input: "some comment here  quesmaMetadataV1:foo=bar  and here ",
 			want: map[string]string{
 				"foo": "bar",
 			},
