@@ -649,12 +649,8 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 	var err error
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-		if _, ok := indexSchema.ResolveField(e.ColumnName); ok {
-			// TODO util.FieldToColumnEncoder is a shortcut here
-			// we should use the schema to get the internal name
-			// however for now it's part of schema.registry not schema.Schema
-			// so we don't have direct access to it
-			return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
+		if resolvedField, ok := indexSchema.ResolveField(e.ColumnName); ok {
+			return model.NewColumnRef(resolvedField.InternalPropertyName.AsString())
 		} else {
 			return e
 		}
