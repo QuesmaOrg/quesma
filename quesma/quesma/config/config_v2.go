@@ -505,6 +505,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 		if queryProcessor.Type == QuesmaV1ProcessorNoOp && ingestProcessor.Type == QuesmaV1ProcessorNoOp {
 			conf.TransparentProxy = true
+			return conf
 		}
 
 		elasticBackendName := c.getElasticsearchBackendConnector().Name
