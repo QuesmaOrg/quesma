@@ -840,6 +840,7 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 	}
 
 	vTable := &common_table.VirtualTable{
+		Version:  common_table.VirtualTableStructVersion,
 		StoredAt: now.Format(time.RFC3339),
 		Columns:  columns,
 	}
