@@ -505,7 +505,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 		if queryProcessor.Type == QuesmaV1ProcessorNoOp && ingestProcessor.Type == QuesmaV1ProcessorNoOp {
 			conf.TransparentProxy = true
-			return conf
+			goto END
 		}
 
 		elasticBackendName := c.getElasticsearchBackendConnector().Name
@@ -572,6 +572,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		delete(conf.IndexConfig, DefaultWildcardIndexName)
 	}
 
+END:
 	if errAcc != nil {
 		var multiErr *multierror.Error
 		if errors.As(errAcc, &multiErr) {
