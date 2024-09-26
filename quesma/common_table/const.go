@@ -45,9 +45,7 @@ const VirtualTableElasticIndexName = "quesma_virtual_tables"
 const VirtualTableStructVersion = "1"
 
 type VirtualTableColumn struct {
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Comment string `json:"comment"`
+	Name string `json:"name"`
 }
 
 type VirtualTable struct {
