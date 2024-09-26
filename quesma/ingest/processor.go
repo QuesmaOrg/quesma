@@ -701,7 +701,13 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	indexConf, ok := lm.cfg.IndexConfig[tableName]
 	if ok && indexConf.UseCommonTable {
 
-		err := lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, true)
+		// we have clone the data, because we want to process it twice
+		var clonedJsonData []types.JSON
+		for _, jsonValue := range jsonData {
+			clonedJsonData = append(clonedJsonData, jsonValue.Clone())
+		}
+
+		err := lm.processInsertQueryInternal(ctx, tableName, clonedJsonData, transformer, tableFormatter, true)
 		if err != nil {
 			// we ignore an error here, because we want to process the data and don't lose it
 			logger.ErrorWithCtx(ctx).Msgf("error processing insert query - virtual table schema update: %v", err)

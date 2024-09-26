@@ -117,6 +117,20 @@ func TestIngestToCommonTable(t *testing.T) {
 			},
 			virtualTableColumns: []string{"@timestamp", "a", "b"},
 		},
+		{
+			name:                   "ingest to name with a dot",
+			alreadyExistingColumns: []*clickhouse.Column{},
+			documents: []types.JSON{
+				{"a.b": "c"},
+			},
+			expectedStatements: []string{
+				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "a_b" Nullable(String)`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "a_b" 'quesmaMetadataV1:fieldName=a.b'`,
+
+				`INSERT INTO "quesma_common_table" FORMAT JSONEachRow {"__quesma_index_name":"test_index","a_b":"c"}`,
+			},
+			virtualTableColumns: []string{"@timestamp", "a_b"},
+		},
 	}
 
 	for _, tt := range tests {
