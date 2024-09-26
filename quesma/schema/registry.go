@@ -3,6 +3,7 @@
 package schema
 
 import (
+	"quesma/comment_metadata"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/util"
@@ -201,7 +202,19 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 				// if field encodings are not coming from ingest e.g. encodings map
 				// is empty, read them from persistent storage, e.g. column comment
 			} else if len(column.Comment) > 0 {
-				propertyName = FieldName(column.Comment)
+				propertyName = FieldName(column.Name)
+
+				metadata, err := comment_metadata.UnmarshallCommentMetadata(column.Comment)
+				if err != nil {
+					logger.Warn().Msgf("error unmarshalling column '%s' (table: %s)  comment metadata: %s %v", indexName, column.Name, column.Comment, err)
+				} else {
+					if metadata != nil {
+						if fieldName, ok := metadata.Values[comment_metadata.ElasticFieldName]; ok {
+							propertyName = FieldName(fieldName)
+						}
+					}
+				}
+
 			} else {
 				// if field encoding is not found, use the column name as the property name
 				propertyName = FieldName(column.Name)

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	chLib "quesma/clickhouse"
+	"quesma/comment_metadata"
 	"quesma/common_table"
 	"quesma/concurrent"
 	"quesma/end_user_errors"
@@ -334,11 +335,15 @@ func (ip *IngestProcessor) generateNewColumns(
 			propertyName = field.FieldName
 		}
 
+		metadata := comment_metadata.NewCommentMetadata()
+		metadata.Values[comment_metadata.ElasticFieldName] = propertyName
+		comment := metadata.Marshall()
+
 		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, attrKeys[i], columnType)
-		newColumns[attrKeys[i]] = &chLib.Column{Name: attrKeys[i], Type: chLib.NewBaseType(attrTypes[i]), Modifiers: modifiers, Comment: propertyName}
+		newColumns[attrKeys[i]] = &chLib.Column{Name: attrKeys[i], Type: chLib.NewBaseType(attrTypes[i]), Modifiers: modifiers, Comment: comment}
 		alterCmd = append(alterCmd, alterTable)
 
-		alterColumn := fmt.Sprintf("ALTER TABLE \"%s\" COMMENT COLUMN \"%s\" '%s'", table.Name, attrKeys[i], propertyName)
+		alterColumn := fmt.Sprintf("ALTER TABLE \"%s\" COMMENT COLUMN \"%s\" '%s'", table.Name, attrKeys[i], comment)
 		alterCmd = append(alterCmd, alterColumn)
 
 		deleteIndexes = append(deleteIndexes, i)
@@ -833,9 +838,7 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 
 	for _, col := range table.Cols {
 		columns = append(columns, common_table.VirtualTableColumn{
-			Name:    col.Name,
-			Type:    col.Type.String(),
-			Comment: col.Comment,
+			Name: col.Name,
 		})
 	}
 
@@ -849,6 +852,7 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 	if err != nil {
 		return err
 	}
+
 	return ip.virtualTableStorage.Put(table.Name, string(data))
 }
 
