@@ -85,9 +85,9 @@ func TestQuesmaAddingHydrolixTablesToExistingElasticsearch(t *testing.T) {
 	logsIndexConf := legacyConf.IndexConfig["logs"]
 
 	assert.Equal(t, []string{"clickhouse"}, siemIndexConf.QueryTarget)
-	assert.Equal(t, []string{"clickhouse"}, siemIndexConf.IngestTarget)
+	assert.Equal(t, []string{"elasticsearch"}, siemIndexConf.IngestTarget)
 
-	assert.Equal(t, []string{"elasticsearch"}, logsIndexConf.QueryTarget)
+	assert.Equal(t, []string{"clickhouse"}, logsIndexConf.QueryTarget)
 	assert.Equal(t, []string{"elasticsearch"}, logsIndexConf.IngestTarget)
 }
 
