@@ -16,6 +16,7 @@ import (
 	"quesma/index"
 	"quesma/jsonprocessor"
 	"quesma/logger"
+	"quesma/model"
 	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
@@ -24,6 +25,8 @@ import (
 	"quesma/stats"
 	"quesma/telemetry"
 	"quesma/util"
+	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -834,11 +837,28 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 
 	table.Comment = "Virtual table. Version: " + now.Format(time.RFC3339)
 
+	var columnsToStore []string
+	for _, col := range table.Cols {
+		// We don't want to store attributes columns in the virtual table
+		if col.Name == chLib.AttributesValuesColumn || col.Name == chLib.AttributesMetadataColumn {
+			continue
+		}
+		columnsToStore = append(columnsToStore, col.Name)
+	}
+
+	// We always want to store timestamp in the virtual table
+	// if it's not already there
+	if slices.Index(columnsToStore, model.TimestampFieldName) == -1 {
+		columnsToStore = append(columnsToStore, model.TimestampFieldName)
+	}
+
+	sort.Strings(columnsToStore)
+
 	var columns []common_table.VirtualTableColumn
 
-	for _, col := range table.Cols {
+	for _, col := range columnsToStore {
 		columns = append(columns, common_table.VirtualTableColumn{
-			Name: col.Name,
+			Name: col,
 		})
 	}
 

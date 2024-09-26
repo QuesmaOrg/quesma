@@ -20,10 +20,11 @@ import (
 func TestIngestToCommonTable(t *testing.T) {
 
 	tests := []struct {
-		name                string
-		documents           []types.JSON
-		expectedStatements  []string
-		virtualTableColumns []string
+		name                   string
+		alreadyExistingColumns []*clickhouse.Column // list of columns that exists in the common table and virtual table
+		documents              []types.JSON
+		expectedStatements     []string
+		virtualTableColumns    []string
 	}{
 		{
 			name: "simple single insert",
@@ -32,10 +33,10 @@ func TestIngestToCommonTable(t *testing.T) {
 			},
 			expectedStatements: []string{
 				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "foo" Nullable(String)`,
-				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "foo" 'foo'`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "foo" 'quesmaMetadataV1:fieldName=foo'`,
 				`INSERT INTO "quesma_common_table" FORMAT JSONEachRow {"__quesma_index_name":"test_index","foo":"bar"}`,
 			},
-			virtualTableColumns: []string{"foo"},
+			virtualTableColumns: []string{"@timestamp", "foo"},
 		},
 		{
 			name: "simple inserts",
@@ -45,10 +46,10 @@ func TestIngestToCommonTable(t *testing.T) {
 			},
 			expectedStatements: []string{
 				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "foo" Nullable(String)`,
-				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "foo" 'foo'`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "foo" 'quesmaMetadataV1:fieldName=foo'`,
 				`INSERT INTO "quesma_common_table" FORMAT JSONEachRow {"__quesma_index_name":"test_index","foo":"bar"}, {"__quesma_index_name":"test_index","foo":"baz"}`,
 			},
-			virtualTableColumns: []string{"foo"},
+			virtualTableColumns: []string{"@timestamp", "foo"},
 		},
 		{
 			name: "simple inserts and new column",
@@ -59,13 +60,62 @@ func TestIngestToCommonTable(t *testing.T) {
 			},
 			expectedStatements: []string{
 				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "foo" Nullable(String)`,
-				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "foo" 'foo'`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "foo" 'quesmaMetadataV1:fieldName=foo'`,
 				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "baz" Nullable(String)`,
-				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "baz" 'baz'`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "baz" 'quesmaMetadataV1:fieldName=baz'`,
 
 				`INSERT INTO "quesma_common_table" FORMAT JSONEachRow {"__quesma_index_name":"test_index","foo":"bar"}, {"__quesma_index_name":"test_index","foo":"baz"}, {"__quesma_index_name":"test_index","baz":"qux","foo":"1"} `,
 			},
-			virtualTableColumns: []string{"foo", "baz"},
+			virtualTableColumns: []string{"@timestamp", "baz", "foo"},
+		},
+		{
+			name: "simple inserts, column exists, but not ingested",
+			alreadyExistingColumns: []*clickhouse.Column{
+				{Name: "a", Type: clickhouse.BaseType{Name: "String"}},
+			},
+			documents: []types.JSON{
+				{"foo": "bar"},
+				{"foo": "baz"},
+				{"foo": "1", "baz": "qux"},
+			},
+			expectedStatements: []string{
+				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "foo" Nullable(String)`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "foo" 'quesmaMetadataV1:fieldName=foo'`,
+				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "baz" Nullable(String)`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "baz" 'quesmaMetadataV1:fieldName=baz'`,
+
+				`INSERT INTO "quesma_common_table" FORMAT JSONEachRow {"__quesma_index_name":"test_index","foo":"bar"}, {"__quesma_index_name":"test_index","foo":"baz"}, {"__quesma_index_name":"test_index","baz":"qux","foo":"1"} `,
+			},
+			virtualTableColumns: []string{"@timestamp", "a", "baz", "foo"},
+		},
+		{
+			name: "ingest to existing column",
+			alreadyExistingColumns: []*clickhouse.Column{
+				{Name: "a", Type: clickhouse.BaseType{Name: "String"}},
+			},
+			documents: []types.JSON{
+				{"a": "bar"},
+			},
+			expectedStatements: []string{
+				`INSERT INTO "quesma_common_table" FORMAT JSONEachRow {"__quesma_index_name":"test_index","a":"bar"}`,
+			},
+			virtualTableColumns: []string{"@timestamp", "a"},
+		},
+		{
+			name: "ingest to existing column and new column",
+			alreadyExistingColumns: []*clickhouse.Column{
+				{Name: "a", Type: clickhouse.BaseType{Name: "String"}},
+			},
+			documents: []types.JSON{
+				{"a": "bar", "b": "baz"},
+			},
+			expectedStatements: []string{
+				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "b" Nullable(String)`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "b" 'quesmaMetadataV1:fieldName=b'`,
+
+				`INSERT INTO "quesma_common_table" FORMAT JSONEachRow {"__quesma_index_name":"test_index","a":"bar","b":"baz"}`,
+			},
+			virtualTableColumns: []string{"@timestamp", "a", "b"},
 		},
 	}
 
@@ -108,6 +158,10 @@ func TestIngestToCommonTable(t *testing.T) {
 				Created: true,
 			}
 
+			for _, col := range tt.alreadyExistingColumns {
+				quesmaCommonTable.Cols[col.Name] = col
+			}
+
 			tables.Store(common_table.TableName, quesmaCommonTable)
 
 			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
@@ -124,6 +178,27 @@ func TestIngestToCommonTable(t *testing.T) {
 			ingest.chDb = db
 			ingest.virtualTableStorage = virtualTableStorage
 			ingest.schemaRegistry = schemaRegistry
+
+			if len(tt.alreadyExistingColumns) > 0 {
+
+				testTable := &clickhouse.Table{
+					Name:         indexName,
+					Cols:         map[string]*clickhouse.Column{},
+					Config:       NewDefaultCHConfig(),
+					Created:      true,
+					VirtualTable: true,
+				}
+
+				for _, col := range tt.alreadyExistingColumns {
+					testTable.Cols[col.Name] = col
+				}
+
+				tables.Store(indexName, testTable)
+				err = ingest.storeVirtualTable(testTable)
+				if err != nil {
+					t.Fatalf("error storing virtual table: %v", err)
+				}
+			}
 
 			ctx := context.Background()
 			formatter := clickhouse.DefaultColumnNameFormatter()
