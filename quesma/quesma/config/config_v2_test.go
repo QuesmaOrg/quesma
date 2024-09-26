@@ -11,7 +11,7 @@ import (
 
 func TestQuesmaConfigurationLoading(t *testing.T) {
 
-	os.Setenv(configFileLocationEnvVar, "./test_config_v2.yaml")
+	os.Setenv(configFileLocationEnvVar, "./test_configs/test_config_v2.yaml")
 
 	logLevelPassedAsEnvVar := "debug"
 	licenseKeyPassedAsEnvVar := "arbitraty-license-key"
@@ -60,6 +60,16 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 			assert.Equal(t, tt.ingestTarget, ic.IngestTarget)
 		})
 	}
+}
+
+func TestQuesmaTransparentProxyConfiguration(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/quesma_as_transparent_proxy.yml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+	assert.True(t, legacyConf.TransparentProxy)
 }
 
 func TestMatchName(t *testing.T) {
