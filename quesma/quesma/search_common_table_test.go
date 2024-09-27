@@ -65,10 +65,10 @@ var TestSearchCommonTableCases = []CommonSearchTestCase{
 func TestSearchCommonTable(t *testing.T) {
 
 	tests := []struct {
-		Name      string
-		QueryJson string
-		WantedSql []string // array because of non-determinism
-
+		Name         string
+		QueryJson    string
+		WantedSql    []string // array because of non-determinism
+		Rows         []*sqlmock.Rows
 		IndexPattern string
 	}{
 
@@ -137,6 +137,69 @@ func TestSearchCommonTable(t *testing.T) {
 }`,
 			WantedSql: []string{
 				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') LIMIT 10`,
+			},
+		},
+
+		{
+			Name:         "query all - we query only virtual tables",
+			IndexPattern: "*",
+			QueryJson: `
+        {
+          "query": {
+            "match_all": {}
+          },
+          "track_total_hits": false,
+          "runtime_mappings": {
+        }
+}`,
+			WantedSql: []string{
+				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') LIMIT 10`,
+			},
+		},
+
+		{
+			Name:         "aggregation query",
+			IndexPattern: "*",
+			QueryJson: `
+        {
+          "query": {
+            "match_all": {}
+          },
+
+          "aggs": {
+				"2": {
+					"date_range": {
+						"field": "timestamp",
+						"ranges": [
+							{
+								"to": "now"
+							},
+							{
+								"from": "now-3w/d",
+								"to": "now"
+							},
+							{
+								"from": "2024-04-14"
+							}
+						],
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+		  	
+
+          "track_total_hits": false,
+          "runtime_mappings": {
+        }
+}`,
+			WantedSql: []string{
+				`SELECT countIf("@timestamp"<toInt64(toUnixTimestamp(now()))) AS "range_0__aggr__2__count", countIf(("@timestamp">=toInt64(toUnixTimestamp(toStartOfDay(subDate(now(), INTERVAL 3 week)))) AND "@timestamp"<toInt64(toUnixTimestamp(now())))) AS "range_1__aggr__2__count", countIf("@timestamp">=toInt64(toUnixTimestamp('2024-04-14'))) AS "range_2__aggr__2__count" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') -- optimizations: pancake(half)`,
+				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') LIMIT 10`,
+			},
+			// we need to return some rows, otherwise pancakes will fail
+			Rows: []*sqlmock.Rows{
+				sqlmock.NewRows([]string{"range_0__aggr__2__count", "range_1__aggr__2__count", "range_2__aggr__2__count"}).AddRow(1, 2, 3),
+				sqlmock.NewRows([]string{"@timestamp", "message", "__quesma_index_name"}).AddRow("2024-04-14", "message", "logs-1"),
 			},
 		},
 	}
@@ -242,8 +305,14 @@ func TestSearchCommonTable(t *testing.T) {
 			lm := clickhouse.NewLogManagerWithConnection(db, tableMap)
 			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
-			for _, query := range tt.WantedSql {
-				mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "message"}))
+			for i, query := range tt.WantedSql {
+
+				rows := sqlmock.NewRows([]string{"@timestamp", "message"})
+				if tt.Rows != nil {
+					rows = tt.Rows[i]
+				}
+
+				mock.ExpectQuery(query).WillReturnRows(rows)
 			}
 			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, schemaRegistry, ab_testing.NewEmptySender())
 
