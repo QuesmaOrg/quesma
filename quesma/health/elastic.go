@@ -62,12 +62,23 @@ func (c *ElasticHealthChecker) checkIfElasticsearchDiskIsFull() (isFull bool, re
 func (c *ElasticHealthChecker) CheckHealth() Status {
 	const elasticsearchHealthPath = "/_cluster/health/*"
 
-	resp, err := http.Get(c.cfg.Elasticsearch.Url.String() + elasticsearchHealthPath)
+	req, err := http.NewRequest(http.MethodGet, c.cfg.Elasticsearch.Url.String()+elasticsearchHealthPath, nil)
+	if err != nil {
+		return NewStatus("red",
+			fmt.Sprintf("Can't create '%s' request", elasticsearchHealthPath), err.Error())
+	}
+	if c.cfg.Elasticsearch.User != "" {
+		req.SetBasicAuth(c.cfg.Elasticsearch.User, c.cfg.Elasticsearch.Password)
+	}
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	fmt.Printf("1 %+v %+v\n", resp, err)
 	if err != nil {
 		return NewStatus("red", "Ping failed", err.Error())
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
+	fmt.Printf("2 %+v %+v", string(body), err)
 	if err != nil {
 		return NewStatus("red",
 			fmt.Sprintf("Can't read '%s' response", elasticsearchHealthPath), err.Error())
