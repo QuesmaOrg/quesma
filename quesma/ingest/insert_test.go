@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/jsonprocessor"
+	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
@@ -354,5 +356,83 @@ func dateTime(name string) *clickhouse.Column {
 			GoType: clickhouse.NewBaseType("DateTime64").GoType,
 		},
 		Modifiers: "CODEC(DoubleDelta, LZ4)",
+	}
+}
+
+func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
+
+	tests := []struct {
+		name               string
+		documents          []types.JSON
+		expectedStatements []string
+	}{
+		{
+			name: "simple single insert",
+			documents: []types.JSON{
+				{"new_field": "bar"},
+			},
+			expectedStatements: []string{
+				`CREATE TABLE IF NOT EXISTS "test_index" ( "@timestamp" DateTime64(3) DEFAULT now64(), "attributes_values" Map(String,String), "attributes_metadata" Map(String,String), "new_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=new_field', "schema_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=schema_field', ) ENGINE = MergeTree ORDER BY ("@timestamp") COMMENT 'created by Quesma'`,
+				`INSERT INTO "test_index" FORMAT JSONEachRow {"new_field":"bar"}`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			indexName := "test_index"
+
+			quesmaConfig := &config.QuesmaConfiguration{
+				IndexConfig: map[string]config.IndexConfiguration{
+					indexName: {},
+				},
+			}
+
+			indexSchema := schema.Schema{
+				ExistsInDataSource: false,
+				Fields: map[schema.FieldName]schema.Field{
+					"schema_field": {
+						PropertyName:         "schema_field",
+						InternalPropertyName: "schema_field",
+						InternalPropertyType: "String",
+						Type:                 schema.QuesmaTypeKeyword},
+				},
+			}
+
+			tables := NewTableMap()
+
+			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			if err != nil {
+				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+			}
+
+			virtualTableStorage := persistence.NewStaticJSONDatabase()
+			schemaRegistry := schema.StaticRegistry{
+				Tables: make(map[schema.TableName]schema.Schema),
+			}
+			schemaRegistry.Tables[schema.TableName(indexName)] = indexSchema
+
+			ingest := NewIngestProcessorTableMapConfigEmpty(tables, quesmaConfig)
+			ingest.chDb = db
+			ingest.virtualTableStorage = virtualTableStorage
+			ingest.schemaRegistry = schemaRegistry
+
+			ctx := context.Background()
+			formatter := clickhouse.DefaultColumnNameFormatter()
+
+			transformer := jsonprocessor.IngestTransformerFor(indexName, quesmaConfig)
+
+			for _, stm := range tt.expectedStatements {
+				mock.ExpectExec(stm).WillReturnResult(sqlmock.NewResult(1, 1))
+			}
+
+			err = ingest.ProcessInsertQuery(ctx, indexName, tt.documents, transformer, formatter)
+
+			if err != nil {
+				t.Fatalf("error processing insert query: %v", err)
+			}
+
+		})
 	}
 }
