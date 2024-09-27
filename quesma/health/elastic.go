@@ -24,7 +24,7 @@ func (c *ElasticHealthChecker) checkIfElasticsearchDiskIsFull() (isFull bool, re
 	const catAllocationPath = "/_cat/allocation?format=json"
 	const maxDiskPercent = 90
 
-	resp, err := http.Get(c.cfg.Elasticsearch.Url.String() + catAllocationPath)
+	resp, err := http.Get(c.cfg.Elasticsearch.Url.String() + catAllocationPath) // TODO: do also here
 	if err != nil {
 		return
 	}
