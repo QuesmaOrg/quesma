@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"github.com/hashicorp/go-multierror"
 	"github.com/knadh/koanf/providers/env"
+	"github.com/rs/zerolog"
 	"log"
 	"quesma/network"
 	"reflect"
 	"slices"
 	"strings"
 )
+
+var DefaultLogLevel = zerolog.InfoLevel
 
 const (
 	ElasticsearchFrontendQueryConnectorName  = "elasticsearch-fe-query"
@@ -456,6 +459,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	}
 
 	conf.Logging = c.Logging
+	if conf.Logging.Level == nil {
+		conf.Logging.Level = &DefaultLogLevel
+	}
+
 	conf.InstallationId = c.InstallationId
 	conf.LicenseKey = c.LicenseKey
 

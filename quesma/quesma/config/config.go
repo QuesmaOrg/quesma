@@ -50,10 +50,10 @@ type QuesmaConfiguration struct {
 }
 
 type LoggingConfiguration struct {
-	Path              string        `koanf:"path"`
-	Level             zerolog.Level `koanf:"level"`
-	RemoteLogDrainUrl *Url          `koanf:"remoteUrl"`
-	FileLogging       bool          `koanf:"fileLogging"`
+	Path              string         `koanf:"path"`
+	Level             *zerolog.Level `koanf:"level"`
+	RemoteLogDrainUrl *Url           `koanf:"remoteUrl"`
+	FileLogging       bool           `koanf:"fileLogging"`
 }
 
 type RelationalDbConfiguration struct {
