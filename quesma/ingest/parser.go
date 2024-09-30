@@ -68,14 +68,19 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 	}
 
 	// There might be some columns from schema which were not present in the JSON
-	for _, column := range columnsFromSchema {
+	for propertyName, column := range columnsFromSchema {
 		if first {
 			first = false
 		} else {
 			result.WriteString(",\n")
 		}
+
+		columnMetadata := comment_metadata.NewCommentMetadata()
+		columnMetadata.Values[comment_metadata.ElasticFieldName] = string(propertyName)
+		comment := columnMetadata.Marshall()
+
 		result.WriteString(util.Indent(1))
-		result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", column.ClickHouseColumnName, column.ClickHouseType+" COMMENT ", reverseMap[schema.EncodedFieldName(column.ClickHouseColumnName)].FieldName))
+		result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", column.ClickHouseColumnName, column.ClickHouseType+" COMMENT ", comment))
 	}
 	return result.String()
 }
