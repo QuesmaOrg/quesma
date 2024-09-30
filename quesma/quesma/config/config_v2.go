@@ -468,19 +468,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 	conf.AutodiscoveryEnabled = false
 	conf.Connectors = make(map[string]RelationalDbConfiguration)
-	relDBConn, connType, err := c.getRelationalDBConf()
-	if err != nil {
-		errAcc = multierror.Append(errAcc, err)
-	} else {
-		relDBConn.ConnectorType = connType
-		if connType == HydrolixBackendConnectorName {
-			conf.Connectors["injected-hydrolix-connector"] = *relDBConn
-			conf.Hydrolix = *relDBConn
-		} else {
-			conf.Connectors["injected-clickhouse-connector"] = *relDBConn
-			conf.ClickHouse = *relDBConn
-		}
-	}
+	relDBConn, connType, relationalDBErr := c.getRelationalDBConf()
 
 	isSinglePipeline, isDualPipeline := c.getPipelinesType()
 
@@ -630,6 +618,29 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	}
 
 END:
+
+	if relationalDBErr != nil && !conf.TransparentProxy {
+		errAcc = multierror.Append(errAcc, relationalDBErr)
+	} else if relationalDBErr != nil && conf.TransparentProxy {
+		relDBConn := RelationalDbConfiguration{
+			ConnectorType: ClickHouseOSBackendConnectorName,
+			Url: &Url{
+				Host: "localhost",
+			},
+		}
+		conf.Connectors["mock-for-transparent-proxy"] = relDBConn
+		conf.ClickHouse = relDBConn
+	} else {
+		relDBConn.ConnectorType = connType
+		if connType == HydrolixBackendConnectorName {
+			conf.Connectors["injected-hydrolix-connector"] = *relDBConn
+			conf.Hydrolix = *relDBConn
+		} else {
+			conf.Connectors["injected-clickhouse-connector"] = *relDBConn
+			conf.ClickHouse = *relDBConn
+		}
+	}
+
 	if errAcc != nil {
 		var multiErr *multierror.Error
 		if errors.As(errAcc, &multiErr) {
