@@ -102,14 +102,14 @@ func main() {
 		logger.Info().Msg("Ingest processor is disabled.")
 	}
 
-	abTestingController := sender.NewSenderCoordinator(&cfg)
-	abTestingController.Start()
-
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry) //FIXME no ingest processor here just for now
+
+	abTestingController := sender.NewSenderCoordinator(&cfg)
+	abTestingController.Start()
 
 	instance := constructQuesma(&cfg, tableDisco, lm, ingestProcessor, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender())
 	instance.Start()
@@ -123,10 +123,7 @@ func main() {
 	feature.NotSupportedLogger.Stop()
 	phoneHomeAgent.Stop(ctx)
 	lm.Stop()
-
-	if abTestingController != nil {
-		abTestingController.Stop()
-	}
+	abTestingController.Stop()
 
 	instance.Close(ctx)
 
