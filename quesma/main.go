@@ -62,7 +62,7 @@ func main() {
 		FileLogging:       cfg.Logging.FileLogging,
 		Path:              cfg.Logging.Path,
 		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
-		Level:             cfg.Logging.Level,
+		Level:             *cfg.Logging.Level,
 		ClientId:          licenseMod.License.ClientID,
 	}, sig, doneCh, asyncQueryTraceLogger)
 	defer logger.StdLogFile.Close()
