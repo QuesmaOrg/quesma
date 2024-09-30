@@ -359,6 +359,7 @@ func dateTime(name string) *clickhouse.Column {
 	}
 }
 
+// TestCreateTableIfSomeFieldsExistsInSchemaAlready verifies the result `CREATE TABLE` statement when the ingested JSON doesn't contain *all* the columns from the table. In this case we should take the column data from schema and make sure the final statement includes all the columns. 
 func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 
 	tests := []struct {
