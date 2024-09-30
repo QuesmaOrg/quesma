@@ -469,7 +469,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	conf.IngestStatistics = c.IngestStatistics
 	conf.AutodiscoveryEnabled = false
 	conf.Connectors = make(map[string]RelationalDbConfiguration)
-	relDBConn, connType, err := c.getRelationalDBConf()
+	relDBConn, connType, relationalDBErr := c.getRelationalDBConf()
 
 	isSinglePipeline, isDualPipeline := c.getPipelinesType()
 
@@ -562,9 +562,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 END:
 
-	if err != nil && !conf.TransparentProxy {
-		errAcc = multierror.Append(errAcc, err)
-	} else if err != nil && conf.TransparentProxy {
+	if relationalDBErr != nil && !conf.TransparentProxy {
+		errAcc = multierror.Append(errAcc, relationalDBErr)
+	} else if relationalDBErr != nil && conf.TransparentProxy {
 		relDBConn := RelationalDbConfiguration{
 			ConnectorType: ClickHouseOSBackendConnectorName,
 			Url: &Url{
