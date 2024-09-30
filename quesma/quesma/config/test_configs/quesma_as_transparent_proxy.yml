@@ -1,0 +1,35 @@
+frontendConnectors:
+  - name: elastic-ingest
+    type: elasticsearch-fe-ingest
+    config:
+      listenPort: 8080
+  - name: elastic-query
+    type: elasticsearch-fe-query
+    config:
+      listenPort: 8080
+backendConnectors:
+  - name: my-minimal-elasticsearch
+    type: elasticsearch
+    config:
+      url: "http://elasticsearch:9200"
+      user: elastic
+      password: quesmaquesma
+  - name: my-hydrolix-instance    # Okay maybe this is weird  but we require this ATM
+    type: hydrolix
+    config:
+      url: "clickhouse://localhost:9440"
+      user: "u"
+      password: "p"
+      database: "d"
+processors:
+  - name: noop-query-processor
+    type: quesma-v1-processor-noop
+pipelines:
+  - name: my-elasticsearch-proxy-read
+    frontendConnectors: [ elastic-query ]
+    processors: [ noop-query-processor ]
+    backendConnectors: [ my-minimal-elasticsearch ]
+  - name: my-elasticsearch-proxy-write
+    frontendConnectors: [ elastic-ingest ]
+    processors: [ noop-query-processor ]
+    backendConnectors: [ my-minimal-elasticsearch ]
