@@ -5,6 +5,7 @@ package ingest
 import (
 	"fmt"
 	"quesma/clickhouse"
+	"quesma/comment_metadata"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/schema"
@@ -50,25 +51,36 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 		}
 		result.WriteString(util.Indent(1))
 
+		propertyName := reverseMap[schema.EncodedFieldName(columnFromJson.ClickHouseColumnName)].FieldName
+
+		columnMetadata := comment_metadata.NewCommentMetadata()
+		columnMetadata.Values[comment_metadata.ElasticFieldName] = propertyName
+		comment := columnMetadata.Marshall()
+
 		if columnFromSchema, found := columnsFromSchema[schema.FieldName(columnFromJson.ClickHouseColumnName)]; found && !strings.Contains(columnFromJson.ClickHouseType, "Array") {
 			// Schema takes precedence over JSON (except for Arrays which are not currently handled)
-			result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromSchema.ClickHouseColumnName, columnFromSchema.ClickHouseType+" COMMENT ", reverseMap[schema.EncodedFieldName(columnFromSchema.ClickHouseColumnName)].FieldName))
+			result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromSchema.ClickHouseColumnName, columnFromSchema.ClickHouseType+" COMMENT ", comment))
 		} else {
-			result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType+" COMMENT ", reverseMap[schema.EncodedFieldName(columnFromJson.ClickHouseColumnName)].FieldName))
+			result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType+" COMMENT ", comment))
 		}
 
 		delete(columnsFromSchema, schema.FieldName(columnFromJson.ClickHouseColumnName))
 	}
 
 	// There might be some columns from schema which were not present in the JSON
-	for _, column := range columnsFromSchema {
+	for propertyName, column := range columnsFromSchema {
 		if first {
 			first = false
 		} else {
 			result.WriteString(",\n")
 		}
+
+		columnMetadata := comment_metadata.NewCommentMetadata()
+		columnMetadata.Values[comment_metadata.ElasticFieldName] = string(propertyName)
+		comment := columnMetadata.Marshall()
+
 		result.WriteString(util.Indent(1))
-		result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", column.ClickHouseColumnName, column.ClickHouseType+" COMMENT ", reverseMap[schema.EncodedFieldName(column.ClickHouseColumnName)].FieldName))
+		result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", column.ClickHouseColumnName, column.ClickHouseType+" COMMENT ", comment))
 	}
 	return result.String()
 }
