@@ -511,16 +511,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				conf.IndexConfig[indexName] = processedConfig
 			}
 
-			// Handle default index configuration
-			defaultConfig := conf.IndexConfig[DefaultWildcardIndexName]
-			if len(defaultConfig.QueryTarget) != 1 {
-				errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
-			}
-			if defaultConfig.QueryTarget[0] == ClickhouseTarget {
-				conf.AutodiscoveryEnabled = true
-			}
-
-			delete(conf.IndexConfig, DefaultWildcardIndexName)
 
 		} else {
 			errAcc = multierror.Append(errAcc, fmt.Errorf("unsupported processor %s in single pipeline", procType))
