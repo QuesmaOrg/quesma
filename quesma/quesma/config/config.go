@@ -181,9 +181,6 @@ func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, r
 }
 
 func (c *QuesmaConfiguration) validateIndexName(indexName string, result error) error {
-	if indexName == DefaultWildcardIndexName {
-		return result
-	}
 	if strings.Contains(indexName, "*") || indexName == "_all" {
 		result = multierror.Append(result, fmt.Errorf("wildcard patterns are not allowed in index configuration: %s", indexName))
 	}
