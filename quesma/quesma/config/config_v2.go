@@ -562,9 +562,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 END:
 
-	if err != nil && conf.TransparentProxy == false {
+	if err != nil && !conf.TransparentProxy {
 		errAcc = multierror.Append(errAcc, err)
-	} else if err != nil && conf.TransparentProxy == true {
+	} else if err != nil && conf.TransparentProxy {
 		relDBConn := RelationalDbConfiguration{
 			ConnectorType: ClickHouseOSBackendConnectorName,
 			Url: &Url{
