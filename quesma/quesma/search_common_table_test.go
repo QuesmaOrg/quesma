@@ -17,51 +17,6 @@ import (
 	"testing"
 )
 
-type CommonSearchTestCase struct {
-	Name      string
-	QueryJson string
-	WantedSql []string // array because of non-determinism
-
-	IndexPattern string
-}
-
-var TestSearchCommonTableCases = []CommonSearchTestCase{
-
-	{ // [0]
-		Name:         "query non virtual table",
-		IndexPattern: "logs-3",
-		QueryJson: `
-        {
-          "query": {
-            "match_all": {}
-          },
-          "track_total_hits": false,
-          "runtime_mappings": {
-        }
-}`,
-		WantedSql: []string{
-			`SELECT "@timestamp", "message" FROM "logs-3" LIMIT 10`,
-		},
-	},
-
-	{
-		Name:         "query virtual table",
-		IndexPattern: "logs-1",
-		QueryJson: `
-        {
-          "query": {
-            "match_all": {}
-          },
-          "track_total_hits": false,
-          "runtime_mappings": {
-        }
-}`,
-		WantedSql: []string{
-			`SELECT "@timestamp", "message" FROM quesma_common_table WHERE "__quesma_index_name"='logs-1' LIMIT 10`,
-		},
-	},
-}
-
 func TestSearchCommonTable(t *testing.T) {
 
 	tests := []struct {
