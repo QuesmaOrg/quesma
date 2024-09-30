@@ -43,6 +43,8 @@ type QuesmaConfiguration struct {
 	PublicTcpPort              network.Port                  `koanf:"port"`
 	IngestStatistics           bool                          `koanf:"ingestStatistics"`
 	QuesmaInternalTelemetryUrl *Url                          `koanf:"internalTelemetryUrl"`
+	DisableAuth                bool                          `koanf:"disableAuth"`
+	AutodiscoveryEnabled       bool
 }
 
 type LoggingConfiguration struct {
@@ -352,5 +354,5 @@ func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfigurat
 }
 
 func (c *QuesmaConfiguration) IndexAutodiscoveryEnabled() bool {
-	return len(c.IndexConfig) == 0
+	return c.AutodiscoveryEnabled
 }

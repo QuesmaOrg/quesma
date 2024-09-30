@@ -3,6 +3,7 @@
 package schema
 
 import (
+	"quesma/comment_metadata"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/util"
@@ -45,8 +46,9 @@ type (
 		DatabaseName string
 	}
 	Column struct {
-		Name string
-		Type string // FIXME: change to schema.Type
+		Name    string
+		Type    string // FIXME: change to schema.Type
+		Comment string
 	}
 )
 
@@ -74,10 +76,8 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 
 	if s.dataSourceTableProvider.AutodiscoveryEnabled() {
 		for tableName, table := range definitions {
-			// TODO here we should check if table contains persistent field encodings
-			// in column comments and if so use them to populate internalToPublicFieldsEncodings
-			internalToPublicFieldsEncodings := s.getInternalToPublicFieldEncodings(tableName)
 			fields := make(map[FieldName]Field)
+			internalToPublicFieldsEncodings := s.getInternalToPublicFieldEncodings(tableName)
 			existsInDataSource := s.populateSchemaFromTableDefinition(definitions, tableName, fields, internalToPublicFieldsEncodings)
 			schemas[TableName(tableName)] = NewSchema(fields, existsInDataSource, table.DatabaseName)
 		}
@@ -85,14 +85,11 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 	}
 
 	for indexName, indexConfiguration := range *s.indexConfiguration {
-		// TODO here we should check if table contains persistent field encodings
-		// in column comments and if so use them to populate internalToPublicFieldsEncodings
-		internalToPublicFieldsEncodings := s.getInternalToPublicFieldEncodings(indexName)
-
 		fields := make(map[FieldName]Field)
 		aliases := make(map[FieldName]FieldName)
 		s.populateSchemaFromDynamicConfiguration(indexName, fields)
 		s.populateSchemaFromStaticConfiguration(indexConfiguration, fields)
+		internalToPublicFieldsEncodings := s.getInternalToPublicFieldEncodings(indexName)
 		existsInDataSource := s.populateSchemaFromTableDefinition(definitions, indexName, fields, internalToPublicFieldsEncodings)
 		s.populateAliases(indexConfiguration, fields, aliases)
 		s.removeIgnoredFields(indexConfiguration, fields, aliases)
@@ -202,6 +199,22 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 			var propertyName FieldName
 			if internalField, ok := internalToPublicFieldsEncodings[EncodedFieldName(column.Name)]; ok {
 				propertyName = FieldName(internalField)
+				// if field encodings are not coming from ingest e.g. encodings map
+				// is empty, read them from persistent storage, e.g. column comment
+			} else if len(column.Comment) > 0 {
+				propertyName = FieldName(column.Name)
+
+				metadata, err := comment_metadata.UnmarshallCommentMetadata(column.Comment)
+				if err != nil {
+					logger.Warn().Msgf("error unmarshalling column '%s' (table: %s)  comment metadata: %s %v", indexName, column.Name, column.Comment, err)
+				} else {
+					if metadata != nil {
+						if fieldName, ok := metadata.Values[comment_metadata.ElasticFieldName]; ok {
+							propertyName = FieldName(fieldName)
+						}
+					}
+				}
+
 			} else {
 				// if field encoding is not found, use the column name as the property name
 				propertyName = FieldName(column.Name)

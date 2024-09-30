@@ -55,6 +55,7 @@ type (
 		Type      Type
 		Modifiers string
 		Codec     Codec // TODO currently not used, it's part of Modifiers
+		Comment   string
 	}
 	DateTimeType int
 )

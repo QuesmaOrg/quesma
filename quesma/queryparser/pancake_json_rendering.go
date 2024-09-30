@@ -232,7 +232,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 	for _, metric := range layer.currentMetricAggregations {
 		var metricRows []model.QueryResultRow
 		switch metric.queryType.(type) {
-		case metrics_aggregations.TopMetrics, metrics_aggregations.TopHits:
+		case *metrics_aggregations.TopMetrics, *metrics_aggregations.TopHits:
 			metricRows = p.selectTopHitsRows(metric, rows)
 		default:
 			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)

@@ -11,7 +11,7 @@ import (
 
 func TestQuesmaConfigurationLoading(t *testing.T) {
 
-	os.Setenv(configFileLocationEnvVar, "./test_config_v2.yaml")
+	os.Setenv(configFileLocationEnvVar, "./test_configs/test_config_v2.yaml")
 
 	logLevelPassedAsEnvVar := "debug"
 	licenseKeyPassedAsEnvVar := "arbitraty-license-key"
@@ -60,6 +60,35 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 			assert.Equal(t, tt.ingestTarget, ic.IngestTarget)
 		})
 	}
+}
+
+func TestQuesmaTransparentProxyConfiguration(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/quesma_as_transparent_proxy.yml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+	assert.True(t, legacyConf.TransparentProxy)
+}
+
+func TestQuesmaAddingHydrolixTablesToExistingElasticsearch(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/quesma_adding_two_hydrolix_tables.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+	assert.False(t, legacyConf.TransparentProxy)
+	assert.Equal(t, 2, len(legacyConf.IndexConfig))
+	siemIndexConf := legacyConf.IndexConfig["siem"]
+	logsIndexConf := legacyConf.IndexConfig["logs"]
+
+	assert.Equal(t, []string{"clickhouse"}, siemIndexConf.QueryTarget)
+	assert.Equal(t, []string{"elasticsearch"}, siemIndexConf.IngestTarget)
+
+	assert.Equal(t, []string{"clickhouse"}, logsIndexConf.QueryTarget)
+	assert.Equal(t, []string{"elasticsearch"}, logsIndexConf.IngestTarget)
 }
 
 func TestMatchName(t *testing.T) {

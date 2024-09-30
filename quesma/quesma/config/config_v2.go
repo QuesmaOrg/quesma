@@ -59,7 +59,8 @@ type FrontendConnector struct {
 }
 
 type FrontendConnectorConfiguration struct {
-	ListenPort network.Port `koanf:"listenPort"`
+	ListenPort  network.Port `koanf:"listenPort"`
+	DisableAuth bool         `koanf:"disableAuth"`
 }
 
 type BackendConnector struct {
@@ -245,6 +246,11 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		if ingestProcessor.Type != QuesmaV1ProcessorIngest && ingestProcessor.Type != QuesmaV1ProcessorNoOp {
 			return fmt.Errorf("ingest pipeline must have ingest-type or noop processor")
 		}
+		for _, indexConf := range ingestProcessor.Config.IndexConfig {
+			if len(indexConf.Optimizers) != 0 {
+				return fmt.Errorf("configuration of index '%s' in '%s' processor cannot have any optimizers, this is only a feature of query processor", ingestPipeline.Processors[0], indexConf.Name)
+			}
+		}
 		queryProcessor := c.getProcessorByName(queryPipeline.Processors[0])
 		if queryProcessor == nil {
 			return fmt.Errorf(fmt.Sprintf("query processor named [%s] not found in configuration", ingestPipeline.Processors[0]))
@@ -258,8 +264,32 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 			return fmt.Errorf("query pipeline must have query or noop processor")
 		}
 		if !(queryProcessor.Type == QuesmaV1ProcessorNoOp) {
-			if !reflect.DeepEqual(ingestProcessor.Config, queryProcessor.Config) {
-				return fmt.Errorf("ingest and query processors must have the same configuration due to current limitations")
+			// Indexes must be defined in both processors
+			for indexName := range queryProcessor.Config.IndexConfig {
+				if _, found := ingestProcessor.Config.IndexConfig[indexName]; !found {
+					return fmt.Errorf("index '%s' is defined in query processor, but not in ingest processor", indexName)
+				}
+			}
+			for indexName := range ingestProcessor.Config.IndexConfig {
+				if _, found := queryProcessor.Config.IndexConfig[indexName]; !found {
+					return fmt.Errorf("index '%s' is defined in query processor, but not in ingest processor", indexName)
+				}
+			}
+			for indexName, queryIndexConf := range queryProcessor.Config.IndexConfig {
+				ingestIndexConf := ingestProcessor.Config.IndexConfig[indexName]
+				if queryIndexConf.Override != ingestIndexConf.Override {
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'override'")
+				}
+				if queryIndexConf.UseCommonTable != ingestIndexConf.UseCommonTable {
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'useCommonTable'")
+				}
+				if queryIndexConf.SchemaOverrides == nil || ingestIndexConf.SchemaOverrides == nil {
+					if queryIndexConf.SchemaOverrides != ingestIndexConf.SchemaOverrides {
+						return fmt.Errorf("ingest and query processors must have the same configuration of 'schemaOverrides' for index '%s' due to current limitations", indexName)
+					}
+				} else if !reflect.DeepEqual(*queryIndexConf.SchemaOverrides, *ingestIndexConf.SchemaOverrides) {
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'schemaOverrides' for index '%s' due to current limitations", indexName)
+				}
 			}
 		}
 	}
@@ -303,9 +333,19 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 	}
 	if p.Type == QuesmaV1ProcessorQuery || p.Type == QuesmaV1ProcessorIngest {
 		for indexName, indexConfig := range p.Config.IndexConfig {
-			if len(indexConfig.Target) != 1 {
-				return fmt.Errorf("configuration of index %s must have exactly one target", indexName)
+			if strings.ContainsAny(indexName, "*,") {
+				return fmt.Errorf("index name '%s' in processor configuration is an index pattern, not allowed", indexName)
 			}
+			if p.Type == QuesmaV1ProcessorQuery {
+				if len(indexConfig.Target) != 1 && len(indexConfig.Target) != 2 {
+					return fmt.Errorf("configuration of index %s must have one or two targets (query processor)", indexName)
+				}
+			} else {
+				if len(indexConfig.Target) > 2 {
+					return fmt.Errorf("configuration of index %s must have at most two targets (ingest processor)", indexName)
+				}
+			}
+
 			for _, target := range indexConfig.Target {
 				if c.getBackendConnectorByName(target) == nil {
 					return fmt.Errorf("invalid target %s in configuration of index %s", target, indexName)
@@ -326,7 +366,8 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 	if !slices.Contains(c.definedFrontedConnectorNames(), pipeline.FrontendConnectors[0]) {
 		errAcc = multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("frontend connector named %s referenced in %s not found in configuration", pipeline.FrontendConnectors[0], pipeline.Name)))
 	}
-	if len(pipeline.BackendConnectors) != 0 && len(pipeline.BackendConnectors) > 2 {
+
+	if len(pipeline.BackendConnectors) == 0 || len(pipeline.BackendConnectors) > 2 {
 		return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline must define exactly one or two backend connectors, %d defined", len(pipeline.BackendConnectors))))
 	}
 	if !slices.Contains(c.definedBackendConnectorNames(), pipeline.BackendConnectors[0]) {
@@ -337,6 +378,7 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 			errAcc = multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[1], pipeline.Name)))
 		}
 	}
+
 	if len(pipeline.Processors) != 1 {
 		return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline must have exactly one processor, [%s] has %d defined", pipeline.Name, len(pipeline.Processors))))
 	}
@@ -407,24 +449,20 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.QuesmaInternalTelemetryUrl = telemetryUrl
 		conf.Logging.RemoteLogDrainUrl = telemetryUrl
 	}
+	// This is perhaps a little oversimplification, **but** in case any of the FE connectors has auth disabled, we disable auth for the whole incomming traffic
+	// After all, the "duality" of frontend connectors is still an architectural choice we tend to question
+	for _, fConn := range c.FrontendConnectors {
+		if fConn.Config.DisableAuth {
+			conf.DisableAuth = true
+		}
+	}
 	conf.Logging = c.Logging
 	conf.InstallationId = c.InstallationId
 	conf.LicenseKey = c.LicenseKey
 	conf.IngestStatistics = c.IngestStatistics
+	conf.AutodiscoveryEnabled = false
 	conf.Connectors = make(map[string]RelationalDbConfiguration)
-	relDBConn, connType, err := c.getRelationalDBConf()
-	if err != nil {
-		errAcc = multierror.Append(errAcc, err)
-	} else {
-		relDBConn.ConnectorType = connType
-		if connType == HydrolixBackendConnectorName {
-			conf.Connectors["injected-hydrolix-connector"] = *relDBConn
-			conf.Hydrolix = *relDBConn
-		} else {
-			conf.Connectors["injected-clickhouse-connector"] = *relDBConn
-			conf.ClickHouse = *relDBConn
-		}
-	}
+	relDBConn, connType, relationalDBErr := c.getRelationalDBConf()
 
 	isSinglePipeline, isDualPipeline := c.getPipelinesType()
 
@@ -446,9 +484,16 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 		queryProcessor, ingestProcessor := c.getProcessorByName(queryPipeline.Processors[0]), c.getProcessorByName(ingestPipeline.Processors[0])
 
+		if queryProcessor.Type == QuesmaV1ProcessorNoOp && ingestProcessor.Type == QuesmaV1ProcessorNoOp {
+			conf.TransparentProxy = true
+			goto END
+		}
+
 		elasticBackendName := c.getElasticsearchBackendConnector().Name
-		relationalDBBackend, _ := c.getRelationalDBBackendConnector()
-		relationalDBBackendName := relationalDBBackend.Name
+		var relationalDBBackendName string
+		if relationalDBBackend, _ := c.getRelationalDBBackendConnector(); relationalDBBackend != nil {
+			relationalDBBackendName = relationalDBBackend.Name
+		}
 
 		conf.IndexConfig = make(map[string]IndexConfiguration)
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
@@ -460,6 +505,19 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			}
 			if slices.Contains(indexConfig.Target, relationalDBBackendName) {
 				processedConfig.QueryTarget = append(processedConfig.QueryTarget, ClickhouseTarget)
+			}
+
+			if len(indexConfig.QueryTarget) == 2 && !(indexConfig.QueryTarget[0] == ClickhouseTarget && indexConfig.QueryTarget[1] == ElasticsearchTarget) {
+				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration - when you specify two targets, Elastic has to be the primary one and ClickHouse has to be the secondary one", indexName))
+				continue
+			}
+			if len(indexConfig.QueryTarget) == 2 {
+				// Turn on A/B testing
+				processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+				processedConfig.Optimizers["elastic_ab_testing"] = OptimizerConfiguration{
+					Disabled:   false,
+					Properties: map[string]string{},
+				}
 			}
 
 			conf.IndexConfig[indexName] = processedConfig
@@ -479,6 +537,30 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			}
 
 			conf.IndexConfig[indexName] = processedConfig
+		}
+	}
+
+END:
+
+	if relationalDBErr != nil && !conf.TransparentProxy {
+		errAcc = multierror.Append(errAcc, relationalDBErr)
+	} else if relationalDBErr != nil && conf.TransparentProxy {
+		relDBConn := RelationalDbConfiguration{
+			ConnectorType: ClickHouseOSBackendConnectorName,
+			Url: &Url{
+				Host: "localhost",
+			},
+		}
+		conf.Connectors["mock-for-transparent-proxy"] = relDBConn
+		conf.ClickHouse = relDBConn
+	} else {
+		relDBConn.ConnectorType = connType
+		if connType == HydrolixBackendConnectorName {
+			conf.Connectors["injected-hydrolix-connector"] = *relDBConn
+			conf.Hydrolix = *relDBConn
+		} else {
+			conf.Connectors["injected-clickhouse-connector"] = *relDBConn
+			conf.ClickHouse = *relDBConn
 		}
 	}
 

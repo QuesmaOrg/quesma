@@ -3,13 +3,13 @@
 package bulk
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"quesma/clickhouse"
+	"quesma/elasticsearch"
 	"quesma/ingest"
 	"quesma/jsonprocessor"
 	"quesma/logger"
@@ -145,6 +145,37 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 
 			clickhouseDocumentsToInsert[index] = append(clickhouseDocumentsToInsert[index], entryWithResponse)
 		}
+		if indexConfig.IsIngestDisabled() {
+			bulkSingleResponse := BulkSingleResponse{
+				Shards: BulkShardsResponse{
+					Failed:     1,
+					Successful: 0,
+					Total:      1,
+				},
+				Status: 403,
+				Type:   "_doc",
+				Error: queryparser.Error{
+					RootCause: []queryparser.RootCause{
+						{
+							Type:   "index_closed_exception",
+							Reason: fmt.Sprintf("index %s is not routed to any connector", index),
+						},
+					},
+					Type:   "index_closed_exception",
+					Reason: fmt.Sprintf("index %s is not routed to any connector", index),
+				},
+			}
+			switch operation {
+			case "create":
+				entryWithResponse.response.Create = bulkSingleResponse
+
+			case "index":
+				entryWithResponse.response.Index = bulkSingleResponse
+
+			default:
+				return fmt.Errorf("unsupported bulk operation type: %s. Document: %v", operation, document)
+			}
+		}
 		return nil
 	})
 
@@ -157,10 +188,8 @@ func sendToElastic(elasticRequestBody []byte, cfg *config.QuesmaConfiguration, e
 		return nil
 	}
 
-	req, _ := http.NewRequest("POST", cfg.Elasticsearch.Url.String()+"/_bulk", bytes.NewBuffer(elasticRequestBody))
-	req.Header.Set("Content-Type", "application/x-ndjson")
-	client := http.Client{} // FIXME
-	response, err := client.Do(req)
+	esClient := elasticsearch.NewSimpleClient(&cfg.Elasticsearch)
+	response, err := esClient.RequestWithHeaders(context.Background(), "POST", "/_bulk", elasticRequestBody, http.Header{"Content-Type": {"application/x-ndjson"}})
 	if err != nil {
 		return err
 	}

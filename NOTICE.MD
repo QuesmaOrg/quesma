@@ -8,11 +8,11 @@ Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/ClickHouse/clickhouse-go/v2
-Version : v2.28.3
-Time    : 2024-09-12T07:34:22Z
+Version : v2.29.0
+Time    : 2024-09-24T12:36:14Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.28.3/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.29.0/LICENSE:
 
 Copyright 2016-2023 ClickHouse, Inc.
 
@@ -1249,11 +1249,11 @@ THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/klauspost/compress
-Version : v1.17.9
-Time    : 2024-06-12T08:58:18Z
+Version : v1.17.10
+Time    : 2024-09-18T17:03:25Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/klauspost/compress@v1.17.9/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/klauspost/compress@v1.17.10/LICENSE:
 
 Copyright (c) 2012 The Go Authors. All rights reserved.
 Copyright (c) 2019 Klaus Post. All rights reserved.
@@ -3610,11 +3610,11 @@ either expressed or implied, of the FreeBSD Project.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/docker/docker
-Version : v27.2.0+incompatible
-Time    : 2024-08-27T14:00:14Z
+Version : v27.3.0+incompatible
+Time    : 2024-09-18T10:25:38Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/docker/docker@v27.2.0+incompatible/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/docker/docker@v27.3.0+incompatible/LICENSE:
 
 
                                  Apache License

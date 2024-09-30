@@ -2706,6 +2706,125 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [55]
+		TestName: "terms order by percentile_ranks",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"percentile_ranks": {
+								"field": "DistanceKilometers",
+								"values": [
+									0, 50
+								]
+							}
+						}
+					},
+					"terms": {
+						"field": "Cancelled",
+						"order": {
+							"1.0": "desc"
+						},
+						"shard_size": 25,
+						"size": 5
+					}
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"is_partial": false,
+			"is_running": false,
+			"start_time_in_millis": 1727114076973,
+			"expiration_time_in_millis": 1727546076973,
+			"completion_time_in_millis": 1727114076978,
+			"response": {
+				"took": 5,
+				"timed_out": false,
+				"_shards": {
+					"total": 1,
+					"successful": 1,
+					"skipped": 0,
+					"failed": 0
+				},
+				"hits": {
+					"total": {
+						"value": 212,
+						"relation": "eq"
+					},
+					"max_score": null,
+					"hits": []
+				},
+				"aggregations": {
+					"0": {
+						"doc_count_error_upper_bound": 0,
+						"sum_other_doc_count": 0,
+						"buckets": [
+							{
+								"1": {
+									"values": {
+										"0.0": 3.314917127071823,
+										"50.0": 6.441097753551789
+									}
+								},
+								"key": 0,
+								"doc_count": 181
+							},
+							{
+								"1": {
+									"values": {
+										"0.0": 3.225806451612903,
+										"50.0": 9.813812484840025
+									}
+								},
+								"key": 1,
+								"doc_count": 31
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", 212),
+				model.NewQueryResultCol("aggr__0__key_0", 0),
+				model.NewQueryResultCol("aggr__0__count", int64(181)),
+				model.NewQueryResultCol("aggr__0__order_1", 3.314917127071823),
+				model.NewQueryResultCol("metric__0__1_col_0", 3.314917127071823),
+				model.NewQueryResultCol("metric__0__1_col_1", 6.441097753551789),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", 212),
+				model.NewQueryResultCol("aggr__0__key_0", 1),
+				model.NewQueryResultCol("aggr__0__count", int64(31)),
+				model.NewQueryResultCol("aggr__0__order_1", 3.225806451612903),
+				model.NewQueryResultCol("metric__0__1_col_0", 3.225806451612903),
+				model.NewQueryResultCol("metric__0__1_col_1", 9.813812484840025),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+			  "Cancelled" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
+			  countIf("DistanceKilometers"<=0)/count(*)*100 AS "aggr__0__order_1",
+			  countIf("DistanceKilometers"<=0)/count(*)*100 AS "metric__0__1_col_0",
+			  countIf("DistanceKilometers"<=50)/count(*)*100 AS "metric__0__1_col_1"
+			FROM __quesma_table_name
+			GROUP BY "Cancelled" AS "aggr__0__key_0"
+			ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC
+			LIMIT 6`,
+	},
+	{ // [56]
 		TestName: "simple histogram with null values, no missing parameter",
 		QueryRequestJson: `
 		{
@@ -2802,7 +2921,7 @@ var AggregationTests2 = []AggregationTestCase{
 			  "aggr__sample__histo__key_0"
 			ORDER BY "aggr__sample__histo__key_0" ASC`,
 	},
-	{ // [56]
+	{ // [57]
 		TestName: "histogram with null values, no missing parameter, and some subaggregation",
 		QueryRequestJson: `
 		{
@@ -2945,7 +3064,7 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE "aggr__histo__0__order_1_rank"<=11
 			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
 	},
-	{ // [57]
+	{ // [58]
 		TestName: "simple histogram with null values and missing parameter",
 		QueryRequestJson: `
 		{
@@ -3048,7 +3167,7 @@ var AggregationTests2 = []AggregationTestCase{
 			  224.19300000000004 AS "aggr__sample__histo__key_0"
 			ORDER BY "aggr__sample__histo__key_0" ASC`,
 	},
-	{ // [58]
+	{ // [59]
 		TestName: "histogram with null values, missing parameter, and some subaggregation",
 		QueryRequestJson: `
 		{
@@ -3210,5 +3329,586 @@ var AggregationTests2 = []AggregationTestCase{
 				  "type" AS "aggr__histo__0__key_0"))
 			WHERE "aggr__histo__0__order_1_rank"<=11
 			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
+	},
+	{ // [60]
+		TestName: "simple date_histogram with null values, no missing parameter",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"sample": {
+					"aggs": {
+						"histo": {
+							"date_histogram": {
+								"field": "customer_birth_date"
+							}
+						}
+					},
+					"sampler": {
+						"shard_size": 5000
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 0,
+			"expiration_time_in_millis": 0,
+			"id": "quesma_async_0191e0d2-589d-7dd9-8ac9-7f51fdf2f8af",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"sample": {
+						"doc_count": 1978,
+						"histo": {
+							"buckets": [
+								{
+									"doc_count": 1960,
+									"key": 1706021640000,
+									"key_as_string": "2024-01-23T14:54:00.000"
+								},
+								{
+									"doc_count": 17,
+									"key": 1706021700000,
+									"key_as_string": "2024-01-23T14:55:00.000"
+								}
+							]
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 5934
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", int64(1706021640000/30000)),
+				model.NewQueryResultCol("aggr__sample__histo__count", 1960),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", int64(1706021700000/30000)),
+				model.NewQueryResultCol("aggr__sample__histo__count", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 1978),
+				model.NewQueryResultCol("aggr__sample__histo__key_0", nil),
+				model.NewQueryResultCol("aggr__sample__histo__count", 1),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__sample__count",
+			  toInt64(toUnixTimestamp64Milli("customer_birth_date") / 30000) AS
+			  "aggr__sample__histo__key_0", count(*) AS "aggr__sample__histo__count"
+			FROM (
+			  SELECT "customer_birth_date"
+			  FROM __quesma_table_name
+			  LIMIT 20000)
+			GROUP BY toInt64(toUnixTimestamp64Milli("customer_birth_date") / 30000) AS
+			  "aggr__sample__histo__key_0"
+			ORDER BY "aggr__sample__histo__key_0" ASC`,
+	},
+	{ // [61]
+		TestName: "date_histogram with null values, no missing parameter, and some subaggregation",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"histo": {
+					"date_histogram": {
+						"field": "customer_birth_date"
+					},
+					"aggs": {
+						"0": {
+							"terms": {
+								"field": "type"
+							}
+						}
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 0,
+			"expiration_time_in_millis": 0,
+			"id": "quesma_async_0191e0d2-589d-7dd9-8ac9-7f51fdf2f8af",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"histo": {
+						"buckets": [
+							{
+								"doc_count": 1960,
+								"key": 1706021640000,
+								"key_as_string": "2024-01-23T14:54:00.000",
+								"0": {
+									"buckets": [
+										{
+											"doc_count": 42,
+											"key": "order"
+										},
+										{
+											"doc_count": 1,
+											"key": "disorder"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 1917
+								}
+							},
+							{
+								"doc_count": 17,
+								"key": 1706021670000,
+								"key_as_string": "2024-01-23T14:54:30.000"
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 5934
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021640000/30000)),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021640000/30000)),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "disorder"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021670000/30000)),
+				model.NewQueryResultCol("aggr__histo__count", 17),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 17),
+				model.NewQueryResultCol("aggr__histo__0__key_0", nil),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", nil),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "a"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", nil),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "b"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__histo__key_0", "aggr__histo__count",
+			  "aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+			  "aggr__histo__0__count"
+			FROM (
+			  SELECT "aggr__histo__key_0", "aggr__histo__count",
+				"aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+				"aggr__histo__0__count",
+				dense_rank() OVER (ORDER BY "aggr__histo__key_0" ASC) AS
+				"aggr__histo__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__histo__key_0" ORDER BY
+				"aggr__histo__0__count" DESC, "aggr__histo__0__key_0" ASC) AS
+				"aggr__histo__0__order_1_rank"
+			  FROM (
+				SELECT toInt64(toUnixTimestamp64Milli("customer_birth_date") / 30000) AS
+				  "aggr__histo__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
+				  count(*) AS "aggr__histo__0__count"
+				FROM __quesma_table_name
+				GROUP BY toInt64(toUnixTimestamp64Milli("customer_birth_date") / 30000) AS
+				  "aggr__histo__key_0", "type" AS "aggr__histo__0__key_0"))
+			WHERE "aggr__histo__0__order_1_rank"<=11
+			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
+	},
+	{ // [62]
+		TestName: "date_histogram with null values, missing parameter, and some subaggregation",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"histo": {
+					"date_histogram": {
+						"field": "customer_birth_date",
+						"missing": "2024-01-23T14:56:00"
+					},
+					"aggs": {
+						"0": {
+							"terms": {
+								"field": "type"
+							}
+						}
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 0,
+			"expiration_time_in_millis": 0,
+			"id": "quesma_async_0191e0d2-589d-7dd9-8ac9-7f51fdf2f8af",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"histo": {
+						"buckets": [
+							{
+								"doc_count": 1960,
+								"key": 1706021640000,
+								"key_as_string": "2024-01-23T14:54:00.000",
+								"0": {
+									"buckets": [
+										{
+											"doc_count": 42,
+											"key": "order"
+										},
+										{
+											"doc_count": 1,
+											"key": "disorder"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 1917
+								}
+							},
+							{
+								"doc_count": 17,
+								"key": 1706021700000,
+								"key_as_string": "2024-01-23T14:55:00.000"
+							},
+							{
+								"doc_count": 15,
+								"key": 1706021760000,
+								"key_as_string": "2024-01-23T14:56:00.000",
+								"0": {
+									"buckets": [
+										{
+											"doc_count": 1,
+											"key": "a"
+										},
+										{
+											"doc_count": 1,
+											"key": "b"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 13
+								}
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 5934
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021640000/30000)),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021640000/30000)),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "disorder"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021700000/30000)),
+				model.NewQueryResultCol("aggr__histo__count", 17),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 17),
+				model.NewQueryResultCol("aggr__histo__0__key_0", nil),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021760000/30000)),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "a"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021760000/30000)),
+				model.NewQueryResultCol("aggr__histo__count", 15),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 15),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "b"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(1)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__histo__key_0", "aggr__histo__count",
+			  "aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+			  "aggr__histo__0__count"
+			FROM (
+			  SELECT "aggr__histo__key_0", "aggr__histo__count",
+				"aggr__histo__0__parent_count", "aggr__histo__0__key_0",
+				"aggr__histo__0__count",
+				dense_rank() OVER (ORDER BY "aggr__histo__key_0" ASC) AS
+				"aggr__histo__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__histo__key_0" ORDER BY
+				"aggr__histo__0__count" DESC, "aggr__histo__0__key_0" ASC) AS
+				"aggr__histo__0__order_1_rank"
+			  FROM (
+				SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+				  toDateTime(1706021760000))) / 30000) AS "aggr__histo__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
+				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
+				  count(*) AS "aggr__histo__0__count"
+				FROM __quesma_table_name
+				GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+				  toDateTime(1706021760000))) / 30000) AS "aggr__histo__key_0",
+				  "type" AS "aggr__histo__0__key_0"))
+			WHERE "aggr__histo__0__order_1_rank"<=11
+			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
+	},
+	{ // [63]
+		TestName: "date_histogram with missing, different formats",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"histo1": {
+					"date_histogram": {
+						"field": "customer_birth_date",
+						"fixed_interval": "90000ms",
+						"missing": "2024-02-02T13"
+					}
+				},
+				"histo2": {
+					"date_histogram": {
+						"field": "customer_birth_date",
+						"fixed_interval": "90000ms",
+						"missing": "2024-02-02T13:00:00"
+					}
+				},
+				"histo3": {
+					"date_histogram": {
+						"field": "customer_birth_date",
+						"fixed_interval": "90000ms",
+						"missing": "2024-02-02T13:00:00.000"
+					}
+				},
+				"histo4": {
+					"date_histogram": {
+						"field": "customer_birth_date",
+						"fixed_interval": "90000ms",
+						"missing": "2024-02-02T13:00:00+07:00"
+					}
+				},
+				"histo5": {
+					"date_histogram": {
+						"field": "customer_birth_date",
+						"fixed_interval": "90000ms",
+						"missing": "2024-02-02T13:00:00.000+07:00"
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 0,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 4675,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"histo1": {
+					"buckets": [
+						{
+							"key_as_string": "2024-02-02T13:00:00.000",
+							"key": 1706878800000,
+							"doc_count": 4675
+						}
+					]
+				},
+				"histo2": {
+					"buckets": [
+						{
+							"key_as_string": "2024-02-02T13:00:00.000",
+							"key": 1706878800000,
+							"doc_count": 4675
+						}
+					]
+				},
+				"histo3": {
+					"buckets": [
+						{
+							"key_as_string": "2024-02-02T13:00:00.000",
+							"key": 1706878800000,
+							"doc_count": 4675
+						}
+					]
+				},
+				"histo4": {
+					"buckets": [
+						{
+							"key_as_string": "2024-02-02T06:00:00.000",
+							"key": 1706853600000,
+							"doc_count": 4675
+						}
+					]
+				},
+				"histo5": {
+					"buckets": [
+						{
+							"key_as_string": "2024-02-02T06:00:00.000",
+							"key": 1706853600000,
+							"doc_count": 4675
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo1__key_0", int64(1706878800000/90000)),
+				model.NewQueryResultCol("aggr__histo1__count", int64(4675)),
+			}},
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo2__key_0", int64(1706878800000/90000)),
+				model.NewQueryResultCol("aggr__histo2__count", int64(4675)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo3__key_0", int64(1706878800000/90000)),
+				model.NewQueryResultCol("aggr__histo3__count", int64(4675)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo4__key_0", int64(1706853600000/90000)),
+				model.NewQueryResultCol("aggr__histo4__count", int64(4675)),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo5__key_0", int64(1706853600000/90000)),
+				model.NewQueryResultCol("aggr__histo5__count", int64(4675)),
+			}}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
+			  (1706878800000))) / 90000) AS "aggr__histo1__key_0",
+			  count(*) AS "aggr__histo1__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			  toDateTime(1706878800000))) / 90000) AS "aggr__histo1__key_0"
+			ORDER BY "aggr__histo1__key_0" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
+			  (1706878800000))) / 90000) AS "aggr__histo2__key_0",
+			  count(*) AS "aggr__histo2__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			  toDateTime(1706878800000))) / 90000) AS "aggr__histo2__key_0"
+			ORDER BY "aggr__histo2__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
+			  (1706878800000))) / 90000) AS "aggr__histo3__key_0",
+			  count(*) AS "aggr__histo3__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			  toDateTime(1706878800000))) / 90000) AS "aggr__histo3__key_0"
+			ORDER BY "aggr__histo3__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
+			  (1706853600000))) / 90000) AS "aggr__histo4__key_0",
+			  count(*) AS "aggr__histo4__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			  toDateTime(1706853600000))) / 90000) AS "aggr__histo4__key_0"
+			ORDER BY "aggr__histo4__key_0" ASC`,
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
+			  (1706853600000))) / 90000) AS "aggr__histo5__key_0",
+			  count(*) AS "aggr__histo5__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			  toDateTime(1706853600000))) / 90000) AS "aggr__histo5__key_0"
+			ORDER BY "aggr__histo5__key_0" ASC`,
+		},
 	},
 }

@@ -3,6 +3,7 @@
 package testdata
 
 import (
+	"math"
 	"quesma/clickhouse"
 	"quesma/model"
 	"time"
@@ -6063,9 +6064,9 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1_col_4", 7676.0),
 				model.NewQueryResultCol("metric__0__1_col_5", 58920976.0),
 				model.NewQueryResultCol("metric__0__1_col_6", 0.0),
-				model.NewQueryResultCol("metric__0__1_col_7", nil),
+				model.NewQueryResultCol("metric__0__1_col_7", math.NaN()),
 				model.NewQueryResultCol("metric__0__1_col_8", 0.0),
-				model.NewQueryResultCol("metric__0__1_col_9", nil),
+				model.NewQueryResultCol("metric__0__1_col_9", math.NaN()),
 				model.NewQueryResultCol("metric__0__2_col_0", 1),
 				model.NewQueryResultCol("metric__0__2_col_1", 7676.0),
 				model.NewQueryResultCol("metric__0__2_col_2", 7676.0),

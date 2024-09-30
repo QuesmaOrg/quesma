@@ -54,6 +54,14 @@ type tableDiscovery struct {
 	virtualTableStorage               persistence.JSONDatabase
 }
 
+type columnMetadata struct {
+	colType string
+	// currently column contains original field value
+	// we use it as persistent storage and load it
+	// in the case when we don't control ingest
+	comment string
+}
+
 func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB, virtualTablesDB persistence.JSONDatabase) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
@@ -79,8 +87,9 @@ func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema
 		table := schema.Table{Columns: make(map[string]schema.Column)}
 		for _, column := range value.Cols {
 			table.Columns[column.Name] = schema.Column{
-				Name: column.Name,
-				Type: column.Type.String(),
+				Name:    column.Name,
+				Type:    column.Type.String(),
+				Comment: column.Comment,
 			}
 		}
 		table.DatabaseName = value.DatabaseName
@@ -160,6 +169,12 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 }
 
 func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discoveredTable) map[string]discoveredTable {
+	quesmaCommonTable, ok := configuredTables[common_table.TableName]
+	if !ok {
+		logger.Warn().Msg("common table not found")
+		return configuredTables
+	}
+
 	virtualTables, err := td.virtualTableStorage.List()
 	if err != nil {
 		logger.Error().Msgf("could not list virtual tables: %v", err)
@@ -182,13 +197,29 @@ func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discover
 		if err != nil {
 			logger.Error().Msgf("could not unmarshal virtual table %s: %v", virtualTable, err)
 		}
+
+		if readVirtualTable.Version != common_table.VirtualTableStructVersion {
+			// migration is not supported yet
+			// we simply skip the table
+			logger.Warn().Msgf("skipping virtual table %s, version mismatch, actual '%s',  expecting '%s'", virtualTable, readVirtualTable.Version, common_table.VirtualTableStructVersion)
+			continue
+		}
+
 		discoTable := discoveredTable{
 			name:        virtualTable,
-			columnTypes: make(map[string]string),
+			columnTypes: make(map[string]columnMetadata),
 		}
 
 		for _, col := range readVirtualTable.Columns {
-			discoTable.columnTypes[col.Name] = col.Type
+
+			// here we construct virtual table columns based on common table columns
+			commonTableColumn, ok := quesmaCommonTable.columnTypes[col.Name]
+
+			if ok {
+				discoTable.columnTypes[col.Name] = columnMetadata{colType: commonTableColumn.colType, comment: commonTableColumn.comment}
+			} else {
+				logger.Warn().Msgf("column %s not found in common table but exists in virtual table %s", col.Name, virtualTable)
+			}
 		}
 
 		discoTable.comment = "Virtual table. Version: " + readVirtualTable.StoredAt
@@ -202,7 +233,7 @@ func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discover
 }
 
 // configureTables confronts the tables discovered in the database with the configuration provided by the user, returning final list of tables managed by Quesma
-func (td *tableDiscovery) configureTables(tables map[string]map[string]string, databaseName string) (configuredTables map[string]discoveredTable) {
+func (td *tableDiscovery) configureTables(tables map[string]map[string]columnMetadata, databaseName string) (configuredTables map[string]discoveredTable) {
 	configuredTables = make(map[string]discoveredTable)
 	var explicitlyDisabledTables, notConfiguredTables []string
 	for table, columns := range tables {
@@ -239,7 +270,7 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]string, d
 }
 
 // autoConfigureTables takes the list of discovered tables and automatically configures them, returning the final list of tables managed by Quesma
-func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]string, databaseName string) (configuredTables map[string]discoveredTable) {
+func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]columnMetadata, databaseName string) (configuredTables map[string]discoveredTable) {
 	configuredTables = make(map[string]discoveredTable)
 	var autoDiscoResults strings.Builder
 	logger.Info().Msg("Index configuration empty, running table auto-discovery")
@@ -267,7 +298,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 	for tableName, resTable := range configuredTables {
 		var columnsMap = make(map[string]*Column)
 		partiallyResolved := false
-		for col, colType := range resTable.columnTypes {
+		for col, columnMeta := range resTable.columnTypes {
 			if resTable.config.SchemaOverrides != nil {
 				if schemaOverride, found := resTable.config.SchemaOverrides.Fields[config.FieldName(col)]; found && schemaOverride.Ignored {
 					logger.Warn().Msgf("table %s, column %s is ignored", tableName, col)
@@ -275,11 +306,12 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				}
 			}
 			if col != AttributesValuesColumn && col != AttributesMetadataColumn {
-				column := resolveColumn(col, colType)
+				column := resolveColumn(col, columnMeta.colType)
 				if column != nil {
+					column.Comment = columnMeta.comment
 					columnsMap[col] = column
 				} else {
-					logger.Warn().Msgf("column '%s.%s' type: '%s' not resolved. table will be skipped", tableName, col, colType)
+					logger.Warn().Msgf("column '%s.%s' type: '%s' not resolved. table will be skipped", tableName, col, columnMeta.colType)
 					partiallyResolved = true
 				}
 			}
@@ -478,14 +510,14 @@ func isNullableType(colType string) bool {
 	return strings.HasPrefix(colType, "Nullable(")
 }
 
-func containsAttributes(cols map[string]string) bool {
+func containsAttributes(cols map[string]columnMetadata) bool {
 	hasAttributesValuesColumn := false
 	hasAttributesMetadataColumn := false
-	for col, colType := range cols {
-		if col == AttributesValuesColumn && colType == attributesColumnType {
+	for col, columnMeta := range cols {
+		if col == AttributesValuesColumn && columnMeta.colType == attributesColumnType {
 			hasAttributesValuesColumn = true
 		}
-		if col == AttributesMetadataColumn && colType == attributesColumnType {
+		if col == AttributesMetadataColumn && columnMeta.colType == attributesColumnType {
 			hasAttributesMetadataColumn = true
 		}
 	}
@@ -500,26 +532,26 @@ func removePrecision(str string) string {
 	}
 }
 
-func (td *tableDiscovery) readTables(database string) (map[string]map[string]string, error) {
+func (td *tableDiscovery) readTables(database string) (map[string]map[string]columnMetadata, error) {
 
 	logger.Debug().Msgf("describing tables: %s", database)
 
 	rows, err := td.dbConnPool.Query("SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
 	if err != nil {
 		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
-		return map[string]map[string]string{}, err
+		return map[string]map[string]columnMetadata{}, err
 	}
 	defer rows.Close()
-	columnsPerTable := make(map[string]map[string]string)
+	columnsPerTable := make(map[string]map[string]columnMetadata)
 	for rows.Next() {
 		var table, colName, colType, comment string
 		if err := rows.Scan(&table, &colName, &colType, &comment); err != nil {
-			return map[string]map[string]string{}, err
+			return map[string]map[string]columnMetadata{}, err
 		}
 		if _, ok := columnsPerTable[table]; !ok {
-			columnsPerTable[table] = make(map[string]string)
+			columnsPerTable[table] = make(map[string]columnMetadata)
 		}
-		columnsPerTable[table][colName] = colType
+		columnsPerTable[table][colName] = columnMetadata{colType: colType, comment: comment}
 	}
 
 	return columnsPerTable, nil

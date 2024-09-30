@@ -12,21 +12,24 @@ import (
 	"quesma/quesma/config"
 	"quesma/schema"
 	"quesma/util"
-	"strings"
 )
 
 type JsonMap = map[string]interface{}
 
 type ClickhouseQueryTranslator struct {
 	ClickhouseLM *clickhouse.LogManager
-	Table        *clickhouse.Table // TODO this will be removed
-	Ctx          context.Context
+
+	Schema schema.Schema
+	Ctx    context.Context
 
 	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 
-	SchemaRegistry    schema.Registry
-	IncomingIndexName string
-	Config            *config.QuesmaConfiguration
+	Indexes []string
+
+	Config *config.QuesmaConfiguration
+
+	// TODO this will be removed
+	Table *clickhouse.Table
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()
@@ -174,44 +177,19 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 				if len(results[queryIdx]) == 0 {
 					continue
 				}
-				totalCount = 0
-				for rowIdx, row := range results[queryIdx] {
-					// sum over all rows
-					if len(row.Cols) == 0 {
-						continue
-					}
-
-					// if group by key exists + it's the same as last, we have already counted it and need to continue
-					newKey := true
-					if rowIdx != 0 { // for first row we always have a new key
-						for colIdx, cell := range row.Cols {
-							// find first group by key
-							if strings.HasSuffix(cell.ColName, "__key_0") {
-								if row.Cols[colIdx].Value == results[queryIdx][rowIdx-1].Cols[colIdx].Value {
-									newKey = false
-								}
-								break
-							}
-						}
-					}
-					if !newKey {
-						continue
-					}
-
-					// find the count column
-					for _, cell := range row.Cols {
-						// FIXME THIS is hardcoded for now, as we don't have a way to get the name of the column
-						if cell.ColName == "metric____quesma_total_count_col_0" {
-							switch v := cell.Value.(type) {
-							case uint64:
-								totalCount += int(v)
-							case int:
-								totalCount += v
-							case int64:
-								totalCount += int(v)
-							default:
-								logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v %t", v, v)
-							}
+				firstRow := results[queryIdx][0]
+				for _, cell := range firstRow.Cols {
+					// FIXME THIS is hardcoded for now, as we don't have a way to get the name of the column
+					if cell.ColName == "metric____quesma_total_count_col_0" {
+						switch v := cell.Value.(type) {
+						case uint64:
+							totalCount = int(v)
+						case int:
+							totalCount = v
+						case int64:
+							totalCount = int(v)
+						default:
+							logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v %t", v, v)
 						}
 					}
 				}

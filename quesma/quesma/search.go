@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"quesma/ab_testing"
 	"quesma/clickhouse"
+	"quesma/common_table"
 	"quesma/concurrent"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
@@ -81,7 +82,7 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration, 
 		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
 		transformationPipeline: TransformationPipeline{
 			transformers: []model.QueryTransformer{
-				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry},
+				&SchemaCheckPass{cfg: cfg.IndexConfig},
 			},
 		},
 		schemaRegistry:  schemaRegistry,
@@ -192,7 +193,7 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 			return
 		}
 
-		results, err = q.postProcessResults(table, results)
+		results, err = q.postProcessResults(plan, results)
 		if err != nil {
 			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 		}
@@ -316,9 +317,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
 			return nil, quesma_errors.ErrIndexNotExists()
 		}
-	} else if len(sourcesClickhouse) > 1 { // async search never worked for multiple indexes, TODO fix
-		logger.WarnWithCtx(ctx).Msgf("requires union of multiple tables [%s], not yet supported, picking just one", indexPattern)
-		sourcesClickhouse = sourcesClickhouse[1:2]
 	}
 
 	var responseBody []byte
@@ -337,20 +335,88 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return nil, err
 	}
 
-	resolvedTableName := sourcesClickhouse[0] // we got exactly one table here because of the check above
+	var table *clickhouse.Table // TODO we should use schema here only
+	var currentSchema schema.Schema
+	resolvedIndexes := sourcesClickhouse
 
-	incomingIndexName := resolvedTableName
-	if len(q.cfg.IndexConfig[resolvedTableName].Override) > 0 {
-		resolvedTableName = q.cfg.IndexConfig[resolvedTableName].Override
+	if len(resolvedIndexes) == 1 {
+		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
+		resolvedTableName := indexName
+
+		if len(q.cfg.IndexConfig[indexName].Override) > 0 {
+			resolvedTableName = q.cfg.IndexConfig[indexName].Override
+		}
+
+		resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.TableName(indexName))
+		if !ok {
+			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
+		}
+
+		table, _ = tables.Load(resolvedTableName)
+		if table == nil {
+			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
+		}
+
+		currentSchema = resolvedSchema
+
+	} else {
+
+		// here we filter out indexes that are not stored in the common table
+		var virtualOnlyTables []string
+		for _, indexName := range resolvedIndexes {
+			tableName := indexName
+			if len(q.cfg.IndexConfig[indexName].Override) > 0 {
+				tableName = q.cfg.IndexConfig[indexName].Override
+			}
+
+			table, _ = tables.Load(tableName)
+			if table == nil {
+				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", indexName)).Details("Table: %s", indexName)
+			}
+			if table.VirtualTable {
+				virtualOnlyTables = append(virtualOnlyTables, indexName)
+			}
+		}
+		resolvedIndexes = virtualOnlyTables
+
+		if len(resolvedIndexes) == 0 {
+			if optAsync != nil {
+				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
+			} else {
+				return queryparser.EmptySearchResponse(ctx), nil
+			}
+		}
+
+		commonTable, ok := tables.Load(common_table.TableName)
+		if !ok {
+			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", common_table.TableName)).Details("Table: %s", common_table.TableName)
+		}
+
+		// Let's build a  union of schemas
+		resolvedSchema := schema.Schema{
+			Fields:             make(map[schema.FieldName]schema.Field),
+			Aliases:            make(map[schema.FieldName]schema.FieldName),
+			ExistsInDataSource: false,
+			DatabaseName:       "", // it doesn't matter here, common table will be used
+		}
+
+		for _, idx := range resolvedIndexes {
+			scm, ok := q.schemaRegistry.FindSchema(schema.TableName(idx))
+			if !ok {
+				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", idx)).Details("Table: %s", idx)
+			}
+
+			for fieldName := range scm.Fields {
+				// here we construct our runtime  schema by merging fields from all resolved indexes
+				resolvedSchema.Fields[fieldName] = scm.Fields[fieldName]
+			}
+		}
+
+		currentSchema = resolvedSchema
+		table = commonTable
 	}
 
-	// TODO this will be removed
-	table, _ := tables.Load(resolvedTableName)
-	if table == nil {
-		return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
-	}
-
-	queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName, q.cfg)
+	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes, q.cfg)
 
 	plan, err := queryTranslator.ParseQuery(body)
 
@@ -375,7 +441,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	plan.Name = model.MainExecutionPlan
 
 	// Some flags may trigger alternative execution plans, this is primary for dev
-	alternativePlan, alternativePlanExecutor := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedTableName, plan, queryTranslator, body, table, optAsync != nil)
+	alternativePlan, alternativePlanExecutor := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedIndexes, plan, queryTranslator, body, table, optAsync != nil)
 
 	var optComparePlansCh chan<- executionPlanResult
 
@@ -745,6 +811,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 	}
 	allReferencedFields = append(allReferencedFields, query.SelectCommand.OrderByFieldNames()...)
 
+	// TODO This should be done using query.Schema instead of table
 	for _, property := range allReferencedFields {
 		queryTranslatorValue, ok := queryTranslator.(*queryparser.ClickhouseQueryTranslator)
 		if ok {
@@ -757,13 +824,20 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 	return results
 }
 
-func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+
+	if len(plan.Queries) == 0 {
+		return nil, fmt.Errorf("postProcessResults: plan.Queries is empty")
+	}
+
+	// maybe model.Schema should be part of ExecutionPlan instead of Query
+	indexSchema := plan.Queries[0].Schema
 
 	pipeline := []struct {
 		name        string
 		transformer model.ResultTransformer
 	}{
-		{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{schemaRegistry: q.schemaRegistry, fromTable: table.Name}},
+		{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{indexSchema: indexSchema}},
 		{"arrayResultTransformer", &ArrayResultTransformer{}},
 	}
 

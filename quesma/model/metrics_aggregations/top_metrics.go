@@ -17,7 +17,7 @@ type TopMetrics struct {
 	SortOrder model.OrderByDirection
 }
 
-func NewTopMetrics(ctx context.Context, size int, sortBy string, sortOrder string) TopMetrics {
+func NewTopMetrics(ctx context.Context, size int, sortBy string, sortOrder string) *TopMetrics {
 	var order model.OrderByDirection
 	switch sortOrder {
 	case "asc":
@@ -28,17 +28,16 @@ func NewTopMetrics(ctx context.Context, size int, sortBy string, sortOrder strin
 		logger.WarnWithCtx(ctx).Msgf("invalid sort order: %s, defaulting to desc", sortOrder)
 		order = model.DescOrder
 	}
-	return TopMetrics{ctx: ctx, Size: size, SortBy: sortBy, SortOrder: order}
+	return &TopMetrics{ctx: ctx, Size: size, SortBy: sortBy, SortOrder: order}
 }
 
-func (query TopMetrics) AggregationType() model.AggregationType {
+func (query *TopMetrics) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+func (query *TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	var topElems []any
 	if len(rows) > 0 && 0 >= len(rows[0].Cols)-1 {
-		// values are [level, len(row.Cols) - 1]
 		logger.WarnWithCtx(query.ctx).Msgf(
 			"no columns returned for top_metrics aggregation, len(rows[0].Cols): %d, len(rows): %d",
 			len(rows[0].Cols), len(rows),
@@ -83,6 +82,6 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 	}
 }
 
-func (query TopMetrics) String() string {
+func (query *TopMetrics) String() string {
 	return "top_metrics"
 }

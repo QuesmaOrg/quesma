@@ -13,7 +13,6 @@ const (
 )
 
 type IndexConfiguration struct {
-	Name            string                            `koanf:"name"`
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
 	Override        string                            `koanf:"override"`
@@ -21,6 +20,7 @@ type IndexConfiguration struct {
 	Target          []string                          `koanf:"target"`
 
 	// Computed based on the overall configuration
+	Name         string
 	QueryTarget  []string
 	IngestTarget []string
 }
@@ -59,4 +59,8 @@ func (c IndexConfiguration) IsClickhouseQueryEnabled() bool {
 
 func (c IndexConfiguration) IsClickhouseIngestEnabled() bool {
 	return slices.Contains(c.IngestTarget, ClickhouseTarget)
+}
+
+func (c IndexConfiguration) IsIngestDisabled() bool {
+	return len(c.IngestTarget) == 0
 }

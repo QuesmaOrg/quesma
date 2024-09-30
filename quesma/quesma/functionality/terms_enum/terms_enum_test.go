@@ -106,7 +106,7 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 			},
 		},
 	}
-	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
+	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.TableName(testTableName)]}
 	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
 	expectedQuery1 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE ("epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z') AND "epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z')) LIMIT 13`
 	expectedQuery2 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE ("epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z') AND "epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z')) LIMIT 13`

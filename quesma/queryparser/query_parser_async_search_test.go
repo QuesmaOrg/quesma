@@ -44,7 +44,7 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 		},
 	}
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: s.Tables["logs-generic-default"]}
 	for _, tt := range testdata.TestsAsyncSearch {
 		t.Run(tt.Name, func(t *testing.T) {
 			query, queryInfo, _ := cw.ParseQueryAsyncSearch(tt.QueryJson)
@@ -77,7 +77,7 @@ func TestQueryParserAggregation(t *testing.T) {
 		},
 	}
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables["tablename"]}
 	for _, tt := range testdata.AggregationTests {
 		t.Run(tt.TestName, func(t *testing.T) {
 			cw.ParseQueryAsyncSearch(tt.QueryRequestJson)

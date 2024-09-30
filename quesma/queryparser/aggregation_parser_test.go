@@ -724,7 +724,7 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{Ctx: context.Background(), SchemaRegistry: s}
+	cw := ClickhouseQueryTranslator{Ctx: context.Background(), Schema: s.Tables["logs-generic-default"]}
 	for _, tc := range testcases {
 		field, success := cw.parseFieldFromScriptField(tc.queryMap)
 		assert.Equal(t, tc.expectedSuccess, success)
