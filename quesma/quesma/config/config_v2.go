@@ -219,8 +219,6 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				return fmt.Errorf("single pipeline Quesma can only be used for querying, but the processor is not of query type")
 			}
 
-			// We have a correct query-only pipeline, but we haven't yet implemented the case of disabling ingest...
-			return fmt.Errorf("single pipeline Quesma with querying (ingest disabled) is not supported at this moment")
 		} else {
 			return fmt.Errorf(fmt.Sprintf("frontend connector named [%s] referred in pipeline [%s] not found in configuration", fcName, c.Pipelines[0].Name))
 		}
@@ -467,7 +465,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	conf.Logging = c.Logging
 	conf.InstallationId = c.InstallationId
 	conf.LicenseKey = c.LicenseKey
-	conf.IngestStatistics = c.IngestStatistics
+
 	conf.AutodiscoveryEnabled = false
 	conf.Connectors = make(map[string]RelationalDbConfiguration)
 	relDBConn, connType, err := c.getRelationalDBConf()
@@ -487,9 +485,62 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	isSinglePipeline, isDualPipeline := c.getPipelinesType()
 
 	if isSinglePipeline {
-		procType := c.getProcessorByName(c.Pipelines[0].Processors[0]).Type
+		processor := c.getProcessorByName(c.Pipelines[0].Processors[0])
+		procType := processor.Type
 		if procType == QuesmaV1ProcessorNoOp {
 			conf.TransparentProxy = true
+		} else if procType == QuesmaV1ProcessorQuery {
+
+			queryProcessor := processor
+
+			// this a COPY-PASTE from the dual pipeline case, but we need to do it here as well
+			// TODO refactor this to a separate function
+
+			elasticBackendName := c.getElasticsearchBackendConnector().Name
+			var relationalDBBackendName string
+			if relationalDBBackend, _ := c.getRelationalDBBackendConnector(); relationalDBBackend != nil {
+				relationalDBBackendName = relationalDBBackend.Name
+			}
+
+			conf.IndexConfig = make(map[string]IndexConfiguration)
+			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
+				processedConfig := indexConfig
+				processedConfig.Name = indexName
+
+				if slices.Contains(indexConfig.Target, elasticBackendName) {
+					processedConfig.QueryTarget = append(processedConfig.QueryTarget, ElasticsearchTarget)
+				}
+				if slices.Contains(indexConfig.Target, relationalDBBackendName) {
+					processedConfig.QueryTarget = append(processedConfig.QueryTarget, ClickhouseTarget)
+				}
+
+				if len(indexConfig.QueryTarget) == 2 && !(indexConfig.QueryTarget[0] == ClickhouseTarget && indexConfig.QueryTarget[1] == ElasticsearchTarget) {
+					errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration - when you specify two targets, Elastic has to be the primary one and ClickHouse has to be the secondary one", indexName))
+					continue
+				}
+				if len(indexConfig.QueryTarget) == 2 {
+					// Turn on A/B testing
+					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+					processedConfig.Optimizers["elastic_ab_testing"] = OptimizerConfiguration{
+						Disabled:   false,
+						Properties: map[string]string{},
+					}
+				}
+
+				conf.IndexConfig[indexName] = processedConfig
+			}
+
+			// Handle default index configuration
+			defaultConfig := conf.IndexConfig[DefaultWildcardIndexName]
+			if len(defaultConfig.QueryTarget) != 1 {
+				errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
+			}
+			if defaultConfig.QueryTarget[0] == ClickhouseTarget {
+				conf.AutodiscoveryEnabled = true
+			}
+
+			delete(conf.IndexConfig, DefaultWildcardIndexName)
+
 		} else {
 			errAcc = multierror.Append(errAcc, fmt.Errorf("unsupported processor %s in single pipeline", procType))
 		}
@@ -545,6 +596,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 
 		conf.EnableIngest = true
+		conf.IngestStatistics = c.IngestStatistics
 
 		for indexName, indexConfig := range ingestProcessor.Config.IndexConfig {
 			processedConfig, found := conf.IndexConfig[indexName]
