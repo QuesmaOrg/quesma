@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
+	"quesma/end_user_errors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
@@ -28,6 +29,7 @@ import (
 	"quesma/tracing"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -50,7 +52,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 
 		results, err := bulk.Write(ctx, nil, body, ip, cfg, phoneHomeAgent)
-		return bulkInsertResult(results, err)
+		return bulkInsertResult(ctx, results, err)
 	})
 
 	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExactQueryPath(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -88,7 +90,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 
 		results, err := bulk.Write(ctx, &index, body, ip, cfg, phoneHomeAgent)
-		return bulkInsertResult(results, err)
+		return bulkInsertResult(ctx, results, err)
 	})
 
 	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -375,7 +377,50 @@ func elasticsearchQueryResult(body string, statusCode int) *mux.Result {
 	}, StatusCode: statusCode}
 }
 
-func bulkInsertResult(ops []bulk.BulkItem, err error) (*mux.Result, error) {
+var ingestWarning sync.Once
+
+func noIngestEnabledButThereIngestRequest() {
+	logger.Error().Msgf("Ingest is disabled by configuration, but the request is trying to ingest data. ")
+}
+
+func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*mux.Result, error) {
+
+	if err != nil {
+		var msg string
+		var reason string
+		var httpCode int
+
+		var endUserError *end_user_errors.EndUserError
+		if errors.As(err, &endUserError) {
+			msg = string(queryparser.InternalQuesmaError(endUserError.EndUserErrorMessage()))
+			reason = endUserError.Reason()
+			httpCode = http.StatusInternalServerError
+
+			if endUserError.ErrorType().Number == end_user_errors.ErrNoIngest.Number {
+				// agents have no mercy, they will try again, and again
+				// we should log this error once
+				ingestWarning.Do(noIngestEnabledButThereIngestRequest)
+			}
+
+		} else {
+			msg = string(queryparser.BadRequestParseError(err))
+			reason = err.Error()
+			httpCode = http.StatusBadRequest
+		}
+
+		// ingest can be noisy, so we can enable debug logs here
+		var logEveryIngestError bool
+
+		if logEveryIngestError {
+			logger.ErrorWithCtxAndReason(ctx, reason).Msgf("Bulk insert error: %v", err)
+		}
+
+		return &mux.Result{
+			Body:       msg,
+			StatusCode: httpCode,
+		}, nil
+	}
+
 	if err != nil {
 		return &mux.Result{
 			Body:       string(queryparser.BadRequestParseError(err)),

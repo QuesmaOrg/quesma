@@ -463,6 +463,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			conf.DisableAuth = true
 		}
 	}
+
 	conf.Logging = c.Logging
 	conf.InstallationId = c.InstallationId
 	conf.LicenseKey = c.LicenseKey
@@ -493,6 +494,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			errAcc = multierror.Append(errAcc, fmt.Errorf("unsupported processor %s in single pipeline", procType))
 		}
 	}
+
 	if isDualPipeline {
 		fc1 := c.getFrontendConnectorByName(c.Pipelines[0].FrontendConnectors[0])
 		var queryPipeline, ingestPipeline Pipeline
@@ -541,6 +543,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			conf.IndexConfig[indexName] = processedConfig
 		}
+
+		conf.EnableIngest = true
+
 		for indexName, indexConfig := range ingestProcessor.Config.IndexConfig {
 			processedConfig, found := conf.IndexConfig[indexName]
 			if !found {
