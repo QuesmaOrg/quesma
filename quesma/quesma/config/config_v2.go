@@ -511,7 +511,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				conf.IndexConfig[indexName] = processedConfig
 			}
 
-
 		} else {
 			errAcc = multierror.Append(errAcc, fmt.Errorf("unsupported processor %s in single pipeline", procType))
 		}
