@@ -14,13 +14,6 @@ backendConnectors:
       url: "http://elasticsearch:9200"
       user: elastic
       password: quesmaquesma
-  - name: my-hydrolix-instance    # Okay maybe this is weird  but we require this ATM
-    type: hydrolix
-    config:
-      url: "clickhouse://localhost:9440"
-      user: "u"
-      password: "p"
-      database: "d"
 processors:
   - name: noop-query-processor
     type: quesma-v1-processor-noop
