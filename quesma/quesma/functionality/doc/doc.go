@@ -13,9 +13,15 @@ import (
 
 func Write(ctx context.Context, tableName *string, body types.JSON, ip *ingest.IngestProcessor, cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (bulk.BulkItem, error) {
 	// Translate single doc write to a bulk request, reusing exiting logic of bulk ingest
+
 	results, err := bulk.Write(ctx, tableName, []types.JSON{
 		map[string]interface{}{"index": map[string]interface{}{"_index": *tableName}},
 		body,
 	}, ip, cfg, phoneHomeAgent)
+
+	if err != nil {
+		return bulk.BulkItem{}, err
+	}
+
 	return results[0], err
 }

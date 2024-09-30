@@ -89,6 +89,30 @@ func TestQuesmaAddingHydrolixTablesToExistingElasticsearch(t *testing.T) {
 
 	assert.Equal(t, []string{"clickhouse"}, logsIndexConf.QueryTarget)
 	assert.Equal(t, []string{"elasticsearch"}, logsIndexConf.IngestTarget)
+
+}
+
+func TestQuesmaHydrolixQueryOnly(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/quesma_hydrolix_tables_query_only.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+	assert.False(t, legacyConf.TransparentProxy)
+	assert.Equal(t, 2, len(legacyConf.IndexConfig))
+
+	siemIndexConf, ok := legacyConf.IndexConfig["siem"]
+	assert.True(t, ok)
+	logsIndexConf, ok := legacyConf.IndexConfig["logs"]
+	assert.True(t, ok)
+
+	assert.Equal(t, []string{"clickhouse"}, siemIndexConf.QueryTarget)
+
+	assert.Equal(t, []string{"clickhouse"}, logsIndexConf.QueryTarget)
+
+	assert.Equal(t, false, legacyConf.EnableIngest)
+	assert.Equal(t, false, legacyConf.IngestStatistics)
 }
 
 func TestMatchName(t *testing.T) {
