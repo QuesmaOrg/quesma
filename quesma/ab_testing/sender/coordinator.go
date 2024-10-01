@@ -29,7 +29,7 @@ func NewSenderCoordinator(cfg *config.QuesmaConfiguration) *SenderCoordinator {
 
 	var enabledForIndex []string
 	for indexName, indexConfig := range cfg.IndexConfig {
-		_, disabledAb := indexConfig.GetOptimizerConfiguration("elastic_ab_testing")
+		_, disabledAb := indexConfig.GetOptimizerConfiguration(config.ElasticABOptimizerName)
 		if !disabledAb {
 			enabledForIndex = append(enabledForIndex, indexName)
 		}

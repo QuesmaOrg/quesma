@@ -14,6 +14,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/queryparser"
+	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/tracing"
@@ -130,7 +131,7 @@ func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, i
 	}
 
 	// TODO is should be enabled in a different way. it's not an optimizer
-	cfg, disabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration("elastic_ab_testing")
+	cfg, disabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration(config.ElasticABOptimizerName)
 	if !disabled {
 		return q.askElasticAsAnAlternative(ctx, resolvedTableName, plan, queryTranslator, body, table, isAsync, cfg)
 	}

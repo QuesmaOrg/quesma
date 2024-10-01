@@ -25,6 +25,8 @@ const (
 	ClickHouseOSBackendConnectorName  = "clickhouse-os"
 	ClickHouseBackendConnectorName    = "clickhouse"
 	HydrolixBackendConnectorName      = "hydrolix"
+
+	ElasticABOptimizerName = "elastic_ab_testing"
 )
 
 type ProcessorType string
@@ -522,7 +524,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				if len(indexConfig.QueryTarget) == 2 {
 					// Turn on A/B testing
 					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
-					processedConfig.Optimizers["elastic_ab_testing"] = OptimizerConfiguration{
+					processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
 						Disabled:   false,
 						Properties: map[string]string{},
 					}
@@ -584,7 +586,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			if len(indexConfig.QueryTarget) == 2 {
 				// Turn on A/B testing
 				processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
-				processedConfig.Optimizers["elastic_ab_testing"] = OptimizerConfiguration{
+				processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
 					Disabled:   false,
 					Properties: map[string]string{},
 				}
