@@ -265,24 +265,19 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 			return fmt.Errorf("query pipeline must have query or noop processor")
 		}
 		if !(queryProcessor.Type == QuesmaV1ProcessorNoOp) {
-			// Indexes must be defined in both processors
-			for indexName := range queryProcessor.Config.IndexConfig {
-				if _, found := ingestProcessor.Config.IndexConfig[indexName]; !found {
-					return fmt.Errorf("index '%s' is defined in query processor, but not in ingest processor", indexName)
-				}
-			}
-			for indexName := range ingestProcessor.Config.IndexConfig {
-				if _, found := queryProcessor.Config.IndexConfig[indexName]; !found {
-					return fmt.Errorf("index '%s' is defined in query processor, but not in ingest processor", indexName)
-				}
-			}
 			for indexName, queryIndexConf := range queryProcessor.Config.IndexConfig {
-				ingestIndexConf := ingestProcessor.Config.IndexConfig[indexName]
+				// If an index is configured in both query and ingest processors,
+				// they must have the same configuration
+				ingestIndexConf, found := ingestProcessor.Config.IndexConfig[indexName]
+				if !found {
+					// Only defined in query processor
+					continue
+				}
 				if queryIndexConf.Override != ingestIndexConf.Override {
-					return fmt.Errorf("ingest and query processors must have the same configuration of 'override'")
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'override' for index '%s' due to current limitations", indexName)
 				}
 				if queryIndexConf.UseCommonTable != ingestIndexConf.UseCommonTable {
-					return fmt.Errorf("ingest and query processors must have the same configuration of 'useCommonTable'")
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'useCommonTable' for index '%s' due to current limitations", indexName)
 				}
 				if queryIndexConf.SchemaOverrides == nil || ingestIndexConf.SchemaOverrides == nil {
 					if queryIndexConf.SchemaOverrides != ingestIndexConf.SchemaOverrides {
@@ -578,8 +573,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		for indexName, indexConfig := range ingestProcessor.Config.IndexConfig {
 			processedConfig, found := conf.IndexConfig[indexName]
 			if !found {
-				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s was configured in ingest processor, but is missing from query processor", indexConfig))
-				continue
+				// Index is only configured in ingest processor, not in query processor,
+				// use the ingest processor's configuration as the base (similarly as in the previous loop)
+				processedConfig = indexConfig
+				processedConfig.Name = indexName
 			}
 
 			if slices.Contains(indexConfig.Target, elasticBackendName) {
