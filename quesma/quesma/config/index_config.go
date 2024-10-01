@@ -26,6 +26,11 @@ type IndexConfiguration struct {
 	IngestTarget []string
 }
 
+type OptimizerConfiguration struct {
+	Disabled   bool              `koanf:"disabled"`
+	Properties map[string]string `koanf:"properties"`
+}
+
 func (c IndexConfiguration) String() string {
 	var builder strings.Builder
 
