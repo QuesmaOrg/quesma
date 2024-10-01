@@ -9,6 +9,7 @@ import (
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
+	"strings"
 	"time"
 )
 
@@ -26,11 +27,23 @@ func NewSenderCoordinator(cfg *config.QuesmaConfiguration) *SenderCoordinator {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	var enabledForIndex []string
+	for indexName, indexConfig := range cfg.IndexConfig {
+		_, disabledAb := indexConfig.GetOptimizerConfiguration("elastic_ab_testing")
+		if !disabledAb {
+			enabledForIndex = append(enabledForIndex, indexName)
+		}
+	}
+
+	if len(enabledForIndex) > 0 {
+		logger.Info().Msgf("A/B Testing is enabled for indexes: %s", strings.Join(enabledForIndex, ","))
+	}
+
 	return &SenderCoordinator{
 		sender:     newSender(ctx),
 		ctx:        ctx,
 		cancelFunc: cancel,
-		enabled:    true, // TODO this should be read from config
+		enabled:    len(enabledForIndex) > 0,
 		// add quesma health monitor service here
 	}
 }
