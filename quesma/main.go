@@ -94,8 +94,10 @@ func main() {
 	var ingestProcessor *ingest.IngestProcessor
 
 	if cfg.EnableIngest {
-		// Ensure common table exists. This table have to be created before ingest processor starts
-		common_table.EnsureCommonTableExists(connectionPool)
+		if cfg.CreateCommonTable {
+			// Ensure common table exists. This table have to be created before ingest processor starts
+			common_table.EnsureCommonTableExists(connectionPool)
+		}
 
 		ingestProcessor = ingest.NewEmptyIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage)
 	} else {

@@ -70,6 +70,8 @@ func TestQuesmaTransparentProxyConfiguration(t *testing.T) {
 	}
 	legacyConf := cfg.TranslateToLegacyConfig()
 	assert.True(t, legacyConf.TransparentProxy)
+	assert.Equal(t, false, legacyConf.EnableIngest)
+	assert.Equal(t, false, legacyConf.CreateCommonTable)
 }
 
 func TestQuesmaAddingHydrolixTablesToExistingElasticsearch(t *testing.T) {
@@ -89,7 +91,8 @@ func TestQuesmaAddingHydrolixTablesToExistingElasticsearch(t *testing.T) {
 
 	assert.Equal(t, []string{"clickhouse"}, logsIndexConf.QueryTarget)
 	assert.Equal(t, []string{"elasticsearch"}, logsIndexConf.IngestTarget)
-
+	assert.Equal(t, true, legacyConf.EnableIngest)
+	assert.Equal(t, false, legacyConf.CreateCommonTable)
 }
 
 func TestQuesmaHydrolixQueryOnly(t *testing.T) {
@@ -113,6 +116,19 @@ func TestQuesmaHydrolixQueryOnly(t *testing.T) {
 
 	assert.Equal(t, false, legacyConf.EnableIngest)
 	assert.Equal(t, false, legacyConf.IngestStatistics)
+	assert.Equal(t, false, legacyConf.CreateCommonTable)
+}
+
+func TestHasCommonTable(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/has_common_table.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+
+	assert.Equal(t, true, legacyConf.EnableIngest)
+	assert.Equal(t, true, legacyConf.CreateCommonTable)
 }
 
 func TestMatchName(t *testing.T) {

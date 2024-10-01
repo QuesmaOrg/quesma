@@ -630,6 +630,13 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 END:
 
+	for _, idxCfg := range conf.IndexConfig {
+		if idxCfg.UseCommonTable {
+			conf.CreateCommonTable = true
+			break
+		}
+	}
+
 	if relationalDBErr != nil && !conf.TransparentProxy {
 		errAcc = multierror.Append(errAcc, relationalDBErr)
 	} else if relationalDBErr != nil && conf.TransparentProxy {
