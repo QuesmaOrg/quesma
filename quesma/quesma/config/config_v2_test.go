@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -129,6 +130,19 @@ func TestHasCommonTable(t *testing.T) {
 
 	assert.Equal(t, true, legacyConf.EnableIngest)
 	assert.Equal(t, true, legacyConf.CreateCommonTable)
+}
+
+func TestInvalidDualTarget(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/invalid_dual_target.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+
+		if !strings.Contains(err.Error(), "has invalid dual query target configuration - when you specify two targets") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		t.Fatalf("expected error, but got none")
+	}
 }
 
 func TestMatchName(t *testing.T) {

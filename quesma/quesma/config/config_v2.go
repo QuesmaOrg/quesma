@@ -517,10 +517,11 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					processedConfig.QueryTarget = append(processedConfig.QueryTarget, ClickhouseTarget)
 				}
 
-				if len(processedConfig.QueryTarget) == 2 && !(processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) {
+				if len(processedConfig.QueryTarget) == 2 && !(indexConfig.Target[0] == relationalDBBackendName && indexConfig.Target[1] == elasticBackendName) {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration - when you specify two targets, ClickHouse has to be the primary one and Elastic has to be the secondary one", indexName))
 					continue
 				}
+
 				if len(processedConfig.QueryTarget) == 2 {
 					// Turn on A/B testing
 					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
@@ -579,7 +580,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				processedConfig.QueryTarget = append(processedConfig.QueryTarget, ClickhouseTarget)
 			}
 
-			if len(processedConfig.QueryTarget) == 2 && !(processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) {
+			if len(processedConfig.QueryTarget) == 2 && !(indexConfig.Target[0] == relationalDBBackendName && indexConfig.Target[1] == elasticBackendName) {
 				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration - when you specify two targets, ClickHouse has to be the primary one and Elastic has to be the secondary one", indexName))
 				continue
 			}
