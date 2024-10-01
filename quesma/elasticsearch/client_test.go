@@ -5,6 +5,7 @@ package elasticsearch
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -34,8 +35,9 @@ func TestSimpleClient_Request_AddsContentTypeAndDoesntAuthenticateWhenNotConfigu
 		},
 	}
 
-	_, err := esClient.Request(context.Background(), "POST", "test-endpoint", testPayload)
+	resp, err := esClient.Request(context.Background(), "POST", "test-endpoint", []byte(testPayload))
 	assert.NoError(t, err)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
 
 func TestSimpleClient_Request_AddsAuthHeadersIfElasticsearchAuthConfigured(t *testing.T) {
@@ -54,8 +56,9 @@ func TestSimpleClient_Request_AddsAuthHeadersIfElasticsearchAuthConfigured(t *te
 		},
 	}
 
-	_, err := esClient.Request(context.Background(), "POST", "test-endpoint", testPayload)
+	resp, err := esClient.Request(context.Background(), "POST", "test-endpoint", []byte(testPayload))
 	assert.NoError(t, err)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
 
 func TestSimpleClient_Authenticate_UsesAuthHeader(t *testing.T) {
@@ -85,6 +88,9 @@ func TestSimpleClient_RequestWithHeaders_OverwritesContentType(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contentType := r.Header.Get("Content-Type")
 		assert.Equal(t, "application/x-ndjson", contentType)
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err)
+		assert.Equal(t, testPayload, string(body))
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
@@ -98,6 +104,7 @@ func TestSimpleClient_RequestWithHeaders_OverwritesContentType(t *testing.T) {
 
 	headers := http.Header{"Content-Type": {"application/x-ndjson"}}
 
-	_, err := esClient.RequestWithHeaders(context.Background(), "POST", "test-endpoint", testPayload, headers)
+	resp, err := esClient.RequestWithHeaders(context.Background(), "POST", "test-endpoint", []byte(testPayload), headers)
 	assert.NoError(t, err)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
