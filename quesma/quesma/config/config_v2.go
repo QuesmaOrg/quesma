@@ -78,6 +78,11 @@ type Processor struct {
 	Config QuesmaProcessorConfig `koanf:"config"`
 }
 
+var (
+	DefaultIngestTarget = []string{ElasticsearchTarget}
+	DefaultQueryTarget  = []string{ElasticsearchTarget}
+)
+
 // Configuration of QuesmaV1ProcessorQuery and QuesmaV1ProcessorIngest
 type QuesmaProcessorConfig struct {
 	IndexConfig map[string]IndexConfiguration `koanf:"indexes"`
@@ -544,6 +549,8 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			processedConfig := indexConfig
 			processedConfig.Name = indexName
 
+			processedConfig.IngestTarget = DefaultIngestTarget
+
 			if slices.Contains(indexConfig.Target, elasticBackendName) {
 				processedConfig.QueryTarget = append(processedConfig.QueryTarget, ElasticsearchTarget)
 			}
@@ -577,8 +584,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				// use the ingest processor's configuration as the base (similarly as in the previous loop)
 				processedConfig = indexConfig
 				processedConfig.Name = indexName
+				processedConfig.QueryTarget = DefaultQueryTarget
 			}
 
+			processedConfig.IngestTarget = make([]string, 0) // reset previously set DefaultIngestTarget
 			if slices.Contains(indexConfig.Target, elasticBackendName) {
 				processedConfig.IngestTarget = append(processedConfig.IngestTarget, ElasticsearchTarget)
 			}
