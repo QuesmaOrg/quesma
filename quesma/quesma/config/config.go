@@ -46,7 +46,8 @@ type QuesmaConfiguration struct {
 	DisableAuth                bool                          `koanf:"disableAuth"`
 	AutodiscoveryEnabled       bool
 
-	EnableIngest bool // this is computed from the configuration 2.0
+	EnableIngest      bool // this is computed from the configuration 2.0
+	CreateCommonTable bool
 }
 
 type LoggingConfiguration struct {
