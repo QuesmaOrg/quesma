@@ -25,6 +25,8 @@ const (
 	ClickHouseOSBackendConnectorName  = "clickhouse-os"
 	ClickHouseBackendConnectorName    = "clickhouse"
 	HydrolixBackendConnectorName      = "hydrolix"
+
+	ElasticABOptimizerName = "elastic_ab_testing"
 )
 
 type ProcessorType string
@@ -522,7 +524,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				if len(indexConfig.QueryTarget) == 2 {
 					// Turn on A/B testing
 					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
-					processedConfig.Optimizers["elastic_ab_testing"] = OptimizerConfiguration{
+					processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
 						Disabled:   false,
 						Properties: map[string]string{},
 					}
@@ -584,7 +586,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			if len(indexConfig.QueryTarget) == 2 {
 				// Turn on A/B testing
 				processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
-				processedConfig.Optimizers["elastic_ab_testing"] = OptimizerConfiguration{
+				processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
 					Disabled:   false,
 					Properties: map[string]string{},
 				}
@@ -630,25 +632,18 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 END:
 
-	if relationalDBErr != nil && !conf.TransparentProxy {
-		errAcc = multierror.Append(errAcc, relationalDBErr)
-	} else if relationalDBErr != nil && conf.TransparentProxy {
-		relDBConn := RelationalDbConfiguration{
-			ConnectorType: ClickHouseOSBackendConnectorName,
-			Url: &Url{
-				Host: "localhost",
-			},
-		}
-		conf.Connectors["mock-for-transparent-proxy"] = relDBConn
-		conf.ClickHouse = relDBConn
-	} else {
-		relDBConn.ConnectorType = connType
-		if connType == HydrolixBackendConnectorName {
-			conf.Connectors["injected-hydrolix-connector"] = *relDBConn
-			conf.Hydrolix = *relDBConn
+	if !conf.TransparentProxy {
+		if relationalDBErr != nil {
+			errAcc = multierror.Append(errAcc, relationalDBErr)
 		} else {
-			conf.Connectors["injected-clickhouse-connector"] = *relDBConn
-			conf.ClickHouse = *relDBConn
+			relDBConn.ConnectorType = connType
+			if connType == HydrolixBackendConnectorName {
+				conf.Connectors["injected-hydrolix-connector"] = *relDBConn
+				conf.Hydrolix = *relDBConn
+			} else {
+				conf.Connectors["injected-clickhouse-connector"] = *relDBConn
+				conf.ClickHouse = *relDBConn
+			}
 		}
 	}
 
