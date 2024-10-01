@@ -125,11 +125,6 @@ func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, i
 
 	resolvedTableName := indexes[0]
 
-	props, disabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration(queryparser.PancakeOptimizerName)
-	if !disabled && props["mode"] == "alternative" {
-		return q.maybeCreatePancakeExecutionPlan(ctx, resolvedTableName, plan, queryTranslator, body, table, isAsync)
-	}
-
 	// TODO is should be enabled in a different way. it's not an optimizer
 	cfg, disabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration(config.ElasticABOptimizerName)
 	if !disabled {
@@ -220,54 +215,6 @@ func (q *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTab
 
 		return responseBody, nil
 	}
-}
-
-func (q *QueryRunner) maybeCreatePancakeExecutionPlan(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON, table *clickhouse.Table, isAsync bool) (*model.ExecutionPlan, executionPlanExecutor) {
-
-	hasAggQuery := false
-	queriesWithoutAggr := make([]*model.Query, 0)
-	for _, query := range plan.Queries {
-		switch query.Type.AggregationType() {
-		case model.MetricsAggregation, model.BucketAggregation, model.PipelineMetricsAggregation, model.PipelineBucketAggregation:
-			hasAggQuery = true
-		default:
-			queriesWithoutAggr = append(queriesWithoutAggr, query)
-		}
-	}
-
-	if !hasAggQuery {
-		return nil, nil
-	}
-
-	if chQueryTranslator, ok := queryTranslator.(*queryparser.ClickhouseQueryTranslator); ok {
-
-		// TODO FIXME check if the original plan has count query
-		addCount := false
-
-		if pancakeQueries, err := chQueryTranslator.PancakeParseAggregationJson(body, addCount); err == nil {
-			logger.InfoWithCtx(ctx).Msgf("Running alternative pancake queries")
-			queries := append(queriesWithoutAggr, pancakeQueries...)
-			alternativePlan := &model.ExecutionPlan{
-				IndexPattern:          plan.IndexPattern,
-				QueryRowsTransformers: make([]model.QueryRowsTransformer, len(queries)),
-				Queries:               queries,
-				StartTime:             plan.StartTime,
-				Name:                  "pancake",
-			}
-
-			return alternativePlan, func(ctx context.Context) ([]byte, error) {
-
-				return q.executeAlternativePlan(ctx, plan, queryTranslator, table, body, false)
-			}
-
-		} else {
-			// TODO: change to info
-			logger.ErrorWithCtx(ctx).Msgf("Error parsing pancake queries: %v", err)
-		}
-	} else {
-		logger.ErrorWithCtx(ctx).Msgf("Alternative plan is not supported for non-clickhouse query translators")
-	}
-	return nil, nil
 }
 
 func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, isAsync bool) (responseBody []byte, err error) {
