@@ -65,6 +65,7 @@ jobs:
           tags: |
             europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.event.inputs.VERSION }}
             quesma/quesma:${{ github.event.inputs.VERSION }}
+            quesma/quesma:latest
           push: true
           build-args: |
             QUESMA_BUILD_SHA=${{ github.sha }}
