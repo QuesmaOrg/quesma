@@ -58,7 +58,11 @@ func EmptySearchResponse(ctx context.Context) []byte {
 
 func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) ([]byte, error) {
 	searchResp := emptySearchResponse()
-	asyncSearchResp := SearchToAsyncSearchResponse(&searchResp, id, isPartial, completionStatus)
+	completionStatusPtr := &completionStatus
+	if isPartial {
+		completionStatusPtr = nil
+	}
+	asyncSearchResp := SearchToAsyncSearchResponse(&searchResp, id, isPartial, completionStatusPtr)
 	return asyncSearchResp.Marshal() // error should never ever happen here
 }
 
@@ -254,7 +258,7 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	return response
 }
 
-func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncId string, isPartial bool, completionStatus int) *model.AsyncSearchEntireResp {
+func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncId string, isPartial bool, completionStatus *int) *model.AsyncSearchEntireResp {
 	id := new(string)
 	*id = asyncId
 	response := model.AsyncSearchEntireResp{
@@ -264,7 +268,7 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncId strin
 		IsRunning: isPartial,
 	}
 
-	response.CompletionStatus = &completionStatus
+	response.CompletionStatus = completionStatus
 	return &response
 }
 
