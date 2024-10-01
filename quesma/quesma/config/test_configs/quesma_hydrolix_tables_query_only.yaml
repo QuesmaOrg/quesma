@@ -42,6 +42,8 @@ processors:
           target: [my-hydrolix-instance]
         logs:
           target: [my-hydrolix-instance]
+        "*":
+          target: [my-minimal-elasticsearch]
 pipelines:
   - name: my-elasticsearch-proxy-read
     frontendConnectors: [ elastic-query ]
