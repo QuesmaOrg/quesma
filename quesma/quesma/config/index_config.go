@@ -25,6 +25,11 @@ type IndexConfiguration struct {
 	IngestTarget []string
 }
 
+type OptimizerConfiguration struct {
+	Disabled   bool              `koanf:"disabled"`
+	Properties map[string]string `koanf:"properties"`
+}
+
 func (c IndexConfiguration) String() string {
 	var str = fmt.Sprintf("\n\t\t%s, query targets: %v, ingest targets: %v, schema overrides: %s, override: %s, useSingleTable: %t",
 		c.Name,
