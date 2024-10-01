@@ -875,17 +875,3 @@ func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string
 		QueryTranslatedResults: QueryTranslatedResults,
 		SecondaryTook:          time.Since(startTime)})
 }
-
-func pushAlternativeInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, OpaqueId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []types.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
-	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-		Id:                     Id,
-		AsyncId:                AsyncId,
-		OpaqueId:               OpaqueId,
-		Path:                   Path,
-		IncomingQueryBody:      IncomingQueryBody,
-		QueryBodyTranslated:    QueryBodyTranslated,
-		QueryTranslatedResults: QueryTranslatedResults,
-		SecondaryTook:          time.Since(startTime),
-		IsAlternativePlan:      true})
-
-}
