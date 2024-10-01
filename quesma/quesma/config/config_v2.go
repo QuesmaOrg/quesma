@@ -630,7 +630,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 END:
 
-
 	if relationalDBErr != nil && !conf.TransparentProxy {
 		errAcc = multierror.Append(errAcc, relationalDBErr)
 	} else if relationalDBErr != nil && conf.TransparentProxy {
