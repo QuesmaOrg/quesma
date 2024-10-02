@@ -913,8 +913,6 @@ func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHome
 	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage}
 }
 
-
-
 func NewOnlySchemaFieldsCHConfig() *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
 		HasTimestamp:                          true,
