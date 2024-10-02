@@ -913,23 +913,7 @@ func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHome
 	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage}
 }
 
-func NewIngestProcessorTableMapConfigEmpty(tables *TableMap, cfg *config.QuesmaConfiguration) *IngestProcessor {
-	var tableDefinitions = atomic.Pointer[TableMap]{}
-	tableDefinitions.Store(tables)
-	return &IngestProcessor{chDb: nil, tableDiscovery: chLib.NewTableDiscoveryWith(cfg, nil, *tables),
-		cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(),
-		ingestFieldStatistics: make(IngestFieldStatistics),
-		virtualTableStorage:   persistence.NewStaticJSONDatabase(),
-	}
-}
 
-func NewIngestProcessorEmpty() *IngestProcessor {
-	var tableDefinitions = atomic.Pointer[TableMap]{}
-	tableDefinitions.Store(NewTableMap())
-	cfg := &config.QuesmaConfiguration{}
-	return &IngestProcessor{tableDiscovery: chLib.NewTableDiscovery(cfg, nil, persistence.NewStaticJSONDatabase()), cfg: cfg,
-		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
-}
 
 func NewOnlySchemaFieldsCHConfig() *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
