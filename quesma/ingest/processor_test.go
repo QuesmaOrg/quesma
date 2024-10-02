@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func NewIngestProcessorTableMapConfigEmpty(tables *TableMap, cfg *config.QuesmaConfiguration) *IngestProcessor {
+func newIngestProcessorWithEmptyTableMap(tables *TableMap, cfg *config.QuesmaConfiguration) *IngestProcessor {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
 	return &IngestProcessor{chDb: nil, tableDiscovery: clickhouse.NewTableDiscoveryWith(cfg, nil, *tables),
@@ -29,7 +29,7 @@ func NewIngestProcessorTableMapConfigEmpty(tables *TableMap, cfg *config.QuesmaC
 	}
 }
 
-func NewIngestProcessorEmpty() *IngestProcessor {
+func newIngestProcessorEmpty() *IngestProcessor {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
 	cfg := &config.QuesmaConfiguration{}
@@ -72,7 +72,7 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	tableName, exists := fieldsMap.Load("tableName")
 	assert.True(t, exists)
 	f := func(t1, t2 TableMap) {
-		ip := NewIngestProcessorTableMapConfigEmpty(fieldsMap, &config.QuesmaConfiguration{})
+		ip := newIngestProcessorWithEmptyTableMap(fieldsMap, &config.QuesmaConfiguration{})
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(tableName, types.MustJSON(rowToInsert), nil, hasOthersConfig, encodings)
 		assert.NoError(t, err)
 		j, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
@@ -141,7 +141,7 @@ func TestAddTimestamp(t *testing.T) {
 		PreferCastingToOthers:                 false,
 	}
 	nameFormatter := clickhouse.DefaultColumnNameFormatter()
-	ip := NewIngestProcessorEmpty()
+	ip := newIngestProcessorEmpty()
 	ip.schemaRegistry = schema.StaticRegistry{}
 	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
 	columnsFromJson, columnsFromSchema := ip.buildCreateTableQueryNoOurFields(context.Background(), "tableName", jsonData, tableConfig, nameFormatter)
@@ -834,7 +834,7 @@ func TestLogManager_GetTable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
 			tableDefinitions.Store(&tt.predefinedTables)
-			ip := NewIngestProcessorTableMapConfigEmpty(&tt.predefinedTables, &config.QuesmaConfiguration{})
+			ip := newIngestProcessorWithEmptyTableMap(&tt.predefinedTables, &config.QuesmaConfiguration{})
 			assert.Equalf(t, tt.found, ip.FindTable(tt.tableNamePattern) != nil, "GetTable(%v)", tt.tableNamePattern)
 		})
 	}

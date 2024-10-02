@@ -188,7 +188,7 @@ func TestIngestToCommonTable(t *testing.T) {
 			tableDisco := clickhouse.NewTableDiscovery(quesmaConfig, db, virtualTableStorage)
 			schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, quesmaConfig, clickhouse.SchemaTypeAdapter{})
 
-			ingest := NewIngestProcessorTableMapConfigEmpty(tables, quesmaConfig)
+			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db
 			ingest.virtualTableStorage = virtualTableStorage
 			ingest.schemaRegistry = schemaRegistry
