@@ -255,7 +255,6 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
 	postprocessedRows = append(postprocessedRows, rowsFromDB[0])
 	for i := 1; i < len(rowsFromDB); i++ {
-		fmt.Println(i, len(rowsFromDB[i-1].Cols), len(rowsFromDB[i].Cols))
 		if len(rowsFromDB[i-1].Cols) < 2 || len(rowsFromDB[i].Cols) < 2 {
 			logger.ErrorWithCtx(ctx).Msgf(
 				"unexpected number of columns in date_histogram aggregation response (< 2),"+
@@ -266,7 +265,6 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		lastKey := qt.getKey(rowsFromDB[i-1])
 		currentKey := qt.getKey(rowsFromDB[i])
 		for midKey := lastKey + qt.differenceBetweenTwoNextKeys; midKey < currentKey; midKey += qt.differenceBetweenTwoNextKeys {
-			fmt.Println(midKey-lastKey, midKey)
 			midRow := rowsFromDB[i-1].Copy()
 			midRow.Cols[len(midRow.Cols)-2].Value = midKey
 			midRow.Cols[len(midRow.Cols)-1].Value = 0
