@@ -2634,6 +2634,74 @@ var TestSearchFilter = []SearchTestCase{
 		},
 	},
 	{ // [2]
+		"Range with int timestamps",
+		`{
+		  "_source": {
+			"excludes": []
+		  },
+		  "aggs": {
+			"0": {
+			  "date_histogram": {
+				"field": "@timestamp",
+				"fixed_interval": "30s",
+				"min_doc_count": 1
+			  }
+			}
+		  },
+		  "fields": [
+			{
+			  "field": "@timestamp",
+			  "format": "date_time"
+			}
+		  ],
+		  "query": {
+			"bool": {
+			  "filter": [
+				{
+				  "range": {
+					"@timestamp": {
+					  "format": "epoch_millis||strict_date_optional_time",
+					  "gte": 1727858503270,
+					  "lte": 1727859403270
+					}
+				  }
+				}
+			  ],
+			  "must": [],
+			  "must_not": [],
+			  "should": []
+			}
+		  },
+		  "runtime_mappings": {},
+		  "script_fields": {},
+		  "size": 0,
+		  "stored_fields": [
+			"*"
+		  ],
+		  "track_total_hits": true
+		}`,
+		[]string{
+			``,
+			``,
+		},
+		model.Normal,
+		//[]model.Query{
+		//	justSimplestWhere(``),
+		//	justSimplestWhere(``),
+		//},
+		[]string{},
+		[]string{
+			`SELECT qqqsum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
+			  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0",
+			  count(*) AS "aggr__0__count"
+			FROM __quesma_table_name
+			WHERE "@timestamp">subDate(now(), INTERVAL 15 minute)
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
+			  "aggr__0__key_0"
+			ORDER BY "aggr__0__key_0" ASC`,
+		},
+	},
+	{ // [3]
 		"Empty filter",
 		`
 		{
@@ -2650,7 +2718,7 @@ var TestSearchFilter = []SearchTestCase{
 		[]string{`SELECT "message" FROM ` + TableName + ` LIMIT 10`},
 		[]string{},
 	},
-	{ // [3]
+	{ // [4]
 		"Empty filter with other clauses",
 		`
 		{
