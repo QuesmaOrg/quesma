@@ -101,7 +101,7 @@ func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asy
 		logger = logger.Hook(asyncQueryTraceLogger)
 	}
 
-	logger.Info().Msg("Logger initialized")
+	logger.Info().Msgf("Logger initialized with level %s", cfg.Level)
 	return logChannel
 }
 
