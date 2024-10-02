@@ -854,7 +854,7 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 
 	// We always want to store timestamp in the virtual table
 	// if it's not already there
-	if slices.Index(columnsToStore, model.TimestampFieldName) == -1 {
+	if slices.Contains(columnsToStore, model.TimestampFieldName) {
 		columnsToStore = append(columnsToStore, model.TimestampFieldName)
 	}
 
