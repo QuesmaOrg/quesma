@@ -132,6 +132,7 @@ func (query DateRange) responseForInterval(row *model.QueryResultRow, intervalId
 		}
 		from = query.parseTimestamp(row.Cols[columnIdx].Value)
 		fromString = timestampToString(from)
+		fmt.Println("from", from, fromString)
 		response["from"] = from * 1000
 		response["from_as_string"] = fromString
 		columnIdx++
@@ -146,6 +147,7 @@ func (query DateRange) responseForInterval(row *model.QueryResultRow, intervalId
 		}
 		to = query.parseTimestamp(row.Cols[columnIdx].Value)
 		toString = timestampToString(to)
+		fmt.Println("to", to, toString)
 		response["to"] = to * 1000
 		response["to_as_string"] = toString
 		columnIdx++

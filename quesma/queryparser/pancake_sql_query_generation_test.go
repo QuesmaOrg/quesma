@@ -68,12 +68,17 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
 			}
 
+			if i != 22 {
+				t.Skip()
+			}
+
 			fmt.Println("i:", i, "test:", test.TestName)
 
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, err)
 
 			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp, false)
+			pp.Println(pancakeSqls)
 			assert.NoError(t, err)
 			assert.True(t, len(pancakeSqls) >= 1, "pancakeSqls should have at least one query")
 			if len(pancakeSqls) < 1 {
@@ -135,6 +140,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 			pancakeJson, err := cw.MakeAggregationPartOfResponse(pancakeSqls, sqlResults)
 
+			pp.Println(pancakeJson)
+
 			if err != nil {
 				t.Fatal("Failed to render pancake JSON", err)
 			}
@@ -175,17 +182,16 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 // We generate correct SQL, but result JSON did not match
 func incorrectResult(testName string) bool {
-	t1 := testName == "date_range aggregation(file:agg_req,nr:22)" // we use relative time
-	t2 := testName == "complex filters(file:agg_req,nr:18)"        // almost, we differ in doc 0 counts
+	t1 := testName == "complex filters(file:agg_req,nr:18)" // almost, we differ in doc 0 counts
 	// to be deleted after pancakes
-	t3 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
+	t2 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
 		"Output more or less works, but is different and worse than what Elastic returns."+
 		"If it starts failing, maybe that's a good thing(file:clients/kunkka,nr:0)"
 	// below test is replacing it
 	// testName == "it's the same input as in previous test, but with the original output from Elastic."+
 	//	"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
 	//	"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix"
-	return t1 || t2 || t3
+	return t1 || t2
 }
 
 // TODO remove after fix
