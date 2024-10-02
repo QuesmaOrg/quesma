@@ -91,7 +91,7 @@ func (l *LicenseModule) logInfo(msg string, args ...interface{}) {
 }
 
 func (l *LicenseModule) logDebug(msg string, args ...interface{}) {
-	if l.Config.Logging.Level == zerolog.DebugLevel {
+	if *l.Config.Logging.Level == zerolog.DebugLevel {
 		fmt.Printf(msg+"\n", args...)
 	}
 }

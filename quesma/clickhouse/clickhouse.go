@@ -414,3 +414,7 @@ func NewChTableConfigTimestampStringAttr() *ChTableConfig {
 func (c *ChTableConfig) GetAttributes() []Attribute {
 	return c.Attributes
 }
+
+func (l *LogManager) IsInTransparentProxyMode() bool {
+	return l.cfg.TransparentProxy
+}
