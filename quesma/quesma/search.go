@@ -34,6 +34,8 @@ import (
 const (
 	asyncQueriesLimit      = 10000
 	asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
+
+	maxParallelQueries = 25 // maximum of parallel queries we can, this is arbitrary value and should be adjusted
 )
 
 type AsyncRequestResult struct {
@@ -68,6 +70,7 @@ type QueryRunner struct {
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
 	ABResultsSender          ab_testing.Sender
+	maxParallelQueries       int // if set to 0, we run queries in sequence, it's fine for testing purposes
 }
 
 func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
@@ -85,8 +88,9 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration, 
 				&SchemaCheckPass{cfg: cfg.IndexConfig},
 			},
 		},
-		schemaRegistry:  schemaRegistry,
-		ABResultsSender: abResultsRepository,
+		schemaRegistry:     schemaRegistry,
+		ABResultsSender:    abResultsRepository,
+		maxParallelQueries: maxParallelQueries,
 	}
 }
 
@@ -661,7 +665,6 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 }
 
 func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
-	const maxParallelQueries = 25 // this is arbitrary value
 
 	numberOfJobs := len(jobs)
 
@@ -673,7 +676,7 @@ func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]mo
 	//
 	// Parallel can be slower when we have a fast network connection.
 	//
-	if numberOfJobs == 1 {
+	if numberOfJobs == 1 || q.maxParallelQueries == 0 {
 		return q.runQueryJobsSequence(ctx, jobs)
 	}
 
