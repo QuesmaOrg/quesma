@@ -26,7 +26,8 @@ const (
 	// It's needed when date_histogram has subaggregations, because when we process them, we're merging subaggregation's
 	// map (it has the original key, doesn't know about the processed one)
 	// with date_histogram's map (it already has a "valid", processed key, after TranslateSqlResponseToJson)
-	OriginalKeyName = "__quesma_originalKey"
+	OriginalKeyName      = "__quesma_originalKey"
+	maxEmptyBucketsAdded = 1000
 )
 
 type DateHistogram struct {
@@ -226,10 +227,8 @@ func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 		if err == nil {
 			differenceBetweenTwoNextKeys = duration.Milliseconds()
 		} else {
-			// Let's do 1000 years here (arbitrary huge number), log an error, and continue normally.
-			// The transformer just won't add any rows.
 			logger.ErrorWithCtx(query.ctx).Err(err)
-			differenceBetweenTwoNextKeys = (time.Hour * 24 * 365 * 1000).Milliseconds()
+			differenceBetweenTwoNextKeys = 0
 		}
 	}
 	return &DateHistogramRowsTransformer{minDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys}
@@ -239,23 +238,27 @@ func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 
 type DateHistogramRowsTransformer struct {
 	minDocCount                  int
-	differenceBetweenTwoNextKeys int64
+	differenceBetweenTwoNextKeys int64 // if 0, we don't add keys
+	addedEmptyRows               int
 }
 
 // if minDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
 // CAUTION: a different kind of postprocessing is needed for minDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
 func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 
-	if qt.minDocCount != 0 || len(rowsFromDB) < 2 {
+	if qt.minDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 || len(rowsFromDB) < 2 {
 		// we only add empty rows, when
 		// a) minDocCount == 0
-		// b) we have > 1 rows, with < 2 rows we can't add anything in between
+		// b) we have valid differenceBetweenTwoNextKeys (>0)
+		// c) we have > 1 rows, with < 2 rows we can't add anything in between
 		return rowsFromDB
 	}
 	if qt.minDocCount < 0 {
 		logger.WarnWithCtx(ctx).Msgf("unexpected negative minDocCount: %d. Skipping postprocess", qt.minDocCount)
 		return rowsFromDB
 	}
+
+	emptyRowsAdded := 0
 	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
 	postprocessedRows = append(postprocessedRows, rowsFromDB[0])
 	for i := 1; i < len(rowsFromDB); i++ {
@@ -268,11 +271,12 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		}
 		lastKey := qt.getKey(rowsFromDB[i-1])
 		currentKey := qt.getKey(rowsFromDB[i])
-		for midKey := lastKey + qt.differenceBetweenTwoNextKeys; midKey < currentKey; midKey += qt.differenceBetweenTwoNextKeys {
+		for midKey := lastKey + qt.differenceBetweenTwoNextKeys; midKey < currentKey && emptyRowsAdded < maxEmptyBucketsAdded; midKey += qt.differenceBetweenTwoNextKeys {
 			midRow := rowsFromDB[i-1].Copy()
 			midRow.Cols[len(midRow.Cols)-2].Value = midKey
 			midRow.Cols[len(midRow.Cols)-1].Value = 0
 			postprocessedRows = append(postprocessedRows, midRow)
+			emptyRowsAdded++
 		}
 		postprocessedRows = append(postprocessedRows, rowsFromDB[i])
 	}
