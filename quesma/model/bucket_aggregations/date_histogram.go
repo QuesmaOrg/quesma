@@ -22,7 +22,11 @@ const (
 	DateHistogramFixedInterval    DateHistogramIntervalType = true
 	DateHistogramCalendarInterval DateHistogramIntervalType = false
 	defaultDateTimeType                                     = clickhouse.DateTime64
-	OriginalKeyName                                         = "__quesma_originalKey"
+	// OriginalKeyName is an original date_histogram's key, as it came from our SQL request.
+	// It's needed when date_histogram has subaggregations, because when we process them, we're merging subaggregation's
+	// map (it has the original key, doesn't know about the processed one)
+	// with date_histogram's map (it already has a "valid", processed key, after TranslateSqlResponseToJson)
+	OriginalKeyName = "__quesma_originalKey"
 )
 
 type DateHistogram struct {
@@ -59,8 +63,6 @@ func (query *DateHistogram) AggregationType() model.AggregationType {
 
 func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 
-	fmt.Println("DH", rows)
-
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in date_histogram aggregation response, len(rows[0].Cols): %d",
@@ -91,12 +93,11 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 			continue
 		}
 
-		var originalKey int64
+		originalKey := query.getKey(row)
 		if query.intervalType == DateHistogramCalendarInterval {
-			key = query.getKey(row)
+			key = originalKey
 		} else {
 			intervalInMilliseconds := query.intervalAsDuration().Milliseconds()
-			originalKey = query.getKey(row)
 			key = originalKey * intervalInMilliseconds
 		}
 
@@ -107,13 +108,11 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		key -= int64(timezoneOffsetInSeconds * 1000) // seconds -> milliseconds
 
 		response = append(response, model.JsonMap{
+			OriginalKeyName: originalKey,
 			"key":           key,
 			"doc_count":     docCount, // used to be [level], but because some columns are duplicated, it doesn't work in 100% cases now
 			"key_as_string": time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000"),
 		})
-		if originalKey != 0 {
-			response[len(response)-1][OriginalKeyName] = originalKey
-		}
 	}
 
 	return model.JsonMap{

@@ -263,8 +263,6 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 
 		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows)
 
-		fmt.Println("buckets", buckets, "rows", rows)
-
 		if len(buckets) == 0 { // without this we'd generate {"buckets": []} in the response, which Elastic doesn't do.
 			if layer.nextBucketAggregation.metadata != nil {
 				buckets["meta"] = layer.nextBucketAggregation.metadata
@@ -274,7 +272,6 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		}
 
 		hasSubaggregations := len(remainingLayers) > 1
-		fmt.Println("hasSub?", hasSubaggregations)
 		if hasSubaggregations {
 			nextLayer := remainingLayers[1]
 			pipelineBucketsPerAggregation := p.pipeline.currentPipelineBucketAggregations(layer, nextLayer, bucketRows, subAggrRows)
@@ -286,8 +283,6 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			}
 
 			bucketArr := bucketArrRaw.([]model.JsonMap)
-
-			fmt.Println("bucketArr", bucketArr, len(bucketArr), len(subAggrRows))
 
 			if len(bucketArr) == len(subAggrRows) {
 				// Simple case, we merge bucketArr[i] with subAggrRows[i] (if lengths are equal, keys must be equal => it's fine to not check them at all)
@@ -322,6 +317,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						continue
 					}
 
+					// if our bucket aggregation is a date_histogram, we need original key, not processed one, which is "key"
 					key, exists := bucket[bucket_aggregations.OriginalKeyName]
 					if !exists {
 						key, exists = bucket["key"]
@@ -330,11 +326,8 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						}
 					}
 
-					fmt.Println("SUBAGGR", subAggrRows)
-
 					columnNameWithKey := layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
 					subAggrKey, found := p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
-					fmt.Println("QQ", columnNameWithKey, subAggrKey, key, found)
 					if found && subAggrKey == key {
 						subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[subAggrIdx])
 						if err != nil {
