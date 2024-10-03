@@ -14,6 +14,7 @@ import (
 	"quesma/concurrent"
 	"quesma/end_user_errors"
 	"quesma/index"
+	"quesma/index_registry"
 	"quesma/jsonprocessor"
 	"quesma/logger"
 	"quesma/persistence"
@@ -60,6 +61,7 @@ type (
 		ingestFieldStatistics     IngestFieldStatistics
 		ingestFieldStatisticsLock sync.Mutex
 		virtualTableStorage       persistence.JSONDatabase
+		indexRegistry             index_registry.IndexRegistry
 	}
 	TableMap  = concurrent.Map[string, *chLib.Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -695,6 +697,9 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
 
+	decision := lm.indexRegistry.ResolveIngest(tableName)
+	fmt.Println("XXX ProcessInsertQuery", tableName, " -> ", decision)
+
 	indexConf, ok := lm.cfg.IndexConfig[tableName]
 	if ok && indexConf.UseCommonTable {
 
@@ -882,9 +887,9 @@ func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
-func NewEmptyIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase) *IngestProcessor {
+func NewEmptyIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, indexRegistry index_registry.IndexRegistry) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage}
+	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, indexRegistry: indexRegistry}
 }
 
 func NewIngestProcessor(tables *TableMap, cfg *config.QuesmaConfiguration) *IngestProcessor {

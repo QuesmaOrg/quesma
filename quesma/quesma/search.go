@@ -12,6 +12,7 @@ import (
 	"quesma/concurrent"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
+	"quesma/index_registry"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/optimize"
@@ -68,13 +69,14 @@ type QueryRunner struct {
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
 	ABResultsSender          ab_testing.Sender
+	indexRegistry            index_registry.IndexRegistry
 }
 
 func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
 	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
 }
 
-func NewQueryRunner(lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry, abResultsRepository ab_testing.Sender) *QueryRunner {
+func NewQueryRunner(lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry, abResultsRepository ab_testing.Sender, indexRegistry index_registry.IndexRegistry) *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
@@ -87,6 +89,7 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration, 
 		},
 		schemaRegistry:  schemaRegistry,
 		ABResultsSender: abResultsRepository,
+		indexRegistry:   indexRegistry,
 	}
 }
 
@@ -271,6 +274,10 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 }
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
+
+	decision := q.indexRegistry.ResolveIngest(indexPattern)
+	fmt.Println("XXX handleSearchCommon", indexPattern, " -> ", decision)
+
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im, q.schemaRegistry)
 
 	switch sources {

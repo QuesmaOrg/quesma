@@ -25,7 +25,7 @@ func matchedAgainstAsyncId() mux.RequestMatcher {
 	})
 }
 
-func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.RequestMatcher {
+func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, indexRegistry index_registry.IndexRegistry) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		idx := 0
 		for _, s := range strings.Split(req.Body, "\n") {
@@ -34,7 +34,12 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.Reque
 				continue
 			}
 			if idx%2 == 0 {
-				indexConfig, found := configuration.IndexConfig[extractIndexName(s)]
+				name := extractIndexName(s)
+
+				decision := indexRegistry.ResolveIngest(name)
+				fmt.Println("XXX matchedAgainstBulkBody", name, " -> ", decision)
+
+				indexConfig, found := configuration.IndexConfig[name]
 				if found && (indexConfig.IsClickhouseIngestEnabled() || indexConfig.IsIngestDisabled()) {
 					return true
 				}
@@ -112,14 +117,16 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 // check whether exact index name is enabled
 func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry index_registry.IndexRegistry) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
-		if elasticsearch.IsInternalIndex(req.Params["index"]) {
-			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])
-			return false
-		}
+
 		indexName := req.Params["index"]
 
 		decision := indexRegistry.ResolveIngest(indexName)
 		fmt.Println("XXX matchedExact", indexName, " -> ", decision)
+
+		if elasticsearch.IsInternalIndex(req.Params["index"]) {
+			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])
+			return false
+		}
 
 		indexConfig, exists := cfg.IndexConfig[req.Params["index"]]
 		if queryPath {

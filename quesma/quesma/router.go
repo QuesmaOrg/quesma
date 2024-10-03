@@ -45,14 +45,14 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, http.StatusOK), nil
 	})
 
-	router.Register(routes.BulkPath, and(method("POST"), matchedAgainstBulkBody(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.BulkPath, and(method("POST"), matchedAgainstBulkBody(cfg, indexRegistry)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
 		body, err := types.ExpectNDJSON(req.ParsedBody)
 		if err != nil {
 			return nil, err
 		}
 
-		results, err := bulk.Write(ctx, nil, body, ip, cfg, phoneHomeAgent)
+		results, err := bulk.Write(ctx, nil, body, ip, cfg, phoneHomeAgent, indexRegistry)
 		return bulkInsertResult(ctx, results, err)
 	})
 
@@ -71,7 +71,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			}, nil
 		}
 
-		result, err := doc.Write(ctx, &index, body, ip, cfg, phoneHomeAgent)
+		result, err := doc.Write(ctx, &index, body, ip, cfg, phoneHomeAgent, indexRegistry)
 		if err != nil {
 			return &mux.Result{
 				Body:       string(queryparser.BadRequestParseError(err)),
@@ -90,7 +90,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			return nil, err
 		}
 
-		results, err := bulk.Write(ctx, &index, body, ip, cfg, phoneHomeAgent)
+		results, err := bulk.Write(ctx, &index, body, ip, cfg, phoneHomeAgent, indexRegistry)
 		return bulkInsertResult(ctx, results, err)
 	})
 
