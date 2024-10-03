@@ -2691,11 +2691,12 @@ var TestSearchFilter = []SearchTestCase{
 		//},
 		[]string{},
 		[]string{
-			`SELECT qqqsum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
+			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
 			  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0",
 			  count(*) AS "aggr__0__count"
 			FROM __quesma_table_name
-			WHERE "@timestamp">subDate(now(), INTERVAL 15 minute)
+			WHERE ("@timestamp">=toDateTime(1727858503270) AND "@timestamp"<=toDateTime(
+			  1727859403270))
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 			  "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
