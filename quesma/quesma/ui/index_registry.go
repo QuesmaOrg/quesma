@@ -19,16 +19,18 @@ func (qmc *QuesmaManagementConsole) generateIndexRegistry() []byte {
 	buffer.Html("<h2>Ask Quesma</h2>")
 
 	buffer.Html("Ask Quesma to resolve an index pattern:")
-	buffer.Html(`<input class="form-control" type="search" `)
-	buffer.Html(`name="prompt" placeholder="Type a index pattern here" `)
+	buffer.Html(`<br>`)
+	buffer.Html(`<textarea class="form-control" type="text" `)
+	buffer.Html(`name="prompt" placeholder="Type an index pattern here" `)
 	buffer.Html(`hx-post="/index_registry/ask" `)
 	buffer.Html(`hx-trigger="input changed delay:500ms, prompt" `)
 	buffer.Html(`hx-target="#search-results" `)
 	buffer.Html(`hx-indicator=".htmx-indicator">`)
+	buffer.Html("</textarea>")
 
 	buffer.Html(`<div id="search-results"></div>`)
 
-	buffer.Html(`<br>`)
+	buffer.Html(`<hr>`)
 
 	buffer.Html("<h2>Recent decisions</h2>")
 
