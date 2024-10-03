@@ -9,7 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/logger"
 	"quesma/model"
+	"quesma/model/bucket_aggregations"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
@@ -23,7 +25,7 @@ const TableName = model.SingleTableNamePlaceHolder
 
 func TestPancakeQueryGeneration(t *testing.T) {
 
-	// logger.InitSimpleLoggerForTests()
+	logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -48,9 +50,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if strings.HasPrefix(test.TestName, "dashboard-1") {
-				t.Skip("Skipped also for previous implementation. Those 2 tests have nested histograms with min_doc_count=0. Some work done long time ago (Krzysiek)")
-			}
 			if i == 29 || i == 30 {
 				t.Skip("Skipped also for previous implementation. New tests, harder, failing for now.")
 			}
@@ -140,7 +139,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 
 			// FIXME we can quite easily remove 'probability' and 'seed' from above - just start remembering them in RandomSampler struct and print in JSON response.
-			acceptableDifference := []string{"probability", "seed", "bg_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
+			acceptableDifference := []string{"probability", "seed", bucket_aggregations.OriginalKeyName,
+				"bg_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
 			if len(test.AdditionalAcceptableDifference) > 0 {
 				acceptableDifference = append(acceptableDifference, test.AdditionalAcceptableDifference...)
 			}

@@ -4,6 +4,7 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
@@ -24,6 +25,7 @@ func (query Histogram) AggregationType() model.AggregationType {
 }
 
 func (query Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+	fmt.Println("H", rows)
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in histogram aggregation response, len(rows[0].Cols): "+
