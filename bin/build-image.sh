@@ -2,4 +2,4 @@
 # Rebuilds the Quesma Docker image and tags it as quesma:latest
 set -e
 cd "$(dirname "$0/")/.."
-docker build -f quesma/Dockerfile -t quesma/quesma:latest quesma
+docker build -f quesma/Dockerfile -t quesma/quesma:nightly quesma
