@@ -56,11 +56,11 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return bulkInsertResult(ctx, results, err)
 	})
 
-	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExactQueryPath(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExactQueryPath(cfg, indexRegistry)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		return elasticsearchInsertResult(`{"_shards":{"total":1,"successful":1,"failed":0}}`, http.StatusOK), nil
 	})
 
-	router.Register(routes.IndexDocPath, and(method("POST"), matchedExactIngestPath(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexDocPath, and(method("POST"), matchedExactIngestPath(cfg, indexRegistry)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
 
 		body, err := types.ExpectJSON(req.ParsedBody)
@@ -82,7 +82,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return indexDocResult(result)
 	})
 
-	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExactIngestPath(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExactIngestPath(cfg, indexRegistry)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
 
 		body, err := types.ExpectNDJSON(req.ParsedBody)

@@ -47,6 +47,18 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
+	router.HandleFunc("/index_registry", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qmc.generateIndexRegistry()
+		_, _ = writer.Write(buf)
+	})
+
+	router.HandleFunc("/index_registry/ask", func(writer http.ResponseWriter, req *http.Request) {
+		prompt := req.PostFormValue("prompt")
+
+		buf := qmc.generateIndexRegistryPrompt(prompt)
+		_, _ = writer.Write(buf)
+	})
+
 	router.HandleFunc("/tables/reload", func(writer http.ResponseWriter, req *http.Request) {
 		qmc.logManager.ReloadTables()
 		buf := qmc.generateTables()

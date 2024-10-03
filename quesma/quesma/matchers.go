@@ -110,12 +110,17 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 }
 
 // check whether exact index name is enabled
-func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool) mux.RequestMatcher {
+func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry *index_registry.IndexRegistry) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		if elasticsearch.IsInternalIndex(req.Params["index"]) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])
 			return false
 		}
+		indexName := req.Params["index"]
+
+		decision := indexRegistry.ResolveIngest(indexName)
+		fmt.Println("XXX matchedExact", indexName, " -> ", decision)
+
 		indexConfig, exists := cfg.IndexConfig[req.Params["index"]]
 		if queryPath {
 			return exists && indexConfig.IsClickhouseQueryEnabled()
@@ -125,12 +130,12 @@ func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool) mux.RequestMa
 	})
 }
 
-func matchedExactQueryPath(cfg *config.QuesmaConfiguration) mux.RequestMatcher {
-	return matchedExact(cfg, true)
+func matchedExactQueryPath(cfg *config.QuesmaConfiguration, indexRegistry *index_registry.IndexRegistry) mux.RequestMatcher {
+	return matchedExact(cfg, true, indexRegistry)
 }
 
-func matchedExactIngestPath(cfg *config.QuesmaConfiguration) mux.RequestMatcher {
-	return matchedExact(cfg, false)
+func matchedExactIngestPath(cfg *config.QuesmaConfiguration, indexRegistry *index_registry.IndexRegistry) mux.RequestMatcher {
+	return matchedExact(cfg, false, indexRegistry)
 }
 
 // Returns false if the body contains a Kibana internal search.
