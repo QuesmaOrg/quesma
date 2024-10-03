@@ -239,7 +239,6 @@ func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 type DateHistogramRowsTransformer struct {
 	minDocCount                  int
 	differenceBetweenTwoNextKeys int64 // if 0, we don't add keys
-	addedEmptyRows               int
 }
 
 // if minDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
