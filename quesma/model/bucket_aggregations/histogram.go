@@ -74,6 +74,12 @@ func (query *HistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB
 	}
 	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
 	postprocessedRows = append(postprocessedRows, rowsFromDB[0])
+
+	getKey := query.getKeyFloat64
+	if query.interval == 1.0 {
+		getKey = query.getKeyUnknownType
+	}
+
 	for i := 1; i < len(rowsFromDB); i++ {
 		if len(rowsFromDB[i-1].Cols) < 2 || len(rowsFromDB[i].Cols) < 2 {
 			logger.ErrorWithCtx(ctx).Msgf(
@@ -82,20 +88,32 @@ func (query *HistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB
 				i-1, rowsFromDB[i-1], i, rowsFromDB[i],
 			)
 		}
-		lastKey := query.getKey(rowsFromDB[i-1])
-		currentKey := query.getKey(rowsFromDB[i])
-		// we need to add rows in between
-		for midKey := lastKey + query.interval; util.IsSmaller(midKey, currentKey); midKey += query.interval {
-			midRow := rowsFromDB[i-1].Copy()
-			midRow.Cols[len(midRow.Cols)-2].Value = midKey
-			midRow.Cols[len(midRow.Cols)-1].Value = 0
-			postprocessedRows = append(postprocessedRows, midRow)
+		lastKey, okLast := getKey(rowsFromDB[i-1])
+		currentKey, okCurrent := getKey(rowsFromDB[i])
+		if okLast && okCurrent {
+			// we need to add rows in between
+			for midKey := lastKey + query.interval; util.IsSmaller(midKey, currentKey); midKey += query.interval {
+				midRow := rowsFromDB[i-1].Copy()
+				midRow.Cols[len(midRow.Cols)-2].Value = midKey
+				midRow.Cols[len(midRow.Cols)-1].Value = 0
+				postprocessedRows = append(postprocessedRows, midRow)
+			}
 		}
 		postprocessedRows = append(postprocessedRows, rowsFromDB[i])
 	}
 	return postprocessedRows
 }
 
-func (query *HistogramRowsTransformer) getKey(row model.QueryResultRow) float64 {
-	return row.Cols[len(row.Cols)-2].Value.(float64)
+// we're sure key is float64
+func (query *HistogramRowsTransformer) getKeyFloat64(row model.QueryResultRow) (float64, bool) {
+	return row.Cols[len(row.Cols)-2].Value.(float64), true
+}
+
+// we don't know the type
+func (query *HistogramRowsTransformer) getKeyUnknownType(row model.QueryResultRow) (float64, bool) {
+	val := row.Cols[len(row.Cols)-2].Value
+	if valAsFloat, ok := util.ExtractNumeric64Maybe(val); ok {
+		return valAsFloat, true
+	}
+	return -1, false
 }
