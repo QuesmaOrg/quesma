@@ -128,8 +128,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			WHERE ("order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND
-			  "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z'))
+			WHERE ("order_date">=toDateTime(1706095390802) AND "order_date"<=toDateTime(1715163790802))
 			GROUP BY "day_of_week_i" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
@@ -2841,8 +2840,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "clientip" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z'))
+			WHERE ("timestamp">=toDateTime(1715413213606) AND "timestamp"<=toDateTime(1715467213606))
 			GROUP BY "clientip" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" DESC
 			LIMIT 6`,
@@ -3371,8 +3369,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "Cancelled" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z'))
+			WHERE ("timestamp">=toDateTime(1714255011264) AND "timestamp"<=toDateTime(1715551011264))
 			GROUP BY "Cancelled" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" DESC
 			LIMIT 6`,
@@ -4333,8 +4330,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "extension" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z'))
+			WHERE ("timestamp">=toDateTime(1714256186906) AND "timestamp"<=toDateTime(1715552186906))
 			GROUP BY "extension" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" DESC
 			LIMIT 6`,

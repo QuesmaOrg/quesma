@@ -605,8 +605,7 @@ var AggregationTests2 = []AggregationTestCase{
 			  quantiles(0.020000)("timestamp") AS "metric__2__1_col_1",
 			  sumOrNull("count") AS "metric__2__2_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))
+			WHERE ("timestamp">=toDateTime(1713401475845) AND "timestamp"<=toDateTime(1714697475845))
 			GROUP BY "response" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
@@ -1676,8 +1675,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0",
 				  count(*) AS "aggr__2__3__count"
 				FROM ` + TableName + `
-				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
-				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
+				WHERE ("timestamp">=toDateTime(1715348876077) AND "timestamp"<=toDateTime(1715349776077))
 				GROUP BY floor("bytes"/100)*100 AS "aggr__2__key_0",
 				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
@@ -1856,8 +1854,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0",
 				  count(*) AS "aggr__2__3__count"
 				FROM ` + TableName + `
-				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
-				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
+				 WHERE ("timestamp">=toDateTime(1715348876077) AND "timestamp"<=toDateTime(1715349776077))
 				GROUP BY floor("bytes"/100)*100 AS "aggr__2__key_0",
 				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
@@ -2463,9 +2460,8 @@ var AggregationTests2 = []AggregationTestCase{
 				  quantiles(0.750000)("docker.cpu.total.pct") AS "aggr__0__1__order_1",
 				  quantiles(0.750000)("docker.cpu.total.pct") AS "metric__0__1__2_col_0"
 				FROM __quesma_table_name
-				WHERE ("data_stream.dataset"='docker.cpu' AND ("@timestamp">=
-				  parseDateTime64BestEffort('2024-08-18T07:54:12.291Z') AND "@timestamp"<=
-				  parseDateTime64BestEffort('2024-09-02T07:54:12.291Z')))
+				WHERE ("data_stream.dataset"='docker.cpu' AND ("@timestamp">=toDateTime(
+                  1723967652291) AND "@timestamp"<=toDateTime(1725263652291)))
 				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
 				  "aggr__0__key_0", "container.name" AS "aggr__0__1__key_0"))
 			WHERE "aggr__0__1__order_1_rank"<=6
