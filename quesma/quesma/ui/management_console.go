@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"github.com/rs/zerolog"
 	"quesma/elasticsearch"
+	"quesma/index_registry"
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/telemetry"
@@ -106,7 +107,7 @@ type (
 	}
 )
 
-func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan logger.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent, schemasProvider SchemasProvider) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan logger.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent, schemasProvider SchemasProvider, indexRegistry *index_registry.IndexRegistry) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 10),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 10),

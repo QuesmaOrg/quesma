@@ -3,7 +3,9 @@
 package quesma
 
 import (
+	"fmt"
 	"quesma/elasticsearch"
+	"quesma/index_registry"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
@@ -46,9 +48,14 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.Reque
 }
 
 // Query path only (looks at QueryTarget)
-func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.Registry) mux.RequestMatcher {
+func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.Registry, registry *index_registry.IndexRegistry) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
+
+		decision := registry.ResolveQuery(indexPattern)
+
+		fmt.Println("XXX matchedAgainstPattern", indexPattern, " -> ", decision)
+
 		if elasticsearch.IsInternalIndex(indexPattern) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", indexPattern)
 			return false
