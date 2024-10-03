@@ -223,10 +223,14 @@ func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 	differenceBetweenTwoNextKeys := int64(1)
 	if query.intervalType == DateHistogramCalendarInterval {
 		duration, err := kibana.ParseInterval(query.interval)
-		if err != nil {
+		if err == nil {
+			differenceBetweenTwoNextKeys = duration.Milliseconds()
+		} else {
+			// Let's do 1000 years here (arbitrary huge number), log an error, and continue normally.
+			// The transformer just won't add any rows.
 			logger.ErrorWithCtx(query.ctx).Err(err)
+			differenceBetweenTwoNextKeys = (time.Hour * 24 * 365 * 1000).Milliseconds()
 		}
-		differenceBetweenTwoNextKeys = duration.Milliseconds()
 	}
 	return &DateHistogramRowsTransformer{minDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys}
 }

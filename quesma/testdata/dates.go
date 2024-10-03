@@ -9,30 +9,30 @@ var AggregationTestsWithDates = []AggregationTestCase{
 		TestName: "simple max/min aggregation as 2 siblings",
 		QueryRequestJson: `
 		{
-  "aggs": {
-    "sampler": {
-      "aggs": {
-        "eventRate": {
-          "date_histogram": {
-            "extended_bounds": {
-              "max": 1727859403270,
-              "min": 1727858503270
-            },
-            "field": "order_date",
-            "calendar_interval": "1w",
-            "min_doc_count": 0
-          }
-        }
-      },
-      "random_sampler": {
-        "probability": 0.000001,
-        "seed": "1292529172"
-      }
-    }
-  },
-  "size": 0,
-  "track_total_hits": false
-}`,
+			"aggs": {
+				"sampler": {
+					"aggs": {
+						"eventRate": {
+							"date_histogram": {
+								"extended_bounds": {
+									"max": 1727859403270,
+									"min": 1727858503270
+								},
+								"field": "order_date",
+								"calendar_interval": "1w",
+								"min_doc_count": 0
+							}
+						}
+					},
+					"random_sampler": {
+						"probability": 0.000001,
+						"seed": "1292529172"
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
 		ExpectedResponse: `
 		{
 			"completion_time_in_millis": 1707486436398,
