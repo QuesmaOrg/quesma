@@ -16,8 +16,8 @@ func TestTranslateSqlResponseToJson(t *testing.T) {
 	interval := "30s"
 	expectedResponse := model.JsonMap{
 		"buckets": []model.JsonMap{
-			{"key": int64(56962398) * 30_000, "doc_count": 8, "key_as_string": "2024-02-25T14:39:00.000"},
-			{"key": int64(56962370) * 30_000, "doc_count": 14, "key_as_string": "2024-02-25T14:25:00.000"},
+			{"key": int64(56962398) * 30_000, OriginalKeyName: int64(56962398), "doc_count": 8, "key_as_string": "2024-02-25T14:39:00.000"},
+			{"key": int64(56962370) * 30_000, OriginalKeyName: int64(56962370), "doc_count": 14, "key_as_string": "2024-02-25T14:25:00.000"},
 		},
 	}
 	response := (&DateHistogram{interval: interval, intervalType: DateHistogramFixedInterval}).TranslateSqlResponseToJson(resultRows)

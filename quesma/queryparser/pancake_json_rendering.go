@@ -317,9 +317,13 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						continue
 					}
 
-					key, exists := bucket["key"]
+					// if our bucket aggregation is a date_histogram, we need original key, not processed one, which is "key"
+					key, exists := bucket[bucket_aggregations.OriginalKeyName]
 					if !exists {
-						return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
+						key, exists = bucket["key"]
+						if !exists {
+							return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
+						}
 					}
 
 					columnNameWithKey := layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now

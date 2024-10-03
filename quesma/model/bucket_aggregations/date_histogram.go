@@ -22,6 +22,11 @@ const (
 	DateHistogramFixedInterval    DateHistogramIntervalType = true
 	DateHistogramCalendarInterval DateHistogramIntervalType = false
 	defaultDateTimeType                                     = clickhouse.DateTime64
+	// OriginalKeyName is an original date_histogram's key, as it came from our SQL request.
+	// It's needed when date_histogram has subaggregations, because when we process them, we're merging subaggregation's
+	// map (it has the original key, doesn't know about the processed one)
+	// with date_histogram's map (it already has a "valid", processed key, after TranslateSqlResponseToJson)
+	OriginalKeyName = "__quesma_originalKey"
 )
 
 type DateHistogram struct {
@@ -88,11 +93,12 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 			continue
 		}
 
+		originalKey := query.getKey(row)
 		if query.intervalType == DateHistogramCalendarInterval {
-			key = query.getKey(row)
+			key = originalKey
 		} else {
 			intervalInMilliseconds := query.intervalAsDuration().Milliseconds()
-			key = query.getKey(row) * intervalInMilliseconds
+			key = originalKey * intervalInMilliseconds
 		}
 
 		ts := time.UnixMilli(key).UTC()
@@ -102,6 +108,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		key -= int64(timezoneOffsetInSeconds * 1000) // seconds -> milliseconds
 
 		response = append(response, model.JsonMap{
+			OriginalKeyName: originalKey,
 			"key":           key,
 			"doc_count":     docCount, // used to be [level], but because some columns are duplicated, it doesn't work in 100% cases now
 			"key_as_string": time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000"),
