@@ -18,9 +18,8 @@ func NewDateManager() DateManager {
 var acceptableDateTimeFormats = []string{"2006", "2006-01", "2006-01-02", "2006-01-02", "2006-01-02T15",
 	"2006-01-02T15:04", "2006-01-02T15:04:05", "2006-01-02T15:04:05Z07", "2006-01-02T15:04:05Z07:00"}
 
-// MissingInDateHistogramToUnixTimestamp parses date, which is in [strict_date_optional_time || epoch_millis] format
+// parseStrictDateOptionalTimeOrEpochMillis parses date, which is in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
-
 func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (unixTimestamp int64, parsingSucceeded bool) {
 	if asInt, success := util.ExtractInt64Maybe(date); success {
 		return asInt, true
@@ -61,20 +60,15 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (unixTi
 // ParseMissingInDateHistogram parses date_histogram's missing field.
 // If missing is present, it's in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
-func (dm DateManager) ParseMissingInDateHistogram(field model.Expr, missing any) (timestampExpr model.Expr, parsingSucceeded bool) {
-	timestamp, success := dm.parseStrictDateOptionalTimeOrEpochMillis(missing)
-	if success {
-		return model.NewFunction("toDateTime", model.NewLiteral(timestamp)), true
-	}
-	return nil, false
+func (dm DateManager) ParseMissingInDateHistogram(missing any) (unixTimestamp int64, parsingSucceeded bool) {
+	return dm.parseStrictDateOptionalTimeOrEpochMillis(missing)
 }
 
-// ParseMissingInDateHistogram parses range filter.
+// ParseRange parses range filter.
 // We assume it's in [strict_date_optional_time || epoch_millis] format (TODO: other formats)
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
 func (dm DateManager) ParseRange(Range any) (timestampExpr model.Expr, parsingSucceeded bool) {
-	timestamp, success := dm.parseStrictDateOptionalTimeOrEpochMillis(Range)
-	if success {
+	if timestamp, success := dm.parseStrictDateOptionalTimeOrEpochMillis(Range); success {
 		return model.NewFunction("toDateTime", model.NewLiteral(timestamp)), true
 	}
 	return nil, false
