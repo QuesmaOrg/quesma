@@ -34,7 +34,7 @@ func (qmc *QuesmaManagementConsole) generateIndexRegistry() []byte {
 
 	buffer.Html(`<table class="index-registry">`)
 	buffer.Html(`<tr>`)
-	buffer.Html(`<th>Index patten</th>`)
+	buffer.Html(`<th>Index pattern</th>`)
 	buffer.Html(`<th>Ingest</th>`)
 	buffer.Html(`<th>Query</th>`)
 	buffer.Html(`<tr>`)
@@ -83,7 +83,7 @@ func (qmc *QuesmaManagementConsole) generateIndexRegistryPrompt(prompt string) [
 		return buffer.Bytes()
 	}
 
-	buffer.Html("<p>Answer for pattern ")
+	buffer.Html("<p>The answer for the pattern ")
 	buffer.Html("<strong>")
 	buffer.Text(prompt)
 	buffer.Html("</strong>")

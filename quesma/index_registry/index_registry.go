@@ -174,6 +174,29 @@ func (r *indexRegistryImpl) updateIndexes() {
 	r.elasticIndexes = elasticIndexes
 }
 
+// for demo and debugging purposes
+func (r *indexRegistryImpl) typicalDecisions() {
+
+	fill := func(pattern string) {
+		r.ResolveIngest(pattern)
+		r.ResolveQuery(pattern)
+	}
+
+	for _, index := range r.ingestIndexConfig {
+		fill(index.Name)
+	}
+
+	for _, index := range r.elasticIndexes {
+		fill(index.IndexName)
+	}
+
+	for _, index := range r.clickhouseIndexes {
+		fill(index.TableName)
+	}
+	fill("*")
+	fill("logs-*")
+}
+
 func (r *indexRegistryImpl) RecentDecisions() []PatternDecision {
 
 	r.m.Lock()
@@ -360,7 +383,7 @@ func NewIndexRegistry(indexConf map[string]config.IndexConfiguration, discovery 
 		for {
 			logger.Info().Msgf("Updating indexes")
 			res.updateIndexes()
-
+			res.typicalDecisions()
 			time.Sleep(1 * time.Minute)
 		}
 
