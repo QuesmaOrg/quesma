@@ -48,11 +48,11 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.Reque
 }
 
 // Query path only (looks at QueryTarget)
-func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.Registry, registry *index_registry.IndexRegistry) mux.RequestMatcher {
+func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.Registry, indexRegistry index_registry.IndexRegistry) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
 
-		decision := registry.ResolveQuery(indexPattern)
+		decision := indexRegistry.ResolveQuery(indexPattern)
 
 		fmt.Println("XXX matchedAgainstPattern", indexPattern, " -> ", decision)
 
@@ -110,7 +110,7 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 }
 
 // check whether exact index name is enabled
-func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry *index_registry.IndexRegistry) mux.RequestMatcher {
+func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry index_registry.IndexRegistry) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		if elasticsearch.IsInternalIndex(req.Params["index"]) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])
@@ -130,11 +130,11 @@ func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry
 	})
 }
 
-func matchedExactQueryPath(cfg *config.QuesmaConfiguration, indexRegistry *index_registry.IndexRegistry) mux.RequestMatcher {
+func matchedExactQueryPath(cfg *config.QuesmaConfiguration, indexRegistry index_registry.IndexRegistry) mux.RequestMatcher {
 	return matchedExact(cfg, true, indexRegistry)
 }
 
-func matchedExactIngestPath(cfg *config.QuesmaConfiguration, indexRegistry *index_registry.IndexRegistry) mux.RequestMatcher {
+func matchedExactIngestPath(cfg *config.QuesmaConfiguration, indexRegistry index_registry.IndexRegistry) mux.RequestMatcher {
 	return matchedExact(cfg, false, indexRegistry)
 }
 

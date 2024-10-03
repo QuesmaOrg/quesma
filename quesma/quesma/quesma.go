@@ -100,7 +100,7 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config *config.Q
 
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, ingestProcessor *ingest.IngestProcessor, schemaLoader clickhouse.TableDiscovery,
 	indexManager elasticsearch.IndexManagement, schemaRegistry schema.Registry, config *config.QuesmaConfiguration,
-	quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsRepository ab_testing.Sender, indexRegistry *index_registry.IndexRegistry) *Quesma {
+	quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsRepository ab_testing.Sender, indexRegistry index_registry.IndexRegistry) *Quesma {
 	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, schemaRegistry, abResultsRepository)
 
 	// not sure how we should configure our query translator ???
