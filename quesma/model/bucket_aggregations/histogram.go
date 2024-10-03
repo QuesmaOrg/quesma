@@ -112,8 +112,8 @@ func (query *HistogramRowsTransformer) getKeyFloat64(row model.QueryResultRow) (
 // we don't know the type
 func (query *HistogramRowsTransformer) getKeyUnknownType(row model.QueryResultRow) (float64, bool) {
 	val := row.Cols[len(row.Cols)-2].Value
-	if valTyped, ok := util.ExtractNumeric64Maybe(val); ok {
-		return valTyped, true
+	if valAsFloat, ok := util.ExtractNumeric64Maybe(val); ok {
+		return valAsFloat, true
 	}
 	return -1, false
 }
