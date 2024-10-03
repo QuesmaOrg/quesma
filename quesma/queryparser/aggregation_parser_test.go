@@ -657,6 +657,7 @@ func allAggregationTests() []testdata.AggregationTestCase {
 
 	add(testdata.AggregationTests, "agg_req")
 	add(testdata.AggregationTests2, "agg_req_2")
+	add(testdata.AggregationTestsWithDates, "dates")
 	add(opensearch_visualize.AggregationTests, "opensearch-visualize/agg_req")
 	add(dashboard_1.AggregationTests, "dashboard-1/agg_req")
 	add(testdata.PipelineAggregationTests, "pipeline_agg_req")
