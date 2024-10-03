@@ -5424,10 +5424,12 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__3__parent_count", uint64(619)),
 				model.NewQueryResultCol("aggr__3__key_0", "a"),
 				model.NewQueryResultCol("aggr__3__count", uint64(619)),
 				model.NewQueryResultCol("aggr__3__order_1", uint64(619)),
 				model.NewQueryResultCol("metric__3__1_col_0", uint64(619)),
+				model.NewQueryResultCol("aggr__3__2__parent_count", uint64(619)),
 				model.NewQueryResultCol("aggr__3__2__key_0", "a"),
 				model.NewQueryResultCol("aggr__3__2__count", uint64(619)),
 				model.NewQueryResultCol("aggr__3__2__order_1", uint64(619)),
@@ -5435,33 +5437,38 @@ var AggregationTests = []AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT "aggr__3__key_0", "aggr__3__count", "aggr__3__order_1",
-			  "metric__3__1_col_0", "aggr__3__2__key_0", "aggr__3__2__count",
-			  "aggr__3__2__order_1", "metric__3__2__1_col_0"
+			SELECT "aggr__3__parent_count", "aggr__3__key_0", "aggr__3__count",
+			  "aggr__3__order_1", "metric__3__1_col_0", "aggr__3__2__parent_count",
+			  "aggr__3__2__key_0", "aggr__3__2__count", "aggr__3__2__order_1",
+			  "metric__3__2__1_col_0"
 			FROM (
-			  SELECT "aggr__3__key_0", "aggr__3__count", "aggr__3__order_1",
-				"metric__3__1_col_0", "aggr__3__2__key_0", "aggr__3__2__count",
-				"aggr__3__2__order_1", "metric__3__2__1_col_0", dense_rank() OVER (PARTITION
-				 BY 1
-			  ORDER BY "aggr__3__order_1" DESC, "aggr__3__key_0" ASC) AS
-				"aggr__3__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__3__key_0"
-			  ORDER BY "aggr__3__2__order_1" DESC, "aggr__3__2__key_0" ASC) AS
+			  SELECT "aggr__3__parent_count", "aggr__3__key_0", "aggr__3__count",
+				"aggr__3__order_1", "metric__3__1_col_0", "aggr__3__2__parent_count",
+				"aggr__3__2__key_0", "aggr__3__2__count", "aggr__3__2__order_1",
+				"metric__3__2__1_col_0",
+				dense_rank() OVER (ORDER BY "aggr__3__order_1" DESC, "aggr__3__key_0" ASC)
+				AS "aggr__3__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__3__key_0" ORDER BY
+				"aggr__3__2__order_1" DESC, "aggr__3__2__key_0" ASC) AS
 				"aggr__3__2__order_1_rank"
 			  FROM (
-				SELECT "geo.src" AS "aggr__3__key_0", sum("aggr__3__count_part") OVER
-				  (PARTITION BY "aggr__3__key_0") AS "aggr__3__count",
-				  sumOrNull("aggr__3__order_1_part") OVER (PARTITION BY "aggr__3__key_0") AS
-				  "aggr__3__order_1", sumOrNull("metric__3__1_col_0_part") OVER (PARTITION
-				  BY "aggr__3__key_0") AS "metric__3__1_col_0", "machine.os" AS
-				  "aggr__3__2__key_0", count(*) AS "aggr__3__2__count", sumOrNull("memory")
-				  AS "aggr__3__2__order_1", sumOrNull("memory") AS "metric__3__2__1_col_0",
-				  count(*) AS "aggr__3__count_part", sumOrNull("memory") AS
-				  "aggr__3__order_1_part", sumOrNull("memory") AS "metric__3__1_col_0_part"
-				FROM ` + TableName + `
+				SELECT sum(count(*)) OVER () AS "aggr__3__parent_count",
+				  "geo.src" AS "aggr__3__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__3__key_0") AS "aggr__3__count",
+				  sumOrNull(sumOrNull("memory")) OVER (PARTITION BY "aggr__3__key_0") AS
+				  "aggr__3__order_1",
+				  sumOrNull(sumOrNull("memory")) OVER (PARTITION BY "aggr__3__key_0") AS
+				  "metric__3__1_col_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__3__key_0") AS
+				  "aggr__3__2__parent_count", "machine.os" AS "aggr__3__2__key_0",
+				  count(*) AS "aggr__3__2__count",
+				  sumOrNull("memory") AS "aggr__3__2__order_1",
+				  sumOrNull("memory") AS "metric__3__2__1_col_0"
+				FROM __quesma_table_name
 				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z')
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T21:15:26.167Z'))
 				GROUP BY "geo.src" AS "aggr__3__key_0", "machine.os" AS "aggr__3__2__key_0"))
-			WHERE ("aggr__3__order_1_rank"<=5 AND "aggr__3__2__order_1_rank"<=5)
+			WHERE ("aggr__3__order_1_rank"<=6 AND "aggr__3__2__order_1_rank"<=6)
 			ORDER BY "aggr__3__order_1_rank" ASC, "aggr__3__2__order_1_rank" ASC`,
 	},
 	{ // [30]
@@ -5562,38 +5569,29 @@ var AggregationTests = []AggregationTestCase{
 					"hits": []
 				},
 				"aggregations": {
-					"0": {
+					"2": {
 						"doc_count_error_upper_bound": 0,
 						"sum_other_doc_count": 0,
 						"buckets": [
 							{
 								"key": "Albuquerque",
 								"doc_count": 4,
-								"3-bucket": {
-									"doc_count": 2
-								},
-								"1-bucket": {
-									"doc_count": 1
+								"1": {
+									"value": 2
 								}
 							},
 							{
 								"key": "Atlanta",
 								"doc_count": 5,
-								"3-bucket": {
-									"doc_count": 0
-								},
-								"1-bucket": {
-									"doc_count": 0
+								"1": {
+									"value": 0
 								}
 							},
 							{
 								"key": "Baltimore",
 								"doc_count": 5,
-								"3-bucket": {
-									"doc_count": 0
-								},
-								"1-bucket": {
-									"doc_count": 2
+								"1": {
+									"value": 0
 								}
 							}
 						]
@@ -5603,17 +5601,33 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 14),
 				model.NewQueryResultCol("aggr__2__key_0", "Albuquerque"),
-				model.NewQueryResultCol("aggr__2__count", 4),
-				model.NewQueryResultCol("aggr__2__order_1", uint64(619)),
-				model.NewQueryResultCol("metric__2__1_col_0", uint64(619)),
+				model.NewQueryResultCol("aggr__2__count", int64(4)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(2)),
+				model.NewQueryResultCol("metric__2__1_col_0", int64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 14),
+				model.NewQueryResultCol("aggr__2__key_0", "Atlanta"),
+				model.NewQueryResultCol("aggr__2__count", int64(5)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(0)),
+				model.NewQueryResultCol("metric__2__1_col_0", int64(0)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", 14),
+				model.NewQueryResultCol("aggr__2__key_0", "Baltimore"),
+				model.NewQueryResultCol("aggr__2__count", int64(5)),
+				model.NewQueryResultCol("aggr__2__order_1", int64(0)),
+				model.NewQueryResultCol("metric__2__1_col_0", int64(0)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT "machine.os" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
-			  count(DISTINCT "clientip") AS "aggr__2__order_1", count(DISTINCT "clientip") AS
-			  "metric__2__1_col_0"
-			FROM ` + TableName + `
+			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
+			  "machine.os" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
+			  uniq("clientip") AS "aggr__2__order_1",
+			  uniq("clientip") AS "metric__2__1_col_0"
+			FROM __quesma_table_name
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T06:22:39.037Z') AND
 			  "timestamp"<=parseDateTime64BestEffort('2024-05-10T21:22:39.037Z'))
 			GROUP BY "machine.os" AS "aggr__2__key_0"

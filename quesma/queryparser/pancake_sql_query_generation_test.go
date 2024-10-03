@@ -49,7 +49,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if i == 29 || i == 30 {
+			if i != 29 { //  || i == 30 {
 				t.Skip("Skipped also for previous implementation. New tests, harder, failing for now.")
 			}
 			if test.TestName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range(file:opensearch-visualize/agg_req,nr:1)" {
