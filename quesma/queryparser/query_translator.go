@@ -91,7 +91,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 				return nil, err
 			}
 
-			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation, "key")
+			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation)
 		}
 	}
 	return aggregations, nil

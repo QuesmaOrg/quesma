@@ -180,7 +180,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 		if err != nil {
 			return nil, err
 		}
-		return util.MergeMaps(p.ctx, aggJson, subAggr, model.KeyAddedByQuesma), nil
+		return util.MergeMaps(p.ctx, aggJson, subAggr), nil
 	case bucket_aggregations.CombinatorAggregationInterface:
 		var bucketArray []model.JsonMap
 		for _, subGroup := range queryType.CombinatorGroups() {
@@ -195,7 +195,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 			aggJson := queryType.CombinatorTranslateSqlResponseToJson(subGroup, selectedRows)
 
 			bucketArray = append(bucketArray,
-				util.MergeMaps(p.ctx, aggJson, subAggr, model.KeyAddedByQuesma))
+				util.MergeMaps(p.ctx, aggJson, subAggr))
 			bucketArray[len(bucketArray)-1]["key"] = subGroup.Key
 		}
 		var bucketsJson any
@@ -296,12 +296,11 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						continue
 					}
 
-					// TODO: Maybe add model.KeyAddedByQuesma if there are more than one pancake
 					subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[i])
 					if err != nil {
 						return nil, err
 					}
-					bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr, model.KeyAddedByQuesma)
+					bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
 				}
 			} else {
 				// A bit harder case. Observation: len(bucketArr) > len(subAggrRows) and set(subAggrRows' keys) is a subset of set(bucketArr's keys)
@@ -330,7 +329,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						if err != nil {
 							return nil, err
 						}
-						bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr, model.KeyAddedByQuesma)
+						bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
 						subAggrIdx++
 					} else {
 						bucketArr[i] = bucket
