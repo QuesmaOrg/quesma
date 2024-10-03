@@ -140,8 +140,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 
 			// FIXME we can quite easily remove 'probability' and 'seed' from above - just start remembering them in RandomSampler struct and print in JSON response.
-			acceptableDifference := []string{"probability", "seed", "bg_count", model.KeyAddedByQuesma,
-				"doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
+			acceptableDifference := []string{"probability", "seed", "bg_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
 			if len(test.AdditionalAcceptableDifference) > 0 {
 				acceptableDifference = append(acceptableDifference, test.AdditionalAcceptableDifference...)
 			}
