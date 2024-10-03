@@ -491,7 +491,8 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 		})
 		return
 	}
-	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncId, false, 200)
+	okStatus := 200
+	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncId, false, &okStatus)
 	responseBody, err = asyncResponse.Marshal()
 	bodyAsBytes, _ := body.Bytes()
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
