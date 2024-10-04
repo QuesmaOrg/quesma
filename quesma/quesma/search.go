@@ -191,7 +191,8 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 			return
 		}
 
-		if len(translatedQueryBody) > 0 && len(results) == 0 {
+		if len(plan.Queries) > 0 && len(results) == 0 {
+			// if there are no queries, empty results are fine
 			logger.ErrorWithCtx(ctx).Msgf("no hits, sqls: %v", translatedQueryBody)
 			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
 			return
