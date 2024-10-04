@@ -763,7 +763,6 @@ func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (strin
 
 	exp, err := ParseDateMathExpression(expr)
 	if err != nil {
-		logger.Warn().Msgf("error parsing date math expression: %s", expr)
 		return "", err
 	}
 
@@ -774,7 +773,6 @@ func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (strin
 
 	sql, err := builder.RenderSQL(exp)
 	if err != nil {
-		logger.Warn().Msgf("error rendering date math expression: %s", expr)
 		return "", err
 	}
 
