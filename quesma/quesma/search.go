@@ -191,7 +191,7 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 			return
 		}
 
-		if len(results) == 0 {
+		if len(translatedQueryBody) > 0 && len(results) == 0 {
 			logger.ErrorWithCtx(ctx).Msgf("no hits, sqls: %v", translatedQueryBody)
 			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
 			return
@@ -831,7 +831,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
 	if len(plan.Queries) == 0 {
-		return nil, fmt.Errorf("postProcessResults: plan.Queries is empty")
+		return results, nil
 	}
 
 	// maybe model.Schema should be part of ExecutionPlan instead of Query
