@@ -32,7 +32,7 @@ func makeIsDisabledInConfig(cfg map[string]config.IndexConfiguration) func(input
 
 		if input.isPattern {
 
-			// todo ??
+			// pass to the next resolver
 
 			return nil
 		} else {
@@ -63,10 +63,24 @@ func resolveInternalElasticName(pattern indexPattern) *Decision {
 	return nil
 }
 
-func fallbackToElastic(indexName indexPattern) *Decision {
+func elasticAsDefault(indexName indexPattern) *Decision {
+
+	// TODO check "*" config pattern
+
 	return &Decision{
 		PassToElastic: true,
-		Message:       "It's fallback.",
+		Message:       "Elastic is default.",
+	}
+}
+
+func commonTableAsDefault(indexName indexPattern) *Decision {
+
+	// TODO check "*" config pattern
+
+	return &Decision{
+		PassToClickhouse: true,
+		IsCommonTable:    true,
+		Message:          "Use common table.",
 	}
 }
 
@@ -234,7 +248,34 @@ func (r *indexRegistryImpl) RecentDecisions() []PatternDecision {
 	return res
 }
 
-func (r *indexRegistryImpl) makeClickhouseSingleTableResolver() func(input indexPattern) *Decision {
+func (r *indexRegistryImpl) resolveAutodiscovery(input indexPattern) *Decision {
+
+	if input.isPattern {
+		return nil
+	}
+
+	// TODO what is autodiscovery ?
+
+	// we should expose all tables ASIS ??
+
+	var enabledAutodiscovery bool
+
+	if !enabledAutodiscovery {
+		return nil
+	}
+
+	if table, ok := r.clickhouseIndexes[input.pattern]; ok && !table.IsVirtualTable {
+		return &Decision{
+			PassToClickhouse:    true,
+			ClickhouseTableName: table.TableName,
+			Message:             "Found the physical table. Autodiscovery.",
+		}
+	}
+
+	return nil
+}
+
+func (r *indexRegistryImpl) makeClickhouseSingleTableResolver(indexConfig map[string]config.IndexConfiguration) func(input indexPattern) *Decision {
 
 	return func(input indexPattern) *Decision {
 
@@ -242,13 +283,50 @@ func (r *indexRegistryImpl) makeClickhouseSingleTableResolver() func(input index
 			return nil
 		}
 
-		if table, ok := r.clickhouseIndexes[input.pattern]; ok && !table.IsVirtualTable {
-			return &Decision{
-				PassToClickhouse:    true,
-				ClickhouseTableName: table.TableName,
-				Message:             "Found the physical table.",
+		if cfg, ok := indexConfig[input.pattern]; ok {
+			if !cfg.UseCommonTable {
+
+				switch len(cfg.Target) {
+
+				case 0:
+					return &Decision{
+						Message:  "Disabled in the config.",
+						IsClosed: true,
+					}
+
+				case 1:
+
+					// TODO check if we query clickhouse or elastic
+
+					return &Decision{
+						PassToClickhouse:    true,
+						ClickhouseTableName: input.pattern,
+						Indexes:             []string{input.pattern},
+						Message:             "Enabled in the config. Physical table will be used.",
+					}
+
+				case 2:
+
+					// check targets and decide
+					// TODO what about A/B testing ?
+
+					return &Decision{
+						PassToClickhouse:    true,
+						ClickhouseTableName: input.pattern,
+						Indexes:             []string{input.pattern},
+						Message:             "Enabled in the config. Physical table will be used.",
+					}
+
+				default:
+					return &Decision{
+						Message: "Unsupported configuration",
+						Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("There are too many backend connectors ", input.pattern)),
+					}
+				}
 			}
 		}
+
+		// TODO autodiscovery ?
 
 		return nil
 	}
@@ -303,7 +381,10 @@ func (r *indexRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input 
 
 				// TODO we should return emtpy result here
 				// or pass to another resolver
-				return nil
+				return &Decision{
+					IsEmpty: true,
+					Message: "No indexes matched. Checked both connectors.",
+				}
 			}
 		}
 
@@ -318,17 +399,57 @@ func (r *indexRegistryImpl) makeClickhouseCommonTableResolver() func(input index
 
 		if input.isPattern {
 
-			// TODO
-			/*
-				for _, pattern := range input.patterns {
+			// TODO at this point we should'nt have elastic indexes?
+			for _, pattern := range input.patterns {
+				for indexName := range r.elasticIndexes {
+					if util.IndexPatternMatches(pattern, indexName) {
 
+						// TODO what about config ?
+						// TODO ?
+						return &Decision{
+							Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to elasticsearch indices", input.patterns)),
+							Message: "We're not supporting common tables for Elastic.",
+						}
+					}
 				}
-			*/
+			}
+
+			matchedIndexes := []string{}
+
+			for _, pattern := range input.patterns {
+				for indexName, index := range r.clickhouseIndexes {
+
+					// TODO what about config ?
+					if util.IndexPatternMatches(pattern, indexName) && index.IsVirtualTable {
+						matchedIndexes = append(matchedIndexes, indexName)
+					}
+				}
+			}
+
+			if len(matchedIndexes) == 0 {
+				return &Decision{
+					IsEmpty: true,
+					Message: "No indexes found.",
+				}
+			}
+
 			// HERE
-			return nil
+			return &Decision{
+				PassToClickhouse: true,
+				IsCommonTable:    true,
+				Indexes:          matchedIndexes,
+				Message:          "Common table will be used. Querying multiple indexes.",
+			}
 		}
 
-		if table, ok := r.clickhouseIndexes[input.pattern]; ok && table.IsVirtualTable {
+		if input.pattern == common_table.TableName {
+			return &Decision{
+				Err:     fmt.Errorf("common table is not allowed to be queried directly"),
+				Message: "It's internal table. Not allowed to be queried directly.",
+			}
+		}
+
+		if idxConfig, ok := r.ingestIndexConfig[input.pattern]; ok && idxConfig.UseCommonTable {
 			return &Decision{
 				PassToClickhouse:    true,
 				ClickhouseTableName: common_table.TableName,
@@ -359,25 +480,32 @@ func NewIndexRegistry(indexConf map[string]config.IndexConfiguration, discovery 
 		decisionLadder: []namedResolver{
 			{"patternIsNotAllowed", patternIsNotAllowed},
 			{"kibanaInternal", resolveInternalElasticName},
-			{"isDisabledInConfig", makeIsDisabledInConfig(indexConf)},
-			{"resolveSingleIndexPerTable", res.makeClickhouseSingleTableResolver()},
-			{"resolveCommonTable", res.makeClickhouseCommonTableResolver()},
-			{"fallbackToElastic", fallbackToElastic},
+			{"disabled", makeIsDisabledInConfig(indexConf)},
+			{"autodiscovery", res.resolveAutodiscovery},
+			{"singleTable", res.makeClickhouseSingleTableResolver(indexConf)},
+			{"commonTable", res.makeClickhouseCommonTableResolver()},
+			{"elasticAsDefault", elasticAsDefault},
+			{"commonTableAsDefault", commonTableAsDefault},
 		},
 	}
 
 	res.queryResolver = &composedIndexResolver{
 		decisionLadder: []namedResolver{
+			// checking if we can handle the pattern
 			{"kibanaInternal", resolveInternalElasticName},
-			{"bothConnectors", res.makeCheckIfPatternMatchesAllConnectors()},
-			{"isDisabledInConfig", makeIsDisabledInConfig(indexConf)},
-			{"resolveSingleIndexPerTable", res.makeClickhouseSingleTableResolver()},
-			{"resolveCommonTable", res.makeClickhouseCommonTableResolver()},
-			{"fallbackToElastic", fallbackToElastic},
+			{"searchAcrossConnectors", res.makeCheckIfPatternMatchesAllConnectors()},
+			{"disabled", makeIsDisabledInConfig(indexConf)},
+
+			// resolving how we can handle the pattern
+			{"singleTable", res.makeClickhouseSingleTableResolver(indexConf)},
+			{"commonTable", res.makeClickhouseCommonTableResolver()},
+
+			// default action
+			{"elasticAsDefault", elasticAsDefault},
+			{"commonTableAsDefault", commonTableAsDefault},
 		},
 	}
 
-	// TODO
 	go func() {
 
 		for {

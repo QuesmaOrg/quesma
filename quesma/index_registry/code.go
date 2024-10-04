@@ -7,14 +7,16 @@ import (
 	"strings"
 )
 
-
-
 func (d *Decision) String() string {
 
 	var lines []string
 
 	if d.IsClosed {
 		lines = append(lines, "Returns an closed index message.")
+	}
+
+	if d.IsEmpty {
+		lines = append(lines, "Returns an empty result.")
 	}
 
 	if d.PassToElastic {
@@ -46,7 +48,6 @@ func (d *Decision) String() string {
 	return strings.Join(lines, " ")
 
 }
-
 
 // ---
 

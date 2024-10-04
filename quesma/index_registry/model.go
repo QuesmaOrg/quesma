@@ -12,8 +12,12 @@ type Decision struct {
 	// obvious fields
 	IsClosed bool
 	Err      error
+	IsEmpty  bool
 
 	// not so obvious fields
+
+	// maybe it should be a list of sub-decisions for each connection
+
 	PassToElastic bool
 
 	PassToClickhouse    bool
