@@ -35,6 +35,7 @@ type DateHistogram struct {
 	field             model.Expr // name of the field, e.g. timestamp
 	interval          string
 	timezone          string
+	wantedTimezone    *time.Location // key is in `timezone` time, and we need it to be UTC
 	minDocCount       int
 	intervalType      DateHistogramIntervalType
 	fieldDateTimeType clickhouse.DateTimeType
@@ -42,7 +43,14 @@ type DateHistogram struct {
 
 func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone string,
 	minDocCount int, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
-	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone,
+
+	wantedTimezone, err := time.LoadLocation(timezone)
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("time.LoadLocation error: %v", err)
+		wantedTimezone = time.UTC
+	}
+
+	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone, wantedTimezone: wantedTimezone,
 		minDocCount: minDocCount, intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
 }
 
@@ -79,40 +87,20 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
-	// key is in `query.timezone` time, and we need it to be UTC
-	wantedTimezone, err := time.LoadLocation(query.timezone)
-	if err != nil {
-		logger.ErrorWithCtx(query.ctx).Msgf("time.LoadLocation error: %v", err)
-		wantedTimezone = time.UTC
-	}
-
 	var response []model.JsonMap
 	for _, row := range rows {
-		var key int64
 		docCount := row.LastColValue()
 		if util.ExtractInt64(docCount) < int64(query.minDocCount) {
 			continue
 		}
-
 		originalKey := query.getKey(row)
-		if query.intervalType == DateHistogramCalendarInterval {
-			key = originalKey
-		} else {
-			intervalInMilliseconds := query.intervalAsDuration().Milliseconds()
-			key = originalKey * intervalInMilliseconds
-		}
-
-		ts := time.UnixMilli(key).UTC()
-		intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), wantedTimezone)
-
-		_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
-		key -= int64(timezoneOffsetInSeconds * 1000) // seconds -> milliseconds
+		responseKey := query.calculateResponseKey(originalKey)
 
 		response = append(response, model.JsonMap{
 			OriginalKeyName: originalKey,
-			"key":           key,
-			"doc_count":     docCount, // used to be [level], but because some columns are duplicated, it doesn't work in 100% cases now
-			"key_as_string": time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000"),
+			"key":           responseKey,
+			"doc_count":     docCount,
+			"key_as_string": query.calculateKeyAsString(responseKey),
 		})
 	}
 
@@ -218,6 +206,32 @@ func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
 
 func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
+}
+
+// originalKey is the key as it came from our SQL request (e.g. returned by query.getKey)
+func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
+	var key int64
+	if query.intervalType == DateHistogramCalendarInterval {
+		key = originalKey
+	} else {
+		intervalInMilliseconds := query.intervalAsDuration().Milliseconds()
+		key = originalKey * intervalInMilliseconds
+	}
+
+	ts := time.UnixMilli(key).UTC()
+	intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), query.wantedTimezone)
+
+	_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
+	return key - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
+}
+
+func (query *DateHistogram) calculateKeyAsString(key int64) string {
+	return time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000")
+}
+
+func (query *DateHistogram) OriginalKeyToKeyAsString(originalKey any) string {
+	responseKey := query.calculateResponseKey(originalKey.(int64))
+	return query.calculateKeyAsString(responseKey)
 }
 
 func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {

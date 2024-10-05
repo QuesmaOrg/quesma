@@ -13,12 +13,11 @@ import (
 const derivativeLag = 1
 
 type Derivative struct {
-	ctx context.Context
-	PipelineAggregation
+	*PipelineAggregation
 }
 
 func NewDerivative(ctx context.Context, bucketsPath string) Derivative {
-	return Derivative{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
+	return Derivative{PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query Derivative) AggregationType() model.AggregationType {
