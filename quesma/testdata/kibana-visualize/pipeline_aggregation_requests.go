@@ -113,7 +113,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 										{
 											"1-metric": {
 												"value": 1727085395000.0,
-												"value_as_string": "2024-09-23T11:56:35.000"
+												"value_as_string": "2024-09-23T09:56:35.000"
 											},
 											"doc_count": 140,
 											"key": 1727042400000,
@@ -134,7 +134,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 										{
 											"1-metric": {
 												"value": 1727128681000.0,
-												"value_as_string": "2024-09-23T23:58:01.000"
+												"value_as_string": "2024-09-23T21:58:01.000"
 											},
 											"doc_count": 178,
 											"key": 1727085600000,
