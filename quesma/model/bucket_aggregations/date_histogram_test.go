@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/model"
 	"testing"
+	"time"
 )
 
 func TestTranslateSqlResponseToJson(t *testing.T) {
@@ -20,6 +21,6 @@ func TestTranslateSqlResponseToJson(t *testing.T) {
 			{"key": int64(56962370) * 30_000, OriginalKeyName: int64(56962370), "doc_count": 14, "key_as_string": "2024-02-25T14:25:00.000"},
 		},
 	}
-	response := (&DateHistogram{interval: interval, intervalType: DateHistogramFixedInterval}).TranslateSqlResponseToJson(resultRows)
+	response := (&DateHistogram{interval: interval, intervalType: DateHistogramFixedInterval, wantedTimezone: time.UTC}).TranslateSqlResponseToJson(resultRows)
 	assert.Equal(t, expectedResponse, response)
 }

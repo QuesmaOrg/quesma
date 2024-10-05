@@ -9,14 +9,6 @@ import (
 	"quesma/util"
 )
 
-func getKey(ctx context.Context, row model.QueryResultRow) any {
-	if len(row.Cols) < 2 {
-		logger.WarnWithCtx(ctx).Msgf("row has less than 2 columns: %v", row)
-		return nil
-	}
-	return row.Cols[len(row.Cols)-2].Value
-}
-
 // translateSqlResponseToJsonCommon translates rows from DB (maybe postprocessed later), into JSON's format in which
 // we want to return them. It is common for a lot of pipeline aggregations
 func translateSqlResponseToJsonCommon(ctx context.Context, rows []model.QueryResultRow, aggregationName string) model.JsonMap {

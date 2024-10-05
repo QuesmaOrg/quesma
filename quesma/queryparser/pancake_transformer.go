@@ -190,6 +190,7 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 			}
 
 		case model.PipelineMetricsAggregation, model.PipelineBucketAggregation:
+
 			pipeline, err := a.pipelineAggregationToLayer(previousAggrNames, childAgg)
 			if err != nil {
 				return nil, err
@@ -271,6 +272,9 @@ func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelL
 			if err != nil {
 				logger.WarnWithCtx(a.ctx).Err(err).Msg("could not find parent bucket layer")
 				continue
+			}
+			if parentBucketLayer.nextBucketAggregation != nil {
+				pipeline.queryType.SetParentBucketAggregation(parentBucketLayer.nextBucketAggregation.queryType)
 			}
 			parentBucketLayer.childrenPipelineAggregations = append(parentBucketLayer.childrenPipelineAggregations, pipeline)
 		}

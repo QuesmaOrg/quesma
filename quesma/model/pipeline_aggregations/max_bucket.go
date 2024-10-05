@@ -12,12 +12,11 @@ import (
 )
 
 type MaxBucket struct {
-	ctx context.Context
-	PipelineAggregation
+	*PipelineAggregation
 }
 
 func NewMaxBucket(ctx context.Context, bucketsPath string) MaxBucket {
-	return MaxBucket{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
+	return MaxBucket{PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query MaxBucket) AggregationType() model.AggregationType {
@@ -79,6 +78,8 @@ func (query MaxBucket) calculateSingleMaxBucket(parentRows []model.QueryResultRo
 		return resultRow
 	}
 
+	fmt.Println(parentRows)
+
 	if firstRowValueFloat, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[firstNonNilIndex].LastColValue()); firstRowValueIsFloat {
 		// find max
 		maxValue := firstRowValueFloat
@@ -94,7 +95,7 @@ func (query MaxBucket) calculateSingleMaxBucket(parentRows []model.QueryResultRo
 		// find keys with max value
 		for _, row := range parentRows[firstNonNilIndex:] {
 			if value, ok := util.ExtractFloat64Maybe(row.LastColValue()); ok && value == maxValue {
-				resultKeys = append(resultKeys, getKey(query.ctx, row))
+				resultKeys = append(resultKeys, query.getKey(row))
 			}
 		}
 	} else if firstRowValueInt, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[firstNonNilIndex].LastColValue()); firstRowValueIsInt {
@@ -112,7 +113,7 @@ func (query MaxBucket) calculateSingleMaxBucket(parentRows []model.QueryResultRo
 		// find keys with max value
 		for _, row := range parentRows[firstNonNilIndex:] {
 			if value, ok := util.ExtractInt64Maybe(row.LastColValue()); ok && value == maxValue {
-				resultKeys = append(resultKeys, getKey(query.ctx, row))
+				resultKeys = append(resultKeys, query.getKey(row))
 			}
 		}
 	} else {

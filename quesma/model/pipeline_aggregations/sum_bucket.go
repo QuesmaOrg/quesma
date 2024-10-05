@@ -12,12 +12,11 @@ import (
 )
 
 type SumBucket struct {
-	ctx context.Context
-	PipelineAggregation
+	*PipelineAggregation
 }
 
 func NewSumBucket(ctx context.Context, bucketsPath string) SumBucket {
-	return SumBucket{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
+	return SumBucket{PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query SumBucket) AggregationType() model.AggregationType {
