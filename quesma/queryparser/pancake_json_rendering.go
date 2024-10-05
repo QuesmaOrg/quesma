@@ -27,6 +27,7 @@ func newPancakeJSONRenderer(ctx context.Context) *pancakeJSONRenderer {
 }
 
 func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.QueryResultRow) (result []model.QueryResultRow) {
+	fmt.Println("selectt", metricName, rows)
 	if len(rows) > 0 {
 		newRow := model.QueryResultRow{Index: rows[0].Index}
 		for _, col := range rows[0].Cols {
@@ -184,18 +185,25 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 	case bucket_aggregations.CombinatorAggregationInterface:
 		var bucketArray []model.JsonMap
 		for _, subGroup := range queryType.CombinatorGroups() {
+			fmt.Println(rows)
 			selectedRowsWithoutPrefix := p.selectPrefixRows(subGroup.Prefix, rows)
-
+			fmt.Println("selected", selectedRowsWithoutPrefix)
 			subAggr, err := p.layerToJSON(remainingLayers[1:], selectedRowsWithoutPrefix)
 			if err != nil {
 				return nil, err
 			}
 
-			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), selectedRowsWithoutPrefix)
+			metricName := ""
+			//if !queryType.DoesNotHaveGroupBy() {
+			metricName = layer.nextBucketAggregation.InternalNameForCount()
+			//}
+			selectedRows := p.selectMetricRows(metricName, selectedRowsWithoutPrefix)
+			fmt.Println("201, selectedRows", selectedRows)
 			aggJson := queryType.CombinatorTranslateSqlResponseToJson(subGroup, selectedRows)
+			fmt.Println("202, aggJson", aggJson)
+			fmt.Println("subaggr", subAggr)
 
-			bucketArray = append(bucketArray,
-				util.MergeMaps(p.ctx, aggJson, subAggr))
+			bucketArray = append(bucketArray, util.MergeMaps(p.ctx, aggJson, subAggr))
 			bucketArray[len(bucketArray)-1]["key"] = subGroup.Key
 		}
 		var bucketsJson any

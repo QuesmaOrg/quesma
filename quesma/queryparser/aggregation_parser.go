@@ -78,42 +78,9 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		topMetricsAggrParams := cw.ParseTopMetricsAggregation(topMetricsMap)
 		return topMetricsAggrParams, true
 	}
-	if topHits, ok := queryMap["top_hits"]; ok {
-		var fields []any
-		fields, ok = topHits.(QueryMap)["_source"].(QueryMap)["includes"].([]any)
-		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("can't parse top_hits' fields. top_hits type: %T, value: %v. Using empty fields.", topHits, topHits)
-		}
-		exprs := make([]model.Expr, 0, len(fields))
-		for i, fieldNameRaw := range fields {
-			if fieldName, ok := fieldNameRaw.(string); ok {
-				exprs = append(exprs, model.NewColumnRef(fieldName))
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("field %d in top_hits is not a string. Field's type: %T, value: %v. Skipping.",
-					i, fieldNameRaw, fieldNameRaw)
-			}
-		}
 
-		const defaultSize = 1
-		size := defaultSize
-		orderBy := []model.OrderByExpr{}
-		if mapTyped, ok := topHits.(QueryMap); ok {
-			size = cw.parseSize(mapTyped, defaultSize)
-			orderBy = cw.parseOrder(mapTyped, queryMap, []model.Expr{})
-			if len(orderBy) == 1 && orderBy[0].IsCountDesc() { // we don't need count DESC
-				orderBy = []model.OrderByExpr{}
-			}
-
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("top_hits is not a map, but %T, value: %v. Using default size.", topHits, topHits)
-		}
-		return metricsAggregation{
-			AggrType:  "top_hits",
-			Fields:    exprs,
-			FieldType: metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
-			Size:      size,
-			OrderBy:   orderBy,
-		}, true
+	if parsedTopHits, ok := cw.parseTopHits(queryMap); ok {
+		return parsedTopHits, true
 	}
 
 	// Shortcut here. Percentile_ranks has "field" and a list of "values"
@@ -189,6 +156,72 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	}
 
 	return metricsAggregation{}, false
+}
+
+func (cw *ClickhouseQueryTranslator) parseTopHits(queryMap QueryMap) (parsedTopHits metricsAggregation, success bool) {
+	paramsRaw, ok := queryMap["top_hits"]
+	if !ok {
+		return
+	}
+	params, ok := paramsRaw.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("top_hits is not a map, but %T, value: %v. Skipping", paramsRaw, paramsRaw)
+		return
+	}
+
+	const defaultSize = 1
+	size := cw.parseSize(params, defaultSize)
+
+	orderBy := cw.parseOrder(params, queryMap, []model.Expr{})
+	if len(orderBy) == 1 && orderBy[0].IsCountDesc() { // we don't need count DESC
+		orderBy = []model.OrderByExpr{}
+	}
+
+	return metricsAggregation{
+		AggrType:  "top_hits",
+		Fields:    cw.parseSourceField(params["_source"]),
+		FieldType: metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
+		Size:      size,
+		OrderBy:   orderBy,
+	}, true
+}
+
+// comment what we support
+func (cw *ClickhouseQueryTranslator) parseSourceField(source any) (fields []model.Expr) {
+	if source == nil {
+		logger.WarnWithCtx(cw.Ctx).Msgf("no _source in top_hits not supported. Using empty.")
+		return
+	}
+
+	if sourceAsStr, ok := source.(string); ok {
+		return []model.Expr{model.NewColumnRef(sourceAsStr)}
+	}
+
+	sourceMap, ok := source.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("_source in top_hits is not a string nor a map, but %T, value: %v. Using empty.", source, source)
+		return
+	}
+	includesRaw, ok := sourceMap["includes"]
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("Empty _source['includes'] in top_hits not supported. Using empty.")
+		return
+	}
+	includes, ok := includesRaw.([]any)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("_source['includes'] in top_hits is not an array, but %T, value: %v. Using empty.", includesRaw, includesRaw)
+	}
+
+	for i, fieldNameRaw := range includes {
+		if fieldName, ok := fieldNameRaw.(string); ok {
+			fields = append(fields, model.NewColumnRef(fieldName))
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("field %d in top_hits is not a string. Field's type: %T, value: %v. Skipping.",
+				i, fieldNameRaw, fieldNameRaw)
+		}
+	}
+
+	return
 }
 
 // parseFieldField returns field 'field' from shouldBeMap, which should be a string. Logs some warnings in case of errors, and returns "" then
