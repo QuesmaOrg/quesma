@@ -99,8 +99,8 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		response = append(response, model.JsonMap{
 			OriginalKeyName: originalKey,
 			"key":           responseKey,
-			"doc_count":     docCount, // used to be [level], but because some columns are duplicated, it doesn't work in 100% cases now
-			"key_as_string": query.calcKeyAsString(responseKey),
+			"doc_count":     docCount,
+			"key_as_string": query.calculateKeyAsString(responseKey),
 		})
 	}
 
@@ -112,22 +112,6 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 func (query *DateHistogram) String() string {
 	return fmt.Sprintf("date_histogram(field: %v, interval: %v, min_doc_count: %v, timezone: %v",
 		query.field, query.interval, query.minDocCount, query.timezone)
-}
-
-func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
-	var key int64
-	if query.intervalType == DateHistogramCalendarInterval {
-		key = originalKey
-	} else {
-		intervalInMilliseconds := query.intervalAsDuration().Milliseconds()
-		key = originalKey * intervalInMilliseconds
-	}
-
-	ts := time.UnixMilli(key).UTC()
-	intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), query.wantedTimezone)
-
-	_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
-	return key - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
 }
 
 // only intervals <= days are needed
@@ -224,13 +208,30 @@ func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
 }
 
-func (query *DateHistogram) calcKeyAsString(key int64) string {
+// originalKey is the key as it came from our SQL request (e.g. returned by query.getKey)
+func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
+	var key int64
+	if query.intervalType == DateHistogramCalendarInterval {
+		key = originalKey
+	} else {
+		intervalInMilliseconds := query.intervalAsDuration().Milliseconds()
+		key = originalKey * intervalInMilliseconds
+	}
+
+	ts := time.UnixMilli(key).UTC()
+	intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), query.wantedTimezone)
+
+	_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
+	return key - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
+}
+
+func (query *DateHistogram) calculateKeyAsString(key int64) string {
 	return time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000")
 }
 
 func (query *DateHistogram) OriginalKeyToKeyAsString(originalKey any) string {
-	key := query.calculateResponseKey(originalKey.(int64))
-	return query.calcKeyAsString(key)
+	responseKey := query.calculateResponseKey(originalKey.(int64))
+	return query.calculateKeyAsString(responseKey)
 }
 
 func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {

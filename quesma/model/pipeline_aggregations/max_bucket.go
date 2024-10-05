@@ -78,8 +78,6 @@ func (query MaxBucket) calculateSingleMaxBucket(parentRows []model.QueryResultRo
 		return resultRow
 	}
 
-	fmt.Println(parentRows)
-
 	if firstRowValueFloat, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[firstNonNilIndex].LastColValue()); firstRowValueIsFloat {
 		// find max
 		maxValue := firstRowValueFloat

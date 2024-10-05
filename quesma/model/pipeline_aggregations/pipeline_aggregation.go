@@ -15,10 +15,12 @@ const BucketsPathCount = "_count" // special name for `buckets_path` parameter, 
 type PipelineAggregation struct {
 	ctx context.Context
 	// Deprecated: used only in old logic, can be removed later.
-	Parent                  string
-	PathToParent            []string
-	parentBucketAggregation model.QueryType // may be nil
-	isCount                 bool            // count is a special case, `bucketsPath` is not a path to another aggregation, but path-to-aggregation>_count
+	Parent       string
+	PathToParent []string
+	// May be nil, as there may be no parent bucket aggregation.
+	// Also, it's always nil at start (after constructor), it's set later during pancake transformation.
+	parentBucketAggregation model.QueryType
+	isCount                 bool // count is a special case, `bucketsPath` is not a path to another aggregation, but path-to-aggregation>_count
 }
 
 func newPipelineAggregation(ctx context.Context, bucketsPath string) *PipelineAggregation {
