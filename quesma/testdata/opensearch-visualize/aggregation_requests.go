@@ -701,7 +701,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 						{
 							"1": {
 								"value": 1714687096297.0,
-								"value_as_string": "2024-05-02T21:58:16.297Z"
+								"value_as_string": "2024-05-02T21:58:16.297"
 							},
 							"bg_count": 2570,
 							"doc_count": 2570,
@@ -711,7 +711,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 						{
 							"1": {
 								"value": 1714665552949.0,
-								"value_as_string": "2024-05-02T15:59:12.949Z"
+								"value_as_string": "2024-05-02T15:59:12.949"
 							},
 							"bg_count": 94,
 							"doc_count": 94,
@@ -846,7 +846,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 						{
 							"1": {
 								"value": 1713659942912.0,
-								"value_as_string": "2024-04-21T00:39:02.912Z"
+								"value_as_string": "2024-04-21T00:39:02.912"
 							},
 							"bg_count": 2570,
 							"doc_count": 2570,
@@ -856,7 +856,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 						{
 							"1": {
 								"value": 1713670225131.0,
-								"value_as_string": "2024-04-21T03:30:25.131Z"
+								"value_as_string": "2024-04-21T03:30:25.131"
 							},
 							"bg_count": 94,
 							"doc_count": 94,
