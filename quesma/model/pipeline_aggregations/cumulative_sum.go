@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/model/bucket_aggregations"
 	"quesma/util"
 )
 
@@ -39,23 +38,6 @@ func (query CumulativeSum) CalculateResultWhenMissing(parentRows []model.QueryRe
 		return resultRows
 	}
 
-	fmt.Println(parentRows)
-	fmt.Println(query.parentBucketAggregation)
-
-	switch parentBucketAggregation := query.parentBucketAggregation.(type) {
-	case *bucket_aggregations.DateHistogram:
-		rowsTransformer := parentBucketAggregation.NewRowsTransformer().(*bucket_aggregations.DateHistogramRowsTransformer)
-		rowsTransformer.MinDocCount = 0
-		rowsTransformer.EmptyValue = nil
-		parentRows = rowsTransformer.Transform(query.ctx, parentRows)
-	case *bucket_aggregations.Histogram:
-		rowsTransformer := parentBucketAggregation.NewRowsTransformer().(*bucket_aggregations.HistogramRowsTransformer)
-		rowsTransformer.MinDocCount = 0
-		parentRows = rowsTransformer.Transform(query.ctx, parentRows)
-	}
-
-	fmt.Println(parentRows)
-
 	if _, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[0].LastColValue()); firstRowValueIsFloat {
 		sum := 0.0
 		for _, parentRow := range parentRows {
@@ -83,7 +65,7 @@ func (query CumulativeSum) CalculateResultWhenMissing(parentRows []model.QueryRe
 			resultRows = append(resultRows, resultRow)
 		}
 	}
-	fmt.Println(resultRows)
+
 	return resultRows
 }
 

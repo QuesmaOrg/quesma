@@ -5,7 +5,6 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -260,25 +259,26 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		}
 
 		hasSubaggregations := len(remainingLayers) > 1
+		var nextLayer *pancakeModelLayer
 		if hasSubaggregations {
+			// If we have pipeline parent aggregation, we need to *always* set min_doc_count to 0 in the parent bucket aggregation
+			// Important to do that early, before processing it after this if.
+			nextLayer = remainingLayers[1]
 			anyPipelineParentAggregation := false
-			for _, pipeline := range remainingLayers[1].childrenPipelineAggregations {
+			for _, pipeline := range nextLayer.childrenPipelineAggregations {
 				if pipeline.queryType.PipelineAggregationType() == model.PipelineParentAggregation {
 					anyPipelineParentAggregation = true
 					break
 				}
 			}
 			if anyPipelineParentAggregation {
-				fmt.Println("SUB", remainingLayers[1].childrenPipelineAggregations[0].queryType)
-				switch a := layer.nextBucketAggregation.queryType.(type) {
+				switch parentBucketAggreagation := layer.nextBucketAggregation.queryType.(type) {
 				case *bucket_aggregations.DateHistogram:
-					a.MinDocCount = 0
+					parentBucketAggreagation.MinDocCount = 0
 				case *bucket_aggregations.Histogram:
-					a.MinDocCount = 0
-					fmt.Println("WTF")
+					parentBucketAggreagation.MinDocCount = 0
 				}
 			}
-
 		}
 
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
@@ -295,10 +295,8 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		}
 
 		if hasSubaggregations {
-			nextLayer := remainingLayers[1]
 			pipelineBucketsPerAggregation := p.pipeline.currentPipelineBucketAggregations(layer, nextLayer, bucketRows, subAggrRows)
 
-			pp.Println(pipelineBucketsPerAggregation)
 			// Add subAggregations (both normal and pipeline)
 			bucketArrRaw, ok := buckets["buckets"]
 			if !ok {
@@ -306,8 +304,6 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			}
 
 			bucketArr := bucketArrRaw.([]model.JsonMap)
-
-			fmt.Println(bucketArr, subAggrRows)
 
 			if len(bucketArr) == len(subAggrRows) {
 				// Simple case, we merge bucketArr[i] with subAggrRows[i] (if lengths are equal, keys must be equal => it's fine to not check them at all)

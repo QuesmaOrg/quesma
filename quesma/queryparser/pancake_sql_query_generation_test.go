@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
-	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/quesma/config"
@@ -25,7 +24,7 @@ const TableName = model.SingleTableNamePlaceHolder
 
 func TestPancakeQueryGeneration(t *testing.T) {
 
-	logger.InitSimpleLoggerForTests()
+	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -148,8 +147,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if len(expectedMinusActual) != 0 {
 				pp.Println("EXPECTED diff", expectedMinusActual)
 			}
-			// pp.Println("ACTUAL", pancakeJson)
-			// pp.Println("EXPECTED", expectedAggregationsPart)
+			//pp.Println("ACTUAL", pancakeJson)
+			//pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
 

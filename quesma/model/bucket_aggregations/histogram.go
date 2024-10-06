@@ -4,7 +4,6 @@ package bucket_aggregations
 
 import (
 	"context"
-	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
@@ -31,8 +30,6 @@ func (query *Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 				"%d", len(rows[0].Cols),
 		)
 	}
-
-	fmt.Println("HISTO", query.MinDocCount)
 
 	if query.MinDocCount == 0 {
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)

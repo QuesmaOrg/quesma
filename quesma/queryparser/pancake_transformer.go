@@ -267,17 +267,15 @@ func (a *pancakeTransformer) checkIfSupported(layers []*pancakeModelLayer) error
 func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelLayer) {
 	for i, layer := range layers {
 		for _, pipeline := range layer.currentPipelineAggregations {
-			parentBucketLayer, idx, err := a.findParentBucketLayer(layers[i:], pipeline.queryType)
-			fmt.Println("parentBucketLayer", parentBucketLayer, err)
+			parentBucketLayer, layerIdx, err := a.findParentBucketLayer(layers[i:], pipeline.queryType)
 			if err != nil {
 				logger.WarnWithCtx(a.ctx).Err(err).Msg("could not find parent bucket layer")
 				continue
 			}
-			if pipeline.queryType.PipelineAggregationType() == model.PipelineParentAggregation {
-				// parentBucketLayer is layers[i+idx], we need one before for parent aggregation
-				pipeline.queryType.SetParentBucketAggregation(layers[i+idx-1].nextBucketAggregation.queryType)
-			} else {
-				pipeline.queryType.SetParentBucketAggregation(parentBucketLayer.nextBucketAggregation.queryType)
+
+			parentBucketLayerIdx := i + layerIdx
+			if parentBucketLayerIdx > 0 {
+				pipeline.queryType.SetParentBucketAggregation(layers[parentBucketLayerIdx-1].nextBucketAggregation.queryType)
 			}
 			parentBucketLayer.childrenPipelineAggregations = append(parentBucketLayer.childrenPipelineAggregations, pipeline)
 		}
@@ -285,6 +283,7 @@ func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelL
 }
 
 // returns nil if no parent bucket layer found
+
 func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, queryType model.QueryType) (
 	parentBucketLayer *pancakeModelLayer, layerIdx int, err error) {
 
@@ -293,12 +292,8 @@ func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, 
 		return nil, -1, fmt.Errorf("query type is not pipeline aggregation")
 	}
 
-	fmt.Println(pipeline.GetPathToParent())
-	fmt.Println(pipeline.GetParent())
-
 	layer := layers[0]
 	for i, aggrName := range pipeline.GetPathToParent() {
-		fmt.Println("iii")
 		layer = layers[i]
 		if layer.nextBucketAggregation == nil || layer.nextBucketAggregation.name != aggrName {
 			return nil, -1, fmt.Errorf("could not find parent bucket layer")
