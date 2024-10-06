@@ -194,8 +194,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), selectedRowsWithoutPrefix)
 			aggJson := queryType.CombinatorTranslateSqlResponseToJson(subGroup, selectedRows)
 
-			bucketArray = append(bucketArray,
-				util.MergeMaps(p.ctx, aggJson, subAggr))
+			bucketArray = append(bucketArray, util.MergeMaps(p.ctx, aggJson, subAggr))
 			bucketArray[len(bucketArray)-1]["key"] = subGroup.Key
 		}
 		var bucketsJson any
