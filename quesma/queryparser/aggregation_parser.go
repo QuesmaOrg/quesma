@@ -186,7 +186,8 @@ func (cw *ClickhouseQueryTranslator) parseTopHits(queryMap QueryMap) (parsedTopH
 	}, true
 }
 
-// comment what we support
+// It's not 100% full support, but 2 most common ones: source: string, and source: {includes: []string}
+// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-fields.html#source-filtering
 func (cw *ClickhouseQueryTranslator) parseSourceField(source any) (fields []model.Expr) {
 	if source == nil {
 		logger.WarnWithCtx(cw.Ctx).Msgf("no _source in top_hits not supported. Using empty.")

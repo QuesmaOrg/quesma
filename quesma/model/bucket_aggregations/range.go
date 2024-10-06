@@ -138,6 +138,7 @@ func (query Range) String() string {
 func (query Range) responseForInterval(interval Interval, value any) model.JsonMap {
 	response := model.JsonMap{}
 	if value != nil {
+		// sometimes we may not have count and it's ok (it's only in some other pancake)
 		response["doc_count"] = value
 	}
 	if !interval.IsOpeningBoundInfinite() {
@@ -146,7 +147,6 @@ func (query Range) responseForInterval(interval Interval, value any) model.JsonM
 	if !interval.IsClosingBoundInfinite() {
 		response["to"] = interval.End
 	}
-	fmt.Println("RESPONSE range", response)
 	return response
 }
 
@@ -171,10 +171,10 @@ func (query Range) CombinatorGroups() (result []CombinatorGroup) {
 }
 
 func (query Range) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
-	fmt.Println("hmm", rows)
 	interval := query.Intervals[subGroup.idx]
 	var count any
 	if len(rows[0].Cols) > 0 {
+		// sometimes we may not have count and it's ok (it's only in some other pancake)
 		count = rows[0].Cols[len(rows[0].Cols)-1].Value
 	}
 	return query.responseForInterval(interval, count)
