@@ -128,7 +128,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			WHERE ("order_date">=toDateTime(1706095390802) AND "order_date"<=toDateTime(1715163790802))
+			WHERE ("order_date">=toDateTime64(1.706095390802e+09, 3) AND "order_date"<=toDateTime64(1.715163790802e+09, 3))
 			GROUP BY "day_of_week_i" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
@@ -2840,7 +2840,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "clientip" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=toDateTime(1715413213606) AND "timestamp"<=toDateTime(1715467213606))
+			WHERE ("timestamp">=toDateTime64(1.715413213606e+09, 3) AND "timestamp"<=toDateTime64(1.715467213606e+09, 3))
 			GROUP BY "clientip" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" DESC
 			LIMIT 6`,
@@ -3369,7 +3369,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "Cancelled" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=toDateTime(1714255011264) AND "timestamp"<=toDateTime(1715551011264))
+			WHERE ("timestamp">=toDateTime64(1.714255011264e+09, 3) AND "timestamp"<=toDateTime64(1.715551011264e+09, 3))
 			GROUP BY "Cancelled" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" DESC
 			LIMIT 6`,

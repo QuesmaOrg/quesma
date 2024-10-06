@@ -605,7 +605,7 @@ var AggregationTests2 = []AggregationTestCase{
 			  quantiles(0.020000)("timestamp") AS "metric__2__1_col_1",
 			  sumOrNull("count") AS "metric__2__2_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=toDateTime(1713401475845) AND "timestamp"<=toDateTime(1714697475845))
+			WHERE ("timestamp">=toDateTime64(1.713401475845e+09, 3) AND "timestamp"<=toDateTime64(1.714697475845e+09, 3))
 			GROUP BY "response" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
@@ -1675,7 +1675,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0",
 				  count(*) AS "aggr__2__3__count"
 				FROM ` + TableName + `
-				WHERE ("timestamp">=toDateTime(1715348876077) AND "timestamp"<=toDateTime(1715349776077))
+				WHERE ("timestamp">=toDateTime64(1.715348876077e+09, 3) AND "timestamp"<=toDateTime64(1.715349776077e+09, 3))
 				GROUP BY floor("bytes"/100)*100 AS "aggr__2__key_0",
 				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
@@ -1854,7 +1854,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0",
 				  count(*) AS "aggr__2__3__count"
 				FROM ` + TableName + `
-				 WHERE ("timestamp">=toDateTime(1715348876077) AND "timestamp"<=toDateTime(1715349776077))
+				WHERE ("timestamp">=toDateTime64(1.715348876077e+09, 3) AND "timestamp"<=toDateTime64(1.715349776077e+09, 3))
 				GROUP BY floor("bytes"/100)*100 AS "aggr__2__key_0",
 				  floor("bytes2"/5)*5 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
@@ -2460,8 +2460,8 @@ var AggregationTests2 = []AggregationTestCase{
 				  quantiles(0.750000)("docker.cpu.total.pct") AS "aggr__0__1__order_1",
 				  quantiles(0.750000)("docker.cpu.total.pct") AS "metric__0__1__2_col_0"
 				FROM __quesma_table_name
-				WHERE ("data_stream.dataset"='docker.cpu' AND ("@timestamp">=toDateTime(
-                  1723967652291) AND "@timestamp"<=toDateTime(1725263652291)))
+				WHERE ("data_stream.dataset"='docker.cpu' AND ("@timestamp">=toDateTime64(
+                  1.723967652291e+09, 3) AND "@timestamp"<=toDateTime64(1.725263652291e+09, 3)))
 				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
 				  "aggr__0__key_0", "container.name" AS "aggr__0__1__key_0"))
 			WHERE "aggr__0__1__order_1_rank"<=6
@@ -3720,7 +3720,7 @@ var AggregationTests2 = []AggregationTestCase{
 				"aggr__histo__0__order_1_rank"
 			  FROM (
 				SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-				  toDateTime(1706021760000))) / 30000) AS "aggr__histo__key_0",
+                  toDateTime64(1.70602176e+09), 3)) / 30000) AS "aggr__histo__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
 				  "aggr__histo__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
@@ -3728,8 +3728,8 @@ var AggregationTests2 = []AggregationTestCase{
 				  count(*) AS "aggr__histo__0__count"
 				FROM __quesma_table_name
 				GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-				  toDateTime(1706021760000))) / 30000) AS "aggr__histo__key_0",
-				  "type" AS "aggr__histo__0__key_0"))
+                  toDateTime64(1.70602176e+09), 3)) / 30000) AS "aggr__histo__key_0",
+                  "type" AS "aggr__histo__0__key_0"))
 			WHERE "aggr__histo__0__order_1_rank"<=11
 			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
 	},
@@ -3869,41 +3869,41 @@ var AggregationTests2 = []AggregationTestCase{
 			}}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
-			  (1706878800000))) / 90000) AS "aggr__histo1__key_0",
+			SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+              toDateTime64(1.7068788e+09), 3)) / 90000) AS "aggr__histo1__key_0",
 			  count(*) AS "aggr__histo1__count"
 			FROM __quesma_table_name
 			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-			  toDateTime(1706878800000))) / 90000) AS "aggr__histo1__key_0"
+              toDateTime64(1.7068788e+09), 3)) / 90000) AS "aggr__histo1__key_0"
 			ORDER BY "aggr__histo1__key_0" ASC`,
 		ExpectedAdditionalPancakeSQLs: []string{
-			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
-			  (1706878800000))) / 90000) AS "aggr__histo2__key_0",
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+              toDateTime64(1.7068788e+09), 3)) / 90000) AS "aggr__histo2__key_0",
 			  count(*) AS "aggr__histo2__count"
 			FROM __quesma_table_name
 			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-			  toDateTime(1706878800000))) / 90000) AS "aggr__histo2__key_0"
+              toDateTime64(1.7068788e+09), 3)) / 90000) AS "aggr__histo2__key_0"
 			ORDER BY "aggr__histo2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
-			  (1706878800000))) / 90000) AS "aggr__histo3__key_0",
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+              toDateTime64(1.7068788e+09), 3)) / 90000) AS "aggr__histo3__key_0",
 			  count(*) AS "aggr__histo3__count"
 			FROM __quesma_table_name
 			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-			  toDateTime(1706878800000))) / 90000) AS "aggr__histo3__key_0"
+              toDateTime64(1.7068788e+09), 3)) / 90000) AS "aggr__histo3__key_0"
 			ORDER BY "aggr__histo3__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
-			  (1706853600000))) / 90000) AS "aggr__histo4__key_0",
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+              toDateTime64(1.7068536e+09), 3)) / 90000) AS "aggr__histo4__key_0",
 			  count(*) AS "aggr__histo4__count"
 			FROM __quesma_table_name
 			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-			  toDateTime(1706853600000))) / 90000) AS "aggr__histo4__key_0"
+              toDateTime64(1.7068536e+09), 3)) / 90000) AS "aggr__histo4__key_0"
 			ORDER BY "aggr__histo4__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date", toDateTime
-			  (1706853600000))) / 90000) AS "aggr__histo5__key_0",
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+              toDateTime64(1.7068536e+09), 3)) / 90000) AS "aggr__histo5__key_0",
 			  count(*) AS "aggr__histo5__count"
 			FROM __quesma_table_name
 			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-			  toDateTime(1706853600000))) / 90000) AS "aggr__histo5__key_0"
+              toDateTime64(1.7068536e+09), 3)) / 90000) AS "aggr__histo5__key_0"
 			ORDER BY "aggr__histo5__key_0" ASC`,
 		},
 	},
