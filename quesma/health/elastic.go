@@ -7,24 +7,31 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"strconv"
 )
 
 type ElasticHealthChecker struct {
-	cfg *config.QuesmaConfiguration
+	cfg        *config.QuesmaConfiguration
+	httpClient *http.Client
 }
 
 func NewElasticHealthChecker(cfg *config.QuesmaConfiguration) Checker {
-	return &ElasticHealthChecker{cfg: cfg}
+	return &ElasticHealthChecker{cfg: cfg, httpClient: &http.Client{}}
 }
 
 func (c *ElasticHealthChecker) checkIfElasticsearchDiskIsFull() (isFull bool, reason string) {
 	const catAllocationPath = "/_cat/allocation?format=json"
 	const maxDiskPercent = 90
 
-	resp, err := http.Get(c.cfg.Elasticsearch.Url.String() + catAllocationPath) // TODO: do also here
+	req, err := http.NewRequest(http.MethodGet, c.cfg.Elasticsearch.Url.String()+catAllocationPath, nil)
+	if err != nil {
+		logger.Error().Err(err).Msgf("Can't create '%s' request", catAllocationPath)
+	}
+	req = elasticsearch.AddBasicAuthIfNeeded(req, c.cfg.Elasticsearch.User, c.cfg.Elasticsearch.Password)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return
 	}
@@ -64,21 +71,15 @@ func (c *ElasticHealthChecker) CheckHealth() Status {
 
 	req, err := http.NewRequest(http.MethodGet, c.cfg.Elasticsearch.Url.String()+elasticsearchHealthPath, nil)
 	if err != nil {
-		return NewStatus("red",
-			fmt.Sprintf("Can't create '%s' request", elasticsearchHealthPath), err.Error())
+		return NewStatus("red", fmt.Sprintf("Can't create '%s' request", elasticsearchHealthPath), err.Error())
 	}
-	if c.cfg.Elasticsearch.User != "" {
-		req.SetBasicAuth(c.cfg.Elasticsearch.User, c.cfg.Elasticsearch.Password)
-	}
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	fmt.Printf("1 %+v %+v\n", resp, err)
+	req = elasticsearch.AddBasicAuthIfNeeded(req, c.cfg.Elasticsearch.User, c.cfg.Elasticsearch.Password)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return NewStatus("red", "Ping failed", err.Error())
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
-	fmt.Printf("2 %+v %+v", string(body), err)
 	if err != nil {
 		return NewStatus("red",
 			fmt.Sprintf("Can't read '%s' response", elasticsearchHealthPath), err.Error())
