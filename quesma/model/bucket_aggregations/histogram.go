@@ -12,11 +12,11 @@ import (
 type Histogram struct {
 	ctx         context.Context
 	interval    float64
-	MinDocCount int
+	minDocCount int
 }
 
 func NewHistogram(ctx context.Context, interval float64, minDocCount int) *Histogram {
-	return &Histogram{ctx: ctx, interval: interval, MinDocCount: minDocCount}
+	return &Histogram{ctx: ctx, interval: interval, minDocCount: minDocCount}
 }
 
 func (query *Histogram) AggregationType() model.AggregationType {
@@ -31,7 +31,7 @@ func (query *Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 		)
 	}
 
-	if query.MinDocCount == 0 {
+	if query.minDocCount == 0 {
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
@@ -51,10 +51,14 @@ func (query *Histogram) String() string {
 	return "histogram"
 }
 
+func (query *Histogram) SetMinDocCountToZero() {
+	query.minDocCount = 0
+}
+
 func (query *Histogram) NewRowsTransformer() model.QueryRowsTransformer {
 	return &HistogramRowsTransformer{
 		interval:    query.interval,
-		MinDocCount: query.MinDocCount,
+		MinDocCount: query.minDocCount,
 	}
 }
 
@@ -64,11 +68,11 @@ type HistogramRowsTransformer struct {
 }
 
 // if minDocCount == 0, and we have buckets e.g. [key, value1], [key+2*interval, value2], we need to insert [key+1*interval, 0]
-// CAUTION: a different kind of postprocessing is needed for minDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
+// CAUTION: a different kind of postprocessing is needed for MinDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
 func (query *HistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	if query.MinDocCount != 0 || len(rowsFromDB) < 2 {
 		// we only add empty rows, when
-		// a) minDocCount == 0
+		// a) MinDocCount == 0
 		// b) we have > 1 rows, with < 2 rows we can't add anything in between
 		return rowsFromDB
 	}

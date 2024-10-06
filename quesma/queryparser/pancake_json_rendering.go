@@ -274,9 +274,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			if anyPipelineParentAggregation {
 				switch parentBucketAggreagation := layer.nextBucketAggregation.queryType.(type) {
 				case *bucket_aggregations.DateHistogram:
-					parentBucketAggreagation.MinDocCount = 0
+					parentBucketAggreagation.SetMinDocCountToZero()
 				case *bucket_aggregations.Histogram:
-					parentBucketAggreagation.MinDocCount = 0
+					parentBucketAggreagation.SetMinDocCountToZero()
 				}
 			}
 		}

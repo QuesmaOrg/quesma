@@ -36,7 +36,7 @@ type DateHistogram struct {
 	interval          string
 	timezone          string
 	wantedTimezone    *time.Location // key is in `timezone` time, and we need it to be UTC
-	MinDocCount       int
+	minDocCount       int
 	intervalType      DateHistogramIntervalType
 	fieldDateTimeType clickhouse.DateTimeType
 }
@@ -51,7 +51,7 @@ func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone 
 	}
 
 	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone, wantedTimezone: wantedTimezone,
-		MinDocCount: minDocCount, intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
+		minDocCount: minDocCount, intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
 }
 
 func (typ DateHistogramIntervalType) String(ctx context.Context) string {
@@ -80,17 +80,17 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 	}
 
 	// TODO:
-	// Implement default when query.MinDocCount == DefaultMinDocCount, we need to return
+	// Implement default when query.minDocCount == DefaultMinDocCount, we need to return
 	// all buckets between the first bucket that matches documents and the last one.
 
-	if query.MinDocCount == 0 {
+	if query.minDocCount == 0 {
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
 	var response []model.JsonMap
 	for _, row := range rows {
 		docCount := row.LastColValue()
-		if util.ExtractInt64(docCount) < int64(query.MinDocCount) {
+		if util.ExtractInt64(docCount) < int64(query.minDocCount) {
 			continue
 		}
 		originalKey := query.getKey(row)
@@ -111,7 +111,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 
 func (query *DateHistogram) String() string {
 	return fmt.Sprintf("date_histogram(field: %v, interval: %v, min_doc_count: %v, timezone: %v",
-		query.field, query.interval, query.MinDocCount, query.timezone)
+		query.field, query.interval, query.minDocCount, query.timezone)
 }
 
 // only intervals <= days are needed
@@ -234,6 +234,10 @@ func (query *DateHistogram) OriginalKeyToKeyAsString(originalKey any) string {
 	return query.calculateKeyAsString(responseKey)
 }
 
+func (query *DateHistogram) SetMinDocCountToZero() {
+	query.minDocCount = 0
+}
+
 func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 	differenceBetweenTwoNextKeys := int64(1)
 	if query.intervalType == DateHistogramCalendarInterval {
@@ -245,7 +249,7 @@ func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 			differenceBetweenTwoNextKeys = 0
 		}
 	}
-	return &DateHistogramRowsTransformer{MinDocCount: query.MinDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys, EmptyValue: 0}
+	return &DateHistogramRowsTransformer{MinDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys, EmptyValue: 0}
 }
 
 // we're sure len(row.Cols) >= 2
