@@ -138,7 +138,7 @@ func (query Range) String() string {
 func (query Range) responseForInterval(interval Interval, value any) model.JsonMap {
 	response := model.JsonMap{}
 	if value != nil {
-		// sometimes we may not have count and it's ok (it's only in some other pancake)
+		// occasionally we may not have count (e.g. top_hits) and it's ok
 		response["doc_count"] = value
 	}
 	if !interval.IsOpeningBoundInfinite() {
@@ -174,7 +174,7 @@ func (query Range) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup
 	interval := query.Intervals[subGroup.idx]
 	var count any
 	if len(rows[0].Cols) > 0 {
-		// sometimes we may not have count and it's ok (it's only in some other pancake)
+		// occasionally we may not have count (e.g. top_hits) and it's ok
 		count = rows[0].Cols[len(rows[0].Cols)-1].Value
 	}
 	return query.responseForInterval(interval, count)

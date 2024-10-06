@@ -27,7 +27,6 @@ func newPancakeJSONRenderer(ctx context.Context) *pancakeJSONRenderer {
 }
 
 func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.QueryResultRow) (result []model.QueryResultRow) {
-	fmt.Println("selectt", metricName, rows)
 	if len(rows) > 0 {
 		newRow := model.QueryResultRow{Index: rows[0].Index}
 		for _, col := range rows[0].Cols {
