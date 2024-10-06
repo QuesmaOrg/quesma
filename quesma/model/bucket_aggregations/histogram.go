@@ -4,6 +4,7 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
@@ -12,18 +13,18 @@ import (
 type Histogram struct {
 	ctx         context.Context
 	interval    float64
-	minDocCount int
+	MinDocCount int
 }
 
-func NewHistogram(ctx context.Context, interval float64, minDocCount int) Histogram {
-	return Histogram{ctx: ctx, interval: interval, minDocCount: minDocCount}
+func NewHistogram(ctx context.Context, interval float64, minDocCount int) *Histogram {
+	return &Histogram{ctx: ctx, interval: interval, MinDocCount: minDocCount}
 }
 
-func (query Histogram) AggregationType() model.AggregationType {
+func (query *Histogram) AggregationType() model.AggregationType {
 	return model.BucketAggregation
 }
 
-func (query Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+func (query *Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in histogram aggregation response, len(rows[0].Cols): "+
@@ -31,7 +32,9 @@ func (query Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) m
 		)
 	}
 
-	if query.minDocCount == 0 {
+	fmt.Println("HISTO", query.MinDocCount)
+
+	if query.MinDocCount == 0 {
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
@@ -47,26 +50,26 @@ func (query Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) m
 	}
 }
 
-func (query Histogram) String() string {
+func (query *Histogram) String() string {
 	return "histogram"
 }
 
-func (query Histogram) NewRowsTransformer() model.QueryRowsTransformer {
+func (query *Histogram) NewRowsTransformer() model.QueryRowsTransformer {
 	return &HistogramRowsTransformer{
 		interval:    query.interval,
-		minDocCount: query.minDocCount,
+		MinDocCount: query.MinDocCount,
 	}
 }
 
 type HistogramRowsTransformer struct {
 	interval    float64
-	minDocCount int
+	MinDocCount int
 }
 
 // if minDocCount == 0, and we have buckets e.g. [key, value1], [key+2*interval, value2], we need to insert [key+1*interval, 0]
 // CAUTION: a different kind of postprocessing is needed for minDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
 func (query *HistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	if query.minDocCount != 0 || len(rowsFromDB) < 2 {
+	if query.MinDocCount != 0 || len(rowsFromDB) < 2 {
 		// we only add empty rows, when
 		// a) minDocCount == 0
 		// b) we have > 1 rows, with < 2 rows we can't add anything in between

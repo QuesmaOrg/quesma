@@ -36,7 +36,7 @@ type DateHistogram struct {
 	interval          string
 	timezone          string
 	wantedTimezone    *time.Location // key is in `timezone` time, and we need it to be UTC
-	minDocCount       int
+	MinDocCount       int
 	intervalType      DateHistogramIntervalType
 	fieldDateTimeType clickhouse.DateTimeType
 }
@@ -51,7 +51,7 @@ func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone 
 	}
 
 	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone, wantedTimezone: wantedTimezone,
-		minDocCount: minDocCount, intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
+		MinDocCount: minDocCount, intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
 }
 
 func (typ DateHistogramIntervalType) String(ctx context.Context) string {
@@ -80,17 +80,17 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 	}
 
 	// TODO:
-	// Implement default when query.minDocCount == DefaultMinDocCount, we need to return
+	// Implement default when query.MinDocCount == DefaultMinDocCount, we need to return
 	// all buckets between the first bucket that matches documents and the last one.
 
-	if query.minDocCount == 0 {
+	if query.MinDocCount == 0 {
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
 	var response []model.JsonMap
 	for _, row := range rows {
 		docCount := row.LastColValue()
-		if util.ExtractInt64(docCount) < int64(query.minDocCount) {
+		if util.ExtractInt64(docCount) < int64(query.MinDocCount) {
 			continue
 		}
 		originalKey := query.getKey(row)
@@ -111,7 +111,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 
 func (query *DateHistogram) String() string {
 	return fmt.Sprintf("date_histogram(field: %v, interval: %v, min_doc_count: %v, timezone: %v",
-		query.field, query.interval, query.minDocCount, query.timezone)
+		query.field, query.interval, query.MinDocCount, query.timezone)
 }
 
 // only intervals <= days are needed
@@ -245,29 +245,30 @@ func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 			differenceBetweenTwoNextKeys = 0
 		}
 	}
-	return &DateHistogramRowsTransformer{minDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys}
+	return &DateHistogramRowsTransformer{MinDocCount: query.MinDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys, EmptyValue: 0}
 }
 
 // we're sure len(row.Cols) >= 2
 
 type DateHistogramRowsTransformer struct {
-	minDocCount                  int
+	MinDocCount                  int
 	differenceBetweenTwoNextKeys int64 // if 0, we don't add keys
+	EmptyValue                   any
 }
 
-// if minDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
-// CAUTION: a different kind of postprocessing is needed for minDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
+// if MinDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
+// CAUTION: a different kind of postprocessing is needed for MinDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
 func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-
-	if qt.minDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 || len(rowsFromDB) < 2 {
+	fmt.Println("transformuje kurde", qt)
+	if qt.MinDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 || len(rowsFromDB) < 2 {
 		// we only add empty rows, when
-		// a) minDocCount == 0
+		// a) MinDocCount == 0
 		// b) we have valid differenceBetweenTwoNextKeys (>0)
 		// c) we have > 1 rows, with < 2 rows we can't add anything in between
 		return rowsFromDB
 	}
-	if qt.minDocCount < 0 {
-		logger.WarnWithCtx(ctx).Msgf("unexpected negative minDocCount: %d. Skipping postprocess", qt.minDocCount)
+	if qt.MinDocCount < 0 {
+		logger.WarnWithCtx(ctx).Msgf("unexpected negative MinDocCount: %d. Skipping postprocess", qt.MinDocCount)
 		return rowsFromDB
 	}
 
@@ -287,7 +288,7 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		for midKey := lastKey + qt.differenceBetweenTwoNextKeys; midKey < currentKey && emptyRowsAdded < maxEmptyBucketsAdded; midKey += qt.differenceBetweenTwoNextKeys {
 			midRow := rowsFromDB[i-1].Copy()
 			midRow.Cols[len(midRow.Cols)-2].Value = midKey
-			midRow.Cols[len(midRow.Cols)-1].Value = 0
+			midRow.Cols[len(midRow.Cols)-1].Value = qt.EmptyValue
 			postprocessedRows = append(postprocessedRows, midRow)
 			emptyRowsAdded++
 		}

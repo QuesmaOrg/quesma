@@ -13,6 +13,8 @@ type PipelineQueryType interface {
 	// Should always return PipelineAggregation
 	AggregationType() AggregationType
 
+	PipelineAggregationType() PipelineAggregationType
+
 	// CalculateResultWhenMissing calculates the result of this aggregation when it's a NoDBQuery
 	// (we don't query the DB for the results, but calculate them from the parent aggregation)
 	CalculateResultWhenMissing(parentRows []QueryResultRow) []QueryResultRow

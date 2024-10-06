@@ -35,3 +35,7 @@ func (query Derivative) CalculateResultWhenMissing(parentRows []model.QueryResul
 func (query Derivative) String() string {
 	return fmt.Sprintf("derivative(%s)", query.Parent)
 }
+
+func (query Derivative) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineParentAggregation
+}
