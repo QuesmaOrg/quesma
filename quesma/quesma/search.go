@@ -570,7 +570,7 @@ func (q *QueryRunner) deleteAsyncSeach(id string) ([]byte, error) {
 		return nil, errors.New("invalid quesma async search id : " + id)
 	}
 	q.AsyncRequestStorage.Delete(id)
-	return []byte{}, nil
+	return []byte(`{"acknowledged":true}`), nil
 }
 
 func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncId string, doneCh chan<- AsyncSearchWithError) bool {
