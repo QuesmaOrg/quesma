@@ -69,7 +69,7 @@ func (dm DateManager) ParseMissingInDateHistogram(missing any) (unixTimestamp in
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
 func (dm DateManager) ParseRange(Range any) (timestampExpr model.Expr, parsingSucceeded bool) {
 	if timestamp, success := dm.parseStrictDateOptionalTimeOrEpochMillis(Range); success {
-		return model.NewFunction("toDateTime", model.NewLiteral(timestamp)), true
+		return model.NewFunction("toDateTime64", model.NewLiteral(float64(timestamp)/1000), model.NewLiteral(3)), true
 	}
 	return nil, false
 }

@@ -238,7 +238,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  "aggr__0__1__parent_count", "severity" AS "aggr__0__1__key_0",
 				  "source" AS "aggr__0__1__key_1", count(*) AS "aggr__0__1__count"
 				FROM __quesma_table_name
-				WHERE ("@timestamp">=toDateTime(1716811196627) AND "@timestamp"<=toDateTime(1716812096627))
+				WHERE ("@timestamp">=toDateTime64(1.716811196627e+09, 3) AND "@timestamp"<=
+                  toDateTime64(1.716812096627e+09, 3))
 				GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
 				  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 30000) AS
 				  "aggr__0__key_0", "severity" AS "aggr__0__1__key_0",

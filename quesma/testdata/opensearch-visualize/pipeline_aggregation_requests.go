@@ -4330,7 +4330,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "extension" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=toDateTime(1714256186906) AND "timestamp"<=toDateTime(1715552186906))
+			WHERE ("timestamp">=toDateTime64(1.714256186906e+09, 3) AND "timestamp"<=
+              toDateTime64(1.715552186906e+09, 3))
 			GROUP BY "extension" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" DESC
 			LIMIT 6`,
