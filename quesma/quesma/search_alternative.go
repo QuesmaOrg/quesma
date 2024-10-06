@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"quesma/ab_testing"
 	"quesma/clickhouse"
+	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/config"
@@ -184,9 +185,7 @@ func (q *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTab
 			return nil, err
 		}
 
-		if user != "" && pass != "" {
-			req.SetBasicAuth(user, pass)
-		}
+		elasticsearch.AddBasicAuthIfNeeded(req, user, pass)
 
 		req.Header.Set("Content-Type", "application/json")
 
