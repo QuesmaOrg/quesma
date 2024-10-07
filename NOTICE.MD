@@ -8,11 +8,11 @@ Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/ClickHouse/clickhouse-go/v2
-Version : v2.28.3
-Time    : 2024-09-12T07:34:22Z
+Version : v2.29.0
+Time    : 2024-09-24T12:36:14Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.28.3/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.29.0/LICENSE:
 
 Copyright 2016-2023 ClickHouse, Inc.
 
@@ -259,11 +259,11 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/DataDog/go-sqllexer
-Version : v0.0.14
-Time    : 2024-08-21T20:46:49Z
+Version : v0.0.15
+Time    : 2024-09-06T19:49:26Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/!data!dog/go-sqllexer@v0.0.14/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!data!dog/go-sqllexer@v0.0.15/LICENSE:
 
 MIT License
 
@@ -1249,11 +1249,11 @@ THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/klauspost/compress
-Version : v1.17.9
-Time    : 2024-06-12T08:58:18Z
+Version : v1.17.10
+Time    : 2024-09-18T17:03:25Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/klauspost/compress@v1.17.9/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/klauspost/compress@v1.17.10/LICENSE:
 
 Copyright (c) 2012 The Go Authors. All rights reserved.
 Copyright (c) 2019 Klaus Post. All rights reserved.
@@ -1594,11 +1594,11 @@ THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/knadh/koanf/providers/env
-Version : v0.1.0
-Time    : 2023-02-17T12:50:22Z
+Version : v1.0.0
+Time    : 2024-09-26T07:31:31Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/env@v0.1.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/env@v1.0.0/LICENSE:
 
 The MIT License
 
@@ -1625,11 +1625,11 @@ THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/knadh/koanf/providers/file
-Version : v1.1.0
-Time    : 2024-07-29T18:42:38Z
+Version : v1.1.2
+Time    : 2024-10-02T14:59:55Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/file@v1.1.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/file@v1.1.2/LICENSE:
 
 The MIT License
 
@@ -3304,39 +3304,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 --------------------------------------------------------------------------------
-#### Module  : github.com/creack/pty
-Version : v1.1.9
-Time    : 2019-09-25T15:36:33Z
-Licence : MIT
-
-Contents of probable licence file $GOMODCACHE/github.com/creack/pty@v1.1.9/LICENSE:
-
-Copyright (c) 2011 Keith Rarick
-
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without limitation
-the rights to use, copy, modify, merge, publish, distribute,
-sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall
-be included in all copies or substantial portions of the
-Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
-KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
-OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
---------------------------------------------------------------------------------
 #### Module  : github.com/davecgh/go-spew
 Version : v1.1.2-0.20180830191138-d8f796af33cc
 Time    : 2018-08-30T19:11:38Z
@@ -3610,11 +3577,11 @@ either expressed or implied, of the FreeBSD Project.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/docker/docker
-Version : v27.2.0+incompatible
-Time    : 2024-08-27T14:00:14Z
+Version : v27.3.0+incompatible
+Time    : 2024-09-18T10:25:38Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/docker/docker@v27.2.0+incompatible/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/docker/docker@v27.3.0+incompatible/LICENSE:
 
 
                                  Apache License

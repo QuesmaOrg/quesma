@@ -75,6 +75,10 @@ func (s *OptimizePipeline) findConfig(transformer OptimizeTransformer, queries [
 
 func (s *OptimizePipeline) Transform(queries []*model.Query) ([]*model.Query, error) {
 
+	if len(queries) == 0 {
+		return queries, nil
+	}
+
 	// add  hints if not present
 	for _, query := range queries {
 		if query.OptimizeHints == nil {

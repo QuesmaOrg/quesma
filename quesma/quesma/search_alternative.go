@@ -5,15 +5,15 @@ package quesma
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"quesma/ab_testing"
 	"quesma/clickhouse"
+	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/queryparser"
+	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/tracing"
@@ -115,15 +115,17 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, plan 
 	return optComparePlansCh
 }
 
-func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON, table *clickhouse.Table, isAsync bool) (*model.ExecutionPlan, executionPlanExecutor) {
+func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, indexes []string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON, table *clickhouse.Table, isAsync bool) (*model.ExecutionPlan, executionPlanExecutor) {
 
-	props, disabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration(queryparser.PancakeOptimizerName)
-	if !disabled && props["mode"] == "alternative" {
-		return q.maybeCreatePancakeExecutionPlan(ctx, resolvedTableName, plan, queryTranslator, body, table, isAsync)
+	// TODO not sure how to check configure when we have multiple indexes
+	if len(indexes) != 1 {
+		return nil, nil
 	}
 
+	resolvedTableName := indexes[0]
+
 	// TODO is should be enabled in a different way. it's not an optimizer
-	cfg, disabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration("elastic_ab_testing")
+	cfg, disabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration(config.ElasticABOptimizerName)
 	if !disabled {
 		return q.askElasticAsAnAlternative(ctx, resolvedTableName, plan, queryTranslator, body, table, isAsync, cfg)
 	}
@@ -183,9 +185,7 @@ func (q *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTab
 			return nil, err
 		}
 
-		if user != "" && pass != "" {
-			req.SetBasicAuth(user, pass)
-		}
+		elasticsearch.AddBasicAuthIfNeeded(req, user, pass)
 
 		req.Header.Set("Content-Type", "application/json")
 
@@ -212,97 +212,4 @@ func (q *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTab
 
 		return responseBody, nil
 	}
-}
-
-func (q *QueryRunner) maybeCreatePancakeExecutionPlan(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON, table *clickhouse.Table, isAsync bool) (*model.ExecutionPlan, executionPlanExecutor) {
-
-	hasAggQuery := false
-	queriesWithoutAggr := make([]*model.Query, 0)
-	for _, query := range plan.Queries {
-		switch query.Type.AggregationType() {
-		case model.MetricsAggregation, model.BucketAggregation, model.PipelineMetricsAggregation, model.PipelineBucketAggregation:
-			hasAggQuery = true
-		default:
-			queriesWithoutAggr = append(queriesWithoutAggr, query)
-		}
-	}
-
-	if !hasAggQuery {
-		return nil, nil
-	}
-
-	if chQueryTranslator, ok := queryTranslator.(*queryparser.ClickhouseQueryTranslator); ok {
-
-		// TODO FIXME check if the original plan has count query
-		addCount := false
-
-		if pancakeQueries, err := chQueryTranslator.PancakeParseAggregationJson(body, addCount); err == nil {
-			logger.InfoWithCtx(ctx).Msgf("Running alternative pancake queries")
-			queries := append(queriesWithoutAggr, pancakeQueries...)
-			alternativePlan := &model.ExecutionPlan{
-				IndexPattern:          plan.IndexPattern,
-				QueryRowsTransformers: make([]model.QueryRowsTransformer, len(queries)),
-				Queries:               queries,
-				StartTime:             plan.StartTime,
-				Name:                  "pancake",
-			}
-
-			return alternativePlan, func(ctx context.Context) ([]byte, error) {
-
-				return q.executeAlternativePlan(ctx, plan, queryTranslator, table, body, false)
-			}
-
-		} else {
-			// TODO: change to info
-			logger.ErrorWithCtx(ctx).Msgf("Error parsing pancake queries: %v", err)
-		}
-	} else {
-		logger.ErrorWithCtx(ctx).Msgf("Alternative plan is not supported for non-clickhouse query translators")
-	}
-	return nil, nil
-}
-
-func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, isAsync bool) (responseBody []byte, err error) {
-
-	doneCh := make(chan AsyncSearchWithError, 1)
-
-	err = q.transformQueries(ctx, plan)
-	if err != nil {
-		return responseBody, err
-	}
-
-	if resp, err := q.checkProperties(ctx, plan, table, queryTranslator); err != nil {
-		return resp, err
-	}
-
-	q.runExecutePlanAsync(ctx, plan, queryTranslator, table, doneCh, nil)
-
-	response := <-doneCh
-
-	if response.err == nil {
-		if isAsync {
-			asyncResponse := queryparser.SearchToAsyncSearchResponse(response.response, "__quesma_alternative_plan", false, 200)
-			responseBody, err = asyncResponse.Marshal()
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			responseBody, err = response.response.Marshal()
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		// TODO better error handling
-		m := make(map[string]interface{})
-		m["error"] = fmt.Sprintf("%v", response.err.Error())
-		responseBody, _ = json.MarshalIndent(m, "", "  ")
-	}
-
-	bodyAsBytes, _ := body.Bytes()
-	contextValues := tracing.ExtractValues(ctx)
-	pushAlternativeInfo(q.quesmaManagementConsole, contextValues.RequestId, "", contextValues.OpaqueId, contextValues.RequestPath, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
-
-	return responseBody, response.err
-
 }

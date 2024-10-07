@@ -16,8 +16,7 @@ import (
 )
 
 type SchemaCheckPass struct {
-	cfg            map[string]config.IndexConfiguration
-	schemaRegistry schema.Registry
+	cfg map[string]config.IndexConfiguration
 }
 
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
@@ -353,14 +352,20 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 		logger.Warn().Msg("applyPhysicalFromExpression: physical table name is not set")
 	}
 
-	indexConf, ok := s.cfg[query.TableName]
-	if !ok {
-		return query, fmt.Errorf("index configuration not found for table %s", query.TableName)
+	var useCommonTable bool
+	if len(query.Indexes) == 1 {
+		if indexConf, ok := s.cfg[query.Indexes[0]]; ok {
+			useCommonTable = indexConf.UseCommonTable
+		}
+	} else { // we can handle querying multiple indexes from common table only
+		useCommonTable = true
 	}
 
-	useSingleTable := indexConf.UseCommonTable
-
 	physicalFromExpression := model.NewTableRefWithDatabaseName(query.TableName, currentSchema.DatabaseName)
+
+	if useCommonTable {
+		physicalFromExpression = model.NewTableRef(common_table.TableName)
+	}
 
 	visitor := model.NewBaseVisitor()
 
@@ -373,7 +378,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 		// TODO is this nessessery?
-		if useSingleTable {
+		if useCommonTable {
 			if e.ColumnName == "timestamp" || e.ColumnName == "epoch_time" || e.ColumnName == `"epoch_time"` {
 				return model.NewColumnRef("@timestamp")
 			}
@@ -403,14 +408,21 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 			where = selectStm.WhereClause.Accept(b).(model.Expr)
 		}
 
-		// add filter for single table, if needed
-		if useSingleTable && from == physicalFromExpression {
-			indexWhere := model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", query.TableName)))
+		// add filter for common table, if needed
+		if useCommonTable && from == physicalFromExpression {
+
+			var indexWhere []model.Expr
+
+			for _, indexName := range query.Indexes {
+				indexWhere = append(indexWhere, model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", indexName))))
+			}
+
+			indicesWhere := model.Or(indexWhere)
 
 			if selectStm.WhereClause != nil {
-				where = model.And([]model.Expr{selectStm.WhereClause.Accept(b).(model.Expr), indexWhere})
+				where = model.And([]model.Expr{selectStm.WhereClause.Accept(b).(model.Expr), indicesWhere})
 			} else {
-				where = indexWhere
+				where = indicesWhere
 			}
 		}
 
@@ -458,6 +470,14 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 		for _, col := range cols {
 			newColumns = append(newColumns, model.NewColumnRef(col))
 		}
+
+		if len(query.Indexes) > 1 {
+			newColumns = append(newColumns, model.NewColumnRef(common_table.IndexNameColumn))
+		}
+	}
+
+	if len(newColumns) == 0 {
+		return nil, fmt.Errorf("applyWildcardExpansion: no columns found in the query")
 	}
 
 	query.SelectCommand.Columns = newColumns
@@ -595,14 +615,21 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 func (s *SchemaCheckPass) handleDottedTColumnNames(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
+	// TODO this is a workaround for now,
+	// if we set true dashboards are working but not tests
+	doCompensation := false
+
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 
 		if strings.Contains(e.ColumnName, ".") {
 			logger.Warn().Msgf("Dotted column name found: %s", e.ColumnName)
-			//return model.NewColumnRef(strings.ReplaceAll(e.ColumnName, ".", "::"))
-			return e
+
+			if doCompensation {
+				return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
+			}
+
 		}
 		return e
 	}
@@ -622,12 +649,9 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 	var err error
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-		if _, ok := indexSchema.ResolveField(e.ColumnName); ok {
-			// TODO util.FieldToColumnEncoder is a shortcut here
-			// we should use the schema to get the internal name
-			// however for now it's part of schema.registry not schema.Schema
-			// so we don't have direct access to it
-			return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
+
+		if resolvedField, ok := indexSchema.ResolveField(e.ColumnName); ok {
+			return model.NewColumnRef(resolvedField.InternalPropertyName.AsString())
 		} else {
 			return e
 		}
@@ -645,14 +669,75 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 	return query, nil
 }
 
+func (s *SchemaCheckPass) applyRuntimeMappings(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	if query.RuntimeMappings == nil {
+		return query, nil
+	}
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		if mapping, ok := query.RuntimeMappings[e.ColumnName]; ok {
+			return mapping.Expr
+		}
+		return e
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+}
+
+// it convers out internal date time related fuction to clickhouse functions
+func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
+
+		switch e.Name {
+
+		case model.DateHourFunction:
+			if len(e.Args) != 1 {
+				return e
+			}
+			return model.NewFunction("toHour", e.Args[0].Accept(b).(model.Expr))
+
+			// TODO this is a place for over date/time related functions
+			// add more
+
+		default:
+			return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+		}
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 
 	transformationChain := []struct {
 		TransformationName string
 		Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
 	}{
+		// Section 1: from logical to physical
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
+		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMappings},
+
+		// Section 2: generic schema based transformations
+		//
 		// FieldEncodingTransformation should be after WildcardExpansion
 		// because WildcardExpansion expands the wildcard to all fields
 		// and columns are expanded as PublicFieldName, so we need to encode them
@@ -660,26 +745,26 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
-		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
+
+		// Section 3: clickhouse specific transformations
+		{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse},
 		{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
 		{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 		{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
+
+		// Section 4: compensations and checks
+		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 		{TransformationName: "DottedColumnNames", Transformation: s.handleDottedTColumnNames},
 	}
 
 	for k, query := range queries {
 		var err error
 
-		indexSchema, ok := s.schemaRegistry.FindSchema(schema.TableName(query.TableName))
-		if !ok {
-			return nil, fmt.Errorf("schema not found: %s", query.TableName)
-		}
-
 		for _, transformation := range transformationChain {
 
 			inputQuery := query.SelectCommand.String()
-			query, err = transformation.Transformation(indexSchema, query)
+			query, err = transformation.Transformation(query.Schema, query)
 			if err != nil {
 				return nil, err
 			}

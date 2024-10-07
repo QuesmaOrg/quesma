@@ -5,6 +5,7 @@ package config
 import (
 	"fmt"
 	"slices"
+	"strings"
 )
 
 const (
@@ -13,7 +14,6 @@ const (
 )
 
 type IndexConfiguration struct {
-	Name            string                            `koanf:"name"`
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
 	Override        string                            `koanf:"override"`
@@ -21,21 +21,36 @@ type IndexConfiguration struct {
 	Target          []string                          `koanf:"target"`
 
 	// Computed based on the overall configuration
+	Name         string
 	QueryTarget  []string
 	IngestTarget []string
 }
 
 func (c IndexConfiguration) String() string {
-	var str = fmt.Sprintf("\n\t\t%s, query targets: %v, ingest targets: %v, schema overrides: %s, override: %s, useSingleTable: %t",
-		c.Name,
-		c.QueryTarget,
-		c.IngestTarget,
-		c.SchemaOverrides.String(),
-		c.Override,
-		c.UseCommonTable,
-	)
+	var builder strings.Builder
 
-	return str
+	builder.WriteString("\n\t\t")
+	builder.WriteString(c.Name)
+	builder.WriteString(", query targets: ")
+	builder.WriteString(fmt.Sprintf("%v", c.QueryTarget))
+	builder.WriteString(", ingest targets: ")
+	builder.WriteString(fmt.Sprintf("%v", c.IngestTarget))
+	if c.SchemaOverrides != nil && len(c.SchemaOverrides.Fields) > 0 {
+		builder.WriteString(",\n\t\t\tschema overrides: ")
+		builder.WriteString(c.SchemaOverrides.String())
+		builder.WriteString("\n\t\t\t")
+	} else {
+		builder.WriteString("\n\t\t\t")
+	}
+	if len(c.Override) > 0 {
+		builder.WriteString(", override: ")
+		builder.WriteString(c.Override)
+	}
+	if c.UseCommonTable {
+		builder.WriteString(", useSingleTable: true")
+	}
+
+	return builder.String()
 }
 
 func (c IndexConfiguration) GetOptimizerConfiguration(optimizerName string) (props map[string]string, disabled bool) {
@@ -59,4 +74,8 @@ func (c IndexConfiguration) IsClickhouseQueryEnabled() bool {
 
 func (c IndexConfiguration) IsClickhouseIngestEnabled() bool {
 	return slices.Contains(c.IngestTarget, ClickhouseTarget)
+}
+
+func (c IndexConfiguration) IsIngestDisabled() bool {
+	return len(c.IngestTarget) == 0
 }

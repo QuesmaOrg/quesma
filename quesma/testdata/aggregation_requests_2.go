@@ -3911,4 +3911,183 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__histo5__key_0" ASC`,
 		},
 	},
+	{ // [64]
+		TestName: "histogram, min_doc_count=0, int keys when interval=1",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"interval-2": {
+					"histogram": {
+						"field": "total_quantity",
+						"interval": 2,
+						"min_doc_count": 0
+					}
+				},
+				"interval-1": {
+					"histogram": {
+						"field": "total_quantity",
+						"interval": 1,
+						"min_doc_count": 0
+					}
+				},
+				"interval-0.5": {
+					"histogram": {
+						"field": "total_quantity",
+						"interval": 0.5,
+						"min_doc_count": 0
+					}
+				},
+				"interval-0": {
+					"histogram": {
+						"field": "total_quantity",
+						"interval": 0,
+						"min_doc_count": 0
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 0,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 4675,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"interval-2": {
+					"buckets": [
+						{
+							"doc_count": 87,
+							"key": 0
+						},
+						{
+							"doc_count": 0,
+							"key": 2
+						},
+						{
+							"doc_count": 411,
+							"key": 4
+						}
+					]
+				},
+				"interval-1": {
+					"buckets": [
+						{
+							"doc_count": 87,
+							"key": 0
+						},
+						{
+							"doc_count": 0,
+							"key": 1
+						},
+						{
+							"doc_count": 411,
+							"key": 2
+						}
+					]
+				},
+				"interval-0.5": {
+					"buckets": [
+						{
+							"doc_count": 87,
+							"key": 0
+						},
+						{
+							"doc_count": 0,
+							"key": 0.5
+						},
+						{
+							"doc_count": 411,
+							"key": 1
+						}
+					]
+				},
+				"interval-0": {
+					"buckets": []
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__interval-0__key_0", nil),
+				model.NewQueryResultCol("aggr__interval-0__count", int64(4675)),
+			}},
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__interval-0.5__key_0", 0.0),
+					model.NewQueryResultCol("aggr__interval-0.5__count", int64(87)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__interval-0.5__key_0", 1.0),
+					model.NewQueryResultCol("aggr__interval-0.5__count", int64(411)),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__interval-1__key_0", 0),
+					model.NewQueryResultCol("aggr__interval-1__count", int64(87)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__interval-1__key_0", int64(2)),
+					model.NewQueryResultCol("aggr__interval-1__count", int64(411)),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__interval-2__key_0", 0.0),
+					model.NewQueryResultCol("aggr__interval-2__count", int64(87)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__interval-2__key_0", 4.0),
+					model.NewQueryResultCol("aggr__interval-2__count", int64(411)),
+				}},
+			},
+		},
+		ExpectedPancakeSQL: `
+			SELECT floor("total_quantity"/0)*0 AS "aggr__interval-0__key_0",
+			  count(*) AS "aggr__interval-0__count"
+			FROM __quesma_table_name
+			GROUP BY floor("total_quantity"/0)*0 AS "aggr__interval-0__key_0"
+			ORDER BY "aggr__interval-0__key_0" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{
+			`SELECT floor("total_quantity"/0.5)*0.5 AS "aggr__interval-0.5__key_0",
+			  count(*) AS "aggr__interval-0.5__count"
+			FROM __quesma_table_name
+			GROUP BY floor("total_quantity"/0.5)*0.5 AS "aggr__interval-0.5__key_0"
+			ORDER BY "aggr__interval-0.5__key_0" ASC`,
+			`SELECT "total_quantity" AS "aggr__interval-1__key_0",
+			  count(*) AS "aggr__interval-1__count"
+			FROM __quesma_table_name
+			GROUP BY "total_quantity" AS "aggr__interval-1__key_0"
+			ORDER BY "aggr__interval-1__key_0" ASC`,
+			`SELECT floor("total_quantity"/2)*2 AS "aggr__interval-2__key_0",
+			  count(*) AS "aggr__interval-2__count"
+			FROM __quesma_table_name
+			GROUP BY floor("total_quantity"/2)*2 AS "aggr__interval-2__key_0"
+			ORDER BY "aggr__interval-2__key_0" ASC`,
+		},
+	},
 }

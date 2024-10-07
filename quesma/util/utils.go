@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
@@ -259,7 +260,7 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 // but none of them works for nested maps, so needed to write our own.
 // * mActual - uses JsonMap fully: values are []JsonMap, or JsonMap, or base types
 // * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
-func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma string) JsonMap {
+func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 	var mergeMapsRec func(m1, m2 JsonMap) JsonMap
 	// merges 'i1' and 'i2' in 3 cases: both are JsonMap, both are []JsonMap, or both are some base type
 	mergeAny := func(i1, i2 any) any {
@@ -300,13 +301,13 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 			i, j := 0, 0
 			for i < i1Len && j < i2Len {
 				var key1, key2 string
-				key1, ok = i1Typed[i][keyAddedByQuesma].(string) // TODO maybe some other types as well?
+				key1, ok = i1Typed[i]["key"].(string) // TODO maybe some other types as well?
 				if !ok {
-					if key1Int, ok := i1Typed[i][keyAddedByQuesma].(int64); ok {
+					if key1Int, ok := i1Typed[i]["key"].(int64); ok {
 						key1 = strconv.FormatInt(key1Int, 10)
-					} else if key1Uint, ok := i1Typed[i][keyAddedByQuesma].(uint64); ok {
+					} else if key1Uint, ok := i1Typed[i]["key"].(uint64); ok {
 						key1 = strconv.FormatUint(key1Uint, 10)
-					} else if key1Float, ok := i1Typed[i][keyAddedByQuesma].(float64); ok {
+					} else if key1Float, ok := i1Typed[i]["key"].(float64); ok {
 						key1 = strconv.FormatFloat(key1Float, 'f', -1, 64)
 					} else {
 						// TODO keys probably can be other types, e.g. bools
@@ -315,13 +316,13 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 						continue
 					}
 				}
-				key2, ok = i2Typed[j].(JsonMap)[keyAddedByQuesma].(string) // TODO maybe some other types as well?
+				key2, ok = i2Typed[j].(JsonMap)["key"].(string) // TODO maybe some other types as well?
 				if !ok {
-					if key2Int, ok := i2Typed[j].(JsonMap)[keyAddedByQuesma].(int64); ok {
+					if key2Int, ok := i2Typed[j].(JsonMap)["key"].(int64); ok {
 						key2 = strconv.FormatInt(key2Int, 10)
-					} else if key2Uint, ok := i2Typed[j].(JsonMap)[keyAddedByQuesma].(uint64); ok {
+					} else if key2Uint, ok := i2Typed[j].(JsonMap)["key"].(uint64); ok {
 						key2 = strconv.FormatUint(key2Uint, 10)
-					} else if key2Float, ok := i2Typed[j].(JsonMap)[keyAddedByQuesma].(float64); ok {
+					} else if key2Float, ok := i2Typed[j].(JsonMap)["key"].(float64); ok {
 						key2 = strconv.FormatFloat(key2Float, 'f', -1, 64)
 					} else {
 						// TODO keys probably can be other types, e.g. bools
@@ -872,4 +873,24 @@ func FieldToColumnEncoder(field string) string {
 		newField = "_" + newField
 	}
 	return newField
+}
+
+// ExtractUsernameFromBasicAuthHeader takes the basic auth header and extracts username from it
+func ExtractUsernameFromBasicAuthHeader(authHeader string) (string, error) {
+	authParts := strings.SplitN(authHeader, " ", 2)
+	if len(authParts) != 2 {
+		return "", fmt.Errorf("invalid authorization header format")
+	}
+	if authParts[0] == "Bearer" {
+		return "", fmt.Errorf("cannot extract username from Bearer token")
+	}
+	decodedUserAndPass, err := base64.StdEncoding.DecodeString(authParts[1])
+	if err != nil {
+		return "", err
+	}
+	pair := strings.SplitN(string(decodedUserAndPass), ":", 2)
+	if len(pair) != 2 {
+		return "", fmt.Errorf("invalid decoded authorization format")
+	}
+	return pair[0], nil
 }

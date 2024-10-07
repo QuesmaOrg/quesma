@@ -11,6 +11,7 @@ import (
 	"quesma/concurrent"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/model/bucket_aggregations"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
@@ -38,30 +39,25 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	}
 
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), &config.QuesmaConfiguration{})
-	schemaRegistry := schema.StaticRegistry{}
+	currentSchema := schema.Schema{
+		Fields:             nil,
+		Aliases:            nil,
+		ExistsInDataSource: false,
+		DatabaseName:       "",
+	}
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: schemaRegistry}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: currentSchema}
 
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if strings.HasPrefix(test.TestName, "dashboard-1") {
-				t.Skip("Skipped also for previous implementation. Those 2 tests have nested histograms with min_doc_count=0. Some work done long time ago (Krzysiek)")
-			}
-			if i == 29 || i == 30 {
-				t.Skip("Skipped also for previous implementation. New tests, harder, failing for now.")
-			}
-			if test.TestName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range(file:opensearch-visualize/agg_req,nr:1)" {
-				t.Skip("Skipped also for previous implementation. Top_hits needs to be better.")
-			}
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
 			}
-			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)(file:opensearch-visualize/pipeline_agg_req,nr:18)" {
-				t.Skip("Need fix with date keys in pipeline aggregations.")
-			}
-
 			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:22)" {
 				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
+			}
+			if test.TestName == "Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Avg), Buckets: Date Histogram(file:kibana-visualize/pipeline_agg_req,nr:1)" {
+				t.Skip("test generally passes, but we don't add empty rows for cumulative_sum, and that needs fixing")
 			}
 
 			if i == 101 {
@@ -143,8 +139,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 
 			// FIXME we can quite easily remove 'probability' and 'seed' from above - just start remembering them in RandomSampler struct and print in JSON response.
-			acceptableDifference := []string{"probability", "seed", "bg_count", model.KeyAddedByQuesma,
-				"doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
+			acceptableDifference := []string{"probability", "seed", bucket_aggregations.OriginalKeyName,
+				"bg_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
 			if len(test.AdditionalAcceptableDifference) > 0 {
 				acceptableDifference = append(acceptableDifference, test.AdditionalAcceptableDifference...)
 			}
@@ -215,9 +211,10 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 	}
 
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), &config.QuesmaConfiguration{})
-	schemaRegistry := schema.StaticRegistry{}
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: schemaRegistry}
+	currentSchema := schema.Schema{}
+
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: currentSchema}
 
 	tests := []struct {
 		name string

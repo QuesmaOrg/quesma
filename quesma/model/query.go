@@ -3,6 +3,7 @@
 package model
 
 import (
+	"quesma/schema"
 	"time"
 )
 
@@ -47,9 +48,16 @@ type (
 		TransformationHistory TransformationHistory // it can be optional
 
 		Type      QueryType
-		TableName string
+		TableName string // TODO delete this and use Indexes instead
+
+		Indexes []string // list of indexes we're going to use for this query
+
+		// this is schema for current query, this schema should be used in pipeline processing
+		Schema schema.Schema
 
 		Highlighter Highlighter
+
+		RuntimeMappings map[string]RuntimeMapping
 
 		// dictionary to add as 'meta' field in the response.
 		// WARNING: it's probably not passed everywhere where it's needed, just in one place.
@@ -67,6 +75,13 @@ type (
 		String() string
 	}
 )
+
+// RuntimeMapping is a mapping of a field to a runtime expression
+type RuntimeMapping struct {
+	Field string
+	Type  string
+	Expr  Expr
+}
 
 const MainExecutionPlan = "main"
 const AlternativeExecutionPlan = "alternative"

@@ -6,7 +6,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math"
 	"quesma/concurrent"
 	"quesma/end_user_errors"
 	"quesma/index"
@@ -248,19 +247,14 @@ func (lm *LogManager) isConnectedToPaidService(service PaidServiceName) (bool, e
 	return false, nil
 }
 
-// CheckIfConnectedPaidService executes simple query with exponential backoff
 func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (returnedErr error) {
 	if _, ok := paidServiceChecks[service]; !ok {
 		return fmt.Errorf("service %s is not supported", service)
 	}
-	totalCheckTime := time.Minute
-	startTimeInSeconds := 2.0
-	start := time.Now()
-	attempt := 0
 	for {
 		isConnectedToPaidService, err := lm.isConnectedToPaidService(service)
 		if err != nil {
-			returnedErr = fmt.Errorf("error checking connection to database, attempt #%d, err=%v", attempt+1, err)
+			logger.Error().Msgf("Licensing checker failed to connect with the database")
 		}
 		if isConnectedToPaidService {
 			return fmt.Errorf("detected %s-specific table engine, which is not allowed", service)
@@ -268,15 +262,7 @@ func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (retu
 			returnedErr = nil
 			break
 		}
-		if time.Since(start) > totalCheckTime {
-			break
-		}
-		attempt++
-		sleepDuration := time.Duration(math.Pow(startTimeInSeconds, float64(attempt))) * time.Second
-		if remaining := time.Until(start.Add(totalCheckTime)); remaining < sleepDuration {
-			sleepDuration = remaining
-		}
-		time.Sleep(sleepDuration)
+		time.Sleep(3 * time.Second)
 	}
 	return returnedErr
 }
@@ -413,4 +399,8 @@ func NewChTableConfigTimestampStringAttr() *ChTableConfig {
 
 func (c *ChTableConfig) GetAttributes() []Attribute {
 	return c.Attributes
+}
+
+func (l *LogManager) IsInTransparentProxyMode() bool {
+	return l.cfg.TransparentProxy
 }

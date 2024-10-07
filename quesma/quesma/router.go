@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
+	"quesma/end_user_errors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
@@ -28,6 +29,7 @@ import (
 	"quesma/tracing"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -50,7 +52,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 
 		results, err := bulk.Write(ctx, nil, body, ip, cfg, phoneHomeAgent)
-		return bulkInsertResult(results, err)
+		return bulkInsertResult(ctx, results, err)
 	})
 
 	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExactQueryPath(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -58,6 +60,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	})
 
 	router.Register(routes.IndexDocPath, and(method("POST"), matchedExactIngestPath(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		index := req.Params["index"]
 
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
@@ -67,7 +70,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			}, nil
 		}
 
-		err = doc.Write(ctx, req.Params["index"], body, ip, cfg)
+		result, err := doc.Write(ctx, &index, body, ip, cfg, phoneHomeAgent)
 		if err != nil {
 			return &mux.Result{
 				Body:       string(queryparser.BadRequestParseError(err)),
@@ -75,7 +78,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			}, nil
 		}
 
-		return indexDocResult(req.Params["index"], http.StatusOK)
+		return indexDocResult(result)
 	})
 
 	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExactIngestPath(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -87,7 +90,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 
 		results, err := bulk.Write(ctx, &index, body, ip, cfg, phoneHomeAgent)
-		return bulkInsertResult(results, err)
+		return bulkInsertResult(ctx, results, err)
 	})
 
 	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -374,7 +377,50 @@ func elasticsearchQueryResult(body string, statusCode int) *mux.Result {
 	}, StatusCode: statusCode}
 }
 
-func bulkInsertResult(ops []bulk.BulkItem, err error) (*mux.Result, error) {
+var ingestWarning sync.Once
+
+func noIngestEnabledButThereIngestRequest() {
+	logger.Error().Msgf("Ingest is disabled by configuration, but the request is trying to ingest data. ")
+}
+
+func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*mux.Result, error) {
+
+	if err != nil {
+		var msg string
+		var reason string
+		var httpCode int
+
+		var endUserError *end_user_errors.EndUserError
+		if errors.As(err, &endUserError) {
+			msg = string(queryparser.InternalQuesmaError(endUserError.EndUserErrorMessage()))
+			reason = endUserError.Reason()
+			httpCode = http.StatusInternalServerError
+
+			if endUserError.ErrorType().Number == end_user_errors.ErrNoIngest.Number {
+				// agents have no mercy, they will try again, and again
+				// we should log this error once
+				ingestWarning.Do(noIngestEnabledButThereIngestRequest)
+			}
+
+		} else {
+			msg = string(queryparser.BadRequestParseError(err))
+			reason = err.Error()
+			httpCode = http.StatusBadRequest
+		}
+
+		// ingest can be noisy, so we can enable debug logs here
+		var logEveryIngestError bool
+
+		if logEveryIngestError {
+			logger.ErrorWithCtxAndReason(ctx, reason).Msgf("Bulk insert error: %v", err)
+		}
+
+		return &mux.Result{
+			Body:       msg,
+			StatusCode: httpCode,
+		}, nil
+	}
+
 	if err != nil {
 		return &mux.Result{
 			Body:       string(queryparser.BadRequestParseError(err)),
@@ -418,24 +464,12 @@ func resolveIndexResult(sources elasticsearch.Sources) (*mux.Result, error) {
 		StatusCode: http.StatusOK}, nil
 }
 
-func indexDocResult(index string, statusCode int) (*mux.Result, error) {
-	body, err := json.Marshal(indexDocResponse{
-		Id:          "fakeId",
-		Index:       index,
-		PrimaryTerm: 1,
-		SeqNo:       0,
-		Shards: shardsResponse{
-			Failed:     0,
-			Successful: 1,
-			Total:      1,
-		},
-		Version: 1,
-		Result:  "created",
-	})
+func indexDocResult(bulkItem bulk.BulkItem) (*mux.Result, error) {
+	body, err := json.Marshal(bulkItem.Index)
 	if err != nil {
 		return nil, err
 	}
-	return elasticsearchInsertResult(string(body), statusCode), nil
+	return elasticsearchInsertResult(string(body), http.StatusOK), nil
 }
 
 func putIndexResult(index string) (*mux.Result, error) {
@@ -473,20 +507,6 @@ func getIndexResult(index string, mappings map[string]any) (*mux.Result, error) 
 }
 
 type (
-	indexDocResponse struct {
-		Id          string         `json:"_id"`
-		Index       string         `json:"_index"`
-		PrimaryTerm int            `json:"_primary_term"`
-		SeqNo       int            `json:"_seq_no"`
-		Shards      shardsResponse `json:"_shards"`
-		Version     int            `json:"_version"`
-		Result      string         `json:"result"`
-	}
-	shardsResponse struct {
-		Failed     int `json:"failed"`
-		Successful int `json:"successful"`
-		Total      int `json:"total"`
-	}
 	putIndexResponse struct {
 		Acknowledged       bool   `json:"acknowledged"`
 		ShardsAcknowledged bool   `json:"shards_acknowledged"`

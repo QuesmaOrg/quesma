@@ -3329,7 +3329,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"aggregations": {
 				"1": {
 					"keys": [
-						"2024-05-21T05:20:00.000+02:00"
+						"2024-05-21T07:30:00.000"
 					],
 					"value": 121360.0
 				},

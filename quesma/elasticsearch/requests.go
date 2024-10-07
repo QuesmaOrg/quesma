@@ -23,3 +23,10 @@ func IsWriteRequest(req *http.Request) bool {
 	}
 	return false
 }
+
+func AddBasicAuthIfNeeded(req *http.Request, user, password string) *http.Request {
+	if user != "" && password != "" {
+		req.SetBasicAuth(user, password)
+	}
+	return req
+}

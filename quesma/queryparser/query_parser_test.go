@@ -64,7 +64,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s, Config: &cfg}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables[schema.TableName(tableName)]}
 
 	for i, tt := range testdata.TestsSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
@@ -128,7 +128,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s, Config: &cfg}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables[schema.TableName(tableName)]}
 
 	for i, tt := range testdata.TestsSearchNoFullTextFields {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
@@ -195,7 +195,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 		},
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), &config.QuesmaConfiguration{})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s, Config: &cfg}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables["logs-generic-default"]}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
@@ -419,7 +419,7 @@ func TestNew(t *testing.T) {
 		},
 	}
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.TableName("logs-generic-default")]}
 	for _, tt := range tests {
 		t.Run("test", func(t *testing.T) {
 			simpleQuery, _, _ := cw.ParseQueryAsyncSearch(tt)

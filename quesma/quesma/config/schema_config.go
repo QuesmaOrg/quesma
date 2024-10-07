@@ -32,9 +32,12 @@ func (fn FieldName) AsString() string {
 }
 
 func (fc FieldConfiguration) String() string {
-	baseString := fmt.Sprintf("FieldConfiguration: Type=%s", fc.Type) //fc.IsTimestampField)
+	baseString := fmt.Sprintf("Type=%s", fc.Type)
 	if fc.TargetColumnName != "" {
 		baseString += fmt.Sprintf(", TargetColumnName=%s", fc.TargetColumnName)
+	}
+	if fc.Ignored {
+		baseString += ", Ignored"
 	}
 	return baseString
 }
@@ -45,11 +48,14 @@ func (sc *SchemaConfiguration) String() string {
 	}
 	var builder strings.Builder
 
-	builder.WriteString("SchemaConfiguration:\n")
-
-	builder.WriteString("Fields:\n")
+	addComma := false
 	for fieldName, fieldConfig := range sc.Fields {
-		builder.WriteString(fmt.Sprintf("\t%s: %+v\n", fieldName, fieldConfig))
+		if addComma {
+			builder.WriteString(", ")
+		} else {
+			addComma = true
+		}
+		builder.WriteString(fmt.Sprintf("%s: %v", fieldName, fieldConfig))
 	}
 	return builder.String()
 }

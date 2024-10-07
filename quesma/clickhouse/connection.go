@@ -52,6 +52,9 @@ func initDBConnection(c *config.QuesmaConfiguration, tlsConfig *tls.Config) *sql
 }
 
 func InitDBConnectionPool(c *config.QuesmaConfiguration) *sql.DB {
+	if c.ClickHouse.Url == nil {
+		return nil
+	}
 
 	db := initDBConnection(c, &tls.Config{})
 
@@ -75,7 +78,9 @@ func InitDBConnectionPool(c *config.QuesmaConfiguration) *sql.DB {
 	err = db.Ping()
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to connect to database. There can be errors in further requests.")
-		RunClickHouseConnectionDoctor(c)
+		if !c.TransparentProxy {
+			RunClickHouseConnectionDoctor(c)
+		}
 		// Other errors are not handled here, eg. authentication error, database not found, etc.
 		// Maybe we should return the error here and Quesma should handle it.
 	} else {

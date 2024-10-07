@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"quesma/clickhouse"
+	"quesma/end_user_errors"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/queryparser"
@@ -25,8 +26,14 @@ func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *cli
 		logger.Error().Msg(errorMsg)
 		return nil, fmt.Errorf(errorMsg)
 	} else {
+		resolvedTableName := indices[0]
+		resolvedSchema, ok := schemaRegistry.FindSchema(schema.TableName(resolvedTableName))
+		if !ok {
+			return []byte{}, end_user_errors.ErrNoSuchSchema.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
+		}
+
 		return handleTermsEnumRequest(ctx, body, &queryparser.ClickhouseQueryTranslator{
-			ClickhouseLM: lm, Table: lm.FindTable(indices[0]), SchemaRegistry: schemaRegistry, Ctx: context.Background(),
+			ClickhouseLM: lm, Table: lm.FindTable(indices[0]), Ctx: context.Background(), Schema: resolvedSchema,
 		}, qmc)
 	}
 }

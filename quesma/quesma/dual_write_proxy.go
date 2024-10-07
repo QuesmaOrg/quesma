@@ -22,6 +22,8 @@ import (
 	"time"
 )
 
+const concurrentClientsLimit = 100 // FIXME this should be configurable
+
 type simultaneousClientsLimiter struct {
 	counter atomic.Int64
 	handler http.Handler
@@ -47,7 +49,6 @@ func (c *simultaneousClientsLimiter) ServeHTTP(w http.ResponseWriter, r *http.Re
 
 	c.counter.Add(1)
 	defer c.counter.Add(-1)
-
 	c.handler.ServeHTTP(w, r)
 }
 
@@ -97,8 +98,12 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 
 		routerInstance.reroute(req.Context(), w, req, reqBody, pathRouter, logManager)
 	})
-
-	limitedHandler := newSimultaneousClientsLimiter(handler, 100) // FIXME this should be configurable
+	var limitedHandler http.Handler
+	if config.DisableAuth {
+		limitedHandler = newSimultaneousClientsLimiter(handler, concurrentClientsLimit)
+	} else {
+		limitedHandler = newSimultaneousClientsLimiter(NewAuthMiddleware(handler, config.Elasticsearch), concurrentClientsLimit)
+	}
 
 	return &dualWriteHttpProxy{
 		elasticRouter:  pathRouter,
