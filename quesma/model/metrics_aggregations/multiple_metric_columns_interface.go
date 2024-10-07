@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Elastic-2.0
 package metrics_aggregations
 
-// NoGroupByInterface is a special case of bucket aggregation which does not add group by.
-// Examples: sampler, filter, filters, range and dataRange.
+// MultipleMetricColumnsInterface is an interface for metrics aggregations
+// that have multiple columns in the response.
+// It allows to get the index of the column by its name, e.g.
+// "count", or "standard_deviation" for extended_stats, or "50" for quantile.
 type MultipleMetricColumnsInterface interface {
-	ColumnId(name string) int
+	ColumnIdx(name string) int
 }

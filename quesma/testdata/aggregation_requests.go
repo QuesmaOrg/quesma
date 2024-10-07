@@ -5461,14 +5461,13 @@ var AggregationTests = []AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__3__parent_count",
 				  "geo.src" AS "aggr__3__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__3__key_0") AS "aggr__3__count",
-				  sumOrNull(sumOrNull("memory")) OVER (PARTITION BY "aggr__3__key_0") AS
-				  "aggr__3__order_1",
+				  "metric__3__1_col_0" AS "aggr__3__order_1",
 				  sumOrNull(sumOrNull("memory")) OVER (PARTITION BY "aggr__3__key_0") AS
 				  "metric__3__1_col_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__3__key_0") AS
 				  "aggr__3__2__parent_count", "machine.os" AS "aggr__3__2__key_0",
 				  count(*) AS "aggr__3__2__count",
-				  sumOrNull("memory") AS "aggr__3__2__order_1",
+				  "metric__3__2__1_col_0" AS "aggr__3__2__order_1",
 				  sumOrNull("memory") AS "metric__3__2__1_col_0"
 				FROM __quesma_table_name
 				GROUP BY "geo.src" AS "aggr__3__key_0", "machine.os" AS "aggr__3__2__key_0"))
@@ -5629,7 +5628,7 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 			  "machine.os" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
-			  uniq("clientip") AS "aggr__2__order_1",
+			  "metric__2__1_col_0" AS "aggr__2__order_1",
 			  uniq("clientip") AS "metric__2__1_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T06:22:39.037Z') AND

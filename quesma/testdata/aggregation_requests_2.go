@@ -2816,7 +2816,7 @@ var AggregationTests2 = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "Cancelled" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  countIf("DistanceKilometers"<=0)/count(*)*100 AS "aggr__0__order_1",
+			  "metric__0__1_col_0" AS "aggr__0__order_1",
 			  countIf("DistanceKilometers"<=0)/count(*)*100 AS "metric__0__1_col_0",
 			  countIf("DistanceKilometers"<=50)/count(*)*100 AS "metric__0__1_col_1"
 			FROM __quesma_table_name

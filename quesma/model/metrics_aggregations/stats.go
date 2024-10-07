@@ -44,7 +44,7 @@ func (query Stats) String() string {
 	return "stats"
 }
 
-func (query Stats) ColumnId(name string) int {
+func (query Stats) ColumnIdx(name string) int {
 	for i, column := range statsColumnsInOrder {
 		if column == name {
 			return i

@@ -113,8 +113,8 @@ func (query ExtendedStats) getValue(row model.QueryResultRow, functionName strin
 	return row.Cols[column].Value
 }
 
-func (query ExtendedStats) ColumnId(name string) int {
-	nameToColumnId := map[string]int{
+func (query ExtendedStats) ColumnIdx(name string) int {
+	nameToColumnIdx := map[string]int{
 		"count":                    0,
 		"min":                      1,
 		"max":                      2,
@@ -129,8 +129,8 @@ func (query ExtendedStats) ColumnId(name string) int {
 		"std_deviation_sampling":   9,
 	}
 
-	if columnId, ok := nameToColumnId[name]; ok {
-		return columnId
+	if columnIdx, ok := nameToColumnIdx[name]; ok {
+		return columnIdx
 	}
 	logger.ErrorWithCtx(query.ctx).Msgf("extended_stats column %s not found", name)
 	return -1

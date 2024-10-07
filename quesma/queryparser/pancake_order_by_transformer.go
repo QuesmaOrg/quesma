@@ -36,7 +36,7 @@ func (t *pancakeOrderByTransformer) transformLayer(query *pancakeModel, layer *p
 				fmt.Println("pathToMetricStr", pathToMetricStr, bucketAggrName, " X ", metricAggrName, metric.queryType.String())
 				columnId := 0
 				if multipleColumnsMetric, ok := metric.queryType.(metrics_aggregations.MultipleMetricColumnsInterface); ok {
-					columnId = multipleColumnsMetric.ColumnId(strings.Split(pathToMetric.Value.(string), ".")[1])
+					columnId = multipleColumnsMetric.ColumnIdx(strings.Split(pathToMetric.Value.(string), ".")[1])
 				}
 				if bucketAggrName+strings.ReplaceAll(pathToMetricStr, ">", "__") == metricAggrName {
 					pp.Println("HOHOHO", metric)

@@ -165,7 +165,7 @@ func (query Quantile) createPercentileNameToReturn(percentileName string) string
 	return percentileName
 }
 
-func (query Quantile) ColumnId(name string) int {
+func (query Quantile) ColumnIdx(name string) int {
 	for i, percentileName := range query.percentileNames {
 		if percentileName == name {
 			return i

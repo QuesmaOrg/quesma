@@ -60,11 +60,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("test generally passes, but we don't add empty rows for cumulative_sum, and that needs fixing")
 			}
 
-			if i == 101 {
-				t.Skip()
-			}
-			if i != 100 {
-				t.Skip()
+			if test.TestName == "Terms with order by top metrics(file:kibana-visualize/agg_req,nr:8)" {
+				t.Skip("Need to implement order by top metrics (Jacek knows some CH function to do it)")
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)
