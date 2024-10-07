@@ -55,7 +55,7 @@ func resolveInternalElasticName(pattern indexPattern) *Decision {
 
 	if elasticsearch.IsInternalIndex(pattern.pattern) {
 		return &Decision{
-			PassToElastic: true,
+			UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
 			Message:       "It's kibana internals",
 		}
 	}
@@ -68,7 +68,7 @@ func elasticAsDefault(indexName indexPattern) *Decision {
 	// TODO check "*" config pattern
 
 	return &Decision{
-		PassToElastic: true,
+		UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
 		Message:       "Elastic is default.",
 	}
 }
@@ -78,9 +78,10 @@ func commonTableAsDefault(indexName indexPattern) *Decision {
 	// TODO check "*" config pattern
 
 	return &Decision{
-		PassToClickhouse: true,
-		IsCommonTable:    true,
-		Message:          "Use common table.",
+		UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+			IsCommonTable: true,
+		}},
+		Message: "Use common table.",
 	}
 }
 
@@ -268,9 +269,10 @@ func (r *indexRegistryImpl) makeResolveAutodiscovery(cfg map[string]config.Index
 
 		if table, ok := r.clickhouseIndexes[input.pattern]; ok && !table.IsVirtualTable {
 			return &Decision{
-				PassToClickhouse:    true,
-				ClickhouseTableName: table.TableName,
-				Message:             "Found the physical table. Autodiscovery.",
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+					ClickhouseTableName: table.TableName,
+				}},
+				Message: "Found the physical table. Autodiscovery.",
 			}
 		}
 
@@ -278,7 +280,7 @@ func (r *indexRegistryImpl) makeResolveAutodiscovery(cfg map[string]config.Index
 	}
 }
 
-func (r *indexRegistryImpl) makeClickhouseSingleTableResolver(indexConfig map[string]config.IndexConfiguration) func(input indexPattern) *Decision {
+func (r *indexRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfiguration) func(input indexPattern) *Decision {
 
 	return func(input indexPattern) *Decision {
 
@@ -299,25 +301,43 @@ func (r *indexRegistryImpl) makeClickhouseSingleTableResolver(indexConfig map[st
 
 				case 1:
 
-					// TODO check if we query clickhouse or elastic
-
-					return &Decision{
-						PassToClickhouse:    true,
-						ClickhouseTableName: input.pattern,
-						Indexes:             []string{input.pattern},
-						Message:             "Enabled in the config. Physical table will be used.",
+					decision := &Decision{
+						Message: "Enabled in the config. ",
 					}
 
+					var targetDecision ConnectorDecision
+
+					// FIXME this
+					switch cfg.QueryTarget[0] {
+
+					case "elasticsearch":
+						targetDecision = &ConnectorDecisionElastic{}
+					case "clickhouse":
+						targetDecision = &ConnectorDecisionClickhouse{
+							ClickhouseTableName: input.pattern,
+							Indexes:             []string{input.pattern},
+						}
+					default:
+						return &Decision{
+							Message: "Unsupported configuration",
+							Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("Unsupported target ", input.pattern)),
+						}
+					}
+					decision.UseConnectors = append(decision.UseConnectors, targetDecision)
+
+					return decision
 				case 2:
 
 					// check targets and decide
 					// TODO what about A/B testing ?
 
 					return &Decision{
-						PassToClickhouse:    true,
-						ClickhouseTableName: input.pattern,
-						Indexes:             []string{input.pattern},
-						Message:             "Enabled in the config. Physical table will be used.",
+						Message: "Enabled in the config. Physical table will be used.",
+
+						UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+							ClickhouseTableName: input.pattern,
+							Indexes:             []string{input.pattern},
+						}},
 					}
 
 				default:
@@ -372,7 +392,7 @@ func (r *indexRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input 
 			case nElastic > 0 && nClickhouse == 0:
 
 				return &Decision{
-					PassToElastic: true,
+					UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
 					Message:       "Only Elastic matched.",
 				}
 
@@ -439,10 +459,11 @@ func (r *indexRegistryImpl) makeClickhouseCommonTableResolver(cfg map[string]con
 
 			// HERE
 			return &Decision{
-				PassToClickhouse: true,
-				IsCommonTable:    true,
-				Indexes:          matchedIndexes,
-				Message:          "Common table will be used. Querying multiple indexes.",
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+					IsCommonTable: true,
+					Indexes:       matchedIndexes,
+				}},
+				Message: "Common table will be used. Querying multiple indexes.",
 			}
 		}
 
@@ -455,10 +476,11 @@ func (r *indexRegistryImpl) makeClickhouseCommonTableResolver(cfg map[string]con
 
 		if idxConfig, ok := cfg[input.pattern]; ok && idxConfig.UseCommonTable {
 			return &Decision{
-				PassToClickhouse:    true,
-				ClickhouseTableName: common_table.TableName,
-				Indexes:             []string{input.pattern},
-				Message:             "Common table will be used.",
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+					ClickhouseTableName: common_table.TableName,
+					Indexes:             []string{input.pattern},
+				}},
+				Message: "Common table will be used.",
 			}
 		}
 
@@ -499,7 +521,7 @@ func NewIndexRegistry(ingestConf map[string]config.IndexConfiguration, queryConf
 				{"kibanaInternal", resolveInternalElasticName},
 				{"disabled", makeIsDisabledInConfig(ingestConf)},
 				{"autodiscovery", res.makeResolveAutodiscovery(ingestConf)},
-				{"singleTable", res.makeClickhouseSingleTableResolver(ingestConf)},
+				{"singleIndex", res.singleIndex(ingestConf)},
 				{"commonTable", res.makeClickhouseCommonTableResolver(ingestConf)},
 				{"elasticAsDefault", elasticAsDefault},
 				{"commonTableAsDefault", commonTableAsDefault},
@@ -522,7 +544,7 @@ func NewIndexRegistry(ingestConf map[string]config.IndexConfiguration, queryConf
 
 				// resolving how we can handle the pattern
 				{"autodiscovery", res.makeResolveAutodiscovery(queryConf)},
-				{"singleTable", res.makeClickhouseSingleTableResolver(queryConf)},
+				{"singleIndex", res.singleIndex(queryConf)},
 				{"commonTable", res.makeClickhouseCommonTableResolver(queryConf)},
 
 				// default action

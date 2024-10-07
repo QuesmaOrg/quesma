@@ -12,41 +12,24 @@ func (d *Decision) String() string {
 	var lines []string
 
 	if d.IsClosed {
-		lines = append(lines, "Returns an closed index message.")
+		lines = append(lines, "Returns a closed index message.")
 	}
 
 	if d.IsEmpty {
 		lines = append(lines, "Returns an empty result.")
 	}
 
-	if d.PassToElastic {
-		lines = append(lines, "Pass to Elastic.")
-	}
-
-	if d.PassToClickhouse {
-
-		lines = append(lines, "Will query clickhouse.")
-		if len(d.ClickhouseTableName) > 0 {
-			lines = append(lines, fmt.Sprintf("Table: '%s' .", d.ClickhouseTableName))
-		}
-		if d.IsCommonTable {
-
-			lines = append(lines, "Common table.")
-
-		}
-		if len(d.Indexes) > 0 {
-			lines = append(lines, fmt.Sprintf("Indexes: %v.", d.Indexes))
-		}
-	}
-
 	if d.Err != nil {
 		lines = append(lines, fmt.Sprintf("Returns error: '%v'.", d.Err))
+	}
+
+	for _, connector := range d.UseConnectors {
+		lines = append(lines, connector.Message())
 	}
 
 	lines = append(lines, fmt.Sprintf("%s (%s).", d.Message, d.ResolverName))
 
 	return strings.Join(lines, " ")
-
 }
 
 // ---

@@ -3,7 +3,9 @@
 package index_registry
 
 import (
+	"fmt"
 	"quesma/logger"
+	"strings"
 )
 
 // API for the customers (router, ingest processor and query processor)
@@ -18,20 +20,49 @@ type Decision struct {
 	Err      error
 	IsEmpty  bool
 
-	// not so obvious fields
-
-	// maybe it should be a list of sub-decisions for each connection
-
-	PassToElastic bool
-
-	PassToClickhouse    bool
-	ClickhouseTableName string
-	Indexes             []string
-	IsCommonTable       bool
+	// which connector to use, and how
+	UseConnectors []ConnectorDecision
 
 	// who made the decision and why
 	Message      string
 	ResolverName string
+}
+
+type ConnectorDecision interface {
+	Message() string
+}
+
+type ConnectorDecisionElastic struct {
+	// TODO  instance of elastic connector
+}
+
+func (*ConnectorDecisionElastic) Message() string {
+	return "Pass to Elasticsearch."
+}
+
+type ConnectorDecisionClickhouse struct {
+	// TODO  instance of clickhouse connector
+
+	ClickhouseTableName string
+	Indexes             []string
+	IsCommonTable       bool
+}
+
+func (d *ConnectorDecisionClickhouse) Message() string {
+	lines := []string{}
+
+	lines = append(lines, "Pass to clickhouse.")
+	if len(d.ClickhouseTableName) > 0 {
+		lines = append(lines, fmt.Sprintf("Table: '%s' .", d.ClickhouseTableName))
+	}
+	if d.IsCommonTable {
+		lines = append(lines, "Common table.")
+	}
+	if len(d.Indexes) > 0 {
+		lines = append(lines, fmt.Sprintf("Indexes: %v.", d.Indexes))
+	}
+
+	return strings.Join(lines, " ")
 }
 
 type PatternDecision struct {
