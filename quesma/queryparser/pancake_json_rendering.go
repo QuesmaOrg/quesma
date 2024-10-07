@@ -257,6 +257,29 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			return result, nil
 		}
 
+		hasSubaggregations := len(remainingLayers) > 1
+		var nextLayer *pancakeModelLayer
+		if hasSubaggregations {
+			// If we have pipeline parent aggregation, we need to *always* set min_doc_count to 0 in the parent bucket aggregation
+			// Important to do that early, before processing it after this if.
+			nextLayer = remainingLayers[1]
+			anyPipelineParentAggregation := false
+			for _, pipeline := range nextLayer.childrenPipelineAggregations {
+				if pipeline.queryType.PipelineAggregationType() == model.PipelineParentAggregation {
+					anyPipelineParentAggregation = true
+					break
+				}
+			}
+			if anyPipelineParentAggregation {
+				switch parentBucketAggreagation := layer.nextBucketAggregation.queryType.(type) {
+				case *bucket_aggregations.DateHistogram:
+					parentBucketAggreagation.SetMinDocCountToZero()
+				case *bucket_aggregations.Histogram:
+					parentBucketAggreagation.SetMinDocCountToZero()
+				}
+			}
+		}
+
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
 		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
 
@@ -270,9 +293,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			return result, nil
 		}
 
-		hasSubaggregations := len(remainingLayers) > 1
 		if hasSubaggregations {
-			nextLayer := remainingLayers[1]
 			pipelineBucketsPerAggregation := p.pipeline.currentPipelineBucketAggregations(layer, nextLayer, bucketRows, subAggrRows)
 
 			// Add subAggregations (both normal and pipeline)
