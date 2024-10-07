@@ -405,3 +405,5 @@ func resolveDockerIndexes(pattern indexPattern) *Decision {
 
 	return nil
 }
+
+var _ = resolveDockerIndexes

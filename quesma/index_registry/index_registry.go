@@ -124,7 +124,7 @@ func (r *indexRegistryImpl) updateIndexes() {
 func (r *indexRegistryImpl) typicalDecisions() {
 
 	fill := func(pattern string) {
-		for name, _ := range r.pipelineResolvers {
+		for name := range r.pipelineResolvers {
 			r.Resolve(name, pattern)
 		}
 	}
