@@ -67,6 +67,8 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		queries = append(queries, listQuery)
 	}
 
+	runtimeMappings := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
+
 	// we apply post query transformer for certain aggregation types
 	// this should be a part of the query parsing process
 
@@ -82,7 +84,8 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	}
 
 	for _, query := range queries {
-		query.TableName = cw.Table.Name // TODO remove this line
+		query.TableName = cw.Table.Name
+		query.RuntimeMappings = runtimeMappings
 		query.Indexes = cw.Indexes
 		query.Schema = cw.Schema
 	}
