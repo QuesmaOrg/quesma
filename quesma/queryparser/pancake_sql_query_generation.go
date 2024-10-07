@@ -5,6 +5,7 @@ package queryparser
 import (
 	"errors"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/model/metrics_aggregations"
@@ -416,6 +417,7 @@ func (p *pancakeSqlQueryGenerator) generateQuery(aggregation *pancakeModel) (*mo
 	}
 
 	resultSelectCommand, optimizerName, err := p.generateSelectCommand(aggregation)
+	pp.Println(resultSelectCommand)
 	if err != nil {
 		return nil, err
 	}
