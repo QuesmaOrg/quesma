@@ -57,9 +57,7 @@ func (es *SimpleClient) doRequest(ctx context.Context, method, endpoint string, 
 	if err != nil {
 		return nil, err
 	}
-	if es.config.User != "" && es.config.Password != "" {
-		req.SetBasicAuth(es.config.User, es.config.Password)
-	}
+	req = AddBasicAuthIfNeeded(req, es.config.User, es.config.Password)
 	req.Header.Set("Content-Type", "application/json")
 	for key, values := range headers {
 		for _, value := range values {

@@ -57,10 +57,15 @@ func (query *TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mo
 		}
 		topElems = append(topElems, elem)
 	}
+
+	var maxScore any = 1.0
+	if len(topElems) == 0 {
+		maxScore = nil
+	}
 	return model.JsonMap{
 		"hits": model.JsonMap{
 			"hits":      topElems,
-			"max_score": 1.0, // placeholder
+			"max_score": maxScore, // placeholder
 			"total": model.JsonMap{ // could be better
 				"relation": "eq", // TODO: wrong, but let's pass test, it should ge geq
 				"value":    len(topElems),

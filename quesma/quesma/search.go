@@ -191,7 +191,8 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 			return
 		}
 
-		if len(results) == 0 {
+		if len(plan.Queries) > 0 && len(results) == 0 {
+			// if there are no queries, empty results are fine
 			logger.ErrorWithCtx(ctx).Msgf("no hits, sqls: %v", translatedQueryBody)
 			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
 			return
@@ -491,7 +492,8 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 		})
 		return
 	}
-	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncId, false, 200)
+	okStatus := 200
+	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncId, false, &okStatus)
 	responseBody, err = asyncResponse.Marshal()
 	bodyAsBytes, _ := body.Bytes()
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
@@ -568,7 +570,7 @@ func (q *QueryRunner) deleteAsyncSeach(id string) ([]byte, error) {
 		return nil, errors.New("invalid quesma async search id : " + id)
 	}
 	q.AsyncRequestStorage.Delete(id)
-	return []byte{}, nil
+	return []byte(`{"acknowledged":true}`), nil
 }
 
 func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncId string, doneCh chan<- AsyncSearchWithError) bool {
@@ -830,7 +832,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
 	if len(plan.Queries) == 0 {
-		return nil, fmt.Errorf("postProcessResults: plan.Queries is empty")
+		return results, nil
 	}
 
 	// maybe model.Schema should be part of ExecutionPlan instead of Query
