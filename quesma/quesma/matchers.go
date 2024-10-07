@@ -56,7 +56,7 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
 
-		decision := indexRegistry.Resolve(index_registry.IngestPipeline, indexPattern)
+		decision := indexRegistry.Resolve(index_registry.QueryPipeline, indexPattern)
 		index_registry.TODO("matchedAgainstPattern", indexPattern, " -> ", decision)
 
 		if elasticsearch.IsInternalIndex(indexPattern) {
