@@ -1,14 +1,14 @@
 name: Integration tests
 
 on:
-  #merge_group:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
-    inputs:
-      GIT_REF:
-        description: 'Commit hash to run the tests'
-        required: true
+#  #merge_group:
+#  push:
+#    branches: [ "main" ]
+#  workflow_dispatch:
+#    inputs:
+#      GIT_REF:
+#        description: 'Commit hash to run the tests'
+#        required: true
 jobs:
 
   integration-test-run:
