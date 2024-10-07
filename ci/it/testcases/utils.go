@@ -14,9 +14,14 @@ import (
 	"time"
 )
 
-// InternalDockerHost (`host.testcontainers.internal`) doesn't work for Docker Desktop for Mac.
-const InternalDockerHost = "host.docker.internal"
 const configTemplatesDir = "configs"
+
+func GetInternalDockerHost() string {
+	if host := os.Getenv("EXECUTING_ON_GITHUB_CI"); host != "" {
+		return "localhost"
+	}
+	return "host.docker.internal" // `host.testcontainers.internal` doesn't work for Docker Desktop for Mac.
+}
 
 type Containers struct {
 	Elasticsearch *testcontainers.Container
@@ -125,7 +130,7 @@ func setupKibana(ctx context.Context, quesmaContainer testcontainers.Container) 
 		Image:        "docker.elastic.co/kibana/kibana:8.11.1",
 		ExposedPorts: []string{"5601/tcp"},
 		Env: map[string]string{
-			"ELASTICSEARCH_HOSTS":                       fmt.Sprintf("[\"%s\"]", fmt.Sprintf("http://%s:%s", InternalDockerHost, port.Port())),
+			"ELASTICSEARCH_HOSTS":                       fmt.Sprintf("[\"%s\"]", fmt.Sprintf("http://%s:%s", GetInternalDockerHost(), port.Port())),
 			"XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY": "QUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMA",
 			"ELASTICSEARCH_SSL_VERIFICATIONMODE":        "none",
 			"ELASTICSEARCH_USERNAME":                    "kibana_system",
@@ -190,7 +195,7 @@ func setupContainersForTransparentProxy(ctx context.Context, quesmaConfigTemplat
 
 	esPort, _ := elasticsearch.MappedPort(ctx, "9200/tcp")
 	data := map[string]string{
-		"elasticsearch_host": InternalDockerHost,
+		"elasticsearch_host": GetInternalDockerHost(),
 		"elasticsearch_port": esPort.Port(),
 	}
 	if err := RenderQuesmaConfig(quesmaConfigTemplate, data); err != nil {
@@ -229,9 +234,9 @@ func setupAllContainersWithCh(ctx context.Context, quesmaConfigTemplate string) 
 	chPort, _ := clickhouse.MappedPort(ctx, "9000/tcp")
 
 	data := map[string]string{
-		"elasticsearch_host": InternalDockerHost,
+		"elasticsearch_host": GetInternalDockerHost(),
 		"elasticsearch_port": esPort.Port(),
-		"clickhouse_host":    InternalDockerHost,
+		"clickhouse_host":    GetInternalDockerHost(),
 		"clickhouse_port":    chPort.Port(),
 	}
 	if err := RenderQuesmaConfig(quesmaConfigTemplate, data); err != nil {

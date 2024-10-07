@@ -32,5 +32,5 @@ jobs:
 
       - name: Run integration tests
         working-directory: ci/it
-        run: go test -v
+        run: EXECUTING_ON_GITHUB_CI=true go test -v
 
