@@ -64,7 +64,7 @@ func setupElasticsearch(ctx context.Context) (testcontainers.Container, error) {
 	}
 
 	// Set password to Kibana system user
-	if retCode, reader, errCmd := elasticsearch.Exec(ctx, []string{"curl", "-H", "Content-type: application/json", "-k", "-u", "elastic:quesmaquesma", "http://localhost:9200/_security/user/kibana_system/_password", "-d", "{\"password\": \"kibanana\"}"}); retCode != 0 || errCmd != nil {
+	if retCode, reader, errCmd := elasticsearch.Exec(ctx, []string{"curl", "-H", "Content-type: application/json", "-k", "-u", "elastic:quesmaquesma", "http://0.0.0.0:9200/_security/user/kibana_system/_password", "-d", "{\"password\": \"kibanana\"}"}); retCode != 0 || errCmd != nil {
 		output := new(bytes.Buffer)
 		output.ReadFrom(reader)
 		log.Printf("Command output: %s", output.String())
