@@ -40,14 +40,14 @@ func (tc *IntegrationTestcaseBase) getQuesmaEndpoint() string {
 	ctx := context.Background()
 	q := *tc.Containers.Quesma
 	p, _ := q.MappedPort(ctx, "8080/tcp")
-	return "http://localhost:" + p.Port()
+	return "http://0.0.0.0:" + p.Port()
 }
 
 func (tc *IntegrationTestcaseBase) getElasticsearchEndpoint() string {
 	ctx := context.Background()
 	q := *tc.Containers.Elasticsearch
 	p, _ := q.MappedPort(ctx, "9200/tcp")
-	return "http://localhost:" + p.Port()
+	return "http://0.0.0.0:" + p.Port()
 }
 
 func (tc *IntegrationTestcaseBase) getClickHouseClient() (*sql.DB, error) {
@@ -55,7 +55,7 @@ func (tc *IntegrationTestcaseBase) getClickHouseClient() (*sql.DB, error) {
 	q := *tc.Containers.ClickHouse
 	p, _ := q.MappedPort(ctx, "9000/tcp")
 	options := clickhouse.Options{
-		Addr: []string{"localhost:" + p.Port()},
+		Addr: []string{"0.0.0.0:" + p.Port()},
 		TLS:  nil,
 		Auth: clickhouse.Auth{
 			Username: "default", // Replace with your ClickHouse username
