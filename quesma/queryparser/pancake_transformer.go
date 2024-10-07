@@ -272,6 +272,9 @@ func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelL
 				logger.WarnWithCtx(a.ctx).Err(err).Msg("could not find parent bucket layer")
 				continue
 			}
+			if parentBucketLayer.nextBucketAggregation != nil {
+				pipeline.queryType.SetParentBucketAggregation(parentBucketLayer.nextBucketAggregation.queryType)
+			}
 			parentBucketLayer.childrenPipelineAggregations = append(parentBucketLayer.childrenPipelineAggregations, pipeline)
 		}
 	}

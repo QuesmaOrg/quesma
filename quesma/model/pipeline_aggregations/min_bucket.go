@@ -12,12 +12,11 @@ import (
 )
 
 type MinBucket struct {
-	ctx context.Context
-	PipelineAggregation
+	*PipelineAggregation
 }
 
 func NewMinBucket(ctx context.Context, bucketsPath string) MinBucket {
-	return MinBucket{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
+	return MinBucket{PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query MinBucket) AggregationType() model.AggregationType {
@@ -76,7 +75,7 @@ func (query MinBucket) calculateSingleMinBucket(parentRows []model.QueryResultRo
 		// find keys with min value
 		for _, row := range parentRows {
 			if value, ok := util.ExtractFloat64Maybe(row.LastColValue()); ok && value == minValue {
-				resultKeys = append(resultKeys, getKey(query.ctx, row))
+				resultKeys = append(resultKeys, query.getKey(row))
 			}
 		}
 	} else if firstRowValueInt, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[0].LastColValue()); firstRowValueIsInt {
@@ -94,7 +93,7 @@ func (query MinBucket) calculateSingleMinBucket(parentRows []model.QueryResultRo
 		// find keys with min value
 		for _, row := range parentRows {
 			if value, ok := util.ExtractInt64Maybe(row.LastColValue()); ok && value == minValue {
-				resultKeys = append(resultKeys, getKey(query.ctx, row))
+				resultKeys = append(resultKeys, query.getKey(row))
 			}
 		}
 	}

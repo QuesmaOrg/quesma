@@ -22,6 +22,12 @@ const (
 	DateHistogramFixedInterval    DateHistogramIntervalType = true
 	DateHistogramCalendarInterval DateHistogramIntervalType = false
 	defaultDateTimeType                                     = clickhouse.DateTime64
+	// OriginalKeyName is an original date_histogram's key, as it came from our SQL request.
+	// It's needed when date_histogram has subaggregations, because when we process them, we're merging subaggregation's
+	// map (it has the original key, doesn't know about the processed one)
+	// with date_histogram's map (it already has a "valid", processed key, after TranslateSqlResponseToJson)
+	OriginalKeyName      = "__quesma_originalKey"
+	maxEmptyBucketsAdded = 1000
 )
 
 type DateHistogram struct {
@@ -29,6 +35,7 @@ type DateHistogram struct {
 	field             model.Expr // name of the field, e.g. timestamp
 	interval          string
 	timezone          string
+	wantedTimezone    *time.Location // key is in `timezone` time, and we need it to be UTC
 	minDocCount       int
 	intervalType      DateHistogramIntervalType
 	fieldDateTimeType clickhouse.DateTimeType
@@ -36,7 +43,14 @@ type DateHistogram struct {
 
 func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone string,
 	minDocCount int, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
-	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone,
+
+	wantedTimezone, err := time.LoadLocation(timezone)
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("time.LoadLocation error: %v", err)
+		wantedTimezone = time.UTC
+	}
+
+	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone, wantedTimezone: wantedTimezone,
 		minDocCount: minDocCount, intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
 }
 
@@ -73,38 +87,20 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
-	// key is in `query.timezone` time, and we need it to be UTC
-	wantedTimezone, err := time.LoadLocation(query.timezone)
-	if err != nil {
-		logger.ErrorWithCtx(query.ctx).Msgf("time.LoadLocation error: %v", err)
-		wantedTimezone = time.UTC
-	}
-
 	var response []model.JsonMap
 	for _, row := range rows {
-		var key int64
 		docCount := row.LastColValue()
 		if util.ExtractInt64(docCount) < int64(query.minDocCount) {
 			continue
 		}
-
-		if query.intervalType == DateHistogramCalendarInterval {
-			key = query.getKey(row)
-		} else {
-			intervalInMilliseconds := query.intervalAsDuration().Milliseconds()
-			key = query.getKey(row) * intervalInMilliseconds
-		}
-
-		ts := time.UnixMilli(key).UTC()
-		intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), wantedTimezone)
-
-		_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
-		key -= int64(timezoneOffsetInSeconds * 1000) // seconds -> milliseconds
+		originalKey := query.getKey(row)
+		responseKey := query.calculateResponseKey(originalKey)
 
 		response = append(response, model.JsonMap{
-			"key":           key,
-			"doc_count":     docCount, // used to be [level], but because some columns are duplicated, it doesn't work in 100% cases now
-			"key_as_string": time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000"),
+			OriginalKeyName: originalKey,
+			"key":           responseKey,
+			"doc_count":     docCount,
+			"key_as_string": query.calculateKeyAsString(responseKey),
 		})
 	}
 
@@ -114,7 +110,8 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 }
 
 func (query *DateHistogram) String() string {
-	return "date_histogram(interval: " + query.interval + ")"
+	return fmt.Sprintf("date_histogram(field: %v, interval: %v, min_doc_count: %v, timezone: %v",
+		query.field, query.interval, query.minDocCount, query.timezone)
 }
 
 // only intervals <= days are needed
@@ -211,30 +208,70 @@ func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
 }
 
+// originalKey is the key as it came from our SQL request (e.g. returned by query.getKey)
+func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
+	var key int64
+	if query.intervalType == DateHistogramCalendarInterval {
+		key = originalKey
+	} else {
+		intervalInMilliseconds := query.intervalAsDuration().Milliseconds()
+		key = originalKey * intervalInMilliseconds
+	}
+
+	ts := time.UnixMilli(key).UTC()
+	intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), query.wantedTimezone)
+
+	_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
+	return key - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
+}
+
+func (query *DateHistogram) calculateKeyAsString(key int64) string {
+	return time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000")
+}
+
+func (query *DateHistogram) OriginalKeyToKeyAsString(originalKey any) string {
+	responseKey := query.calculateResponseKey(originalKey.(int64))
+	return query.calculateKeyAsString(responseKey)
+}
+
 func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
-	return &DateHistogramRowsTransformer{minDocCount: query.minDocCount}
+	differenceBetweenTwoNextKeys := int64(1)
+	if query.intervalType == DateHistogramCalendarInterval {
+		duration, err := kibana.ParseInterval(query.interval)
+		if err == nil {
+			differenceBetweenTwoNextKeys = duration.Milliseconds()
+		} else {
+			logger.ErrorWithCtx(query.ctx).Err(err)
+			differenceBetweenTwoNextKeys = 0
+		}
+	}
+	return &DateHistogramRowsTransformer{minDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys}
 }
 
 // we're sure len(row.Cols) >= 2
 
 type DateHistogramRowsTransformer struct {
-	minDocCount int
+	minDocCount                  int
+	differenceBetweenTwoNextKeys int64 // if 0, we don't add keys
 }
 
 // if minDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
 // CAUTION: a different kind of postprocessing is needed for minDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
-func (query *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 
-	if query.minDocCount != 0 || len(rowsFromDB) < 2 {
+	if qt.minDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 || len(rowsFromDB) < 2 {
 		// we only add empty rows, when
 		// a) minDocCount == 0
-		// b) we have > 1 rows, with < 2 rows we can't add anything in between
+		// b) we have valid differenceBetweenTwoNextKeys (>0)
+		// c) we have > 1 rows, with < 2 rows we can't add anything in between
 		return rowsFromDB
 	}
-	if query.minDocCount < 0 {
-		logger.WarnWithCtx(ctx).Msgf("unexpected negative minDocCount: %d. Skipping postprocess", query.minDocCount)
+	if qt.minDocCount < 0 {
+		logger.WarnWithCtx(ctx).Msgf("unexpected negative minDocCount: %d. Skipping postprocess", qt.minDocCount)
 		return rowsFromDB
 	}
+
+	emptyRowsAdded := 0
 	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
 	postprocessedRows = append(postprocessedRows, rowsFromDB[0])
 	for i := 1; i < len(rowsFromDB); i++ {
@@ -245,19 +282,20 @@ func (query *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFr
 				i-1, rowsFromDB[i-1], i, rowsFromDB[i],
 			)
 		}
-		lastKey := query.getKey(rowsFromDB[i-1])
-		currentKey := query.getKey(rowsFromDB[i])
-		for midKey := lastKey + 1; midKey < currentKey; midKey++ {
+		lastKey := qt.getKey(rowsFromDB[i-1])
+		currentKey := qt.getKey(rowsFromDB[i])
+		for midKey := lastKey + qt.differenceBetweenTwoNextKeys; midKey < currentKey && emptyRowsAdded < maxEmptyBucketsAdded; midKey += qt.differenceBetweenTwoNextKeys {
 			midRow := rowsFromDB[i-1].Copy()
 			midRow.Cols[len(midRow.Cols)-2].Value = midKey
 			midRow.Cols[len(midRow.Cols)-1].Value = 0
 			postprocessedRows = append(postprocessedRows, midRow)
+			emptyRowsAdded++
 		}
 		postprocessedRows = append(postprocessedRows, rowsFromDB[i])
 	}
 	return postprocessedRows
 }
 
-func (query *DateHistogramRowsTransformer) getKey(row model.QueryResultRow) int64 {
+func (qt *DateHistogramRowsTransformer) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
 }

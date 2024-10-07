@@ -9,17 +9,12 @@ import (
 )
 
 type SerialDiff struct {
-	ctx context.Context
 	lag int
-	PipelineAggregation
+	*PipelineAggregation
 }
 
 func NewSerialDiff(ctx context.Context, bucketsPath string, lag int) SerialDiff {
-	return SerialDiff{
-		ctx:                 ctx,
-		lag:                 lag,
-		PipelineAggregation: newPipelineAggregation(ctx, bucketsPath),
-	}
+	return SerialDiff{lag: lag, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query SerialDiff) AggregationType() model.AggregationType {

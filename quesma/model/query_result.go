@@ -32,8 +32,6 @@ type QueryResultRow struct {
 	Cols  []QueryResultCol
 }
 
-const KeyAddedByQuesma = "Quesma_key_JR*#@(DF*GAsFfS!/LI" // created in a way that there shouldn't be a field of this name
-
 // String returns the string representation of the column in format `"<colName>": <value>`, properly quoted.
 func (c QueryResultCol) String(ctx context.Context) string {
 	valueExtracted := c.ExtractValue(ctx)

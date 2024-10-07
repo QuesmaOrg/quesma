@@ -51,6 +51,13 @@ func (l *LicenseModule) obtainLicenseKey() (err error) {
 	return nil
 }
 
+func FormatLicenseKey(licenseKey []byte) string {
+	if len(licenseKey) < 8 { // too short to be obfuscated, most probably it's invalid anyway
+		return "....."
+	}
+	return fmt.Sprintf("%s.....%s", string(licenseKey[:8]), string(licenseKey[len(licenseKey)-8:]))
+}
+
 // processLicense presents the license to the license server and receives an AllowList in return
 func (l *LicenseModule) processLicense() error {
 	if fetchedLicense, err := l.fetchLicense(); err != nil {
