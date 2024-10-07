@@ -460,13 +460,18 @@ func Test_makeTotalCount(t *testing.T) {
 		wantTotal     *model.Total
 	}{
 		{
-			name: "a",
-			resultsFromDB: [][]model.QueryResultRow{}
+			name:          "a",
+			resultsFromDB: [][]model.QueryResultRow{},
 		},
 	}
 	cw := ClickhouseQueryTranslator{}
 	query := &model.Query{
-		SelectCommand: nil,
+		SelectCommand: model.SelectCommand{
+			Columns: []model.Expr{
+				model.NewCountFunc(),
+				model.NewColumnRef("a"),
+			},
+		},
 		Type:          PancakeQueryType{},
 		OptimizeHints: model.NewQueryExecutionHints(),
 	}

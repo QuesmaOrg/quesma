@@ -182,32 +182,31 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 	for queryIdx, query := range queries {
 		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
 			totalCountAgg := pancake.ReturnTotalCount()
-			if totalCountAgg != nil {
-				if len(results[queryIdx]) == 0 {
-					continue
-				}
-				firstRow := results[queryIdx][0]
-				for _, cell := range firstRow.Cols {
-					// FIXME THIS is hardcoded for now, as we don't have a way to get the name of the column
-					if cell.ColName == "metric____quesma_total_count_col_0" {
-						switch v := cell.Value.(type) {
-						case uint64:
-							totalCount = int(v)
-						case int:
-							totalCount = v
-						case int64:
-							totalCount = int(v)
-						default:
-							logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v %t", v, v)
-						}
+			if totalCountAgg == nil || len(results[queryIdx]) == 0 {
+				continue
+			}
+
+			firstRow := results[queryIdx][0]
+			for _, cell := range firstRow.Cols {
+				// FIXME THIS is hardcoded for now, as we don't have a way to get the name of the column
+				if cell.ColName == PancakeTotalCountColumnName {
+					switch v := cell.Value.(type) {
+					case uint64:
+						totalCount = int(v)
+					case int:
+						totalCount = v
+					case int64:
+						totalCount = int(v)
+					default:
+						logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v %t", v, v)
 					}
 				}
-				total = &model.Total{
-					Value:    totalCount,
-					Relation: "eq",
-				}
-				return
 			}
+			total = &model.Total{
+				Value:    totalCount,
+				Relation: "eq",
+			}
+			return
 		}
 	}
 
