@@ -3,7 +3,6 @@
 package quesma
 
 import (
-	"quesma/logger"
 	"quesma/model"
 	"quesma/schema"
 )
@@ -24,20 +23,12 @@ func (o *TransformationPipeline) Transform(queries []*model.Query) ([]*model.Que
 }
 
 type replaceColumNamesWithFieldNames struct {
-	schemaRegistry schema.Registry
-	fromTable      string
+	indexSchema schema.Schema
 }
 
 func (t *replaceColumNamesWithFieldNames) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
-	if t.schemaRegistry == nil {
-		logger.Error().Msg("Schema registry is not set")
-		return result, nil
-	}
-	schemaInstance, exists := t.schemaRegistry.FindSchema(schema.TableName(t.fromTable))
-	if !exists {
-		logger.Error().Msgf("Schema fot table %s not found", t.fromTable)
-		return result, nil
-	}
+
+	schemaInstance := t.indexSchema
 	for _, rows := range result {
 		for i, row := range rows {
 			for j := range row.Cols {

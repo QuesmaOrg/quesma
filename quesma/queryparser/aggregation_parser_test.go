@@ -657,11 +657,13 @@ func allAggregationTests() []testdata.AggregationTestCase {
 
 	add(testdata.AggregationTests, "agg_req")
 	add(testdata.AggregationTests2, "agg_req_2")
+	add(testdata.AggregationTestsWithDates, "dates")
 	add(opensearch_visualize.AggregationTests, "opensearch-visualize/agg_req")
 	add(dashboard_1.AggregationTests, "dashboard-1/agg_req")
 	add(testdata.PipelineAggregationTests, "pipeline_agg_req")
 	add(opensearch_visualize.PipelineAggregationTests, "opensearch-visualize/pipeline_agg_req")
-	add(kibana_visualize.AggregationTests, "kibana-visualize/agg_r")
+	add(kibana_visualize.AggregationTests, "kibana-visualize/agg_req")
+	add(kibana_visualize.PipelineAggregationTests, "kibana-visualize/pipeline_agg_req")
 	add(clients.KunkkaTests, "clients/kunkka")
 	add(clients.OpheliaTests, "clients/ophelia")
 
@@ -724,7 +726,7 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{Ctx: context.Background(), SchemaRegistry: s}
+	cw := ClickhouseQueryTranslator{Ctx: context.Background(), Schema: s.Tables["logs-generic-default"]}
 	for _, tc := range testcases {
 		field, success := cw.parseFieldFromScriptField(tc.queryMap)
 		assert.Equal(t, tc.expectedSuccess, success)

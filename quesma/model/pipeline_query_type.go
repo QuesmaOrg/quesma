@@ -21,4 +21,6 @@ type PipelineQueryType interface {
 	GetParent() string
 	GetPathToParent() []string
 	IsCount() bool
+
+	SetParentBucketAggregation(parentBucketAggregation QueryType)
 }

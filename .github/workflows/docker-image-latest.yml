@@ -1,7 +1,9 @@
-name: Docker image build (latest)
-# Pipeline which builds latest / nightly Docker images for Quesma
-# pushes them to Docker Hub and GCR with `latest` tag,
-# triggered by a push/merge to the `main` branch
+name: Docker image build (nightly)
+# Pipeline which builds `nightly` Docker images for Quesma
+# pushes them to Docker Hub as `quesma/quesma:nightly` (and `quesma/quesma:<VERSION>`, if VERSION is specified explicitly)
+#
+# This workflow is triggered by a push/merge to the `main` branch
+# quesma/quesma:latest image is a pointer to latest released version.
 
 on:
   push:
@@ -10,7 +12,7 @@ on:
     inputs:
       VERSION:
         description: 'Version number to tag the image with (optional)'
-        default: latest
+        default: nightly
         required: true
       PUSH:
         description: 'Whether to push the image to the registry'
@@ -35,13 +37,6 @@ jobs:
           cache-dependency-path: ${{ matrix.module }}/go.sum
           go-version: '1.22'
 
-      - name: Login to GCR (only for build running on `main` branch)
-        uses: docker/login-action@v3
-        with:
-          registry: europe-docker.pkg.dev
-          username: _json_key
-          password: ${{ secrets.GCR_SERVICE_ACCOUNT_PRIVATE_KEY }}
-
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -57,11 +52,9 @@ jobs:
           context: ${{ matrix.module }}/.
           # when called from the main branch, `github.event.inputs.VERSION` doesn't use default value and is just empty
           tags: | 
-            europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.sha }}
-            europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.event.inputs.VERSION || 'latest' }}
-            quesma/quesma:${{ github.event.inputs.VERSION || 'latest' }}
-            quesma/quesma:latest
-          # Pushes to GCR only for `main` branch builds, unless set explicitly in the job input
+            quesma/quesma:${{ github.event.inputs.VERSION || 'nightly' }}
+            quesma/quesma:nightly
+          # Pushes to DockerHub only for `main` branch builds, unless set explicitly in the job input
           push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event.inputs.PUSH }}
           build-args: |
             QUESMA_BUILD_SHA=${{ github.sha }}

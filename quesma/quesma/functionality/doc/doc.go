@@ -4,29 +4,24 @@ package doc
 
 import (
 	"context"
-	"quesma/clickhouse"
 	"quesma/ingest"
-	"quesma/jsonprocessor"
 	"quesma/quesma/config"
-	"quesma/quesma/recovery"
+	"quesma/quesma/functionality/bulk"
 	"quesma/quesma/types"
-	"quesma/stats"
+	"quesma/telemetry"
 )
 
-func Write(ctx context.Context, tableName string, body types.JSON, ip *ingest.IngestProcessor, cfg *config.QuesmaConfiguration) error {
-	stats.GlobalStatistics.Process(cfg, tableName, body, clickhouse.NestedSeparator)
+func Write(ctx context.Context, tableName *string, body types.JSON, ip *ingest.IngestProcessor, cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (bulk.BulkItem, error) {
+	// Translate single doc write to a bulk request, reusing exiting logic of bulk ingest
 
-	defer recovery.LogPanic()
-	if len(body) == 0 {
-		return nil
+	results, err := bulk.Write(ctx, tableName, []types.JSON{
+		map[string]interface{}{"index": map[string]interface{}{"_index": *tableName}},
+		body,
+	}, ip, cfg, phoneHomeAgent)
+
+	if err != nil {
+		return bulk.BulkItem{}, err
 	}
 
-	return config.RunConfiguredIngest(ctx, cfg, tableName, body, func() error {
-		if len(cfg.IndexConfig[tableName].Override) > 0 {
-			tableName = cfg.IndexConfig[tableName].Override
-		}
-		nameFormatter := clickhouse.DefaultColumnNameFormatter()
-		transformer := jsonprocessor.IngestTransformerFor(tableName, cfg)
-		return ip.ProcessInsertQuery(ctx, tableName, types.NDJSON{body}, transformer, nameFormatter)
-	})
+	return results[0], err
 }

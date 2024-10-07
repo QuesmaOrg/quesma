@@ -4,6 +4,7 @@ frontendConnectors:
     type: elasticsearch-fe-query
     config:
       listenPort: 8080
+      disableAuth: true
   - name: elasticsearch-API-for-filebeat
     type: elasticsearch-fe-ingest
     config:
@@ -36,6 +37,8 @@ processors:
                 type: text
         windows_logs:
           target: [ my-clickhouse-data-source ]
+        "*":
+          target: [ my-minimal-elasticsearch ]
   - name: p2
     type: quesma-v1-processor-ingest
     config:
@@ -54,6 +57,8 @@ processors:
                 type: text
         windows_logs:   # Used for EQL e2e tests
           target: [ my-clickhouse-data-source ]
+        "*":
+          target: [ my-minimal-elasticsearch ]
 
 pipelines:
   - name: p-query

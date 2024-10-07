@@ -11,6 +11,21 @@ import (
 func ParseInterval(fixedInterval string) (time.Duration, error) {
 	var unit time.Duration
 
+	switch fixedInterval {
+	case "minute":
+		return time.Minute, nil
+	case "hour":
+		return time.Hour, nil
+	case "day":
+		return time.Hour * 24, nil
+	case "week":
+		return time.Hour * 24 * 7, nil
+	case "month":
+		return time.Hour * 24 * 30, nil
+	case "year":
+		return time.Hour * 24 * 365, nil
+	}
+
 	switch {
 	case strings.HasSuffix(fixedInterval, "d"):
 		unit = 24 * time.Hour

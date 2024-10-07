@@ -103,6 +103,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		minDocCount := cw.parseMinDocCount(dateHistogram)
 		timezone := cw.parseStringField(dateHistogram, "time_zone", "")
 		interval, intervalType := cw.extractInterval(dateHistogram)
+		// TODO  GetDateTimeTypeFromExpr can be moved and it should take cw.Schema as an argument
 		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 
 		if dateTimeType == clickhouse.Invalid {

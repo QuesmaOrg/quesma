@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"github.com/hashicorp/go-multierror"
 	"github.com/knadh/koanf/providers/env"
+	"github.com/rs/zerolog"
 	"log"
 	"quesma/network"
 	"reflect"
 	"slices"
 	"strings"
 )
+
+var DefaultLogLevel = zerolog.InfoLevel
 
 const (
 	ElasticsearchFrontendQueryConnectorName  = "elasticsearch-fe-query"
@@ -22,6 +25,8 @@ const (
 	ClickHouseOSBackendConnectorName  = "clickhouse-os"
 	ClickHouseBackendConnectorName    = "clickhouse"
 	HydrolixBackendConnectorName      = "hydrolix"
+
+	ElasticABOptimizerName = "elastic_ab_testing"
 )
 
 type ProcessorType string
@@ -59,7 +64,8 @@ type FrontendConnector struct {
 }
 
 type FrontendConnectorConfiguration struct {
-	ListenPort network.Port `koanf:"listenPort"`
+	ListenPort  network.Port `koanf:"listenPort"`
+	DisableAuth bool         `koanf:"disableAuth"`
 }
 
 type BackendConnector struct {
@@ -73,6 +79,15 @@ type Processor struct {
 	Type   ProcessorType         `koanf:"type"`
 	Config QuesmaProcessorConfig `koanf:"config"`
 }
+
+var (
+	DefaultIngestTarget = []string{ElasticsearchTarget}
+	DefaultQueryTarget  = []string{ElasticsearchTarget}
+)
+
+// An index configuration under this name in IndexConfig
+// specifies the default configuration for all (non-configured) indexes
+const DefaultWildcardIndexName = "*"
 
 // Configuration of QuesmaV1ProcessorQuery and QuesmaV1ProcessorIngest
 type QuesmaProcessorConfig struct {
@@ -210,12 +225,13 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 					!slices.Contains(backendConnectorTypes, HydrolixBackendConnectorName) {
 					return fmt.Errorf("query processor requires having one Clickhouse-compatible backend connector")
 				}
+				if _, found := proc.Config.IndexConfig[DefaultWildcardIndexName]; !found {
+					return fmt.Errorf("the default index configuration (under the name '%s') must be defined in the query processor", DefaultWildcardIndexName)
+				}
 			} else {
 				return fmt.Errorf("single pipeline Quesma can only be used for querying, but the processor is not of query type")
 			}
 
-			// We have a correct query-only pipeline, but we haven't yet implemented the case of disabling ingest...
-			return fmt.Errorf("single pipeline Quesma with querying (ingest disabled) is not supported at this moment")
 		} else {
 			return fmt.Errorf(fmt.Sprintf("frontend connector named [%s] referred in pipeline [%s] not found in configuration", fcName, c.Pipelines[0].Name))
 		}
@@ -245,6 +261,11 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		if ingestProcessor.Type != QuesmaV1ProcessorIngest && ingestProcessor.Type != QuesmaV1ProcessorNoOp {
 			return fmt.Errorf("ingest pipeline must have ingest-type or noop processor")
 		}
+		for _, indexConf := range ingestProcessor.Config.IndexConfig {
+			if len(indexConf.Optimizers) != 0 {
+				return fmt.Errorf("configuration of index '%s' in '%s' processor cannot have any optimizers, this is only a feature of query processor", ingestPipeline.Processors[0], indexConf.Name)
+			}
+		}
 		queryProcessor := c.getProcessorByName(queryPipeline.Processors[0])
 		if queryProcessor == nil {
 			return fmt.Errorf(fmt.Sprintf("query processor named [%s] not found in configuration", ingestPipeline.Processors[0]))
@@ -258,8 +279,33 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 			return fmt.Errorf("query pipeline must have query or noop processor")
 		}
 		if !(queryProcessor.Type == QuesmaV1ProcessorNoOp) {
-			if !reflect.DeepEqual(ingestProcessor.Config, queryProcessor.Config) {
-				return fmt.Errorf("ingest and query processors must have the same configuration due to current limitations")
+			if _, found := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; !found {
+				return fmt.Errorf("the default index configuration (under the name '%s') must be defined in the query processor", DefaultWildcardIndexName)
+			}
+			if _, found := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName]; !found {
+				return fmt.Errorf("the default index configuration (under the name '%s') must be defined in the ingest processor", DefaultWildcardIndexName)
+			}
+			for indexName, queryIndexConf := range queryProcessor.Config.IndexConfig {
+				// If an index is configured in both query and ingest processors,
+				// they must have the same configuration
+				ingestIndexConf, found := ingestProcessor.Config.IndexConfig[indexName]
+				if !found {
+					// Only defined in query processor
+					continue
+				}
+				if queryIndexConf.Override != ingestIndexConf.Override {
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'override' for index '%s' due to current limitations", indexName)
+				}
+				if queryIndexConf.UseCommonTable != ingestIndexConf.UseCommonTable {
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'useCommonTable' for index '%s' due to current limitations", indexName)
+				}
+				if queryIndexConf.SchemaOverrides == nil || ingestIndexConf.SchemaOverrides == nil {
+					if queryIndexConf.SchemaOverrides != ingestIndexConf.SchemaOverrides {
+						return fmt.Errorf("ingest and query processors must have the same configuration of 'schemaOverrides' for index '%s' due to current limitations", indexName)
+					}
+				} else if !reflect.DeepEqual(*queryIndexConf.SchemaOverrides, *ingestIndexConf.SchemaOverrides) {
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'schemaOverrides' for index '%s' due to current limitations", indexName)
+				}
 			}
 		}
 	}
@@ -303,9 +349,19 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 	}
 	if p.Type == QuesmaV1ProcessorQuery || p.Type == QuesmaV1ProcessorIngest {
 		for indexName, indexConfig := range p.Config.IndexConfig {
-			if len(indexConfig.Target) != 1 {
-				return fmt.Errorf("configuration of index %s must have exactly one target", indexName)
+			if indexName != DefaultWildcardIndexName && strings.ContainsAny(indexName, "*,") {
+				return fmt.Errorf("index name '%s' in processor configuration is an index pattern, not allowed", indexName)
 			}
+			if p.Type == QuesmaV1ProcessorQuery {
+				if len(indexConfig.Target) != 1 && len(indexConfig.Target) != 2 {
+					return fmt.Errorf("configuration of index %s must have one or two targets (query processor)", indexName)
+				}
+			} else {
+				if len(indexConfig.Target) > 2 {
+					return fmt.Errorf("configuration of index %s must have at most two targets (ingest processor)", indexName)
+				}
+			}
+
 			for _, target := range indexConfig.Target {
 				if c.getBackendConnectorByName(target) == nil {
 					return fmt.Errorf("invalid target %s in configuration of index %s", target, indexName)
@@ -326,7 +382,8 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 	if !slices.Contains(c.definedFrontedConnectorNames(), pipeline.FrontendConnectors[0]) {
 		errAcc = multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("frontend connector named %s referenced in %s not found in configuration", pipeline.FrontendConnectors[0], pipeline.Name)))
 	}
-	if len(pipeline.BackendConnectors) != 0 && len(pipeline.BackendConnectors) > 2 {
+
+	if len(pipeline.BackendConnectors) == 0 || len(pipeline.BackendConnectors) > 2 {
 		return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline must define exactly one or two backend connectors, %d defined", len(pipeline.BackendConnectors))))
 	}
 	if !slices.Contains(c.definedBackendConnectorNames(), pipeline.BackendConnectors[0]) {
@@ -337,6 +394,7 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 			errAcc = multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[1], pipeline.Name)))
 		}
 	}
+
 	if len(pipeline.Processors) != 1 {
 		return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline must have exactly one processor, [%s] has %d defined", pipeline.Name, len(pipeline.Processors))))
 	}
@@ -407,35 +465,86 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.QuesmaInternalTelemetryUrl = telemetryUrl
 		conf.Logging.RemoteLogDrainUrl = telemetryUrl
 	}
-	conf.Logging = c.Logging
-	conf.InstallationId = c.InstallationId
-	conf.LicenseKey = c.LicenseKey
-	conf.IngestStatistics = c.IngestStatistics
-	conf.Connectors = make(map[string]RelationalDbConfiguration)
-	relDBConn, connType, err := c.getRelationalDBConf()
-	if err != nil {
-		errAcc = multierror.Append(errAcc, err)
-	} else {
-		relDBConn.ConnectorType = connType
-		if connType == HydrolixBackendConnectorName {
-			conf.Connectors["injected-hydrolix-connector"] = *relDBConn
-			conf.Hydrolix = *relDBConn
-		} else {
-			conf.Connectors["injected-clickhouse-connector"] = *relDBConn
-			conf.ClickHouse = *relDBConn
+	// This is perhaps a little oversimplification, **but** in case any of the FE connectors has auth disabled, we disable auth for the whole incomming traffic
+	// After all, the "duality" of frontend connectors is still an architectural choice we tend to question
+	for _, fConn := range c.FrontendConnectors {
+		if fConn.Config.DisableAuth {
+			conf.DisableAuth = true
 		}
 	}
+
+	conf.Logging = c.Logging
+	if conf.Logging.Level == nil {
+		conf.Logging.Level = &DefaultLogLevel
+	}
+
+	conf.InstallationId = c.InstallationId
+	conf.LicenseKey = c.LicenseKey
+
+	conf.AutodiscoveryEnabled = false
+	conf.Connectors = make(map[string]RelationalDbConfiguration)
+	relDBConn, connType, relationalDBErr := c.getRelationalDBConf()
 
 	isSinglePipeline, isDualPipeline := c.getPipelinesType()
 
 	if isSinglePipeline {
-		procType := c.getProcessorByName(c.Pipelines[0].Processors[0]).Type
+		processor := c.getProcessorByName(c.Pipelines[0].Processors[0])
+		procType := processor.Type
 		if procType == QuesmaV1ProcessorNoOp {
 			conf.TransparentProxy = true
+		} else if procType == QuesmaV1ProcessorQuery {
+
+			queryProcessor := processor
+
+			// this a COPY-PASTE from the dual pipeline case, but we need to do it here as well
+			// TODO refactor this to a separate function
+
+			elasticBackendName := c.getElasticsearchBackendConnector().Name
+			var relationalDBBackendName string
+			if relationalDBBackend, _ := c.getRelationalDBBackendConnector(); relationalDBBackend != nil {
+				relationalDBBackendName = relationalDBBackend.Name
+			}
+
+			conf.IndexConfig = make(map[string]IndexConfiguration)
+			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
+				processedConfig := indexConfig
+				processedConfig.Name = indexName
+
+				if slices.Contains(indexConfig.Target, elasticBackendName) {
+					processedConfig.QueryTarget = append(processedConfig.QueryTarget, ElasticsearchTarget)
+				}
+				if slices.Contains(indexConfig.Target, relationalDBBackendName) {
+					processedConfig.QueryTarget = append(processedConfig.QueryTarget, ClickhouseTarget)
+				}
+
+				if len(processedConfig.QueryTarget) == 2 && !(indexConfig.Target[0] == relationalDBBackendName && indexConfig.Target[1] == elasticBackendName) {
+					errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration - when you specify two targets, ClickHouse has to be the primary one and Elastic has to be the secondary one", indexName))
+					continue
+				}
+
+				if len(processedConfig.QueryTarget) == 2 {
+					// Turn on A/B testing
+					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+					processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
+						Disabled:   false,
+						Properties: map[string]string{},
+					}
+				}
+
+				conf.IndexConfig[indexName] = processedConfig
+			}
+
+			// Handle default index configuration
+			defaultConfig := conf.IndexConfig[DefaultWildcardIndexName]
+			if !reflect.DeepEqual(defaultConfig.QueryTarget, []string{ElasticsearchTarget}) {
+				errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
+			}
+			delete(conf.IndexConfig, DefaultWildcardIndexName)
 		} else {
 			errAcc = multierror.Append(errAcc, fmt.Errorf("unsupported processor %s in single pipeline", procType))
 		}
 	}
+
 	if isDualPipeline {
 		fc1 := c.getFrontendConnectorByName(c.Pipelines[0].FrontendConnectors[0])
 		var queryPipeline, ingestPipeline Pipeline
@@ -446,14 +555,23 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 		queryProcessor, ingestProcessor := c.getProcessorByName(queryPipeline.Processors[0]), c.getProcessorByName(ingestPipeline.Processors[0])
 
+		if queryProcessor.Type == QuesmaV1ProcessorNoOp && ingestProcessor.Type == QuesmaV1ProcessorNoOp {
+			conf.TransparentProxy = true
+			goto END
+		}
+
 		elasticBackendName := c.getElasticsearchBackendConnector().Name
-		relationalDBBackend, _ := c.getRelationalDBBackendConnector()
-		relationalDBBackendName := relationalDBBackend.Name
+		var relationalDBBackendName string
+		if relationalDBBackend, _ := c.getRelationalDBBackendConnector(); relationalDBBackend != nil {
+			relationalDBBackendName = relationalDBBackend.Name
+		}
 
 		conf.IndexConfig = make(map[string]IndexConfiguration)
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 			processedConfig := indexConfig
 			processedConfig.Name = indexName
+
+			processedConfig.IngestTarget = DefaultIngestTarget
 
 			if slices.Contains(indexConfig.Target, elasticBackendName) {
 				processedConfig.QueryTarget = append(processedConfig.QueryTarget, ElasticsearchTarget)
@@ -462,15 +580,36 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				processedConfig.QueryTarget = append(processedConfig.QueryTarget, ClickhouseTarget)
 			}
 
+			if len(processedConfig.QueryTarget) == 2 && !(indexConfig.Target[0] == relationalDBBackendName && indexConfig.Target[1] == elasticBackendName) {
+				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration - when you specify two targets, ClickHouse has to be the primary one and Elastic has to be the secondary one", indexName))
+				continue
+			}
+			if len(processedConfig.QueryTarget) == 2 {
+				// Turn on A/B testing
+				processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+				processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
+					Disabled:   false,
+					Properties: map[string]string{},
+				}
+			}
+
 			conf.IndexConfig[indexName] = processedConfig
 		}
+
+		conf.EnableIngest = true
+		conf.IngestStatistics = true
+
 		for indexName, indexConfig := range ingestProcessor.Config.IndexConfig {
 			processedConfig, found := conf.IndexConfig[indexName]
 			if !found {
-				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s was configured in ingest processor, but is missing from query processor", indexConfig))
-				continue
+				// Index is only configured in ingest processor, not in query processor,
+				// use the ingest processor's configuration as the base (similarly as in the previous loop)
+				processedConfig = indexConfig
+				processedConfig.Name = indexName
+				processedConfig.QueryTarget = DefaultQueryTarget
 			}
 
+			processedConfig.IngestTarget = make([]string, 0) // reset previously set DefaultIngestTarget
 			if slices.Contains(indexConfig.Target, elasticBackendName) {
 				processedConfig.IngestTarget = append(processedConfig.IngestTarget, ElasticsearchTarget)
 			}
@@ -479,6 +618,40 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			}
 
 			conf.IndexConfig[indexName] = processedConfig
+		}
+
+		// Handle default index configuration
+		defaultConfig := conf.IndexConfig[DefaultWildcardIndexName]
+		if !reflect.DeepEqual(defaultConfig.QueryTarget, []string{ElasticsearchTarget}) {
+			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
+		}
+		if !reflect.DeepEqual(defaultConfig.IngestTarget, []string{ElasticsearchTarget}) {
+			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of ingest processor is not currently supported", DefaultWildcardIndexName))
+		}
+		delete(conf.IndexConfig, DefaultWildcardIndexName)
+	}
+
+END:
+
+	for _, idxCfg := range conf.IndexConfig {
+		if idxCfg.UseCommonTable {
+			conf.CreateCommonTable = true
+			break
+		}
+	}
+
+	if !conf.TransparentProxy {
+		if relationalDBErr != nil {
+			errAcc = multierror.Append(errAcc, relationalDBErr)
+		} else {
+			relDBConn.ConnectorType = connType
+			if connType == HydrolixBackendConnectorName {
+				conf.Connectors["injected-hydrolix-connector"] = *relDBConn
+				conf.Hydrolix = *relDBConn
+			} else {
+				conf.Connectors["injected-clickhouse-connector"] = *relDBConn
+				conf.ClickHouse = *relDBConn
+			}
 		}
 	}
 

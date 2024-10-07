@@ -169,6 +169,12 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 }
 
 func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discoveredTable) map[string]discoveredTable {
+	quesmaCommonTable, ok := configuredTables[common_table.TableName]
+	if !ok {
+		logger.Warn().Msg("common table not found")
+		return configuredTables
+	}
+
 	virtualTables, err := td.virtualTableStorage.List()
 	if err != nil {
 		logger.Error().Msgf("could not list virtual tables: %v", err)
@@ -191,13 +197,29 @@ func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discover
 		if err != nil {
 			logger.Error().Msgf("could not unmarshal virtual table %s: %v", virtualTable, err)
 		}
+
+		if readVirtualTable.Version != common_table.VirtualTableStructVersion {
+			// migration is not supported yet
+			// we simply skip the table
+			logger.Warn().Msgf("skipping virtual table %s, version mismatch, actual '%s',  expecting '%s'", virtualTable, readVirtualTable.Version, common_table.VirtualTableStructVersion)
+			continue
+		}
+
 		discoTable := discoveredTable{
 			name:        virtualTable,
 			columnTypes: make(map[string]columnMetadata),
 		}
 
 		for _, col := range readVirtualTable.Columns {
-			discoTable.columnTypes[col.Name] = columnMetadata{colType: col.Type}
+
+			// here we construct virtual table columns based on common table columns
+			commonTableColumn, ok := quesmaCommonTable.columnTypes[col.Name]
+
+			if ok {
+				discoTable.columnTypes[col.Name] = columnMetadata{colType: commonTableColumn.colType, comment: commonTableColumn.comment}
+			} else {
+				logger.Warn().Msgf("column %s not found in common table but exists in virtual table %s", col.Name, virtualTable)
+			}
 		}
 
 		discoTable.comment = "Virtual table. Version: " + readVirtualTable.StoredAt

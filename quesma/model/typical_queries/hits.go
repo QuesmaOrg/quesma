@@ -6,12 +6,14 @@ import (
 	"context"
 	"fmt"
 	"quesma/clickhouse"
+	"quesma/common_table"
 	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -29,15 +31,15 @@ type Hits struct {
 	addSource          bool // true <=> we add hit.Source field to the response
 	addScore           bool // true <=> we add hit.Score field to the response (whose value is always 1)
 	addVersion         bool // true <=> we add hit.Version field to the response (whose value is always 1)
-	indexName          string
+	indexes            []string
 	timestampFieldName string
 }
 
 func NewHits(ctx context.Context, table *clickhouse.Table, highlighter *model.Highlighter,
-	sortFieldNames []string, addSource, addScore, addVersion bool, incomingIndexName string) Hits {
+	sortFieldNames []string, addSource, addScore, addVersion bool, indexes []string) Hits {
 
 	return Hits{ctx: ctx, table: table, highlighter: highlighter, sortFieldNames: sortFieldNames,
-		addSource: addSource, addScore: addScore, addVersion: addVersion, indexName: incomingIndexName}
+		addSource: addSource, addScore: addScore, addVersion: addVersion, indexes: indexes}
 }
 
 const (
@@ -50,9 +52,33 @@ func (query Hits) AggregationType() model.AggregationType {
 }
 
 func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+
 	hits := make([]model.SearchHit, 0, len(rows))
+
+	lookForCommonTableIndexColumn := true
+
 	for i, row := range rows {
-		hit := model.NewSearchHit(query.indexName)
+
+		// sane default
+		indexName := query.indexes[0]
+
+		// we don't look for common table index column if we didn't find it in the first row
+		if lookForCommonTableIndexColumn {
+			var found bool
+			for _, cell := range row.Cols {
+				if cell.ColName == common_table.IndexNameColumn {
+					indexName = cell.Value.(string)
+					found = true
+					break
+				}
+			}
+			if !found {
+				lookForCommonTableIndexColumn = false
+			}
+		}
+
+		hit := model.NewSearchHit(indexName)
+
 		if query.addScore {
 			hit.Score = defaultScore
 		}
@@ -106,6 +132,12 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 	}
 
 	for _, col := range resultRow.Cols {
+
+		// skip internal columns
+		if col.ColName == common_table.IndexNameColumn {
+			continue
+		}
+
 		if col.Value == nil {
 			continue // We don't return empty value
 		}
@@ -169,5 +201,5 @@ func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) st
 }
 
 func (query Hits) String() string {
-	return fmt.Sprintf("hits(table: %v)", query.indexName)
+	return fmt.Sprintf("hits(indexes: %v)", strings.Join(query.indexes, ", "))
 }

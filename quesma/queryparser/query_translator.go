@@ -20,14 +20,18 @@ type JsonMap = map[string]interface{}
 
 type ClickhouseQueryTranslator struct {
 	ClickhouseLM *clickhouse.LogManager
-	Table        *clickhouse.Table // TODO this will be removed
-	Ctx          context.Context
+
+	Schema schema.Schema
+	Ctx    context.Context
 
 	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 
-	SchemaRegistry    schema.Registry
-	IncomingIndexName string
-	Config            *config.QuesmaConfiguration
+	Indexes []string
+
+	Config *config.QuesmaConfiguration
+
+	// TODO this will be removed
+	Table *clickhouse.Table
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()
@@ -56,7 +60,11 @@ func EmptySearchResponse(ctx context.Context) []byte {
 
 func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) ([]byte, error) {
 	searchResp := emptySearchResponse()
-	asyncSearchResp := SearchToAsyncSearchResponse(&searchResp, id, isPartial, completionStatus)
+	completionStatusPtr := &completionStatus
+	if isPartial {
+		completionStatusPtr = nil
+	}
+	asyncSearchResp := SearchToAsyncSearchResponse(&searchResp, id, isPartial, completionStatusPtr)
 	return asyncSearchResp.Marshal() // error should never ever happen here
 }
 
@@ -89,7 +97,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 				return nil, err
 			}
 
-			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation, "key")
+			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation)
 		}
 	}
 	return aggregations, nil
@@ -258,7 +266,7 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	return response
 }
 
-func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncId string, isPartial bool, completionStatus int) *model.AsyncSearchEntireResp {
+func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncId string, isPartial bool, completionStatus *int) *model.AsyncSearchEntireResp {
 	id := new(string)
 	*id = asyncId
 	response := model.AsyncSearchEntireResp{
@@ -268,7 +276,7 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncId strin
 		IsRunning: isPartial,
 	}
 
-	response.CompletionStatus = &completionStatus
+	response.CompletionStatus = completionStatus
 	return &response
 }
 

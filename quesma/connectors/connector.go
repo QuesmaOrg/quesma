@@ -28,11 +28,13 @@ func (c *ConnectorManager) GetConnector() *clickhouse.LogManager {
 		panic("No connectors found")
 	}
 	conn := c.connectors[0]
-	go func() {
-		if err := conn.LicensingCheck(); err != nil {
-			licensing.PanicWithLicenseViolation(fmt.Errorf("connector [%s] reported licensing issue: [%v]", conn.Type(), err))
-		}
-	}()
+	if !c.connectors[0].GetConnector().IsInTransparentProxyMode() {
+		go func() {
+			if err := conn.LicensingCheck(); err != nil {
+				licensing.PanicWithLicenseViolation(fmt.Errorf("connector [%s] reported licensing issue: [%v]", conn.Type(), err))
+			}
+		}()
+	}
 	return c.connectors[0].GetConnector()
 }
 
@@ -62,5 +64,13 @@ func registerConnectors(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHome
 			logger.Error().Msgf("Unknown connector type [%s]", conn.ConnectorType)
 		}
 	}
+
+	// Mock connector for transparent proxy, perhaps improve at some point
+	if len(cfg.Connectors) == 0 && cfg.TransparentProxy {
+		conns = append(conns, &ClickHouseOSConnector{
+			Connector: clickhouse.NewEmptyLogManager(cfg, chDb, phoneHomeAgent, loader),
+		})
+	}
+
 	return conns
 }
