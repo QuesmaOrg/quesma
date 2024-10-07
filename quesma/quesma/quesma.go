@@ -169,7 +169,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 				unzipped = []byte(quesmaResponse.Body)
 			}
 			if len(unzipped) == 0 {
-				logger.WarnWithCtx(ctx).Msg("empty response from Clickhouse")
+				logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
 			}
 			addProductAndContentHeaders(req.Header, w.Header())
 

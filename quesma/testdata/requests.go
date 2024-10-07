@@ -2423,6 +2423,38 @@ var TestsSearch = []SearchTestCase{
 	},
 }
 
+var TestSearchRuntimeMappings = []SearchTestCase{
+
+	{ // [0]
+		"Match all - runtime mappings",
+		`
+        {
+          "fields": [
+            "hour_of_day"
+          ],
+          "query": {
+            "match_all": {}
+          },
+          "track_total_hits": false,
+          "runtime_mappings": {
+            "hour_of_day": {
+              "type": "long",
+              "script": {
+                "source": "emit(doc['timestamp'].value.getHour());"
+              }
+            }
+        }
+}`,
+		[]string{""},
+		model.ListAllFields,
+		////[]model.Query{newSimplestQuery()},
+		[]string{
+			`SELECT toHour("@timestamp") FROM ` + TableName + ` LIMIT 10`,
+		},
+		[]string{},
+	},
+}
+
 var TestsSearchNoAttrs = []SearchTestCase{
 	{
 		"Test empty ANDs, ORs and NOTs",

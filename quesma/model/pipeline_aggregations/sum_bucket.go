@@ -9,15 +9,15 @@ import (
 	"quesma/model"
 	"quesma/queryprocessor"
 	"quesma/util"
+	"time"
 )
 
 type SumBucket struct {
-	ctx context.Context
-	PipelineAggregation
+	*PipelineAggregation
 }
 
 func NewSumBucket(ctx context.Context, bucketsPath string) SumBucket {
-	return SumBucket{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
+	return SumBucket{PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query SumBucket) AggregationType() model.AggregationType {
@@ -79,8 +79,7 @@ func (query SumBucket) calculateSingleSumBucket(parentRows []model.QueryResultRo
 	if firstRowValueFloat, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[firstNonNilIndex].LastColValue()); firstRowValueIsFloat {
 		sum := firstRowValueFloat
 		for _, row := range parentRows[firstNonNilIndex+1:] {
-			value, ok := util.ExtractFloat64Maybe(row.LastColValue())
-			if ok {
+			if value, ok := util.ExtractFloat64Maybe(row.LastColValue()); ok {
 				sum += value
 			} else {
 				logger.WarnWithCtx(query.ctx).Msgf("could not convert value to float: %v, type: %T. Skipping", row.LastColValue(), row.LastColValue())
@@ -90,16 +89,25 @@ func (query SumBucket) calculateSingleSumBucket(parentRows []model.QueryResultRo
 	} else if firstRowValueInt, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[firstNonNilIndex].LastColValue()); firstRowValueIsInt {
 		sum := firstRowValueInt
 		for _, row := range parentRows[firstNonNilIndex+1:] {
-			value, ok := util.ExtractInt64Maybe(row.LastColValue())
-			if ok {
+			if value, ok := util.ExtractInt64Maybe(row.LastColValue()); ok {
 				sum += value
 			} else {
 				logger.WarnWithCtx(query.ctx).Msgf("could not convert value to int: %v, type: %T. Skipping", row.LastColValue(), row.LastColValue())
 			}
 		}
 		resultValue = sum
+	} else if firstRowValueTime, firstRowValueIsTime := parentRows[firstNonNilIndex].LastColValue().(time.Time); firstRowValueIsTime {
+		sum := firstRowValueTime.UnixMilli()
+		for _, row := range parentRows[firstNonNilIndex+1:] {
+			if value, ok := row.LastColValue().(time.Time); ok {
+				sum += value.UnixMilli()
+			} else {
+				logger.WarnWithCtx(query.ctx).Msgf("could not convert value to int: %v, type: %T. Skipping", row.LastColValue(), row.LastColValue())
+			}
+		}
+		resultValue = sum
 	} else {
-		logger.WarnWithCtx(query.ctx).Msgf("could not convert value to float or int: %v, type: %T. Returning nil.",
+		logger.WarnWithCtx(query.ctx).Msgf("could not convert value to float/int/date: %v, type: %T. Returning nil.",
 			parentRows[firstNonNilIndex].LastColValue(), parentRows[firstNonNilIndex].LastColValue())
 	}
 
