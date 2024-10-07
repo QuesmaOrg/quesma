@@ -91,7 +91,9 @@ func setupQuesma(ctx context.Context, quesmaConfig string) (testcontainers.Conta
 		Env: map[string]string{
 			"QUESMA_CONFIG_FILE": "/configuration/conf.yaml",
 		},
-		WaitingFor: wait.ForExposedPort().WithStartupTimeout(2 * time.Minute),
+		WaitingFor: wait.ForHTTP("/").WithPort("8080").
+			WithBasicAuth("elastic", "quesmaquesma").
+			WithStartupTimeout(2 * time.Minute),
 		Files: []testcontainers.ContainerFile{
 			{
 				Reader:            r,
