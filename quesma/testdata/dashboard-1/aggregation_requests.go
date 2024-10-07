@@ -134,6 +134,14 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"key": 0
 						},
 						{
+							"doc_count": 0,
+							"key": 2000000
+						},
+						{
+							"doc_count": 0,
+							"key": 4000000
+						},
+						{
 							"1": {
 								"buckets": [
 									{
@@ -146,52 +154,50 @@ var AggregationTests = []testdata.AggregationTestCase{
 								]
 							},
 							"doc_count": 1,
-							"key": 658000000
+							"key": 6000000
 						}
 					]
 				}
 			}
 		}`,
-		/*
-			ExpectedResults: [][]model.QueryResultRow{
-				{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4636))}}},
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
-						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
-						model.NewQueryResultCol("avgOrNull(rspContentLen)", 42516.52153947081),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
-						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
-						model.NewQueryResultCol("avgOrNull(rspContentLen)", 658654099),
-					}},
-				},
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
-						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
-						model.NewQueryResultCol("doc_count", 4573),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
-						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
-						model.NewQueryResultCol("doc_count", 1),
-					}},
-				},
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
-						model.NewQueryResultCol("doc_count", 4573),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
-						model.NewQueryResultCol("doc_count", 1),
-					}},
-				},
-			}, */
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedPancakeSQL:     "TODO",
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", 0.0),
+				model.NewQueryResultCol("aggr__0__count", 4573),
+				model.NewQueryResultCol("aggr__0__1__key_0", 0.0),
+				model.NewQueryResultCol("aggr__0__1__count", 4573),
+				model.NewQueryResultCol("metric__0__1__2_col_0", 42516.52153947081),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", 6000000.0),
+				model.NewQueryResultCol("aggr__0__count", 1),
+				model.NewQueryResultCol("aggr__0__1__key_0", 6000000.0),
+				model.NewQueryResultCol("aggr__0__1__count", 1),
+				model.NewQueryResultCol("metric__0__1__2_col_0", 658654099),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__key_0",
+			  "aggr__0__1__count", "metric__0__1__2_col_0"
+			FROM (
+			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__key_0",
+				"aggr__0__1__count", "metric__0__1__2_col_0",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
+				,
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY "aggr__0__key_0"
+				ASC, "aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
+			  FROM (
+				SELECT floor("rspContentLen"/2e+06)*2e+06 AS "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  floor("rspContentLen"/2e+06)*2e+06 AS "aggr__0__1__key_0",
+				  count(*) AS "aggr__0__1__count",
+				  avgOrNull("rspContentLen") AS "metric__0__1__2_col_0"
+				FROM __quesma_table_name
+				WHERE ("reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<=
+				  '2024-04-24T11:10:23.606Z')
+				GROUP BY floor("rspContentLen"/2e+06)*2e+06 AS "aggr__0__key_0",
+				  floor("rspContentLen"/2e+06)*2e+06 AS "aggr__0__1__key_0"))
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [1]
 		TestName: "dashboard-1: bug, used to be infinite loop",
@@ -220,7 +226,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 									"min": 1
 								},
 								"field": "billingRegion",
-								"interval": 0.02,
+								"interval": 0.5,
 								"min_doc_count": 0
 							}
 						}
@@ -228,7 +234,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 					"date_histogram": {
 						"field": "reqTimeSec",
 						"fixed_interval": "30s",
-						"min_doc_count": 1,
+						"min_doc_count": 0,
 						"time_zone": "Europe/Warsaw"
 					}
 				}
@@ -300,6 +306,10 @@ var AggregationTests = []testdata.AggregationTestCase{
 											}
 										},
 										"doc_count": 159,
+										"key": 0.5
+									},
+									{
+										"doc_count": 0,
 										"key": 1
 									},
 									{
@@ -309,13 +319,18 @@ var AggregationTests = []testdata.AggregationTestCase{
 											}
 										},
 										"doc_count": 8,
-										"key": 3
+										"key": 1.5
 									}
 								]
 							},
 							"doc_count": 167,
 							"key": 1713957330000,
 							"key_as_string": "2024-04-24T11:15:30.000"
+						},
+						{
+							"doc_count": 0,
+							"key": 1713957360000,
+							"key_as_string": "2024-04-24T11:16:00.000"
 						},
 						{
 							"1": {
@@ -330,13 +345,21 @@ var AggregationTests = []testdata.AggregationTestCase{
 										"key": 1
 									},
 									{
+										"doc_count": 0,
+										"key": 1.5
+									},
+									{
 										"2": {
 											"values": {
 												"95.0": 63
 											}
 										},
 										"doc_count": 21,
-										"key": 3
+										"key": 2
+									},
+									{
+										"doc_count": 0,
+										"key": 2.5
 									},
 									{
 										"2": {
@@ -345,87 +368,79 @@ var AggregationTests = []testdata.AggregationTestCase{
 											}
 										},
 										"doc_count": 5,
-										"key": 5
+										"key": 3
 									}
 								]
 							},
 							"doc_count": 78,
-							"key": 1713957360000,
-							"key_as_string": "2024-04-24T11:16:00.000"
+							"key": 1713957390000,
+							"key_as_string": "2024-04-24T11:16:30.000"
 						}
 					]
 				}
 			}
 		}`,
-		/*
-			ExpectedResults: [][]model.QueryResultRow{
-				{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4800))}}},
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", int64(1713957330000/30000)),
-						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
-						model.NewQueryResultCol("quantile_95", []float64{77}),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", int64(1713957330000/30000)),
-						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
-						model.NewQueryResultCol("quantile_95", []float64{71}),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", int64(1713957360000/30000)),
-						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
-						model.NewQueryResultCol("quantile_95", []float64{80.44999999999999}),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", int64(1713957360000/30000)),
-						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
-						model.NewQueryResultCol("quantile_95", []float64{63}),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", int64(1713957360000/30000)),
-						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 5.0),
-						model.NewQueryResultCol("quantile_95", []float64{83.8}),
-					}},
-				},
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", int64(1713957330000/30000)),
-						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
-						model.NewQueryResultCol("doc_count", 159),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", int64(1713957330000/30000)),
-						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
-						model.NewQueryResultCol("doc_count", 8),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", int64(1713957360000/30000)),
-						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
-						model.NewQueryResultCol("doc_count", 52),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", int64(1713957360000/30000)),
-						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
-						model.NewQueryResultCol("doc_count", 21),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", int64(1713957360000/30000)),
-						model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 5.0),
-						model.NewQueryResultCol("doc_count", 5),
-					}},
-				},
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", int64(1713957330000/30000)),
-						model.NewQueryResultCol("doc_count", 167),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", int64(1713957360000/30000)),
-						model.NewQueryResultCol("doc_count", 78),
-					}},
-				},
-			}, */
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedPancakeSQL:     "TODO",
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1713964530000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 167),
+				model.NewQueryResultCol("aggr__0__1__key_0", 0.5),
+				model.NewQueryResultCol("aggr__0__1__count", 159),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{77}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1713964530000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 167),
+				model.NewQueryResultCol("aggr__0__1__key_0", 1.5),
+				model.NewQueryResultCol("aggr__0__1__count", 8),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{71}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1713964590000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 78),
+				model.NewQueryResultCol("aggr__0__1__key_0", 1.0),
+				model.NewQueryResultCol("aggr__0__1__count", 52),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{80.44999999999999}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1713964590000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 78),
+				model.NewQueryResultCol("aggr__0__1__key_0", 2.0),
+				model.NewQueryResultCol("aggr__0__1__count", 21),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{63}),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1713964590000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 78),
+				model.NewQueryResultCol("aggr__0__1__key_0", 3.0),
+				model.NewQueryResultCol("aggr__0__1__count", 5),
+				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{83.8}),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__key_0",
+			  "aggr__0__1__count", "metric__0__1__2_col_0"
+			FROM (
+			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__key_0",
+				"aggr__0__1__count", "metric__0__1__2_col_0",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
+				,
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
+			  FROM (
+				SELECT toInt64((toUnixTimestamp64Milli("reqTimeSec")+timeZoneOffset(
+				  toTimezone("reqTimeSec", 'Europe/Warsaw'))*1000) / 30000) AS
+				  "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  floor("billingRegion"/0.5)*0.5 AS "aggr__0__1__key_0",
+				  count(*) AS "aggr__0__1__count",
+				  quantiles(0.950000)("latency") AS "metric__0__1__2_col_0"
+				FROM __quesma_table_name
+				WHERE ("reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<=
+				  '2024-04-24T11:30:46.279Z')
+				GROUP BY toInt64((toUnixTimestamp64Milli("reqTimeSec")+timeZoneOffset(
+				  toTimezone("reqTimeSec", 'Europe/Warsaw'))*1000) / 30000) AS
+				  "aggr__0__key_0", floor("billingRegion"/0.5)*0.5 AS "aggr__0__1__key_0"))
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 }

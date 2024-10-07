@@ -57,79 +57,121 @@ func Test_matchedAgainstPattern(t *testing.T) {
 		pattern       string
 		body          string
 		configuration config.QuesmaConfiguration
+		registry      schema.Registry
 		want          bool
 	}{
 		{
-			name:          "multiple indexes, one matches configuration",
+			name:          "multiple indexes, one non-wildcard matches configuration",
 			pattern:       "logs-1,logs-2,foo-*,index",
 			configuration: indexConfig("index", false),
+			registry:      schema.StaticRegistry{},
+			want:          true,
+		},
+		{
+			name:          "multiple indexes, one wildcard matches configuration",
+			pattern:       "logs-1,logs-2,foo-*,index",
+			configuration: indexConfig("foo-5", false),
+			registry:      schema.StaticRegistry{},
 			want:          true,
 		},
 		{
 			name:          "multiple indexes, one internal",
 			pattern:       "index,.kibana",
 			configuration: indexConfig("index", false),
+			registry:      schema.StaticRegistry{},
 			want:          false,
 		},
 		{
 			name:          "index explicitly enabled",
 			pattern:       "index",
 			configuration: indexConfig("index", false),
+			registry:      schema.StaticRegistry{},
 			want:          true,
 		},
 		{
 			name:          "index explicitly disabled",
 			pattern:       "index",
 			configuration: indexConfig("index", true),
+			registry:      schema.StaticRegistry{},
 			want:          false,
 		},
 		{
 			name:          "index enabled, * pattern",
 			pattern:       "*",
 			configuration: indexConfig("logs-generic-default", false),
+			registry:      schema.StaticRegistry{},
 			want:          true,
 		},
 		{
 			name:          "index enabled, _all pattern",
 			pattern:       "_all",
 			configuration: indexConfig("logs-generic-default", false),
+			registry:      schema.StaticRegistry{},
 			want:          true,
 		},
 		{
 			name:          "index enabled, multiple patterns",
 			pattern:       "logs-*-*, logs-*",
 			configuration: indexConfig("logs-generic-default", false),
+			registry:      schema.StaticRegistry{},
 			want:          true,
 		},
 		{
 			name:          "index enabled, multiple patterns",
 			pattern:       "logs-*-*, logs-generic-default",
 			configuration: indexConfig("logs-generic-default", false),
+			registry:      schema.StaticRegistry{},
 			want:          true,
 		},
 		{
 			name:          "index disabled, wide pattern",
 			pattern:       "logs-*-*",
 			configuration: indexConfig("logs-generic-default", true),
+			registry:      schema.StaticRegistry{},
 			want:          false,
 		},
 		{
 			name:          "index enabled, narrow pattern",
 			pattern:       "logs-generic-*",
 			configuration: indexConfig("logs-generic-default", false),
+			registry:      schema.StaticRegistry{},
 			want:          true,
 		},
 		{
 			name:          "logs-elastic_agent-*",
 			pattern:       "logs-elastic_agent-*",
 			configuration: indexConfig("logs-generic-default", false),
+			registry:      schema.StaticRegistry{},
 			want:          false,
 		},
 		{
 			name:          "traces-apm*, not configured",
 			pattern:       "traces-apm*",
 			configuration: indexConfig("logs-generic-default", false),
+			registry:      schema.StaticRegistry{},
 			want:          false,
+		},
+		{
+			name:          "index autodiscovery (non-wildcard)",
+			pattern:       "my_index",
+			configuration: withAutodiscovery(indexConfig("another-index", false)),
+			registry: schema.StaticRegistry{
+				Tables: map[schema.TableName]schema.Schema{
+					"my_index": {ExistsInDataSource: true},
+				},
+			},
+			want: true,
+		},
+		{
+			name:          "index autodiscovery (wildcard)",
+			pattern:       "my_index*",
+			configuration: withAutodiscovery(indexConfig("another-index", false)),
+			registry: schema.StaticRegistry{
+				Tables: map[schema.TableName]schema.Schema{
+					"my_index8": {ExistsInDataSource: true},
+				},
+			},
+			want: true,
 		},
 	}
 
@@ -139,7 +181,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			req := &mux.Request{Params: map[string]string{"index": tt.pattern}, Body: tt.body}
-			assert.Equalf(t, tt.want, matchedAgainstPattern(&tt.configuration, schema.StaticRegistry{}, indexRegistry).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
+			assert.Equalf(t, tt.want, matchedAgainstPattern(&tt.configuration, tt.registry, indexRegistry).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
 		})
 	}
 }
@@ -152,6 +194,11 @@ func indexConfig(name string, elastic bool) config.QuesmaConfiguration {
 		targets = []string{config.ClickhouseTarget}
 	}
 	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {Name: name, QueryTarget: targets, IngestTarget: targets}}}
+}
+
+func withAutodiscovery(cfg config.QuesmaConfiguration) config.QuesmaConfiguration {
+	cfg.AutodiscoveryEnabled = true
+	return cfg
 }
 
 func Test_matchedAgainstBulkBody(t *testing.T) {
