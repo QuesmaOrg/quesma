@@ -94,7 +94,8 @@ func main() {
 
 	elasticIndexResolver := elasticsearch.NewIndexResolver(cfg.Elasticsearch.Url.String())
 
-	indexRegistry := index_registry.NewIndexRegistry(cfg.IndexConfig, tableDisco, elasticIndexResolver)
+	// TODO index configuration for ingest and query is the same for now
+	indexRegistry := index_registry.NewIndexRegistry(cfg.IndexConfig, cfg.IndexConfig, tableDisco, elasticIndexResolver)
 
 	var ingestProcessor *ingest.IngestProcessor
 

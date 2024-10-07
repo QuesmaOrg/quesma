@@ -35,17 +35,22 @@ type Decision struct {
 }
 
 type PatternDecision struct {
-	Pattern string
-	Ingest  *Decision
-	Query   *Decision
+	Pattern   string
+	Decisions map[string]*Decision
 }
 
 type IndexRegistry interface {
-	ResolveIngest(indexName string) *Decision
-	ResolveQuery(indexName string) *Decision
+	Resolve(pipeline string, indexPattern string) *Decision
+	Pipelines() []string
 	RecentDecisions() []PatternDecision
 }
 
 func TODO(args ...any) {
 	logger.Info().Msgf("TODO: use index_registry decision here  %v", args)
 }
+
+// TODO hardcoded pipeline names
+const (
+	QueryPipeline  = "Query"
+	IngestPipeline = "Ingest"
+)

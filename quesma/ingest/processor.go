@@ -697,8 +697,8 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
 
-	decision := lm.indexRegistry.ResolveIngest(tableName)
-	fmt.Println("XXX ProcessInsertQuery", tableName, " -> ", decision)
+	decision := lm.indexRegistry.Resolve(index_registry.IngestPipeline, tableName)
+	index_registry.TODO(lm.indexRegistry, tableName, decision)
 
 	indexConf, ok := lm.cfg.IndexConfig[tableName]
 	if ok && indexConf.UseCommonTable {

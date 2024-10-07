@@ -122,7 +122,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 		index := op.GetIndex()
 		operation := op.GetOperation()
 
-		decision := indexRegistry.ResolveIngest(index)
+		decision := indexRegistry.Resolve(index_registry.IngestPipeline, index)
 		index_registry.TODO("XXX splitBulk", decision)
 
 		entryWithResponse := BulkRequestEntry{

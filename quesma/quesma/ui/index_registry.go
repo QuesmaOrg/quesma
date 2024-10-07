@@ -34,11 +34,14 @@ func (qmc *QuesmaManagementConsole) generateIndexRegistry() []byte {
 
 	buffer.Html("<h2>Recent decisions</h2>")
 
+	pipelines := qmc.indexRegistry.Pipelines()
+
 	buffer.Html(`<table class="index-registry">`)
 	buffer.Html(`<tr>`)
 	buffer.Html(`<th>Index pattern</th>`)
-	buffer.Html(`<th>Ingest</th>`)
-	buffer.Html(`<th>Query</th>`)
+	for _, pipeline := range pipelines {
+		buffer.Html(`<th>`).Text(pipeline).Html(`</th>`)
+	}
 	buffer.Html(`</tr>`)
 
 	decisions := qmc.indexRegistry.RecentDecisions()
@@ -46,23 +49,16 @@ func (qmc *QuesmaManagementConsole) generateIndexRegistry() []byte {
 	for _, decision := range decisions {
 		buffer.Html(`<tr>`)
 		buffer.Html(`<td>`).Text(decision.Pattern).Html(`</td>`)
-		buffer.Html(`<td>`)
-		if decision.Ingest != nil {
-			buffer.Text(decision.Ingest.String())
-		} else {
-			buffer.Text("n/a")
+
+		for _, pipeline := range pipelines {
+			buffer.Html(`<td>`)
+			if decision.Decisions[pipeline] != nil {
+				buffer.Text(decision.Decisions[pipeline].String())
+			} else {
+				buffer.Text("n/a")
+			}
+			buffer.Html(`</td>`)
 		}
-		buffer.Html(`</td>`)
-
-		buffer.Html(`<td>`)
-
-		if decision.Query != nil {
-			buffer.Text(decision.Query.String())
-		} else {
-			buffer.Text("n/a")
-
-		}
-		buffer.Html(`</td>`)
 
 		buffer.Html(`</tr>`)
 	}
@@ -87,29 +83,35 @@ func (qmc *QuesmaManagementConsole) generateIndexRegistryPrompt(prompt string) [
 
 	patterns := strings.Split(prompt, " ")
 
+	pipelines := qmc.indexRegistry.Pipelines()
+
 	buffer.Html("<h4>Quesma's decision</h2>")
 
 	buffer.Html(`<table class="index-registry">`)
 	buffer.Html(`<tr>`)
 	buffer.Html(`<th>Index pattern</th>`)
-	buffer.Html(`<th>Ingest</th>`)
-	buffer.Html(`<th>Query</th>`)
+	for _, pipeline := range pipelines {
+		buffer.Html(`<th>`).Text(pipeline).Html(`</th>`)
+	}
 	buffer.Html(`</tr>`)
 
 	for _, pattern := range patterns {
 
 		pattern = strings.TrimSpace(pattern)
 
-		ingestDecision := qmc.indexRegistry.ResolveIngest(pattern)
-		queryDecision := qmc.indexRegistry.ResolveQuery(pattern)
 		buffer.Html(`<tr>`)
 		buffer.Html(`<td>`).Text(pattern).Html(`</td>`)
-		buffer.Html(`<td>`)
-		buffer.Text(ingestDecision.String())
-		buffer.Html(`</td>`)
-		buffer.Html(`<td>`)
-		buffer.Text(queryDecision.String())
-		buffer.Html(`</td>`)
+
+		for _, pipeline := range pipelines {
+			decision := qmc.indexRegistry.Resolve(pipeline, pattern)
+			buffer.Html(`<td>`)
+			if decision != nil {
+				buffer.Text(decision.String())
+			} else {
+				buffer.Text("n/a")
+			}
+			buffer.Html(`</td>`)
+		}
 		buffer.Html(`</tr>`)
 	}
 

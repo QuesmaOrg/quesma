@@ -93,51 +93,43 @@ type elasticIndex struct {
 	IndexName string
 }
 
+type pipelineResolver struct {
+	pipelineName string
+
+	cfg             map[string]config.IndexConfiguration
+	resolver        IndexResolver
+	recentDecisions map[string]*Decision
+}
+
 type indexRegistryImpl struct {
 	m sync.Mutex
 
 	tableDiscovery       clickhouse.TableDiscovery
 	elasticIndexResolver elasticsearch.IndexResolver
 
-	ingestIndexConfig map[string]config.IndexConfiguration
-	queryIndexConfig  map[string]config.IndexConfiguration
-
 	elasticIndexes    map[string]elasticIndex
 	clickhouseIndexes map[string]clickhouseIndex
 
-	ingestResolver IndexResolver
-	queryResolver  IndexResolver
-
-	// recent decisions and the cache
-	ingestResolved map[string]*Decision
-	queryResolved  map[string]*Decision
+	pipelineResolvers map[string]*pipelineResolver
 }
 
-func (r *indexRegistryImpl) ResolveIngest(indexName string) *Decision {
+func (r *indexRegistryImpl) Resolve(pipeline string, indexPattern string) *Decision {
 
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	if decision, exists := r.ingestResolved[indexName]; exists {
+	res, exists := r.pipelineResolvers[pipeline]
+	if !exists {
+		// proper error handling
+		return nil
+	}
+
+	if decision, ok := res.recentDecisions[indexPattern]; ok {
 		return decision
 	}
 
-	decision := r.ingestResolver.Resolve(indexName)
-	r.ingestResolved[indexName] = decision
-	return decision
-}
-
-func (r *indexRegistryImpl) ResolveQuery(indexName string) *Decision {
-
-	r.m.Lock()
-	defer r.m.Unlock()
-
-	if decision, exists := r.queryResolved[indexName]; exists {
-		return decision
-	}
-
-	decision := r.queryResolver.Resolve(indexName)
-	r.queryResolved[indexName] = decision
+	decision := res.resolver.Resolve(indexPattern)
+	res.recentDecisions[indexPattern] = decision
 	return decision
 }
 
@@ -147,8 +139,10 @@ func (r *indexRegistryImpl) updateIndexes() {
 	defer r.m.Unlock()
 
 	defer func() {
-		r.ingestResolved = make(map[string]*Decision)
-		r.queryResolved = make(map[string]*Decision)
+		for _, res := range r.pipelineResolvers {
+			res.recentDecisions = make(map[string]*Decision)
+		}
+
 	}()
 
 	// TODO how to interact with the table discovery ?
@@ -192,12 +186,16 @@ func (r *indexRegistryImpl) updateIndexes() {
 func (r *indexRegistryImpl) typicalDecisions() {
 
 	fill := func(pattern string) {
-		r.ResolveIngest(pattern)
-		r.ResolveQuery(pattern)
+		for name, _ := range r.pipelineResolvers {
+			r.Resolve(name, pattern)
+		}
 	}
 
-	for _, index := range r.ingestIndexConfig {
-		fill(index.Name)
+	for _, index := range r.pipelineResolvers {
+
+		for pattern := range index.cfg {
+			fill(pattern)
+		}
 	}
 
 	for _, index := range r.elasticIndexes {
@@ -218,12 +216,10 @@ func (r *indexRegistryImpl) RecentDecisions() []PatternDecision {
 
 	var patternsMap = make(map[string]bool)
 
-	for pattern := range r.ingestResolved {
-		patternsMap[pattern] = true
-	}
-
-	for pattern := range r.queryResolved {
-		patternsMap[pattern] = true
+	for _, res := range r.pipelineResolvers {
+		for pattern := range res.recentDecisions {
+			patternsMap[pattern] = true
+		}
 	}
 
 	var patterns []string
@@ -237,9 +233,13 @@ func (r *indexRegistryImpl) RecentDecisions() []PatternDecision {
 	for _, pattern := range patterns {
 
 		pd := PatternDecision{
-			Pattern: pattern,
-			Ingest:  r.ingestResolved[pattern],
-			Query:   r.queryResolved[pattern],
+			Pattern:   pattern,
+			Decisions: make(map[string]*Decision),
+		}
+		for _, resolver := range r.pipelineResolvers {
+			if decision, ok := resolver.recentDecisions[pattern]; ok {
+				pd.Decisions[resolver.pipelineName] = decision
+			}
 		}
 
 		res = append(res, pd)
@@ -248,31 +248,34 @@ func (r *indexRegistryImpl) RecentDecisions() []PatternDecision {
 	return res
 }
 
-func (r *indexRegistryImpl) resolveAutodiscovery(input indexPattern) *Decision {
+func (r *indexRegistryImpl) makeResolveAutodiscovery(cfg map[string]config.IndexConfiguration) func(input indexPattern) *Decision {
 
-	if input.isPattern {
-		return nil
-	}
+	return func(input indexPattern) *Decision {
 
-	// TODO what is autodiscovery ?
-
-	// we should expose all tables ASIS ??
-
-	var enabledAutodiscovery bool
-
-	if !enabledAutodiscovery {
-		return nil
-	}
-
-	if table, ok := r.clickhouseIndexes[input.pattern]; ok && !table.IsVirtualTable {
-		return &Decision{
-			PassToClickhouse:    true,
-			ClickhouseTableName: table.TableName,
-			Message:             "Found the physical table. Autodiscovery.",
+		if input.isPattern {
+			return nil
 		}
-	}
 
-	return nil
+		// TODO what is autodiscovery ?
+
+		// we should expose all tables ASIS ??
+
+		var enabledAutodiscovery bool
+
+		if !enabledAutodiscovery {
+			return nil
+		}
+
+		if table, ok := r.clickhouseIndexes[input.pattern]; ok && !table.IsVirtualTable {
+			return &Decision{
+				PassToClickhouse:    true,
+				ClickhouseTableName: table.TableName,
+				Message:             "Found the physical table. Autodiscovery.",
+			}
+		}
+
+		return nil
+	}
 }
 
 func (r *indexRegistryImpl) makeClickhouseSingleTableResolver(indexConfig map[string]config.IndexConfiguration) func(input indexPattern) *Decision {
@@ -393,13 +396,13 @@ func (r *indexRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input 
 
 }
 
-func (r *indexRegistryImpl) makeClickhouseCommonTableResolver() func(input indexPattern) *Decision {
+func (r *indexRegistryImpl) makeClickhouseCommonTableResolver(cfg map[string]config.IndexConfiguration) func(input indexPattern) *Decision {
 
 	return func(input indexPattern) *Decision {
 
 		if input.isPattern {
 
-			// TODO at this point we should'nt have elastic indexes?
+			// TODO at this point we shouldn't have elastic indexes?
 			for _, pattern := range input.patterns {
 				for indexName := range r.elasticIndexes {
 					if util.IndexPatternMatches(pattern, indexName) {
@@ -420,6 +423,7 @@ func (r *indexRegistryImpl) makeClickhouseCommonTableResolver() func(input index
 				for indexName, index := range r.clickhouseIndexes {
 
 					// TODO what about config ?
+					// what if index uses common table but is't
 					if util.IndexPatternMatches(pattern, indexName) && index.IsVirtualTable {
 						matchedIndexes = append(matchedIndexes, indexName)
 					}
@@ -449,7 +453,7 @@ func (r *indexRegistryImpl) makeClickhouseCommonTableResolver() func(input index
 			}
 		}
 
-		if idxConfig, ok := r.ingestIndexConfig[input.pattern]; ok && idxConfig.UseCommonTable {
+		if idxConfig, ok := cfg[input.pattern]; ok && idxConfig.UseCommonTable {
 			return &Decision{
 				PassToClickhouse:    true,
 				ClickhouseTableName: common_table.TableName,
@@ -462,49 +466,74 @@ func (r *indexRegistryImpl) makeClickhouseCommonTableResolver() func(input index
 	}
 }
 
-func NewIndexRegistry(indexConf map[string]config.IndexConfiguration, discovery clickhouse.TableDiscovery, elasticResolver elasticsearch.IndexResolver) IndexRegistry {
+func (r *indexRegistryImpl) Pipelines() []string {
+
+	r.m.Lock()
+	defer r.m.Unlock()
+
+	var res []string
+
+	for name := range r.pipelineResolvers {
+		res = append(res, name)
+	}
+	sort.Strings(res)
+
+	return res
+}
+
+func NewIndexRegistry(ingestConf map[string]config.IndexConfiguration, queryConf map[string]config.IndexConfiguration, discovery clickhouse.TableDiscovery, elasticResolver elasticsearch.IndexResolver) IndexRegistry {
 
 	res := &indexRegistryImpl{
 
 		tableDiscovery:       discovery,
 		elasticIndexResolver: elasticResolver,
-
-		ingestIndexConfig: indexConf,
-		queryIndexConfig:  indexConf,
-
-		ingestResolved: make(map[string]*Decision),
-		queryResolved:  make(map[string]*Decision),
+		pipelineResolvers:    make(map[string]*pipelineResolver),
 	}
 
-	res.ingestResolver = &composedIndexResolver{
-		decisionLadder: []namedResolver{
-			{"patternIsNotAllowed", patternIsNotAllowed},
-			{"kibanaInternal", resolveInternalElasticName},
-			{"disabled", makeIsDisabledInConfig(indexConf)},
-			{"autodiscovery", res.resolveAutodiscovery},
-			{"singleTable", res.makeClickhouseSingleTableResolver(indexConf)},
-			{"commonTable", res.makeClickhouseCommonTableResolver()},
-			{"elasticAsDefault", elasticAsDefault},
-			{"commonTableAsDefault", commonTableAsDefault},
+	ingestResolver := &pipelineResolver{
+		pipelineName: IngestPipeline,
+		cfg:          ingestConf,
+		resolver: &composedIndexResolver{
+			decisionLadder: []namedResolver{
+				{"patternIsNotAllowed", patternIsNotAllowed},
+				{"kibanaInternal", resolveInternalElasticName},
+				{"disabled", makeIsDisabledInConfig(ingestConf)},
+				{"autodiscovery", res.makeResolveAutodiscovery(ingestConf)},
+				{"singleTable", res.makeClickhouseSingleTableResolver(ingestConf)},
+				{"commonTable", res.makeClickhouseCommonTableResolver(ingestConf)},
+				{"elasticAsDefault", elasticAsDefault},
+				{"commonTableAsDefault", commonTableAsDefault},
+			},
 		},
+		recentDecisions: make(map[string]*Decision),
 	}
 
-	res.queryResolver = &composedIndexResolver{
-		decisionLadder: []namedResolver{
-			// checking if we can handle the pattern
-			{"kibanaInternal", resolveInternalElasticName},
-			{"searchAcrossConnectors", res.makeCheckIfPatternMatchesAllConnectors()},
-			{"disabled", makeIsDisabledInConfig(indexConf)},
+	res.pipelineResolvers[IngestPipeline] = ingestResolver
 
-			// resolving how we can handle the pattern
-			{"singleTable", res.makeClickhouseSingleTableResolver(indexConf)},
-			{"commonTable", res.makeClickhouseCommonTableResolver()},
+	queryResolver := &pipelineResolver{
+		pipelineName: QueryPipeline,
+		cfg:          ingestConf,
+		resolver: &composedIndexResolver{
+			decisionLadder: []namedResolver{
+				// checking if we can handle the pattern
+				{"kibanaInternal", resolveInternalElasticName},
+				{"searchAcrossConnectors", res.makeCheckIfPatternMatchesAllConnectors()},
+				{"disabled", makeIsDisabledInConfig(queryConf)},
 
-			// default action
-			{"elasticAsDefault", elasticAsDefault},
-			{"commonTableAsDefault", commonTableAsDefault},
+				// resolving how we can handle the pattern
+				{"autodiscovery", res.makeResolveAutodiscovery(queryConf)},
+				{"singleTable", res.makeClickhouseSingleTableResolver(queryConf)},
+				{"commonTable", res.makeClickhouseCommonTableResolver(queryConf)},
+
+				// default action
+				{"elasticAsDefault", elasticAsDefault},
+				{"commonTableAsDefault", commonTableAsDefault},
+			},
 		},
+		recentDecisions: make(map[string]*Decision),
 	}
+
+	res.pipelineResolvers[QueryPipeline] = queryResolver
 
 	go func() {
 

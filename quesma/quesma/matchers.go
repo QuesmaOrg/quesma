@@ -35,7 +35,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, indexRegi
 			if idx%2 == 0 {
 				name := extractIndexName(s)
 
-				decision := indexRegistry.ResolveIngest(name)
+				decision := indexRegistry.Resolve(index_registry.IngestPipeline, name)
 				index_registry.TODO("matchedAgainstBulkBody", name, " -> ", decision)
 
 				indexConfig, found := configuration.IndexConfig[name]
@@ -56,7 +56,7 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
 
-		decision := indexRegistry.ResolveQuery(indexPattern)
+		decision := indexRegistry.Resolve(index_registry.IngestPipeline, indexPattern)
 		index_registry.TODO("matchedAgainstPattern", indexPattern, " -> ", decision)
 
 		if elasticsearch.IsInternalIndex(indexPattern) {
@@ -113,12 +113,12 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 }
 
 // check whether exact index name is enabled
-func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry index_registry.IndexRegistry) mux.RequestMatcher {
+func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry index_registry.IndexRegistry, pipelineName string) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 
 		indexName := req.Params["index"]
 
-		decision := indexRegistry.ResolveIngest(indexName)
+		decision := indexRegistry.Resolve(pipelineName, indexName)
 		index_registry.TODO("XXX matchedExact", indexName, " -> ", decision)
 
 		if elasticsearch.IsInternalIndex(req.Params["index"]) {
@@ -136,11 +136,11 @@ func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry
 }
 
 func matchedExactQueryPath(cfg *config.QuesmaConfiguration, indexRegistry index_registry.IndexRegistry) mux.RequestMatcher {
-	return matchedExact(cfg, true, indexRegistry)
+	return matchedExact(cfg, true, indexRegistry, index_registry.QueryPipeline)
 }
 
 func matchedExactIngestPath(cfg *config.QuesmaConfiguration, indexRegistry index_registry.IndexRegistry) mux.RequestMatcher {
-	return matchedExact(cfg, false, indexRegistry)
+	return matchedExact(cfg, false, indexRegistry, index_registry.IngestPipeline)
 }
 
 // Returns false if the body contains a Kibana internal search.
