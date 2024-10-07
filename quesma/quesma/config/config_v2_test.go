@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -70,6 +71,8 @@ func TestQuesmaTransparentProxyConfiguration(t *testing.T) {
 	}
 	legacyConf := cfg.TranslateToLegacyConfig()
 	assert.True(t, legacyConf.TransparentProxy)
+	assert.Equal(t, false, legacyConf.EnableIngest)
+	assert.Equal(t, false, legacyConf.CreateCommonTable)
 }
 
 func TestQuesmaAddingHydrolixTablesToExistingElasticsearch(t *testing.T) {
@@ -89,6 +92,57 @@ func TestQuesmaAddingHydrolixTablesToExistingElasticsearch(t *testing.T) {
 
 	assert.Equal(t, []string{"clickhouse"}, logsIndexConf.QueryTarget)
 	assert.Equal(t, []string{"elasticsearch"}, logsIndexConf.IngestTarget)
+	assert.Equal(t, true, legacyConf.EnableIngest)
+	assert.Equal(t, false, legacyConf.CreateCommonTable)
+}
+
+func TestQuesmaHydrolixQueryOnly(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/quesma_hydrolix_tables_query_only.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+	assert.False(t, legacyConf.TransparentProxy)
+	assert.Equal(t, 2, len(legacyConf.IndexConfig))
+
+	siemIndexConf, ok := legacyConf.IndexConfig["siem"]
+	assert.True(t, ok)
+	logsIndexConf, ok := legacyConf.IndexConfig["logs"]
+	assert.True(t, ok)
+
+	assert.Equal(t, []string{"clickhouse"}, siemIndexConf.QueryTarget)
+
+	assert.Equal(t, []string{"clickhouse"}, logsIndexConf.QueryTarget)
+
+	assert.Equal(t, false, legacyConf.EnableIngest)
+	assert.Equal(t, false, legacyConf.IngestStatistics)
+	assert.Equal(t, false, legacyConf.CreateCommonTable)
+}
+
+func TestHasCommonTable(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/has_common_table.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+
+	assert.Equal(t, true, legacyConf.EnableIngest)
+	assert.Equal(t, true, legacyConf.CreateCommonTable)
+}
+
+func TestInvalidDualTarget(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/invalid_dual_target.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+
+		if !strings.Contains(err.Error(), "has invalid dual query target configuration - when you specify two targets") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		t.Fatalf("expected error, but got none")
+	}
 }
 
 func TestMatchName(t *testing.T) {

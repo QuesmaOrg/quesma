@@ -74,6 +74,8 @@ processors:
             fields:
               message:
                 type: text
+        "*":
+          target: [ my-minimal-elasticsearch ]
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
@@ -123,6 +125,8 @@ processors:
             fields:
               message:
                 type: text
+        "*":
+          target: [ my-minimal-elasticsearch ]
 pipelines:
   - name: my-pipeline-elasticsearch-query-clickhouse
     frontendConnectors: [ elastic-query ]

@@ -17,12 +17,11 @@ import (
 // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-pipeline-cumulative-sum-aggregation.html
 
 type CumulativeSum struct {
-	ctx context.Context
-	PipelineAggregation
+	*PipelineAggregation
 }
 
 func NewCumulativeSum(ctx context.Context, bucketsPath string) CumulativeSum {
-	return CumulativeSum{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
+	return CumulativeSum{PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query CumulativeSum) AggregationType() model.AggregationType {

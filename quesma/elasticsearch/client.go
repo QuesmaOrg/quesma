@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"quesma/logger"
@@ -33,19 +32,11 @@ func NewSimpleClient(configuration *config.ElasticsearchConfiguration) *SimpleCl
 		config: configuration,
 	}
 }
-func (es *SimpleClient) Request(ctx context.Context, method, endpoint string, payload interface{}) (*http.Response, error) {
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
+func (es *SimpleClient) Request(ctx context.Context, method, endpoint string, body []byte) (*http.Response, error) {
 	return es.doRequest(ctx, method, endpoint, body, nil)
 }
 
-func (es *SimpleClient) RequestWithHeaders(ctx context.Context, method, endpoint string, payload interface{}, headers http.Header) (*http.Response, error) {
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
+func (es *SimpleClient) RequestWithHeaders(ctx context.Context, method, endpoint string, body []byte, headers http.Header) (*http.Response, error) {
 	return es.doRequest(ctx, method, endpoint, body, headers)
 }
 
@@ -66,9 +57,7 @@ func (es *SimpleClient) doRequest(ctx context.Context, method, endpoint string, 
 	if err != nil {
 		return nil, err
 	}
-	if es.config.User != "" && es.config.Password != "" {
-		req.SetBasicAuth(es.config.User, es.config.Password)
-	}
+	req = AddBasicAuthIfNeeded(req, es.config.User, es.config.Password)
 	req.Header.Set("Content-Type", "application/json")
 	for key, values := range headers {
 		for _, value := range values {

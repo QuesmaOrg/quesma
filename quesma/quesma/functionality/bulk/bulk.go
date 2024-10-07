@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
+	"quesma/end_user_errors"
 	"quesma/ingest"
 	"quesma/jsonprocessor"
 	"quesma/logger"
@@ -19,6 +20,8 @@ import (
 	"quesma/quesma/types"
 	"quesma/stats"
 	"quesma/telemetry"
+	"sort"
+	"strings"
 	"sync"
 )
 
@@ -78,12 +81,31 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 		return []BulkItem{}, err
 	}
 
+	// we fail if there are some documents to insert into Clickhouse but ingest processor is not available
+	if len(clickhouseDocumentsToInsert) > 0 && ip == nil {
+
+		indexes := make(map[string]struct{})
+		for index := range clickhouseDocumentsToInsert {
+			indexes[index] = struct{}{}
+		}
+
+		indexesAsList := make([]string, 0, len(indexes))
+		for index := range indexes {
+			indexesAsList = append(indexesAsList, index)
+		}
+		sort.Strings(indexesAsList)
+
+		return []BulkItem{}, end_user_errors.ErrNoIngest.New(fmt.Errorf("ingest processor is not available, but documents are targeted to Clickhouse indexes: %s", strings.Join(indexesAsList, ",")))
+	}
+
 	err = sendToElastic(elasticRequestBody, cfg, elasticBulkEntries)
 	if err != nil {
 		return []BulkItem{}, err
 	}
 
-	sendToClickhouse(ctx, clickhouseDocumentsToInsert, phoneHomeAgent, cfg, ip)
+	if ip != nil {
+		sendToClickhouse(ctx, clickhouseDocumentsToInsert, phoneHomeAgent, cfg, ip)
+	}
 
 	return results, nil
 }

@@ -34,6 +34,8 @@ import (
 const (
 	asyncQueriesLimit      = 10000
 	asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
+
+	maxParallelQueries = 25 // maximum of parallel queries we can, this is arbitrary value and should be adjusted
 )
 
 type AsyncRequestResult struct {
@@ -68,6 +70,7 @@ type QueryRunner struct {
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
 	ABResultsSender          ab_testing.Sender
+	maxParallelQueries       int // if set to 0, we run queries in sequence, it's fine for testing purposes
 }
 
 func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
@@ -85,8 +88,9 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration, 
 				&SchemaCheckPass{cfg: cfg.IndexConfig},
 			},
 		},
-		schemaRegistry:  schemaRegistry,
-		ABResultsSender: abResultsRepository,
+		schemaRegistry:     schemaRegistry,
+		ABResultsSender:    abResultsRepository,
+		maxParallelQueries: maxParallelQueries,
 	}
 }
 
@@ -187,7 +191,8 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 			return
 		}
 
-		if len(results) == 0 {
+		if len(plan.Queries) > 0 && len(results) == 0 {
+			// if there are no queries, empty results are fine
 			logger.ErrorWithCtx(ctx).Msgf("no hits, sqls: %v", translatedQueryBody)
 			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
 			return
@@ -487,7 +492,8 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 		})
 		return
 	}
-	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncId, false, 200)
+	okStatus := 200
+	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncId, false, &okStatus)
 	responseBody, err = asyncResponse.Marshal()
 	bodyAsBytes, _ := body.Bytes()
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
@@ -564,7 +570,7 @@ func (q *QueryRunner) deleteAsyncSeach(id string) ([]byte, error) {
 		return nil, errors.New("invalid quesma async search id : " + id)
 	}
 	q.AsyncRequestStorage.Delete(id)
-	return []byte{}, nil
+	return []byte(`{"acknowledged":true}`), nil
 }
 
 func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncId string, doneCh chan<- AsyncSearchWithError) bool {
@@ -661,7 +667,6 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 }
 
 func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
-	const maxParallelQueries = 25 // this is arbitrary value
 
 	numberOfJobs := len(jobs)
 
@@ -673,7 +678,7 @@ func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]mo
 	//
 	// Parallel can be slower when we have a fast network connection.
 	//
-	if numberOfJobs == 1 {
+	if numberOfJobs == 1 || q.maxParallelQueries == 0 {
 		return q.runQueryJobsSequence(ctx, jobs)
 	}
 
@@ -827,7 +832,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
 	if len(plan.Queries) == 0 {
-		return nil, fmt.Errorf("postProcessResults: plan.Queries is empty")
+		return results, nil
 	}
 
 	// maybe model.Schema should be part of ExecutionPlan instead of Query
@@ -874,18 +879,4 @@ func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string
 		QueryBodyTranslated:    QueryBodyTranslated,
 		QueryTranslatedResults: QueryTranslatedResults,
 		SecondaryTook:          time.Since(startTime)})
-}
-
-func pushAlternativeInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, OpaqueId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []types.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
-	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-		Id:                     Id,
-		AsyncId:                AsyncId,
-		OpaqueId:               OpaqueId,
-		Path:                   Path,
-		IncomingQueryBody:      IncomingQueryBody,
-		QueryBodyTranslated:    QueryBodyTranslated,
-		QueryTranslatedResults: QueryTranslatedResults,
-		SecondaryTook:          time.Since(startTime),
-		IsAlternativePlan:      true})
-
 }

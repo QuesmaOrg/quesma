@@ -562,8 +562,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 					responsePart = responseMap["response"].(model.JsonMap)
 				}
 
-				acceptableDifference := []string{"probability", "seed", "bg_count", model.KeyAddedByQuesma,
-					"doc_count_error_upper_bound", "__quesma_total_count"}
+				acceptableDifference := []string{"probability", "seed", "bg_count", "doc_count_error_upper_bound", "__quesma_total_count"}
 				expectedJson := types.MustJSON(tt.ResultJson)["response"].(model.JsonMap)
 
 				// Eventually we should remove two below lines

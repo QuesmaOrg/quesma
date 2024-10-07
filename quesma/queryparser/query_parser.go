@@ -877,7 +877,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 				logger.WarnWithCtx(cw.Ctx).Msgf("invalid range operator: %s", op)
 			}
 		}
-		return model.NewSimpleQueryWithFieldName(model.And(stmts), true, field)
+		return model.NewSimpleQuery(model.And(stmts), true)
 	}
 
 	// unreachable unless something really weird happens

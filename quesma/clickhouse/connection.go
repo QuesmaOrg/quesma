@@ -52,6 +52,9 @@ func initDBConnection(c *config.QuesmaConfiguration, tlsConfig *tls.Config) *sql
 }
 
 func InitDBConnectionPool(c *config.QuesmaConfiguration) *sql.DB {
+	if c.ClickHouse.Url == nil {
+		return nil
+	}
 
 	db := initDBConnection(c, &tls.Config{})
 

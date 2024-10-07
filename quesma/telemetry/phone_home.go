@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"quesma/buildinfo"
+	"quesma/elasticsearch"
 	"quesma/health"
 	telemetry_headers "quesma/telemetry/headers"
 
@@ -479,9 +480,7 @@ func (a *agent) buildElastisearchRequest(ctx context.Context, statsUrl *url.URL,
 	if err != nil {
 		return nil, err
 	}
-	if a.config.Elasticsearch.User != "" {
-		req.SetBasicAuth(a.config.Elasticsearch.User, a.config.Elasticsearch.Password)
-	}
+	req = elasticsearch.AddBasicAuthIfNeeded(req, a.config.Elasticsearch.User, a.config.Elasticsearch.Password)
 	return req, nil
 }
 
