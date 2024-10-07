@@ -39,7 +39,7 @@ func (qmc *QuesmaManagementConsole) generateIndexRegistry() []byte {
 	buffer.Html(`<th>Index pattern</th>`)
 	buffer.Html(`<th>Ingest</th>`)
 	buffer.Html(`<th>Query</th>`)
-	buffer.Html(`<tr>`)
+	buffer.Html(`</tr>`)
 
 	decisions := qmc.indexRegistry.RecentDecisions()
 
@@ -85,24 +85,35 @@ func (qmc *QuesmaManagementConsole) generateIndexRegistryPrompt(prompt string) [
 		return buffer.Bytes()
 	}
 
-	buffer.Html("<p>The answer for the pattern ")
-	buffer.Html("<strong>")
-	buffer.Text(prompt)
-	buffer.Html("</strong>")
-	buffer.Html(" is:")
+	patterns := strings.Split(prompt, " ")
 
-	buffer.Html("<dl>")
+	buffer.Html("<h4>Quesma's decision</h2>")
 
-	buffer.Html("<dt>Ingest path</dt>")
-	buffer.Html("<dd>")
-	buffer.Text(qmc.indexRegistry.ResolveIngest(prompt).String())
-	buffer.Html("</dd>")
-	buffer.Html("<dt>Query path</dt>")
-	buffer.Html("<dd>")
-	buffer.Text(qmc.indexRegistry.ResolveQuery(prompt).String())
-	buffer.Html("</dd>")
-	buffer.Html("</dl>")
-	buffer.Html("</p>")
+	buffer.Html(`<table class="index-registry">`)
+	buffer.Html(`<tr>`)
+	buffer.Html(`<th>Index pattern</th>`)
+	buffer.Html(`<th>Ingest</th>`)
+	buffer.Html(`<th>Query</th>`)
+	buffer.Html(`</tr>`)
+
+	for _, pattern := range patterns {
+
+		pattern = strings.TrimSpace(pattern)
+
+		ingestDecision := qmc.indexRegistry.ResolveIngest(pattern)
+		queryDecision := qmc.indexRegistry.ResolveQuery(pattern)
+		buffer.Html(`<tr>`)
+		buffer.Html(`<td>`).Text(pattern).Html(`</td>`)
+		buffer.Html(`<td>`)
+		buffer.Text(ingestDecision.String())
+		buffer.Html(`</td>`)
+		buffer.Html(`<td>`)
+		buffer.Text(queryDecision.String())
+		buffer.Html(`</td>`)
+		buffer.Html(`</tr>`)
+	}
+
+	buffer.Html(`</table>`)
 
 	return buffer.Bytes()
 }
