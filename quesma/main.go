@@ -105,7 +105,7 @@ func main() {
 			common_table.EnsureCommonTableExists(connectionPool)
 		}
 
-		ingestProcessor = ingest.NewEmptyIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage, indexRegistry)
+		ingestProcessor = ingest.NewIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage, indexRegistry)
 	} else {
 		logger.Info().Msg("Ingest processor is disabled.")
 	}

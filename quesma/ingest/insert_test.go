@@ -153,13 +153,13 @@ func ingestProcessorsNonEmpty(cfg *clickhouse.ChTableConfig) []ingestProcessorHe
 			},
 			Created: created,
 		})
-		lms = append(lms, ingestProcessorHelper{NewIngestProcessor(full, &config.QuesmaConfiguration{}), created})
+		lms = append(lms, ingestProcessorHelper{newIngestProcessorWithEmptyTableMap(full, &config.QuesmaConfiguration{}), created})
 	}
 	return lms
 }
 
 func ingestProcessors(config *clickhouse.ChTableConfig) []ingestProcessorHelper {
-	ingestProcessor := NewIngestProcessorEmpty()
+	ingestProcessor := newIngestProcessorEmpty()
 	ingestProcessor.schemaRegistry = schema.StaticRegistry{}
 	return append([]ingestProcessorHelper{{ingestProcessor, false}}, ingestProcessorsNonEmpty(config)...)
 }
@@ -285,7 +285,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	for i, bigInt := range bigInts {
 		t.Run("big integer schema field: "+bigInt, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-			lm := NewIngestProcessorEmpty()
+			lm := newIngestProcessorEmpty()
 			lm.chDb = db
 			defer db.Close()
 
@@ -311,7 +311,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	for i, bigInt := range bigInts {
 		t.Run("big integer attribute field: "+bigInt, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-			lm := NewIngestProcessorEmpty()
+			lm := newIngestProcessorEmpty()
 			lm.chDb = db
 			lm.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
 			defer db.Close()
@@ -418,8 +418,7 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			schemaRegistry.Tables[schema.TableName(indexName)] = indexSchema
 
 			indexRegistry := index_registry.NewEmptyIndexRegistry()
-
-			ingest := NewIngestProcessor(tables, quesmaConfig)
+			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db
 			ingest.virtualTableStorage = virtualTableStorage
 			ingest.schemaRegistry = schemaRegistry
