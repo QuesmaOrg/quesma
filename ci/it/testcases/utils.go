@@ -17,7 +17,7 @@ import (
 const configTemplatesDir = "configs"
 
 func GetInternalDockerHost() string {
-	if host := os.Getenv("EXECUTING_ON_GITHUB_CI"); host != "" {
+	if check := os.Getenv("EXECUTING_ON_GITHUB_CI"); check != "" {
 		return "localhost"
 	}
 	return "host.docker.internal" // `host.testcontainers.internal` doesn't work for Docker Desktop for Mac.
