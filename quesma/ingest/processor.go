@@ -215,16 +215,6 @@ func (ip *IngestProcessor) getIgnoredFields(tableName string) []config.FieldName
 	return nil
 }
 
-func (ip *IngestProcessor) buildCreateTableQueryNoOurFields(ctx context.Context, tableName string,
-	jsonData types.JSON, tableConfig *chLib.ChTableConfig, nameFormatter TableColumNameFormatter) ([]CreateTableEntry, map[schema.FieldName]CreateTableEntry) {
-	ignoredFields := ip.getIgnoredFields(tableName)
-
-	columnsFromJson := JsonToColumns("", jsonData, 1,
-		tableConfig, nameFormatter, ignoredFields)
-	columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), nameFormatter)
-	return columnsFromJson, columnsFromSchema
-}
-
 func Indexes(m SchemaMap) string {
 	var result strings.Builder
 	for col := range m {
@@ -590,6 +580,19 @@ func generateSqlStatements(createTableCmd string, alterCmd []string, insert stri
 	return statements
 }
 
+func populateFieldEncodings(jsonData []types.JSON, tableName string) map[schema.FieldEncodingKey]schema.EncodedFieldName {
+	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
+	for _, jsonValue := range jsonData {
+		flattenJson := jsonprocessor.FlattenMap(jsonValue, ".")
+		for field := range flattenJson {
+			encodedField := util.FieldToColumnEncoder(field)
+			encodings[schema.FieldEncodingKey{TableName: tableName, FieldName: field}] =
+				schema.EncodedFieldName(encodedField)
+		}
+	}
+	return encodings
+}
+
 func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
@@ -608,7 +611,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	}
 	jsonData = processed
 
-	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
 	// we are doing two passes, e.g. calling transformFieldName twice
 	// first time we populate encodings map
 	// second time we do field encoding
@@ -617,14 +619,8 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	// which would introduce side effects
 	// This can be done in one pass, but it would be more complex
 	// and requires some rewrite of json flattening
-	for _, jsonValue := range jsonData {
-		flattenJson := jsonprocessor.FlattenMap(jsonValue, ".")
-		for field := range flattenJson {
-			encodedField := util.FieldToColumnEncoder(field)
-			encodings[schema.FieldEncodingKey{TableName: tableName, FieldName: field}] =
-				schema.EncodedFieldName(encodedField)
-		}
-	}
+	encodings := populateFieldEncodings(jsonData, tableName)
+
 	if ip.schemaRegistry != nil {
 		ip.schemaRegistry.UpdateFieldEncodings(encodings)
 	}
