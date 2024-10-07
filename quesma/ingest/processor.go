@@ -16,6 +16,7 @@ import (
 	"quesma/index"
 	"quesma/jsonprocessor"
 	"quesma/logger"
+	"quesma/model"
 	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
@@ -24,6 +25,8 @@ import (
 	"quesma/stats"
 	"quesma/telemetry"
 	"quesma/util"
+	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -698,7 +701,13 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	indexConf, ok := lm.cfg.IndexConfig[tableName]
 	if ok && indexConf.UseCommonTable {
 
-		err := lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, true)
+		// we have clone the data, because we want to process it twice
+		var clonedJsonData []types.JSON
+		for _, jsonValue := range jsonData {
+			clonedJsonData = append(clonedJsonData, jsonValue.Clone())
+		}
+
+		err := lm.processInsertQueryInternal(ctx, tableName, clonedJsonData, transformer, tableFormatter, true)
 		if err != nil {
 			// we ignore an error here, because we want to process the data and don't lose it
 			logger.ErrorWithCtx(ctx).Msgf("error processing insert query - virtual table schema update: %v", err)
@@ -834,11 +843,28 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 
 	table.Comment = "Virtual table. Version: " + now.Format(time.RFC3339)
 
+	var columnsToStore []string
+	for _, col := range table.Cols {
+		// We don't want to store attributes columns in the virtual table
+		if col.Name == chLib.AttributesValuesColumn || col.Name == chLib.AttributesMetadataColumn {
+			continue
+		}
+		columnsToStore = append(columnsToStore, col.Name)
+	}
+
+	// We always want to store timestamp in the virtual table
+	// if it's not already there
+	if !slices.Contains(columnsToStore, model.TimestampFieldName) {
+		columnsToStore = append(columnsToStore, model.TimestampFieldName)
+	}
+
+	sort.Strings(columnsToStore)
+
 	var columns []common_table.VirtualTableColumn
 
-	for _, col := range table.Cols {
+	for _, col := range columnsToStore {
 		columns = append(columns, common_table.VirtualTableColumn{
-			Name: col.Name,
+			Name: col,
 		})
 	}
 
@@ -882,27 +908,9 @@ func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
-func NewEmptyIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase) *IngestProcessor {
+func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage}
-}
-
-func NewIngestProcessor(tables *TableMap, cfg *config.QuesmaConfiguration) *IngestProcessor {
-	var tableDefinitions = atomic.Pointer[TableMap]{}
-	tableDefinitions.Store(tables)
-	return &IngestProcessor{chDb: nil, tableDiscovery: chLib.NewTableDiscoveryWith(cfg, nil, *tables),
-		cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(),
-		ingestFieldStatistics: make(IngestFieldStatistics),
-		virtualTableStorage:   persistence.NewStaticJSONDatabase(),
-	}
-}
-
-func NewIngestProcessorEmpty() *IngestProcessor {
-	var tableDefinitions = atomic.Pointer[TableMap]{}
-	tableDefinitions.Store(NewTableMap())
-	cfg := &config.QuesmaConfiguration{}
-	return &IngestProcessor{tableDiscovery: chLib.NewTableDiscovery(cfg, nil, persistence.NewStaticJSONDatabase()), cfg: cfg,
-		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 
 func NewOnlySchemaFieldsCHConfig() *chLib.ChTableConfig {
