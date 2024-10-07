@@ -19,8 +19,7 @@ const configTemplatesDir = "configs"
 
 func GetInternalDockerHost() string {
 	if check := os.Getenv("EXECUTING_ON_GITHUB_CI"); check != "" {
-		//return "localhost"
-		return "host.testcontainers.internal"
+		return "localhost-for-github-ci"
 	}
 	return "host.docker.internal" // `host.testcontainers.internal` doesn't work for Docker Desktop for Mac.
 }
@@ -60,7 +59,7 @@ func setupElasticsearch(ctx context.Context) (testcontainers.Container, error) {
 			"ES_JAVA_OPTS":           "-Xms1024m -Xmx1024m",
 		},
 		HostConfigModifier: func(hc *container.HostConfig) {
-			hc.ExtraHosts = []string{"host.testcontainers.internal:host-gateway"}
+			hc.ExtraHosts = []string{"localhost-for-github-ci:host-gateway"}
 		},
 		HostAccessPorts: []int{9200, 9300},
 		WaitingFor: wait.ForHTTP("/").WithPort("9200").
@@ -105,7 +104,7 @@ func setupQuesma(ctx context.Context, quesmaConfig string) (testcontainers.Conta
 			WithBasicAuth("elastic", "quesmaquesma").
 			WithStartupTimeout(2 * time.Minute),
 		HostConfigModifier: func(hc *container.HostConfig) {
-			hc.ExtraHosts = []string{"host.testcontainers.internal:host-gateway"}
+			hc.ExtraHosts = []string{"localhost-for-github-ci:host-gateway"}
 		},
 		Files: []testcontainers.ContainerFile{
 			{
@@ -146,7 +145,7 @@ func setupKibana(ctx context.Context, quesmaContainer testcontainers.Container) 
 			"XPACK_SECURITY_ENABLED":                    "true",
 		},
 		HostConfigModifier: func(hc *container.HostConfig) {
-			hc.ExtraHosts = []string{"host.testcontainers.internal:host-gateway"}
+			hc.ExtraHosts = []string{"localhost-for-github-ci:host-gateway"}
 		},
 		WaitingFor: wait.ForLog("http server running at").WithStartupTimeout(4 * time.Minute),
 	}
@@ -165,7 +164,7 @@ func setupClickHouse(ctx context.Context) (testcontainers.Container, error) {
 		Image:        "clickhouse/clickhouse-server:24.5.3.5-alpine",
 		ExposedPorts: []string{"8123/tcp", "9000/tcp"},
 		HostConfigModifier: func(hc *container.HostConfig) {
-			hc.ExtraHosts = []string{"host.testcontainers.internal:host-gateway"}
+			hc.ExtraHosts = []string{"localhost-for-github-ci:host-gateway"}
 		},
 		WaitingFor: wait.ForExposedPort().WithStartupTimeout(2 * time.Minute),
 	}
