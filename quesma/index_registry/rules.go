@@ -221,7 +221,7 @@ func (r *indexRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 					default:
 						return &Decision{
 							Message: "Unsupported configuration",
-							Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("Unsupported target ", input.pattern)),
+							Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported target: %s", targets[0])),
 						}
 					}
 					decision.UseConnectors = append(decision.UseConnectors, targetDecision)
@@ -244,7 +244,7 @@ func (r *indexRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 				default:
 					return &Decision{
 						Message: "Unsupported configuration",
-						Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("There are too many backend connectors ", input.pattern)),
+						Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("too many backend connector")),
 					}
 				}
 			}
