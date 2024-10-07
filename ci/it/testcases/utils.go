@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
@@ -58,6 +59,9 @@ func setupElasticsearch(ctx context.Context) (testcontainers.Container, error) {
 			"ELASTIC_PASSWORD":       "quesmaquesma",
 			"ES_JAVA_OPTS":           "-Xms1024m -Xmx1024m",
 		},
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = []string{"host.testcontainers.internal:host-gateway"}
+		},
 		HostAccessPorts: []int{9200, 9300},
 		WaitingFor: wait.ForHTTP("/").WithPort("9200").
 			WithBasicAuth("elastic", "quesmaquesma").
@@ -100,6 +104,9 @@ func setupQuesma(ctx context.Context, quesmaConfig string) (testcontainers.Conta
 		WaitingFor: wait.ForHTTP("/").WithPort("8080").
 			WithBasicAuth("elastic", "quesmaquesma").
 			WithStartupTimeout(2 * time.Minute),
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = []string{"host.testcontainers.internal:host-gateway"}
+		},
 		Files: []testcontainers.ContainerFile{
 			{
 				Reader:            r,
@@ -138,6 +145,9 @@ func setupKibana(ctx context.Context, quesmaContainer testcontainers.Container) 
 			"ELASTICSEARCH_PASSWORD":                    "kibanana",
 			"XPACK_SECURITY_ENABLED":                    "true",
 		},
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = []string{"host.testcontainers.internal:host-gateway"}
+		},
 		WaitingFor: wait.ForLog("http server running at").WithStartupTimeout(4 * time.Minute),
 	}
 	kibana, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -154,7 +164,10 @@ func setupClickHouse(ctx context.Context) (testcontainers.Container, error) {
 	req := testcontainers.ContainerRequest{
 		Image:        "clickhouse/clickhouse-server:24.5.3.5-alpine",
 		ExposedPorts: []string{"8123/tcp", "9000/tcp"},
-		WaitingFor:   wait.ForExposedPort().WithStartupTimeout(2 * time.Minute),
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = []string{"host.testcontainers.internal:host-gateway"}
+		},
+		WaitingFor: wait.ForExposedPort().WithStartupTimeout(2 * time.Minute),
 	}
 	clickhouse, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
