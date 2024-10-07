@@ -14,6 +14,7 @@ import (
 	"math/rand"
 	"quesma/ab_testing"
 	"quesma/clickhouse"
+	"quesma/index_registry"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/types"
@@ -41,7 +42,10 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			logChan := logger.InitOnlyChannelLoggerForTests()
-			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
+
+			indexRegistry := index_registry.NewEmptyIndexRegistry()
+
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 			go managementConsole.RunOnlyChannelProcessor()
 			s := schema.StaticRegistry{
 				Tables: map[schema.TableName]schema.Schema{
@@ -61,7 +65,7 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 				},
 			}
 
-			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), indexRegistry)
 			newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
 			_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(tt.QueryRequestJson))
 
@@ -108,7 +112,9 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 
 	lm := clickhouse.NewLogManagerWithConnection(db, table)
 	logChan := logger.InitOnlyChannelLoggerForTests()
-	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
+
+	indexRegistry := index_registry.NewEmptyIndexRegistry()
+	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 	go managementConsole.RunOnlyChannelProcessor()
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
@@ -129,7 +135,7 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 		},
 	}
 
-	queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+	queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), indexRegistry)
 	for _, testNr := range testNrs {
 		newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
 		_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(testdata.UnsupportedQueriesTests[testNr].QueryRequestJson))

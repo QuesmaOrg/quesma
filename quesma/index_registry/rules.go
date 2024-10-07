@@ -131,7 +131,7 @@ func makeCommonTableAsDefault(cfg map[string]config.IndexConfiguration) func(inp
 		if len(targets) != 1 {
 			return &Decision{
 				Message: "Unsupported configuration",
-				Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("There are too many backend connectors ", input.pattern)),
+				Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("there are too many backend connectors ")),
 			}
 		}
 

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/index_registry"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/queryparser"
@@ -80,8 +81,8 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 		},
 		Created: true,
 	}
-
-	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+	indexRegistry := index_registry.NewEmptyIndexRegistry()
+	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(testTableName, table))

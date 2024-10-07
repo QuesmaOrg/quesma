@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/index_registry"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -21,7 +22,8 @@ func TestHtmlPages(t *testing.T) {
 	xssBytes := []byte(xss)
 	id := "b1c4a89e-4905-5e3c-b57f-dc92627d011e"
 	logChan := make(chan logger.LogWithLevel, 5)
-	qmc := NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
+	indexRegistry := index_registry.NewEmptyIndexRegistry()
+	qmc := NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 	qmc.PushPrimaryInfo(&QueryDebugPrimarySource{Id: id, QueryResp: xssBytes})
 	qmc.PushSecondaryInfo(&QueryDebugSecondarySource{Id: id,
 		Path:                   xss,
@@ -101,7 +103,8 @@ func TestHtmlSchemaPage(t *testing.T) {
 
 	logManager := clickhouse.NewLogManager(tables, &cfg)
 
-	qmc := NewQuesmaManagementConsole(&cfg, logManager, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
+	indexRegistry := index_registry.NewEmptyIndexRegistry()
+	qmc := NewQuesmaManagementConsole(&cfg, logManager, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 
 	t.Run("schema got no XSS and no panic", func(t *testing.T) {
 		response := string(qmc.generateTables())

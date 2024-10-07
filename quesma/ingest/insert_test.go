@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/index_registry"
 	"quesma/jsonprocessor"
 	"quesma/persistence"
 	"quesma/quesma/config"
@@ -237,6 +238,8 @@ func TestProcessInsertQuery(t *testing.T) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
 					db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 					ip.ip.chDb = db
+					indexRegistry := index_registry.NewEmptyIndexRegistry()
+					ip.ip.indexRegistry = indexRegistry
 					defer db.Close()
 
 					// info: result values aren't important, this '.WillReturnResult[...]' just needs to be there
@@ -414,10 +417,13 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			}
 			schemaRegistry.Tables[schema.TableName(indexName)] = indexSchema
 
+			indexRegistry := index_registry.NewEmptyIndexRegistry()
+
 			ingest := NewIngestProcessor(tables, quesmaConfig)
 			ingest.chDb = db
 			ingest.virtualTableStorage = virtualTableStorage
 			ingest.schemaRegistry = schemaRegistry
+			ingest.indexRegistry = indexRegistry
 
 			ctx := context.Background()
 			formatter := clickhouse.DefaultColumnNameFormatter()

@@ -14,6 +14,7 @@ import (
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/index_registry"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/config"
@@ -80,12 +81,13 @@ func TestAsyncSearchHandler(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			indexRegistry := index_registry.NewEmptyIndexRegistry()
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 
 			for _, query := range tt.WantedQuery {
 				mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), indexRegistry)
 			_, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
@@ -134,11 +136,12 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			indexRegistry := index_registry.NewEmptyIndexRegistry()
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 
 			mock.ExpectQuery(tt.ExpectedPancakeSQL).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 
-			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), indexRegistry)
 			_, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryRequestJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
@@ -185,7 +188,8 @@ func TestSearchHandler(t *testing.T) {
 			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			indexRegistry := index_registry.NewEmptyIndexRegistry()
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 			if len(tt.WantedRegexes) > 0 {
 				for _, wantedRegex := range tt.WantedRegexes {
 
@@ -204,7 +208,7 @@ func TestSearchHandler(t *testing.T) {
 					mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 				}
 			}
-			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), indexRegistry)
 			var err error
 			_, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 			assert.NoError(t, err)
@@ -233,11 +237,12 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			indexRegistry := index_registry.NewEmptyIndexRegistry()
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), indexRegistry)
 			_, _ = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -269,7 +274,8 @@ func TestAsyncSearchFilter(t *testing.T) {
 			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			indexRegistry := index_registry.NewEmptyIndexRegistry()
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 			if len(tt.WantedRegexes) > 0 {
 				for _, wantedRegex := range tt.WantedRegexes {
 					mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
@@ -279,7 +285,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 					mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 				}
 			}
-			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), indexRegistry)
 			_, _ = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -394,7 +400,8 @@ func TestHandlingDateTimeFields(t *testing.T) {
 
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+	indexRegistry := index_registry.NewEmptyIndexRegistry()
+	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 
 	for _, fieldName := range []string{dateTimeTimestampField, dateTime64TimestampField, dateTime64OurTimestampField} {
 
@@ -402,7 +409,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
 
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
-		queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+		queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), indexRegistry)
 		response, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(query(fieldName)), defaultAsyncSearchTimeout, true)
 		assert.NoError(t, err)
 
@@ -459,7 +466,8 @@ func TestNumericFacetsQueries(t *testing.T) {
 				db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 				defer db.Close()
 				lm := clickhouse.NewLogManagerWithConnection(db, table)
-				managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+				indexRegistry := index_registry.NewEmptyIndexRegistry()
+				managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 
 				colNames := make([]string, 0, len(tt.NewResultRows[0].Cols))
 				for _, col := range tt.NewResultRows[0].Cols {
@@ -475,7 +483,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 				}
 				mock.ExpectQuery(tt.ExpectedSql).WillReturnRows(returnedBuckets)
 
-				queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+				queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), indexRegistry)
 				var response []byte
 				var err error
 				if handlerName == "handleSearch" {
@@ -551,7 +559,8 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 		defer db.Close()
 		lm := clickhouse.NewLogManagerWithConnection(db, table)
-		managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+		indexRegistry := index_registry.NewEmptyIndexRegistry()
+		managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 
 		for i, sql := range testcase.ExpectedSQLs {
 			rows := sqlmock.NewRows([]string{testcase.ExpectedSQLResults[i][0].Cols[0].ColName})
@@ -561,7 +570,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 			mock.ExpectQuery(sql).WillReturnRows(rows)
 		}
 
-		queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+		queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), indexRegistry)
 
 		var response []byte
 		var err error

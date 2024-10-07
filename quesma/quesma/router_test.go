@@ -4,6 +4,7 @@ package quesma
 
 import (
 	"github.com/stretchr/testify/assert"
+	"quesma/index_registry"
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
 	"quesma/schema"
@@ -37,12 +38,15 @@ func Test_matchedAgainstConfig(t *testing.T) {
 			want:   false,
 		},
 	}
+
+	indexRegistry := index_registry.NewEmptyIndexRegistry()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
 			req := &mux.Request{Params: map[string]string{"index": tt.index}, Body: tt.body}
 
-			assert.Equalf(t, tt.want, matchedExactQueryPath(&tt.config).Matches(req), "matchedExactQueryPath(%v), index: %s", tt.config, tt.index)
+			assert.Equalf(t, tt.want, matchedExactQueryPath(&tt.config, indexRegistry).Matches(req), "matchedExactQueryPath(%v), index: %s", tt.config, tt.index)
 		})
 	}
 }
@@ -128,11 +132,14 @@ func Test_matchedAgainstPattern(t *testing.T) {
 			want:          false,
 		},
 	}
+
+	indexRegistry := index_registry.NewEmptyIndexRegistry()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
 			req := &mux.Request{Params: map[string]string{"index": tt.pattern}, Body: tt.body}
-			assert.Equalf(t, tt.want, matchedAgainstPattern(&tt.configuration, schema.StaticRegistry{}).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
+			assert.Equalf(t, tt.want, matchedAgainstPattern(&tt.configuration, schema.StaticRegistry{}, indexRegistry).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
 		})
 	}
 }
@@ -185,11 +192,15 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 			want:   false,
 		},
 	}
+
+	indexRegistry := index_registry.NewEmptyIndexRegistry()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
 			req := &mux.Request{Body: tt.body}
-			assert.Equalf(t, tt.want, matchedAgainstBulkBody(&tt.config).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
+
+			assert.Equalf(t, tt.want, matchedAgainstBulkBody(&tt.config, indexRegistry).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
 		})
 	}
 }
