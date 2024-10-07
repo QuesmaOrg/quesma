@@ -52,7 +52,10 @@ func NormalizePattern(p string) string {
 }
 
 func (im *indexResolver) Resolve(indexPattern string) (Sources, bool, error) {
-	req, _ := http.NewRequest("GET", im.Url+"/_resolve/index/"+indexPattern+"?expand_wildcards=open", bytes.NewBuffer([]byte{}))
+	req, err := http.NewRequest("GET", im.Url+"/_resolve/index/"+indexPattern+"?expand_wildcards=open", bytes.NewBuffer([]byte{}))
+	if err != nil {
+		return Sources{}, false, err
+	}
 	response, err := im.httpClient.Do(req)
 	if err != nil {
 		return Sources{}, false, err
