@@ -133,7 +133,7 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, chConfig *click
 	return resultColumns
 }
 
-func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameFormatter) map[schema.FieldName]CreateTableEntry {
+func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameFormatter, tableName string, fieldEncodings map[schema.FieldEncodingKey]schema.EncodedFieldName) map[schema.FieldName]CreateTableEntry {
 	resultColumns := make(map[schema.FieldName]CreateTableEntry)
 
 	if schemaMapping == nil {
@@ -142,10 +142,7 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameF
 
 	for _, field := range schemaMapping.Fields {
 		var fType string
-		// TODO we are using util.FieldToColumnEncoder directly here
-		// due to the fact that field encodings map is part of schema.Registry
-		// not schema.Schema and we don't have access to it here.
-		internalPropertyName := util.FieldToColumnEncoder(field.InternalPropertyName.AsString())
+		internalPropertyName := string(fieldEncodings[schema.FieldEncodingKey{TableName: tableName, FieldName: field.PropertyName.AsString()}])
 		switch field.Type.Name {
 		default:
 			logger.Warn().Msgf("Unsupported field type '%s' for field '%s' when trying to create a table. Ignoring that field.", field.Type.Name, field.PropertyName.AsString())

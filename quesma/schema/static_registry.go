@@ -39,3 +39,10 @@ func (e StaticRegistry) UpdateFieldEncodings(encodings map[FieldEncodingKey]Enco
 		e.FieldEncodings[k] = EncodedFieldName(v)
 	}
 }
+
+func (e StaticRegistry) GetFieldEncodings() map[FieldEncodingKey]EncodedFieldName {
+	if e.FieldEncodings == nil {
+		return map[FieldEncodingKey]EncodedFieldName{}
+	}
+	return e.FieldEncodings
+}

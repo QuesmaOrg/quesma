@@ -641,8 +641,8 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 			tableConfig, tableFormatter, ignoredFields)
 		// This comes externally from (configuration)
 		// So we need to convert that separately
-		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter)
-		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(jsonData[0]))
+		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter, tableName, ip.schemaRegistry.GetFieldEncodings())
+		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName), Indexes(jsonData[0]))
 		// TODO createTableCmd should contain information about field encodings
 		// in column comments
 		createTableCmd = createTableQuery(tableName, columnsAsString, tableConfig)
