@@ -3,7 +3,6 @@
 package quesma
 
 import (
-	"fmt"
 	"quesma/elasticsearch"
 	"quesma/index_registry"
 	"quesma/logger"
@@ -37,7 +36,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, indexRegi
 				name := extractIndexName(s)
 
 				decision := indexRegistry.ResolveIngest(name)
-				fmt.Println("XXX matchedAgainstBulkBody", name, " -> ", decision)
+				index_registry.TODO("matchedAgainstBulkBody", name, " -> ", decision)
 
 				indexConfig, found := configuration.IndexConfig[name]
 				if found && (indexConfig.IsClickhouseIngestEnabled() || indexConfig.IsIngestDisabled()) {
@@ -58,8 +57,7 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
 
 		decision := indexRegistry.ResolveQuery(indexPattern)
-
-		fmt.Println("XXX matchedAgainstPattern", indexPattern, " -> ", decision)
+		index_registry.TODO("matchedAgainstPattern", indexPattern, " -> ", decision)
 
 		if elasticsearch.IsInternalIndex(indexPattern) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", indexPattern)
@@ -121,7 +119,7 @@ func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry
 		indexName := req.Params["index"]
 
 		decision := indexRegistry.ResolveIngest(indexName)
-		fmt.Println("XXX matchedExact", indexName, " -> ", decision)
+		index_registry.TODO("XXX matchedExact", indexName, " -> ", decision)
 
 		if elasticsearch.IsInternalIndex(req.Params["index"]) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])

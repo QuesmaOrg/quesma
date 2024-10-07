@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Elastic-2.0
 package index_registry
 
+import (
+	"quesma/logger"
+)
+
 // API for the customers (router, ingest processor and query processor)
 type IndexResolver interface {
 	Resolve(indexPattern string) *Decision
@@ -40,4 +44,8 @@ type IndexRegistry interface {
 	ResolveIngest(indexName string) *Decision
 	ResolveQuery(indexName string) *Decision
 	RecentDecisions() []PatternDecision
+}
+
+func TODO(args ...any) {
+	logger.Info().Msgf("TODO: use index_registry decision here  %v", args)
 }
