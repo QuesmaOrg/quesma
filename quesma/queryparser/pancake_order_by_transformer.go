@@ -25,6 +25,7 @@ func (t *pancakeOrderByTransformer) transformLayer(query *pancakeModel, layer *p
 		return
 	}
 	bucketAggr := layer.nextBucketAggregation
+	fmt.Println("query pre", bucketAggr.orderBy)
 	for i, orderBy := range bucketAggr.orderBy {
 		fmt.Println(orderBy.Expr)
 		if pathToMetric, ok := orderBy.Expr.(model.LiteralExpr); ok {
@@ -45,13 +46,12 @@ func (t *pancakeOrderByTransformer) transformLayer(query *pancakeModel, layer *p
 			}
 		}
 	}
-	pp.Println("LAYER")
-	pp.Println(layer)
+	fmt.Println("query post", bucketAggr.orderBy)
+	//pp.Println(layer)
 }
 
 func (t *pancakeOrderByTransformer) transform(query *pancakeModel) {
 	pp.Println("TRANSFORMER")
-	pp.Println(query)
 
 	for _, layer := range query.layers {
 		t.transformLayer(query, layer)

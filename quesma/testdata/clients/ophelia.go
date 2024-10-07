@@ -1063,8 +1063,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__order_1",
+				  "metric__2__1_col_0" AS "aggr__2__order_1",
 				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "metric__2__1_col_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
@@ -1072,8 +1071,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				  COALESCE("limbName", '__missing__') AS "aggr__2__7__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0") AS
 				  "aggr__2__7__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__7__key_0") AS "aggr__2__7__order_1",
+				  "metric__2__7__1_col_0" AS "aggr__2__7__order_1",
 				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
 				  "aggr__2__7__key_0") AS "metric__2__7__1_col_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0") AS
@@ -1081,8 +1079,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				  COALESCE("organName", '__missing__') AS "aggr__2__7__8__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
 				  "aggr__2__7__8__key_0") AS "aggr__2__7__8__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__7__key_0", "aggr__2__7__8__key_0") AS "aggr__2__7__8__order_1",
+				  "metric__2__7__8__1_col_0" AS "aggr__2__7__8__order_1",
 				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
 				  "aggr__2__7__key_0", "aggr__2__7__8__key_0") AS "metric__2__7__8__1_col_0"
 				  ,
@@ -1092,9 +1089,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
 				  "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
 				  "aggr__2__7__8__4__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__7__key_0", "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
-				  "aggr__2__7__8__4__order_1",
+				  "metric__2__7__8__4__1_col_0" AS "aggr__2__7__8__4__order_1",
 				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
 				  "aggr__2__7__key_0", "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
 				  "metric__2__7__8__4__1_col_0",
@@ -1103,7 +1098,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				  "aggr__2__7__8__4__3__parent_count",
 				  "height" AS "aggr__2__7__8__4__3__key_0",
 				  count(*) AS "aggr__2__7__8__4__3__count",
-				  sumOrNull("total") AS "aggr__2__7__8__4__3__order_1",
+				  "metric__2__7__8__4__3__1_col_0" AS "aggr__2__7__8__4__3__order_1",
 				  sumOrNull("total") AS "metric__2__7__8__4__3__1_col_0",
 				  sumOrNull("some") AS "metric__2__7__8__4__3__5_col_0",
 				  sumOrNull("cost") AS "metric__2__7__8__4__3__6_col_0"
@@ -1417,8 +1412,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  avgOrNullMerge(avgOrNullState("total")) OVER (PARTITION BY
-				  "aggr__2__key_0") AS "aggr__2__order_1",
+				  "metric__2__1_col_0" AS "aggr__2__order_1",
 				  avgOrNullMerge(avgOrNullState("total")) OVER (PARTITION BY
 				  "aggr__2__key_0") AS "metric__2__1_col_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
@@ -1426,8 +1420,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
 				  "aggr__2__8__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__8__key_0") AS "aggr__2__8__order_1",
+				  "metric__2__8__1_col_0" AS "aggr__2__8__order_1",
 				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
 				  "aggr__2__8__key_0") AS "metric__2__8__1_col_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
@@ -1777,8 +1770,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				BY "aggr__2__8__4__key_0" DESC) AS "aggr__2__8__4__order_1_rank",
 				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0",
 				"aggr__2__8__4__key_0" ORDER BY "aggr__2__8__4__5__count" DESC,
-				"aggr__2__8__4__key_0" ASC, "aggr__2__8__4__5__key_0" ASC) AS
-				"aggr__2__8__4__5__order_1_rank"
+				"aggr__2__8__4__5__key_0" ASC) AS "aggr__2__8__4__5__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
@@ -1788,8 +1780,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
 				  "aggr__2__8__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__8__key_0") AS "aggr__2__8__order_1",
+				  "metric__2__8__1_col_0" AS "aggr__2__8__order_1",
 				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
 				  "aggr__2__8__key_0") AS "metric__2__8__1_col_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
@@ -2158,8 +2149,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__order_1",
+				  "metric__2__1_col_0" AS "aggr__2__order_1",
 				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "metric__2__1_col_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
@@ -2167,14 +2157,13 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
 				  "aggr__2__8__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__8__key_0") AS "aggr__2__8__order_1",
+				  "metric__2__8__1_col_0" AS "aggr__2__8__order_1",
 				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
 				  "aggr__2__8__key_0") AS "metric__2__8__1_col_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
 				  "aggr__2__8__4__parent_count", "organName" AS "aggr__2__8__4__key_0",
 				  count(*) AS "aggr__2__8__4__count",
-				  sumOrNull("total") AS "aggr__2__8__4__order_1",
+				  "metric__2__8__4__1_col_0" AS "aggr__2__8__4__order_1",
 				  sumOrNull("total") AS "metric__2__8__4__1_col_0",
 				  sumOrNull("some") AS "metric__2__8__4__5_col_0"
 				FROM ` + TableName + `
@@ -2628,8 +2617,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
 				  "surname" AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__order_1",
+				  "metric__2__1_col_0" AS "aggr__2__order_1",
 				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "metric__2__1_col_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
@@ -2653,9 +2641,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
 				  "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
 				  "aggr__2__7__8__4__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__7__key_0", "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
-				  "aggr__2__7__8__4__order_1",
+				  "metric__2__7__8__4__1_col_0" AS "aggr__2__7__8__4__order_1",
 				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
 				  "aggr__2__7__key_0", "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
 				  "metric__2__7__8__4__1_col_0",
@@ -2664,7 +2650,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				  "aggr__2__7__8__4__3__parent_count",
 				  "height" AS "aggr__2__7__8__4__3__key_0",
 				  count(*) AS "aggr__2__7__8__4__3__count",
-				  sumOrNull("cost") AS "aggr__2__7__8__4__3__order_1",
+				  "metric__2__7__8__4__3__6_col_0" AS "aggr__2__7__8__4__3__order_1",
 				  sumOrNull("total") AS "metric__2__7__8__4__3__1_col_0",
 				  sumOrNull("some") AS "metric__2__7__8__4__3__5_col_0",
 				  sumOrNull("cost") AS "metric__2__7__8__4__3__6_col_0"

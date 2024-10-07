@@ -146,6 +146,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 
 		orderBy := cw.parseOrder(terms, queryMap, []model.Expr{fieldExpression})
+		fmt.Println("orderBy", orderBy)
 		aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", orderBy[0]) // TODO probably full, not [0]
 		aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)
 		aggregation.limit = size
@@ -351,6 +352,7 @@ func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldE
 	defaultOrderBy := model.NewOrderByExpr(model.NewCountFunc(), defaultDirection)
 
 	ordersRaw, exists := terms["order"]
+	fmt.Println("terms", terms, ordersRaw)
 	if !exists {
 		return []model.OrderByExpr{defaultOrderBy}
 	}
