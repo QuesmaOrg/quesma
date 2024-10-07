@@ -94,7 +94,7 @@ func (p pancakePipelinesProcessor) currentPipelineBucketAggregations(layer, next
 		bucketRowsTransformedIfNeeded := bucketRowsWithRightLastColumn
 		switch queryType := layer.nextBucketAggregation.queryType.(type) {
 		// Current logic is not perfect, but we need extra buckets in some cases
-		case bucket_aggregations.Histogram:
+		case *bucket_aggregations.Histogram:
 			bucketRowsTransformedIfNeeded = queryType.NewRowsTransformer().Transform(p.ctx, bucketRowsWithRightLastColumn)
 		case *bucket_aggregations.DateHistogram:
 			bucketRowsTransformedIfNeeded = queryType.NewRowsTransformer().Transform(p.ctx, bucketRowsWithRightLastColumn)

@@ -234,6 +234,10 @@ func (query *DateHistogram) OriginalKeyToKeyAsString(originalKey any) string {
 	return query.calculateKeyAsString(responseKey)
 }
 
+func (query *DateHistogram) SetMinDocCountToZero() {
+	query.minDocCount = 0
+}
+
 func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 	differenceBetweenTwoNextKeys := int64(1)
 	if query.intervalType == DateHistogramCalendarInterval {
@@ -245,29 +249,29 @@ func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 			differenceBetweenTwoNextKeys = 0
 		}
 	}
-	return &DateHistogramRowsTransformer{minDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys}
+	return &DateHistogramRowsTransformer{MinDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys, EmptyValue: 0}
 }
 
 // we're sure len(row.Cols) >= 2
 
 type DateHistogramRowsTransformer struct {
-	minDocCount                  int
+	MinDocCount                  int
 	differenceBetweenTwoNextKeys int64 // if 0, we don't add keys
+	EmptyValue                   any
 }
 
-// if minDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
-// CAUTION: a different kind of postprocessing is needed for minDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
+// if MinDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
+// CAUTION: a different kind of postprocessing is needed for MinDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
 func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-
-	if qt.minDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 || len(rowsFromDB) < 2 {
+	if qt.MinDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 || len(rowsFromDB) < 2 {
 		// we only add empty rows, when
-		// a) minDocCount == 0
+		// a) MinDocCount == 0
 		// b) we have valid differenceBetweenTwoNextKeys (>0)
 		// c) we have > 1 rows, with < 2 rows we can't add anything in between
 		return rowsFromDB
 	}
-	if qt.minDocCount < 0 {
-		logger.WarnWithCtx(ctx).Msgf("unexpected negative minDocCount: %d. Skipping postprocess", qt.minDocCount)
+	if qt.MinDocCount < 0 {
+		logger.WarnWithCtx(ctx).Msgf("unexpected negative MinDocCount: %d. Skipping postprocess", qt.MinDocCount)
 		return rowsFromDB
 	}
 
@@ -287,7 +291,7 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		for midKey := lastKey + qt.differenceBetweenTwoNextKeys; midKey < currentKey && emptyRowsAdded < maxEmptyBucketsAdded; midKey += qt.differenceBetweenTwoNextKeys {
 			midRow := rowsFromDB[i-1].Copy()
 			midRow.Cols[len(midRow.Cols)-2].Value = midKey
-			midRow.Cols[len(midRow.Cols)-1].Value = 0
+			midRow.Cols[len(midRow.Cols)-1].Value = qt.EmptyValue
 			postprocessedRows = append(postprocessedRows, midRow)
 			emptyRowsAdded++
 		}

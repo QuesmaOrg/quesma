@@ -32,3 +32,7 @@ func (query SerialDiff) CalculateResultWhenMissing(parentRows []model.QueryResul
 func (query SerialDiff) String() string {
 	return fmt.Sprintf("serial_diff(parent: %s, lag: %d)", query.Parent, query.lag)
 }
+
+func (query SerialDiff) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineParentAggregation
+}

@@ -55,9 +55,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:22)" {
 				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
 			}
-			if test.TestName == "Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Avg), Buckets: Date Histogram(file:kibana-visualize/pipeline_agg_req,nr:1)" {
-				t.Skip("test generally passes, but we don't add empty rows for cumulative_sum, and that needs fixing")
-			}
 
 			fmt.Println("i:", i, "test:", test.TestName)
 
