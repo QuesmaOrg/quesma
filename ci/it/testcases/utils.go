@@ -53,7 +53,9 @@ func setupElasticsearch(ctx context.Context) (testcontainers.Container, error) {
 			"ES_JAVA_OPTS":           "-Xms1024m -Xmx1024m",
 		},
 		HostAccessPorts: []int{9200, 9300},
-		WaitingFor:      wait.ForListeningPort("9200/tcp"),
+		WaitingFor: wait.ForHTTP("/").WithPort("9200").
+			WithBasicAuth("elastic", "quesmaquesma").
+			WithStartupTimeout(2 * time.Minute),
 	}
 	elasticsearch, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
