@@ -160,11 +160,3 @@ func (p *pancakeModelLayer) findPipelineChildren(pipeline *pancakeModelPipelineA
 	}
 	return children
 }
-
-func (p *pancakeModel) allMetricAggregations() []*pancakeModelMetricAggregation {
-	allMetric := make([]*pancakeModelMetricAggregation, 0)
-	for _, layer := range p.layers {
-		allMetric = append(allMetric, layer.currentMetricAggregations...)
-	}
-	return allMetric
-}
