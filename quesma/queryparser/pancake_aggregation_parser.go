@@ -60,8 +60,8 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 	pancakeQueries, err := transformer.aggregationTreeToPancakes(topLevel)
 
 	orderByTransformer := newPancakeOrderByTransformer(cw.Ctx)
-	for _, query := range pancakeQueries {
-		orderByTransformer.transform(query)
+	for i, query := range pancakeQueries {
+		pancakeQueries[i] = orderByTransformer.transform(query)
 	}
 
 	if err != nil {
@@ -146,6 +146,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 		}
 		return aggregation, nil
 	}
+
 	// 2. Pipeline aggregation => always leaf (for now)
 	if pipelineAggr, isPipeline := cw.parsePipelineAggregations(queryMap); isPipeline {
 		aggregation.queryType = pipelineAggr
