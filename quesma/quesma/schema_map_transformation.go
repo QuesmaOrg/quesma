@@ -47,7 +47,9 @@ func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScop
 	}
 
 	tableColumnName, ok := v.indexSchema.ResolveField(fieldName)
-
+	if !ok {
+		return false, scope, fieldName
+	}
 	col, ok := v.indexSchema.Fields[schema.FieldName(tableColumnName.InternalPropertyName.AsString())]
 
 	if ok {
@@ -56,7 +58,7 @@ func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScop
 		}
 	}
 
-	return false, scope, tableColumnName.InternalPropertyName.AsString()
+	return false, scope, fieldName
 }
 
 func existsInMap(left model.Expr, op string, mapToArrayFunction string, right model.Expr) model.Expr {
