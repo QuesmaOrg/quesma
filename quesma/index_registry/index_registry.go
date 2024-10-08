@@ -58,12 +58,16 @@ func (ir *composedIndexResolver) Resolve(indexName string) *Decision {
 }
 
 // HACK: we should have separate config for each pipeline
-// maybe we should pass a pipeline name here
-func getTargets(indexConf config.IndexConfiguration) []string {
-	if len(indexConf.IngestTarget) > 0 {
+// now we have a single config for both, but with different fields
+func getTargets(indexConf config.IndexConfiguration, pipeline string) []string {
+	switch pipeline {
+	case IngestPipeline:
 		return indexConf.IngestTarget
+	case QueryPipeline:
+		return indexConf.QueryTarget
+	default:
+		return []string{}
 	}
-	return indexConf.QueryTarget
 }
 
 type clickhouseIndex struct {
@@ -169,36 +173,8 @@ func (r *indexRegistryImpl) updateIndexes() {
 	r.elasticIndexes = elasticIndexes
 }
 
-// for demo and debugging purposes
-func (r *indexRegistryImpl) typicalDecisions() {
-
-	fill := func(pattern string) {
-		for name := range r.pipelineResolvers {
-			r.Resolve(name, pattern)
-		}
-	}
-
-	for _, index := range r.pipelineResolvers {
-
-		for pattern := range index.cfg {
-			fill(pattern)
-		}
-	}
-
-	for _, index := range r.elasticIndexes {
-		fill(index.IndexName)
-	}
-
-	for _, index := range r.clickhouseIndexes {
-		fill(index.TableName)
-	}
-	fill("*")
-	fill("logs-*")
-}
-
 func (r *indexRegistryImpl) updateState() {
 	r.updateIndexes()
-	r.typicalDecisions()
 }
 
 func (r *indexRegistryImpl) Stop() {
@@ -210,15 +186,13 @@ func (r *indexRegistryImpl) Start() {
 	go func() {
 		defer recovery.LogPanic()
 		logger.Info().Msg("Index registry started.")
-		r.updateState()
 
 		for {
 			select {
 			case <-r.ctx.Done():
 				return
 			case <-time.After(1 * time.Minute):
-				r.updateIndexes()
-				r.typicalDecisions()
+				r.updateState()
 			}
 		}
 	}()
@@ -278,9 +252,12 @@ func (r *indexRegistryImpl) Pipelines() []string {
 	return res
 }
 
-func NewIndexRegistry(ingestConf map[string]config.IndexConfiguration, queryConf map[string]config.IndexConfiguration, discovery clickhouse.TableDiscovery, elasticResolver elasticsearch.IndexResolver) IndexRegistry {
+func NewIndexRegistry(quesmaConf config.QuesmaConfiguration, discovery clickhouse.TableDiscovery, elasticResolver elasticsearch.IndexResolver) IndexRegistry {
 
 	ctx, cancel := context.WithCancel(context.Background())
+
+	ingestConf := quesmaConf.IndexConfig
+	queryConf := quesmaConf.IndexConfig
 
 	res := &indexRegistryImpl{
 		ctx:    ctx,
@@ -301,10 +278,10 @@ func NewIndexRegistry(ingestConf map[string]config.IndexConfiguration, queryConf
 				{"disabled", makeIsDisabledInConfig(ingestConf)},
 				//{"dockerIndexes", resolveDockerIndexes},
 				{"autodiscovery", res.makeResolveAutodiscovery(ingestConf)},
-				{"singleIndex", res.singleIndex(ingestConf)},
+				{"singleIndex", res.singleIndex(ingestConf, IngestPipeline)},
 				{"commonTable", res.makeClickhouseCommonTableResolver(ingestConf)},
 				{"elasticAsDefault", makeElasticIsDefault(ingestConf)},
-				{"commonTableAsDefault", makeCommonTableAsDefault(ingestConf)},
+				{"commonTableAsDefault", makeCommonTableAsDefault(ingestConf, IngestPipeline)},
 			},
 		},
 		recentDecisions: make(map[string]*Decision),
@@ -325,18 +302,20 @@ func NewIndexRegistry(ingestConf map[string]config.IndexConfiguration, queryConf
 				// resolving how we can handle the pattern
 				//{"dockerIndexes", resolveDockerIndexes},
 				{"autodiscovery", res.makeResolveAutodiscovery(queryConf)},
-				{"singleIndex", res.singleIndex(queryConf)},
+				{"singleIndex", res.singleIndex(queryConf, IngestPipeline)},
 				{"commonTable", res.makeClickhouseCommonTableResolver(queryConf)},
 
 				// default action
 				{"elasticAsDefault", makeElasticIsDefault(queryConf)},
-				{"commonTableAsDefault", makeCommonTableAsDefault(queryConf)},
+				{"commonTableAsDefault", makeCommonTableAsDefault(queryConf, IngestPipeline)},
 			},
 		},
 		recentDecisions: make(map[string]*Decision),
 	}
 
 	res.pipelineResolvers[QueryPipeline] = queryResolver
+
+	res.updateState()
 
 	return res
 }

@@ -103,7 +103,7 @@ func makeElasticIsDefault(cfg map[string]config.IndexConfiguration) func(input i
 	}
 }
 
-func makeCommonTableAsDefault(cfg map[string]config.IndexConfiguration) func(input indexPattern) *Decision {
+func makeCommonTableAsDefault(cfg map[string]config.IndexConfiguration, pipeline string) func(input indexPattern) *Decision {
 
 	return func(input indexPattern) *Decision {
 
@@ -119,7 +119,7 @@ func makeCommonTableAsDefault(cfg map[string]config.IndexConfiguration) func(inp
 			}
 		}
 
-		targets := getTargets(wildcard)
+		targets := getTargets(wildcard, pipeline)
 
 		if len(targets) == 0 {
 			return &Decision{
@@ -179,7 +179,7 @@ func (r *indexRegistryImpl) makeResolveAutodiscovery(cfg map[string]config.Index
 	}
 }
 
-func (r *indexRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfiguration) func(input indexPattern) *Decision {
+func (r *indexRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfiguration, pipeline string) func(input indexPattern) *Decision {
 
 	return func(input indexPattern) *Decision {
 
@@ -190,7 +190,7 @@ func (r *indexRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 		if cfg, ok := indexConfig[input.pattern]; ok {
 			if !cfg.UseCommonTable {
 
-				targets := getTargets(cfg)
+				targets := getTargets(cfg, pipeline)
 
 				switch len(targets) {
 

@@ -100,6 +100,8 @@ type IndexRegistry interface {
 	Stop()
 
 	Resolve(pipeline string, indexPattern string) *Decision
+
+
 	Pipelines() []string
 	RecentDecisions() []PatternDecision
 }
