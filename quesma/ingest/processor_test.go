@@ -3,7 +3,6 @@
 package ingest
 
 import (
-	"context"
 	"encoding/json"
 	"quesma/clickhouse"
 	"quesma/concurrent"
@@ -142,10 +141,15 @@ func TestAddTimestamp(t *testing.T) {
 	}
 	nameFormatter := clickhouse.DefaultColumnNameFormatter()
 	ip := newIngestProcessorEmpty()
-	ip.schemaRegistry = schema.StaticRegistry{}
+	ip.schemaRegistry = &schema.StaticRegistry{}
 	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
-	columnsFromJson, columnsFromSchema := ip.buildCreateTableQueryNoOurFields(context.Background(), "tableName", jsonData, tableConfig, nameFormatter)
-	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
+	encodings := populateFieldEncodings([]types.JSON{jsonData}, tableName)
+
+	ignoredFields := ip.getIgnoredFields(tableName)
+	columnsFromJson := JsonToColumns("", jsonData, 1,
+		tableConfig, nameFormatter, ignoredFields)
+
+	columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), nameFormatter, tableName, encodings)
 	columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(jsonData))
 	query := createTableQuery(tableName, columns, tableConfig)
 	assert.True(t, strings.Contains(query, timestampFieldName))
