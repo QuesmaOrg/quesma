@@ -19,23 +19,7 @@ func newPancakeOrderByTransformer(ctx context.Context) *pancakeOrderByTransforme
 }
 
 // transformSingleOrderBy transforms a single order by expression, of query `query` and bucket aggregation `bucketAggrInternalName`.
-// What it does, is only replace order expressions that are paths to metric aggregations, with their names
-// (we know that they are paths to metric aggregations, when `orderBy` is of type LiteralExpr, with string value)
-//
-// It's necessary if orderBy looks like this "[...].submetric", e.g. "2.sum".
-// It'll then transform it to a proper column of the SELECT.
-// Otherwise it's necessary, but still SQL looks a bit better, e.g.
-//
-//	sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-//	"aggr__2__7__key_0") AS "aggr__2__7__order_1",
-//	sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-//	"aggr__2__7__key_0") AS "metric__2__7__1_col_0"
-//
-// Will become simpler:
-//
-//	"metric__2__7__1_col_0" AS "aggr__2__7__order_1",
-//	sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-//	"aggr__2__7__key_0") AS "metric__2__7__1_col_0",
+// What it does, it finds metric aggregation that corresponds to the order by expression, and returns a new aliased expression
 //
 // TODO: maybe the same logic needs to be applied to pipeline aggregations, needs checking.
 func (t *pancakeOrderByTransformer) transformSingleOrderBy(orderBy model.Expr, bucketAggrInternalName string, query *pancakeModel) *model.AliasedExpr {
@@ -81,37 +65,4 @@ func (t *pancakeOrderByTransformer) transformSingleOrderBy(orderBy model.Expr, b
 
 	logger.ErrorWithCtx(t.ctx).Msgf("no metric found for path: %s", fullPathToOrderByExpr)
 	return nil
-}
-
-// transform transforms all order by expressions of query `query`.
-// What it does, is only replace order expressions that are paths to metric aggregations, with their names.
-//
-// It's necessary if orderBy looks like this "[...].submetric", e.g. "2.sum".
-// It'll then transform it to a proper column of the SELECT.
-// Otherwise it's necessary, but still SQL looks a bit better, e.g.
-//
-//	sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-//	"aggr__2__7__key_0") AS "aggr__2__7__order_1",
-//	sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-//	"aggr__2__7__key_0") AS "metric__2__7__1_col_0"
-//
-// Will become simpler:
-//
-//	"metric__2__7__1_col_0" AS "aggr__2__7__order_1",
-//	sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-//	"aggr__2__7__key_0") AS "metric__2__7__1_col_0",
-//
-// TODO: maybe the same logic needs to be applied to pipeline aggregations, needs checking.
-func (t *pancakeOrderByTransformer) transform(query *pancakeModel) *pancakeModel {
-	for _, layer := range query.layers {
-		bucketAggr := layer.nextBucketAggregation
-		if bucketAggr == nil {
-			continue
-		}
-
-		for i, orderBy := range bucketAggr.orderBy {
-			bucketAggr.orderBy[i].Expr = *t.transformSingleOrderBy(orderBy.Expr, bucketAggr.InternalNameWithoutPrefix(), query)
-		}
-	}
-	return query
 }

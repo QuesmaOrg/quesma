@@ -157,10 +157,9 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(query *pancakeModel, b
 					direction = model.AscOrder // primarily needed for tests
 				}
 			} else {
-				if _, isLiteral := orderBy.Expr.(model.LiteralExpr); isLiteral {
-					transformer := newPancakeOrderByTransformer(context.Background()) // TODO: fix context
-					rankColumn = transformer.transformSingleOrderBy(orderBy.Expr, bucketAggregation.InternalNameWithoutPrefix(), query)
-				}
+				transformer := newPancakeOrderByTransformer(context.Background()) // TODO: fix context
+				rankColumn = transformer.transformSingleOrderBy(orderBy.Expr, bucketAggregation.InternalNameWithoutPrefix(), query)
+
 				if rankColumn == nil {
 					// we need new columns for rank
 					orderByExpr := orderBy.Expr
