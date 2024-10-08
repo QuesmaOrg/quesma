@@ -158,7 +158,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(query *pancakeModel, b
 				}
 			} else {
 				transformer := newPancakeOrderByTransformer(context.Background()) // TODO: fix context
-				rankColumn = transformer.transformSingleOrderBy(orderBy.Expr, bucketAggregation.InternalNameWithoutPrefix(), query)
+				rankColumn = transformer.transformSingleOrderBy(orderBy.Expr, bucketAggregation, query)
 
 				if rankColumn == nil {
 					// we need new columns for rank

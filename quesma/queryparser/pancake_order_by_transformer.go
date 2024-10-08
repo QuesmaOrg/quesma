@@ -22,7 +22,7 @@ func newPancakeOrderByTransformer(ctx context.Context) *pancakeOrderByTransforme
 // What it does, it finds metric aggregation that corresponds to the order by expression, and returns a new aliased expression
 //
 // TODO: maybe the same logic needs to be applied to pipeline aggregations, needs checking.
-func (t *pancakeOrderByTransformer) transformSingleOrderBy(orderBy model.Expr, bucketAggrInternalName string, query *pancakeModel) *model.AliasedExpr {
+func (t *pancakeOrderByTransformer) transformSingleOrderBy(orderBy model.Expr, bucketAggregation *pancakeModelBucketAggregation, query *pancakeModel) *model.AliasedExpr {
 	fullPathToOrderByExprRaw, isPath := orderBy.(model.LiteralExpr)
 	if !isPath {
 		return nil
@@ -50,14 +50,51 @@ func (t *pancakeOrderByTransformer) transformSingleOrderBy(orderBy model.Expr, b
 		return nil
 	}
 
-	for _, metric := range query.allMetricAggregations() {
-		metricAggrInternalName := metric.InternalNameWithoutPrefix()
+	foundLayerIdx := -1
+	for layerIdx, layer := range query.layers {
+		if layer.nextBucketAggregation == bucketAggregation {
+			foundLayerIdx = layerIdx
+			break
+		}
+	}
+	if foundLayerIdx == -1 {
+		logger.ErrorWithCtx(t.ctx).Msgf("bucket aggregation not found in query")
+		return nil
+	}
+	foundLayerIdx += 1
+	fullPath := strings.Split(fullPathWithoutSubmetric, ">")
+	path := fullPath
+
+	for len(path) > 1 {
+		if foundLayerIdx >= len(query.layers) {
+			logger.ErrorWithCtx(t.ctx).Msgf("out of layers in path: %s", fullPathToOrderByExpr)
+			return nil
+		}
+		if query.layers[foundLayerIdx].nextBucketAggregation == nil {
+			logger.ErrorWithCtx(t.ctx).Msgf("no bucket aggregation in path: %s", fullPathToOrderByExpr)
+			return nil
+		}
+		if query.layers[foundLayerIdx].nextBucketAggregation.name != path[0] {
+			logger.ErrorWithCtx(t.ctx).Msgf("bucket aggregation mismatch in path: %s, expected: %s, was: %s",
+				fullPathToOrderByExpr, path[0], query.layers[foundLayerIdx].nextBucketAggregation.name)
+			return nil
+		}
+		foundLayerIdx += 1
+		path = path[1:]
+	}
+
+	if foundLayerIdx >= len(query.layers) {
+		logger.ErrorWithCtx(t.ctx).Msgf("out of layers in path: %s", fullPathToOrderByExpr)
+		return nil
+	}
+
+	for _, metric := range query.layers[foundLayerIdx].currentMetricAggregations {
 		columnIdx := 0 // when no multiple columns, it must be 0
 		if multipleColumnsMetric, ok := metric.queryType.(metrics_aggregations.MultipleMetricColumnsInterface); ok {
 			columnIdx = multipleColumnsMetric.ColumnIdx(submetricName)
 		}
 
-		if bucketAggrInternalName+strings.ReplaceAll(fullPathWithoutSubmetric, ">", "__") == metricAggrInternalName {
+		if metric.name == path[0] {
 			result := model.NewAliasedExpr(orderBy, metric.InternalNameForCol(columnIdx))
 			return &result
 		}

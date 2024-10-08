@@ -102,16 +102,6 @@ func (p pancakeModelMetricAggregation) InternalNameForCol(id int) string {
 	return fmt.Sprintf("%s%d", p.InternalNamePrefix(), id)
 }
 
-func (p pancakeModelMetricAggregation) InternalNameWithoutPrefix() string {
-	possiblePrefixes := []string{"metric", "top_hits", "top_metrics"}
-	for _, prefix := range possiblePrefixes {
-		if strings.HasPrefix(p.internalName, prefix) {
-			return strings.TrimPrefix(p.internalName, prefix)
-		}
-	}
-	return p.internalName
-}
-
 func (p pancakeModelBucketAggregation) ShallowClone() pancakeModelBucketAggregation {
 	return pancakeModelBucketAggregation{
 		name:                    p.name,
@@ -150,10 +140,6 @@ func (p pancakeModelBucketAggregation) InternalNameForCount() string {
 // Used by terms aggregation to get the total count, so we can calculate sum_other_doc_count
 func (p pancakeModelBucketAggregation) InternalNameForParentCount() string {
 	return fmt.Sprintf("%sparent_count", p.internalName)
-}
-
-func (p pancakeModelBucketAggregation) InternalNameWithoutPrefix() string {
-	return strings.TrimPrefix(p.internalName, "aggr")
 }
 
 func (p pancakeModelBucketAggregation) isInternalNameCountColumn(internalName string) bool {
