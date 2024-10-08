@@ -136,6 +136,6 @@ func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscove
 	if cfg.TransparentProxy {
 		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, false)
 	} else {
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, logChan, abResultsrepository)
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository)
 	}
 }
