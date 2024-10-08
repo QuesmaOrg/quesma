@@ -96,6 +96,7 @@ func main() {
 
 	// TODO index configuration for ingest and query is the same for now
 	indexRegistry := index_registry.NewIndexRegistry(cfg.IndexConfig, cfg.IndexConfig, tableDisco, elasticIndexResolver)
+	indexRegistry.Start()
 
 	var ingestProcessor *ingest.IngestProcessor
 
@@ -132,7 +133,7 @@ func main() {
 	phoneHomeAgent.Stop(ctx)
 	lm.Stop()
 	abTestingController.Stop()
-
+	indexRegistry.Stop()
 	instance.Close(ctx)
 
 }

@@ -71,6 +71,9 @@ type PatternDecision struct {
 }
 
 type IndexRegistry interface {
+	Start()
+	Stop()
+
 	Resolve(pipeline string, indexPattern string) *Decision
 	Pipelines() []string
 	RecentDecisions() []PatternDecision

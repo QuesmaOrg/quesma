@@ -3,6 +3,7 @@
 package index_registry
 
 import (
+	"context"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/logger"
@@ -40,7 +41,9 @@ type pipelineResolver struct {
 }
 
 type indexRegistryImpl struct {
-	m sync.Mutex
+	m      sync.Mutex
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	tableDiscovery       clickhouse.TableDiscovery
 	elasticIndexResolver elasticsearch.IndexResolver
@@ -83,8 +86,11 @@ func (r *indexRegistryImpl) updateIndexes() {
 
 	}()
 
+	logger.Info().Msgf("Index registry updating state.")
+
 	// TODO how to interact with the table discovery ?
 	r.tableDiscovery.ReloadTableDefinitions()
+
 	tableMap := r.tableDiscovery.TableDefinitions()
 	clickhouseIndexes := make(map[string]clickhouseIndex)
 
@@ -147,6 +153,34 @@ func (r *indexRegistryImpl) typicalDecisions() {
 	fill("logs-*")
 }
 
+func (r *indexRegistryImpl) updateState() {
+	r.updateIndexes()
+	r.typicalDecisions()
+}
+
+func (r *indexRegistryImpl) Stop() {
+	r.cancel()
+	logger.Info().Msg("Index registry stopped.")
+}
+
+func (r *indexRegistryImpl) Start() {
+	go func() {
+		defer recovery.LogPanic()
+		logger.Info().Msg("Index registry started.")
+		r.updateState()
+
+		for {
+			select {
+			case <-r.ctx.Done():
+				return
+			case <-time.After(1 * time.Minute):
+				r.updateIndexes()
+				r.typicalDecisions()
+			}
+		}
+	}()
+}
+
 func (r *indexRegistryImpl) RecentDecisions() []PatternDecision {
 
 	r.m.Lock()
@@ -203,7 +237,11 @@ func (r *indexRegistryImpl) Pipelines() []string {
 
 func NewIndexRegistry(ingestConf map[string]config.IndexConfiguration, queryConf map[string]config.IndexConfiguration, discovery clickhouse.TableDiscovery, elasticResolver elasticsearch.IndexResolver) IndexRegistry {
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	res := &indexRegistryImpl{
+		ctx:    ctx,
+		cancel: cancel,
 
 		tableDiscovery:       discovery,
 		elasticIndexResolver: elasticResolver,
@@ -257,18 +295,5 @@ func NewIndexRegistry(ingestConf map[string]config.IndexConfiguration, queryConf
 
 	res.pipelineResolvers[QueryPipeline] = queryResolver
 
-	go func() {
-		defer recovery.LogPanic()
-
-		for {
-			logger.Info().Msgf("Updating indexes")
-			res.updateIndexes()
-			res.typicalDecisions()
-			time.Sleep(1 * time.Minute)
-		}
-
-	}()
-
 	return res
-
 }

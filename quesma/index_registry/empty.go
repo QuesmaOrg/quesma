@@ -15,9 +15,7 @@ func NewEmptyIndexRegistry() *EmptyIndexRegistry {
 }
 
 func (r *EmptyIndexRegistry) Resolve(pipeline string, indexPattern string) *Decision {
-
 	return r.Decisions[indexPattern]
-
 }
 
 func (r *EmptyIndexRegistry) RecentDecisions() []PatternDecision {
@@ -26,4 +24,10 @@ func (r *EmptyIndexRegistry) RecentDecisions() []PatternDecision {
 
 func (r *EmptyIndexRegistry) Pipelines() []string {
 	return r.PipelinesList
+}
+
+func (r *EmptyIndexRegistry) Start() {
+}
+
+func (r *EmptyIndexRegistry) Stop() {
 }
