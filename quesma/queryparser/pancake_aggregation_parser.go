@@ -59,10 +59,12 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 	transformer := newPancakeTransformer(cw.Ctx)
 	pancakeQueries, err := transformer.aggregationTreeToPancakes(topLevel)
 
-	orderByTransformer := newPancakeOrderByTransformer(cw.Ctx)
-	for i, query := range pancakeQueries {
-		pancakeQueries[i] = orderByTransformer.transform(query)
-	}
+	/*
+		orderByTransformer := newPancakeOrderByTransformer(cw.Ctx)
+		for i, query := range pancakeQueries {
+			pancakeQueries[i] = orderByTransformer.transform(query)
+		}
+	*/
 
 	if err != nil {
 		return nil, err

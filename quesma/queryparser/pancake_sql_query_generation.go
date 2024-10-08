@@ -3,6 +3,7 @@
 package queryparser
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"quesma/model"
@@ -116,7 +117,7 @@ func (p *pancakeSqlQueryGenerator) addPotentialParentCount(bucketAggregation *pa
 	return []model.AliasedExpr{}
 }
 
-func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (
+func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(query *pancakeModel, bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (
 	addSelectColumns, addGroupBys, addRankColumns []model.AliasedExpr, addRankWheres []model.Expr, addRankOrderBys []model.OrderByExpr, err error) {
 
 	// For some group by such as terms, we need total count. We add it in this method.
@@ -155,20 +156,27 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 				if direction == model.DefaultOrder {
 					direction = model.AscOrder // primarily needed for tests
 				}
-			} else { // we need new columns for rank
-				orderByExpr := orderBy.Expr
-				_, orderByAlreadyDone := orderByExpr.(model.ColumnRef)
-				if !orderByAlreadyDone && hasMoreBucketAggregations {
-					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderByExpr, nil)
-					if err != nil {
-						return nil, nil, nil, nil, nil, err
-					}
-					orderByExpr = model.NewWindowFunction(aggFunctionName, []model.Expr{partColumn},
-						p.generatePartitionBy(append(groupByColumns, addGroupBys...)), []model.OrderByExpr{})
+			} else {
+				if _, isLiteral := orderBy.Expr.(model.LiteralExpr); isLiteral {
+					transformer := newPancakeOrderByTransformer(context.Background()) // TODO: fix context
+					rankColumn = transformer.transformSingleOrderBy(orderBy.Expr, bucketAggregation.InternalNameWithoutPrefix(), query)
 				}
-				aliasedExpr := model.NewAliasedExpr(orderByExpr, bucketAggregation.InternalNameForOrderBy(columnId))
-				addSelectColumns = append(addSelectColumns, aliasedExpr)
-				rankColumn = &aliasedExpr
+				if rankColumn == nil {
+					// we need new columns for rank
+					orderByExpr := orderBy.Expr
+					_, orderByAlreadyDone := orderByExpr.(model.ColumnRef)
+					if !orderByAlreadyDone && hasMoreBucketAggregations {
+						partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderByExpr, nil)
+						if err != nil {
+							return nil, nil, nil, nil, nil, err
+						}
+						orderByExpr = model.NewWindowFunction(aggFunctionName, []model.Expr{partColumn},
+							p.generatePartitionBy(append(groupByColumns, addGroupBys...)), []model.OrderByExpr{})
+					}
+					aliasedExpr := model.NewAliasedExpr(orderByExpr, bucketAggregation.InternalNameForOrderBy(columnId))
+					addSelectColumns = append(addSelectColumns, aliasedExpr)
+					rankColumn = &aliasedExpr
+				}
 			}
 			rankOrderBy = append(rankOrderBy, model.NewOrderByExpr(rankColumn.AliasRef(), direction))
 		}
@@ -305,7 +313,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			}
 			hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
 			addSelectColumns, addGroupBys, addRankColumns, addRankWheres, addRankOrderBys, err :=
-				p.generateBucketSqlParts(layer.nextBucketAggregation, groupBys, hasMoreBucketAggregations)
+				p.generateBucketSqlParts(aggregation, layer.nextBucketAggregation, groupBys, hasMoreBucketAggregations)
 			if err != nil {
 				return nil, "", err
 			}

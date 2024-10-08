@@ -38,17 +38,17 @@ func newPancakeOrderByTransformer(ctx context.Context) *pancakeOrderByTransforme
 //	"aggr__2__7__key_0") AS "metric__2__7__1_col_0",
 //
 // TODO: maybe the same logic needs to be applied to pipeline aggregations, needs checking.
-func (t *pancakeOrderByTransformer) transformSingleOrderBy(orderBy model.Expr, bucketAggrInternalName string, query *pancakeModel) model.Expr {
+func (t *pancakeOrderByTransformer) transformSingleOrderBy(orderBy model.Expr, bucketAggrInternalName string, query *pancakeModel) *model.AliasedExpr {
 	fullPathToOrderByExprRaw, isPath := orderBy.(model.LiteralExpr)
 	if !isPath {
-		return orderBy
+		return nil
 	}
 
 	fullPathToOrderByExpr, ok := fullPathToOrderByExprRaw.Value.(string)
 	if !ok {
 		logger.ErrorWithCtx(t.ctx).Msgf("path to metric is not a string, but %T (val: %v)",
 			fullPathToOrderByExprRaw.Value, fullPathToOrderByExprRaw.Value)
-		return orderBy
+		return nil
 	}
 
 	// fullPathToOrderByExpr is in the form of "[aggr1][>aggr2...]>metric_aggr[.submetric]" ([] means optional)
@@ -63,7 +63,7 @@ func (t *pancakeOrderByTransformer) transformSingleOrderBy(orderBy model.Expr, b
 		fullPathWithoutSubmetric, submetricName = splitByDot[0], splitByDot[1]
 	default:
 		logger.ErrorWithCtx(t.ctx).Msgf("path to metric is not valid: %s", fullPathToOrderByExpr)
-		return orderBy
+		return nil
 	}
 
 	for _, metric := range query.allMetricAggregations() {
@@ -74,12 +74,13 @@ func (t *pancakeOrderByTransformer) transformSingleOrderBy(orderBy model.Expr, b
 		}
 
 		if bucketAggrInternalName+strings.ReplaceAll(fullPathWithoutSubmetric, ">", "__") == metricAggrInternalName {
-			return model.NewColumnRef(metric.InternalNameForCol(columnIdx))
+			result := model.NewAliasedExpr(orderBy, metric.InternalNameForCol(columnIdx))
+			return &result
 		}
 	}
 
 	logger.ErrorWithCtx(t.ctx).Msgf("no metric found for path: %s", fullPathToOrderByExpr)
-	return orderBy
+	return nil
 }
 
 // transform transforms all order by expressions of query `query`.
@@ -109,7 +110,7 @@ func (t *pancakeOrderByTransformer) transform(query *pancakeModel) *pancakeModel
 		}
 
 		for i, orderBy := range bucketAggr.orderBy {
-			bucketAggr.orderBy[i].Expr = t.transformSingleOrderBy(orderBy.Expr, bucketAggr.InternalNameWithoutPrefix(), query)
+			bucketAggr.orderBy[i].Expr = *t.transformSingleOrderBy(orderBy.Expr, bucketAggr.InternalNameWithoutPrefix(), query)
 		}
 	}
 	return query
