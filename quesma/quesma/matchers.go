@@ -4,12 +4,12 @@ package quesma
 
 import (
 	"quesma/elasticsearch"
-	"quesma/index_registry"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
 	"quesma/quesma/types"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/tracing"
 	"strings"
 )
@@ -24,7 +24,7 @@ func matchedAgainstAsyncId() mux.RequestMatcher {
 	})
 }
 
-func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, indexRegistry index_registry.IndexRegistry) mux.RequestMatcher {
+func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		idx := 0
 		for _, s := range strings.Split(req.Body, "\n") {
@@ -35,8 +35,8 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, indexRegi
 			if idx%2 == 0 {
 				name := extractIndexName(s)
 
-				decision := indexRegistry.Resolve(index_registry.IngestPipeline, name)
-				index_registry.TODO("matchedAgainstBulkBody", name, " -> ", decision)
+				decision := indexRegistry.Resolve(table_resolver.IngestPipeline, name)
+				table_resolver.TODO("matchedAgainstBulkBody", name, " -> ", decision)
 
 				indexConfig, found := configuration.IndexConfig[name]
 				if found && (indexConfig.IsClickhouseIngestEnabled() || indexConfig.IsIngestDisabled()) {
@@ -52,12 +52,12 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, indexRegi
 }
 
 // Query path only (looks at QueryTarget)
-func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.Registry, indexRegistry index_registry.IndexRegistry) mux.RequestMatcher {
+func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.Registry, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
 
-		decision := indexRegistry.Resolve(index_registry.QueryPipeline, indexPattern)
-		index_registry.TODO("matchedAgainstPattern", indexPattern, " -> ", decision)
+		decision := indexRegistry.Resolve(table_resolver.QueryPipeline, indexPattern)
+		table_resolver.TODO("matchedAgainstPattern", indexPattern, " -> ", decision)
 
 		patterns := strings.Split(req.Params["index"], ",")
 		for i, pattern := range patterns {
@@ -96,13 +96,13 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 }
 
 // check whether exact index name is enabled
-func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry index_registry.IndexRegistry, pipelineName string) mux.RequestMatcher {
+func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry table_resolver.TableResolver, pipelineName string) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 
 		indexName := req.Params["index"]
 
 		decision := indexRegistry.Resolve(pipelineName, indexName)
-		index_registry.TODO("XXX matchedExact", indexName, " -> ", decision)
+		table_resolver.TODO("XXX matchedExact", indexName, " -> ", decision)
 
 		if elasticsearch.IsInternalIndex(req.Params["index"]) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])
@@ -118,12 +118,12 @@ func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry
 	})
 }
 
-func matchedExactQueryPath(cfg *config.QuesmaConfiguration, indexRegistry index_registry.IndexRegistry) mux.RequestMatcher {
-	return matchedExact(cfg, true, indexRegistry, index_registry.QueryPipeline)
+func matchedExactQueryPath(cfg *config.QuesmaConfiguration, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
+	return matchedExact(cfg, true, indexRegistry, table_resolver.QueryPipeline)
 }
 
-func matchedExactIngestPath(cfg *config.QuesmaConfiguration, indexRegistry index_registry.IndexRegistry) mux.RequestMatcher {
-	return matchedExact(cfg, false, indexRegistry, index_registry.IngestPipeline)
+func matchedExactIngestPath(cfg *config.QuesmaConfiguration, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
+	return matchedExact(cfg, false, indexRegistry, table_resolver.IngestPipeline)
 }
 
 // Returns false if the body contains a Kibana internal search.

@@ -9,13 +9,13 @@ import (
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/concurrent"
-	"quesma/index_registry"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/queryparser"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/testdata"
 	"quesma/util"
@@ -51,7 +51,7 @@ func TestSearchOpensearch(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-			indexRegistry := index_registry.NewEmptyIndexRegistry()
+			indexRegistry := table_resolver.NewEmptyIndexRegistry()
 			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 			cw := queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: s.Tables[tableName], Config: &DefaultConfig}
 
@@ -196,7 +196,7 @@ func TestHighlighter(t *testing.T) {
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
 
-	indexRegistry := index_registry.NewEmptyIndexRegistry()
+	indexRegistry := table_resolver.NewEmptyIndexRegistry()
 	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"message$*%:;", "host.name", "@timestamp"}). // careful, it's not always in this order, order is nondeterministic

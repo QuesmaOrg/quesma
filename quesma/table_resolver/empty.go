@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package index_registry
+package table_resolver
 
 type EmptyIndexRegistry struct {
 	Decisions          map[string]*Decision

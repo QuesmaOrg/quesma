@@ -11,7 +11,6 @@ import (
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
-	"quesma/index_registry"
 	"quesma/ingest"
 	"quesma/jsonprocessor"
 	"quesma/logger"
@@ -20,6 +19,7 @@ import (
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/stats"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"sort"
 	"strings"
@@ -69,7 +69,7 @@ type (
 )
 
 func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor,
-	cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent, indexRegistry index_registry.IndexRegistry) (results []BulkItem, err error) {
+	cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent, indexRegistry table_resolver.TableResolver) (results []BulkItem, err error) {
 	defer recovery.LogPanic()
 
 	bulkSize := len(bulk) / 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
@@ -111,7 +111,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 	return results, nil
 }
 
-func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bulkSize int, cfg *config.QuesmaConfiguration, indexRegistry index_registry.IndexRegistry) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
+func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bulkSize int, cfg *config.QuesmaConfiguration, indexRegistry table_resolver.TableResolver) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
 	results := make([]BulkItem, bulkSize)
 
 	clickhouseDocumentsToInsert := make(map[string][]BulkRequestEntry, bulkSize)
@@ -122,8 +122,8 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 		index := op.GetIndex()
 		operation := op.GetOperation()
 
-		decision := indexRegistry.Resolve(index_registry.IngestPipeline, index)
-		index_registry.TODO("XXX splitBulk", decision)
+		decision := indexRegistry.Resolve(table_resolver.IngestPipeline, index)
+		table_resolver.TODO("XXX splitBulk", decision)
 
 		entryWithResponse := BulkRequestEntry{
 			operation: operation,

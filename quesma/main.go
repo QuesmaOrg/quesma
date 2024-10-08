@@ -16,7 +16,6 @@ import (
 	"quesma/connectors"
 	"quesma/elasticsearch"
 	"quesma/feature"
-	"quesma/index_registry"
 	"quesma/ingest"
 	"quesma/licensing"
 	"quesma/logger"
@@ -25,6 +24,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/tracing"
 	"syscall"
@@ -95,7 +95,7 @@ func main() {
 	elasticIndexResolver := elasticsearch.NewIndexResolver(cfg.Elasticsearch.Url.String())
 
 	// TODO index configuration for ingest and query is the same for now
-	indexRegistry := index_registry.NewIndexRegistry(cfg, tableDisco, elasticIndexResolver)
+	indexRegistry := table_resolver.NewTableResolver(cfg, tableDisco, elasticIndexResolver)
 	indexRegistry.Start()
 
 	var ingestProcessor *ingest.IngestProcessor
@@ -138,7 +138,7 @@ func main() {
 
 }
 
-func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender, indexRegistry index_registry.IndexRegistry) *quesma.Quesma {
+func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender, indexRegistry table_resolver.TableResolver) *quesma.Quesma {
 	if cfg.TransparentProxy {
 		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, false)
 	} else {

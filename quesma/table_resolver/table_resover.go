@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package index_registry
+package table_resolver
 
 import (
 	"context"
@@ -16,28 +16,33 @@ import (
 	"time"
 )
 
-// ---
+type tableResolver interface {
+	resolve(indexPattern string) *Decision
+}
 
-type indexPattern struct {
-	pattern   string
+type pattern struct {
+	// source
+	pattern string
+
+	// parsed data
 	isPattern bool
 	patterns  []string
 }
 
 type namedResolver struct {
 	name     string
-	resolver func(pattern indexPattern) *Decision
+	resolver func(pattern pattern) *Decision
 }
 
-type composedIndexResolver struct {
+type composedResolver struct {
 	decisionLadder []namedResolver
 }
 
-func (ir *composedIndexResolver) Resolve(indexName string) *Decision {
+func (ir *composedResolver) resolve(indexName string) *Decision {
 
 	patterns := strings.Split(indexName, ",")
 
-	input := indexPattern{
+	input := pattern{
 		pattern:   indexName,
 		isPattern: len(patterns) > 1 || strings.Contains(indexName, "*"),
 		patterns:  patterns,
@@ -70,24 +75,20 @@ func getTargets(indexConf config.IndexConfiguration, pipeline string) []string {
 	}
 }
 
-type clickhouseIndex struct {
-	TableName      string
-	IsVirtualTable bool
-}
-
-type elasticIndex struct {
-	IndexName string
+type table struct {
+	name      string
+	isVirtual bool
 }
 
 type pipelineResolver struct {
 	pipelineName string
 
 	cfg             map[string]config.IndexConfiguration
-	resolver        IndexResolver
+	resolver        tableResolver
 	recentDecisions map[string]*Decision
 }
 
-type indexRegistryImpl struct {
+type tableRegistryImpl struct {
 	m      sync.Mutex
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -95,13 +96,13 @@ type indexRegistryImpl struct {
 	tableDiscovery       clickhouse.TableDiscovery
 	elasticIndexResolver elasticsearch.IndexResolver
 
-	elasticIndexes    map[string]elasticIndex
-	clickhouseIndexes map[string]clickhouseIndex
+	elasticIndexes    map[string]table
+	clickhouseIndexes map[string]table
 
 	pipelineResolvers map[string]*pipelineResolver
 }
 
-func (r *indexRegistryImpl) Resolve(pipeline string, indexPattern string) *Decision {
+func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decision {
 
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -116,12 +117,12 @@ func (r *indexRegistryImpl) Resolve(pipeline string, indexPattern string) *Decis
 		return decision
 	}
 
-	decision := res.resolver.Resolve(indexPattern)
+	decision := res.resolver.resolve(indexPattern)
 	res.recentDecisions[indexPattern] = decision
 	return decision
 }
 
-func (r *indexRegistryImpl) updateIndexes() {
+func (r *tableRegistryImpl) updateIndexes() {
 
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -139,12 +140,12 @@ func (r *indexRegistryImpl) updateIndexes() {
 	r.tableDiscovery.ReloadTableDefinitions()
 
 	tableMap := r.tableDiscovery.TableDefinitions()
-	clickhouseIndexes := make(map[string]clickhouseIndex)
+	clickhouseIndexes := make(map[string]table)
 
 	tableMap.Range(func(name string, tableDef *clickhouse.Table) bool {
 
-		clickhouseIndexes[name] = clickhouseIndex{
-			TableName: name,
+		clickhouseIndexes[name] = table{
+			name: name,
 		}
 		return true
 	})
@@ -152,7 +153,7 @@ func (r *indexRegistryImpl) updateIndexes() {
 	r.clickhouseIndexes = clickhouseIndexes
 	logger.Info().Msgf("Clickhouse indexes updated: %v", clickhouseIndexes)
 
-	elasticIndexes := make(map[string]elasticIndex)
+	elasticIndexes := make(map[string]table)
 	sources, ok, err := r.elasticIndexResolver.Resolve("*")
 	if err != nil {
 		logger.Error().Msgf("Could not resolve indexes from Elastic: %v", err)
@@ -164,8 +165,8 @@ func (r *indexRegistryImpl) updateIndexes() {
 	}
 
 	for _, index := range sources.Indices {
-		elasticIndexes[index.Name] = elasticIndex{
-			IndexName: index.Name,
+		elasticIndexes[index.Name] = table{
+			name: index.Name,
 		}
 	}
 
@@ -173,16 +174,16 @@ func (r *indexRegistryImpl) updateIndexes() {
 	r.elasticIndexes = elasticIndexes
 }
 
-func (r *indexRegistryImpl) updateState() {
+func (r *tableRegistryImpl) updateState() {
 	r.updateIndexes()
 }
 
-func (r *indexRegistryImpl) Stop() {
+func (r *tableRegistryImpl) Stop() {
 	r.cancel()
 	logger.Info().Msg("Index registry stopped.")
 }
 
-func (r *indexRegistryImpl) Start() {
+func (r *tableRegistryImpl) Start() {
 	go func() {
 		defer recovery.LogPanic()
 		logger.Info().Msg("Index registry started.")
@@ -198,7 +199,7 @@ func (r *indexRegistryImpl) Start() {
 	}()
 }
 
-func (r *indexRegistryImpl) RecentDecisions() []PatternDecision {
+func (r *tableRegistryImpl) RecentDecisions() []PatternDecision {
 
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -237,7 +238,7 @@ func (r *indexRegistryImpl) RecentDecisions() []PatternDecision {
 	return res
 }
 
-func (r *indexRegistryImpl) Pipelines() []string {
+func (r *tableRegistryImpl) Pipelines() []string {
 
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -252,14 +253,14 @@ func (r *indexRegistryImpl) Pipelines() []string {
 	return res
 }
 
-func NewIndexRegistry(quesmaConf config.QuesmaConfiguration, discovery clickhouse.TableDiscovery, elasticResolver elasticsearch.IndexResolver) IndexRegistry {
+func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhouse.TableDiscovery, elasticResolver elasticsearch.IndexResolver) TableResolver {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ingestConf := quesmaConf.IndexConfig
 	queryConf := quesmaConf.IndexConfig
 
-	res := &indexRegistryImpl{
+	res := &tableRegistryImpl{
 		ctx:    ctx,
 		cancel: cancel,
 
@@ -271,7 +272,7 @@ func NewIndexRegistry(quesmaConf config.QuesmaConfiguration, discovery clickhous
 	ingestResolver := &pipelineResolver{
 		pipelineName: IngestPipeline,
 		cfg:          ingestConf,
-		resolver: &composedIndexResolver{
+		resolver: &composedResolver{
 			decisionLadder: []namedResolver{
 				{"patternIsNotAllowed", patternIsNotAllowed},
 				{"kibanaInternal", resolveInternalElasticName},
@@ -292,7 +293,7 @@ func NewIndexRegistry(quesmaConf config.QuesmaConfiguration, discovery clickhous
 	queryResolver := &pipelineResolver{
 		pipelineName: QueryPipeline,
 		cfg:          ingestConf,
-		resolver: &composedIndexResolver{
+		resolver: &composedResolver{
 			decisionLadder: []namedResolver{
 				// checking if we can handle the pattern
 				{"kibanaInternal", resolveInternalElasticName},

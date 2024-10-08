@@ -8,12 +8,12 @@ import (
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/common_table"
-	"quesma/index_registry"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"testing"
 )
@@ -259,7 +259,7 @@ func TestSearchCommonTable(t *testing.T) {
 
 			indexManagement := NewFixedIndexManagement()
 			lm := clickhouse.NewLogManagerWithConnection(db, tableMap)
-			indexRegistry := index_registry.NewEmptyIndexRegistry()
+			indexRegistry := table_resolver.NewEmptyIndexRegistry()
 
 			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 

@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
-	"quesma/index_registry"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
+	"quesma/table_resolver"
 	"quesma/util"
 	"strings"
 	"testing"
@@ -170,7 +170,7 @@ func TestIngestValidation(t *testing.T) {
 		ip := newIngestProcessorEmpty()
 		ip.chDb = db
 		ip.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
-		ip.indexRegistry = index_registry.NewEmptyIndexRegistry()
+		ip.indexRegistry = table_resolver.NewEmptyIndexRegistry()
 		defer db.Close()
 
 		mock.ExpectExec(EscapeBrackets(expectedInsertJsons[i])).WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 0))

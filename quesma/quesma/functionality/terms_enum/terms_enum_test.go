@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
-	"quesma/index_registry"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/queryparser"
@@ -19,6 +18,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/tracing"
 	"quesma/util"
@@ -81,7 +81,7 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 		},
 		Created: true,
 	}
-	indexRegistry := index_registry.NewEmptyIndexRegistry()
+	indexRegistry := table_resolver.NewEmptyIndexRegistry()
 	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()

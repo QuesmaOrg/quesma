@@ -47,15 +47,15 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
-	router.HandleFunc("/index_registry", func(writer http.ResponseWriter, req *http.Request) {
-		buf := qmc.generateIndexRegistry()
+	router.HandleFunc("/table_resolver", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qmc.generateTableResolver()
 		_, _ = writer.Write(buf)
 	})
 
-	router.HandleFunc("/index_registry/ask", func(writer http.ResponseWriter, req *http.Request) {
+	router.HandleFunc("/table_resolver/ask", func(writer http.ResponseWriter, req *http.Request) {
 		prompt := req.PostFormValue("prompt")
 
-		buf := qmc.generateIndexRegistryPrompt(prompt)
+		buf := qmc.generateTableResolverAnswer(prompt)
 		_, _ = writer.Write(buf)
 	})
 

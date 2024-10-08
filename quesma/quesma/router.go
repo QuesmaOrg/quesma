@@ -10,7 +10,6 @@ import (
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
-	"quesma/index_registry"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
@@ -26,6 +25,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/tracing"
 	"regexp"
@@ -34,7 +34,7 @@ import (
 	"time"
 )
 
-func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, indexRegistry index_registry.IndexRegistry) *mux.PathRouter {
+func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, indexRegistry table_resolver.TableResolver) *mux.PathRouter {
 
 	// some syntactic sugar
 	method := mux.IsHTTPMethod

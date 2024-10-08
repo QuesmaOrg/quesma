@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package index_registry
+package table_resolver
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-func patternIsNotAllowed(input indexPattern) *Decision {
+func patternIsNotAllowed(input pattern) *Decision {
 	if !input.isPattern {
 		return nil
 	}
@@ -22,13 +22,13 @@ func patternIsNotAllowed(input indexPattern) *Decision {
 	}
 }
 
-func makeIsDisabledInConfig(cfg map[string]config.IndexConfiguration) func(input indexPattern) *Decision {
+func makeIsDisabledInConfig(cfg map[string]config.IndexConfiguration) func(input pattern) *Decision {
 
-	return func(input indexPattern) *Decision {
+	return func(input pattern) *Decision {
 
 		if input.isPattern {
 
-			// pass to the next resolver
+			// pass to the next tableResolver
 
 			return nil
 		} else {
@@ -47,7 +47,7 @@ func makeIsDisabledInConfig(cfg map[string]config.IndexConfiguration) func(input
 	}
 }
 
-func resolveInternalElasticName(pattern indexPattern) *Decision {
+func resolveInternalElasticName(pattern pattern) *Decision {
 
 	if elasticsearch.IsInternalIndex(pattern.pattern) {
 		return &Decision{
@@ -59,9 +59,9 @@ func resolveInternalElasticName(pattern indexPattern) *Decision {
 	return nil
 }
 
-func makeElasticIsDefault(cfg map[string]config.IndexConfiguration) func(input indexPattern) *Decision {
+func makeElasticIsDefault(cfg map[string]config.IndexConfiguration) func(input pattern) *Decision {
 
-	return func(input indexPattern) *Decision {
+	return func(input pattern) *Decision {
 
 		/*
 			wildcard, ok := cfg["*"]
@@ -103,9 +103,9 @@ func makeElasticIsDefault(cfg map[string]config.IndexConfiguration) func(input i
 	}
 }
 
-func makeCommonTableAsDefault(cfg map[string]config.IndexConfiguration, pipeline string) func(input indexPattern) *Decision {
+func makeCommonTableAsDefault(cfg map[string]config.IndexConfiguration, pipeline string) func(input pattern) *Decision {
 
-	return func(input indexPattern) *Decision {
+	return func(input pattern) *Decision {
 
 		// it will not work
 		// default configuration is not passed in the config
@@ -148,9 +148,9 @@ func makeCommonTableAsDefault(cfg map[string]config.IndexConfiguration, pipeline
 	}
 }
 
-func (r *indexRegistryImpl) makeResolveAutodiscovery(cfg map[string]config.IndexConfiguration) func(input indexPattern) *Decision {
+func (r *tableRegistryImpl) makeResolveAutodiscovery(cfg map[string]config.IndexConfiguration) func(input pattern) *Decision {
 
-	return func(input indexPattern) *Decision {
+	return func(input pattern) *Decision {
 
 		if input.isPattern {
 			return nil
@@ -166,10 +166,10 @@ func (r *indexRegistryImpl) makeResolveAutodiscovery(cfg map[string]config.Index
 			return nil
 		}
 
-		if table, ok := r.clickhouseIndexes[input.pattern]; ok && !table.IsVirtualTable {
+		if table, ok := r.clickhouseIndexes[input.pattern]; ok && !table.isVirtual {
 			return &Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
-					ClickhouseTableName: table.TableName,
+					ClickhouseTableName: table.name,
 				}},
 				Message: "Found the physical table. Autodiscovery.",
 			}
@@ -179,9 +179,9 @@ func (r *indexRegistryImpl) makeResolveAutodiscovery(cfg map[string]config.Index
 	}
 }
 
-func (r *indexRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfiguration, pipeline string) func(input indexPattern) *Decision {
+func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfiguration, pipeline string) func(input pattern) *Decision {
 
-	return func(input indexPattern) *Decision {
+	return func(input pattern) *Decision {
 
 		if input.isPattern {
 			return nil
@@ -256,9 +256,9 @@ func (r *indexRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 	}
 }
 
-func (r *indexRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input indexPattern) *Decision {
+func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input pattern) *Decision {
 
-	return func(input indexPattern) *Decision {
+	return func(input pattern) *Decision {
 		if input.isPattern {
 
 			matchedElastic := []string{}
@@ -304,7 +304,7 @@ func (r *indexRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input 
 			case nElastic == 0 && nClickhouse == 0:
 
 				// TODO we should return emtpy result here
-				// or pass to another resolver
+				// or pass to another tableResolver
 				return &Decision{
 					IsEmpty: true,
 					Message: "No indexes matched. Checked both connectors.",
@@ -317,9 +317,9 @@ func (r *indexRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input 
 
 }
 
-func (r *indexRegistryImpl) makeClickhouseCommonTableResolver(cfg map[string]config.IndexConfiguration) func(input indexPattern) *Decision {
+func (r *tableRegistryImpl) makeClickhouseCommonTableResolver(cfg map[string]config.IndexConfiguration) func(input pattern) *Decision {
 
-	return func(input indexPattern) *Decision {
+	return func(input pattern) *Decision {
 
 		if input.isPattern {
 
@@ -345,7 +345,7 @@ func (r *indexRegistryImpl) makeClickhouseCommonTableResolver(cfg map[string]con
 
 					// TODO what about config ?
 					// what if index uses common table but is't
-					if util.IndexPatternMatches(pattern, indexName) && index.IsVirtualTable {
+					if util.IndexPatternMatches(pattern, indexName) && index.isVirtual {
 						matchedIndexes = append(matchedIndexes, indexName)
 					}
 				}
@@ -389,7 +389,7 @@ func (r *indexRegistryImpl) makeClickhouseCommonTableResolver(cfg map[string]con
 	}
 }
 
-func resolveDockerIndexes(pattern indexPattern) *Decision {
+func resolveDockerIndexes(pattern pattern) *Decision {
 
 	if strings.Contains(pattern.pattern, "logs-elastic_agent") ||
 		strings.Contains(pattern.pattern, "metrics-docker") ||

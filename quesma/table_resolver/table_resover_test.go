@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package index_registry
+package table_resolver
 
 import (
 	"fmt"
@@ -104,7 +104,7 @@ func TestIndexRegistryImpl(t *testing.T) {
 			}
 			elasticResolver.Indexes["*"] = sources
 
-			indexRegistry := NewIndexRegistry(cfg, tableDiscovery, elasticResolver)
+			indexRegistry := NewTableResolver(cfg, tableDiscovery, elasticResolver)
 
 			decision := indexRegistry.Resolve(tt.pipeline, tt.pattern)
 

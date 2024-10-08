@@ -4,10 +4,10 @@ package quesma
 
 import (
 	"github.com/stretchr/testify/assert"
-	"quesma/index_registry"
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"testing"
 )
 
@@ -39,7 +39,7 @@ func Test_matchedAgainstConfig(t *testing.T) {
 		},
 	}
 
-	indexRegistry := index_registry.NewEmptyIndexRegistry()
+	indexRegistry := table_resolver.NewEmptyIndexRegistry()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -175,7 +175,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 		},
 	}
 
-	indexRegistry := index_registry.NewEmptyIndexRegistry()
+	indexRegistry := table_resolver.NewEmptyIndexRegistry()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -240,7 +240,7 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 		},
 	}
 
-	indexRegistry := index_registry.NewEmptyIndexRegistry()
+	indexRegistry := table_resolver.NewEmptyIndexRegistry()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -14,7 +14,6 @@ import (
 	"quesma/concurrent"
 	"quesma/end_user_errors"
 	"quesma/index"
-	"quesma/index_registry"
 	"quesma/jsonprocessor"
 	"quesma/logger"
 	"quesma/model"
@@ -24,6 +23,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/stats"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/util"
 	"slices"
@@ -64,7 +64,7 @@ type (
 		ingestFieldStatistics     IngestFieldStatistics
 		ingestFieldStatisticsLock sync.Mutex
 		virtualTableStorage       persistence.JSONDatabase
-		indexRegistry             index_registry.IndexRegistry
+		indexRegistry             table_resolver.TableResolver
 	}
 	TableMap  = concurrent.Map[string, *chLib.Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -700,8 +700,8 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
 
-	decision := lm.indexRegistry.Resolve(index_registry.IngestPipeline, tableName)
-	index_registry.TODO(lm.indexRegistry, tableName, decision)
+	decision := lm.indexRegistry.Resolve(table_resolver.IngestPipeline, tableName)
+	table_resolver.TODO(lm.indexRegistry, tableName, decision)
 
 	indexConf, ok := lm.cfg.IndexConfig[tableName]
 	if ok && indexConf.UseCommonTable {
@@ -913,7 +913,7 @@ func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
-func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, indexRegistry index_registry.IndexRegistry) *IngestProcessor {
+func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, indexRegistry table_resolver.TableResolver) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, indexRegistry: indexRegistry}
 }

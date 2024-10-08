@@ -12,7 +12,6 @@ import (
 	"quesma/concurrent"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
-	"quesma/index_registry"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/optimize"
@@ -24,6 +23,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/tracing"
 	"quesma/util"
 	"slices"
@@ -71,7 +71,7 @@ type QueryRunner struct {
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
 	ABResultsSender          ab_testing.Sender
-	indexRegistry            index_registry.IndexRegistry
+	indexRegistry            table_resolver.TableResolver
 
 	maxParallelQueries int // if set to 0, we run queries in sequence, it's fine for testing purposes
 }
@@ -80,7 +80,7 @@ func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
 	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
 }
 
-func NewQueryRunner(lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry, abResultsRepository ab_testing.Sender, indexRegistry index_registry.IndexRegistry) *QueryRunner {
+func NewQueryRunner(lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry, abResultsRepository ab_testing.Sender, indexRegistry table_resolver.TableResolver) *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
@@ -282,8 +282,8 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 
-	decision := q.indexRegistry.Resolve(index_registry.QueryPipeline, indexPattern)
-	index_registry.TODO("handleSearchCommon", indexPattern, " -> ", decision)
+	decision := q.indexRegistry.Resolve(table_resolver.QueryPipeline, indexPattern)
+	table_resolver.TODO("handleSearchCommon", indexPattern, " -> ", decision)
 
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im, q.schemaRegistry)
 

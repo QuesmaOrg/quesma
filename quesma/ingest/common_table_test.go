@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/common_table"
-	"quesma/index_registry"
 	"quesma/jsonprocessor"
 	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"testing"
 )
 
@@ -189,7 +189,7 @@ func TestIngestToCommonTable(t *testing.T) {
 			tableDisco := clickhouse.NewTableDiscovery(quesmaConfig, db, virtualTableStorage)
 			schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, quesmaConfig, clickhouse.SchemaTypeAdapter{})
 
-			indexRegistry := index_registry.NewEmptyIndexRegistry()
+			indexRegistry := table_resolver.NewEmptyIndexRegistry()
 
 			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db

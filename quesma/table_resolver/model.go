@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package index_registry
+package table_resolver
 
 import (
 	"fmt"
@@ -8,10 +8,7 @@ import (
 	"strings"
 )
 
-// API for the customers (router, ingest processor and query processor)
-type IndexResolver interface {
-	Resolve(indexPattern string) *Decision
-}
+
 
 type Decision struct {
 
@@ -95,7 +92,7 @@ type PatternDecision struct {
 	Decisions map[string]*Decision
 }
 
-type IndexRegistry interface {
+type TableResolver interface {
 	Start()
 	Stop()
 
@@ -107,7 +104,7 @@ type IndexRegistry interface {
 }
 
 func TODO(args ...any) {
-	logger.Info().Msgf("TODO: use index_registry decision here  %v", args)
+	logger.Info().Msgf("TODO: use table_resolver decision here  %v", args)
 }
 
 // TODO hardcoded pipeline names

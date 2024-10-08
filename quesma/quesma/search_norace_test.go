@@ -14,12 +14,12 @@ import (
 	"math/rand"
 	"quesma/ab_testing"
 	"quesma/clickhouse"
-	"quesma/index_registry"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/testdata"
 	"quesma/tracing"
@@ -43,7 +43,7 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			logChan := logger.InitOnlyChannelLoggerForTests()
 
-			indexRegistry := index_registry.NewEmptyIndexRegistry()
+			indexRegistry := table_resolver.NewEmptyIndexRegistry()
 
 			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 			go managementConsole.RunOnlyChannelProcessor()
@@ -113,7 +113,7 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	lm := clickhouse.NewLogManagerWithConnection(db, table)
 	logChan := logger.InitOnlyChannelLoggerForTests()
 
-	indexRegistry := index_registry.NewEmptyIndexRegistry()
+	indexRegistry := table_resolver.NewEmptyIndexRegistry()
 	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 	go managementConsole.RunOnlyChannelProcessor()
 	s := schema.StaticRegistry{

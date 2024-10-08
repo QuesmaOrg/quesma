@@ -7,22 +7,22 @@ import (
 	"strings"
 )
 
-func (qmc *QuesmaManagementConsole) generateIndexRegistry() []byte {
+func (qmc *QuesmaManagementConsole) generateTableResolver() []byte {
 
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("index_registry"))
+	buffer.Write(generateTopNavigation("table_resolver"))
 
-	buffer.Html(`<main id="index_registry">`)
+	buffer.Html(`<main id="table_resolver">`)
 
-	buffer.Html("<h1>Index Registry</h1>")
+	buffer.Html("<h1>Table Resolver</h1>")
 
 	buffer.Html("<h2>Ask Quesma</h2>")
 
-	buffer.Html("Ask Quesma to resolve an index pattern:")
+	buffer.Html("Ask Quesma to resolve an pattern:")
 	buffer.Html(`<br>`)
 	buffer.Html(`<textarea class="form-control" type="text" `)
-	buffer.Html(`name="prompt" placeholder="Type an index pattern here" `)
-	buffer.Html(`hx-post="/index_registry/ask" `)
+	buffer.Html(`name="prompt" placeholder="Type a pattern here" `)
+	buffer.Html(`hx-post="/table_resolver/ask" `)
 	buffer.Html(`hx-trigger="input changed delay:500ms, prompt" `)
 	buffer.Html(`hx-target="#search-results" `)
 	buffer.Html(`hx-indicator=".htmx-indicator">`)
@@ -36,9 +36,9 @@ func (qmc *QuesmaManagementConsole) generateIndexRegistry() []byte {
 
 	pipelines := qmc.indexRegistry.Pipelines()
 
-	buffer.Html(`<table class="index-registry">`)
+	buffer.Html(`<table class="table_resolver">`)
 	buffer.Html(`<tr>`)
-	buffer.Html(`<th>Index pattern</th>`)
+	buffer.Html(`<th>Pattern</th>`)
 	for _, pipeline := range pipelines {
 		buffer.Html(`<th>`).Text(pipeline).Html(`</th>`)
 	}
@@ -72,7 +72,7 @@ func (qmc *QuesmaManagementConsole) generateIndexRegistry() []byte {
 
 }
 
-func (qmc *QuesmaManagementConsole) generateIndexRegistryPrompt(prompt string) []byte {
+func (qmc *QuesmaManagementConsole) generateTableResolverAnswer(prompt string) []byte {
 	var buffer builder.HtmlBuffer
 
 	prompt = strings.TrimSpace(prompt)
@@ -87,9 +87,9 @@ func (qmc *QuesmaManagementConsole) generateIndexRegistryPrompt(prompt string) [
 
 	buffer.Html("<h4>Quesma's decision</h2>")
 
-	buffer.Html(`<table class="index-registry">`)
+	buffer.Html(`<table class="table_resolver">`)
 	buffer.Html(`<tr>`)
-	buffer.Html(`<th>Index pattern</th>`)
+	buffer.Html(`<th>Pattern</th>`)
 	for _, pipeline := range pipelines {
 		buffer.Html(`<th>`).Text(pipeline).Html(`</th>`)
 	}
