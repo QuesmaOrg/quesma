@@ -1,4 +1,4 @@
-# Default for local-dev.yml
+#licenseKey: {your-quesma-license-key-if-needed} # license key is required for paid features such as `hydrolix` backend conector
 frontendConnectors:
   - name: elastic-ingest
     type: elasticsearch-fe-ingest
@@ -71,7 +71,7 @@ processors:
                 type: "keyword"
               severity:
                 type: "keyword"
-        "*":
+        "*":       # DO NOT remove, always required
           target: [ my-minimal-elasticsearch ]
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
