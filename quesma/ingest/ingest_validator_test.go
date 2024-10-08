@@ -166,7 +166,7 @@ func TestIngestValidation(t *testing.T) {
 	})
 	for i := range inputJson {
 		db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-		ip := NewIngestProcessorEmpty()
+		ip := newIngestProcessorEmpty()
 		ip.chDb = db
 		ip.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
 

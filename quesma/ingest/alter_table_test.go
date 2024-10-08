@@ -49,7 +49,7 @@ func TestAlterTable(t *testing.T) {
 
 	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
 
-	ip := NewIngestProcessor(fieldsMap, &config.QuesmaConfiguration{})
+	ip := newIngestProcessorWithEmptyTableMap(fieldsMap, &config.QuesmaConfiguration{})
 	for i := range rowsToInsert {
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig, encodings)
 		assert.NoError(t, err)
@@ -109,7 +109,7 @@ func TestAlterTableHeuristic(t *testing.T) {
 			Cols: map[string]*clickhouse.Column{},
 		}
 		fieldsMap := concurrent.NewMapWith(tableName, table)
-		ip := NewIngestProcessor(fieldsMap, &config.QuesmaConfiguration{})
+		ip := newIngestProcessorWithEmptyTableMap(fieldsMap, &config.QuesmaConfiguration{})
 
 		rowsToInsert := make([]string, 0)
 		previousRow := ``

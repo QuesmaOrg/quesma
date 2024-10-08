@@ -75,7 +75,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	queryResultTransformers := make([]model.QueryRowsTransformer, len(queries))
 	for i, query := range queries {
 		switch agg := query.Type.(type) {
-		case bucket_aggregations.Histogram:
+		case *bucket_aggregations.Histogram:
 			queryResultTransformers[i] = agg.NewRowsTransformer()
 
 		case *bucket_aggregations.DateHistogram:

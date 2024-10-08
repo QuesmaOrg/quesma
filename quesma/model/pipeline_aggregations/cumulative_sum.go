@@ -65,9 +65,14 @@ func (query CumulativeSum) CalculateResultWhenMissing(parentRows []model.QueryRe
 			resultRows = append(resultRows, resultRow)
 		}
 	}
+
 	return resultRows
 }
 
 func (query CumulativeSum) String() string {
 	return fmt.Sprintf("cumulative_sum(%s)", query.Parent)
+}
+
+func (query CumulativeSum) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineParentAggregation
 }

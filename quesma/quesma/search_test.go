@@ -69,7 +69,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 		"host.name":         {PropertyName: "host.name", InternalPropertyName: "host_name", Type: schema.QuesmaTypeObject},
 		"properties::isreg": {PropertyName: "properties::isreg", InternalPropertyName: "properties_isreg", Type: schema.QuesmaTypeInteger},
 	}
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
@@ -123,7 +123,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 		"-@bytes":           {PropertyName: "-@bytes", InternalPropertyName: "__bytes", Type: schema.QuesmaTypeInteger},
 	}
 
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
@@ -168,7 +168,7 @@ func TestSearchHandler(t *testing.T) {
 		"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 	}
 
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
@@ -238,7 +238,7 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 		Created: true,
 	})
 
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
@@ -280,7 +280,7 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 
 // TODO this test gives wrong results??
 func TestSearchHandlerNoAttrsConfig(t *testing.T) {
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
@@ -310,7 +310,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 }
 
 func TestAsyncSearchFilter(t *testing.T) {
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
@@ -355,7 +355,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 // (testing of creating response is lacking), because of `sqlmock` limitation.
 // It can't return uint64, thus creating response code panics because of that.
 func TestHandlingDateTimeFields(t *testing.T) {
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
@@ -482,7 +482,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 // (top 10 values, "other" value, min/max).
 // Both `_search`, and `_async_search` handlers are tested.
 func TestNumericFacetsQueries(t *testing.T) {
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
@@ -589,7 +589,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 
 func TestSearchTrackTotalCount(t *testing.T) {
 
-	s := schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
+	s := &schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{

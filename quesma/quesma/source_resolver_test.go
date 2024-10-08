@@ -88,7 +88,7 @@ func TestResolveSources(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name+tt.args.indexPattern, func(t *testing.T) {
-			got, _, _ := ResolveSources(tt.args.indexPattern, &tt.args.cfg, tt.args.im, schema.StaticRegistry{})
+			got, _, _ := ResolveSources(tt.args.indexPattern, &tt.args.cfg, tt.args.im, &schema.StaticRegistry{})
 			assert.Equalf(t, tt.want, got, "ResolveSources(%v, %v, %v)", tt.args.indexPattern, tt.args.cfg, tt.args.im)
 		})
 	}
