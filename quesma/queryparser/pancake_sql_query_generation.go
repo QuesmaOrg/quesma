@@ -14,6 +14,11 @@ import (
 )
 
 type pancakeSqlQueryGenerator struct {
+	ctx context.Context
+}
+
+func newPancakeSqlQueryGeneratorr(ctx context.Context) *pancakeSqlQueryGenerator {
+	return &pancakeSqlQueryGenerator{ctx: ctx}
 }
 
 func (p *pancakeSqlQueryGenerator) aliasedExprArrayToExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
@@ -157,7 +162,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(query *pancakeModel, b
 					direction = model.AscOrder // primarily needed for tests
 				}
 			} else {
-				transformer := newPancakeOrderByTransformer(context.Background()) // TODO: fix context
+				transformer := newPancakeOrderByTransformer(p.ctx)
 				rankColumn = transformer.transformSingleOrderBy(orderBy.Expr, bucketAggregation, query)
 
 				if rankColumn == nil {
