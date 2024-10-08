@@ -82,7 +82,7 @@ type AsyncQueryIdWithTime struct {
 
 func (e *AsyncQueriesEvictor) tryEvictAsyncRequests(timeFun func(time.Time) time.Duration) {
 	var ids []AsyncQueryIdWithTime
-	e.AsyncRequestStorage.idToResult.Range(func(key string, value *AsyncRequestResult) bool {
+	e.AsyncRequestStorage.Range(func(key string, value *AsyncRequestResult) bool {
 		if timeFun(value.added) > EvictionInterval {
 			ids = append(ids, AsyncQueryIdWithTime{id: key, time: value.added})
 		}
