@@ -21,6 +21,7 @@ import (
 	"quesma/logger"
 	"quesma/persistence"
 	"quesma/quesma"
+	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/ui"
 	"quesma/schema"
@@ -74,7 +75,7 @@ func main() {
 	}()
 
 	if asyncQueryTraceLogger != nil {
-		asyncQueryTraceEvictor := quesma.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
+		asyncQueryTraceEvictor := async_search_storage.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
 		asyncQueryTraceEvictor.Start()
 		defer asyncQueryTraceEvictor.Stop()
 	}

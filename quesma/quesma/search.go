@@ -9,7 +9,6 @@ import (
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/common_table"
-	"quesma/concurrent"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/logger"
@@ -17,6 +16,7 @@ import (
 	"quesma/optimize"
 	"quesma/queryparser"
 	"quesma/queryparser/query_util"
+	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/errors"
 	"quesma/quesma/recovery"
@@ -38,25 +38,11 @@ const (
 	maxParallelQueries = 25 // maximum of parallel queries we can, this is arbitrary value and should be adjusted
 )
 
-type AsyncRequestResult struct {
-	responseBody []byte
-	added        time.Time
-	isCompressed bool
-	err          error
-}
-
-type AsyncQueryContext struct {
-	id     string
-	ctx    context.Context
-	cancel context.CancelFunc
-	added  time.Time
-}
-
 type QueryRunner struct {
 	executionCtx            context.Context
 	cancel                  context.CancelFunc
-	AsyncRequestStorage     *concurrent.Map[string, AsyncRequestResult]
-	AsyncQueriesContexts    *concurrent.Map[string, *AsyncQueryContext]
+	AsyncRequestStorage     async_search_storage.AsyncRequestResultStorage
+	AsyncQueriesContexts    async_search_storage.AsyncQueryContextStorage
 	logManager              *clickhouse.LogManager
 	cfg                     *config.QuesmaConfiguration
 	im                      elasticsearch.IndexManagement
@@ -77,12 +63,19 @@ func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
 	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
 }
 
-func NewQueryRunner(lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry, abResultsRepository ab_testing.Sender) *QueryRunner {
+func NewQueryRunner(lm *clickhouse.LogManager,
+	cfg *config.QuesmaConfiguration,
+	im elasticsearch.IndexManagement,
+	qmc *ui.QuesmaManagementConsole,
+	schemaRegistry schema.Registry,
+	abResultsRepository ab_testing.Sender) *QueryRunner {
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
-		executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](),
-		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
+		executionCtx: ctx, cancel: cancel,
+		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemory(),
+		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
 		transformationPipeline: TransformationPipeline{
 			transformers: []model.QueryTransformer{
 				&SchemaCheckPass{cfg: cfg.IndexConfig},
@@ -92,10 +85,6 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg *config.QuesmaConfiguration, 
 		ABResultsSender:    abResultsRepository,
 		maxParallelQueries: maxParallelQueries,
 	}
-}
-
-func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id string) *AsyncQueryContext {
-	return &AsyncQueryContext{ctx: ctx, cancel: cancel, added: time.Now(), id: id}
 }
 
 // returns -1 when table name could not be resolved
@@ -474,8 +463,8 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 	took := time.Since(startTime)
 	if result.err != nil {
 		if keep {
-			q.AsyncRequestStorage.Store(asyncId, AsyncRequestResult{err: result.err, added: time.Now(),
-				isCompressed: false})
+			q.AsyncRequestStorage.Store(asyncId, // maybe responseBody line below should be an empty array?
+				async_search_storage.NewAsyncRequestResult(nil, result.err, time.Now(), false))
 		}
 		responseBody, _ = queryparser.EmptyAsyncSearchResponse(asyncId, false, 503)
 		err = result.err
@@ -516,15 +505,15 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 			}
 		}
 		q.AsyncRequestStorage.Store(asyncId,
-			AsyncRequestResult{responseBody: compressedBody, added: time.Now(), err: err, isCompressed: isCompressed})
+			async_search_storage.NewAsyncRequestResult(compressedBody, err, time.Now(), isCompressed))
 	}
 	return
 }
 
 func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
 	size := 0
-	q.AsyncRequestStorage.Range(func(key string, value AsyncRequestResult) bool {
-		size += len(value.responseBody)
+	q.AsyncRequestStorage.Range(func(key string, value *async_search_storage.AsyncRequestResult) bool {
+		size += len(value.GetResponseBody())
 		return true
 	})
 	return size
@@ -536,15 +525,15 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 	}
 	if result, ok := q.AsyncRequestStorage.Load(id); ok {
-		if result.err != nil {
+		if err := result.GetErr(); err != nil {
 			q.AsyncRequestStorage.Delete(id)
-			logger.ErrorWithCtx(ctx).Msgf("error processing async query: %v", result.err)
+			logger.ErrorWithCtx(ctx).Msgf("error processing async query: %v", err)
 			return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 		}
 		q.AsyncRequestStorage.Delete(id)
 		// We use zstd to conserve memory, as we have a lot of async queries
-		if result.isCompressed {
-			buf, err := util.Decompress(result.responseBody)
+		if result.IsCompressed() {
+			buf, err := util.Decompress(result.GetResponseBody())
 			if err == nil {
 				// Mark trace end is called only when the async query is fully processed
 				// which means that isPartial is false
@@ -557,7 +546,7 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 		// Mark trace end is called only when the async query is fully processed
 		// which means that isPartial is false
 		logger.MarkTraceEndWithCtx(ctx).Msgf("Async query id : %s ended successfully", id)
-		return result.responseBody, nil
+		return result.GetResponseBody(), nil
 	} else {
 		const isPartial = true
 		logger.InfoWithCtx(ctx).Msgf("async query id : %s partial result", id)
@@ -584,7 +573,7 @@ func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncId string, d
 }
 
 func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, asyncRequestIdStr string) {
-	q.AsyncQueriesContexts.Store(asyncRequestIdStr, NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
+	q.AsyncQueriesContexts.Store(asyncRequestIdStr, async_search_storage.NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
 }
 
 // This is a HACK
