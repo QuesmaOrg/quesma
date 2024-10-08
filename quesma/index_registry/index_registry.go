@@ -4,15 +4,58 @@ package index_registry
 
 import (
 	"context"
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
+
+// ---
+
+type indexPattern struct {
+	pattern   string
+	isPattern bool
+	patterns  []string
+}
+
+type namedResolver struct {
+	name     string
+	resolver func(pattern indexPattern) *Decision
+}
+
+type composedIndexResolver struct {
+	decisionLadder []namedResolver
+}
+
+func (ir *composedIndexResolver) Resolve(indexName string) *Decision {
+
+	patterns := strings.Split(indexName, ",")
+
+	input := indexPattern{
+		pattern:   indexName,
+		isPattern: len(patterns) > 1 || strings.Contains(indexName, "*"),
+		patterns:  patterns,
+	}
+
+	for _, resolver := range ir.decisionLadder {
+		decision := resolver.resolver(input)
+
+		if decision != nil {
+			decision.ResolverName = resolver.name
+			return decision
+		}
+	}
+	return &Decision{
+		Message: "Could not resolve pattern. This is a bug.",
+		Err:     fmt.Errorf("could not resolve index"), // TODO better error
+	}
+}
 
 // HACK: we should have separate config for each pipeline
 // maybe we should pass a pipeline name here

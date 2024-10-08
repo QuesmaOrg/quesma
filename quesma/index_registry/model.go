@@ -28,6 +28,31 @@ type Decision struct {
 	ResolverName string
 }
 
+func (d *Decision) String() string {
+
+	var lines []string
+
+	if d.IsClosed {
+		lines = append(lines, "Returns a closed index message.")
+	}
+
+	if d.IsEmpty {
+		lines = append(lines, "Returns an empty result.")
+	}
+
+	if d.Err != nil {
+		lines = append(lines, fmt.Sprintf("Returns error: '%v'.", d.Err))
+	}
+
+	for _, connector := range d.UseConnectors {
+		lines = append(lines, connector.Message())
+	}
+
+	lines = append(lines, fmt.Sprintf("%s (%s).", d.Message, d.ResolverName))
+
+	return strings.Join(lines, " ")
+}
+
 type ConnectorDecision interface {
 	Message() string
 }
