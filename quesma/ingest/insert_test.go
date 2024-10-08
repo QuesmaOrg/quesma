@@ -159,7 +159,7 @@ func ingestProcessorsNonEmpty(cfg *clickhouse.ChTableConfig) []ingestProcessorHe
 
 func ingestProcessors(config *clickhouse.ChTableConfig) []ingestProcessorHelper {
 	ingestProcessor := newIngestProcessorEmpty()
-	ingestProcessor.schemaRegistry = schema.StaticRegistry{}
+	ingestProcessor.schemaRegistry = &schema.StaticRegistry{}
 	return append([]ingestProcessorHelper{{ingestProcessor, false}}, ingestProcessorsNonEmpty(config)...)
 }
 
@@ -168,7 +168,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 		for index2, tableConfig := range configs {
 			for index3, ip := range ingestProcessors(tableConfig) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
-					ip.ip.schemaRegistry = schema.StaticRegistry{}
+					ip.ip.schemaRegistry = &schema.StaticRegistry{}
 					encodings := populateFieldEncodings([]types.JSON{types.MustJSON(tt.insertJson)}, tableName)
 					ignoredFields := ip.ip.getIgnoredFields(tableName)
 					columnsFromJson := JsonToColumns("", types.MustJSON(tt.insertJson), 1,
@@ -412,7 +412,7 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			}
 
 			virtualTableStorage := persistence.NewStaticJSONDatabase()
-			schemaRegistry := schema.StaticRegistry{
+			schemaRegistry := &schema.StaticRegistry{
 				Tables: make(map[schema.TableName]schema.Schema),
 			}
 			schemaRegistry.Tables[schema.TableName(indexName)] = indexSchema

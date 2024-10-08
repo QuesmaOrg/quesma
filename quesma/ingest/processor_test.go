@@ -141,7 +141,7 @@ func TestAddTimestamp(t *testing.T) {
 	}
 	nameFormatter := clickhouse.DefaultColumnNameFormatter()
 	ip := newIngestProcessorEmpty()
-	ip.schemaRegistry = schema.StaticRegistry{}
+	ip.schemaRegistry = &schema.StaticRegistry{}
 	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
 	encodings := populateFieldEncodings([]types.JSON{jsonData}, tableName)
 
