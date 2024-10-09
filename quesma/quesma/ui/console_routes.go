@@ -61,7 +61,11 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	router.HandleFunc("/login-with-elasticsearch", qmc.HandleElasticsearchLogin)
 
 	authenticatedRoutes := router.PathPrefix("/").Subrouter()
-	authenticatedRoutes.Use(authMiddleware)
+	if qmc.cfg.Elasticsearch.User == "" && qmc.cfg.Elasticsearch.Password == "" {
+		logger.Warn().Msg("admin console authentication is disabled")
+	} else {
+		authenticatedRoutes.Use(authMiddleware)
+	}
 
 	authenticatedRoutes.HandleFunc("/", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateDashboard()
@@ -232,6 +236,10 @@ var store = sessions.NewCookieStore([]byte("test"))
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		//if !authEnabled {
+		//	next.ServeHTTP(w, r)
+		//	return
+		//}
 		session, err := store.Get(r, quesmaSessionName)
 		userID, ok := session.Values["userID"].(string)
 		if !ok || userID == "" || err != nil {
