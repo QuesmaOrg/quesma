@@ -5,6 +5,7 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -87,6 +88,7 @@ func (a *pancakeTransformer) pipelineAggregationToLayer(previousAggrNames []stri
 		return nil, fmt.Errorf("pipeline aggregation is nil")
 	}
 
+	pp.Println(pipeline.queryType)
 	pipelineQueryType, ok := pipeline.queryType.(model.PipelineQueryType)
 	if !ok {
 		return nil, fmt.Errorf("pipeline aggregation %s is not pipeline aggregation, type: %s", pipeline.name, pipeline.queryType.AggregationType().String())
@@ -191,6 +193,7 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 
 		case model.PipelineMetricsAggregation, model.PipelineBucketAggregation:
 			pipeline, err := a.pipelineAggregationToLayer(previousAggrNames, childAgg)
+			pp.Println(pipeline)
 			if err != nil {
 				return nil, err
 			}
@@ -289,6 +292,7 @@ func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelL
 func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, queryType model.QueryType) (
 	parentBucketLayer *pancakeModelLayer, layerIdx int, err error) {
 
+	pp.Println(queryType)
 	pipeline, ok := queryType.(model.PipelineQueryType)
 	if !ok {
 		return nil, -1, fmt.Errorf("query type is not pipeline aggregation")
