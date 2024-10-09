@@ -75,6 +75,29 @@ func TestQuesmaTransparentProxyConfiguration(t *testing.T) {
 	assert.Equal(t, false, legacyConf.CreateCommonTable)
 }
 
+func TestQuesmaTransparentProxyWithoutNoopConfiguration(t *testing.T) {
+	t.Skip("not working yet")
+
+	os.Setenv(configFileLocationEnvVar, "./test_configs/quesma_as_transparent_proxy_without_noop.yml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+	assert.False(t, legacyConf.TransparentProxy) // even though transparent proxy would work similarly, the user explicitly requested two Quesma pipelines
+	assert.Equal(t, 2, len(legacyConf.IndexConfig))
+	siemIndexConf := legacyConf.IndexConfig["siem"]
+	logsIndexConf := legacyConf.IndexConfig["logs"]
+
+	assert.Equal(t, []string{ElasticsearchTarget}, siemIndexConf.QueryTarget)
+	assert.Equal(t, []string{ElasticsearchTarget}, siemIndexConf.IngestTarget)
+
+	assert.Equal(t, []string{ElasticsearchTarget}, logsIndexConf.QueryTarget)
+	assert.Equal(t, []string{ElasticsearchTarget}, logsIndexConf.IngestTarget)
+	assert.Equal(t, true, legacyConf.EnableIngest)
+	assert.Equal(t, false, legacyConf.CreateCommonTable)
+}
+
 func TestQuesmaAddingHydrolixTablesToExistingElasticsearch(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/quesma_adding_two_hydrolix_tables.yaml")
 	cfg := LoadV2Config()
@@ -87,11 +110,32 @@ func TestQuesmaAddingHydrolixTablesToExistingElasticsearch(t *testing.T) {
 	siemIndexConf := legacyConf.IndexConfig["siem"]
 	logsIndexConf := legacyConf.IndexConfig["logs"]
 
-	assert.Equal(t, []string{"clickhouse"}, siemIndexConf.QueryTarget)
-	assert.Equal(t, []string{"elasticsearch"}, siemIndexConf.IngestTarget)
+	assert.Equal(t, []string{ClickhouseTarget}, siemIndexConf.QueryTarget)
+	assert.Equal(t, []string{ElasticsearchTarget}, siemIndexConf.IngestTarget)
 
-	assert.Equal(t, []string{"clickhouse"}, logsIndexConf.QueryTarget)
-	assert.Equal(t, []string{"elasticsearch"}, logsIndexConf.IngestTarget)
+	assert.Equal(t, []string{ClickhouseTarget}, logsIndexConf.QueryTarget)
+	assert.Equal(t, []string{ElasticsearchTarget}, logsIndexConf.IngestTarget)
+	assert.Equal(t, true, legacyConf.EnableIngest)
+	assert.Equal(t, false, legacyConf.CreateCommonTable)
+}
+
+func TestIngestWithSingleConnector(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/ingest_with_single_connector.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+	assert.False(t, legacyConf.TransparentProxy)
+	assert.Equal(t, 2, len(legacyConf.IndexConfig))
+	siemIndexConf := legacyConf.IndexConfig["siem"]
+	logsIndexConf := legacyConf.IndexConfig["logs"]
+
+	assert.Equal(t, []string{ClickhouseTarget}, siemIndexConf.QueryTarget)
+	assert.Equal(t, []string{ElasticsearchTarget}, siemIndexConf.IngestTarget)
+
+	assert.Equal(t, []string{ClickhouseTarget}, logsIndexConf.QueryTarget)
+	assert.Equal(t, []string{ElasticsearchTarget}, logsIndexConf.IngestTarget)
 	assert.Equal(t, true, legacyConf.EnableIngest)
 	assert.Equal(t, false, legacyConf.CreateCommonTable)
 }
@@ -111,9 +155,9 @@ func TestQuesmaHydrolixQueryOnly(t *testing.T) {
 	logsIndexConf, ok := legacyConf.IndexConfig["logs"]
 	assert.True(t, ok)
 
-	assert.Equal(t, []string{"clickhouse"}, siemIndexConf.QueryTarget)
+	assert.Equal(t, []string{ClickhouseTarget}, siemIndexConf.QueryTarget)
 
-	assert.Equal(t, []string{"clickhouse"}, logsIndexConf.QueryTarget)
+	assert.Equal(t, []string{ClickhouseTarget}, logsIndexConf.QueryTarget)
 
 	assert.Equal(t, false, legacyConf.EnableIngest)
 	assert.Equal(t, false, legacyConf.IngestStatistics)

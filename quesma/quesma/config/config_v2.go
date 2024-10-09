@@ -420,22 +420,18 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 			}
 		}
 		if onlyProcessorInPipeline.Type == QuesmaV1ProcessorQuery || onlyProcessorInPipeline.Type == QuesmaV1ProcessorIngest {
-			if len(pipeline.BackendConnectors) != 2 {
-				return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline %s has a processor of type %s which requires two backend connectors", pipeline.Name, onlyProcessorInPipeline.Type)))
+			foundElasticBackendConnector := false
+			for _, backendConnectorName := range pipeline.BackendConnectors {
+				backendConnector := c.getBackendConnectorByName(backendConnectorName)
+				if backendConnector == nil {
+					return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("backend connector named %s referenced in %s not found in configuration", backendConnectorName, pipeline.Name)))
+				}
+				if backendConnector.Type == ElasticsearchBackendConnectorName {
+					foundElasticBackendConnector = true
+				}
 			}
-			bConn1, bConn2 := c.getBackendConnectorByName(pipeline.BackendConnectors[0]), c.getBackendConnectorByName(pipeline.BackendConnectors[1])
-			if bConn1 == nil {
-				return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[0], pipeline.Name)))
-			}
-			if bConn2 == nil {
-				return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[1], pipeline.Name)))
-			}
-			backendConnTypes := []string{bConn1.Type, bConn2.Type}
-			if !slices.Contains(backendConnTypes, ElasticsearchBackendConnectorName) {
+			if !foundElasticBackendConnector {
 				return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline %s has a processor of type %s which requires having one elasticsearch backend connector", pipeline.Name, onlyProcessorInPipeline.Type)))
-			}
-			if !slices.Contains(backendConnTypes, ClickHouseBackendConnectorName) && !slices.Contains(backendConnTypes, ClickHouseOSBackendConnectorName) && !slices.Contains(backendConnTypes, HydrolixBackendConnectorName) {
-				return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline %s has a processor of type %s which requires having one Clickhouse-compatible backend connector", pipeline.Name, onlyProcessorInPipeline.Type)))
 			}
 		}
 	}
