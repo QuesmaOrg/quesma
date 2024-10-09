@@ -701,7 +701,7 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	tableFormatter TableColumNameFormatter) error {
 
 	decision := lm.indexRegistry.Resolve(table_resolver.IngestPipeline, tableName)
-	table_resolver.TODO(lm.indexRegistry, tableName, decision)
+	table_resolver.TODO("processInsertQuery",  decision)
 
 	indexConf, ok := lm.cfg.IndexConfig[tableName]
 	if ok && indexConf.UseCommonTable {

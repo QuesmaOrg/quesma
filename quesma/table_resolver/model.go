@@ -8,10 +8,7 @@ import (
 	"strings"
 )
 
-
-
 type Decision struct {
-
 	// obvious fields
 	IsClosed bool
 	Err      error
@@ -71,7 +68,7 @@ type ConnectorDecisionClickhouse struct {
 }
 
 func (d *ConnectorDecisionClickhouse) Message() string {
-	lines := []string{}
+	var lines []string
 
 	lines = append(lines, "Pass to clickhouse.")
 	if len(d.ClickhouseTableName) > 0 {
@@ -87,7 +84,8 @@ func (d *ConnectorDecisionClickhouse) Message() string {
 	return strings.Join(lines, " ")
 }
 
-type PatternDecision struct {
+// PatternDecisions is a struct that holds the pattern and the decisions made for that pattern
+type PatternDecisions struct {
 	Pattern   string
 	Decisions map[string]*Decision
 }
@@ -98,13 +96,17 @@ type TableResolver interface {
 
 	Resolve(pipeline string, indexPattern string) *Decision
 
-
 	Pipelines() []string
-	RecentDecisions() []PatternDecision
+	RecentDecisions() []PatternDecisions
 }
 
-func TODO(args ...any) {
-	logger.Info().Msgf("TODO: use table_resolver decision here  %v", args)
+// TODO will be removed in the next PR,
+// right now it is used to mark places where we must refactor the code
+func TODO(place string, decision *Decision) {
+	var trace bool
+	if trace {
+		logger.Debug().Msgf("TODO: use table_resolver decision here  %s : %v", place, decision.String())
+	}
 }
 
 // TODO hardcoded pipeline names

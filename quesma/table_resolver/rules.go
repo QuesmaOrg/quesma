@@ -9,32 +9,34 @@ import (
 	"quesma/end_user_errors"
 	"quesma/quesma/config"
 	"quesma/util"
-	"strings"
 )
 
-func patternIsNotAllowed(input pattern) *Decision {
+// TODO these rules may be incorrect and incomplete
+// They will be fixed int the next iteration.
+
+func patternIsNotAllowed(input parsedPattern) *Decision {
 	if !input.isPattern {
 		return nil
 	}
 	return &Decision{
 		Message: "Pattern is not allowed.",
-		Err:     fmt.Errorf("pattern is not allowed"), // TODO better error
+		Err:     fmt.Errorf("parsedPattern is not allowed"),
 	}
 }
 
-func makeIsDisabledInConfig(cfg map[string]config.IndexConfiguration) func(input pattern) *Decision {
+func makeIsDisabledInConfig(cfg map[string]config.IndexConfiguration, pipeline string) func(input parsedPattern) *Decision {
 
-	return func(input pattern) *Decision {
+	return func(input parsedPattern) *Decision {
 
 		if input.isPattern {
 
-			// pass to the next tableResolver
+			// pass to the next resolver
 
 			return nil
 		} else {
-			idx, ok := cfg[input.pattern]
+			idx, ok := cfg[input.source]
 			if ok {
-				if len(idx.Target) == 0 {
+				if len(getTargets(idx, pipeline)) == 0 {
 					return &Decision{
 						IsClosed: true,
 						Message:  "Index is disabled in config.",
@@ -47,9 +49,9 @@ func makeIsDisabledInConfig(cfg map[string]config.IndexConfiguration) func(input
 	}
 }
 
-func resolveInternalElasticName(pattern pattern) *Decision {
+func resolveInternalElasticName(pattern parsedPattern) *Decision {
 
-	if elasticsearch.IsInternalIndex(pattern.pattern) {
+	if elasticsearch.IsInternalIndex(pattern.source) {
 		return &Decision{
 			UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
 			Message:       "It's kibana internals",
@@ -59,135 +61,25 @@ func resolveInternalElasticName(pattern pattern) *Decision {
 	return nil
 }
 
-func makeElasticIsDefault(cfg map[string]config.IndexConfiguration) func(input pattern) *Decision {
+func makeElasticIsDefault(cfg map[string]config.IndexConfiguration) func(input parsedPattern) *Decision {
 
-	return func(input pattern) *Decision {
-
-		/*
-			wildcard, ok := cfg["*"]
-			if !ok {
-				return &Decision{
-					Message: "wildcard is not defined in the config",
-					Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("Wildcard is not defined in the config ", input.pattern)),
-				}
-			}
-
-			targets := getTargets(wildcard)
-			fmt.Println("XXXX ", input, targets[0])
-
-			if len(targets) == 0 {
-				return &Decision{
-					Message:  "Disabled in the config.",
-					IsClosed: true,
-				}
-			}
-
-			if len(targets) != 1 {
-				return &Decision{
-					Message: "Unsupported configuration",
-					Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("There are too many backend connectors ", input.pattern)),
-				}
-			}
-
-		*/
-
-		// TODO
-		// read the wildcard configuration, and check if it's enabled
-		// rwildcard is not passed in the config
-
+	return func(input parsedPattern) *Decision {
 		return &Decision{
 			UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
 			Message:       "Elastic is default.",
 		}
-
 	}
 }
 
-func makeCommonTableAsDefault(cfg map[string]config.IndexConfiguration, pipeline string) func(input pattern) *Decision {
+func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfiguration, pipeline string) func(input parsedPattern) *Decision {
 
-	return func(input pattern) *Decision {
-
-		// it will not work
-		// default configuration is not passed in the config
-		//
-
-		wildcard, ok := cfg["*"]
-		if !ok {
-			return &Decision{
-				Message: "Wildcard is not defined in the config.",
-				Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("wildcard is not defined in the config")),
-			}
-		}
-
-		targets := getTargets(wildcard, pipeline)
-
-		if len(targets) == 0 {
-			return &Decision{
-				Message:  "Disabled in the config.",
-				IsClosed: true,
-			}
-		}
-
-		if len(targets) != 1 {
-			return &Decision{
-				Message: "Unsupported configuration",
-				Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("there are too many backend connectors ")),
-			}
-		}
-
-		if targets[0] == "clickhouse" {
-
-			return &Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
-					IsCommonTable: true,
-				}},
-				Message: "Use common table.",
-			}
-		}
-		return nil
-	}
-}
-
-func (r *tableRegistryImpl) makeResolveAutodiscovery(cfg map[string]config.IndexConfiguration) func(input pattern) *Decision {
-
-	return func(input pattern) *Decision {
+	return func(input parsedPattern) *Decision {
 
 		if input.isPattern {
 			return nil
 		}
 
-		// TODO what is autodiscovery ?
-
-		// we should expose all tables ASIS ??
-
-		var enabledAutodiscovery bool
-
-		if !enabledAutodiscovery {
-			return nil
-		}
-
-		if table, ok := r.clickhouseIndexes[input.pattern]; ok && !table.isVirtual {
-			return &Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
-					ClickhouseTableName: table.name,
-				}},
-				Message: "Found the physical table. Autodiscovery.",
-			}
-		}
-
-		return nil
-	}
-}
-
-func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfiguration, pipeline string) func(input pattern) *Decision {
-
-	return func(input pattern) *Decision {
-
-		if input.isPattern {
-			return nil
-		}
-
-		if cfg, ok := indexConfig[input.pattern]; ok {
+		if cfg, ok := indexConfig[input.source]; ok {
 			if !cfg.UseCommonTable {
 
 				targets := getTargets(cfg, pipeline)
@@ -215,8 +107,8 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 						targetDecision = &ConnectorDecisionElastic{}
 					case "clickhouse":
 						targetDecision = &ConnectorDecisionClickhouse{
-							ClickhouseTableName: input.pattern,
-							Indexes:             []string{input.pattern},
+							ClickhouseTableName: input.source,
+							Indexes:             []string{input.source},
 						}
 					default:
 						return &Decision{
@@ -236,8 +128,8 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 						Message: "Enabled in the config. Physical table will be used.",
 
 						UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
-							ClickhouseTableName: input.pattern,
-							Indexes:             []string{input.pattern},
+							ClickhouseTableName: input.source,
+							Indexes:             []string{input.source},
 						}},
 					}
 
@@ -256,15 +148,15 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 	}
 }
 
-func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input pattern) *Decision {
+func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input parsedPattern) *Decision {
 
-	return func(input pattern) *Decision {
+	return func(input parsedPattern) *Decision {
 		if input.isPattern {
 
 			matchedElastic := []string{}
 			matchedClickhouse := []string{}
 
-			for _, pattern := range input.patterns {
+			for _, pattern := range input.parts {
 
 				for indexName := range r.elasticIndexes {
 					if util.IndexPatternMatches(pattern, indexName) {
@@ -286,7 +178,7 @@ func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input 
 
 			case nElastic > 0 && nClickhouse > 0:
 				return &Decision{
-					Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", input.patterns, matchedElastic, matchedClickhouse)),
+					Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index parsedPattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", input.parts, matchedElastic, matchedClickhouse)),
 					Message: "Both Elastic and Clickhouse matched.",
 				}
 
@@ -317,21 +209,21 @@ func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input 
 
 }
 
-func (r *tableRegistryImpl) makeClickhouseCommonTableResolver(cfg map[string]config.IndexConfiguration) func(input pattern) *Decision {
+func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexConfiguration) func(input parsedPattern) *Decision {
 
-	return func(input pattern) *Decision {
+	return func(input parsedPattern) *Decision {
 
 		if input.isPattern {
 
 			// TODO at this point we shouldn't have elastic indexes?
-			for _, pattern := range input.patterns {
+			for _, pattern := range input.parts {
 				for indexName := range r.elasticIndexes {
 					if util.IndexPatternMatches(pattern, indexName) {
 
 						// TODO what about config ?
 						// TODO ?
 						return &Decision{
-							Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to elasticsearch indices", input.patterns)),
+							Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index parsedPattern [%s] resolved to elasticsearch indices", input.parts)),
 							Message: "We're not supporting common tables for Elastic.",
 						}
 					}
@@ -340,7 +232,7 @@ func (r *tableRegistryImpl) makeClickhouseCommonTableResolver(cfg map[string]con
 
 			matchedIndexes := []string{}
 
-			for _, pattern := range input.patterns {
+			for _, pattern := range input.parts {
 				for indexName, index := range r.clickhouseIndexes {
 
 					// TODO what about config ?
@@ -368,18 +260,18 @@ func (r *tableRegistryImpl) makeClickhouseCommonTableResolver(cfg map[string]con
 			}
 		}
 
-		if input.pattern == common_table.TableName {
+		if input.source == common_table.TableName {
 			return &Decision{
 				Err:     fmt.Errorf("common table is not allowed to be queried directly"),
 				Message: "It's internal table. Not allowed to be queried directly.",
 			}
 		}
 
-		if idxConfig, ok := cfg[input.pattern]; ok && idxConfig.UseCommonTable {
+		if idxConfig, ok := cfg[input.source]; ok && idxConfig.UseCommonTable {
 			return &Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					Indexes:             []string{input.pattern},
+					Indexes:             []string{input.source},
 				}},
 				Message: "Common table will be used.",
 			}
@@ -388,22 +280,3 @@ func (r *tableRegistryImpl) makeClickhouseCommonTableResolver(cfg map[string]con
 		return nil
 	}
 }
-
-func resolveDockerIndexes(pattern pattern) *Decision {
-
-	if strings.Contains(pattern.pattern, "logs-elastic_agent") ||
-		strings.Contains(pattern.pattern, "metrics-docker") ||
-		strings.Contains(pattern.pattern, "metrics-system") {
-		return &Decision{
-			UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
-				IsCommonTable: true,
-				Indexes:       pattern.patterns,
-			}},
-			Message: "Docker index.",
-		}
-	}
-
-	return nil
-}
-
-var _ = resolveDockerIndexes

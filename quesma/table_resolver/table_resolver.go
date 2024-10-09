@@ -20,18 +20,19 @@ type tableResolver interface {
 	resolve(indexPattern string) *Decision
 }
 
-type pattern struct {
+// parsedPattern stores the parsed index pattern
+type parsedPattern struct {
 	// source
-	pattern string
+	source string
 
 	// parsed data
 	isPattern bool
-	patterns  []string
+	parts     []string
 }
 
 type namedResolver struct {
 	name     string
-	resolver func(pattern pattern) *Decision
+	resolver func(pattern parsedPattern) *Decision
 }
 
 type composedResolver struct {
@@ -39,13 +40,12 @@ type composedResolver struct {
 }
 
 func (ir *composedResolver) resolve(indexName string) *Decision {
-
 	patterns := strings.Split(indexName, ",")
 
-	input := pattern{
-		pattern:   indexName,
+	input := parsedPattern{
+		source:    indexName,
 		isPattern: len(patterns) > 1 || strings.Contains(indexName, "*"),
-		patterns:  patterns,
+		parts:     patterns,
 	}
 
 	for _, resolver := range ir.decisionLadder {
@@ -57,7 +57,7 @@ func (ir *composedResolver) resolve(indexName string) *Decision {
 		}
 	}
 	return &Decision{
-		Message: "Could not resolve pattern. This is a bug.",
+		Message: "Could not resolve parsedPattern. This is a bug.",
 		Err:     fmt.Errorf("could not resolve index"), // TODO better error
 	}
 }
@@ -75,6 +75,7 @@ func getTargets(indexConf config.IndexConfiguration, pipeline string) []string {
 	}
 }
 
+// table represents a table or an index discovered in the connector (clickhouse or elastic or ...)
 type table struct {
 	name      string
 	isVirtual bool
@@ -83,7 +84,6 @@ type table struct {
 type pipelineResolver struct {
 	pipelineName string
 
-	cfg             map[string]config.IndexConfiguration
 	resolver        tableResolver
 	recentDecisions map[string]*Decision
 }
@@ -103,7 +103,6 @@ type tableRegistryImpl struct {
 }
 
 func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decision {
-
 	r.m.Lock()
 	defer r.m.Unlock()
 
@@ -119,11 +118,13 @@ func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decis
 
 	decision := res.resolver.resolve(indexPattern)
 	res.recentDecisions[indexPattern] = decision
+
+	logger.Debug().Msgf("Decision for pipeline '%s', pattern '%s':  %s", pipeline, indexPattern, decision.String())
+
 	return decision
 }
 
 func (r *tableRegistryImpl) updateIndexes() {
-
 	r.m.Lock()
 	defer r.m.Unlock()
 
@@ -131,19 +132,20 @@ func (r *tableRegistryImpl) updateIndexes() {
 		for _, res := range r.pipelineResolvers {
 			res.recentDecisions = make(map[string]*Decision)
 		}
-
 	}()
 
 	logger.Info().Msgf("Index registry updating state.")
 
 	// TODO how to interact with the table discovery ?
+	// right now we enforce the reload of the table definitions
+	// schema registry is doing the same
+	// we should inject list of tables into the resolver
 	r.tableDiscovery.ReloadTableDefinitions()
 
 	tableMap := r.tableDiscovery.TableDefinitions()
 	clickhouseIndexes := make(map[string]table)
 
 	tableMap.Range(func(name string, tableDef *clickhouse.Table) bool {
-
 		clickhouseIndexes[name] = table{
 			name: name,
 		}
@@ -151,7 +153,7 @@ func (r *tableRegistryImpl) updateIndexes() {
 	})
 
 	r.clickhouseIndexes = clickhouseIndexes
-	logger.Info().Msgf("Clickhouse indexes updated: %v", clickhouseIndexes)
+	logger.Info().Msgf("Clickhouse tables updated: %v", clickhouseIndexes)
 
 	elasticIndexes := make(map[string]table)
 	sources, ok, err := r.elasticIndexResolver.Resolve("*")
@@ -170,7 +172,7 @@ func (r *tableRegistryImpl) updateIndexes() {
 		}
 	}
 
-	logger.Info().Msgf("Elastic indexes updated: %v", elasticIndexes)
+	logger.Info().Msgf("Elastic tables updated: %v", elasticIndexes)
 	r.elasticIndexes = elasticIndexes
 }
 
@@ -180,13 +182,13 @@ func (r *tableRegistryImpl) updateState() {
 
 func (r *tableRegistryImpl) Stop() {
 	r.cancel()
-	logger.Info().Msg("Index registry stopped.")
+	logger.Info().Msg("Table resolver stopped.")
 }
 
 func (r *tableRegistryImpl) Start() {
 	go func() {
 		defer recovery.LogPanic()
-		logger.Info().Msg("Index registry started.")
+		logger.Info().Msg("Table resolve started.")
 
 		for {
 			select {
@@ -199,39 +201,37 @@ func (r *tableRegistryImpl) Start() {
 	}()
 }
 
-func (r *tableRegistryImpl) RecentDecisions() []PatternDecision {
-
+func (r *tableRegistryImpl) RecentDecisions() []PatternDecisions {
 	r.m.Lock()
 	defer r.m.Unlock()
 
 	var patternsMap = make(map[string]bool)
 
 	for _, res := range r.pipelineResolvers {
-		for pattern := range res.recentDecisions {
-			patternsMap[pattern] = true
+		for p := range res.recentDecisions {
+			patternsMap[p] = true
 		}
 	}
 
 	var patterns []string
-	for pattern := range patternsMap {
-		patterns = append(patterns, pattern)
+	for p := range patternsMap {
+		patterns = append(patterns, p)
 	}
 
 	sort.Strings(patterns)
 
-	var res []PatternDecision
-	for _, pattern := range patterns {
+	var res []PatternDecisions
+	for _, p := range patterns {
 
-		pd := PatternDecision{
-			Pattern:   pattern,
+		pd := PatternDecisions{
+			Pattern:   p,
 			Decisions: make(map[string]*Decision),
 		}
 		for _, resolver := range r.pipelineResolvers {
-			if decision, ok := resolver.recentDecisions[pattern]; ok {
+			if decision, ok := resolver.recentDecisions[p]; ok {
 				pd.Decisions[resolver.pipelineName] = decision
 			}
 		}
-
 		res = append(res, pd)
 	}
 
@@ -254,11 +254,9 @@ func (r *tableRegistryImpl) Pipelines() []string {
 }
 
 func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhouse.TableDiscovery, elasticResolver elasticsearch.IndexResolver) TableResolver {
-
 	ctx, cancel := context.WithCancel(context.Background())
 
-	ingestConf := quesmaConf.IndexConfig
-	queryConf := quesmaConf.IndexConfig
+	indexConf := quesmaConf.IndexConfig
 
 	res := &tableRegistryImpl{
 		ctx:    ctx,
@@ -269,20 +267,22 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 		pipelineResolvers:    make(map[string]*pipelineResolver),
 	}
 
+	// TODO Here we should read the config and create resolver for each pipeline defined.
+	// TODO We should use the pipeline name as a key in the map.
+
 	ingestResolver := &pipelineResolver{
 		pipelineName: IngestPipeline,
-		cfg:          ingestConf,
+
 		resolver: &composedResolver{
 			decisionLadder: []namedResolver{
 				{"patternIsNotAllowed", patternIsNotAllowed},
 				{"kibanaInternal", resolveInternalElasticName},
-				{"disabled", makeIsDisabledInConfig(ingestConf)},
-				//{"dockerIndexes", resolveDockerIndexes},
-				{"autodiscovery", res.makeResolveAutodiscovery(ingestConf)},
-				{"singleIndex", res.singleIndex(ingestConf, IngestPipeline)},
-				{"commonTable", res.makeClickhouseCommonTableResolver(ingestConf)},
-				{"elasticAsDefault", makeElasticIsDefault(ingestConf)},
-				{"commonTableAsDefault", makeCommonTableAsDefault(ingestConf, IngestPipeline)},
+				{"disabled", makeIsDisabledInConfig(indexConf, QueryPipeline)},
+
+				{"singleIndex", res.singleIndex(indexConf, IngestPipeline)},
+				{"commonTable", res.makeCommonTableResolver(indexConf)},
+
+				{"elasticAsDefault", makeElasticIsDefault(indexConf)},
 			},
 		},
 		recentDecisions: make(map[string]*Decision),
@@ -292,31 +292,26 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 
 	queryResolver := &pipelineResolver{
 		pipelineName: QueryPipeline,
-		cfg:          ingestConf,
+
 		resolver: &composedResolver{
 			decisionLadder: []namedResolver{
-				// checking if we can handle the pattern
+				// checking if we can handle the parsedPattern
 				{"kibanaInternal", resolveInternalElasticName},
 				{"searchAcrossConnectors", res.makeCheckIfPatternMatchesAllConnectors()},
-				{"disabled", makeIsDisabledInConfig(queryConf)},
+				{"disabled", makeIsDisabledInConfig(indexConf, QueryPipeline)},
 
-				// resolving how we can handle the pattern
-				//{"dockerIndexes", resolveDockerIndexes},
-				{"autodiscovery", res.makeResolveAutodiscovery(queryConf)},
-				{"singleIndex", res.singleIndex(queryConf, IngestPipeline)},
-				{"commonTable", res.makeClickhouseCommonTableResolver(queryConf)},
+				{"singleIndex", res.singleIndex(indexConf, QueryPipeline)},
+				{"commonTable", res.makeCommonTableResolver(indexConf)},
 
 				// default action
-				{"elasticAsDefault", makeElasticIsDefault(queryConf)},
-				{"commonTableAsDefault", makeCommonTableAsDefault(queryConf, IngestPipeline)},
+				{"elasticAsDefault", makeElasticIsDefault(indexConf)},
 			},
 		},
 		recentDecisions: make(map[string]*Decision),
 	}
 
 	res.pipelineResolvers[QueryPipeline] = queryResolver
-
+	// update the state ASAP
 	res.updateState()
-
 	return res
 }

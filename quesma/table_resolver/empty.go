@@ -4,7 +4,7 @@ package table_resolver
 
 type EmptyIndexRegistry struct {
 	Decisions          map[string]*Decision
-	RecentDecisionList []PatternDecision
+	RecentDecisionList []PatternDecisions
 	PipelinesList      []string
 }
 
@@ -18,7 +18,7 @@ func (r *EmptyIndexRegistry) Resolve(pipeline string, indexPattern string) *Deci
 	return r.Decisions[indexPattern]
 }
 
-func (r *EmptyIndexRegistry) RecentDecisions() []PatternDecision {
+func (r *EmptyIndexRegistry) RecentDecisions() []PatternDecisions {
 	return r.RecentDecisionList
 }
 

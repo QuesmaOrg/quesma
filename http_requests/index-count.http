@@ -1,1 +1,1 @@
-GET http://localhost:8080/xxyyxzz/_count
+GET http://localhost:8080/logs-*/_count

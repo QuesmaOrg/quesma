@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-func TestIndexRegistryImpl(t *testing.T) {
+func TestTableResolver(t *testing.T) {
 
 	indexConf := make(map[string]config.IndexConfiguration)
 
@@ -67,13 +67,13 @@ func TestIndexRegistryImpl(t *testing.T) {
 		},
 
 		{
-			name:              "ingest with a pattern",
+			name:              "ingest with a parsedPattern",
 			pipeline:          IngestPipeline,
 			pattern:           "*",
 			clickhouseIndexes: []string{"index1", "index2"},
 			elasticIndexes:    []string{"index3"},
 			expected: Decision{
-				Err: fmt.Errorf("pattern is not allowed"),
+				Err: fmt.Errorf("parsedPattern is not allowed"),
 			},
 		},
 	}
@@ -110,7 +110,6 @@ func TestIndexRegistryImpl(t *testing.T) {
 
 			assert.NotNil(t, decision)
 			if tt.expected.Err != nil {
-
 				if !strings.Contains(decision.Err.Error(), tt.expected.Err.Error()) {
 					t.Errorf("Error is not an instance of the expected error: got %v, expected %v", decision.Err, tt.expected.Err)
 				}

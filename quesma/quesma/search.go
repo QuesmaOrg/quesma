@@ -283,7 +283,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 
 	decision := q.indexRegistry.Resolve(table_resolver.QueryPipeline, indexPattern)
-	table_resolver.TODO("handleSearchCommon", indexPattern, " -> ", decision)
+	table_resolver.TODO("handleSearchCommon",  decision)
 
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im, q.schemaRegistry)
 
