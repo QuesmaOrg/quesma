@@ -70,7 +70,7 @@ func generateTopNavigation(target string) []byte {
 		buffer.Html(` class="active"`)
 	}
 	buffer.Html(`><a href="/data-sources">Data sources</a></li>`)
-
+	buffer.Html(`<li><a href="/logout">Logout</a></li>`)
 	buffer.Html("\n</ul>\n")
 	buffer.Html("\n</div>\n")
 
