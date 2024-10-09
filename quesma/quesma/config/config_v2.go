@@ -313,6 +313,9 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 }
 
 func (c *QuesmaNewConfiguration) validateFrontendConnector(fc FrontendConnector) error {
+	if len(fc.Name) == 0 {
+		return fmt.Errorf("frontend connector must have a non-empty name")
+	}
 	if fc.Type != ElasticsearchFrontendIngestConnectorName && fc.Type != ElasticsearchFrontendQueryConnectorName {
 		return fmt.Errorf(fmt.Sprintf("frontend connector's [%s] type not recognized, only `%s` and `%s` are supported at this moment", fc.Name, ElasticsearchFrontendIngestConnectorName, ElasticsearchFrontendQueryConnectorName))
 	}
@@ -344,6 +347,9 @@ func (c *QuesmaNewConfiguration) definedProcessorNames() []string {
 }
 
 func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
+	if len(p.Name) == 0 {
+		return fmt.Errorf("processor must have a non-empty name")
+	}
 	if !slices.Contains(getAllowedProcessorTypes(), p.Type) {
 		return fmt.Errorf("processor type not recognized, only `quesma-v1-processor-noop`, `quesma-v1-processor-query` and `quesma-v1-processor-ingest` are supported at this moment")
 	}
@@ -374,6 +380,9 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 
 func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 	var _, errAcc error
+	if len(pipeline.Name) == 0 {
+		errAcc = multierror.Append(errAcc, fmt.Errorf("pipeline must have a non-empty name"))
+	}
 	if len(pipeline.FrontendConnectors) != 1 {
 		errAcc = multierror.Append(errAcc, fmt.Errorf("pipeline must have exactly one frontend connector"))
 	} else if len(pipeline.FrontendConnectors) == 0 {
@@ -711,6 +720,9 @@ func (c *QuesmaNewConfiguration) getRelationalDBConf() (*RelationalDbConfigurati
 func (c *QuesmaNewConfiguration) validateBackendConnectors() error {
 	elasticBackendConnectors, clickhouseBackendConnectors := 0, 0
 	for _, backendConn := range c.BackendConnectors {
+		if len(backendConn.Name) == 0 {
+			return fmt.Errorf("backend connector must have a non-empty name")
+		}
 		if backendConn.Type == ElasticsearchBackendConnectorName {
 			elasticBackendConnectors += 1
 		} else if backendConn.Type == ClickHouseBackendConnectorName || backendConn.Type == ClickHouseOSBackendConnectorName || backendConn.Type == HydrolixBackendConnectorName {
