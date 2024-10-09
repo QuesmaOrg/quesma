@@ -69,7 +69,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 		"host.name":         {PropertyName: "host.name", InternalPropertyName: "host_name", Type: schema.QuesmaTypeObject},
 		"properties::isreg": {PropertyName: "properties::isreg", InternalPropertyName: "properties_isreg", Type: schema.QuesmaTypeInteger},
 	}
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
@@ -123,7 +123,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 		"-@bytes":           {PropertyName: "-@bytes", InternalPropertyName: "__bytes", Type: schema.QuesmaTypeInteger},
 	}
 
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
@@ -168,7 +168,7 @@ func TestSearchHandler(t *testing.T) {
 		"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 	}
 
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
@@ -216,9 +216,71 @@ func TestSearchHandler(t *testing.T) {
 	}
 }
 
+func TestSearchHandlerRuntimeMappings(t *testing.T) {
+	fields := map[schema.FieldName]schema.Field{
+		"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword},
+	}
+
+	var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
+		Name:   tableName,
+		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*clickhouse.Column{
+			"@timestamp": {
+				Name: "@timestamp",
+				Type: clickhouse.NewBaseType("DateTime64"),
+			},
+			"message": {
+				Name: "message",
+				Type: clickhouse.NewBaseType("String"),
+			},
+		},
+		Created: true,
+	})
+
+	s := &schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
+			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
+		},
+	}
+	for i, tt := range testdata.TestSearchRuntimeMappings {
+		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+			var db *sql.DB
+			var mock sqlmock.Sqlmock
+			if len(tt.WantedRegexes) > 0 {
+				db, mock = util.InitSqlMockWithPrettyPrint(t, false)
+			} else {
+				db, mock = util.InitSqlMockWithPrettySqlAndPrint(t, false)
+			}
+			defer db.Close()
+
+			lm := clickhouse.NewLogManagerWithConnection(db, table)
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			if len(tt.WantedRegexes) > 0 {
+				for _, wantedRegex := range tt.WantedRegexes {
+					mock.ExpectQuery(testdata.EscapeWildcard(testdata.EscapeBrackets(wantedRegex))).
+						WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "message"}))
+				}
+			} else {
+				for _, query := range tt.WantedQueries {
+					mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "message"}))
+				}
+			}
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+			var err error
+			_, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
+			assert.NoError(t, err)
+
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatal("there were unfulfilled expections:", err)
+			}
+		})
+	}
+}
+
 // TODO this test gives wrong results??
 func TestSearchHandlerNoAttrsConfig(t *testing.T) {
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
@@ -248,7 +310,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 }
 
 func TestAsyncSearchFilter(t *testing.T) {
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
@@ -293,7 +355,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 // (testing of creating response is lacking), because of `sqlmock` limitation.
 // It can't return uint64, thus creating response code panics because of that.
 func TestHandlingDateTimeFields(t *testing.T) {
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
@@ -420,7 +482,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 // (top 10 values, "other" value, min/max).
 // Both `_search`, and `_async_search` handlers are tested.
 func TestNumericFacetsQueries(t *testing.T) {
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
@@ -500,8 +562,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 					responsePart = responseMap["response"].(model.JsonMap)
 				}
 
-				acceptableDifference := []string{"probability", "seed", "bg_count", model.KeyAddedByQuesma,
-					"doc_count_error_upper_bound", "__quesma_total_count"}
+				acceptableDifference := []string{"probability", "seed", "bg_count", "doc_count_error_upper_bound", "__quesma_total_count"}
 				expectedJson := types.MustJSON(tt.ResultJson)["response"].(model.JsonMap)
 
 				// Eventually we should remove two below lines
@@ -528,7 +589,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 
 func TestSearchTrackTotalCount(t *testing.T) {
 
-	s := schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
+	s := &schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{

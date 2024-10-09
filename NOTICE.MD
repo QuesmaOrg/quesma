@@ -259,11 +259,11 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/DataDog/go-sqllexer
-Version : v0.0.15
-Time    : 2024-09-06T19:49:26Z
+Version : v0.0.16
+Time    : 2024-10-08T13:04:06Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/!data!dog/go-sqllexer@v0.0.15/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!data!dog/go-sqllexer@v0.0.16/LICENSE:
 
 MIT License
 
@@ -1594,11 +1594,11 @@ THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/knadh/koanf/providers/env
-Version : v0.1.0
-Time    : 2023-02-17T12:50:22Z
+Version : v1.0.0
+Time    : 2024-09-26T07:31:31Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/env@v0.1.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/env@v1.0.0/LICENSE:
 
 The MIT License
 
@@ -1625,11 +1625,11 @@ THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/knadh/koanf/providers/file
-Version : v1.1.0
-Time    : 2024-07-29T18:42:38Z
+Version : v1.1.2
+Time    : 2024-10-02T14:59:55Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/file@v1.1.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/file@v1.1.2/LICENSE:
 
 The MIT License
 
@@ -3302,39 +3302,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
---------------------------------------------------------------------------------
-#### Module  : github.com/creack/pty
-Version : v1.1.9
-Time    : 2019-09-25T15:36:33Z
-Licence : MIT
-
-Contents of probable licence file $GOMODCACHE/github.com/creack/pty@v1.1.9/LICENSE:
-
-Copyright (c) 2011 Keith Rarick
-
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without limitation
-the rights to use, copy, modify, merge, publish, distribute,
-sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall
-be included in all copies or substantial portions of the
-Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
-KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
-OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/davecgh/go-spew

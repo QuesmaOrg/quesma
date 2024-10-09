@@ -67,13 +67,15 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		queries = append(queries, listQuery)
 	}
 
+	runtimeMappings := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
+
 	// we apply post query transformer for certain aggregation types
 	// this should be a part of the query parsing process
 
 	queryResultTransformers := make([]model.QueryRowsTransformer, len(queries))
 	for i, query := range queries {
 		switch agg := query.Type.(type) {
-		case bucket_aggregations.Histogram:
+		case *bucket_aggregations.Histogram:
 			queryResultTransformers[i] = agg.NewRowsTransformer()
 
 		case *bucket_aggregations.DateHistogram:
@@ -82,7 +84,8 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	}
 
 	for _, query := range queries {
-		query.TableName = cw.Table.Name // TODO remove this line
+		query.TableName = cw.Table.Name
+		query.RuntimeMappings = runtimeMappings
 		query.Indexes = cw.Indexes
 		query.Schema = cw.Schema
 	}
@@ -874,7 +877,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 				logger.WarnWithCtx(cw.Ctx).Msgf("invalid range operator: %s", op)
 			}
 		}
-		return model.NewSimpleQueryWithFieldName(model.And(stmts), true, field)
+		return model.NewSimpleQuery(model.And(stmts), true)
 	}
 
 	// unreachable unless something really weird happens

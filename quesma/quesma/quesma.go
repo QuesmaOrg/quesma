@@ -99,7 +99,7 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config *config.Q
 
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, ingestProcessor *ingest.IngestProcessor, schemaLoader clickhouse.TableDiscovery,
 	indexManager elasticsearch.IndexManagement, schemaRegistry schema.Registry, config *config.QuesmaConfiguration,
-	quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsRepository ab_testing.Sender) *Quesma {
+	quesmaManagementConsole *ui.QuesmaManagementConsole, abResultsRepository ab_testing.Sender) *Quesma {
 	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, schemaRegistry, abResultsRepository)
 
 	// not sure how we should configure our query translator ???
@@ -169,7 +169,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 				unzipped = []byte(quesmaResponse.Body)
 			}
 			if len(unzipped) == 0 {
-				logger.WarnWithCtx(ctx).Msg("empty response from Clickhouse")
+				logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
 			}
 			addProductAndContentHeaders(req.Header, w.Header())
 

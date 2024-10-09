@@ -13,12 +13,11 @@ import (
 const derivativeLag = 1
 
 type Derivative struct {
-	ctx context.Context
-	PipelineAggregation
+	*PipelineAggregation
 }
 
 func NewDerivative(ctx context.Context, bucketsPath string) Derivative {
-	return Derivative{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
+	return Derivative{PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query Derivative) AggregationType() model.AggregationType {
@@ -35,4 +34,8 @@ func (query Derivative) CalculateResultWhenMissing(parentRows []model.QueryResul
 
 func (query Derivative) String() string {
 	return fmt.Sprintf("derivative(%s)", query.Parent)
+}
+
+func (query Derivative) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineParentAggregation
 }

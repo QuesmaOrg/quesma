@@ -16,6 +16,7 @@ import (
 	"quesma/index"
 	"quesma/jsonprocessor"
 	"quesma/logger"
+	"quesma/model"
 	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
@@ -24,6 +25,8 @@ import (
 	"quesma/stats"
 	"quesma/telemetry"
 	"quesma/util"
+	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -210,16 +213,6 @@ func (ip *IngestProcessor) getIgnoredFields(tableName string) []config.FieldName
 		return indexConfig.SchemaOverrides.IgnoredFields()
 	}
 	return nil
-}
-
-func (ip *IngestProcessor) buildCreateTableQueryNoOurFields(ctx context.Context, tableName string,
-	jsonData types.JSON, tableConfig *chLib.ChTableConfig, nameFormatter TableColumNameFormatter) ([]CreateTableEntry, map[schema.FieldName]CreateTableEntry) {
-	ignoredFields := ip.getIgnoredFields(tableName)
-
-	columnsFromJson := JsonToColumns("", jsonData, 1,
-		tableConfig, nameFormatter, ignoredFields)
-	columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), nameFormatter)
-	return columnsFromJson, columnsFromSchema
 }
 
 func Indexes(m SchemaMap) string {
@@ -587,6 +580,19 @@ func generateSqlStatements(createTableCmd string, alterCmd []string, insert stri
 	return statements
 }
 
+func populateFieldEncodings(jsonData []types.JSON, tableName string) map[schema.FieldEncodingKey]schema.EncodedFieldName {
+	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
+	for _, jsonValue := range jsonData {
+		flattenJson := jsonprocessor.FlattenMap(jsonValue, ".")
+		for field := range flattenJson {
+			encodedField := util.FieldToColumnEncoder(field)
+			encodings[schema.FieldEncodingKey{TableName: tableName, FieldName: field}] =
+				schema.EncodedFieldName(encodedField)
+		}
+	}
+	return encodings
+}
+
 func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
@@ -605,7 +611,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	}
 	jsonData = processed
 
-	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
 	// we are doing two passes, e.g. calling transformFieldName twice
 	// first time we populate encodings map
 	// second time we do field encoding
@@ -614,14 +619,8 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	// which would introduce side effects
 	// This can be done in one pass, but it would be more complex
 	// and requires some rewrite of json flattening
-	for _, jsonValue := range jsonData {
-		flattenJson := jsonprocessor.FlattenMap(jsonValue, ".")
-		for field := range flattenJson {
-			encodedField := util.FieldToColumnEncoder(field)
-			encodings[schema.FieldEncodingKey{TableName: tableName, FieldName: field}] =
-				schema.EncodedFieldName(encodedField)
-		}
-	}
+	encodings := populateFieldEncodings(jsonData, tableName)
+
 	if ip.schemaRegistry != nil {
 		ip.schemaRegistry.UpdateFieldEncodings(encodings)
 	}
@@ -642,8 +641,8 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 			tableConfig, tableFormatter, ignoredFields)
 		// This comes externally from (configuration)
 		// So we need to convert that separately
-		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter)
-		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(jsonData[0]))
+		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter, tableName, ip.schemaRegistry.GetFieldEncodings())
+		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName), Indexes(jsonData[0]))
 		// TODO createTableCmd should contain information about field encodings
 		// in column comments
 		createTableCmd = createTableQuery(tableName, columnsAsString, tableConfig)
@@ -698,7 +697,13 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	indexConf, ok := lm.cfg.IndexConfig[tableName]
 	if ok && indexConf.UseCommonTable {
 
-		err := lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, true)
+		// we have clone the data, because we want to process it twice
+		var clonedJsonData []types.JSON
+		for _, jsonValue := range jsonData {
+			clonedJsonData = append(clonedJsonData, jsonValue.Clone())
+		}
+
+		err := lm.processInsertQueryInternal(ctx, tableName, clonedJsonData, transformer, tableFormatter, true)
 		if err != nil {
 			// we ignore an error here, because we want to process the data and don't lose it
 			logger.ErrorWithCtx(ctx).Msgf("error processing insert query - virtual table schema update: %v", err)
@@ -834,11 +839,28 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 
 	table.Comment = "Virtual table. Version: " + now.Format(time.RFC3339)
 
+	var columnsToStore []string
+	for _, col := range table.Cols {
+		// We don't want to store attributes columns in the virtual table
+		if col.Name == chLib.AttributesValuesColumn || col.Name == chLib.AttributesMetadataColumn {
+			continue
+		}
+		columnsToStore = append(columnsToStore, col.Name)
+	}
+
+	// We always want to store timestamp in the virtual table
+	// if it's not already there
+	if !slices.Contains(columnsToStore, model.TimestampFieldName) {
+		columnsToStore = append(columnsToStore, model.TimestampFieldName)
+	}
+
+	sort.Strings(columnsToStore)
+
 	var columns []common_table.VirtualTableColumn
 
-	for _, col := range table.Cols {
+	for _, col := range columnsToStore {
 		columns = append(columns, common_table.VirtualTableColumn{
-			Name: col.Name,
+			Name: col,
 		})
 	}
 
@@ -882,27 +904,9 @@ func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
-func NewEmptyIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase) *IngestProcessor {
+func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage}
-}
-
-func NewIngestProcessor(tables *TableMap, cfg *config.QuesmaConfiguration) *IngestProcessor {
-	var tableDefinitions = atomic.Pointer[TableMap]{}
-	tableDefinitions.Store(tables)
-	return &IngestProcessor{chDb: nil, tableDiscovery: chLib.NewTableDiscoveryWith(cfg, nil, *tables),
-		cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(),
-		ingestFieldStatistics: make(IngestFieldStatistics),
-		virtualTableStorage:   persistence.NewStaticJSONDatabase(),
-	}
-}
-
-func NewIngestProcessorEmpty() *IngestProcessor {
-	var tableDefinitions = atomic.Pointer[TableMap]{}
-	tableDefinitions.Store(NewTableMap())
-	cfg := &config.QuesmaConfiguration{}
-	return &IngestProcessor{tableDiscovery: chLib.NewTableDiscovery(cfg, nil, persistence.NewStaticJSONDatabase()), cfg: cfg,
-		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 
 func NewOnlySchemaFieldsCHConfig() *chLib.ChTableConfig {
