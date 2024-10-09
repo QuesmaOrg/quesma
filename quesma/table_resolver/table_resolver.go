@@ -147,7 +147,8 @@ func (r *tableRegistryImpl) updateIndexes() {
 
 	tableMap.Range(func(name string, tableDef *clickhouse.Table) bool {
 		clickhouseIndexes[name] = table{
-			name: name,
+			name:      name,
+			isVirtual: tableDef.VirtualTable,
 		}
 		return true
 	})

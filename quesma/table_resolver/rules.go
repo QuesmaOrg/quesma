@@ -253,8 +253,9 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 			// HERE
 			return &Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
-					IsCommonTable: true,
-					Indexes:       matchedIndexes,
+					IsCommonTable:       true,
+					ClickhouseTableName: common_table.TableName,
+					Indexes:             matchedIndexes,
 				}},
 				Message: "Common table will be used. Querying multiple indexes.",
 			}
@@ -272,6 +273,7 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
 					Indexes:             []string{input.source},
+					IsCommonTable:       true,
 				}},
 				Message: "Common table will be used.",
 			}

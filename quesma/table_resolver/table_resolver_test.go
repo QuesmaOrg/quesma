@@ -7,6 +7,7 @@ import (
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
+	"quesma/common_table"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/quesma/config"
@@ -18,9 +19,22 @@ import (
 func TestTableResolver(t *testing.T) {
 
 	indexConf := map[string]config.IndexConfiguration{
-		"index1": config.IndexConfiguration{
+		"index1": {
 			QueryTarget:  []string{"clickhouse"},
 			IngestTarget: []string{"clickhouse"},
+		},
+		"index2": {
+			UseCommonTable: true,
+			QueryTarget:    []string{"clickhouse"},
+			IngestTarget:   []string{"clickhouse"},
+		},
+		"index3": {
+			QueryTarget:  []string{"elasticsearch"},
+			IngestTarget: []string{"elasticsearch"},
+		},
+		"closed": {
+			QueryTarget:  []string{},
+			IngestTarget: []string{},
 		},
 	}
 
@@ -32,8 +46,8 @@ func TestTableResolver(t *testing.T) {
 		pattern           string
 		elasticIndexes    []string
 		clickhouseIndexes []string
-
-		expected Decision
+		virtualTables     []string
+		expected          Decision
 	}{
 		{
 			name:     "elastic fallback",
@@ -51,7 +65,6 @@ func TestTableResolver(t *testing.T) {
 				IsEmpty: true,
 			},
 		},
-
 		{
 			name:              "empty *",
 			pipeline:          QueryPipeline,
@@ -61,7 +74,6 @@ func TestTableResolver(t *testing.T) {
 				IsEmpty: true,
 			},
 		},
-
 		{
 			name:              "query all, indices in both connectors",
 			pipeline:          QueryPipeline,
@@ -72,7 +84,6 @@ func TestTableResolver(t *testing.T) {
 				Err: end_user_errors.ErrSearchCondition.New(fmt.Errorf("")),
 			},
 		},
-
 		{
 			name:              "ingest with a pattern",
 			pipeline:          IngestPipeline,
@@ -81,6 +92,24 @@ func TestTableResolver(t *testing.T) {
 			elasticIndexes:    []string{"index3"},
 			expected: Decision{
 				Err: fmt.Errorf("pattern is not allowed"),
+			},
+		},
+		{
+			name:              "query closed index",
+			pipeline:          QueryPipeline,
+			pattern:           "closed",
+			clickhouseIndexes: []string{"closed"},
+			expected: Decision{
+				IsClosed: true,
+			},
+		},
+		{
+			name:              "ingest closed index",
+			pipeline:          QueryPipeline,
+			pattern:           "closed",
+			clickhouseIndexes: []string{"closed"},
+			expected: Decision{
+				IsClosed: true,
 			},
 		},
 		{
@@ -107,6 +136,87 @@ func TestTableResolver(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:              "ingest to index2",
+			pipeline:          IngestPipeline,
+			pattern:           "index2",
+			clickhouseIndexes: []string{"index2"},
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+					ClickhouseTableName: common_table.TableName,
+					Indexes:             []string{"index2"},
+					IsCommonTable:       true,
+				}},
+			},
+		},
+		{
+			name:              "query from index2",
+			pipeline:          QueryPipeline,
+			pattern:           "index2",
+			clickhouseIndexes: []string{"index2"},
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+					ClickhouseTableName: common_table.TableName,
+					Indexes:             []string{"index2"},
+					IsCommonTable:       true,
+				}},
+			},
+		},
+		{
+			name:           "ingest to index3",
+			pipeline:       IngestPipeline,
+			pattern:        "index3",
+			elasticIndexes: []string{"index3"},
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			},
+		},
+		{
+			name:           "query from index3",
+			pipeline:       QueryPipeline,
+			pattern:        "index3",
+			elasticIndexes: []string{"index3"},
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			},
+		},
+		{
+			name:          "query pattern",
+			pipeline:      QueryPipeline,
+			pattern:       "index*",
+			virtualTables: []string{"index2"},
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+					ClickhouseTableName: common_table.TableName,
+					Indexes:             []string{"index2"},
+					IsCommonTable:       true,
+				}},
+			},
+		},
+		{
+			name:     "query kibana internals",
+			pipeline: QueryPipeline,
+			pattern:  ".kibana",
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			},
+		},
+		{
+			name:     "ingest kibana internals",
+			pipeline: IngestPipeline,
+			pattern:  ".kibana",
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			},
+		},
+		{
+			name:     "ingest not configured index",
+			pipeline: IngestPipeline,
+			pattern:  "not-configured",
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -114,12 +224,17 @@ func TestTableResolver(t *testing.T) {
 
 			tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 
-			if len(tt.clickhouseIndexes) > 0 {
-				for _, index := range tt.clickhouseIndexes {
-					tableDiscovery.TableMap.Store(index, &clickhouse.Table{
-						Name: index,
-					})
-				}
+			for _, index := range tt.clickhouseIndexes {
+				tableDiscovery.TableMap.Store(index, &clickhouse.Table{
+					Name: index,
+				})
+			}
+
+			for _, index := range tt.virtualTables {
+				tableDiscovery.TableMap.Store(index, &clickhouse.Table{
+					Name:         index,
+					VirtualTable: true,
+				})
 			}
 
 			elasticResolver := elasticsearch.NewEmptyIndexResolver()
