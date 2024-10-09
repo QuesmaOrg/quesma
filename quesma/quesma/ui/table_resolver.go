@@ -34,7 +34,7 @@ func (qmc *QuesmaManagementConsole) generateTableResolver() []byte {
 
 	buffer.Html("<h2>Recent decisions</h2>")
 
-	pipelines := qmc.indexRegistry.Pipelines()
+	pipelines := qmc.tableResolver.Pipelines()
 
 	buffer.Html(`<table class="table_resolver">`)
 	buffer.Html(`<tr>`)
@@ -44,7 +44,7 @@ func (qmc *QuesmaManagementConsole) generateTableResolver() []byte {
 	}
 	buffer.Html(`</tr>`)
 
-	decisions := qmc.indexRegistry.RecentDecisions()
+	decisions := qmc.tableResolver.RecentDecisions()
 
 	for _, decision := range decisions {
 		buffer.Html(`<tr>`)
@@ -83,7 +83,7 @@ func (qmc *QuesmaManagementConsole) generateTableResolverAnswer(prompt string) [
 
 	patterns := strings.Split(prompt, " ")
 
-	pipelines := qmc.indexRegistry.Pipelines()
+	pipelines := qmc.tableResolver.Pipelines()
 
 	buffer.Html("<h4>Quesma's decision</h2>")
 
@@ -103,7 +103,7 @@ func (qmc *QuesmaManagementConsole) generateTableResolverAnswer(prompt string) [
 		buffer.Html(`<td>`).Text(pattern).Html(`</td>`)
 
 		for _, pipeline := range pipelines {
-			decision := qmc.indexRegistry.Resolve(pipeline, pattern)
+			decision := qmc.tableResolver.Resolve(pipeline, pattern)
 			buffer.Html(`<td>`)
 			if decision != nil {
 				buffer.Text(decision.String())

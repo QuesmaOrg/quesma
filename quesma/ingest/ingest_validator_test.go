@@ -170,7 +170,7 @@ func TestIngestValidation(t *testing.T) {
 		ip := newIngestProcessorEmpty()
 		ip.chDb = db
 		ip.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
-		ip.indexRegistry = table_resolver.NewEmptyIndexRegistry()
+		ip.tableResolver = table_resolver.NewEmptyTableResolver()
 		defer db.Close()
 
 		mock.ExpectExec(EscapeBrackets(expectedInsertJsons[i])).WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 0))

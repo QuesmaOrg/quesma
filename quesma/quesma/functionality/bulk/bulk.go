@@ -69,7 +69,7 @@ type (
 )
 
 func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor,
-	cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent, indexRegistry table_resolver.TableResolver) (results []BulkItem, err error) {
+	cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent, tableResolver table_resolver.TableResolver) (results []BulkItem, err error) {
 	defer recovery.LogPanic()
 
 	bulkSize := len(bulk) / 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
@@ -77,7 +77,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 
 	// The returned results should be in the same order as the input request, however splitting the bulk might change the order.
 	// Therefore, each BulkRequestEntry has a corresponding pointer to the result entry, allowing us to freely split and reshuffle the bulk.
-	results, clickhouseDocumentsToInsert, elasticRequestBody, elasticBulkEntries, err := splitBulk(ctx, defaultIndex, bulk, bulkSize, cfg, indexRegistry)
+	results, clickhouseDocumentsToInsert, elasticRequestBody, elasticBulkEntries, err := splitBulk(ctx, defaultIndex, bulk, bulkSize, cfg, tableResolver)
 	if err != nil {
 		return []BulkItem{}, err
 	}
@@ -111,7 +111,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 	return results, nil
 }
 
-func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bulkSize int, cfg *config.QuesmaConfiguration, indexRegistry table_resolver.TableResolver) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
+func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bulkSize int, cfg *config.QuesmaConfiguration, tableResolver table_resolver.TableResolver) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
 	results := make([]BulkItem, bulkSize)
 
 	clickhouseDocumentsToInsert := make(map[string][]BulkRequestEntry, bulkSize)
@@ -122,7 +122,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 		index := op.GetIndex()
 		operation := op.GetOperation()
 
-		decision := indexRegistry.Resolve(table_resolver.IngestPipeline, index)
+		decision := tableResolver.Resolve(table_resolver.IngestPipeline, index)
 		table_resolver.TODO("splitBulk", decision)
 
 		entryWithResponse := BulkRequestEntry{

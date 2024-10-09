@@ -24,7 +24,7 @@ func matchedAgainstAsyncId() mux.RequestMatcher {
 	})
 }
 
-func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
+func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableResolver table_resolver.TableResolver) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		idx := 0
 		for _, s := range strings.Split(req.Body, "\n") {
@@ -35,7 +35,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, indexRegi
 			if idx%2 == 0 {
 				name := extractIndexName(s)
 
-				decision := indexRegistry.Resolve(table_resolver.IngestPipeline, name)
+				decision := tableResolver.Resolve(table_resolver.IngestPipeline, name)
 				table_resolver.TODO("matchedAgainstBulkBody", decision)
 
 				indexConfig, found := configuration.IndexConfig[name]

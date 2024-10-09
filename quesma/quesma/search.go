@@ -56,8 +56,8 @@ type QueryRunner struct {
 	currentParallelQueryJobs atomic.Int64
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
-	ABResultsSender          ab_testing.Sender
-	indexRegistry            table_resolver.TableResolver
+	ABResultsSender ab_testing.Sender
+	tableResolver   table_resolver.TableResolver
 
 	maxParallelQueries int // if set to 0, we run queries in sequence, it's fine for testing purposes
 }
@@ -87,7 +87,7 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 		},
 		schemaRegistry:  schemaRegistry,
 		ABResultsSender: abResultsRepository,
-		indexRegistry:   resolver,
+		tableResolver:   resolver,
 
 		maxParallelQueries: maxParallelQueries,
 	}
@@ -272,7 +272,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 
-	decision := q.indexRegistry.Resolve(table_resolver.QueryPipeline, indexPattern)
+	decision := q.tableResolver.Resolve(table_resolver.QueryPipeline, indexPattern)
 	table_resolver.TODO("handleSearchCommon", decision)
 
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im, q.schemaRegistry)

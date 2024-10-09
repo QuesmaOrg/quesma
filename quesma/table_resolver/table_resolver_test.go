@@ -104,9 +104,9 @@ func TestTableResolver(t *testing.T) {
 			}
 			elasticResolver.Indexes["*"] = sources
 
-			indexRegistry := NewTableResolver(cfg, tableDiscovery, elasticResolver)
+			resolver := NewTableResolver(cfg, tableDiscovery, elasticResolver)
 
-			decision := indexRegistry.Resolve(tt.pipeline, tt.pattern)
+			decision := resolver.Resolve(tt.pipeline, tt.pattern)
 
 			assert.NotNil(t, decision)
 			if tt.expected.Err != nil {

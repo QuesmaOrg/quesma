@@ -101,7 +101,7 @@ type (
 		phoneHomeAgent            telemetry.PhoneHomeAgent
 		schemasProvider           SchemasProvider
 		totalUnsupportedQueries   int
-		indexRegistry             table_resolver.TableResolver
+		tableResolver             table_resolver.TableResolver
 	}
 	SchemasProvider interface {
 		AllSchemas() map[schema.TableName]schema.Schema
@@ -126,7 +126,7 @@ func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *cli
 		indexManagement:           indexManager,
 		phoneHomeAgent:            phoneHomeAgent,
 		schemasProvider:           schemasProvider,
-		indexRegistry:             indexRegistry,
+		tableResolver:             indexRegistry,
 	}
 }
 

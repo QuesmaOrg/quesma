@@ -96,8 +96,8 @@ func main() {
 	elasticIndexResolver := elasticsearch.NewIndexResolver(cfg.Elasticsearch.Url.String())
 
 	// TODO index configuration for ingest and query is the same for now
-	indexRegistry := table_resolver.NewTableResolver(cfg, tableDisco, elasticIndexResolver)
-	indexRegistry.Start()
+	tableResolver := table_resolver.NewTableResolver(cfg, tableDisco, elasticIndexResolver)
+	tableResolver.Start()
 
 	var ingestProcessor *ingest.IngestProcessor
 
@@ -107,7 +107,7 @@ func main() {
 			common_table.EnsureCommonTableExists(connectionPool)
 		}
 
-		ingestProcessor = ingest.NewIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage, indexRegistry)
+		ingestProcessor = ingest.NewIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage, tableResolver)
 	} else {
 		logger.Info().Msg("Ingest processor is disabled.")
 	}
@@ -116,12 +116,12 @@ func main() {
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 
-	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry, indexRegistry) //FIXME no ingest processor here just for now
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry, tableResolver) //FIXME no ingest processor here just for now
 
 	abTestingController := sender.NewSenderCoordinator(&cfg)
 	abTestingController.Start()
 
-	instance := constructQuesma(&cfg, tableDisco, lm, ingestProcessor, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender(), indexRegistry)
+	instance := constructQuesma(&cfg, tableDisco, lm, ingestProcessor, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender(), tableResolver)
 	instance.Start()
 
 	<-doneCh
@@ -134,7 +134,7 @@ func main() {
 	phoneHomeAgent.Stop(ctx)
 	lm.Stop()
 	abTestingController.Stop()
-	indexRegistry.Stop()
+	tableResolver.Stop()
 	instance.Close(ctx)
 
 }

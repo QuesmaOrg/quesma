@@ -39,14 +39,14 @@ func Test_matchedAgainstConfig(t *testing.T) {
 		},
 	}
 
-	indexRegistry := table_resolver.NewEmptyIndexRegistry()
+	resolver := table_resolver.NewEmptyTableResolver()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
 			req := &mux.Request{Params: map[string]string{"index": tt.index}, Body: tt.body}
 
-			assert.Equalf(t, tt.want, matchedExactQueryPath(&tt.config, indexRegistry).Matches(req), "matchedExactQueryPath(%v), index: %s", tt.config, tt.index)
+			assert.Equalf(t, tt.want, matchedExactQueryPath(&tt.config, resolver).Matches(req), "matchedExactQueryPath(%v), index: %s", tt.config, tt.index)
 		})
 	}
 }
@@ -175,13 +175,13 @@ func Test_matchedAgainstPattern(t *testing.T) {
 		},
 	}
 
-	indexRegistry := table_resolver.NewEmptyIndexRegistry()
+	resolver := table_resolver.NewEmptyTableResolver()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
 			req := &mux.Request{Params: map[string]string{"index": tt.pattern}, Body: tt.body}
-			assert.Equalf(t, tt.want, matchedAgainstPattern(&tt.configuration, tt.registry, indexRegistry).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
+			assert.Equalf(t, tt.want, matchedAgainstPattern(&tt.configuration, tt.registry, resolver).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
 		})
 	}
 }
@@ -240,14 +240,14 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 		},
 	}
 
-	indexRegistry := table_resolver.NewEmptyIndexRegistry()
+	resolver := table_resolver.NewEmptyTableResolver()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
 			req := &mux.Request{Body: tt.body}
 
-			assert.Equalf(t, tt.want, matchedAgainstBulkBody(&tt.config, indexRegistry).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
+			assert.Equalf(t, tt.want, matchedAgainstBulkBody(&tt.config, resolver).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
 		})
 	}
 }

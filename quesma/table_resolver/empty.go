@@ -2,32 +2,32 @@
 // SPDX-License-Identifier: Elastic-2.0
 package table_resolver
 
-type EmptyIndexRegistry struct {
+type EmptyTableResolver struct {
 	Decisions          map[string]*Decision
 	RecentDecisionList []PatternDecisions
 	PipelinesList      []string
 }
 
-func NewEmptyIndexRegistry() *EmptyIndexRegistry {
-	return &EmptyIndexRegistry{
+func NewEmptyTableResolver() *EmptyTableResolver {
+	return &EmptyTableResolver{
 		Decisions: make(map[string]*Decision),
 	}
 }
 
-func (r *EmptyIndexRegistry) Resolve(pipeline string, indexPattern string) *Decision {
+func (r *EmptyTableResolver) Resolve(pipeline string, indexPattern string) *Decision {
 	return r.Decisions[indexPattern]
 }
 
-func (r *EmptyIndexRegistry) RecentDecisions() []PatternDecisions {
+func (r *EmptyTableResolver) RecentDecisions() []PatternDecisions {
 	return r.RecentDecisionList
 }
 
-func (r *EmptyIndexRegistry) Pipelines() []string {
+func (r *EmptyTableResolver) Pipelines() []string {
 	return r.PipelinesList
 }
 
-func (r *EmptyIndexRegistry) Start() {
+func (r *EmptyTableResolver) Start() {
 }
 
-func (r *EmptyIndexRegistry) Stop() {
+func (r *EmptyTableResolver) Stop() {
 }
