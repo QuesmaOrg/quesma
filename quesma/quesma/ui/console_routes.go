@@ -235,7 +235,6 @@ func authMiddleware(next http.Handler) http.Handler {
 		session, err := store.Get(r, quesmaSessionName)
 		userID, ok := session.Values["userID"].(string)
 		if !ok || userID == "" || err != nil {
-			logger.Info().Msg("User not authenticated, redirecting to login page")
 			http.Redirect(w, r, "/auth/elasticsearch", http.StatusTemporaryRedirect)
 			return
 		}
