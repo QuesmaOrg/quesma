@@ -118,4 +118,132 @@ var AggregationTestsWithDates = []AggregationTestCase{
 			  )*1000 AS "aggr__sampler__eventRate__key_0"
 			ORDER BY "aggr__sampler__eventRate__key_0" ASC`,
 	},
+	{ // [0]
+		TestName: "simple max/min aggregation as 2 siblings",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"other-filter": {
+					"aggs": {
+						"3": {
+							"terms": {
+								"field": "field",
+								"order": {
+									"_count": "desc"
+								},
+								"size": 15
+							}
+						}
+					},
+					"filters": {
+						"filters": {
+							"": {
+								"bool": {
+									"filter": [],
+									"must": [
+										{
+											"match_phrase": {
+												"a": "b"
+											}
+										},
+										{
+											"match_phrase": {
+												"c": "d"
+											}
+										}
+									],
+									"must_not": [],
+									"should": []
+								}
+							}
+						}
+					}
+				}
+			},
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1707486436398,
+			"expiration_time_in_millis": 1707486496397,
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"sampler": {
+						"doc_count": 4675,
+						"eventRate": {
+							"buckets": [
+								{
+									"doc_count": 442,
+									"key": 1726358400000,
+									"key_as_string": "2024-09-15T00:00:00.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1726963200000,
+									"key_as_string": "2024-09-22T00:00:00.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1727568000000,
+									"key_as_string": "2024-09-29T00:00:00.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1728172800000,
+									"key_as_string": "2024-10-06T00:00:00.000"
+								},
+								{
+									"doc_count": 1,
+									"key": 1728777600000,
+									"key_as_string": "2024-10-13T00:00:00.000"
+								}
+							]
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 2200
+					}
+				},
+				"timed_out": false,
+				"took": 1
+			},
+			"start_time_in_millis": 1707486436397
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__other-filter__count", int64(4675)),
+				model.NewQueryResultCol("aggr__other-filter__3__parent_count", int64(4675)),
+				model.NewQueryResultCol("aggr__other-filter__3__key_0", "field"),
+				model.NewQueryResultCol("aggr__other-filter__3__count", int64(442)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(countIf(("a" iLIKE '%b%' AND "c" iLIKE '%d%'))) OVER () AS
+			  "aggr__other-filter__count",
+			  sum(countIf(("a" iLIKE '%b%' AND "c" iLIKE '%d%'))) OVER () AS
+			  "aggr__other-filter__3__parent_count",
+			  "field" AS "aggr__other-filter__3__key_0",
+			  countIf(("a" iLIKE '%b%' AND "c" iLIKE '%d%')) AS
+			  "aggr__other-filter__3__count"
+			FROM __quesma_table_name
+			GROUP BY "field" AS "aggr__other-filter__3__key_0"
+			ORDER BY "aggr__other-filter__3__count" DESC,
+			  "aggr__other-filter__3__key_0" ASC
+			LIMIT 16`,
+	},
 }
