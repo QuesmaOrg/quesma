@@ -10,7 +10,6 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
-	"quesma/util"
 	"sort"
 	"strconv"
 	"strings"
@@ -320,78 +319,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 	return
 }
 
-func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap QueryMap, aggregationName string) model.Expr {
-	notFoundValue := model.NewLiteral("")
-
-	aggsRaw, exists := queryMap["aggs"]
-	if !exists {
-		logger.WarnWithCtx(cw.Ctx).Msgf("no aggs in queryMap, queryMap: %+v", queryMap)
-		return notFoundValue
-	}
-	aggs, ok := aggsRaw.(QueryMap)
-	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("aggs is not a map, but %T, value: %v. Skipping", aggsRaw, aggsRaw)
-		return notFoundValue
-	}
-
-	var percentileNameWeLookFor string
-	weTrySplitByDot := false
-
-	// We try 2 things here:
-	// First (always): maybe there exists an aggregation with exactly this name
-	// Second (if aggregation_name == X.Y): maybe it's aggregationName.some_value, e.g. "2.75", when "2" aggregation is a percentile, and 75 is its value
-	aggregationNamesToTry := []string{aggregationName}
-	splitByDot := strings.Split(aggregationName, ".")
-	if len(splitByDot) == 2 {
-		weTrySplitByDot = true
-		percentileNameWeLookFor = splitByDot[1]
-		aggregationNamesToTry = append(aggregationNamesToTry, splitByDot[0])
-	}
-
-	for _, aggNameToTry := range aggregationNamesToTry {
-		currentAggMapRaw, exists := aggs[aggNameToTry]
-		if !exists {
-			continue
-		}
-
-		currentAggMap, ok := currentAggMapRaw.(QueryMap)
-		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("aggregation %s is not a map, but %T, value: %v. Skipping",
-				aggregationName, currentAggMapRaw, currentAggMapRaw)
-			continue
-		}
-
-		agg, success := cw.tryMetricsAggregation(currentAggMap)
-		if !success {
-			logger.WarnWithCtx(cw.Ctx).Msgf("failed to parse metric aggregation: %v", agg)
-			continue
-		}
-
-		// we build a temporary query only to extract the name of the metric
-		columns, err := generateMetricSelectedColumns(cw.Ctx, agg)
-		if err != nil {
-			continue
-		}
-
-		if aggNameToTry == aggregationName {
-			if len(columns) != 1 {
-				continue
-			}
-			return columns[0]
-		} else if weTrySplitByDot {
-			userPercents := util.MapKeysSortedByValue(agg.Percentiles)
-			for i, percentileName := range userPercents {
-				if percentileName == percentileNameWeLookFor {
-					return columns[i]
-				}
-			}
-		}
-	}
-
-	logger.ErrorWithCtx(cw.Ctx).Msgf("no given metric aggregation found (name: %v, queryMap: %+v)", aggregationName, queryMap)
-	return notFoundValue
-}
-
 // samplerRaw - in a proper request should be of QueryMap type.
 func (cw *ClickhouseQueryTranslator) parseSampler(samplerRaw any) bucket_aggregations.Sampler {
 	const defaultSize = 100
@@ -420,60 +347,60 @@ func (cw *ClickhouseQueryTranslator) parseRandomSampler(randomSamplerRaw any) bu
 }
 
 func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldExpressions []model.Expr) []model.OrderByExpr {
-	defaultMainOrderBy := model.NewCountFunc()
 	defaultDirection := model.DescOrder
+	defaultOrderBy := model.NewOrderByExpr(model.NewCountFunc(), defaultDirection)
 
-	fieldOrderBys := make([]model.OrderByExpr, 0, len(fieldExpressions))
-	for _, fieldExpression := range fieldExpressions {
-		fieldOrderBys = append(fieldOrderBys, model.OrderByExpr{Expr: fieldExpression})
-	}
-
-	var mainOrderBy model.Expr = defaultMainOrderBy
-	fullOrderBy := []model.OrderByExpr{ // default
-		{Expr: mainOrderBy, Direction: defaultDirection},
-	}
-	fullOrderBy = append(fullOrderBy, fieldOrderBys...)
-	direction := defaultDirection
-
-	orderRaw, exists := terms["order"]
+	ordersRaw, exists := terms["order"]
 	if !exists {
-		return fullOrderBy
+		return []model.OrderByExpr{defaultOrderBy}
 	}
 
-	order, ok := orderRaw.(QueryMap) // TODO it can be array too, don't handle it yet
-	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("order is not a map, but %T, value: %v. Using default order", orderRaw, orderRaw)
-		return fullOrderBy
-	}
-	if len(order) != 1 {
-		logger.WarnWithCtx(cw.Ctx).Msgf("order should have 1 key, but has %d. Order: %+v. Using default", len(order), order)
-		return fullOrderBy
-	}
-
-	for key, valueRaw := range order { // value == "asc" or "desc"
-		value, ok := valueRaw.(string)
-		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("order value is not a string, but %T, value: %v. Using default (desc)", valueRaw, valueRaw)
-			value = "desc"
-		}
-		if strings.ToLower(value) == "asc" {
-			direction = model.AscOrder
-		}
-
-		if key == "_key" {
-			fullOrderBy = fieldOrderBys
-			for i := range fullOrderBy {
-				fullOrderBy[i].Direction = direction
+	// order can be either a single order {}, or a list of such single orders [{}(,{}...)]
+	orders := make([]QueryMap, 0)
+	switch ordersTyped := ordersRaw.(type) {
+	case QueryMap:
+		orders = append(orders, ordersTyped)
+	case []any:
+		for _, order := range ordersTyped {
+			if orderTyped, ok := order.(QueryMap); ok {
+				orders = append(orders, orderTyped)
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("invalid order: %v", order)
 			}
-			break // mainOrderBy remains default
-		} else if key != "_count" {
-			mainOrderBy = cw.pancakeFindMetricAggregation(queryMap, key)
 		}
+	default:
+		logger.WarnWithCtx(cw.Ctx).Msgf("order is not a map/list of maps, but %T, value: %v. Using default order", ordersRaw, ordersRaw)
+		return []model.OrderByExpr{defaultOrderBy}
+	}
 
-		fullOrderBy = []model.OrderByExpr{
-			{Expr: mainOrderBy, Direction: direction},
+	fullOrderBy := make([]model.OrderByExpr, 0)
+
+	for _, order := range orders {
+		if len(order) != 1 {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid order length, should be 1: %v", order)
 		}
-		fullOrderBy = append(fullOrderBy, fieldOrderBys...)
+		for key, valueRaw := range order { // value == "asc" or "desc"
+			value, ok := valueRaw.(string)
+			if !ok {
+				logger.WarnWithCtx(cw.Ctx).Msgf("order value is not a string, but %T, value: %v. Using default (desc)", valueRaw, valueRaw)
+				value = "desc"
+			}
+
+			direction := defaultDirection
+			if strings.ToLower(value) == "asc" {
+				direction = model.AscOrder
+			}
+
+			if key == "_key" {
+				for _, fieldExpression := range fieldExpressions {
+					fullOrderBy = append(fullOrderBy, model.OrderByExpr{Expr: fieldExpression, Direction: direction})
+				}
+			} else if key == "_count" {
+				fullOrderBy = append(fullOrderBy, model.NewOrderByExpr(model.NewCountFunc(), direction))
+			} else {
+				fullOrderBy = append(fullOrderBy, model.OrderByExpr{Expr: model.NewLiteral(key), Direction: direction})
+			}
+		}
 	}
 
 	return fullOrderBy

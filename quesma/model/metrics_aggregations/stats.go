@@ -43,3 +43,14 @@ func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 func (query Stats) String() string {
 	return "stats"
 }
+
+func (query Stats) ColumnIdx(name string) int {
+	for i, column := range statsColumnsInOrder {
+		if column == name {
+			return i
+		}
+	}
+
+	logger.ErrorWithCtx(query.ctx).Msgf("stats column %s not found", name)
+	return -1
+}
