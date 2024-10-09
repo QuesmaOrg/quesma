@@ -274,7 +274,9 @@ func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelL
 			}
 
 			parentBucketLayerIdx := i + layerIdx
+			//fmt.Println("connectPipelineAggregations", parentBucketLayerIdx, layerIdx, pipeline, layers[parentBucketLayerIdx-2].nextBucketAggregation.queryType)
 			if parentBucketLayerIdx > 0 {
+				fmt.Println("robie -2 zamiast -1. A jednak nie.")
 				pipeline.queryType.SetParentBucketAggregation(layers[parentBucketLayerIdx-1].nextBucketAggregation.queryType)
 			}
 			parentBucketLayer.childrenPipelineAggregations = append(parentBucketLayer.childrenPipelineAggregations, pipeline)

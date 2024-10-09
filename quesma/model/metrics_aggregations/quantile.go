@@ -164,3 +164,14 @@ func (query Quantile) createPercentileNameToReturn(percentileName string) string
 	}
 	return percentileName
 }
+
+func (query Quantile) ColumnIdx(name string) int {
+	for i, percentileName := range query.percentileNames {
+		if percentileName == name {
+			return i
+		}
+	}
+
+	logger.ErrorWithCtx(query.ctx).Msgf("quantile column %s not found", name)
+	return -1
+}

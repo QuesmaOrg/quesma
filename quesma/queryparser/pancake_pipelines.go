@@ -19,6 +19,8 @@ func (p pancakePipelinesProcessor) selectPipelineRows(pipeline model.PipelineQue
 	bucketAggregation *pancakeModelBucketAggregation) (
 	result []model.QueryResultRow) {
 
+	fmt.Println("selectPipelineRows", pipeline, "bucketAggr:", bucketAggregation, "pipeline.parent", pipeline.GetParentBucketAggregation())
+
 	isCount := pipeline.IsCount()
 	for _, row := range rows {
 		newRow := model.QueryResultRow{Index: row.Index}
@@ -46,6 +48,7 @@ func (p pancakePipelinesProcessor) currentPipelineMetricAggregations(layer *panc
 			continue
 		}
 
+		fmt.Println("calcSingleMetricPipeline", layer, pipeline, rows)
 		thisPipelineResults := p.calcSingleMetricPipeline(layer, pipeline, rows)
 
 		errorMsg := fmt.Sprintf("calculateThisLayerMetricPipelines, pipeline: %s", pipeline.internalName)
@@ -60,6 +63,8 @@ func (p pancakePipelinesProcessor) calcSingleMetricPipeline(layer *pancakeModelL
 
 	resultPerPipeline = make(map[string]model.JsonMap)
 
+	fmt.Println("select pipeline rows:", layer, "bucket aggr:", layer.nextBucketAggregation, "nil after is BAD pipeline:", pipeline)
+	//pp.Println("layer", layer, rows)
 	pipelineRows := p.selectPipelineRows(pipeline.queryType, rows, layer.nextBucketAggregation)
 	resultRows := pipeline.queryType.CalculateResultWhenMissing(pipelineRows)
 	resultPerPipeline[pipeline.name] = pipeline.queryType.TranslateSqlResponseToJson(resultRows)
