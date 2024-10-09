@@ -18,6 +18,7 @@ type (
 		FindSchema(name TableName) (Schema, bool)
 		UpdateDynamicConfiguration(name TableName, table Table)
 		UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName)
+		GetFieldEncodings() map[FieldEncodingKey]EncodedFieldName
 	}
 
 	FieldEncodingKey struct {
@@ -149,6 +150,17 @@ func (s *schemaRegistry) UpdateFieldEncodings(encodings map[FieldEncodingKey]Enc
 	for key, value := range encodings {
 		s.fieldEncodings[key] = EncodedFieldName(value)
 	}
+}
+
+func (s *schemaRegistry) GetFieldEncodings() map[FieldEncodingKey]EncodedFieldName {
+	s.fieldEncodingsLock.RLock()
+	defer s.fieldEncodingsLock.RUnlock()
+	fieldEncodings := make(map[FieldEncodingKey]EncodedFieldName)
+	for key, value := range s.fieldEncodings {
+		fieldEncodings[key] = EncodedFieldName(value)
+
+	}
+	return fieldEncodings
 }
 
 func NewSchemaRegistry(tableProvider TableProvider, configuration *config.QuesmaConfiguration, dataSourceTypeAdapter typeAdapter) Registry {

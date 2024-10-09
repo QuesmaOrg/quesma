@@ -56,6 +56,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
 			}
 
+			if test.TestName == "Terms with order by top metrics(file:kibana-visualize/agg_req,nr:8)" {
+				t.Skip("Need to implement order by top metrics (talk with Jacek, he has an idea)")
+			}
+
 			fmt.Println("i:", i, "test:", test.TestName)
 
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)

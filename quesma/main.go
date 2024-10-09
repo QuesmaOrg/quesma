@@ -21,6 +21,7 @@ import (
 	"quesma/logger"
 	"quesma/persistence"
 	"quesma/quesma"
+	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/ui"
 	"quesma/schema"
@@ -75,7 +76,7 @@ func main() {
 	}()
 
 	if asyncQueryTraceLogger != nil {
-		asyncQueryTraceEvictor := quesma.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
+		asyncQueryTraceEvictor := async_search_storage.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
 		asyncQueryTraceEvictor.Start()
 		defer asyncQueryTraceEvictor.Stop()
 	}
@@ -142,6 +143,6 @@ func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscove
 	if cfg.TransparentProxy {
 		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, false)
 	} else {
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, logChan, abResultsrepository, indexRegistry)
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry)
 	}
 }

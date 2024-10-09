@@ -160,7 +160,7 @@ func ingestProcessorsNonEmpty(cfg *clickhouse.ChTableConfig) []ingestProcessorHe
 
 func ingestProcessors(config *clickhouse.ChTableConfig) []ingestProcessorHelper {
 	ingestProcessor := newIngestProcessorEmpty()
-	ingestProcessor.schemaRegistry = schema.StaticRegistry{}
+	ingestProcessor.schemaRegistry = &schema.StaticRegistry{}
 	return append([]ingestProcessorHelper{{ingestProcessor, false}}, ingestProcessorsNonEmpty(config)...)
 }
 
@@ -169,9 +169,12 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 		for index2, tableConfig := range configs {
 			for index3, ip := range ingestProcessors(tableConfig) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
-					ip.ip.schemaRegistry = schema.StaticRegistry{}
-					columnsFromJson, columnsFromSchema := ip.ip.buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), tableConfig, &columNameFormatter{separator: "::"})
-					encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
+					ip.ip.schemaRegistry = &schema.StaticRegistry{}
+					encodings := populateFieldEncodings([]types.JSON{types.MustJSON(tt.insertJson)}, tableName)
+					ignoredFields := ip.ip.getIgnoredFields(tableName)
+					columnsFromJson := JsonToColumns("", types.MustJSON(tt.insertJson), 1,
+						tableConfig, &columNameFormatter{separator: "::"}, ignoredFields)
+					columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.ip.schemaRegistry, tableName), &columNameFormatter{separator: "::"}, tableName, encodings)
 					columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(types.MustJSON(tt.insertJson)))
 					query := createTableQuery(tableName, columns, tableConfig)
 
@@ -412,12 +415,15 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			}
 
 			virtualTableStorage := persistence.NewStaticJSONDatabase()
-			schemaRegistry := schema.StaticRegistry{
+			schemaRegistry := &schema.StaticRegistry{
 				Tables: make(map[schema.TableName]schema.Schema),
 			}
 			schemaRegistry.Tables[schema.TableName(indexName)] = indexSchema
 
 			indexRegistry := table_resolver.NewEmptyIndexRegistry()
+			schemaRegistry.FieldEncodings = make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
+			schemaRegistry.FieldEncodings[schema.FieldEncodingKey{TableName: indexName, FieldName: "schema_field"}] = "schema_field"
+
 			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db
 			ingest.virtualTableStorage = virtualTableStorage

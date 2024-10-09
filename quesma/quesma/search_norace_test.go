@@ -47,7 +47,7 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 
 			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 			go managementConsole.RunOnlyChannelProcessor()
-			s := schema.StaticRegistry{
+			s := &schema.StaticRegistry{
 				Tables: map[schema.TableName]schema.Schema{
 					tableName: {
 						Fields: map[schema.FieldName]schema.Field{
@@ -116,7 +116,7 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	indexRegistry := table_resolver.NewEmptyIndexRegistry()
 	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, indexRegistry)
 	go managementConsole.RunOnlyChannelProcessor()
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
