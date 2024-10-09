@@ -8,22 +8,26 @@ import (
 	"quesma/elasticsearch"
 )
 
+func (qmc *QuesmaManagementConsole) generateLoginForm() []byte {
+	buffer := newBufferWithHead()
+	buffer.Html(`<html>`)
+	buffer.Html(`<body>`)
+	buffer.Html(`<form action="/login-with-elasticsearch" method="post">`)
+	buffer.Html(`<label for="username">Username:</label>`)
+	buffer.Html(`<input type="text" id="username" name="username"><br>`)
+	buffer.Html(`<label for="password">Password:</label>`)
+	buffer.Html(`<input type="password" id="password" name="password"><br>`)
+	buffer.Html(`<input type="submit" value="Login">`)
+	buffer.Html(`</form>`)
+	buffer.Html(`</body>`)
+	buffer.Html(`</html>`)
+	return buffer.Bytes()
+}
+
 func (qmc *QuesmaManagementConsole) HandleElasticsearchLogin(writer http.ResponseWriter, req *http.Request) {
 	if req.Method == http.MethodGet {
 		writer.Header().Set("Content-Type", "text/html")
-		writer.Write([]byte(`
-            <html>
-            <body>
-                <form action="/login-with-elasticsearch" method="post">
-                    <label for="username">Username:</label>
-                    <input type="text" id="username" name="username"><br>
-                    <label for="password">Password:</label>
-                    <input type="password" id="password" name="password"><br>
-                    <input type="submit" value="Login">
-                </form>
-            </body>
-            </html>
-        `))
+		writer.Write(qmc.generateLoginForm())
 	} else if req.Method == http.MethodPost {
 		username := req.FormValue("username")
 		password := req.FormValue("password")
