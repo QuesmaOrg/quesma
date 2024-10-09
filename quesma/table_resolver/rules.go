@@ -20,7 +20,7 @@ func patternIsNotAllowed(input parsedPattern) *Decision {
 	}
 	return &Decision{
 		Message: "Pattern is not allowed.",
-		Err:     fmt.Errorf("parsedPattern is not allowed"),
+		Err:     fmt.Errorf("pattern is not allowed"),
 	}
 }
 
@@ -178,7 +178,7 @@ func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input 
 
 			case nElastic > 0 && nClickhouse > 0:
 				return &Decision{
-					Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index parsedPattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", input.parts, matchedElastic, matchedClickhouse)),
+					Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", input.parts, matchedElastic, matchedClickhouse)),
 					Message: "Both Elastic and Clickhouse matched.",
 				}
 

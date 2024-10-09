@@ -4,18 +4,25 @@ package table_resolver
 
 import (
 	"fmt"
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/quesma/config"
+	"reflect"
 	"strings"
 	"testing"
 )
 
 func TestTableResolver(t *testing.T) {
 
-	indexConf := make(map[string]config.IndexConfiguration)
+	indexConf := map[string]config.IndexConfiguration{
+		"index1": config.IndexConfiguration{
+			QueryTarget:  []string{"clickhouse"},
+			IngestTarget: []string{"clickhouse"},
+		},
+	}
 
 	cfg := config.QuesmaConfiguration{IndexConfig: indexConf}
 
@@ -67,13 +74,37 @@ func TestTableResolver(t *testing.T) {
 		},
 
 		{
-			name:              "ingest with a parsedPattern",
+			name:              "ingest with a pattern",
 			pipeline:          IngestPipeline,
 			pattern:           "*",
 			clickhouseIndexes: []string{"index1", "index2"},
 			elasticIndexes:    []string{"index3"},
 			expected: Decision{
-				Err: fmt.Errorf("parsedPattern is not allowed"),
+				Err: fmt.Errorf("pattern is not allowed"),
+			},
+		},
+		{
+			name:              "ingest to index1",
+			pipeline:          IngestPipeline,
+			pattern:           "index1",
+			clickhouseIndexes: []string{"index1"},
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+					ClickhouseTableName: "index1",
+					Indexes:             []string{"index1"}},
+				},
+			},
+		},
+		{
+			name:              "query from index1",
+			pipeline:          QueryPipeline,
+			pattern:           "index1",
+			clickhouseIndexes: []string{"index1"},
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+					ClickhouseTableName: "index1",
+					Indexes:             []string{"index1"}},
+				},
 			},
 		},
 	}
@@ -118,7 +149,13 @@ func TestTableResolver(t *testing.T) {
 			}
 			assert.Equal(t, tt.expected.IsClosed, decision.IsClosed, "expected %v, got %v", tt.expected.IsClosed, decision.IsClosed)
 			assert.Equal(t, tt.expected.IsEmpty, decision.IsEmpty, "expected %v, got %v", tt.expected.IsEmpty, decision.IsEmpty)
-			assert.Equal(t, tt.expected.UseConnectors, decision.UseConnectors, "expected %v, got %v", tt.expected.UseConnectors, decision.UseConnectors)
+
+			if !reflect.DeepEqual(tt.expected.UseConnectors, decision.UseConnectors) {
+				pp.Println(tt.expected)
+				pp.Println(decision)
+				t.Errorf("UseConnectors didn't match, expected %v, got %v", tt.expected.UseConnectors, decision.UseConnectors)
+			}
+
 		})
 	}
 

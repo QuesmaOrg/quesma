@@ -63,8 +63,8 @@ type (
 		ingestCounter             int64
 		ingestFieldStatistics     IngestFieldStatistics
 		ingestFieldStatisticsLock sync.Mutex
-		virtualTableStorage persistence.JSONDatabase
-		tableResolver       table_resolver.TableResolver
+		virtualTableStorage       persistence.JSONDatabase
+		tableResolver             table_resolver.TableResolver
 	}
 	TableMap  = concurrent.Map[string, *chLib.Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -697,7 +697,7 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	tableFormatter TableColumNameFormatter) error {
 
 	decision := lm.tableResolver.Resolve(table_resolver.IngestPipeline, tableName)
-	table_resolver.TODO("processInsertQuery",  decision)
+	table_resolver.TODO("processInsertQuery", decision)
 
 	indexConf, ok := lm.cfg.IndexConfig[tableName]
 	if ok && indexConf.UseCommonTable {

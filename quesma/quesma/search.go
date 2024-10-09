@@ -56,8 +56,8 @@ type QueryRunner struct {
 	currentParallelQueryJobs atomic.Int64
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
-	ABResultsSender ab_testing.Sender
-	tableResolver   table_resolver.TableResolver
+	ABResultsSender          ab_testing.Sender
+	tableResolver            table_resolver.TableResolver
 
 	maxParallelQueries int // if set to 0, we run queries in sequence, it's fine for testing purposes
 }

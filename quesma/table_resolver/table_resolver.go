@@ -57,7 +57,7 @@ func (ir *composedResolver) resolve(indexName string) *Decision {
 		}
 	}
 	return &Decision{
-		Message: "Could not resolve parsedPattern. This is a bug.",
+		Message: "Could not resolve pattern. This is a bug.",
 		Err:     fmt.Errorf("could not resolve index"), // TODO better error
 	}
 }
