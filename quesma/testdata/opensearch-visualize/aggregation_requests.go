@@ -771,8 +771,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  maxOrNull("timestamp") AS "metric__2__1_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z'))
+			WHERE ("timestamp">=toDateTime64(1.713401399517e+09, 3) AND "timestamp"<=toDateTime64(1.714697399517e+09, 3))
 			GROUP BY "response" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
@@ -915,8 +914,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  minOrNull("timestamp") AS "metric__2__1_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z'))
+			WHERE ("timestamp">=toDateTime64(1.713401460471e+09, 3) AND "timestamp"<=toDateTime64(1.714697460471e+09, 3))
 			GROUP BY "response" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
@@ -1092,8 +1090,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  quantiles(0.950000)("timestamp") AS "metric__2__1_col_5",
 			  quantiles(0.990000)("timestamp") AS "metric__2__1_col_6"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))
+			WHERE ("timestamp">=toDateTime64(1.713401475845e+09, 3) AND "timestamp"<=toDateTime64(1.714697475845e+09, 3))
 			GROUP BY "response" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,

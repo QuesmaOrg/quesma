@@ -32,7 +32,7 @@ var parseRangeTests = []parseRangeTest{
 		`CREATE TABLE ` + tableName + `
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
-		`("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
+		`("timestamp">=toDateTime64(1.706881636029e+09,3) AND "timestamp"<=toDateTime64(1.707486436029e+09,3))`,
 	},
 	{
 		"parseDateTimeBestEffort",
@@ -46,7 +46,7 @@ var parseRangeTests = []parseRangeTest{
 		`CREATE TABLE ` + tableName + `
 		( "message" String, "timestamp" DateTime )
 		ENGINE = Memory`,
-		`("timestamp">=parseDateTimeBestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTimeBestEffort('2024-02-09T13:47:16.029Z'))`,
+		`("timestamp">=toDateTime64(1.706881636029e+09,3) AND "timestamp"<=toDateTime64(1.707486436029e+09,3))`,
 	},
 	{
 		"numeric range",
@@ -72,7 +72,7 @@ var parseRangeTests = []parseRangeTest{
 		`CREATE TABLE ` + tableName + `
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
-		`("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16'))`,
+		`("timestamp">=toDateTime64(1.706881636e+09,3) AND "timestamp"<=toDateTime64(1.707486436e+09,3))`,
 	},
 }
 
