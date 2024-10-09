@@ -40,12 +40,12 @@ func (c SelectCommand) Accept(v ExprVisitor) interface{} {
 	return v.VisitSelectCommand(c)
 }
 
-func (c *SelectCommand) String() string {
+func (c SelectCommand) String() string {
 	// TODO - we might need to verify queries nested N-times (N>=3), perhaps this should strip the outermost braces
 	return AsString(c)
 }
 
-func (c *SelectCommand) IsWildcard() bool {
+func (c SelectCommand) IsWildcard() bool {
 	for _, col := range c.Columns {
 		if col == NewWildcardExpr {
 			return true
@@ -58,7 +58,7 @@ func (c *SelectCommand) IsWildcard() bool {
 // only returns Order By columns, which are "tableColumn ASC/DESC",
 // won't return complex ones, like e.g. toInt(int_field / 5).
 // but it was like that before the refactor
-func (c *SelectCommand) OrderByFieldNames() (fieldNames []string) {
+func (c SelectCommand) OrderByFieldNames() (fieldNames []string) {
 	for _, expr := range c.OrderBy {
 		for _, colRefs := range GetUsedColumns(expr) {
 			fieldNames = append(fieldNames, colRefs.ColumnName)
