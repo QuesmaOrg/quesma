@@ -53,6 +53,7 @@ type ConnectorDecision interface {
 
 type ConnectorDecisionElastic struct {
 	// TODO  instance of elastic connector
+	ManagementCall bool
 }
 
 func (*ConnectorDecisionElastic) Message() string {

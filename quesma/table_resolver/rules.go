@@ -48,7 +48,7 @@ func resolveInternalElasticName(pattern parsedPattern) *Decision {
 
 	if elasticsearch.IsInternalIndex(pattern.source) {
 		return &Decision{
-			UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{ManagementCall: true}},
 			Message:       "It's kibana internals",
 		}
 	}

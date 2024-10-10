@@ -36,11 +36,12 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 				name := extractIndexName(s)
 
 				decision := tableResolver.Resolve(table_resolver.IngestPipeline, name)
-				table_resolver.TODO("matchedAgainstBulkBody", decision)
 
-				indexConfig, found := configuration.IndexConfig[name]
-				if found && (indexConfig.IsClickhouseIngestEnabled() || indexConfig.IsIngestDisabled()) {
-					return true
+				// if have any enabled Clickhouse connector, then return true
+				for _, connector := range decision.UseConnectors {
+					if _, ok := connector.(*table_resolver.ConnectorDecisionClickhouse); ok {
+						return true
+					}
 				}
 			}
 			idx += 1
@@ -57,37 +58,9 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
 
 		decision := indexRegistry.Resolve(table_resolver.QueryPipeline, indexPattern)
-		table_resolver.TODO("matchedAgainstPattern", decision)
-
-		patterns := strings.Split(req.Params["index"], ",")
-		for i, pattern := range patterns {
-			patterns[i] = elasticsearch.NormalizePattern(pattern)
-		}
-
-		for _, pattern := range patterns {
-			if elasticsearch.IsInternalIndex(pattern) {
-				// We assume that even if one index is an internal Elasticsearch index then the entire query
-				// is an internal Elasticsearch query.
-				logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", pattern)
-				return false
-			}
-		}
-
-		if configuration.IndexAutodiscoveryEnabled() {
-			for _, pattern := range patterns {
-				for tableName := range sr.AllSchemas() {
-					if config.MatchName(pattern, string(tableName)) {
-						return true
-					}
-				}
-			}
-		}
-
-		for _, pattern := range patterns {
-			for _, indexConf := range configuration.IndexConfig {
-				if config.MatchName(pattern, indexConf.Name) && configuration.IndexConfig[indexConf.Name].IsClickhouseQueryEnabled() {
-					return true
-				}
+		for _, connector := range decision.UseConnectors {
+			if _, ok := connector.(*table_resolver.ConnectorDecisionClickhouse); ok {
+				return true
 			}
 		}
 
@@ -102,19 +75,12 @@ func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry
 		indexName := req.Params["index"]
 
 		decision := indexRegistry.Resolve(pipelineName, indexName)
-		table_resolver.TODO("matchedExact", decision)
-
-		if elasticsearch.IsInternalIndex(req.Params["index"]) {
-			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])
-			return false
+		for _, connector := range decision.UseConnectors {
+			if _, ok := connector.(*table_resolver.ConnectorDecisionClickhouse); ok {
+				return true
+			}
 		}
-
-		indexConfig, exists := cfg.IndexConfig[req.Params["index"]]
-		if queryPath {
-			return exists && indexConfig.IsClickhouseQueryEnabled()
-		} else {
-			return exists && (indexConfig.IsClickhouseIngestEnabled() || indexConfig.IsIngestDisabled())
-		}
+		return false
 	})
 }
 
