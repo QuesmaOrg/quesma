@@ -16,6 +16,11 @@ on:
         default: false
         required: false
         type: boolean
+    secrets:
+      DOCKER_USER:
+        required: false
+      DOCKER_PAT:
+        required: false
 
 jobs:
   build-quesma-docker-image:

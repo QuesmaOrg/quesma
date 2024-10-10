@@ -26,3 +26,6 @@ jobs:
       VERSION: ${{ inputs.VERSION || 'nightly' }} # when called from the main branch, `github.event.inputs.VERSION` doesn't use default value and is just empty
       # Pushes to DockerHub only for `main` branch builds, unless set explicitly in the job input
       PUSH: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.PUSH }}
+    secrets:
+      DOCKER_USER: ${{ secrets.DOCKER_USER }}
+      DOCKER_PAT: ${{ secrets.DOCKER_PAT }}
