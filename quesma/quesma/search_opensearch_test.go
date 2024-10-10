@@ -218,11 +218,11 @@ func TestHighlighter(t *testing.T) {
 	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
 
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"message$*%:;", "host.name", "@timestamp"}). // careful, it's not always in this order, order is nondeterministic
-		// AddRow("abcd", "abcd", "abcd").
-		AddRow("prefix-text-to-highlight", "prefix-text-to-highlight", "prefix-text-to-highlight").
-		AddRow("text-to-highlight-suffix", "text-to-highlight-suffix", "text-to-highlight-suffix").
-		AddRow("text-to-highlight", "text-to-highlight", "text-to-highlight").
-		AddRow("text", "text", "text"))
+															AddRow("abcd", "abcd", "abcd").
+															AddRow("prefix-text-to-highlight", "prefix-text-to-highlight", "prefix-text-to-highlight").
+															AddRow("text-to-highlight-suffix", "text-to-highlight-suffix", "text-to-highlight-suffix").
+															AddRow("text-to-highlight", "text-to-highlight", "text-to-highlight").
+															AddRow("text", "text", "text"))
 
 	queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), resolver)
 	response, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(query))
