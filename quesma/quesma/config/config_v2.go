@@ -6,7 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/go-multierror"
-	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/parsers/json"
+	"github.com/knadh/koanf/v2"
 	"github.com/rs/zerolog"
 	"log"
 	"quesma/network"
@@ -100,18 +101,14 @@ func LoadV2Config() QuesmaNewConfiguration {
 	v2config.Logging.RemoteLogDrainUrl = telemetryUrl
 
 	loadConfigFile()
-	if err := k.Load(env.Provider("QUESMA_", ".", func(s string) string {
-		// This enables overriding config values with environment variables. It's case-sensitive, just like the YAML.
-		// Examples:
-		// `QUESMA_logging_level=debug` overrides `logging.level` in the config file
-		// `QUESMA_licenseKey=arbitrary-license-key` overrides `licenseKey` in the config file
-		return strings.Replace(strings.TrimPrefix(s, "QUESMA_"), "_", ".", -1)
-	}), nil); err != nil {
+	// We have to use custom env provider to allow array overrides
+	if err := k.Load(Env2JsonProvider("QUESMA_", "_", nil), json.Parser(), koanf.WithMergeFunc(mergeDictFunc)); err != nil {
 		log.Fatalf("error loading config form supplied env vars: %v", err)
 	}
 	if err := k.Unmarshal("", &v2config); err != nil {
 		log.Fatalf("error unmarshalling config: %v", err)
 	}
+
 	if err := v2config.Validate(); err != nil {
 		log.Fatalf("Config validation failed: %v", err)
 	}
@@ -215,7 +212,11 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				}
 				var backendConnectorTypes []string
 				for _, con := range declaredBackendConnectors {
-					backendConnectorTypes = append(backendConnectorTypes, c.getBackendConnectorByName(con).Type)
+					connector := c.getBackendConnectorByName(con)
+					if connector == nil {
+						return fmt.Errorf(fmt.Sprintf("backend connector named [%s] not found in configuration", con))
+					}
+					backendConnectorTypes = append(backendConnectorTypes, connector.Type)
 				}
 				if !slices.Contains(backendConnectorTypes, ElasticsearchBackendConnectorName) {
 					return fmt.Errorf("query processor requires having one elasticsearch backend connector")
