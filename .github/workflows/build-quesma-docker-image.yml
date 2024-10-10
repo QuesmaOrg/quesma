@@ -16,6 +16,11 @@ on:
         default: false
         required: false
         type: boolean
+      REF:
+        description: 'The branch, tag or SHA to checkout. By default it will use the default branch'
+        default: ''
+        required: false
+        type: string
     secrets:
       DOCKER_USER:
         required: false
@@ -30,6 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.REF }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
