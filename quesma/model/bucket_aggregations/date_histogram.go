@@ -36,13 +36,15 @@ type DateHistogram struct {
 	interval          string
 	timezone          string
 	wantedTimezone    *time.Location // key is in `timezone` time, and we need it to be UTC
+	ebmin             int64
+	ebmax             int64
 	minDocCount       int
 	intervalType      DateHistogramIntervalType
 	fieldDateTimeType clickhouse.DateTimeType
 }
 
 func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone string,
-	minDocCount int, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
+	minDocCount int, ebmin, ebmax int64, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
 
 	wantedTimezone, err := time.LoadLocation(timezone)
 	if err != nil {
@@ -51,7 +53,7 @@ func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone 
 	}
 
 	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone, wantedTimezone: wantedTimezone,
-		minDocCount: minDocCount, intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
+		minDocCount: minDocCount, ebmin: ebmin, ebmax: ebmax, intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
 }
 
 func (typ DateHistogramIntervalType) String(ctx context.Context) string {
@@ -97,7 +99,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		responseKey := query.calculateResponseKey(originalKey)
 
 		response = append(response, model.JsonMap{
-			OriginalKeyName: originalKey,
+			//OriginalKeyName: originalKey,
 			"key":           responseKey,
 			"doc_count":     docCount,
 			"key_as_string": query.calculateKeyAsString(responseKey),
@@ -226,7 +228,7 @@ func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
 }
 
 func (query *DateHistogram) calculateKeyAsString(key int64) string {
-	return time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000")
+	return time.UnixMilli(key).In(query.wantedTimezone).Format("2006-01-02T15:04:05.000-07:00")
 }
 
 func (query *DateHistogram) OriginalKeyToKeyAsString(originalKey any) string {
@@ -249,7 +251,7 @@ func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 			differenceBetweenTwoNextKeys = 0
 		}
 	}
-	return &DateHistogramRowsTransformer{MinDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys, EmptyValue: 0}
+	return &DateHistogramRowsTransformer{MinDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys, EmptyValue: 0, ebmin: query.ebmin, ebmax: query.ebmax}
 }
 
 // we're sure len(row.Cols) >= 2
@@ -257,13 +259,15 @@ func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 type DateHistogramRowsTransformer struct {
 	MinDocCount                  int
 	differenceBetweenTwoNextKeys int64 // if 0, we don't add keys
+	ebmin                        int64
+	ebmax                        int64
 	EmptyValue                   any
 }
 
 // if MinDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
 // CAUTION: a different kind of postprocessing is needed for MinDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
 func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	if qt.MinDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 || len(rowsFromDB) < 2 {
+	if qt.MinDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 || len(rowsFromDB) < 1 {
 		// we only add empty rows, when
 		// a) MinDocCount == 0
 		// b) we have valid differenceBetweenTwoNextKeys (>0)
@@ -297,6 +301,17 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		}
 		postprocessedRows = append(postprocessedRows, rowsFromDB[i])
 	}
+	/*
+		fmt.Println("postprocessedRows 1", postprocessedRows, qt.getKey(postprocessedRows[0])-qt.differenceBetweenTwoNextKeys, qt.ebmin, (qt.getKey(postprocessedRows[0])-qt.differenceBetweenTwoNextKeys)*qt.differenceBetweenTwoNextKeys)
+
+		for maybePreKey, i := qt.getKey(postprocessedRows[0])-qt.differenceBetweenTwoNextKeys, 0; i < 96; maybePreKey*qt.differenceBetweenTwoNextKeys >= qt.ebminmaybePreKey, i = maybePreKey-qt.differenceBetweenTwoNextKeys, i+1 {
+			preRow := postprocessedRows[0].Copy()
+			preRow.Cols[len(preRow.Cols)-2].Value = maybePreKey
+			preRow.Cols[len(preRow.Cols)-1].Value = qt.EmptyValue
+			postprocessedRows = append([]model.QueryResultRow{preRow}, postprocessedRows...)
+			emptyRowsAdded++
+		}
+	*/
 	return postprocessedRows
 }
 

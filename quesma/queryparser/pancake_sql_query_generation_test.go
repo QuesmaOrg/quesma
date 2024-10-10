@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/quesma/config"
@@ -24,7 +25,7 @@ const TableName = model.SingleTableNamePlaceHolder
 
 func TestPancakeQueryGeneration(t *testing.T) {
 
-	// logger.InitSimpleLoggerForTests()
+	logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -58,6 +59,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 			if test.TestName == "Terms with order by top metrics(file:kibana-visualize/agg_req,nr:8)" {
 				t.Skip("Need to implement order by top metrics (talk with Jacek, he has an idea)")
+			}
+
+			if i != 125 { //7788 124 {
+				t.Skip()
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)

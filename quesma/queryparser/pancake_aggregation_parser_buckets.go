@@ -95,6 +95,11 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			}
 		}
 
+		var ebmin, ebmax int64
+		if extendedBounds, exists := dateHistogram["extended_bounds"].(QueryMap); exists {
+			ebmin, ebmax = int64(extendedBounds["min"].(float64)), int64(extendedBounds["max"].(float64))
+		}
+
 		if !didWeAddMissing {
 			aggregation.filterOutEmptyKeyBucket = true
 		}
@@ -110,7 +115,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 
 		dateHistogramAggr := bucket_aggregations.NewDateHistogram(
-			cw.Ctx, field, interval, timezone, minDocCount, intervalType, dateTimeType)
+			cw.Ctx, field, interval, timezone, minDocCount, ebmin, ebmax, intervalType, dateTimeType)
 		aggregation.queryType = dateHistogramAggr
 
 		sqlQuery := dateHistogramAggr.GenerateSQL()
@@ -136,15 +141,8 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			aggregation.filterOutEmptyKeyBucket = true
 		}
 
-		size := 10
-		if sizeRaw, ok := terms["size"]; ok {
-			if sizeParsed, ok := sizeRaw.(float64); ok {
-				size = int(sizeParsed)
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("size is not an float64, but %T, value: %v. Using default", sizeRaw, sizeRaw)
-			}
-		}
-
+		const defaultSize = 10
+		size := cw.parseSize(terms, defaultSize)
 		orderBy := cw.parseOrder(terms, queryMap, []model.Expr{fieldExpression})
 		aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", orderBy[0]) // TODO probably full, not [0]
 		aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)

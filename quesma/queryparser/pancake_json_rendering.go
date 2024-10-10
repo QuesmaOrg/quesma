@@ -236,14 +236,19 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		default:
 			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
 		}
-		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows)
+		if metric.name != PancakeTotalCountMetricName {
+			result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows)
+		}
 		// TODO: maybe add metadata also here? probably not needed
 	}
 
+	fmt.Println("robie result, layer:", layer)
+
 	// pipeline aggregations of metric type behave just like metric
 	for metricPipelineAggrName, metricPipelineAggrResult := range p.pipeline.currentPipelineMetricAggregations(layer, rows) {
+		fmt.Println("metricPipelineAggrName", metricPipelineAggrName)
 		result[metricPipelineAggrName] = metricPipelineAggrResult
-		// TODO: maybe add metadata also here? probably not needed
+		//TODO: maybe add metadata also here? probably not needed
 	}
 
 	if layer.nextBucketAggregation != nil {
@@ -308,6 +313,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 				// Simple case, we merge bucketArr[i] with subAggrRows[i] (if lengths are equal, keys must be equal => it's fine to not check them at all)
 				for i, bucket := range bucketArr {
 					for pipelineAggrName, pipelineAggrResult := range pipelineBucketsPerAggregation {
+						fmt.Println("pipelineAggrName", pipelineAggrName, pipelineAggrResult)
 						bucketArr[i][pipelineAggrName] = pipelineAggrResult[i]
 					}
 
