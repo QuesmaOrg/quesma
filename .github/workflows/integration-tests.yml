@@ -1,9 +1,8 @@
 name: Integration tests
 
 on:
-#  #merge_group:
-#  push:
-#    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
   workflow_dispatch:
     inputs:
       GIT_REF:
