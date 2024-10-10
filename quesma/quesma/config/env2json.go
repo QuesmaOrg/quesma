@@ -111,6 +111,44 @@ func mergeArrayFunc(src, dest []interface{}) ([]interface{}, error) {
 	return newArray, nil
 }
 
+func mergeDictIntoArrayFunc(src map[string]interface{}, dest []interface{}) ([]interface{}, error) {
+	newArray := make([]interface{}, len(dest))
+	copy(newArray, dest)
+	for k, v := range src {
+		foundIdx := -1
+
+		// find existing element with same name
+		for i := range newArray {
+			if m, isMap := newArray[i].(map[string]interface{}); isMap {
+				if m["name"] == k {
+					foundIdx = i
+					break
+				}
+			}
+		}
+
+		// if not exist add new element
+		if foundIdx == -1 {
+			foundIdx = len(newArray)
+			newMap := make(map[string]interface{})
+			newMap["name"] = k
+			newArray = append(newArray, newMap)
+		}
+
+		if m, isMap := newArray[foundIdx].(map[string]interface{}); isMap {
+			if vTyped, isMap2 := v.(map[string]interface{}); isMap2 {
+				if err := mergeDictFunc(vTyped, m); err != nil {
+					return nil, err
+				}
+				newArray[foundIdx] = m
+				continue
+			}
+		}
+		newArray[foundIdx] = v
+	}
+	return newArray, nil
+}
+
 func mergeDictFunc(src, dest map[string]interface{}) error {
 	for k, v := range src {
 		switch vTyped := v.(type) {
@@ -119,6 +157,13 @@ func mergeDictFunc(src, dest map[string]interface{}) error {
 				if destMap, isMap := destV.(map[string]interface{}); isMap {
 					if err := mergeDictFunc(vTyped, destMap); err != nil {
 						return err
+					}
+					continue
+				} else if destArray, isArray := destV.([]interface{}); isArray {
+					if newV, err := mergeDictIntoArrayFunc(vTyped, destArray); err != nil {
+						return err
+					} else {
+						dest[k] = newV
 					}
 					continue
 				}

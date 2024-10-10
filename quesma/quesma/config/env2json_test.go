@@ -28,6 +28,28 @@ func TestEnv2Json_arrays(t *testing.T) {
 	assert.Equal(t, expectedJson, string(resultJson))
 }
 
+func TestEnv2Json_arraysByName(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/test_config_v2.yaml")
+	os.Setenv("QUESMA_licenseKey", "secret_key")
+	os.Setenv("QUESMA_backendConnectors_my-clickhouse-data-source_config_url", "http://localhost:9201")
+	os.Setenv("QUESMA_backendConnectors_my-clickhouse-data-source_config_user", "user")
+	os.Setenv("QUESMA_backendConnectors_my-clickhouse-data-source_config_password", "password")
+	t.Cleanup(func() {
+		os.Unsetenv("QUESMA_licenseKey")
+		os.Unsetenv("QUESMA_backendConnectors_my-clickhouse-data-source_config_url")
+		os.Unsetenv("QUESMA_backendConnectors_my-clickhouse-data-source_config_user")
+		os.Unsetenv("QUESMA_backendConnectors_my-clickhouse-data-source_config_password")
+	})
+
+	cfg := LoadV2Config()
+	assert.Len(t, cfg.BackendConnectors, 2)
+	clickHouseBackend := cfg.BackendConnectors[1]
+	assert.Equal(t, "my-clickhouse-data-source", clickHouseBackend.Name)
+	assert.Equal(t, "http://localhost:9201", clickHouseBackend.Config.Url.String())
+	assert.Equal(t, "user", clickHouseBackend.Config.User)
+	assert.Equal(t, "password", clickHouseBackend.Config.Password)
+}
+
 func TestEnv2Json_empty(t *testing.T) {
 	provider := Env2JsonProvider("ENV2JSON2_", "_", nil)
 	resultJson, err := provider.ReadBytes()
