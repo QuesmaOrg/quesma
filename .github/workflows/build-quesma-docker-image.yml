@@ -46,6 +46,8 @@ jobs:
         run: echo QUESMA_BUILD_DATE=$(git --no-pager log -1 --date=format:'%Y-%m-%d' --format="%ad")  >> $GITHUB_ENV
 
       # If we don't push the image, we build it only for the host architecture and export it to .tar file
+      # This step is similar to "Build and push", but avoids building arm64 image, which takes
+      # a lot of time on GitHub Actions.
       - name: Build and export
         uses: docker/build-push-action@v6
         if: ${{ !inputs.PUSH }}
