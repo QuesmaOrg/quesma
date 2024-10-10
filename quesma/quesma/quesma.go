@@ -186,8 +186,9 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
 
-	handler, found := router.Matches(quesmaRequest)
+	handler, found, decision := router.Matches(quesmaRequest)
 	if found {
+		// decision will handled by quesma itself
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
 			return handler(ctx, quesmaRequest)
 		})
@@ -212,18 +213,56 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		}
 	} else {
 
-		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(opaqueIdHeaderKey), logManager.ResolveIndexPattern)
+		var sendToElastic bool
 
-		rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
-		response := rawResponse.response
-		if response != nil {
-			responseFromElastic(ctx, response, w)
-		} else {
-			w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
-			w.WriteHeader(500)
-			if rawResponse.error != nil {
-				_, _ = w.Write([]byte(rawResponse.error.Error()))
+		if decision != nil {
+
+			if decision.Err != nil {
+				r.errorResponse(ctx, decision.Err, w)
+				return
 			}
+
+			if decision.IsEmpty {
+				// TODO return empty
+				r.errorResponse(ctx, fmt.Errorf("empty response"), w)
+				return
+			}
+
+			if decision.IsClosed {
+				// TODO return closed index
+				r.errorResponse(ctx, fmt.Errorf("closed index"), w)
+			}
+
+			for _, connector := range decision.UseConnectors {
+				if _, ok := connector.(*table_resolver.ConnectorDecisionElastic); ok {
+					// this is desired elastic call
+					sendToElastic = true
+					break
+				}
+			}
+
+		} else {
+			// this is fallback case
+			// in case we don't support sth, we should send it to Elastic
+			sendToElastic = true
+		}
+
+		if sendToElastic {
+			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(opaqueIdHeaderKey), logManager.ResolveIndexPattern)
+
+			rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
+			response := rawResponse.response
+			if response != nil {
+				responseFromElastic(ctx, response, w)
+			} else {
+				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
+				w.WriteHeader(500)
+				if rawResponse.error != nil {
+					_, _ = w.Write([]byte(rawResponse.error.Error()))
+				}
+			}
+		} else {
+			r.errorResponse(ctx, end_user_errors.ErrNoConnector.New(fmt.Errorf("no connector found")), w)
 		}
 	}
 }

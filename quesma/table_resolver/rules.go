@@ -241,7 +241,7 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 					}
 				}
 			}
-			
+
 			switch {
 
 			case len(matchedTables) == 0 && len(matchedVirtualTables) == 0:

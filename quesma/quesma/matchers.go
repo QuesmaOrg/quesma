@@ -14,17 +14,17 @@ import (
 )
 
 func matchedAgainstAsyncId() mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
+	return mux.RequestMatcherFunc(func(req *mux.Request) mux.MatchResult {
 		if !strings.HasPrefix(req.Params["id"], tracing.AsyncIdPrefix) {
 			logger.Debug().Msgf("async query id %s is forwarded to Elasticsearch", req.Params["id"])
-			return false
+			return mux.MatchResult{Matched: false}
 		}
-		return true
+		return mux.MatchResult{Matched: true}
 	})
 }
 
 func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableResolver table_resolver.TableResolver) mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
+	return mux.RequestMatcherFunc(func(req *mux.Request) mux.MatchResult {
 		idx := 0
 		for _, s := range strings.Split(req.Body, "\n") {
 			if len(s) == 0 {
@@ -39,7 +39,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 				// if have any enabled Clickhouse connector, then return true
 				for _, connector := range decision.UseConnectors {
 					if _, ok := connector.(*table_resolver.ConnectorDecisionClickhouse); ok {
-						return true
+						return mux.MatchResult{Matched: true, Decision: decision}
 					}
 				}
 			}
@@ -47,7 +47,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 		}
 
 		// All indexes are disabled, the whole bulk can go to Elastic
-		return false
+		return mux.MatchResult{Matched: false}
 	})
 }
 
@@ -58,17 +58,17 @@ func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.
 
 // check whether exact index name is enabled
 func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipelineName string) mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
+	return mux.RequestMatcherFunc(func(req *mux.Request) mux.MatchResult {
 
 		indexName := req.Params["index"]
 
 		decision := indexRegistry.Resolve(pipelineName, indexName)
 		for _, connector := range decision.UseConnectors {
 			if _, ok := connector.(*table_resolver.ConnectorDecisionClickhouse); ok {
-				return true
+				return mux.MatchResult{Matched: true, Decision: decision}
 			}
 		}
-		return false
+		return mux.MatchResult{Matched: false, Decision: decision}
 	})
 }
 
@@ -83,7 +83,7 @@ func matchedExactIngestPath(cfg *config.QuesmaConfiguration, indexRegistry table
 // Returns false if the body contains a Kibana internal search.
 // Kibana does several /_search where you can identify it only by field
 func matchAgainstKibanaInternal() mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
+	return mux.RequestMatcherFunc(func(req *mux.Request) mux.MatchResult {
 
 		var query types.JSON
 
@@ -93,7 +93,7 @@ func matchAgainstKibanaInternal() mux.RequestMatcher {
 			query = req.ParsedBody.(types.JSON)
 
 		default:
-			return true
+			return mux.MatchResult{Matched: true}
 		}
 
 		hasJsonKey := func(keyFrag string, node interface{}) bool {
@@ -135,6 +135,7 @@ func matchAgainstKibanaInternal() mux.RequestMatcher {
 		// 1. https://www.elastic.co/guide/en/security/current/alert-schema.html
 		// 2. migrationVersion
 		// 3., 4., 5. related to Kibana Fleet
-		return !hasJsonKey("kibana.alert.", q) && !hasJsonKey("migrationVersion", q) && !hasJsonKey("idleTimeoutExpiration", q) && !strings.Contains(req.Body, "fleet-message-signing-keys") && !strings.Contains(req.Body, "fleet-uninstall-tokens")
+		matched := !hasJsonKey("kibana.alert.", q) && !hasJsonKey("migrationVersion", q) && !hasJsonKey("idleTimeoutExpiration", q) && !strings.Contains(req.Body, "fleet-message-signing-keys") && !strings.Contains(req.Body, "fleet-uninstall-tokens")
+		return mux.MatchResult{Matched: matched}
 	})
 }
