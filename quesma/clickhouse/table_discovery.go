@@ -536,6 +536,9 @@ func (td *tableDiscovery) readTables(database string) (map[string]map[string]col
 
 	logger.Debug().Msgf("describing tables: %s", database)
 
+	if td.dbConnPool == nil {
+		return map[string]map[string]columnMetadata{}, fmt.Errorf("database connection pool is nil, cannot describe tables")
+	}
 	rows, err := td.dbConnPool.Query("SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
 	if err != nil {
 		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
