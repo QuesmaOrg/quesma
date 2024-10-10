@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/go-multierror"
 	"github.com/k0kubun/pp"
-	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/parsers/json"
 	"github.com/rs/zerolog"
 	"log"
 	"quesma/network"
@@ -101,13 +101,7 @@ func LoadV2Config() QuesmaNewConfiguration {
 	v2config.Logging.RemoteLogDrainUrl = telemetryUrl
 
 	loadConfigFile()
-	if err := k.Load(env.Provider("QUESMA_", ".", func(s string) string {
-		// This enables overriding config values with environment variables. It's case-sensitive, just like the YAML.
-		// Examples:
-		// `QUESMA_logging_level=debug` overrides `logging.level` in the config file
-		// `QUESMA_licenseKey=arbitrary-license-key` overrides `licenseKey` in the config file
-		return strings.Replace(strings.TrimPrefix(s, "QUESMA_"), "_", ".", -1)
-	}), nil); err != nil {
+	if err := k.Load(Env2JsonProvider("QUESMA_", "_", nil), json.Parser()); err != nil {
 		log.Fatalf("error loading config form supplied env vars: %v", err)
 	}
 	if err := k.Unmarshal("", &v2config); err != nil {
