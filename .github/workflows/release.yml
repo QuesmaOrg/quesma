@@ -13,7 +13,7 @@ permissions:
   contents: write  # To be able to create a release via GitHub API
 
 jobs:
-  build-quesma-docker-image:
+  build-quesma-docker-image: # based on nightly-docker-build-and-push.yml, but heavily modified
     strategy:
       matrix:
         module: [ "quesma" ]
