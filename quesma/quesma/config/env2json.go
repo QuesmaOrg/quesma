@@ -76,3 +76,69 @@ func (e *Env2Json) set(key string, value interface{}) error {
 func (e *Env2Json) Read() (map[string]interface{}, error) {
 	return nil, errors.New("env2json Provider does not support Read()")
 }
+
+func mergeArrayFunc(src, dest []interface{}) ([]interface{}, error) {
+	newLen := len(src)
+	if len(dest) > newLen {
+		newLen = len(dest)
+	}
+	newArray := make([]interface{}, newLen)
+
+	for i := 0; i < newLen; i++ {
+		if i >= len(src) {
+			newArray[i] = dest[i]
+		} else if i >= len(dest) {
+			newArray[i] = src[i]
+		} else if src[i] == nil {
+			newArray[i] = dest[i]
+		} else if dest[i] == nil {
+			newArray[i] = src[i]
+		} else {
+			if srcMap, isMap := src[i].(map[string]interface{}); isMap {
+				if destMap, isDestMap := dest[i].(map[string]interface{}); isDestMap {
+					if err := mergeDictFunc(srcMap, destMap); err != nil {
+						return nil, err
+					}
+					newArray[i] = destMap
+					continue
+				}
+			}
+
+			newArray[i] = src[i]
+		}
+	}
+
+	return newArray, nil
+}
+
+func mergeDictFunc(src, dest map[string]interface{}) error {
+	for k, v := range src {
+		switch vTyped := v.(type) {
+		case map[string]interface{}:
+			if destV, exist := dest[k]; exist {
+				if destMap, isMap := destV.(map[string]interface{}); isMap {
+					if err := mergeDictFunc(vTyped, destMap); err != nil {
+						return err
+					}
+					continue
+				}
+			}
+			dest[k] = v
+		case []interface{}:
+			if destV, exist := dest[k]; exist {
+				if destMap, isArray := destV.([]interface{}); isArray {
+					if newV, err := mergeArrayFunc(vTyped, destMap); err != nil {
+						return err
+					} else {
+						dest[k] = newV
+					}
+					continue
+				}
+			}
+			dest[k] = v
+		default:
+			dest[k] = v
+		}
+	}
+	return nil
+}

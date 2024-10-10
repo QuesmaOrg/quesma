@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/go-multierror"
-	"github.com/k0kubun/pp"
 	"github.com/knadh/koanf/parsers/json"
+	"github.com/knadh/koanf/v2"
 	"github.com/rs/zerolog"
 	"log"
 	"quesma/network"
@@ -101,16 +101,14 @@ func LoadV2Config() QuesmaNewConfiguration {
 	v2config.Logging.RemoteLogDrainUrl = telemetryUrl
 
 	loadConfigFile()
-	if err := k.Load(Env2JsonProvider("QUESMA_", "_", nil), json.Parser()); err != nil {
+	// We have to use custom env provider to allow array overrides
+	if err := k.Load(Env2JsonProvider("QUESMA_", "_", nil), json.Parser(), koanf.WithMergeFunc(mergeDictFunc)); err != nil {
 		log.Fatalf("error loading config form supplied env vars: %v", err)
 	}
 	if err := k.Unmarshal("", &v2config); err != nil {
 		log.Fatalf("error unmarshalling config: %v", err)
 	}
-	// TODO: parse env and deal with them
-	// QUESMA_BACKEND_CONNECTOR_hydrolix_url
-	log.Printf("JM config\n")
-	pp.Println(v2config)
+
 	if err := v2config.Validate(); err != nil {
 		log.Fatalf("Config validation failed: %v", err)
 	}
