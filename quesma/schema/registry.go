@@ -142,6 +142,13 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 
 func (s *schemaRegistry) UpdateDynamicConfiguration(name TableName, table Table) {
 	s.dynamicConfiguration[name.AsString()] = table
+	dynamicEncodings := make(map[FieldEncodingKey]EncodedFieldName)
+	for _, column := range table.Columns {
+		// when table is created based on PUT `name/_mapping` we need to populate field encodings.
+		// Otherwise, they will be populated only based on ingested data which might not contain all the fields
+		dynamicEncodings[FieldEncodingKey{TableName: name.AsString(), FieldName: column.Name}] = EncodedFieldName(util.FieldToColumnEncoder(column.Name))
+	}
+	s.UpdateFieldEncodings(dynamicEncodings)
 }
 
 func (s *schemaRegistry) UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName) {

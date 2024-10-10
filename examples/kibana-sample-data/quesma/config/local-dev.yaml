@@ -21,11 +21,9 @@ backendConnectors:
       url: "clickhouse://clickhouse:9000"
       adminUrl: "http://localhost:8123/play"
 ingestStatistics: true
-internalTelemetryUrl: "https://api.quesma.com/phone-home"
 logging:
   path: "logs"
   level: "info"
-  remoteUrl: "https://api.quesma.com/phone-home"
   disableFileLogging: false
 processors:
   - name: my-query-processor
