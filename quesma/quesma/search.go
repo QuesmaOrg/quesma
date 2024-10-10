@@ -26,7 +26,6 @@ import (
 	"quesma/table_resolver"
 	"quesma/tracing"
 	"quesma/util"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -273,14 +272,8 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 
 	decision := q.tableResolver.Resolve(table_resolver.QueryPipeline, indexPattern)
-	table_resolver.TODO("handleSearchCommon", decision)
 
-	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im, q.schemaRegistry)
-
-	switch sources {
-	case sourceBoth:
-
-		err := end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", indexPattern, sourcesElastic, sourcesClickhouse))
+	if decision.Err != nil {
 
 		var resp []byte
 		if optAsync != nil {
@@ -288,39 +281,48 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		} else {
 			resp = queryparser.EmptySearchResponse(ctx)
 		}
-		return resp, err
-	case sourceNone:
-		if elasticsearch.IsIndexPattern(indexPattern) {
-			if optAsync != nil {
-				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
-			} else {
-				return queryparser.EmptySearchResponse(ctx), nil
-			}
-		} else {
-			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
-			return nil, quesma_errors.ErrIndexNotExists()
-		}
-	case sourceClickhouse:
-		logger.Debug().Msgf("index pattern [%s] resolved to clickhouse tables: [%s]", indexPattern, sourcesClickhouse)
-		if elasticsearch.IsIndexPattern(indexPattern) {
-			sourcesClickhouse = q.removeNotExistingTables(sourcesClickhouse)
-		}
-	case sourceElasticsearch:
-		return nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to elasticsearch indices: [%s]", indexPattern, sourcesElastic))
+		return resp, decision.Err
 	}
-	logger.Debug().Msgf("resolved sources for index pattern %s -> %s", indexPattern, sources)
 
-	if len(sourcesClickhouse) == 0 {
-		if elasticsearch.IsIndexPattern(indexPattern) {
-			if optAsync != nil {
-				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
-			} else {
-				return queryparser.EmptySearchResponse(ctx), nil
-			}
+	if decision.IsEmpty {
+		if optAsync != nil {
+			return queryparser.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
 		} else {
-			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
-			return nil, quesma_errors.ErrIndexNotExists()
+			return queryparser.EmptySearchResponse(ctx), nil
 		}
+	}
+
+	if decision.IsClosed {
+		return nil, quesma_errors.ErrIndexNotExists() // TODO
+	}
+
+	if len(decision.UseConnectors) == 0 {
+		return nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("no connectors to use"))
+	}
+
+	var clickhouseDecision *table_resolver.ConnectorDecisionClickhouse
+	var elasticDecision *table_resolver.ConnectorDecisionElastic
+	for _, connector := range decision.UseConnectors {
+		switch c := connector.(type) {
+
+		case *table_resolver.ConnectorDecisionClickhouse:
+			clickhouseDecision = c
+
+		case *table_resolver.ConnectorDecisionElastic:
+			elasticDecision = c
+
+		default:
+			return nil, fmt.Errorf("unknown connector type: %T", c)
+		}
+	}
+
+	// it's impossible here to don't have a clickhouse decision
+	if clickhouseDecision == nil {
+		return nil, fmt.Errorf("no clickhouse connector")
+	}
+
+	if elasticDecision != nil {
+		fmt.Println("elastic", elasticDecision)
 	}
 
 	var responseBody []byte
@@ -341,7 +343,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	var table *clickhouse.Table // TODO we should use schema here only
 	var currentSchema schema.Schema
-	resolvedIndexes := sourcesClickhouse
+	resolvedIndexes := clickhouseDecision.ClickhouseTables
 
 	if len(resolvedIndexes) == 1 {
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
@@ -445,6 +447,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	plan.Name = model.MainExecutionPlan
 
 	// Some flags may trigger alternative execution plans, this is primary for dev
+
 	alternativePlan, alternativePlanExecutor := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedIndexes, plan, queryTranslator, body, table, optAsync != nil)
 
 	var optComparePlansCh chan<- executionPlanResult
@@ -454,18 +457,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh)
-}
-
-func (q *QueryRunner) removeNotExistingTables(sourcesClickhouse []string) []string {
-	allKnownTables, _ := q.logManager.GetTableDefinitions()
-	return slices.DeleteFunc(sourcesClickhouse, func(s string) bool {
-		if len(q.cfg.IndexConfig[s].Override) > 0 {
-			s = q.cfg.IndexConfig[s].Override
-		}
-
-		_, exists := allKnownTables.Load(s)
-		return !exists
-	})
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncId string,

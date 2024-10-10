@@ -191,6 +191,18 @@ func TestIngestToCommonTable(t *testing.T) {
 
 			resolver := table_resolver.NewEmptyTableResolver()
 
+			decision := &table_resolver.Decision{
+				UseConnectors: []table_resolver.ConnectorDecision{
+					&table_resolver.ConnectorDecisionClickhouse{
+						ClickhouseTableName: common_table.TableName,
+						ClickhouseTables:    []string{indexName},
+						IsCommonTable:       true,
+					},
+				},
+			}
+
+			resolver.Decisions[indexName] = decision
+
 			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db
 			ingest.virtualTableStorage = virtualTableStorage

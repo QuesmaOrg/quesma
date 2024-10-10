@@ -108,8 +108,11 @@ func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decis
 
 	res, exists := r.pipelineResolvers[pipeline]
 	if !exists {
-		// proper error handling
-		return nil
+		return &Decision{
+			Err:          fmt.Errorf("pipeline '%s' not found", pipeline),
+			Message:      "Pipeline not found. This is a bug.",
+			ResolverName: "tableRegistryImpl",
+		}
 	}
 
 	if decision, ok := res.recentDecisions[indexPattern]; ok {
