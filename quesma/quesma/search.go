@@ -26,7 +26,6 @@ import (
 	"quesma/table_resolver"
 	"quesma/tracing"
 	"quesma/util"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -458,18 +457,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh)
-}
-
-func (q *QueryRunner) removeNotExistingTables(sourcesClickhouse []string) []string {
-	allKnownTables, _ := q.logManager.GetTableDefinitions()
-	return slices.DeleteFunc(sourcesClickhouse, func(s string) bool {
-		if len(q.cfg.IndexConfig[s].Override) > 0 {
-			s = q.cfg.IndexConfig[s].Override
-		}
-
-		_, exists := allKnownTables.Load(s)
-		return !exists
-	})
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncId string,
