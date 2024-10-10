@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/go-multierror"
+	"github.com/k0kubun/pp"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/rs/zerolog"
 	"log"
@@ -112,6 +113,10 @@ func LoadV2Config() QuesmaNewConfiguration {
 	if err := k.Unmarshal("", &v2config); err != nil {
 		log.Fatalf("error unmarshalling config: %v", err)
 	}
+	// TODO: parse env and deal with them
+	// QUESMA_BACKEND_CONNECTOR_hydrolix_url
+	log.Printf("JM config\n")
+	pp.Println(v2config)
 	if err := v2config.Validate(); err != nil {
 		log.Fatalf("Config validation failed: %v", err)
 	}
@@ -215,7 +220,11 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				}
 				var backendConnectorTypes []string
 				for _, con := range declaredBackendConnectors {
-					backendConnectorTypes = append(backendConnectorTypes, c.getBackendConnectorByName(con).Type)
+					connector := c.getBackendConnectorByName(con)
+					if connector == nil {
+						return fmt.Errorf(fmt.Sprintf("backend connector named [%s] not found in configuration", con))
+					}
+					backendConnectorTypes = append(backendConnectorTypes, connector.Type)
 				}
 				if !slices.Contains(backendConnectorTypes, ElasticsearchBackendConnectorName) {
 					return fmt.Errorf("query processor requires having one elasticsearch backend connector")
