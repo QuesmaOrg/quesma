@@ -735,7 +735,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.S
 	if fieldsRaw, ok := queryMap["fields"]; ok {
 		fields = cw.extractFields(fieldsRaw.([]interface{}))
 	} else {
-		fields = []string{model.FullTextFieldNamePlaceHolder}
+		return model.NewSimpleQuery(model.NewLiteral("True"), true)
 	}
 
 	query := queryMap["query"].(string) // query: (Required, string)
