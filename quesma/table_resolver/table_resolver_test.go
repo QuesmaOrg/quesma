@@ -198,7 +198,7 @@ func TestTableResolver(t *testing.T) {
 			pipeline: QueryPipeline,
 			pattern:  ".kibana",
 			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{ManagementCall: true}},
 			},
 		},
 		{
@@ -206,7 +206,7 @@ func TestTableResolver(t *testing.T) {
 			pipeline: IngestPipeline,
 			pattern:  ".kibana",
 			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{ManagementCall: true}},
 			},
 		},
 		{

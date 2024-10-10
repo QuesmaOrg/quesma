@@ -225,34 +225,55 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 				}
 			}
 
-			matchedIndexes := []string{}
-
+			var matchedVirtualTables []string
+			var matchedTables []string
 			for _, pattern := range input.parts {
 				for indexName, index := range r.clickhouseIndexes {
 
 					// TODO what about config ?
 					// what if index uses common table but is't
-					if util.IndexPatternMatches(pattern, indexName) && index.isVirtual {
-						matchedIndexes = append(matchedIndexes, indexName)
+					if util.IndexPatternMatches(pattern, indexName) {
+						if index.isVirtual {
+							matchedVirtualTables = append(matchedVirtualTables, indexName)
+						} else {
+							matchedTables = append(matchedTables, indexName)
+						}
 					}
 				}
 			}
+			
+			switch {
 
-			if len(matchedIndexes) == 0 {
+			case len(matchedTables) == 0 && len(matchedVirtualTables) == 0:
 				return &Decision{
 					IsEmpty: true,
 					Message: "No indexes found.",
 				}
-			}
 
-			// HERE
-			return &Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
-					IsCommonTable:       true,
-					ClickhouseTableName: common_table.TableName,
-					ClickhouseTables:    matchedIndexes,
-				}},
-				Message: "Common table will be used. Querying multiple indexes.",
+			case len(matchedTables) == 1 && len(matchedVirtualTables) == 0:
+				return &Decision{
+					UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+						ClickhouseTableName: matchedTables[0],
+						ClickhouseTables:    []string{matchedTables[0]},
+					}},
+					Message: "Pattern matches single standalone table.",
+				}
+
+			case len(matchedTables) == 0 && len(matchedVirtualTables) > 0:
+				return &Decision{
+					UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+						IsCommonTable:       true,
+						ClickhouseTableName: common_table.TableName,
+						ClickhouseTables:    matchedVirtualTables,
+					}},
+					Message: "Common table will be used. Querying multiple indexes.",
+				}
+
+			default:
+				return &Decision{
+					Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both standalone table indices: [%s] and common table indices: [%s]", input.source, matchedTables, matchedVirtualTables)),
+					Message: "Both standalone table and common table indexes matches the pattern",
+				}
 			}
 		}
 

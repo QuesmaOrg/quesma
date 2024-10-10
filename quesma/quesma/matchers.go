@@ -3,7 +3,6 @@
 package quesma
 
 import (
-	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
@@ -54,22 +53,11 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 
 // Query path only (looks at QueryTarget)
 func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.Registry, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
-		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
-
-		decision := indexRegistry.Resolve(table_resolver.QueryPipeline, indexPattern)
-		for _, connector := range decision.UseConnectors {
-			if _, ok := connector.(*table_resolver.ConnectorDecisionClickhouse); ok {
-				return true
-			}
-		}
-
-		return false
-	})
+	return matchAgainstTableResolver(indexRegistry, table_resolver.QueryPipeline)
 }
 
 // check whether exact index name is enabled
-func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry table_resolver.TableResolver, pipelineName string) mux.RequestMatcher {
+func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipelineName string) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 
 		indexName := req.Params["index"]
@@ -85,11 +73,11 @@ func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry
 }
 
 func matchedExactQueryPath(cfg *config.QuesmaConfiguration, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
-	return matchedExact(cfg, true, indexRegistry, table_resolver.QueryPipeline)
+	return matchAgainstTableResolver(indexRegistry, table_resolver.QueryPipeline)
 }
 
 func matchedExactIngestPath(cfg *config.QuesmaConfiguration, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
-	return matchedExact(cfg, false, indexRegistry, table_resolver.IngestPipeline)
+	return matchAgainstTableResolver(indexRegistry, table_resolver.IngestPipeline)
 }
 
 // Returns false if the body contains a Kibana internal search.

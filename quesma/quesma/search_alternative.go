@@ -115,6 +115,8 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, plan 
 	return optComparePlansCh
 }
 
+
+
 func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, indexes []string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON, table *clickhouse.Table, isAsync bool) (*model.ExecutionPlan, executionPlanExecutor) {
 
 	// TODO not sure how to check configure when we have multiple indexes

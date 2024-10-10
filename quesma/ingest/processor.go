@@ -697,7 +697,6 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	tableFormatter TableColumNameFormatter) error {
 
 	decision := lm.tableResolver.Resolve(table_resolver.IngestPipeline, tableName)
-	table_resolver.TODO("processInsertQuery", decision)
 
 	if decision.Err != nil {
 		return decision.Err
@@ -743,7 +742,6 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 				return fmt.Errorf("error processing insert query to a common table: %w", err)
 			}
 
-			return nil
 		} else {
 			err := lm.processInsertQueryInternal(ctx, clickhouseDecision.ClickhouseTableName, jsonData, transformer, tableFormatter, false)
 			if err != nil {

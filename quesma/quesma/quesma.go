@@ -134,6 +134,37 @@ func (r *router) registerPreprocessor(preprocessor RequestPreprocessor) {
 	r.requestPreprocessors = append(r.requestPreprocessors, preprocessor)
 }
 
+func (r *router) errorResponse(ctx context.Context, err error, w http.ResponseWriter) {
+	r.failedRequests.Add(1)
+
+	msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
+	reason := "Failed request."
+	result := mux.ServerErrorResult()
+
+	// if error is an error with user-friendly message, we should use it
+	var endUserError *end_user_errors.EndUserError
+	if errors.As(err, &endUserError) {
+		msg = endUserError.EndUserErrorMessage()
+		reason = endUserError.Reason()
+
+		// we treat all `Q1xxx` errors as bad requests here
+		if endUserError.ErrorType().Number < 2000 {
+			result = mux.BadReqeustResult()
+		}
+	}
+
+	logger.ErrorWithCtxAndReason(ctx, reason).Msgf("quesma request failed: %v", err)
+
+	requestId := "n/a"
+	if contextRid, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
+		requestId = contextRid
+	}
+
+	// We should not send our error message to the client. There can be sensitive information in it.
+	// We will send ID of failed request instead
+	responseFromQuesma(ctx, []byte(fmt.Sprintf("%s\nRequest ID: %s\n", msg, requestId)), w, result, false)
+}
+
 func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
@@ -177,35 +208,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			responseFromQuesma(ctx, unzipped, w, quesmaResponse, zip)
 
 		} else {
-
-			r.failedRequests.Add(1)
-
-			msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
-			reason := "Failed request."
-			result := mux.ServerErrorResult()
-
-			// if error is an error with user-friendly message, we should use it
-			var endUserError *end_user_errors.EndUserError
-			if errors.As(err, &endUserError) {
-				msg = endUserError.EndUserErrorMessage()
-				reason = endUserError.Reason()
-
-				// we treat all `Q1xxx` errors as bad requests here
-				if endUserError.ErrorType().Number < 2000 {
-					result = mux.BadReqeustResult()
-				}
-			}
-
-			logger.ErrorWithCtxAndReason(ctx, reason).Msgf("quesma request failed: %v", err)
-
-			requestId := "n/a"
-			if contextRid, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
-				requestId = contextRid
-			}
-
-			// We should not send our error message to the client. There can be sensitive information in it.
-			// We will send ID of failed request instead
-			responseFromQuesma(ctx, []byte(fmt.Sprintf("%s\nRequest ID: %s\n", msg, requestId)), w, result, zip)
+			r.errorResponse(ctx, err, w)
 		}
 	} else {
 
