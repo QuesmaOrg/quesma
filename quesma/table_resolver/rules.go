@@ -271,7 +271,8 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 
 			default:
 				return &Decision{
-					Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both standalone table indices: [%s] and common table indices: [%s]", input.source, matchedTables, matchedVirtualTables)),
+					IsEmpty: true, // not sure what we should return here
+					//Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both standalone table indices: [%s] and common table indices: [%s]", input.source, matchedTables, matchedVirtualTables)),
 					Message: "Both standalone table and common table indexes matches the pattern",
 				}
 			}

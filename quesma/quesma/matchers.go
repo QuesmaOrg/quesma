@@ -7,7 +7,6 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
 	"quesma/quesma/types"
-	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/tracing"
 	"strings"
@@ -52,7 +51,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 }
 
 // Query path only (looks at QueryTarget)
-func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.Registry, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
+func matchedAgainstPattern(indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
 	return matchAgainstTableResolver(indexRegistry, table_resolver.QueryPipeline)
 }
 
@@ -63,6 +62,9 @@ func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipel
 		indexName := req.Params["index"]
 
 		decision := indexRegistry.Resolve(pipelineName, indexName)
+		if decision.Err != nil {
+			return mux.MatchResult{Matched: false, Decision: decision}
+		}
 		for _, connector := range decision.UseConnectors {
 			if _, ok := connector.(*table_resolver.ConnectorDecisionClickhouse); ok {
 				return mux.MatchResult{Matched: true, Decision: decision}
@@ -72,11 +74,11 @@ func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipel
 	})
 }
 
-func matchedExactQueryPath(cfg *config.QuesmaConfiguration, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
+func matchedExactQueryPath(indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
 	return matchAgainstTableResolver(indexRegistry, table_resolver.QueryPipeline)
 }
 
-func matchedExactIngestPath(cfg *config.QuesmaConfiguration, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
+func matchedExactIngestPath(indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
 	return matchAgainstTableResolver(indexRegistry, table_resolver.IngestPipeline)
 }
 

@@ -727,14 +727,14 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 				clonedJsonData = append(clonedJsonData, jsonValue.Clone())
 			}
 
-			err := lm.processInsertQueryInternal(ctx, clickhouseDecision.ClickhouseTableName, clonedJsonData, transformer, tableFormatter, true)
+			err := lm.processInsertQueryInternal(ctx, tableName, clonedJsonData, transformer, tableFormatter, true)
 			if err != nil {
 				// we ignore an error here, because we want to process the data and don't lose it
 				logger.ErrorWithCtx(ctx).Msgf("error processing insert query - virtual table schema update: %v", err)
 			}
 
 			pipeline := jsonprocessor.IngestTransformerPipeline{}
-			pipeline = append(pipeline, &common_table.IngestAddIndexNameTransformer{IndexName: clickhouseDecision.ClickhouseTableName})
+			pipeline = append(pipeline, &common_table.IngestAddIndexNameTransformer{IndexName: tableName})
 			pipeline = append(pipeline, transformer)
 
 			err = lm.processInsertQueryInternal(ctx, common_table.TableName, jsonData, pipeline, tableFormatter, false)

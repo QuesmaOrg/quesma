@@ -222,17 +222,6 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 				return
 			}
 
-			if decision.IsEmpty {
-				// TODO return empty
-				r.errorResponse(ctx, fmt.Errorf("empty response"), w)
-				return
-			}
-
-			if decision.IsClosed {
-				// TODO return closed index
-				r.errorResponse(ctx, fmt.Errorf("closed index"), w)
-			}
-
 			for _, connector := range decision.UseConnectors {
 				if _, ok := connector.(*table_resolver.ConnectorDecisionElastic); ok {
 					// this is desired elastic call
