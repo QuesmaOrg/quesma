@@ -604,3 +604,42 @@ func (td *tableDiscovery) createTableQuery(database, table string) (ddl string) 
 	}
 	return ddl
 }
+
+type EmptyTableDiscovery struct {
+	TableMap      *TableMap
+	Err           error
+	Autodiscovery bool
+}
+
+func NewEmptyTableDiscovery() *EmptyTableDiscovery {
+	return &EmptyTableDiscovery{
+		TableMap: NewTableMap(),
+	}
+}
+
+func (td *EmptyTableDiscovery) ReloadTableDefinitions() {
+}
+
+func (td *EmptyTableDiscovery) TableDefinitions() *TableMap {
+	return td.TableMap
+}
+
+func (td *EmptyTableDiscovery) TableDefinitionsFetchError() error {
+	return td.Err
+}
+
+func (td *EmptyTableDiscovery) LastAccessTime() time.Time {
+	return time.Now()
+}
+
+func (td *EmptyTableDiscovery) LastReloadTime() time.Time {
+	return time.Now()
+}
+
+func (td *EmptyTableDiscovery) ForceReloadCh() <-chan chan<- struct{} {
+	return make(chan chan<- struct{})
+}
+
+func (td *EmptyTableDiscovery) AutodiscoveryEnabled() bool {
+	return td.Autodiscovery
+}

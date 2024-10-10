@@ -23,6 +23,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/tracing"
 	"quesma/util"
 	"slices"
@@ -56,7 +57,9 @@ type QueryRunner struct {
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
 	ABResultsSender          ab_testing.Sender
-	maxParallelQueries       int // if set to 0, we run queries in sequence, it's fine for testing purposes
+	tableResolver            table_resolver.TableResolver
+
+	maxParallelQueries int // if set to 0, we run queries in sequence, it's fine for testing purposes
 }
 
 func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
@@ -68,7 +71,8 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 	im elasticsearch.IndexManagement,
 	qmc *ui.QuesmaManagementConsole,
 	schemaRegistry schema.Registry,
-	abResultsRepository ab_testing.Sender) *QueryRunner {
+	abResultsRepository ab_testing.Sender,
+	resolver table_resolver.TableResolver) *QueryRunner {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -81,8 +85,10 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 				&SchemaCheckPass{cfg: cfg.IndexConfig},
 			},
 		},
-		schemaRegistry:     schemaRegistry,
-		ABResultsSender:    abResultsRepository,
+		schemaRegistry:  schemaRegistry,
+		ABResultsSender: abResultsRepository,
+		tableResolver:   resolver,
+
 		maxParallelQueries: maxParallelQueries,
 	}
 }
@@ -265,6 +271,10 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 }
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
+
+	decision := q.tableResolver.Resolve(table_resolver.QueryPipeline, indexPattern)
+	table_resolver.TODO("handleSearchCommon", decision)
+
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im, q.schemaRegistry)
 
 	switch sources {

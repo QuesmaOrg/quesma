@@ -80,3 +80,18 @@ func (im *indexResolver) Resolve(indexPattern string) (Sources, bool, error) {
 
 	return sources, true, nil
 }
+
+type EmptyIndexResolver struct {
+	Indexes map[string]Sources
+}
+
+func NewEmptyIndexResolver() *EmptyIndexResolver {
+	return &EmptyIndexResolver{
+		Indexes: make(map[string]Sources),
+	}
+}
+
+func (r *EmptyIndexResolver) Resolve(indexPattern string) (Sources, bool, error) {
+	res, ok := r.Indexes[indexPattern]
+	return res, ok, nil
+}

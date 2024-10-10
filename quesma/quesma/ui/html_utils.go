@@ -37,6 +37,12 @@ func generateTopNavigation(target string) []byte {
 	buffer.Html(`><a href="/live">Live tail</a></li>`)
 	buffer.Html("<li")
 
+	if target == "table_resolver" {
+		buffer.Html(` class="active"`)
+	}
+	buffer.Html(`><a href="/table_resolver">Resolver</a></li>`)
+	buffer.Html("<li")
+
 	if target == "statistics" {
 		buffer.Html(` class="active"`)
 	}
@@ -74,7 +80,7 @@ func generateTopNavigation(target string) []byte {
 	buffer.Html("\n</ul>\n")
 	buffer.Html("\n</div>\n")
 
-	if target != "tables" && target != "telemetry" {
+	if target != "tables" && target != "telemetry" && target != "table_resolver" {
 		buffer.Html(`<div class="autorefresh-box">` + "\n")
 		buffer.Html(`<div class="autorefresh">`)
 		buffer.Html(fmt.Sprintf(
