@@ -120,7 +120,7 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
 					ClickhouseTableName: "index1",
-					Indexes:             []string{"index1"}},
+					ClickhouseTables:    []string{"index1"}},
 				},
 			},
 		},
@@ -132,7 +132,7 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
 					ClickhouseTableName: "index1",
-					Indexes:             []string{"index1"}},
+					ClickhouseTables:    []string{"index1"}},
 				},
 			},
 		},
@@ -144,7 +144,7 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					Indexes:             []string{"index2"},
+					ClickhouseTables:    []string{"index2"},
 					IsCommonTable:       true,
 				}},
 			},
@@ -157,7 +157,7 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					Indexes:             []string{"index2"},
+					ClickhouseTables:    []string{"index2"},
 					IsCommonTable:       true,
 				}},
 			},
@@ -188,7 +188,7 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					Indexes:             []string{"index2"},
+					ClickhouseTables:    []string{"index2"},
 					IsCommonTable:       true,
 				}},
 			},

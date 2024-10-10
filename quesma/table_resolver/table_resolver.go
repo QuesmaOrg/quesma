@@ -30,16 +30,16 @@ type parsedPattern struct {
 	parts     []string
 }
 
-type namedResolver struct {
+type basicResolver struct {
 	name     string
 	resolver func(pattern parsedPattern) *Decision
 }
 
-type composedResolver struct {
-	decisionLadder []namedResolver
+type compoundResolver struct {
+	decisionLadder []basicResolver
 }
 
-func (ir *composedResolver) resolve(indexName string) *Decision {
+func (ir *compoundResolver) resolve(indexName string) *Decision {
 	patterns := strings.Split(indexName, ",")
 
 	input := parsedPattern{
@@ -274,8 +274,8 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 	ingestResolver := &pipelineResolver{
 		pipelineName: IngestPipeline,
 
-		resolver: &composedResolver{
-			decisionLadder: []namedResolver{
+		resolver: &compoundResolver{
+			decisionLadder: []basicResolver{
 				{"patternIsNotAllowed", patternIsNotAllowed},
 				{"kibanaInternal", resolveInternalElasticName},
 				{"disabled", makeIsDisabledInConfig(indexConf, QueryPipeline)},
@@ -294,8 +294,8 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 	queryResolver := &pipelineResolver{
 		pipelineName: QueryPipeline,
 
-		resolver: &composedResolver{
-			decisionLadder: []namedResolver{
+		resolver: &compoundResolver{
+			decisionLadder: []basicResolver{
 				// checking if we can handle the parsedPattern
 				{"kibanaInternal", resolveInternalElasticName},
 				{"searchAcrossConnectors", res.makeCheckIfPatternMatchesAllConnectors()},

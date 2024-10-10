@@ -63,7 +63,7 @@ type ConnectorDecisionClickhouse struct {
 	// TODO  instance of clickhouse connector
 
 	ClickhouseTableName string
-	Indexes             []string
+	ClickhouseTables    []string
 	IsCommonTable       bool
 }
 
@@ -77,8 +77,8 @@ func (d *ConnectorDecisionClickhouse) Message() string {
 	if d.IsCommonTable {
 		lines = append(lines, "Common table.")
 	}
-	if len(d.Indexes) > 0 {
-		lines = append(lines, fmt.Sprintf("Indexes: %v.", d.Indexes))
+	if len(d.ClickhouseTables) > 0 {
+		lines = append(lines, fmt.Sprintf("Indexes: %v.", d.ClickhouseTables))
 	}
 
 	return strings.Join(lines, " ")

@@ -28,12 +28,7 @@ func makeIsDisabledInConfig(cfg map[string]config.IndexConfiguration, pipeline s
 
 	return func(input parsedPattern) *Decision {
 
-		if input.isPattern {
-
-			// pass to the next resolver
-
-			return nil
-		} else {
+		if !input.isPattern {
 			idx, ok := cfg[input.source]
 			if ok {
 				if len(getTargets(idx, pipeline)) == 0 {
@@ -108,7 +103,7 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 					case "clickhouse":
 						targetDecision = &ConnectorDecisionClickhouse{
 							ClickhouseTableName: input.source,
-							Indexes:             []string{input.source},
+							ClickhouseTables:    []string{input.source},
 						}
 					default:
 						return &Decision{
@@ -129,7 +124,7 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 
 						UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
 							ClickhouseTableName: input.source,
-							Indexes:             []string{input.source},
+							ClickhouseTables:    []string{input.source},
 						}},
 					}
 
@@ -255,7 +250,7 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
 					IsCommonTable:       true,
 					ClickhouseTableName: common_table.TableName,
-					Indexes:             matchedIndexes,
+					ClickhouseTables:    matchedIndexes,
 				}},
 				Message: "Common table will be used. Querying multiple indexes.",
 			}
@@ -272,7 +267,7 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 			return &Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					Indexes:             []string{input.source},
+					ClickhouseTables:    []string{input.source},
 					IsCommonTable:       true,
 				}},
 				Message: "Common table will be used.",
