@@ -22,8 +22,8 @@ func patternIsNotAllowed(input parsedPattern) *Decision {
 		return nil
 	}
 	return &Decision{
-		Message: "Pattern is not allowed.",
-		Err:     fmt.Errorf("pattern is not allowed"),
+		Reason: "Pattern is not allowed.",
+		Err:    fmt.Errorf("pattern is not allowed"),
 	}
 }
 
@@ -37,7 +37,7 @@ func makeIsDisabledInConfig(cfg map[string]config.IndexConfiguration, pipeline s
 				if len(getTargets(idx, pipeline)) == 0 {
 					return &Decision{
 						IsClosed: true,
-						Message:  "Index is disabled in config.",
+						Reason:   "Index is disabled in config.",
 					}
 				}
 			}
@@ -52,7 +52,7 @@ func resolveInternalElasticName(pattern parsedPattern) *Decision {
 	if elasticsearch.IsInternalIndex(pattern.source) {
 		return &Decision{
 			UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{ManagementCall: true}},
-			Message:       "It's kibana internals",
+			Reason:        "It's kibana internals",
 		}
 	}
 
@@ -64,7 +64,7 @@ func makeElasticIsDefault(cfg map[string]config.IndexConfiguration) func(input p
 	return func(input parsedPattern) *Decision {
 		return &Decision{
 			UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
-			Message:       "Elastic is default.",
+			Reason:        "Elastic is default.",
 		}
 	}
 }
@@ -89,7 +89,7 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 				case 1:
 
 					decision := &Decision{
-						Message: "Enabled in the config. ",
+						Reason: "Enabled in the config. ",
 					}
 
 					var targetDecision ConnectorDecision
@@ -105,8 +105,8 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 						}
 					default:
 						return &Decision{
-							Message: "Unsupported configuration",
-							Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported target: %s", targets[0])),
+							Reason: "Unsupported configuration",
+							Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported target: %s", targets[0])),
 						}
 					}
 					decision.UseConnectors = append(decision.UseConnectors, targetDecision)
@@ -118,7 +118,7 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 
 					case IngestPipeline:
 						return &Decision{
-							Message: "Enabled in the config. Dual write is enabled.",
+							Reason: "Enabled in the config. Dual write is enabled.",
 
 							UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
 								ClickhouseTableName: input.source,
@@ -131,7 +131,7 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 						if targets[0] == config.ClickhouseTarget && targets[1] == config.ElasticsearchTarget {
 
 							return &Decision{
-								Message:         "Enabled in the config. A/B testing.",
+								Reason:          "Enabled in the config. A/B testing.",
 								EnableABTesting: true,
 								UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
 									ClickhouseTableName: input.source,
@@ -142,20 +142,20 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 
 					default:
 						return &Decision{
-							Message: "Unsupported configuration",
-							Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported pipeline: %s", pipeline)),
+							Reason: "Unsupported configuration",
+							Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported pipeline: %s", pipeline)),
 						}
 					}
 
 					return &Decision{
-						Message: "Unsupported configuration",
-						Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported configuration for pipeline %s, targets: %v", pipeline, targets)),
+						Reason: "Unsupported configuration",
+						Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported configuration for pipeline %s, targets: %v", pipeline, targets)),
 					}
 
 				default:
 					return &Decision{
-						Message: "Unsupported configuration",
-						Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("too many backend connector")),
+						Reason: "Unsupported configuration",
+						Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("too many backend connector")),
 					}
 				}
 			}
@@ -192,8 +192,8 @@ func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors(pipeline stri
 								matchedClickhouse = append(matchedClickhouse, indexName)
 							default:
 								return &Decision{
-									Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported target: %s", target)),
-									Message: "Unsupported target.",
+									Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported target: %s", target)),
+									Reason: "Unsupported target.",
 								}
 							}
 						}
@@ -229,15 +229,15 @@ func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors(pipeline stri
 
 			case nElastic > 0 && nClickhouse > 0:
 				return &Decision{
-					Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", input.parts, matchedElastic, matchedClickhouse)),
-					Message: "Both Elastic and Clickhouse matched.",
+					Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", input.parts, matchedElastic, matchedClickhouse)),
+					Reason: "Both Elastic and Clickhouse matched.",
 				}
 
 			case nElastic > 0 && nClickhouse == 0:
 
 				return &Decision{
 					UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
-					Message:       "Only Elastic matched.",
+					Reason:        "Only Elastic matched.",
 				}
 
 			case nElastic == 0 && nClickhouse > 0:
@@ -247,7 +247,7 @@ func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors(pipeline stri
 			case nElastic == 0 && nClickhouse == 0:
 				return &Decision{
 					IsEmpty: true,
-					Message: "No indexes matched. Checked both connectors.",
+					Reason:  "No indexes matched. Checked both connectors.",
 				}
 			}
 		}
@@ -269,8 +269,8 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 				for indexName := range r.elasticIndexes {
 					if util.IndexPatternMatches(pattern, indexName) {
 						return &Decision{
-							Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index parsedPattern [%s] resolved to elasticsearch indices", input.parts)),
-							Message: "We're not supporting common tables for Elastic.",
+							Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("index parsedPattern [%s] resolved to elasticsearch indices", input.parts)),
+							Reason: "We're not supporting common tables for Elastic.",
 						}
 					}
 				}
@@ -319,7 +319,7 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 			case len(matchedTables) == 0 && len(matchedVirtualTables) == 0:
 				return &Decision{
 					IsEmpty: true,
-					Message: "No indexes found.",
+					Reason:  "No indexes found.",
 				}
 
 			case len(matchedTables) == 1 && len(matchedVirtualTables) == 0:
@@ -328,7 +328,7 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 						ClickhouseTableName: matchedTables[0],
 						ClickhouseTables:    []string{matchedTables[0]},
 					}},
-					Message: "Pattern matches single standalone table.",
+					Reason: "Pattern matches single standalone table.",
 				}
 
 			case len(matchedTables) == 0 && len(matchedVirtualTables) > 0:
@@ -338,21 +338,21 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 						ClickhouseTableName: common_table.TableName,
 						ClickhouseTables:    matchedVirtualTables,
 					}},
-					Message: "Common table will be used. Querying multiple indexes.",
+					Reason: "Common table will be used. Querying multiple indexes.",
 				}
 
 			default:
 				return &Decision{
-					Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both standalone table indices: [%s] and common table indices: [%s]", input.source, matchedTables, matchedVirtualTables)),
-					Message: "Both standalone table and common table indexes matches the pattern",
+					Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both standalone table indices: [%s] and common table indices: [%s]", input.source, matchedTables, matchedVirtualTables)),
+					Reason: "Both standalone table and common table indexes matches the pattern",
 				}
 			}
 		}
 
 		if input.source == common_table.TableName {
 			return &Decision{
-				Err:     fmt.Errorf("common table is not allowed to be queried directly"),
-				Message: "It's internal table. Not allowed to be queried directly.",
+				Err:    fmt.Errorf("common table is not allowed to be queried directly"),
+				Reason: "It's internal table. Not allowed to be queried directly.",
 			}
 		}
 
@@ -374,7 +374,7 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 					ClickhouseTables:    []string{input.source},
 					IsCommonTable:       true,
 				}},
-				Message: "Common table will be used.",
+				Reason: "Common table will be used.",
 			}
 		}
 

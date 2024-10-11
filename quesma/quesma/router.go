@@ -333,6 +333,36 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return getIndexResult(index, mappings)
 	})
 
+	router.Register(routes.QuesmaTableResolverPath, mux.Always(), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+
+		indexPattern := req.Params["index"]
+
+		decisions := make(map[string]*table_resolver.Decision)
+		humanReadable := make(map[string]string)
+		for _, pipeline := range tableResolver.Pipelines() {
+			decision := tableResolver.Resolve(pipeline, indexPattern)
+			decisions[pipeline] = decision
+			humanReadable[pipeline] = decision.String()
+		}
+
+		resp := struct {
+			IndexPattern  string                              `json:"index_pattern"`
+			Decisions     map[string]*table_resolver.Decision `json:"decisions"`
+			HumanReadable map[string]string                   `json:"human_readable"`
+		}{
+			IndexPattern:  indexPattern,
+			Decisions:     decisions,
+			HumanReadable: humanReadable,
+		}
+
+		body, err := json.MarshalIndent(resp, "", "  ")
+		if err != nil {
+			return nil, err
+		}
+
+		return &mux.Result{Body: string(body), StatusCode: http.StatusOK}, nil
+	})
+
 	return router
 }
 

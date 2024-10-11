@@ -24,7 +24,7 @@ func (r *EmptyTableResolver) Resolve(pipeline string, indexPattern string) *Deci
 	msg := fmt.Sprintf("Could not resolve pattern %v. Fix you test setup first.", indexPattern)
 	return &Decision{
 		Err:          fmt.Errorf("%s", msg),
-		Message:      msg,
+		Reason:       msg,
 		ResolverName: "EmptyTableResolver.Resolve",
 	}
 }

@@ -141,13 +141,16 @@ type predicateAnd struct {
 }
 
 func (p *predicateAnd) Matches(req *Request) MatchResult {
+	var lastDecision *table_resolver.Decision
+
 	for _, predicate := range p.predicates {
 		res := predicate.Matches(req)
+		lastDecision = res.Decision
 		if !res.Matched {
 			return MatchResult{false, res.Decision}
 		}
 	}
-	return MatchResult{true, nil}
+	return MatchResult{true, lastDecision}
 }
 
 func And(predicates ...RequestMatcher) RequestMatcher {
@@ -162,4 +165,14 @@ func (p *predicateNever) Matches(req *Request) MatchResult {
 
 func Never() RequestMatcher {
 	return &predicateNever{}
+}
+
+type predicateAlways struct{}
+
+func (p *predicateAlways) Matches(req *Request) MatchResult {
+	return MatchResult{true, nil}
+}
+
+func Always() RequestMatcher {
+	return &predicateAlways{}
 }

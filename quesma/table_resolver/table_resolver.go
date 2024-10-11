@@ -57,8 +57,8 @@ func (ir *compoundResolver) resolve(indexName string) *Decision {
 		}
 	}
 	return &Decision{
-		Message: "Could not resolve pattern. This is a bug.",
-		Err:     fmt.Errorf("could not resolve index"), // TODO better error
+		Reason: "Could not resolve pattern. This is a bug.",
+		Err:    fmt.Errorf("could not resolve index"), // TODO better error
 	}
 }
 
@@ -112,7 +112,7 @@ func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decis
 		return &Decision{
 			IndexPattern: indexPattern,
 			Err:          fmt.Errorf("pipeline '%s' not found", pipeline),
-			Message:      "Pipeline not found. This is a bug.",
+			Reason:       "Pipeline not found. This is a bug.",
 			ResolverName: "tableRegistryImpl",
 		}
 	}
