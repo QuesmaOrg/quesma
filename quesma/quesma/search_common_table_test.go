@@ -8,6 +8,7 @@ import (
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/common_table"
+	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -306,7 +307,7 @@ func TestSearchCommonTable(t *testing.T) {
 
 			defer db.Close()
 
-			indexManagement := NewFixedIndexManagement()
+			indexManagement := elasticsearch.NewFixedIndexManagement()
 			lm := clickhouse.NewLogManagerWithConnection(db, tableMap)
 
 			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
