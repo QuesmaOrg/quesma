@@ -302,8 +302,7 @@ func (ip *IngestProcessor) generateNewColumns(
 	attrsMap map[string][]interface{},
 	table *chLib.Table,
 	alteredAttributesIndexes []int,
-	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]string, map[string]AlterDDL) {
-	var alterCmd []string
+	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) map[string]AlterDDL {
 	alterDDLMap := make(map[string]AlterDDL)
 	attrKeys := getAttributesByArrayName(chLib.DeprecatedAttributesKeyColumn, attrsMap)
 	attrTypes := getAttributesByArrayName(chLib.DeprecatedAttributesValueType, attrsMap)
@@ -341,13 +340,8 @@ func (ip *IngestProcessor) generateNewColumns(
 		metadata.Values[comment_metadata.ElasticFieldName] = propertyName
 		comment := metadata.Marshall()
 
-		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, attrKeys[i], columnType)
 		newColumns[attrKeys[i]] = &chLib.Column{Name: attrKeys[i], Type: chLib.NewBaseType(attrTypes[i]), Modifiers: modifiers, Comment: comment}
-		alterCmd = append(alterCmd, alterTable)
-
-		alterColumn := fmt.Sprintf("ALTER TABLE \"%s\" COMMENT COLUMN \"%s\" '%s'", table.Name, attrKeys[i], comment)
 		alterDDLMap[attrKeys[i]] = AlterDDL{tableName: table.Name, columnName: attrKeys[i], columnType: columnType, comment: comment}
-		alterCmd = append(alterCmd, alterColumn)
 
 		deleteIndexes = append(deleteIndexes, i)
 	}
@@ -366,7 +360,7 @@ func (ip *IngestProcessor) generateNewColumns(
 		attrsMap[chLib.DeprecatedAttributesValueType] = append(attrsMap[chLib.DeprecatedAttributesValueType][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesValueType][deleteIndexes[i]+1:]...)
 		attrsMap[chLib.DeprecatedAttributesValueColumn] = append(attrsMap[chLib.DeprecatedAttributesValueColumn][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesValueColumn][deleteIndexes[i]+1:]...)
 	}
-	return alterCmd, alterDDLMap
+	return alterDDLMap
 }
 
 // This struct contains the information about the columns that aren't part of the schema
@@ -504,39 +498,39 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	data types.JSON,
 	inValidJson types.JSON,
 	config *chLib.ChTableConfig,
-	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]string, map[string]AlterDDL, types.JSON, []NonSchemaField, error) {
+	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) (map[string]AlterDDL, types.JSON, []NonSchemaField, error) {
 
 	jsonAsBytesSlice, err := json.Marshal(data)
 
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// we find all non-schema fields
 	jsonMap, err := types.ParseJSON(string(jsonAsBytesSlice))
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	if len(config.Attributes) == 0 {
-		return nil, nil, jsonMap, nil, nil
+		return nil, jsonMap, nil, nil
 	}
 
 	schemaFieldsJson, err := json.Marshal(jsonMap)
 
 	if err != nil {
-		return nil, nil, jsonMap, nil, err
+		return nil, jsonMap, nil, err
 	}
 
 	mDiff := DifferenceMap(jsonMap, table) // TODO change to DifferenceMap(m, t)
 
 	if len(mDiff) == 0 && string(schemaFieldsJson) == string(jsonAsBytesSlice) && len(inValidJson) == 0 { // no need to modify, just insert 'js'
-		return nil, nil, jsonMap, nil, nil
+		return nil, jsonMap, nil, nil
 	}
 
 	// check attributes precondition
 	if len(config.Attributes) <= 0 {
-		return nil, nil, nil, nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
+		return nil, nil, nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
 	}
 	attrsMap, _ := BuildAttrsMap(mDiff, config)
 
@@ -545,11 +539,10 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	// otherwise it would contain invalid fields e.g. with wrong types
 	// we only want to add fields that are not part of the schema e.g we don't
 	// have columns for them
-	var alterCmd []string
 	alterDDLMap := make(map[string]AlterDDL)
 	atomic.AddInt64(&ip.ingestCounter, 1)
 	if ok, alteredAttributesIndexes := ip.shouldAlterColumns(table, attrsMap); ok {
-		alterCmd, alterDDLMap = ip.generateNewColumns(attrsMap, table, alteredAttributesIndexes, encodings)
+		alterDDLMap = ip.generateNewColumns(attrsMap, table, alteredAttributesIndexes, encodings)
 	}
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
@@ -560,12 +553,12 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	nonSchemaFields, err := generateNonSchemaFields(attrsMapWithInvalidFields)
 
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	onlySchemaFields := RemoveNonSchemaFields(jsonMap, table)
 
-	return alterCmd, alterDDLMap, onlySchemaFields, nonSchemaFields, nil
+	return alterDDLMap, onlySchemaFields, nonSchemaFields, nil
 }
 
 func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types.JSON) (string, error) {
@@ -581,12 +574,17 @@ func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), err
 }
 
-func generateSqlStatements(createTableCmd string, alterCmd []string, insert string) []string {
+func generateSqlStatements(createTableCmd string, alterDDL map[string]AlterDDL, insert string) []string {
 	var statements []string
 	if createTableCmd != "" {
 		statements = append(statements, createTableCmd)
 	}
-	statements = append(statements, alterCmd...)
+	alterStatements := make([]string, 0, len(alterDDL))
+	for _, alterCmd := range alterDDL {
+		alterStatements = append(alterStatements, fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", alterCmd.tableName, alterCmd.columnName, alterCmd.columnType))
+		alterStatements = append(alterStatements, fmt.Sprintf("ALTER TABLE \"%s\" COMMENT COLUMN \"%s\" '%s'", alterCmd.tableName, alterCmd.columnName, alterCmd.comment))
+	}
+	statements = append(statements, alterStatements...)
 	statements = append(statements, insert)
 	return statements
 }
@@ -670,7 +668,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	}
 	tableConfig = table.Config
 	var jsonsReadyForInsertion []string
-	var alterCmd []string
 	alterDDLMapGlobal := make(map[string]AlterDDL)
 	var preprocessedJsons []types.JSON
 	var invalidJsons []types.JSON
@@ -679,7 +676,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		return nil, nil, fmt.Errorf("error preprocessJsons: %v", err)
 	}
 	for i, preprocessedJson := range preprocessedJsons {
-		alter, alterDDLMap, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
+		alterDDLMap, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], tableConfig, encodings)
 
 		if err != nil {
@@ -689,7 +686,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		if err != nil {
 			return nil, nil, fmt.Errorf("error generatateInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
 		}
-		alterCmd = append(alterCmd, alter...)
 		for key, value := range alterDDLMap {
 			alterDDLMapGlobal[key] = value
 		}
@@ -702,7 +698,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
 
-	return generateSqlStatements(createTableCmd, alterCmd, insert), alterDDLMapGlobal, nil
+	return generateSqlStatements(createTableCmd, alterDDLMapGlobal, insert), alterDDLMapGlobal, nil
 }
 
 func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName string,
