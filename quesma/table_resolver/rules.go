@@ -12,8 +12,6 @@ import (
 	"slices"
 )
 
-const experimentalAutodiscovery = false
-
 // TODO these rules may be incorrect and incomplete
 // They will be fixed int the next iteration.
 
