@@ -36,6 +36,10 @@ func (qmc *QuesmaManagementConsole) generateLoginForm() []byte {
 
 func (qmc *QuesmaManagementConsole) HandleElasticsearchLogin(writer http.ResponseWriter, req *http.Request) {
 	if req.Method == http.MethodGet {
+		if isAlreadyAuthenticated(req) {
+			http.Redirect(writer, req, "/dashboard", http.StatusSeeOther)
+			return
+		}
 		writer.Header().Set("Content-Type", "text/html")
 		writer.Write(qmc.generateLoginForm())
 	} else if req.Method == http.MethodPost {

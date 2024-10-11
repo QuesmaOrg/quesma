@@ -239,15 +239,19 @@ var store = sessions.NewCookieStore([]byte("test"))
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		session, err := store.Get(r, quesmaSessionName)
-		userID, ok := session.Values["userID"].(string)
-		if !ok || userID == "" || err != nil {
+		if !isAlreadyAuthenticated(r) {
 			logger.Warn().Msgf("User not authenticated, redirecting to login page")
 			http.Redirect(w, r, "/auth/elasticsearch", http.StatusTemporaryRedirect)
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func isAlreadyAuthenticated(r *http.Request) bool {
+	session, err := store.Get(r, quesmaSessionName)
+	userID, ok := session.Values["userID"].(string)
+	return ok && userID != "" && err == nil
 }
 
 func (qmc *QuesmaManagementConsole) newHTTPServer() *http.Server {
