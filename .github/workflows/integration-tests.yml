@@ -43,9 +43,23 @@ jobs:
       - name: Set environment variable
         run: echo "EXECUTING_ON_GITHUB_CI=true" >> $GITHUB_ENV
 
+      - name: Get last commit author
+        id: get_author
+        run: echo "::set-output name=author::$(git log -1 --pretty=format:'%an')"
+
       - name: Run integration tests
         working-directory: ci/it
-#        env:
-#          EXECUTING_ON_GITHUB_CI: true
         run: go test -v
+
+      - name: Send Slack notification on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
+          slack-message: |
+            :exclamation: *Integration tests failed.* FYSA @here
+            Author of the last commit: ${{ steps.get_author.outputs.author }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
 
