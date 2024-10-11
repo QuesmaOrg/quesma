@@ -233,7 +233,6 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 			logger.Error().Msgf("Could not delete user session: %v", err)
 		}
 		http.Redirect(writer, req, "/dashboard", http.StatusTemporaryRedirect)
-		return
 	})
 
 	authenticatedRoutes.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(uiFs))))
