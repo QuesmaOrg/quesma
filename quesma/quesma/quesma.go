@@ -165,6 +165,32 @@ func (r *router) errorResponse(ctx context.Context, err error, w http.ResponseWr
 	responseFromQuesma(ctx, []byte(fmt.Sprintf("%s\nRequest ID: %s\n", msg, requestId)), w, result, false)
 }
 
+func (*router) closedIndexResponse(ctx context.Context, w http.ResponseWriter, pattern string) {
+	w.WriteHeader(http.StatusBadRequest)
+
+	response := make(types.JSON)
+
+	response["error"] = queryparser.Error{
+		RootCause: []queryparser.RootCause{
+			{
+				Type:   "index_closed_exception",
+				Reason: fmt.Sprintf("pattern %s is not routed to any connector", pattern),
+			},
+		},
+		Type:   "index_closed_exception",
+		Reason: fmt.Sprintf("pattern %s is not routed to any connector", pattern),
+	}
+
+	b, err := response.Bytes()
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("Error marshalling response: %v", err)
+		return
+	}
+
+	w.Write(b)
+
+}
+
 func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
@@ -187,6 +213,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
 
 	handler, found, decision := router.Matches(quesmaRequest)
+
 	if found {
 		// decision will handled by quesma itself
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
@@ -219,6 +246,17 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 			if decision.Err != nil {
 				r.errorResponse(ctx, decision.Err, w)
+				return
+			}
+
+			if decision.IsClosed {
+				r.closedIndexResponse(ctx, w, decision.IndexPattern)
+				return
+			}
+
+			if decision.IsEmpty {
+				w.WriteHeader(http.StatusNoContent)
+				w.Write(queryparser.EmptySearchResponse(ctx))
 				return
 			}
 

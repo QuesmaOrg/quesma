@@ -9,6 +9,9 @@ import (
 )
 
 type Decision struct {
+	// input
+	IndexPattern string
+
 	// obvious fields
 	IsClosed bool
 	Err      error

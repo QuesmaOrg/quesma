@@ -166,6 +166,9 @@ func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input 
 				}
 			}
 
+			matchedElastic = util.Distinct(matchedElastic)
+			matchedClickhouse = util.Distinct(matchedClickhouse)
+
 			nElastic := len(matchedElastic)
 			nClickhouse := len(matchedClickhouse)
 
@@ -241,6 +244,9 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 					}
 				}
 			}
+
+			matchedTables = util.Distinct(matchedTables)
+			matchedVirtualTables = util.Distinct(matchedVirtualTables)
 
 			switch {
 

@@ -194,6 +194,19 @@ func TestTableResolver(t *testing.T) {
 			},
 		},
 		{
+			name:          "query pattern",
+			pipeline:      QueryPipeline,
+			pattern:       "index*,index2",
+			virtualTables: []string{"index2"},
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+					ClickhouseTableName: common_table.TableName,
+					ClickhouseTables:    []string{"index2"},
+					IsCommonTable:       true,
+				}},
+			},
+		},
+		{
 			name:     "query kibana internals",
 			pipeline: QueryPipeline,
 			pattern:  ".kibana",

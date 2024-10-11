@@ -109,6 +109,7 @@ func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decis
 	res, exists := r.pipelineResolvers[pipeline]
 	if !exists {
 		return &Decision{
+			IndexPattern: indexPattern,
 			Err:          fmt.Errorf("pipeline '%s' not found", pipeline),
 			Message:      "Pipeline not found. This is a bug.",
 			ResolverName: "tableRegistryImpl",
@@ -120,6 +121,7 @@ func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decis
 	}
 
 	decision := res.resolver.resolve(indexPattern)
+	decision.IndexPattern = indexPattern
 	res.recentDecisions[indexPattern] = decision
 
 	logger.Debug().Msgf("Decision for pipeline '%s', pattern '%s':  %s", pipeline, indexPattern, decision.String())
