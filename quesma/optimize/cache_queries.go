@@ -42,7 +42,7 @@ func (s *cacheQueries) Transform(queries []*model.Query, properties map[string]s
 
 		visitor.OverrideVisitSelectCommand = func(v *model.BaseExprVisitor, query model.SelectCommand) interface{} {
 
-			if query.GroupBy != nil && len(query.GroupBy) > 0 {
+			if len(query.GroupBy) > 0 {
 				hasGroupBy = true
 			}
 
