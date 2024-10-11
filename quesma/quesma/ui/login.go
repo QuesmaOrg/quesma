@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"quesma/elasticsearch"
+	"quesma/logger"
 )
 
 func (qmc *QuesmaManagementConsole) generateLoginForm() []byte {
@@ -46,6 +47,7 @@ func (qmc *QuesmaManagementConsole) HandleElasticsearchLogin(writer http.Respons
 			session.Save(req, writer)
 			http.Redirect(writer, req, "/dashboard", http.StatusSeeOther)
 		} else {
+			logger.Warn().Msgf("Invalid credentials for user [%s], could not login with Elasticsearch", username)
 			http.Error(writer, "Invalid credentials", http.StatusUnauthorized)
 		}
 	} else {
