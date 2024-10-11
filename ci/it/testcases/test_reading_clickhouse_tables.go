@@ -2,7 +2,9 @@ package testcases
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/stretchr/testify/assert"
+	"io"
 	"testing"
 )
 
@@ -30,6 +32,7 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) SetupContainers(ctx context
 func (a *ReadingClickHouseTablesIntegrationTestcase) RunTests(ctx context.Context, t *testing.T) error {
 	a.testBasicRequest(ctx, t)
 	a.testRandomThing(ctx, t)
+	a.testWildcardGoesToElastic(ctx, t)
 	return nil
 }
 
@@ -63,3 +66,43 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) testRandomThing(ctx context
 	defer resp.Body.Close()
 	assert.Equal(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
 }
+
+func (a *ReadingClickHouseTablesIntegrationTestcase) testWildcardGoesToElastic(ctx context.Context, t *testing.T) {
+	// Given an index in Elasticsearch which falls under `*` in the configuration
+	var err error
+	if _, err = a.RequestToElasticsearch(ctx, "PUT", "/extra_index", nil); err != nil {
+		t.Fatalf("Failed to create index: %s", err)
+	}
+	if _, err = a.RequestToElasticsearch(ctx, "POST", "/extra_index/_doc/1", []byte(`{"name": "Alice"}`)); err != nil {
+		t.Fatalf("Failed to insert document: %s", err)
+	}
+	if _, err = a.RequestToElasticsearch(ctx, "POST", "/extra_index/_refresh", nil); err != nil {
+		t.Fatalf("Failed to refresh index: %s", err)
+	}
+	// When Quesma searches for that document
+	resp, err := a.RequestToQuesma(ctx, "POST", "/extra_index/_search", []byte(`{"query": {"match_all": {}}}`))
+	if err != nil {
+		t.Fatalf("Failed to make GET request: %s", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %s", err)
+	}
+	var jsonResponse map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &jsonResponse); err != nil {
+		t.Fatalf("Failed to unmarshal response body: %s", err)
+	}
+	hits, _ := jsonResponse["hits"].(map[string]interface{})
+	// We should get proper search result from Elasticsearch
+	hit := hits["total"]
+	hitValue := hit.(map[string]interface{})["value"]
+	assert.Equal(t, float64(1), hitValue)
+	assert.Contains(t, string(bodyBytes), "Alice")
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Quesma-Source"))
+	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
+}
+
+// At this moment this configuration does not disable ingest (ingest req's will get routed to ES and handled normally)
+// Future test idea -> ensure ingest req gets rejected.
