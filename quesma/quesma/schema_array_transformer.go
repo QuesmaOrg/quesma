@@ -144,7 +144,7 @@ func checkIfGroupingByArrayColumn(selectCommand model.SelectCommand, resolver ar
 			cte.Accept(b)
 		}
 
-		return e
+		return &e
 	}
 
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
