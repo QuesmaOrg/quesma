@@ -173,8 +173,6 @@ func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors(pipeline stri
 
 			for _, pattern := range input.parts {
 
-				// it com
-
 				// here we check against the config
 
 				for indexName, index := range r.conf.IndexConfig {
