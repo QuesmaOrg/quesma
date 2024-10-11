@@ -57,7 +57,18 @@ jobs:
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           slack-message: |
-            :exclamation: *Integration tests failed.* FYSA @here
+            :exclamation: *Integration tests failed.* :exclamation: @here
+            Last commit by: ${{ steps.get_author.outputs.author }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - name: Send Slack notification on success
+        if: success()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
+          slack-message: |
+            :white_check_mark: *Integration tests passed.* Good job team!
             Last commit by: ${{ steps.get_author.outputs.author }}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
