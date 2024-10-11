@@ -32,6 +32,10 @@ func TestTableResolver(t *testing.T) {
 			QueryTarget:  []string{"elasticsearch"},
 			IngestTarget: []string{"elasticsearch"},
 		},
+		"logs": {
+			QueryTarget:  []string{"clickhouse", "elasticsearch"},
+			IngestTarget: []string{"clickhouse", "elasticsearch"},
+		},
 		"closed": {
 			QueryTarget:  []string{},
 			IngestTarget: []string{},
@@ -47,6 +51,7 @@ func TestTableResolver(t *testing.T) {
 		elasticIndexes    []string
 		clickhouseIndexes []string
 		virtualTables     []string
+		indexConf         map[string]config.IndexConfiguration
 		expected          Decision
 	}{
 		{
@@ -56,14 +61,16 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
 			},
+			indexConf: make(map[string]config.IndexConfiguration),
 		},
 		{
 			name:     "all",
 			pipeline: QueryPipeline,
 			pattern:  "*",
 			expected: Decision{
-				IsEmpty: true,
+				Err: end_user_errors.ErrSearchCondition.New(fmt.Errorf("")),
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:              "empty *",
@@ -71,8 +78,9 @@ func TestTableResolver(t *testing.T) {
 			pattern:           "*",
 			clickhouseIndexes: []string{"index1", "index2"},
 			expected: Decision{
-				IsEmpty: true,
+				Err: end_user_errors.ErrSearchCondition.New(fmt.Errorf("")),
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:              "query all, indices in both connectors",
@@ -83,6 +91,7 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				Err: end_user_errors.ErrSearchCondition.New(fmt.Errorf("")),
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:              "ingest with a pattern",
@@ -93,6 +102,7 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				Err: fmt.Errorf("pattern is not allowed"),
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:              "query closed index",
@@ -102,6 +112,7 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				IsClosed: true,
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:              "ingest closed index",
@@ -111,6 +122,7 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				IsClosed: true,
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:              "ingest to index1",
@@ -123,6 +135,7 @@ func TestTableResolver(t *testing.T) {
 					ClickhouseTables:    []string{"index1"}},
 				},
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:              "query from index1",
@@ -135,6 +148,7 @@ func TestTableResolver(t *testing.T) {
 					ClickhouseTables:    []string{"index1"}},
 				},
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:              "ingest to index2",
@@ -148,6 +162,7 @@ func TestTableResolver(t *testing.T) {
 					IsCommonTable:       true,
 				}},
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:              "query from index2",
@@ -161,6 +176,7 @@ func TestTableResolver(t *testing.T) {
 					IsCommonTable:       true,
 				}},
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:           "ingest to index3",
@@ -170,6 +186,7 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:           "query from index3",
@@ -179,11 +196,12 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:          "query pattern",
 			pipeline:      QueryPipeline,
-			pattern:       "index*",
+			pattern:       "index2,foo*",
 			virtualTables: []string{"index2"},
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
@@ -192,11 +210,12 @@ func TestTableResolver(t *testing.T) {
 					IsCommonTable:       true,
 				}},
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:          "query pattern",
 			pipeline:      QueryPipeline,
-			pattern:       "index*,index2",
+			pattern:       "indexa,index2",
 			virtualTables: []string{"index2"},
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
@@ -205,6 +224,7 @@ func TestTableResolver(t *testing.T) {
 					IsCommonTable:       true,
 				}},
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:     "query kibana internals",
@@ -213,6 +233,7 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{ManagementCall: true}},
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:     "ingest kibana internals",
@@ -221,6 +242,7 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{ManagementCall: true}},
 			},
+			indexConf: indexConf,
 		},
 		{
 			name:     "ingest not configured index",
@@ -229,6 +251,34 @@ func TestTableResolver(t *testing.T) {
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
 			},
+			indexConf: indexConf,
+		},
+		{
+			name:     "double write",
+			pipeline: IngestPipeline,
+			pattern:  "logs",
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+					ClickhouseTableName: "logs",
+					ClickhouseTables:    []string{"logs"},
+				},
+					&ConnectorDecisionElastic{}},
+			},
+			indexConf: indexConf,
+		},
+		{
+			name:     "A/B testing",
+			pipeline: QueryPipeline,
+			pattern:  "logs",
+			expected: Decision{
+				EnableABTesting: true,
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+					ClickhouseTableName: "logs",
+					ClickhouseTables:    []string{"logs"},
+				},
+					&ConnectorDecisionElastic{}},
+			},
+			indexConf: indexConf,
 		},
 	}
 
@@ -277,6 +327,7 @@ func TestTableResolver(t *testing.T) {
 			}
 			assert.Equal(t, tt.expected.IsClosed, decision.IsClosed, "expected %v, got %v", tt.expected.IsClosed, decision.IsClosed)
 			assert.Equal(t, tt.expected.IsEmpty, decision.IsEmpty, "expected %v, got %v", tt.expected.IsEmpty, decision.IsEmpty)
+			assert.Equal(t, tt.expected.EnableABTesting, decision.EnableABTesting, "expected %v, got %v", tt.expected.EnableABTesting, decision.EnableABTesting)
 
 			if !reflect.DeepEqual(tt.expected.UseConnectors, decision.UseConnectors) {
 				pp.Println(tt.expected)

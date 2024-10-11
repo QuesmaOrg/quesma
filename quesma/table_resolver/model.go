@@ -17,6 +17,8 @@ type Decision struct {
 	Err      error
 	IsEmpty  bool
 
+	EnableABTesting bool
+
 	// which connector to use, and how
 	UseConnectors []ConnectorDecision
 
@@ -45,6 +47,10 @@ func (d *Decision) String() string {
 		lines = append(lines, connector.Message())
 	}
 
+	if d.EnableABTesting {
+		lines = append(lines, "Enable AB testing.")
+	}
+
 	lines = append(lines, fmt.Sprintf("%s (%s).", d.Message, d.ResolverName))
 
 	return strings.Join(lines, " ")
@@ -59,8 +65,13 @@ type ConnectorDecisionElastic struct {
 	ManagementCall bool
 }
 
-func (*ConnectorDecisionElastic) Message() string {
-	return "Pass to Elasticsearch."
+func (d *ConnectorDecisionElastic) Message() string {
+	var lines []string
+	lines = append(lines, "Pass to Elasticsearch.")
+	if d.ManagementCall {
+		lines = append(lines, "Management call.")
+	}
+	return strings.Join(lines, " ")
 }
 
 type ConnectorDecisionClickhouse struct {

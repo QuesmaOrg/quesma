@@ -100,6 +100,7 @@ type tableRegistryImpl struct {
 	clickhouseIndexes map[string]table
 
 	pipelineResolvers map[string]*pipelineResolver
+	conf              config.QuesmaConfiguration
 }
 
 func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decision {
@@ -268,6 +269,8 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 		ctx:    ctx,
 		cancel: cancel,
 
+		conf: quesmaConf,
+
 		tableDiscovery:       discovery,
 		elasticIndexResolver: elasticResolver,
 		pipelineResolvers:    make(map[string]*pipelineResolver),
@@ -283,10 +286,10 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 			decisionLadder: []basicResolver{
 				{"patternIsNotAllowed", patternIsNotAllowed},
 				{"kibanaInternal", resolveInternalElasticName},
-				{"disabled", makeIsDisabledInConfig(indexConf, QueryPipeline)},
+				{"disabled", makeIsDisabledInConfig(indexConf, IngestPipeline)},
 
 				{"singleIndex", res.singleIndex(indexConf, IngestPipeline)},
-				{"commonTable", res.makeCommonTableResolver(indexConf)},
+				{"commonTable", res.makeCommonTableResolver(indexConf, IngestPipeline)},
 
 				{"elasticAsDefault", makeElasticIsDefault(indexConf)},
 			},
@@ -303,11 +306,11 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 			decisionLadder: []basicResolver{
 				// checking if we can handle the parsedPattern
 				{"kibanaInternal", resolveInternalElasticName},
-				{"searchAcrossConnectors", res.makeCheckIfPatternMatchesAllConnectors()},
+				{"searchAcrossConnectors", res.makeCheckIfPatternMatchesAllConnectors(QueryPipeline)},
 				{"disabled", makeIsDisabledInConfig(indexConf, QueryPipeline)},
 
 				{"singleIndex", res.singleIndex(indexConf, QueryPipeline)},
-				{"commonTable", res.makeCommonTableResolver(indexConf)},
+				{"commonTable", res.makeCommonTableResolver(indexConf, QueryPipeline)},
 
 				// default action
 				{"elasticAsDefault", makeElasticIsDefault(indexConf)},

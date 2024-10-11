@@ -9,7 +9,10 @@ import (
 	"quesma/end_user_errors"
 	"quesma/quesma/config"
 	"quesma/util"
+	"slices"
 )
+
+const experimentalAutodiscovery = false
 
 // TODO these rules may be incorrect and incomplete
 // They will be fixed int the next iteration.
@@ -95,12 +98,11 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 
 					var targetDecision ConnectorDecision
 
-					// FIXME this
 					switch targets[0] {
 
-					case "elasticsearch":
+					case config.ElasticsearchTarget:
 						targetDecision = &ConnectorDecisionElastic{}
-					case "clickhouse":
+					case config.ClickhouseTarget:
 						targetDecision = &ConnectorDecisionClickhouse{
 							ClickhouseTableName: input.source,
 							ClickhouseTables:    []string{input.source},
@@ -116,16 +118,42 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 					return decision
 				case 2:
 
-					// check targets and decide
-					// TODO what about A/B testing ?
+					switch pipeline {
+
+					case IngestPipeline:
+						return &Decision{
+							Message: "Enabled in the config. Dual write is enabled.",
+
+							UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+								ClickhouseTableName: input.source,
+								ClickhouseTables:    []string{input.source}},
+								&ConnectorDecisionElastic{}},
+						}
+
+					case QueryPipeline:
+
+						if targets[0] == config.ClickhouseTarget && targets[1] == config.ElasticsearchTarget {
+
+							return &Decision{
+								Message:         "Enabled in the config. A/B testing.",
+								EnableABTesting: true,
+								UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+									ClickhouseTableName: input.source,
+									ClickhouseTables:    []string{input.source}},
+									&ConnectorDecisionElastic{}},
+							}
+						}
+
+					default:
+						return &Decision{
+							Message: "Unsupported configuration",
+							Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported pipeline: %s", pipeline)),
+						}
+					}
 
 					return &Decision{
-						Message: "Enabled in the config. Physical table will be used.",
-
-						UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
-							ClickhouseTableName: input.source,
-							ClickhouseTables:    []string{input.source},
-						}},
+						Message: "Unsupported configuration",
+						Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("Unsupported configuration for pipeline %s, targets: %v", pipeline, targets)),
 					}
 
 				default:
@@ -137,33 +165,62 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 			}
 		}
 
-		// TODO autodiscovery ?
-
 		return nil
 	}
 }
 
-func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input parsedPattern) *Decision {
+func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors(pipeline string) func(input parsedPattern) *Decision {
 
 	return func(input parsedPattern) *Decision {
 		if input.isPattern {
 
-			matchedElastic := []string{}
-			matchedClickhouse := []string{}
+			var matchedElastic []string
+			var matchedClickhouse []string
 
 			for _, pattern := range input.parts {
 
-				for indexName := range r.elasticIndexes {
+				// it com
+
+				// here we check against the config
+
+				for indexName, index := range r.conf.IndexConfig {
+					targets := getTargets(index, pipeline)
+
 					if util.IndexPatternMatches(pattern, indexName) {
-						matchedElastic = append(matchedElastic, indexName)
+
+						for _, target := range targets {
+							switch target {
+							case config.ElasticsearchTarget:
+								matchedElastic = append(matchedElastic, indexName)
+							case config.ClickhouseTarget:
+								matchedClickhouse = append(matchedClickhouse, indexName)
+							default:
+								return &Decision{
+									Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported target: %s", target)),
+									Message: "Unsupported target.",
+								}
+							}
+						}
 					}
 				}
 
-				for tableName := range r.clickhouseIndexes {
-					if util.IndexPatternMatches(pattern, tableName) {
-						matchedClickhouse = append(matchedClickhouse, tableName)
+				// but maybe we should also check against the actual indexes ??
+
+				if r.conf.AutodiscoveryEnabled {
+
+					for indexName := range r.elasticIndexes {
+						if util.IndexPatternMatches(pattern, indexName) {
+							matchedElastic = append(matchedElastic, indexName)
+						}
+					}
+
+					for tableName := range r.clickhouseIndexes {
+						if util.IndexPatternMatches(pattern, tableName) {
+							matchedClickhouse = append(matchedClickhouse, tableName)
+						}
 					}
 				}
+
 			}
 
 			matchedElastic = util.Distinct(matchedElastic)
@@ -192,9 +249,6 @@ func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input 
 				return nil
 
 			case nElastic == 0 && nClickhouse == 0:
-
-				// TODO we should return emtpy result here
-				// or pass to another tableResolver
 				return &Decision{
 					IsEmpty: true,
 					Message: "No indexes matched. Checked both connectors.",
@@ -207,19 +261,17 @@ func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors() func(input 
 
 }
 
-func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexConfiguration) func(input parsedPattern) *Decision {
+func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexConfiguration, pipeline string) func(input parsedPattern) *Decision {
 
 	return func(input parsedPattern) *Decision {
 
 		if input.isPattern {
 
-			// TODO at this point we shouldn't have elastic indexes?
+			// At this point we should do not have any elastic indexes.
+			// This is because we have already checked if the pattern matches any elastic indexes.
 			for _, pattern := range input.parts {
 				for indexName := range r.elasticIndexes {
 					if util.IndexPatternMatches(pattern, indexName) {
-
-						// TODO what about config ?
-						// TODO ?
 						return &Decision{
 							Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index parsedPattern [%s] resolved to elasticsearch indices", input.parts)),
 							Message: "We're not supporting common tables for Elastic.",
@@ -231,15 +283,33 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 			var matchedVirtualTables []string
 			var matchedTables []string
 			for _, pattern := range input.parts {
-				for indexName, index := range r.clickhouseIndexes {
 
-					// TODO what about config ?
-					// what if index uses common table but is't
+				// here we check against the config
+
+				for indexName, index := range r.conf.IndexConfig {
 					if util.IndexPatternMatches(pattern, indexName) {
-						if index.isVirtual {
-							matchedVirtualTables = append(matchedVirtualTables, indexName)
-						} else {
-							matchedTables = append(matchedTables, indexName)
+
+						targets := getTargets(index, pipeline)
+
+						if slices.Contains(targets, config.ClickhouseTarget) {
+							if index.UseCommonTable {
+								matchedVirtualTables = append(matchedVirtualTables, indexName)
+							} else {
+								matchedTables = append(matchedTables, indexName)
+							}
+						}
+					}
+				}
+
+				// but maybe we should also check against the actual indexes ??
+				if r.conf.AutodiscoveryEnabled {
+					for indexName, index := range r.clickhouseIndexes {
+						if util.IndexPatternMatches(pattern, indexName) {
+							if index.isVirtual {
+								matchedVirtualTables = append(matchedVirtualTables, indexName)
+							} else {
+								matchedTables = append(matchedTables, indexName)
+							}
 						}
 					}
 				}
@@ -291,7 +361,18 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 			}
 		}
 
-		if idxConfig, ok := cfg[input.source]; ok && idxConfig.UseCommonTable {
+		var virtualTableExists bool
+
+		if r.conf.AutodiscoveryEnabled {
+			for indexName, index := range r.clickhouseIndexes {
+				if index.isVirtual && indexName == input.source {
+					virtualTableExists = true
+					break
+				}
+			}
+		}
+
+		if idxConfig, ok := cfg[input.source]; (ok && idxConfig.UseCommonTable) || (virtualTableExists) {
 			return &Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
