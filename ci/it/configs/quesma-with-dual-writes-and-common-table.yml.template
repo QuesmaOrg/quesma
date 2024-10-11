@@ -30,6 +30,8 @@ processors:
           target: [ c ]
         logs-3:
           target: [ c, e ]
+        logs-dual-query:
+          target: [ c, e ]
         logs-4:
           useCommonTable: true
           target: [ c ]
@@ -47,6 +49,8 @@ processors:
         logs-2:
           target: [ c ]
         logs-3:
+          target: [ c, e ]
+        logs-dual-query:
           target: [ c, e ]
         logs-4:
           useCommonTable: true
