@@ -21,9 +21,11 @@ import (
 	"quesma/logger"
 	"quesma/persistence"
 	"quesma/quesma"
+	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/tracing"
 	"syscall"
@@ -62,7 +64,7 @@ func main() {
 		FileLogging:       cfg.Logging.FileLogging,
 		Path:              cfg.Logging.Path,
 		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
-		Level:             cfg.Logging.Level,
+		Level:             *cfg.Logging.Level,
 		ClientId:          licenseMod.License.ClientID,
 	}, sig, doneCh, asyncQueryTraceLogger)
 	defer logger.StdLogFile.Close()
@@ -74,7 +76,7 @@ func main() {
 	}()
 
 	if asyncQueryTraceLogger != nil {
-		asyncQueryTraceEvictor := quesma.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
+		asyncQueryTraceEvictor := async_search_storage.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
 		asyncQueryTraceEvictor.Start()
 		defer asyncQueryTraceEvictor.Stop()
 	}
@@ -85,28 +87,41 @@ func main() {
 	phoneHomeAgent.Start()
 
 	virtualTableStorage := persistence.NewElasticJSONDatabase(cfg.Elasticsearch, common_table.VirtualTableElasticIndexName)
-
 	tableDisco := clickhouse.NewTableDiscovery(&cfg, connectionPool, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.SchemaTypeAdapter{})
 
 	connManager := connectors.NewConnectorManager(&cfg, connectionPool, phoneHomeAgent, tableDisco)
 	lm := connManager.GetConnector()
 
-	// Ensure common table exists. This table have to be created before ingest processor starts
-	common_table.EnsureCommonTableExists(connectionPool)
+	elasticIndexResolver := elasticsearch.NewIndexResolver(cfg.Elasticsearch.Url.String())
 
-	//create ingest processor, very lame but for the sake of refactor
-	ip := ingest.NewEmptyIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage)
+	// TODO index configuration for ingest and query is the same for now
+	tableResolver := table_resolver.NewTableResolver(cfg, tableDisco, elasticIndexResolver)
+	tableResolver.Start()
+
+	var ingestProcessor *ingest.IngestProcessor
+
+	if cfg.EnableIngest {
+		if cfg.CreateCommonTable {
+			// Ensure common table exists. This table have to be created before ingest processor starts
+			common_table.EnsureCommonTableExists(connectionPool)
+		}
+
+		ingestProcessor = ingest.NewIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage, tableResolver)
+	} else {
+		logger.Info().Msg("Ingest processor is disabled.")
+	}
+
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 
-	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry) //FIXME no ingest processor here just for now
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry, tableResolver) //FIXME no ingest processor here just for now
 
 	abTestingController := sender.NewSenderCoordinator(&cfg)
 	abTestingController.Start()
 
-	instance := constructQuesma(&cfg, tableDisco, lm, ip, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender())
+	instance := constructQuesma(&cfg, tableDisco, lm, ingestProcessor, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender(), tableResolver)
 	instance.Start()
 
 	<-doneCh
@@ -119,15 +134,15 @@ func main() {
 	phoneHomeAgent.Stop(ctx)
 	lm.Stop()
 	abTestingController.Stop()
-
+	tableResolver.Stop()
 	instance.Close(ctx)
 
 }
 
-func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender) *quesma.Quesma {
+func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender, indexRegistry table_resolver.TableResolver) *quesma.Quesma {
 	if cfg.TransparentProxy {
-		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, true)
+		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, false)
 	} else {
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, logChan, abResultsrepository)
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry)
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/stats"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"testing"
 )
@@ -21,7 +22,8 @@ func TestHtmlPages(t *testing.T) {
 	xssBytes := []byte(xss)
 	id := "b1c4a89e-4905-5e3c-b57f-dc92627d011e"
 	logChan := make(chan logger.LogWithLevel, 5)
-	qmc := NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
+	resolver := table_resolver.NewEmptyTableResolver()
+	qmc := NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
 	qmc.PushPrimaryInfo(&QueryDebugPrimarySource{Id: id, QueryResp: xssBytes})
 	qmc.PushSecondaryInfo(&QueryDebugSecondarySource{Id: id,
 		Path:                   xss,
@@ -101,7 +103,8 @@ func TestHtmlSchemaPage(t *testing.T) {
 
 	logManager := clickhouse.NewLogManager(tables, &cfg)
 
-	qmc := NewQuesmaManagementConsole(&cfg, logManager, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
+	resolver := table_resolver.NewEmptyTableResolver()
+	qmc := NewQuesmaManagementConsole(&cfg, logManager, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
 
 	t.Run("schema got no XSS and no panic", func(t *testing.T) {
 		response := string(qmc.generateTables())

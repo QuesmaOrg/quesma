@@ -2,7 +2,7 @@ version: "3.7"
 services:
   quesma:
     build: ../quesma
-    image: quesma:latest
+    image: quesma:nightly
     environment:
       - QUESMA_CONFIG_FILE=/mnt/ci-config.yaml
       - QUESMA_logging_path=/var/quesma/logs

@@ -9,6 +9,7 @@ import (
 	"quesma/quesma/mux"
 	"quesma/quesma/types"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/tracing"
 	"strings"
 )
@@ -23,7 +24,7 @@ func matchedAgainstAsyncId() mux.RequestMatcher {
 	})
 }
 
-func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.RequestMatcher {
+func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableResolver table_resolver.TableResolver) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		idx := 0
 		for _, s := range strings.Split(req.Body, "\n") {
@@ -32,7 +33,12 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.Reque
 				continue
 			}
 			if idx%2 == 0 {
-				indexConfig, found := configuration.IndexConfig[extractIndexName(s)]
+				name := extractIndexName(s)
+
+				decision := tableResolver.Resolve(table_resolver.IngestPipeline, name)
+				table_resolver.TODO("matchedAgainstBulkBody", decision)
+
+				indexConfig, found := configuration.IndexConfig[name]
 				if found && (indexConfig.IsClickhouseIngestEnabled() || indexConfig.IsIngestDisabled()) {
 					return true
 				}
@@ -46,69 +52,63 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.Reque
 }
 
 // Query path only (looks at QueryTarget)
-func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.Registry) mux.RequestMatcher {
+func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.Registry, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
-		if elasticsearch.IsInternalIndex(indexPattern) {
-			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", indexPattern)
-			return false
+
+		decision := indexRegistry.Resolve(table_resolver.QueryPipeline, indexPattern)
+		table_resolver.TODO("matchedAgainstPattern", decision)
+
+		patterns := strings.Split(req.Params["index"], ",")
+		for i, pattern := range patterns {
+			patterns[i] = elasticsearch.NormalizePattern(pattern)
 		}
 
-		indexPatterns := strings.Split(indexPattern, ",")
-
-		if elasticsearch.IsIndexPattern(indexPattern) {
-			for _, pattern := range indexPatterns {
-				if elasticsearch.IsInternalIndex(pattern) {
-					logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", indexPattern)
-					return false
-				}
+		for _, pattern := range patterns {
+			if elasticsearch.IsInternalIndex(pattern) {
+				// We assume that even if one index is an internal Elasticsearch index then the entire query
+				// is an internal Elasticsearch query.
+				logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", pattern)
+				return false
 			}
-			if configuration.IndexAutodiscoveryEnabled() {
+		}
+
+		if configuration.IndexAutodiscoveryEnabled() {
+			for _, pattern := range patterns {
 				for tableName := range sr.AllSchemas() {
-					if config.MatchName(elasticsearch.NormalizePattern(indexPattern), string(tableName)) {
+					if config.MatchName(pattern, string(tableName)) {
 						return true
 					}
 				}
 			}
-			for _, pattern := range indexPatterns {
-				for _, indexName := range configuration.IndexConfig {
-					if config.MatchName(elasticsearch.NormalizePattern(pattern), indexName.Name) {
-						if configuration.IndexConfig[indexName.Name].IsClickhouseQueryEnabled() {
-							return true
-						}
-					}
-				}
-			}
-			return false
-		} else {
-			if configuration.IndexAutodiscoveryEnabled() {
-				for tableName := range sr.AllSchemas() {
-					if config.MatchName(elasticsearch.NormalizePattern(indexPattern), string(tableName)) {
-						return true
-					}
-				}
-			}
-			for _, index := range configuration.IndexConfig {
-				pattern := elasticsearch.NormalizePattern(indexPattern)
-				if config.MatchName(pattern, index.Name) {
-					if indexConfig, exists := configuration.IndexConfig[index.Name]; exists {
-						return indexConfig.IsClickhouseQueryEnabled()
-					}
-				}
-			}
-			logger.Debug().Msgf("no index found for pattern %s", indexPattern)
-			return false
 		}
+
+		for _, pattern := range patterns {
+			for _, indexConf := range configuration.IndexConfig {
+				if config.MatchName(pattern, indexConf.Name) && configuration.IndexConfig[indexConf.Name].IsClickhouseQueryEnabled() {
+					return true
+				}
+			}
+		}
+
+		return false
 	})
 }
 
 // check whether exact index name is enabled
-func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool) mux.RequestMatcher {
+func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool, indexRegistry table_resolver.TableResolver, pipelineName string) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
+
+		indexName := req.Params["index"]
+
+		decision := indexRegistry.Resolve(pipelineName, indexName)
+		table_resolver.TODO("matchedExact", decision)
+
 		if elasticsearch.IsInternalIndex(req.Params["index"]) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])
 			return false
 		}
+
 		indexConfig, exists := cfg.IndexConfig[req.Params["index"]]
 		if queryPath {
 			return exists && indexConfig.IsClickhouseQueryEnabled()
@@ -118,12 +118,12 @@ func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool) mux.RequestMa
 	})
 }
 
-func matchedExactQueryPath(cfg *config.QuesmaConfiguration) mux.RequestMatcher {
-	return matchedExact(cfg, true)
+func matchedExactQueryPath(cfg *config.QuesmaConfiguration, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
+	return matchedExact(cfg, true, indexRegistry, table_resolver.QueryPipeline)
 }
 
-func matchedExactIngestPath(cfg *config.QuesmaConfiguration) mux.RequestMatcher {
-	return matchedExact(cfg, false)
+func matchedExactIngestPath(cfg *config.QuesmaConfiguration, indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
+	return matchedExact(cfg, false, indexRegistry, table_resolver.IngestPipeline)
 }
 
 // Returns false if the body contains a Kibana internal search.

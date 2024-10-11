@@ -1,3 +1,4 @@
+ci/it/configs/*.yml
 elasticsearch-data
 .idea
 __pycache__

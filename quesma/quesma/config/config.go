@@ -45,13 +45,16 @@ type QuesmaConfiguration struct {
 	QuesmaInternalTelemetryUrl *Url                          `koanf:"internalTelemetryUrl"`
 	DisableAuth                bool                          `koanf:"disableAuth"`
 	AutodiscoveryEnabled       bool
+
+	EnableIngest      bool // this is computed from the configuration 2.0
+	CreateCommonTable bool
 }
 
 type LoggingConfiguration struct {
-	Path              string        `koanf:"path"`
-	Level             zerolog.Level `koanf:"level"`
-	RemoteLogDrainUrl *Url          `koanf:"remoteUrl"`
-	FileLogging       bool          `koanf:"fileLogging"`
+	Path              string         `koanf:"path"`
+	Level             *zerolog.Level `koanf:"level"`
+	RemoteLogDrainUrl *Url           `koanf:"remoteUrl"`
+	FileLogging       bool           `koanf:"fileLogging"`
 }
 
 type RelationalDbConfiguration struct {
@@ -148,9 +151,11 @@ func (c *QuesmaConfiguration) Validate() error {
 	}
 	connectorCount := len(c.Connectors)
 	if connectorCount != 1 {
-		result = multierror.Append(result, fmt.Errorf("%d connectors configured - at this moment Quesma requires **exactly** one connector specified", connectorCount))
+		if !(connectorCount == 0 && c.TransparentProxy) { // no connectors for transparent proxy is fine
+			result = multierror.Append(result, fmt.Errorf("%d connectors configured - at this moment Quesma requires **exactly** one connector specified", connectorCount))
+		}
 	}
-	if c.ClickHouse.Url == nil && c.Hydrolix.Url == nil {
+	if c.ClickHouse.Url == nil && c.Hydrolix.Url == nil && !c.TransparentProxy {
 		result = multierror.Append(result, fmt.Errorf("clickHouse or hydrolix URL is required"))
 	}
 	if c.ClickHouse.IsNonEmpty() && c.Hydrolix.IsNonEmpty() {
@@ -181,6 +186,9 @@ func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, r
 }
 
 func (c *QuesmaConfiguration) validateIndexName(indexName string, result error) error {
+	if indexName == DefaultWildcardIndexName {
+		return result
+	}
 	if strings.Contains(indexName, "*") || indexName == "_all" {
 		result = multierror.Append(result, fmt.Errorf("wildcard patterns are not allowed in index configuration: %s", indexName))
 	}

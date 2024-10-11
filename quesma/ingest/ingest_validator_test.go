@@ -12,6 +12,7 @@ import (
 	"quesma/concurrent"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
+	"quesma/table_resolver"
 	"quesma/util"
 	"strings"
 	"testing"
@@ -166,10 +167,10 @@ func TestIngestValidation(t *testing.T) {
 	})
 	for i := range inputJson {
 		db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-		ip := NewIngestProcessorEmpty()
+		ip := newIngestProcessorEmpty()
 		ip.chDb = db
 		ip.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
-
+		ip.tableResolver = table_resolver.NewEmptyTableResolver()
 		defer db.Close()
 
 		mock.ExpectExec(EscapeBrackets(expectedInsertJsons[i])).WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 0))

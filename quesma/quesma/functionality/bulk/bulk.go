@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
+	"quesma/end_user_errors"
 	"quesma/ingest"
 	"quesma/jsonprocessor"
 	"quesma/logger"
@@ -18,7 +19,10 @@ import (
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/stats"
+	"quesma/table_resolver"
 	"quesma/telemetry"
+	"sort"
+	"strings"
 	"sync"
 )
 
@@ -65,7 +69,7 @@ type (
 )
 
 func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor,
-	cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []BulkItem, err error) {
+	cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent, tableResolver table_resolver.TableResolver) (results []BulkItem, err error) {
 	defer recovery.LogPanic()
 
 	bulkSize := len(bulk) / 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
@@ -73,9 +77,26 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 
 	// The returned results should be in the same order as the input request, however splitting the bulk might change the order.
 	// Therefore, each BulkRequestEntry has a corresponding pointer to the result entry, allowing us to freely split and reshuffle the bulk.
-	results, clickhouseDocumentsToInsert, elasticRequestBody, elasticBulkEntries, err := splitBulk(ctx, defaultIndex, bulk, bulkSize, cfg)
+	results, clickhouseDocumentsToInsert, elasticRequestBody, elasticBulkEntries, err := splitBulk(ctx, defaultIndex, bulk, bulkSize, cfg, tableResolver)
 	if err != nil {
 		return []BulkItem{}, err
+	}
+
+	// we fail if there are some documents to insert into Clickhouse but ingest processor is not available
+	if len(clickhouseDocumentsToInsert) > 0 && ip == nil {
+
+		indexes := make(map[string]struct{})
+		for index := range clickhouseDocumentsToInsert {
+			indexes[index] = struct{}{}
+		}
+
+		indexesAsList := make([]string, 0, len(indexes))
+		for index := range indexes {
+			indexesAsList = append(indexesAsList, index)
+		}
+		sort.Strings(indexesAsList)
+
+		return []BulkItem{}, end_user_errors.ErrNoIngest.New(fmt.Errorf("ingest processor is not available, but documents are targeted to Clickhouse indexes: %s", strings.Join(indexesAsList, ",")))
 	}
 
 	err = sendToElastic(elasticRequestBody, cfg, elasticBulkEntries)
@@ -83,12 +104,14 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 		return []BulkItem{}, err
 	}
 
-	sendToClickhouse(ctx, clickhouseDocumentsToInsert, phoneHomeAgent, cfg, ip)
+	if ip != nil {
+		sendToClickhouse(ctx, clickhouseDocumentsToInsert, phoneHomeAgent, cfg, ip)
+	}
 
 	return results, nil
 }
 
-func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bulkSize int, cfg *config.QuesmaConfiguration) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
+func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bulkSize int, cfg *config.QuesmaConfiguration, tableResolver table_resolver.TableResolver) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
 	results := make([]BulkItem, bulkSize)
 
 	clickhouseDocumentsToInsert := make(map[string][]BulkRequestEntry, bulkSize)
@@ -98,6 +121,9 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 	err := bulk.BulkForEach(func(entryNumber int, op types.BulkOperation, rawOp types.JSON, document types.JSON) error {
 		index := op.GetIndex()
 		operation := op.GetOperation()
+
+		decision := tableResolver.Resolve(table_resolver.IngestPipeline, index)
+		table_resolver.TODO("splitBulk", decision)
 
 		entryWithResponse := BulkRequestEntry{
 			operation: operation,

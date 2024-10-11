@@ -536,6 +536,9 @@ func (td *tableDiscovery) readTables(database string) (map[string]map[string]col
 
 	logger.Debug().Msgf("describing tables: %s", database)
 
+	if td.dbConnPool == nil {
+		return map[string]map[string]columnMetadata{}, fmt.Errorf("database connection pool is nil, cannot describe tables")
+	}
 	rows, err := td.dbConnPool.Query("SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
 	if err != nil {
 		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
@@ -603,4 +606,43 @@ func (td *tableDiscovery) createTableQuery(database, table string) (ddl string) 
 		logger.Error().Msgf("could not get table comment: %v", err)
 	}
 	return ddl
+}
+
+type EmptyTableDiscovery struct {
+	TableMap      *TableMap
+	Err           error
+	Autodiscovery bool
+}
+
+func NewEmptyTableDiscovery() *EmptyTableDiscovery {
+	return &EmptyTableDiscovery{
+		TableMap: NewTableMap(),
+	}
+}
+
+func (td *EmptyTableDiscovery) ReloadTableDefinitions() {
+}
+
+func (td *EmptyTableDiscovery) TableDefinitions() *TableMap {
+	return td.TableMap
+}
+
+func (td *EmptyTableDiscovery) TableDefinitionsFetchError() error {
+	return td.Err
+}
+
+func (td *EmptyTableDiscovery) LastAccessTime() time.Time {
+	return time.Now()
+}
+
+func (td *EmptyTableDiscovery) LastReloadTime() time.Time {
+	return time.Now()
+}
+
+func (td *EmptyTableDiscovery) ForceReloadCh() <-chan chan<- struct{} {
+	return make(chan chan<- struct{})
+}
+
+func (td *EmptyTableDiscovery) AutodiscoveryEnabled() bool {
+	return td.Autodiscovery
 }

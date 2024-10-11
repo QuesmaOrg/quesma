@@ -18,6 +18,7 @@ type (
 		FindSchema(name TableName) (Schema, bool)
 		UpdateDynamicConfiguration(name TableName, table Table)
 		UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName)
+		GetFieldEncodings() map[FieldEncodingKey]EncodedFieldName
 	}
 
 	FieldEncodingKey struct {
@@ -141,6 +142,13 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 
 func (s *schemaRegistry) UpdateDynamicConfiguration(name TableName, table Table) {
 	s.dynamicConfiguration[name.AsString()] = table
+	dynamicEncodings := make(map[FieldEncodingKey]EncodedFieldName)
+	for _, column := range table.Columns {
+		// when table is created based on PUT `name/_mapping` we need to populate field encodings.
+		// Otherwise, they will be populated only based on ingested data which might not contain all the fields
+		dynamicEncodings[FieldEncodingKey{TableName: name.AsString(), FieldName: column.Name}] = EncodedFieldName(util.FieldToColumnEncoder(column.Name))
+	}
+	s.UpdateFieldEncodings(dynamicEncodings)
 }
 
 func (s *schemaRegistry) UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName) {
@@ -149,6 +157,17 @@ func (s *schemaRegistry) UpdateFieldEncodings(encodings map[FieldEncodingKey]Enc
 	for key, value := range encodings {
 		s.fieldEncodings[key] = EncodedFieldName(value)
 	}
+}
+
+func (s *schemaRegistry) GetFieldEncodings() map[FieldEncodingKey]EncodedFieldName {
+	s.fieldEncodingsLock.RLock()
+	defer s.fieldEncodingsLock.RUnlock()
+	fieldEncodings := make(map[FieldEncodingKey]EncodedFieldName)
+	for key, value := range s.fieldEncodings {
+		fieldEncodings[key] = EncodedFieldName(value)
+
+	}
+	return fieldEncodings
 }
 
 func NewSchemaRegistry(tableProvider TableProvider, configuration *config.QuesmaConfiguration, dataSourceTypeAdapter typeAdapter) Registry {

@@ -753,7 +753,23 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							},
 							{
 								"1": {
-									"value": 1.0
+									"value": null
+								},
+								"doc_count": 0,
+								"key": 1715197200000,
+								"key_as_string": "2024-05-08T19:40:00.000"
+							},
+							{
+								"1": {
+									"value": null
+								},
+								"doc_count": 0,
+								"key": 1715197800000,
+								"key_as_string": "2024-05-08T19:50:00.000"
+							},
+							{
+								"1": {
+									"value": null
 								},
 								"1-metric": {
 									"value": 20.0
@@ -941,6 +957,160 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": 2.0
 							},
 							"doc_count": 0,
+							"key": 1714870200000,
+							"key_as_string": "2024-05-05T00:50:00.000"
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714870800000,
+							"key_as_string": "2024-05-05T01:00:00.000"
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714871400000,
+							"key_as_string": "2024-05-05T01:10:00.000"
+						},
+{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714872000000,
+							"key_as_string": "2024-05-05T01:20:00.000"
+						},
+{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714872600000,
+							"key_as_string": "2024-05-05T01:30:00.000"
+						},
+{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714873200000,
+							"key_as_string": "2024-05-05T01:40:00.000"
+						},
+{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714873800000,
+							"key_as_string": "2024-05-05T01:50:00.000"
+						},
+{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714874400000,
+							"key_as_string": "2024-05-05T02:00:00.000"
+						},
+{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714875000000,
+							"key_as_string": "2024-05-05T02:10:00.000"
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714875600000,
+							"key_as_string": "2024-05-05T02:20:00.000"
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714876200000,
+							"key_as_string": "2024-05-05T02:30:00.000"
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714876800000,
+							"key_as_string": "2024-05-05T02:40:00.000"
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714877400000,
+							"key_as_string": "2024-05-05T02:50:00.000"
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714878000000,
+							"key_as_string": "2024-05-05T03:00:00.000"
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
 							"key": 1714878600000,
 							"key_as_string": "2024-05-05T03:10:00.000"
 						},
@@ -1009,17 +1179,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"doc_count": 2,
 							"key": 1714882200000,
 							"key_as_string": "2024-05-05T04:10:00.000"
-						},
-						{
-							"1": {
-								"value": 0.0
-							},
-							"1-metric": {
-								"value": 16.0
-							},
-							"doc_count": 0,
-							"key": 1714882800000,
-							"key_as_string": "2024-05-05T04:20:00.000"
 						}
 					]
 				}
@@ -1041,14 +1200,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", uint64(2)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__2__key_0", int64(1714869600000/600000)),
-				model.NewQueryResultCol("aggr__2__count", uint64(0)),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__2__key_0", int64(1714878600000/600000)),
-				model.NewQueryResultCol("aggr__2__count", uint64(0)),
-			}},
-			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1714879200000/600000)),
 				model.NewQueryResultCol("aggr__2__count", uint64(2)),
 			}},
@@ -1065,16 +1216,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", uint64(2)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__2__key_0", int64(1714881600000/600000)),
-				model.NewQueryResultCol("aggr__2__count", uint64(0)),
-			}},
-			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1714882200000/600000)),
 				model.NewQueryResultCol("aggr__2__count", uint64(2)),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__2__key_0", int64(1714882800000/600000)),
-				model.NewQueryResultCol("aggr__2__count", uint64(0)),
 			}},
 		},
 		ExpectedPancakeSQL: `
@@ -1103,8 +1246,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					},
 					"histogram": {
 						"field": "bytes",
-						"interval": 200,
-						"min_doc_count": 0
+						"interval": 200
 					}
 				}
 			},
@@ -1481,7 +1623,23 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							},
 							{
 								"1": {
-									"value": 1.0
+									"value": null
+								},
+								"doc_count": 0,
+								"key": 1715197200000,
+								"key_as_string": "2024-05-08T19:40:00.000"
+							},
+							{
+								"1": {
+									"value": null
+								},
+								"doc_count": 0,
+								"key": 1715197800000,
+								"key_as_string": "2024-05-08T19:50:00.000"
+							},
+							{
+								"1": {
+									"value": null
 								},
 								"1-metric": {
 									"value": 20.0
@@ -1648,8 +1806,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": 2.0
 							},
 							"doc_count": 2,
-							"key": 1714861800000,
-							"key_as_string": "2024-05-04T22:30:00.000"
+							"key": 1714870200000,
+							"key_as_string": "2024-05-05T00:50:00.000"
 						},
 						{
 							"1": {
@@ -1659,8 +1817,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": 2.0
 							},
 							"doc_count": 0,
-							"key": 1714862400000,
-							"key_as_string": "2024-05-04T22:40:00.000"
+							"key": 1714870800000,
+							"key_as_string": "2024-05-05T01:00:00.000"
 						},
 						{
 							"1": {
@@ -1738,17 +1896,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"doc_count": 2,
 							"key": 1714875000000,
 							"key_as_string": "2024-05-05T02:10:00.000"
-						},
-						{
-							"1": {
-								"value": 0.0
-							},
-							"1-metric": {
-								"value": 16.0
-							},
-							"doc_count": 0,
-							"key": 1714875600000,
-							"key_as_string": "2024-05-05T02:20:00.000"
 						}
 					]
 				}
@@ -1766,16 +1913,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__2__key_0", int64(1714869000000/600000)),
+				model.NewQueryResultCol("aggr__2__key_0", int64(1714877400000/600000)),
 				model.NewQueryResultCol("aggr__2__count", uint64(2)),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__2__key_0", int64(1714869600000/600000)),
-				model.NewQueryResultCol("aggr__2__count", uint64(0)),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__2__key_0", int64(1714878600000/600000)),
-				model.NewQueryResultCol("aggr__2__count", uint64(0)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1714879200000/600000)),
@@ -1794,16 +1933,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", uint64(2)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__2__key_0", int64(1714881600000/600000)),
-				model.NewQueryResultCol("aggr__2__count", uint64(0)),
-			}},
-			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1714882200000/600000)),
 				model.NewQueryResultCol("aggr__2__count", uint64(2)),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__2__key_0", int64(1714882800000/600000)),
-				model.NewQueryResultCol("aggr__2__count", uint64(0)),
 			}},
 		},
 		ExpectedPancakeSQL: `
@@ -3329,7 +3460,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"aggregations": {
 				"1": {
 					"keys": [
-						"2024-05-21T05:20:00.000+02:00"
+						"2024-05-21T07:30:00.000"
 					],
 					"value": 121360.0
 				},
@@ -3497,7 +3628,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"aggregations": {
 				"1": {
 					"keys": [
-						5296
+						3
 					],
 					"value": 211840.2
 				},
@@ -3531,7 +3662,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": null
 							},
 							"doc_count": 6,
-							"key": 200.0
+							"key": 1.0
 						},
 						{
 							"1-metric": {
@@ -3544,7 +3675,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": null
 							},
 							"doc_count": 7,
-							"key": 400.0
+							"key": 2.0
 						},
 						{
 							"1-metric": {
@@ -3557,20 +3688,30 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"value": null
 							},
 							"doc_count": 1,
-							"key": 5296.0
+							"key": 3.0
+						},
+						{
+							"3": {
+								"value": null
+							},
+							"4": {
+								"value": null
+							},
+							"doc_count": 0,
+							"key": 4.0
 						},
 						{
 							"1-metric": {
 								"value": 452
 							},
 							"3": {
-								"value": -211388.2
+								"value": null
 							},
 							"4": {
-								"value": -211388.2
+								"value": null
 							},
 							"doc_count": 1,
-							"key": 16837.0
+							"key": 5.0
 						}
 					]
 				}
@@ -3593,22 +3734,22 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", nil),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__1-bucket__key_0", 200.0),
+				model.NewQueryResultCol("aggr__1-bucket__key_0", 1.0),
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(6)),
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", nil),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__1-bucket__key_0", 400.0),
+				model.NewQueryResultCol("aggr__1-bucket__key_0", 2.0),
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(7)),
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", nil),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__1-bucket__key_0", 5296.0),
+				model.NewQueryResultCol("aggr__1-bucket__key_0", 3.0),
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 211840.2),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__1-bucket__key_0", 16837.0),
+				model.NewQueryResultCol("aggr__1-bucket__key_0", 5.0),
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", float64(452)),
 			}},

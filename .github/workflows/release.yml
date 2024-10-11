@@ -13,7 +13,7 @@ permissions:
   contents: write  # To be able to create a release via GitHub API
 
 jobs:
-  build-quesma-docker-image:
+  build-quesma-docker-image: # based on nightly-docker-build-and-push.yml, but heavily modified
     strategy:
       matrix:
         module: [ "quesma" ]
@@ -64,7 +64,9 @@ jobs:
           context: ${{ matrix.module }}/.
           tags: |
             europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.event.inputs.VERSION }}
+            europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:latest
             quesma/quesma:${{ github.event.inputs.VERSION }}
+            quesma/quesma:latest
           push: true
           build-args: |
             QUESMA_BUILD_SHA=${{ github.sha }}

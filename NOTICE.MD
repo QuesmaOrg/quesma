@@ -259,11 +259,11 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/DataDog/go-sqllexer
-Version : v0.0.14
-Time    : 2024-08-21T20:46:49Z
+Version : v0.0.16
+Time    : 2024-10-08T13:04:06Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/!data!dog/go-sqllexer@v0.0.14/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!data!dog/go-sqllexer@v0.0.16/LICENSE:
 
 MIT License
 
@@ -1562,6 +1562,37 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 --------------------------------------------------------------------------------
+#### Module  : github.com/knadh/koanf/parsers/json
+Version : v0.1.0
+Time    : 2023-02-17T12:50:22Z
+Licence : MIT
+
+Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/parsers/json@v0.1.0/LICENSE:
+
+The MIT License
+
+Copyright (c) 2019, Kailash Nadh. https://github.com/knadh
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+--------------------------------------------------------------------------------
 #### Module  : github.com/knadh/koanf/parsers/yaml
 Version : v0.1.0
 Time    : 2023-02-17T12:50:22Z
@@ -1594,11 +1625,11 @@ THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/knadh/koanf/providers/env
-Version : v0.1.0
-Time    : 2023-02-17T12:50:22Z
+Version : v1.0.0
+Time    : 2024-09-26T07:31:31Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/env@v0.1.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/env@v1.0.0/LICENSE:
 
 The MIT License
 
@@ -1625,11 +1656,11 @@ THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/knadh/koanf/providers/file
-Version : v1.1.0
-Time    : 2024-07-29T18:42:38Z
+Version : v1.1.2
+Time    : 2024-10-02T14:59:55Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/file@v1.1.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/file@v1.1.2/LICENSE:
 
 The MIT License
 
@@ -1883,6 +1914,37 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+--------------------------------------------------------------------------------
+#### Module  : github.com/tidwall/sjson
+Version : v1.2.5
+Time    : 2022-08-05T01:15:59Z
+Licence : MIT
+
+Contents of probable licence file $GOMODCACHE/github.com/tidwall/sjson@v1.2.5/LICENSE:
+
+The MIT License (MIT)
+
+Copyright (c) 2016 Josh Baker
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 
 
 --------------------------------------------------------------------------------
@@ -3302,39 +3364,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
---------------------------------------------------------------------------------
-#### Module  : github.com/creack/pty
-Version : v1.1.9
-Time    : 2019-09-25T15:36:33Z
-Licence : MIT
-
-Contents of probable licence file $GOMODCACHE/github.com/creack/pty@v1.1.9/LICENSE:
-
-Copyright (c) 2011 Keith Rarick
-
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without limitation
-the rights to use, copy, modify, merge, publish, distribute,
-sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall
-be included in all copies or substantial portions of the
-Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
-KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
-OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/davecgh/go-spew
@@ -9520,12 +9549,72 @@ SOFTWARE.
 
 
 --------------------------------------------------------------------------------
-#### Module  : github.com/tidwall/pretty
-Version : v1.0.0
-Time    : 2019-03-25T15:38:08Z
+#### Module  : github.com/tidwall/gjson
+Version : v1.18.0
+Time    : 2024-10-02T03:45:20Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/tidwall/pretty@v1.0.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/tidwall/gjson@v1.18.0/LICENSE:
+
+The MIT License (MIT)
+
+Copyright (c) 2016 Josh Baker
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+--------------------------------------------------------------------------------
+#### Module  : github.com/tidwall/match
+Version : v1.1.1
+Time    : 2021-10-08T14:36:13Z
+Licence : MIT
+
+Contents of probable licence file $GOMODCACHE/github.com/tidwall/match@v1.1.1/LICENSE:
+
+The MIT License (MIT)
+
+Copyright (c) 2016 Josh Baker
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+--------------------------------------------------------------------------------
+#### Module  : github.com/tidwall/pretty
+Version : v1.2.1
+Time    : 2022-10-01T20:21:24Z
+Licence : MIT
+
+Contents of probable licence file $GOMODCACHE/github.com/tidwall/pretty@v1.2.1/LICENSE:
 
 The MIT License (MIT)
 
