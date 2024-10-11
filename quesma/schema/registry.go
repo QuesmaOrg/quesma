@@ -117,7 +117,7 @@ func (s *schemaRegistry) populateSchemaFromDynamicConfiguration(indexName string
 			continue
 		}
 
-		fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: columnType}
+		fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: columnType, Origin: FieldSourceMapping}
 	}
 }
 
@@ -246,7 +246,7 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), InternalPropertyType: column.Type, Type: QuesmaTypeKeyword}
 				}
 			} else {
-				fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), InternalPropertyType: column.Type, Type: existing.Type}
+				fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), InternalPropertyType: column.Type, Type: existing.Type, Origin: existing.Origin}
 			}
 		}
 	}

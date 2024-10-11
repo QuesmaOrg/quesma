@@ -51,7 +51,7 @@ func TestAlterTable(t *testing.T) {
 
 	ip := newIngestProcessorWithEmptyTableMap(fieldsMap, &config.QuesmaConfiguration{})
 	for i := range rowsToInsert {
-		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig, encodings)
+		alter, _, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig, encodings)
 		assert.NoError(t, err)
 		insert, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
 		assert.Equal(t, expectedInsert[i], insert)
@@ -130,7 +130,7 @@ func TestAlterTableHeuristic(t *testing.T) {
 
 		assert.Equal(t, int64(0), ip.ingestCounter)
 		for i := range rowsToInsert {
-			_, _, _, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig, encodings)
+			_, _, _, _, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig, encodings)
 			assert.NoError(t, err)
 		}
 		assert.Equal(t, tc.expected, len(table.Cols))
