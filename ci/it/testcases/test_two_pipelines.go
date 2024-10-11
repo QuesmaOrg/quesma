@@ -44,7 +44,7 @@ func (a *QueryAndIngestPipelineTestcase) testBasicRequest(ctx context.Context, t
 		t.Fatalf("Failed to make GET request: %s", err)
 	}
 	defer resp.Body.Close()
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func (a *QueryAndIngestPipelineTestcase) testWildcardGoesToElastic(ctx context.Context, t *testing.T) {
@@ -79,7 +79,7 @@ func (a *QueryAndIngestPipelineTestcase) testWildcardGoesToElastic(ctx context.C
 	hitValue := hit.(map[string]interface{})["value"]
 	assert.Equal(t, float64(1), hitValue)
 	assert.Contains(t, string(bodyBytes), "Alice")
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Quesma-Source"))
 	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
 }

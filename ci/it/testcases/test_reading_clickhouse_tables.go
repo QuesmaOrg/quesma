@@ -42,7 +42,7 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) testBasicRequest(ctx contex
 		t.Fatalf("Failed to make GET request: %s", err)
 	}
 	defer resp.Body.Close()
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func (a *ReadingClickHouseTablesIntegrationTestcase) testRandomThing(ctx context.Context, t *testing.T) {
@@ -99,7 +99,7 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) testWildcardGoesToElastic(c
 	hitValue := hit.(map[string]interface{})["value"]
 	assert.Equal(t, float64(1), hitValue)
 	assert.Contains(t, string(bodyBytes), "Alice")
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Quesma-Source"))
 	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
 }
