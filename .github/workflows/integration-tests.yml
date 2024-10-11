@@ -45,7 +45,7 @@ jobs:
 
       - name: Get last commit author
         id: get_author
-        run: echo "::set-output name=author::$(git log -1 --pretty=format:'%an')"
+        run: echo "::set-output name=author::$(git log -1 --pretty=format:'%an <%ae> sha1={%H}')"
 
       - name: Run integration tests
         working-directory: ci/it
@@ -58,7 +58,7 @@ jobs:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           slack-message: |
             :exclamation: *Integration tests failed.* FYSA @here
-            Author of the last commit: ${{ steps.get_author.outputs.author }}
+            Last commit by: ${{ steps.get_author.outputs.author }}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
