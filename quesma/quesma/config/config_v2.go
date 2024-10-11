@@ -6,7 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/go-multierror"
-	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/parsers/json"
+	"github.com/knadh/koanf/v2"
 	"github.com/rs/zerolog"
 	"log"
 	"quesma/network"
@@ -100,18 +101,14 @@ func LoadV2Config() QuesmaNewConfiguration {
 	v2config.Logging.RemoteLogDrainUrl = telemetryUrl
 
 	loadConfigFile()
-	if err := k.Load(env.Provider("QUESMA_", ".", func(s string) string {
-		// This enables overriding config values with environment variables. It's case-sensitive, just like the YAML.
-		// Examples:
-		// `QUESMA_logging_level=debug` overrides `logging.level` in the config file
-		// `QUESMA_licenseKey=arbitrary-license-key` overrides `licenseKey` in the config file
-		return strings.Replace(strings.TrimPrefix(s, "QUESMA_"), "_", ".", -1)
-	}), nil); err != nil {
+	// We have to use custom env provider to allow array overrides
+	if err := k.Load(Env2JsonProvider("QUESMA_", "_", nil), json.Parser(), koanf.WithMergeFunc(mergeDictFunc)); err != nil {
 		log.Fatalf("error loading config form supplied env vars: %v", err)
 	}
 	if err := k.Unmarshal("", &v2config); err != nil {
 		log.Fatalf("error unmarshalling config: %v", err)
 	}
+
 	if err := v2config.Validate(); err != nil {
 		log.Fatalf("Config validation failed: %v", err)
 	}
@@ -215,7 +212,11 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				}
 				var backendConnectorTypes []string
 				for _, con := range declaredBackendConnectors {
-					backendConnectorTypes = append(backendConnectorTypes, c.getBackendConnectorByName(con).Type)
+					connector := c.getBackendConnectorByName(con)
+					if connector == nil {
+						return fmt.Errorf(fmt.Sprintf("backend connector named [%s] not found in configuration", con))
+					}
+					backendConnectorTypes = append(backendConnectorTypes, connector.Type)
 				}
 				if !slices.Contains(backendConnectorTypes, ElasticsearchBackendConnectorName) {
 					return fmt.Errorf("query processor requires having one elasticsearch backend connector")
@@ -313,6 +314,9 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 }
 
 func (c *QuesmaNewConfiguration) validateFrontendConnector(fc FrontendConnector) error {
+	if len(fc.Name) == 0 {
+		return fmt.Errorf("frontend connector must have a non-empty name")
+	}
 	if fc.Type != ElasticsearchFrontendIngestConnectorName && fc.Type != ElasticsearchFrontendQueryConnectorName {
 		return fmt.Errorf(fmt.Sprintf("frontend connector's [%s] type not recognized, only `%s` and `%s` are supported at this moment", fc.Name, ElasticsearchFrontendIngestConnectorName, ElasticsearchFrontendQueryConnectorName))
 	}
@@ -344,6 +348,9 @@ func (c *QuesmaNewConfiguration) definedProcessorNames() []string {
 }
 
 func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
+	if len(p.Name) == 0 {
+		return fmt.Errorf("processor must have a non-empty name")
+	}
 	if !slices.Contains(getAllowedProcessorTypes(), p.Type) {
 		return fmt.Errorf("processor type not recognized, only `quesma-v1-processor-noop`, `quesma-v1-processor-query` and `quesma-v1-processor-ingest` are supported at this moment")
 	}
@@ -374,6 +381,9 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 
 func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 	var _, errAcc error
+	if len(pipeline.Name) == 0 {
+		errAcc = multierror.Append(errAcc, fmt.Errorf("pipeline must have a non-empty name"))
+	}
 	if len(pipeline.FrontendConnectors) != 1 {
 		errAcc = multierror.Append(errAcc, fmt.Errorf("pipeline must have exactly one frontend connector"))
 	} else if len(pipeline.FrontendConnectors) == 0 {
@@ -411,22 +421,18 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 			}
 		}
 		if onlyProcessorInPipeline.Type == QuesmaV1ProcessorQuery || onlyProcessorInPipeline.Type == QuesmaV1ProcessorIngest {
-			if len(pipeline.BackendConnectors) != 2 {
-				return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline %s has a processor of type %s which requires two backend connectors", pipeline.Name, onlyProcessorInPipeline.Type)))
+			foundElasticBackendConnector := false
+			for _, backendConnectorName := range pipeline.BackendConnectors {
+				backendConnector := c.getBackendConnectorByName(backendConnectorName)
+				if backendConnector == nil {
+					return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("backend connector named %s referenced in %s not found in configuration", backendConnectorName, pipeline.Name)))
+				}
+				if backendConnector.Type == ElasticsearchBackendConnectorName {
+					foundElasticBackendConnector = true
+				}
 			}
-			bConn1, bConn2 := c.getBackendConnectorByName(pipeline.BackendConnectors[0]), c.getBackendConnectorByName(pipeline.BackendConnectors[1])
-			if bConn1 == nil {
-				return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[0], pipeline.Name)))
-			}
-			if bConn2 == nil {
-				return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[1], pipeline.Name)))
-			}
-			backendConnTypes := []string{bConn1.Type, bConn2.Type}
-			if !slices.Contains(backendConnTypes, ElasticsearchBackendConnectorName) {
+			if !foundElasticBackendConnector {
 				return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline %s has a processor of type %s which requires having one elasticsearch backend connector", pipeline.Name, onlyProcessorInPipeline.Type)))
-			}
-			if !slices.Contains(backendConnTypes, ClickHouseBackendConnectorName) && !slices.Contains(backendConnTypes, ClickHouseOSBackendConnectorName) && !slices.Contains(backendConnTypes, HydrolixBackendConnectorName) {
-				return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline %s has a processor of type %s which requires having one Clickhouse-compatible backend connector", pipeline.Name, onlyProcessorInPipeline.Type)))
 			}
 		}
 	}
@@ -711,6 +717,9 @@ func (c *QuesmaNewConfiguration) getRelationalDBConf() (*RelationalDbConfigurati
 func (c *QuesmaNewConfiguration) validateBackendConnectors() error {
 	elasticBackendConnectors, clickhouseBackendConnectors := 0, 0
 	for _, backendConn := range c.BackendConnectors {
+		if len(backendConn.Name) == 0 {
+			return fmt.Errorf("backend connector must have a non-empty name")
+		}
 		if backendConn.Type == ElasticsearchBackendConnectorName {
 			elasticBackendConnectors += 1
 		} else if backendConn.Type == ClickHouseBackendConnectorName || backendConn.Type == ClickHouseOSBackendConnectorName || backendConn.Type == HydrolixBackendConnectorName {

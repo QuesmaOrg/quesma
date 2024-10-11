@@ -12,6 +12,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/k0kubun/pp v3.0.1+incompatible
+	github.com/knadh/koanf/parsers/json v0.1.0
 	github.com/knadh/koanf/parsers/yaml v0.1.0
 	github.com/knadh/koanf/providers/env v1.0.0
 	github.com/knadh/koanf/providers/file v1.1.2
@@ -21,6 +22,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/stretchr/testify v1.9.0
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
+	github.com/tidwall/sjson v1.2.5
 	github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
 )
@@ -44,6 +46,9 @@ require (
 	golang.org/x/oauth2 v0.17.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
 )
 
 require (

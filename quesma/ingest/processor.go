@@ -23,6 +23,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/stats"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/util"
 	"slices"
@@ -63,6 +64,7 @@ type (
 		ingestFieldStatistics     IngestFieldStatistics
 		ingestFieldStatisticsLock sync.Mutex
 		virtualTableStorage       persistence.JSONDatabase
+		tableResolver             table_resolver.TableResolver
 	}
 	TableMap  = concurrent.Map[string, *chLib.Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -694,6 +696,9 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
 
+	decision := lm.tableResolver.Resolve(table_resolver.IngestPipeline, tableName)
+	table_resolver.TODO("processInsertQuery", decision)
+
 	indexConf, ok := lm.cfg.IndexConfig[tableName]
 	if ok && indexConf.UseCommonTable {
 
@@ -904,9 +909,9 @@ func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
-func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase) *IngestProcessor {
+func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage}
+	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
 }
 
 func NewOnlySchemaFieldsCHConfig() *chLib.ChTableConfig {

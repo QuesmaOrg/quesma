@@ -14,6 +14,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/util"
 	"slices"
 	"strconv"
@@ -240,6 +241,8 @@ func TestProcessInsertQuery(t *testing.T) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
 					db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 					ip.ip.chDb = db
+					resolver := table_resolver.NewEmptyTableResolver()
+					ip.ip.tableResolver = resolver
 					defer db.Close()
 
 					// info: result values aren't important, this '.WillReturnResult[...]' just needs to be there
@@ -417,12 +420,15 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			}
 			schemaRegistry.Tables[schema.TableName(indexName)] = indexSchema
 
+			indexRegistry := table_resolver.NewEmptyTableResolver()
 			schemaRegistry.FieldEncodings = make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
 			schemaRegistry.FieldEncodings[schema.FieldEncodingKey{TableName: indexName, FieldName: "schema_field"}] = "schema_field"
+
 			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db
 			ingest.virtualTableStorage = virtualTableStorage
 			ingest.schemaRegistry = schemaRegistry
+			ingest.tableResolver = indexRegistry
 
 			ctx := context.Background()
 			formatter := clickhouse.DefaultColumnNameFormatter()
