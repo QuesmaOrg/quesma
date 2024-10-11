@@ -85,9 +85,6 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
-
-	authenticatedRoutes.HandleFunc("/tables/reload", func(writer http.ResponseWriter, req *http.Request) {
-
 	authenticatedRoutes.HandleFunc("/table_resolver", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateTableResolver()
 		_, _ = writer.Write(buf)
