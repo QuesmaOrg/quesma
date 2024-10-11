@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"io"
+	"net/http"
 	"testing"
 )
 

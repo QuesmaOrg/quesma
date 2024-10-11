@@ -27,7 +27,7 @@ processors:
         logs-1:
           target: [ e ]
         logs-2:
-          target: [ e ]
+          target: [ c ]
         logs-3:
           target: [ c, e ]
         logs-4:
@@ -45,7 +45,7 @@ processors:
         logs-1:
           target: [ e ]
         logs-2:
-          target: [ e ]
+          target: [ c ]
         logs-3:
           target: [ c, e ]
         logs-4:
