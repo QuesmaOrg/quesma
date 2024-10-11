@@ -62,5 +62,4 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) testRandomThing(ctx context
 	}
 	defer resp.Body.Close()
 	assert.Equal(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
-	assert.Equal(t, 200, resp.StatusCode) // TODO INTENTIONAL FAILURE
 }
