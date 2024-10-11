@@ -16,8 +16,15 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 
 	logLevelPassedAsEnvVar := "debug"
 	licenseKeyPassedAsEnvVar := "arbitraty-license-key"
-	os.Setenv("QUESMA_logging_level", logLevelPassedAsEnvVar) // overrides what's in the config file
-	os.Setenv("QUESMA_licenseKey", licenseKeyPassedAsEnvVar)  // overrides what's in the config file
+	os.Setenv("QUESMA_logging_level", logLevelPassedAsEnvVar)   // overrides what's in the config file
+	os.Setenv("QUESMA_licenseKey", licenseKeyPassedAsEnvVar)    // overrides what's in the config file
+	os.Setenv("QUESMA_backendConnectors_1_config_user", "user") // overrides what's in the config file
+	t.Cleanup(func() {
+		os.Unsetenv(configFileLocationEnvVar)
+		os.Unsetenv("QUESMA_logging_level")
+		os.Unsetenv("QUESMA_licenseKey")
+		os.Unsetenv("QUESMA_backendConnectors_1_config_user")
+	})
 	cfg := LoadV2Config()
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("error validating config: %v", err)
@@ -30,6 +37,7 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 	assert.Equal(t, 8080, int(legacyCfg.PublicTcpPort))
 	assert.Equal(t, "http://localhost:9200", legacyCfg.Elasticsearch.Url.String())
 	assert.Equal(t, "clickhouse://localhost:9000", legacyCfg.ClickHouse.Url.String())
+	assert.Equal(t, "user", legacyCfg.ClickHouse.User)
 	assert.Equal(t, true, legacyCfg.IngestStatistics)
 	assert.Equal(t, "logs", legacyCfg.Logging.Path)
 	assert.Equal(t, logLevelPassedAsEnvVar, legacyCfg.Logging.Level.String())
