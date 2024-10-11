@@ -35,7 +35,7 @@ func (a *DualWriteAndCommonTableTestcase) RunTests(ctx context.Context, t *testi
 	a.testIngestToClickHouseWorks(ctx, t)
 	//a.testIngestToCommonTableWorks(ctx, t)
 	//a.testDualQueryReturnsDataFromClickHouse(ctx, t)
-	//a.testDualWritesWork(ctx, t)
+	a.testDualWritesWork(ctx, t)
 	a.testWildcardGoesToElastic(ctx, t)
 	return nil
 }
@@ -94,7 +94,7 @@ func (a *DualWriteAndCommonTableTestcase) testIngestToClickHouseWorks(ctx contex
 	assert.Equal(t, 31337, age)
 
 	// Also make sure no such index got created in Elasticsearch
-	resp, err = a.RequestToElasticsearch(ctx, "GET", "/_cat/indices", nil)
+	resp, err = a.RequestToElasticsearch(ctx, "GET", "/logs-2/_refresh", nil)
 	if err != nil {
 		t.Fatalf("Failed to make GET request: %s", err)
 	}
@@ -103,10 +103,69 @@ func (a *DualWriteAndCommonTableTestcase) testIngestToClickHouseWorks(ctx contex
 	if err != nil {
 		t.Fatalf("Failed to read response body: %s", err)
 	}
+
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+	assert.Contains(t, string(bodyBytes), "no such index [logs-2]")
+}
+
+func (a *DualWriteAndCommonTableTestcase) testDualWritesWork(ctx context.Context, t *testing.T) {
+	resp, err := a.RequestToQuesma(ctx, "POST", "/logs-3/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
+	if err != nil {
+		t.Fatalf("Failed to insert document: %s", err)
+	}
+	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Greater(t, len(bodyBytes), 0)
-	assert.Contains(t, string(bodyBytes), "green") // at least one index should be there
-	assert.NotContains(t, string(bodyBytes), "logs-2")
+
+	chQuery := "SELECT * FROM 'logs-3'"
+	rows, err := a.ExecuteClickHouseQuery(ctx, chQuery)
+	if err != nil {
+		t.Fatalf("Failed to execute query: %s", err)
+	}
+	columnTypes, err := rows.ColumnTypes()
+	values := make([]interface{}, len(columnTypes))
+	valuePtrs := make([]interface{}, len(columnTypes))
+	for i := range values {
+		valuePtrs[i] = &values[i]
+	}
+	var name string
+	var age int
+	for rows.Next() {
+		if err := rows.Scan(valuePtrs...); err != nil {
+			t.Fatalf("Failed to scan row: %s", err)
+		}
+		for i, col := range values {
+			switch columnTypes[i].Name() {
+			case "name":
+				if v, ok := col.(*string); ok {
+					name = *v
+				}
+			case "age":
+				if v, ok := col.(*int64); ok {
+					age = int(*v)
+				}
+			}
+		}
+		if name == "Przemyslaw" && age == 31337 {
+			break
+		}
+	}
+	assert.Equal(t, "Przemyslaw", name)
+	assert.Equal(t, 31337, age)
+
+	// Also make sure no such index got created in Elasticsearch
+	_, _ = a.RequestToElasticsearch(ctx, "GET", "/logs-3/_refresh", nil)
+	resp, err = a.RequestToElasticsearch(ctx, "GET", "/logs-3/_search", []byte(`{"query": {"match_all": {}}}`))
+	if err != nil {
+		t.Fatalf("Failed to make GET request: %s", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %s", err)
+	}
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Contains(t, string(bodyBytes), "Przemyslaw")
 }
 
 func (a *DualWriteAndCommonTableTestcase) testWildcardGoesToElastic(ctx context.Context, t *testing.T) {
