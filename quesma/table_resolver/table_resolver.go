@@ -93,8 +93,8 @@ type tableRegistryImpl struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	tableDiscovery       clickhouse.TableDiscovery
-	elasticIndexResolver elasticsearch.IndexResolver
+	tableDiscovery clickhouse.TableDiscovery
+	indexManager   elasticsearch.IndexManagement
 
 	elasticIndexes    map[string]table
 	clickhouseIndexes map[string]table
@@ -163,15 +163,8 @@ func (r *tableRegistryImpl) updateIndexes() {
 	logger.Info().Msgf("Clickhouse tables updated: %v", clickhouseIndexes)
 
 	elasticIndexes := make(map[string]table)
-	sources, ok, err := r.elasticIndexResolver.Resolve("*")
-	if err != nil {
-		logger.Error().Msgf("Could not resolve indexes from Elastic: %v", err)
-		return
-	}
-	if !ok {
-		logger.Error().Msg("Could not resolve indexes from Elastic")
-		return
-	}
+	r.indexManager.ReloadIndices()
+	sources := r.indexManager.GetSources()
 
 	for _, index := range sources.Indices {
 		elasticIndexes[index.Name] = table{
@@ -260,7 +253,7 @@ func (r *tableRegistryImpl) Pipelines() []string {
 	return res
 }
 
-func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhouse.TableDiscovery, elasticResolver elasticsearch.IndexResolver) TableResolver {
+func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhouse.TableDiscovery, elasticResolver elasticsearch.IndexManagement) TableResolver {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	indexConf := quesmaConf.IndexConfig
@@ -271,9 +264,9 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 
 		conf: quesmaConf,
 
-		tableDiscovery:       discovery,
-		elasticIndexResolver: elasticResolver,
-		pipelineResolvers:    make(map[string]*pipelineResolver),
+		tableDiscovery:    discovery,
+		indexManager:      elasticResolver,
+		pipelineResolvers: make(map[string]*pipelineResolver),
 	}
 
 	// TODO Here we should read the config and create resolver for each pipeline defined.

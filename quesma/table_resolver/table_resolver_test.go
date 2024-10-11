@@ -36,9 +36,22 @@ func TestTableResolver(t *testing.T) {
 			QueryTarget:  []string{"clickhouse", "elasticsearch"},
 			IngestTarget: []string{"clickhouse", "elasticsearch"},
 		},
+		"some-elastic-logs": {
+			QueryTarget:  []string{"elasticsearch"},
+			IngestTarget: []string{"elasticsearch"},
+		},
 		"closed": {
 			QueryTarget:  []string{},
 			IngestTarget: []string{},
+		},
+		"closed-common-table": {
+			UseCommonTable: true,
+			QueryTarget:    []string{},
+			IngestTarget:   []string{},
+		},
+		"unknown-target": {
+			QueryTarget:  []string{"unknown"},
+			IngestTarget: []string{"unknown"},
 		},
 	}
 
@@ -125,6 +138,26 @@ func TestTableResolver(t *testing.T) {
 			indexConf: indexConf,
 		},
 		{
+			name:              "ingest closed index",
+			pipeline:          QueryPipeline,
+			pattern:           "closed-common-table",
+			clickhouseIndexes: []string{"closed"},
+			expected: Decision{
+				IsClosed: true,
+			},
+			indexConf: indexConf,
+		},
+		{
+			name:              "ingest closed index",
+			pipeline:          QueryPipeline,
+			pattern:           "unknown-target",
+			clickhouseIndexes: []string{"closed"},
+			expected: Decision{
+				Err: fmt.Errorf("unsupported target"),
+			},
+			indexConf: indexConf,
+		},
+		{
 			name:              "ingest to index1",
 			pipeline:          IngestPipeline,
 			pattern:           "index1",
@@ -179,6 +212,30 @@ func TestTableResolver(t *testing.T) {
 			indexConf: indexConf,
 		},
 		{
+			name:           "query from index1,index2",
+			pipeline:       QueryPipeline,
+			pattern:        "index1,index2",
+			elasticIndexes: []string{"index3"},
+			expected: Decision{
+				Err: end_user_errors.ErrSearchCondition.New(fmt.Errorf("")),
+			},
+			indexConf: indexConf,
+		},
+		{
+			name:           "query from index1,index-not-existing",
+			pipeline:       QueryPipeline,
+			pattern:        "index1,index-not-existing",
+			elasticIndexes: []string{"index1,index-not-existing"},
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+					ClickhouseTableName: "index1",
+					ClickhouseTables:    []string{"index1"},
+					IsCommonTable:       false,
+				}},
+			},
+			indexConf: indexConf,
+		},
+		{
 			name:           "ingest to index3",
 			pipeline:       IngestPipeline,
 			pattern:        "index3",
@@ -198,6 +255,7 @@ func TestTableResolver(t *testing.T) {
 			},
 			indexConf: indexConf,
 		},
+
 		{
 			name:          "query pattern",
 			pipeline:      QueryPipeline,
@@ -280,6 +338,45 @@ func TestTableResolver(t *testing.T) {
 			},
 			indexConf: indexConf,
 		},
+		{
+			name:              "query both connectors",
+			pipeline:          QueryPipeline,
+			pattern:           "logs,index1",
+			indexConf:         indexConf,
+			clickhouseIndexes: []string{"index1"},
+			elasticIndexes:    []string{"logs"},
+			expected: Decision{
+				Err: end_user_errors.ErrSearchCondition.New(fmt.Errorf("")),
+			},
+		},
+		{
+			name:           "query elastic with pattern",
+			pipeline:       QueryPipeline,
+			pattern:        "some-elastic-logs*",
+			elasticIndexes: []string{"logs"},
+			expected: Decision{
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{
+					ManagementCall: false,
+				}},
+			},
+		},
+		{
+			name:           "non matching pattern",
+			pipeline:       QueryPipeline,
+			pattern:        "some-non-matching-pattern*",
+			elasticIndexes: []string{"logs"},
+			expected: Decision{
+				IsEmpty: true,
+			},
+		},
+		{
+			name:     "query internal index",
+			pipeline: QueryPipeline,
+			pattern:  "quesma_common_table",
+			expected: Decision{
+				Err: fmt.Errorf("common table"),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -300,18 +397,7 @@ func TestTableResolver(t *testing.T) {
 				})
 			}
 
-			elasticResolver := elasticsearch.NewEmptyIndexResolver()
-
-			sources := elasticsearch.Sources{
-				Indices: make([]elasticsearch.Index, 0),
-			}
-
-			for _, index := range tt.elasticIndexes {
-				sources.Indices = append(sources.Indices, elasticsearch.Index{
-					Name: index,
-				})
-			}
-			elasticResolver.Indexes["*"] = sources
+			elasticResolver := elasticsearch.NewFixedIndexManagement(tt.elasticIndexes...)
 
 			resolver := NewTableResolver(cfg, tableDiscovery, elasticResolver)
 
@@ -319,6 +405,9 @@ func TestTableResolver(t *testing.T) {
 
 			assert.NotNil(t, decision)
 			if tt.expected.Err != nil {
+
+				assert.NotNil(t, decision.Err, "Expected error, but got nil")
+
 				if !strings.Contains(decision.Err.Error(), tt.expected.Err.Error()) {
 					t.Errorf("Error is not an instance of the expected error: got %v, expected %v", decision.Err, tt.expected.Err)
 				}

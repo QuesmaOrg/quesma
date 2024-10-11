@@ -84,11 +84,7 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 
 				switch len(targets) {
 
-				case 0:
-					return &Decision{
-						Message:  "Disabled in the config.",
-						IsClosed: true,
-					}
+				// case 0 is handled before (makeIsDisabledInConfig)
 
 				case 1:
 
@@ -153,7 +149,7 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 
 					return &Decision{
 						Message: "Unsupported configuration",
-						Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("Unsupported configuration for pipeline %s, targets: %v", pipeline, targets)),
+						Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported configuration for pipeline %s, targets: %v", pipeline, targets)),
 					}
 
 				default:
@@ -347,8 +343,7 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 
 			default:
 				return &Decision{
-					IsEmpty: true, // not sure what we should return here
-					//Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both standalone table indices: [%s] and common table indices: [%s]", input.source, matchedTables, matchedVirtualTables)),
+					Err:     end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both standalone table indices: [%s] and common table indices: [%s]", input.source, matchedTables, matchedVirtualTables)),
 					Message: "Both standalone table and common table indexes matches the pattern",
 				}
 			}
