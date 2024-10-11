@@ -605,7 +605,7 @@ func populateFieldEncodings(jsonData []types.JSON, tableName string) map[schema.
 func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
-	tableFormatter TableColumNameFormatter, tableDefinitionChangeOnly bool) ([]string, map[string]AlterDDL, error) {
+	tableFormatter TableColumNameFormatter, tableDefinitionChangeOnly bool) (string, string, map[string]AlterDDL, error) {
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
@@ -614,7 +614,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	for _, jsonValue := range jsonData {
 		result, err := preIngestTransformer.Transform(jsonValue)
 		if err != nil {
-			return nil, nil, fmt.Errorf("error while rewriting json: %v", err)
+			return "", "", nil, fmt.Errorf("error while rewriting json: %v", err)
 		}
 		processed = append(processed, result)
 	}
@@ -659,7 +659,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		createTableCmd, err = ip.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig, tableName, tableDefinitionChangeOnly)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error createTableObjectAndAttributes, can't create table: %v", err)
-			return nil, nil, err
+			return "", "", nil, err
 		}
 		// Set pointer to table after creating it
 		table = ip.FindTable(tableName)
@@ -673,24 +673,24 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	var invalidJsons []types.JSON
 	preprocessedJsons, invalidJsons, err := ip.preprocessJsons(ctx, table.Name, jsonData, transformer)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error preprocessJsons: %v", err)
+		return "", "", nil, fmt.Errorf("error preprocessJsons: %v", err)
 	}
 	for i, preprocessedJson := range preprocessedJsons {
 		alterDDLMap, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], tableConfig, encodings)
 
 		if err != nil {
-			return nil, nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
+			return "", "", nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
 		}
 		insertJson, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
 		if err != nil {
-			return nil, nil, fmt.Errorf("error generatateInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
+			return "", "", nil, fmt.Errorf("error generatateInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
 		}
 		for key, value := range alterDDLMap {
 			alterDDLMapGlobal[key] = value
 		}
 		if err != nil {
-			return nil, nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
+			return "", "", nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
 		}
 		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
 	}
@@ -698,7 +698,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
 
-	return generateSqlStatements(createTableCmd, alterDDLMapGlobal, insert), alterDDLMapGlobal, nil
+	return createTableCmd, insert, alterDDLMapGlobal, nil
 }
 
 func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName string,
@@ -745,10 +745,12 @@ func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, table
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter, isVirtualTable bool, sourceIndexSchema *schema.Schema, sourceIndex string) error {
 
-	statements, alterDDLMap, err := ip.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter, isVirtualTable)
+	createStatement, insertStatement, alterDDLMap, err := ip.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter, isVirtualTable)
 	if err != nil {
 		return err
 	}
+
+	statements := generateSqlStatements(createStatement, alterDDLMap, insertStatement)
 
 	var logVirtualTableDDL bool // maybe this should be a part of the config or sth
 
