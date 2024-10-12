@@ -196,7 +196,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 			}
 			proc := c.getProcessorByName(c.Pipelines[0].Processors[0])
 			if proc == nil {
-				return fmt.Errorf(fmt.Sprintf("processor named [%s] not found in configuration", c.Pipelines[0].Processors[0]))
+				return fmt.Errorf("processor named [%s] not found in configuration", c.Pipelines[0].Processors[0])
 			}
 			declaredBackendConnectors := c.Pipelines[0].BackendConnectors
 			if proc.Type == QuesmaV1ProcessorNoOp {
@@ -214,7 +214,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				for _, con := range declaredBackendConnectors {
 					connector := c.getBackendConnectorByName(con)
 					if connector == nil {
-						return fmt.Errorf(fmt.Sprintf("backend connector named [%s] not found in configuration", con))
+						return fmt.Errorf("backend connector named [%s] not found in configuration", con)
 					}
 					backendConnectorTypes = append(backendConnectorTypes, connector.Type)
 				}
@@ -234,16 +234,16 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 			}
 
 		} else {
-			return fmt.Errorf(fmt.Sprintf("frontend connector named [%s] referred in pipeline [%s] not found in configuration", fcName, c.Pipelines[0].Name))
+			return fmt.Errorf("frontend connector named [%s] referred in pipeline [%s] not found in configuration", fcName, c.Pipelines[0].Name)
 		}
 	}
 	if isDualPipeline {
 		fc1, fc2 := c.getFrontendConnectorByName(c.Pipelines[0].FrontendConnectors[0]), c.getFrontendConnectorByName(c.Pipelines[1].FrontendConnectors[0])
 		if fc1 == nil {
-			return fmt.Errorf(fmt.Sprintf("frontend connector named [%s] not found in configuration", c.Pipelines[0].FrontendConnectors[0]))
+			return fmt.Errorf("frontend connector named [%s] not found in configuration", c.Pipelines[0].FrontendConnectors[0])
 		}
 		if fc2 == nil {
-			return fmt.Errorf(fmt.Sprintf("frontend connector named [%s] not found in configuration", c.Pipelines[1].FrontendConnectors[0]))
+			return fmt.Errorf("frontend connector named [%s] not found in configuration", c.Pipelines[1].FrontendConnectors[0])
 		}
 		if !((fc1.Type == ElasticsearchFrontendQueryConnectorName && fc2.Type == ElasticsearchFrontendIngestConnectorName) ||
 			(fc2.Type == ElasticsearchFrontendQueryConnectorName && fc1.Type == ElasticsearchFrontendIngestConnectorName)) {
@@ -257,7 +257,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		}
 		ingestProcessor := c.getProcessorByName(ingestPipeline.Processors[0])
 		if ingestProcessor == nil {
-			return fmt.Errorf(fmt.Sprintf("ingest processor named [%s] not found in configuration", ingestPipeline.Processors[0]))
+			return fmt.Errorf("ingest processor named [%s] not found in configuration", ingestPipeline.Processors[0])
 		}
 		if ingestProcessor.Type != QuesmaV1ProcessorIngest && ingestProcessor.Type != QuesmaV1ProcessorNoOp {
 			return fmt.Errorf("ingest pipeline must have ingest-type or noop processor")
@@ -269,7 +269,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		}
 		queryProcessor := c.getProcessorByName(queryPipeline.Processors[0])
 		if queryProcessor == nil {
-			return fmt.Errorf(fmt.Sprintf("query processor named [%s] not found in configuration", ingestPipeline.Processors[0]))
+			return fmt.Errorf("query processor named [%s] not found in configuration", ingestPipeline.Processors[0])
 		}
 		if (queryProcessor.Type == QuesmaV1ProcessorNoOp && ingestProcessor.Type != QuesmaV1ProcessorNoOp) ||
 			(ingestProcessor.Type == QuesmaV1ProcessorNoOp && queryProcessor.Type != QuesmaV1ProcessorNoOp) {
@@ -318,7 +318,7 @@ func (c *QuesmaNewConfiguration) validateFrontendConnector(fc FrontendConnector)
 		return fmt.Errorf("frontend connector must have a non-empty name")
 	}
 	if fc.Type != ElasticsearchFrontendIngestConnectorName && fc.Type != ElasticsearchFrontendQueryConnectorName {
-		return fmt.Errorf(fmt.Sprintf("frontend connector's [%s] type not recognized, only `%s` and `%s` are supported at this moment", fc.Name, ElasticsearchFrontendIngestConnectorName, ElasticsearchFrontendQueryConnectorName))
+		return fmt.Errorf("frontend connector's [%s] type not recognized, only `%s` and `%s` are supported at this moment", fc.Name, ElasticsearchFrontendIngestConnectorName, ElasticsearchFrontendQueryConnectorName)
 	}
 	return nil
 }
@@ -390,34 +390,34 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 		return multierror.Append(errAcc, fmt.Errorf("pipeline must have exactly one frontend connector, none defined"))
 	}
 	if !slices.Contains(c.definedFrontedConnectorNames(), pipeline.FrontendConnectors[0]) {
-		errAcc = multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("frontend connector named %s referenced in %s not found in configuration", pipeline.FrontendConnectors[0], pipeline.Name)))
+		errAcc = multierror.Append(errAcc, fmt.Errorf("frontend connector named %s referenced in %s not found in configuration", pipeline.FrontendConnectors[0], pipeline.Name))
 	}
 
 	if len(pipeline.BackendConnectors) == 0 || len(pipeline.BackendConnectors) > 2 {
-		return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline must define exactly one or two backend connectors, %d defined", len(pipeline.BackendConnectors))))
+		return multierror.Append(errAcc, fmt.Errorf("pipeline must define exactly one or two backend connectors, %d defined", len(pipeline.BackendConnectors)))
 	}
 	if !slices.Contains(c.definedBackendConnectorNames(), pipeline.BackendConnectors[0]) {
-		errAcc = multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[0], pipeline.Name)))
+		errAcc = multierror.Append(errAcc, fmt.Errorf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[0], pipeline.Name))
 	}
 	if len(pipeline.BackendConnectors) == 2 {
 		if !slices.Contains(c.definedBackendConnectorNames(), pipeline.BackendConnectors[1]) {
-			errAcc = multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[1], pipeline.Name)))
+			errAcc = multierror.Append(errAcc, fmt.Errorf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[1], pipeline.Name))
 		}
 	}
 
 	if len(pipeline.Processors) != 1 {
-		return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline must have exactly one processor, [%s] has %d defined", pipeline.Name, len(pipeline.Processors))))
+		return multierror.Append(errAcc, fmt.Errorf("pipeline must have exactly one processor, [%s] has %d defined", pipeline.Name, len(pipeline.Processors)))
 	}
 	if !slices.Contains(c.definedProcessorNames(), pipeline.Processors[0]) {
-		errAcc = multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("processor named %s referenced in %s not found in configuration", pipeline.Processors[0], pipeline.Name)))
+		errAcc = multierror.Append(errAcc, fmt.Errorf("processor named %s referenced in %s not found in configuration", pipeline.Processors[0], pipeline.Name))
 	} else {
 		onlyProcessorInPipeline := c.getProcessorByName(pipeline.Processors[0])
 		if onlyProcessorInPipeline.Type == QuesmaV1ProcessorNoOp {
 			if len(pipeline.BackendConnectors) != 1 {
-				return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline %s has a noop processor supports only one backend connector", pipeline.Name)))
+				return multierror.Append(errAcc, fmt.Errorf("pipeline %s has a noop processor supports only one backend connector", pipeline.Name))
 			}
 			if conn := c.getBackendConnectorByName(pipeline.BackendConnectors[0]); conn.Type != ElasticsearchBackendConnectorName {
-				return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline %s has a noop processor which can be connected only to elasticsearch backend connector", pipeline.Name)))
+				return multierror.Append(errAcc, fmt.Errorf("pipeline %s has a noop processor which can be connected only to elasticsearch backend connector", pipeline.Name))
 			}
 		}
 		if onlyProcessorInPipeline.Type == QuesmaV1ProcessorQuery || onlyProcessorInPipeline.Type == QuesmaV1ProcessorIngest {
@@ -425,14 +425,14 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 			for _, backendConnectorName := range pipeline.BackendConnectors {
 				backendConnector := c.getBackendConnectorByName(backendConnectorName)
 				if backendConnector == nil {
-					return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("backend connector named %s referenced in %s not found in configuration", backendConnectorName, pipeline.Name)))
+					return multierror.Append(errAcc, fmt.Errorf("backend connector named %s referenced in %s not found in configuration", backendConnectorName, pipeline.Name))
 				}
 				if backendConnector.Type == ElasticsearchBackendConnectorName {
 					foundElasticBackendConnector = true
 				}
 			}
 			if !foundElasticBackendConnector {
-				return multierror.Append(errAcc, fmt.Errorf(fmt.Sprintf("pipeline %s has a processor of type %s which requires having one elasticsearch backend connector", pipeline.Name, onlyProcessorInPipeline.Type)))
+				return multierror.Append(errAcc, fmt.Errorf("pipeline %s has a processor of type %s which requires having one elasticsearch backend connector", pipeline.Name, onlyProcessorInPipeline.Type))
 			}
 		}
 	}
