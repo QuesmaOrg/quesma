@@ -79,6 +79,10 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 	case notToken:
 		latterExp := p.buildWhereStatement(false)
 		currentStatement = model.NewPrefixExpr("NOT", []model.Expr{latterExp})
+	case existsToken:
+		// TODO probably not fully right, make it more like all other cases.
+		fieldname := p.buildValue([]value{}, 0).(termValue)
+		currentStatement = model.NewInfixExpr(model.NewColumnRef(fieldname.term), " IS NOT ", model.NewLiteral("NULL"))
 	case leftParenthesisToken:
 		currentStatement = newLeafStatement(p.defaultFieldNames, p.buildValue([]value{}, 1))
 	default:

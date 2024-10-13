@@ -64,6 +64,9 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`title:abc\*`, `"title" = 'abc*'`},
 		{`title:abc*\*`, `"title" ILIKE 'abc%*'`},
 		{`ab\+c`, `("title" = 'ab+c' OR "text" = 'ab+c')`},
+		{`!xdr.result_code_str:DIAMETER_SUCCESS`, `NOT ("xdr.result_code_str" = 'DIAMETER_SUCCESS')`},
+		{`_exists_:title`, `"title" IS NOT NULL`},
+		{`!_exists_:title`, `NOT ("title" IS NOT NULL)`},
 	}
 	var randomQueriesWithPossiblyIncorrectInput = []struct {
 		query string

@@ -12,6 +12,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/schema"
 	"quesma/util"
+	"time"
 )
 
 type JsonMap = map[string]interface{}
@@ -211,7 +212,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 			totalCount = len(results[i])
 			relation := "eq"
 			if query.SelectCommand.Limit != 0 && totalCount == query.SelectCommand.Limit {
-				relation = "gte"
+				relation = "eq"
 			}
 			total = &model.Total{
 				Value:    totalCount,
@@ -251,7 +252,7 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	} else {
 		response.Hits.Total = &model.Total{
 			Value:    0,
-			Relation: "gte",
+			Relation: "eq",
 		}
 	}
 
@@ -262,10 +263,12 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncId strin
 	id := new(string)
 	*id = asyncId
 	response := model.AsyncSearchEntireResp{
-		Response:  *searchResponse,
-		ID:        id,
-		IsPartial: isPartial,
-		IsRunning: isPartial,
+		Response:               *searchResponse,
+		ID:                     id,
+		IsPartial:              isPartial,
+		IsRunning:              isPartial,
+		CompletionTimeInMillis: uint64(time.Now().UnixMilli()),
+		ExpirationTimeInMillis: uint64(time.Now().UnixMilli()) + 423424234,
 	}
 
 	response.CompletionStatus = completionStatus

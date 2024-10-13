@@ -125,6 +125,11 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		delete(queryMap, "date_histogram")
 		return success, nil
 	}
+	if autoDateHistogram := cw.parseAutoDateHistogram(queryMap["auto_date_histogram"]); autoDateHistogram != nil {
+		aggregation.queryType = autoDateHistogram
+		delete(queryMap, "auto_date_histogram")
+		return
+	}
 	for _, termsType := range []string{"terms", "significant_terms"} {
 		termsRaw, ok := queryMap[termsType]
 		if !ok {
@@ -342,6 +347,17 @@ func (cw *ClickhouseQueryTranslator) parseRandomSampler(randomSamplerRaw any) bu
 		cw.parseFloatField(randomSampler, "probability", defaultProbability),
 		cw.parseIntField(randomSampler, "seed", defaultSeed),
 	)
+}
+
+func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(paramsRaw any) *bucket_aggregations.AutoDateHistogram {
+	params, ok := paramsRaw.(QueryMap)
+	if !ok {
+		return nil
+	}
+
+	field := cw.parseFieldField(params, "auto_date_histogram")
+	bucketsNr := cw.parseIntField(params, "buckets", 10)
+	return bucket_aggregations.NewAutoDateHistogram(cw.Ctx, field, bucketsNr)
 }
 
 func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldExpressions []model.Expr) []model.OrderByExpr {

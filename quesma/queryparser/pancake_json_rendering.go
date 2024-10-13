@@ -175,6 +175,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 	switch queryType := layer.nextBucketAggregation.queryType.(type) {
 	case bucket_aggregations.SamplerInterface, bucket_aggregations.FilterAgg:
 		selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), rows)
+		fmt.Println("RENDER 187", rows, selectedRows)
 		aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows)
 		subAggr, err := p.layerToJSON(remainingLayers[1:], rows)
 		if err != nil {
@@ -185,6 +186,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 		var bucketArray []model.JsonMap
 		for _, subGroup := range queryType.CombinatorGroups() {
 			selectedRowsWithoutPrefix := p.selectPrefixRows(subGroup.Prefix, rows)
+			fmt.Println("RENDER 188", rows, selectedRowsWithoutPrefix)
 
 			subAggr, err := p.layerToJSON(remainingLayers[1:], selectedRowsWithoutPrefix)
 			if err != nil {
@@ -192,6 +194,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 			}
 
 			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), selectedRowsWithoutPrefix)
+			fmt.Println("RENDER 189", selectedRowsWithoutPrefix, selectedRows)
 			aggJson := queryType.CombinatorTranslateSqlResponseToJson(subGroup, selectedRows)
 
 			bucketArray = append(bucketArray, util.MergeMaps(p.ctx, aggJson, subAggr))
@@ -237,28 +240,37 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
 		}
 		if metric.name != PancakeTotalCountMetricName {
+			//fmt.Println("RENDER 241", metricRows)
 			result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows)
 		}
+		//fmt.Println("AAAAA", metric.name)
 		// TODO: maybe add metadata also here? probably not needed
 	}
 
-	fmt.Println("robie result, layer:", layer)
+	//fmt.Println("robie result, layer:", layer)
 
 	// pipeline aggregations of metric type behave just like metric
 	for metricPipelineAggrName, metricPipelineAggrResult := range p.pipeline.currentPipelineMetricAggregations(layer, rows) {
-		fmt.Println("metricPipelineAggrName", metricPipelineAggrName)
+		//fmt.Println("metricPipelineAggrName", metricPipelineAggrName)
 		result[metricPipelineAggrName] = metricPipelineAggrResult
+		//fmt.Printf("\n\nwazny print\nmeta:%v\n", a)
 		//TODO: maybe add metadata also here? probably not needed
 	}
 
 	if layer.nextBucketAggregation != nil {
 		// sampler and filter are special
+		//fmt.Println("RENDER 257", layer.nextBucketAggregation)
 		if !layer.nextBucketAggregation.DoesHaveGroupBy() {
+			//fmt.Println("RENDER 258 not have group by")
 			json, err := p.combinatorBucketToJSON(remainingLayers, rows)
 			if err != nil {
 				return nil, err
 			}
+			if layer.nextBucketAggregation.metadata != nil {
+				json["meta"] = layer.nextBucketAggregation.metadata
+			}
 			result[layer.nextBucketAggregation.name] = json
+
 			return result, nil
 		}
 
@@ -286,9 +298,12 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		}
 
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
+		//fmt.Println("1 len", len(bucketRows), len(subAggrRows))
 		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
-
+		//fmt.Println("2 len", len(bucketRows), len(subAggrRows))
 		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows)
+		//fmt.Println("3 len", len(bucketRows), len(subAggrRows))
+		//fmt.Println("RENDER 294", layer.nextBucketAggregation.queryType, "rows:", rows[:min(2, len(rows))], "bucketRows:", bucketRows[:min(2, len(bucketRows))], "subAggrRows:", subAggrRows[:min(2, len(subAggrRows))])
 
 		if len(buckets) == 0 { // without this we'd generate {"buckets": []} in the response, which Elastic doesn't do.
 			if layer.nextBucketAggregation.metadata != nil {
@@ -309,11 +324,14 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 
 			bucketArr := bucketArrRaw.([]model.JsonMap)
 
+			//fmt.Println("len(bucketArr)", len(bucketArr), "len(subAggrRows)", len(subAggrRows))
+			//f//mt.Println("subAggrRows", subAggrRows)
+			//fm//t.Println("bucketArr", bucketArr)
 			if len(bucketArr) == len(subAggrRows) {
 				// Simple case, we merge bucketArr[i] with subAggrRows[i] (if lengths are equal, keys must be equal => it's fine to not check them at all)
 				for i, bucket := range bucketArr {
 					for pipelineAggrName, pipelineAggrResult := range pipelineBucketsPerAggregation {
-						fmt.Println("pipelineAggrName", pipelineAggrName, pipelineAggrResult)
+						//fmt.Println("pipelineAggrName", pipelineAggrName, pipelineAggrResult)
 						bucketArr[i][pipelineAggrName] = pipelineAggrResult[i]
 					}
 
@@ -339,8 +357,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 					}
 
 					if docCount, ok := bucket["doc_count"]; ok && fmt.Sprintf("%v", docCount) == "0" {
+						//fmt.Println("wtf? continue?")
 						// Not sure, but it does the trick.
-						continue
+						//continue
 					}
 
 					// if our bucket aggregation is a date_histogram, we need original key, not processed one, which is "key"
@@ -353,21 +372,37 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 					}
 
 					columnNameWithKey := layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
-					subAggrKey, found := p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
+					found := false
+					var subAggrKey any
+					if len(subAggrRows) > subAggrIdx {
+						subAggrKey, found = p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
+					}
 					if found && subAggrKey == key {
 						subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[subAggrIdx])
 						if err != nil {
 							return nil, err
 						}
 						bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
+						if _, exists = bucketArr[i][bucket_aggregations.OriginalKeyName]; exists {
+							delete(bucketArr[i], bucket_aggregations.OriginalKeyName)
+						}
 						subAggrIdx++
 					} else {
-						bucketArr[i] = bucket
+						x, err := p.layerToJSON(remainingLayers[1:], []model.QueryResultRow{})
+						//fmt.Println("x", x, err)
+						if err != nil {
+							return nil, err
+						}
+						bucketArr[i] = util.MergeMaps(p.ctx, bucket, x)
+						if _, exists = bucketArr[i][bucket_aggregations.OriginalKeyName]; exists {
+							delete(bucketArr[i], bucket_aggregations.OriginalKeyName)
+						}
 					}
 				}
 			}
 		}
 
+		fmt.Println("ADDING METADATA", layer.nextBucketAggregation.metadata)
 		if layer.nextBucketAggregation.metadata != nil {
 			buckets["meta"] = layer.nextBucketAggregation.metadata
 		}

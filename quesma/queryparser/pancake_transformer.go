@@ -5,7 +5,6 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -13,6 +12,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 )
 
 // 2. Translate aggregation tree into pancake model.
@@ -88,7 +88,7 @@ func (a *pancakeTransformer) pipelineAggregationToLayer(previousAggrNames []stri
 		return nil, fmt.Errorf("pipeline aggregation is nil")
 	}
 
-	pp.Println(pipeline.queryType)
+	//pp.Println(pipeline.queryType.String())
 	pipelineQueryType, ok := pipeline.queryType.(model.PipelineQueryType)
 	if !ok {
 		return nil, fmt.Errorf("pipeline aggregation %s is not pipeline aggregation, type: %s", pipeline.name, pipeline.queryType.AggregationType().String())
@@ -193,7 +193,7 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 
 		case model.PipelineMetricsAggregation, model.PipelineBucketAggregation:
 			pipeline, err := a.pipelineAggregationToLayer(previousAggrNames, childAgg)
-			pp.Println(pipeline)
+			//pp.Println(pipeline.queryType.String())
 			if err != nil {
 				return nil, err
 			}
@@ -279,7 +279,7 @@ func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelL
 			parentBucketLayerIdx := i + layerIdx
 			//fmt.Println("connectPipelineAggregations", parentBucketLayerIdx, layerIdx, pipeline, layers[parentBucketLayerIdx-2].nextBucketAggregation.queryType)
 			if parentBucketLayerIdx > 0 {
-				fmt.Println("robie -2 zamiast -1. A jednak nie.")
+				//fmt.Println("robie -2 zamiast -1. A jednak nie.")
 				pipeline.queryType.SetParentBucketAggregation(layers[parentBucketLayerIdx-1].nextBucketAggregation.queryType)
 			}
 			parentBucketLayer.childrenPipelineAggregations = append(parentBucketLayer.childrenPipelineAggregations, pipeline)
@@ -292,7 +292,7 @@ func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelL
 func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, queryType model.QueryType) (
 	parentBucketLayer *pancakeModelLayer, layerIdx int, err error) {
 
-	pp.Println(queryType)
+	//pp.Println(queryType.String())
 	pipeline, ok := queryType.(model.PipelineQueryType)
 	if !ok {
 		return nil, -1, fmt.Errorf("query type is not pipeline aggregation")
@@ -380,6 +380,36 @@ func (a *pancakeTransformer) createTopHitAndTopMetricsPancakes(pancake *pancakeM
 	return
 }
 
+func (a *pancakeTransformer) transformAutoDateHistogram(layers []*pancakeModelLayer, whereClause model.Expr) {
+	for _, layer := range layers {
+		if layer.nextBucketAggregation != nil {
+			if autoDateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.AutoDateHistogram); ok {
+				timestampLowerBound, ok := model.FindTimestampLowerBound(whereClause)
+				if !ok {
+					logger.WarnWithCtx(a.ctx).Msgf("could not find timestamp lower bound for auto_date_histogram %v", autoDateHistogram)
+					continue
+				}
+				if autoDateHistogram.GetField() != timestampLowerBound.Left {
+					logger.WarnWithCtx(a.ctx).Msgf("auto_date_histogram field %s does not match timestamp lower bound %s", autoDateHistogram.GetField(), timestampLowerBound.Left)
+					continue
+				}
+				var b any
+				if fun, ok := timestampLowerBound.Right.(model.FunctionExpr); ok && len(fun.Args) == 1 {
+					if s, ok := fun.Args[0].(model.LiteralExpr); ok {
+						b = s.Value
+					}
+				}
+				x, err := time.Parse("2006-01-02T15:04:05.000Z", b.(string)[1:len(b.(string))-1])
+				if err != nil {
+					//fmt.Println(err)
+					continue
+				}
+				autoDateHistogram.SetKey(x.UnixMilli())
+			}
+		}
+	}
+}
+
 func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregationTree) (pancakeResults []*pancakeModel, err error) {
 	if topLevel.children == nil || len(topLevel.children) == 0 {
 		return nil, fmt.Errorf("no top level aggregations found")
@@ -404,6 +434,7 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		}
 
 		a.connectPipelineAggregations(layers)
+		a.transformAutoDateHistogram(layers, topLevel.whereClause)
 
 		newPancake := pancakeModel{
 			layers:      layers,

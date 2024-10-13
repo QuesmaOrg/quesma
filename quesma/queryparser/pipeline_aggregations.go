@@ -7,6 +7,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/pipeline_aggregations"
+	"strings"
 )
 
 // CAUTION: maybe "return" everywhere isn't corrent, as maybe there can be multiple pipeline aggregations at one level.
@@ -169,7 +170,7 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 	if !ok {
 		return
 	}
-	if bucketsPath != pipeline_aggregations.BucketsPathCount {
+	if !strings.HasSuffix(bucketsPath, pipeline_aggregations.BucketsPathCount) { // TODO it's not perfect
 		logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not '_count', but %s. Skipping this aggregation", bucketsPath)
 		return
 	}
@@ -179,6 +180,9 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 	if !exists {
 		logger.WarnWithCtx(cw.Ctx).Msg("no script in bucket_script. Skipping this aggregation")
 		return
+	}
+	if script, ok := scriptRaw.(string); ok {
+		return pipeline_aggregations.NewBucketScript(cw.Ctx, script), true
 	}
 	script, ok := scriptRaw.(QueryMap)
 	if !ok {
@@ -203,7 +207,7 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 	fmt.Println("koniec parse bucket script")
 
 	// okay, we've checked everything, it's indeed a simple count
-	return pipeline_aggregations.NewBucketScript(cw.Ctx), true
+	return pipeline_aggregations.NewBucketScript(cw.Ctx, ""), true
 }
 
 func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggregationName string) (bucketsPathStr string, success bool) {
@@ -221,11 +225,11 @@ func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggr
 	case string:
 		return bucketsPath, true
 	case QueryMap:
-		if len(bucketsPath) == 1 {
-			for k, v := range bucketsPath {
-				if k == "count" {
-					return v.(string), true
-				}
+		if len(bucketsPath) == 1 || len(bucketsPath) == 2 {
+			for _, v := range bucketsPath {
+				//if k == "count" {
+				return v.(string), true
+				//}
 			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a map with one key, but %d keys. Skipping this aggregation", len(bucketsPath))

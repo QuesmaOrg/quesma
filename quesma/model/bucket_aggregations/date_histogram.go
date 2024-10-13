@@ -85,7 +85,8 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 	// Implement default when query.minDocCount == DefaultMinDocCount, we need to return
 	// all buckets between the first bucket that matches documents and the last one.
 
-	if query.minDocCount == 0 {
+	fmt.Println("query.minDocCount", query.minDocCount, "query.ebmin", query.ebmin)
+	if query.minDocCount == 0 || query.ebmin != 0 {
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
@@ -99,7 +100,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		responseKey := query.calculateResponseKey(originalKey)
 
 		response = append(response, model.JsonMap{
-			//OriginalKeyName: originalKey,
+			OriginalKeyName: originalKey,
 			"key":           responseKey,
 			"doc_count":     docCount,
 			"key_as_string": query.calculateKeyAsString(responseKey),
@@ -119,6 +120,7 @@ func (query *DateHistogram) String() string {
 // only intervals <= days are needed
 func (query *DateHistogram) intervalAsDuration() time.Duration {
 	var intervalInHoursOrLess string
+	//fmt.Println("query.interval", query.interval)
 	if strings.HasSuffix(query.interval, "d") {
 		// time.ParseDuration doesn't accept > hours, we need to convert days to hours
 		daysNr, err := strconv.Atoi(strings.TrimSuffix(query.interval, "d"))
@@ -130,7 +132,9 @@ func (query *DateHistogram) intervalAsDuration() time.Duration {
 	} else {
 		intervalInHoursOrLess = query.interval
 	}
+	//fmt.Println("intervalInHoursOrLess", intervalInHoursOrLess)
 	duration, _ := time.ParseDuration(intervalInHoursOrLess)
+	//fmt.Println("duration", duration)
 	return duration
 }
 
@@ -228,7 +232,7 @@ func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
 }
 
 func (query *DateHistogram) calculateKeyAsString(key int64) string {
-	return time.UnixMilli(key).In(query.wantedTimezone).Format("2006-01-02T15:04:05.000-07:00")
+	return time.UnixMilli(key).In(query.wantedTimezone).Format("2006/01/02 15:04:05")
 }
 
 func (query *DateHistogram) OriginalKeyToKeyAsString(originalKey any) string {
@@ -241,16 +245,14 @@ func (query *DateHistogram) SetMinDocCountToZero() {
 }
 
 func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
-	differenceBetweenTwoNextKeys := int64(1)
-	if query.intervalType == DateHistogramCalendarInterval {
-		duration, err := kibana.ParseInterval(query.interval)
-		if err == nil {
-			differenceBetweenTwoNextKeys = duration.Milliseconds()
-		} else {
-			logger.ErrorWithCtx(query.ctx).Err(err)
-			differenceBetweenTwoNextKeys = 0
-		}
+	duration, err := kibana.ParseInterval(query.interval)
+	var differenceBetweenTwoNextKeys int64
+	if err == nil {
+		differenceBetweenTwoNextKeys = duration.Milliseconds()
+	} else {
+		logger.ErrorWithCtx(query.ctx).Err(err)
 	}
+	fmt.Println("differenceBetweenTwoNextKeys", differenceBetweenTwoNextKeys)
 	return &DateHistogramRowsTransformer{MinDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys, EmptyValue: 0, ebmin: query.ebmin, ebmax: query.ebmax}
 }
 
@@ -267,7 +269,7 @@ type DateHistogramRowsTransformer struct {
 // if MinDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
 // CAUTION: a different kind of postprocessing is needed for MinDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
 func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	if qt.MinDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 || len(rowsFromDB) < 1 {
+	if qt.MinDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 {
 		// we only add empty rows, when
 		// a) MinDocCount == 0
 		// b) we have valid differenceBetweenTwoNextKeys (>0)
@@ -281,7 +283,9 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 
 	emptyRowsAdded := 0
 	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
-	postprocessedRows = append(postprocessedRows, rowsFromDB[0])
+	if len(rowsFromDB) > 0 {
+		postprocessedRows = append(postprocessedRows, rowsFromDB[0])
+	}
 	for i := 1; i < len(rowsFromDB); i++ {
 		if len(rowsFromDB[i-1].Cols) < 2 || len(rowsFromDB[i].Cols) < 2 {
 			logger.ErrorWithCtx(ctx).Msgf(
@@ -301,17 +305,31 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		}
 		postprocessedRows = append(postprocessedRows, rowsFromDB[i])
 	}
-	/*
-		fmt.Println("postprocessedRows 1", postprocessedRows, qt.getKey(postprocessedRows[0])-qt.differenceBetweenTwoNextKeys, qt.ebmin, (qt.getKey(postprocessedRows[0])-qt.differenceBetweenTwoNextKeys)*qt.differenceBetweenTwoNextKeys)
 
-		for maybePreKey, i := qt.getKey(postprocessedRows[0])-qt.differenceBetweenTwoNextKeys, 0; i < 96; maybePreKey*qt.differenceBetweenTwoNextKeys >= qt.ebminmaybePreKey, i = maybePreKey-qt.differenceBetweenTwoNextKeys, i+1 {
-			preRow := postprocessedRows[0].Copy()
-			preRow.Cols[len(preRow.Cols)-2].Value = maybePreKey
-			preRow.Cols[len(preRow.Cols)-1].Value = qt.EmptyValue
-			postprocessedRows = append([]model.QueryResultRow{preRow}, postprocessedRows...)
-			emptyRowsAdded++
-		}
-	*/
+	//fmt.Println("postprocessedRows 1", postprocessedRows, qt.getKey(postprocessedRows[0])*qt.differenceBetweenTwoNextKeys-qt.differenceBetweenTwoNextKeys, qt.ebmin, qt.differenceBetweenTwoNextKeys)
+	fmt.Println("pre: ", len(postprocessedRows), emptyRowsAdded)
+	if qt.ebmin == 0 {
+		return postprocessedRows
+	}
+
+	if len(postprocessedRows) == 0 {
+		postprocessedRows = append(postprocessedRows, model.QueryResultRow{
+			Cols: []model.QueryResultCol{
+				{Value: (qt.ebmin+1000*60*60*2)/qt.differenceBetweenTwoNextKeys - 1},
+				{Value: qt.EmptyValue},
+			},
+		})
+	}
+	// gk*d-d = d(gk - 1)
+	// gk*d-2d = d (gk-2) = d(gk-1) - d
+	for maybePreKey := (qt.ebmin + 1000*60*60*2) / qt.differenceBetweenTwoNextKeys; maybePreKey*qt.differenceBetweenTwoNextKeys < qt.ebmax+1000*60*60*2; maybePreKey++ {
+		preRow := postprocessedRows[0].Copy()
+		preRow.Cols[len(preRow.Cols)-2].Value = maybePreKey
+		preRow.Cols[len(preRow.Cols)-1].Value = qt.EmptyValue
+		postprocessedRows = append(postprocessedRows, preRow)
+		emptyRowsAdded++
+	}
+	fmt.Println("post:", len(postprocessedRows), emptyRowsAdded)
 	return postprocessedRows
 }
 

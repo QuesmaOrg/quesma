@@ -4,6 +4,7 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 )
@@ -18,7 +19,7 @@ func NewFilterAgg(ctx context.Context, whereClause model.Expr) FilterAgg {
 }
 
 func (query FilterAgg) AggregationType() model.AggregationType {
-	return model.BucketAggregation
+	return model.MetricsAggregation
 }
 
 func (query FilterAgg) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
@@ -26,6 +27,7 @@ func (query FilterAgg) TranslateSqlResponseToJson(rows []model.QueryResultRow) m
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for filter aggregation")
 		return make(model.JsonMap, 0)
 	}
+	fmt.Println("filter_agg", query.String(), rows)
 	return model.JsonMap{"doc_count": rows[0].Cols[0].Value}
 }
 
