@@ -27,6 +27,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/tracing"
 	"quesma/util"
@@ -99,8 +100,8 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config *config.Q
 
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, ingestProcessor *ingest.IngestProcessor, schemaLoader clickhouse.TableDiscovery,
 	indexManager elasticsearch.IndexManagement, schemaRegistry schema.Registry, config *config.QuesmaConfiguration,
-	quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsRepository ab_testing.Sender) *Quesma {
-	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, schemaRegistry, abResultsRepository)
+	quesmaManagementConsole *ui.QuesmaManagementConsole, abResultsRepository ab_testing.Sender, resolver table_resolver.TableResolver) *Quesma {
+	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, schemaRegistry, abResultsRepository, resolver)
 
 	// not sure how we should configure our query translator ???
 	// is this a config option??
@@ -110,7 +111,7 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 	// tests should not be run with optimization enabled by default
 	queryRunner.EnableQueryOptimization(config)
 
-	router := configureRouter(config, schemaRegistry, logManager, ingestProcessor, quesmaManagementConsole, phoneHomeAgent, queryRunner)
+	router := configureRouter(config, schemaRegistry, logManager, ingestProcessor, quesmaManagementConsole, phoneHomeAgent, queryRunner, resolver)
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,
 		processor:               newDualWriteProxy(schemaLoader, logManager, indexManager, schemaRegistry, config, router, quesmaManagementConsole, phoneHomeAgent, queryRunner),

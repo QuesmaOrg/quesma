@@ -18,6 +18,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/tracing"
 	"quesma/util"
@@ -80,8 +81,8 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 		},
 		Created: true,
 	}
-
-	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+	tableResolver := table_resolver.NewEmptyTableResolver()
+	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, tableResolver)
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(testTableName, table))

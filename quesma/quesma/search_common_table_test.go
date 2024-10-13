@@ -13,6 +13,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"testing"
 )
@@ -258,7 +259,9 @@ func TestSearchCommonTable(t *testing.T) {
 
 			indexManagement := NewFixedIndexManagement()
 			lm := clickhouse.NewLogManagerWithConnection(db, tableMap)
-			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			resolver := table_resolver.NewEmptyTableResolver()
+
+			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
 
 			for i, query := range tt.WantedSql {
 
@@ -269,7 +272,7 @@ func TestSearchCommonTable(t *testing.T) {
 
 				mock.ExpectQuery(query).WillReturnRows(rows)
 			}
-			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, &schemaRegistry, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver)
 			queryRunner.maxParallelQueries = 0
 
 			_, err = queryRunner.handleSearch(ctx, tt.IndexPattern, types.MustJSON(tt.QueryJson))

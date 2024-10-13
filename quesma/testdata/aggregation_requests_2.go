@@ -2416,7 +2416,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
 				model.NewQueryResultCol("aggr__0__1__key_0", "x"),
 				model.NewQueryResultCol("aggr__0__1__count", int64(2)),
-				model.NewQueryResultCol("aggr__0__1__order_1", 349.95000000000005),
 				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{349.95000000000005}),
 			}},
 			{Cols: []model.QueryResultCol{
@@ -2425,7 +2424,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
 				model.NewQueryResultCol("aggr__0__1__key_0", "y"),
 				model.NewQueryResultCol("aggr__0__1__count", int64(1)),
-				model.NewQueryResultCol("aggr__0__1__order_1", 100.2),
 				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{100.2}),
 			}},
 			{Cols: []model.QueryResultCol{
@@ -2434,21 +2432,19 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
 				model.NewQueryResultCol("aggr__0__1__key_0", "a"),
 				model.NewQueryResultCol("aggr__0__1__count", int64(3)),
-				model.NewQueryResultCol("aggr__0__1__order_1", 5),
 				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{5}),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
-			  "aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
-			  "metric__0__1__2_col_0"
+			  "aggr__0__1__key_0", "aggr__0__1__count", "metric__0__1__2_col_0"
 			FROM (
 			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
-				"aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
-				"metric__0__1__2_col_0",
-				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				"aggr__0__1__key_0", "aggr__0__1__count", "metric__0__1__2_col_0",
+				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
+				,
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
-				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
+				"metric__0__1__2_col_0" DESC, "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
@@ -2457,7 +2453,6 @@ var AggregationTests2 = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "container.name" AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count",
-				  quantiles(0.750000)("docker.cpu.total.pct") AS "aggr__0__1__order_1",
 				  quantiles(0.750000)("docker.cpu.total.pct") AS "metric__0__1__2_col_0"
 				FROM __quesma_table_name
 				WHERE ("data_stream.dataset"='docker.cpu' AND ("@timestamp">=toDateTime64(
@@ -2643,7 +2638,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
 				model.NewQueryResultCol("aggr__0__1__key_0", "x"),
 				model.NewQueryResultCol("aggr__0__1__count", int64(2)),
-				model.NewQueryResultCol("aggr__0__1__order_1", 349.95000000000005),
 				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{349.95000000000005}),
 				model.NewQueryResultCol("metric__0__1__2_col_1", []float64{10.1}),
 				model.NewQueryResultCol("metric__0__1__2_col_2", []float64{20.2}),
@@ -2654,7 +2648,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
 				model.NewQueryResultCol("aggr__0__1__key_0", "y"),
 				model.NewQueryResultCol("aggr__0__1__count", int64(1)),
-				model.NewQueryResultCol("aggr__0__1__order_1", 100.2),
 				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{100.2}),
 				model.NewQueryResultCol("metric__0__1__2_col_1", []float64{11.1}),
 				model.NewQueryResultCol("metric__0__1__2_col_2", []float64{21.2}),
@@ -2665,7 +2658,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__1__parent_count", 5),
 				model.NewQueryResultCol("aggr__0__1__key_0", "a"),
 				model.NewQueryResultCol("aggr__0__1__count", int64(3)),
-				model.NewQueryResultCol("aggr__0__1__order_1", 5),
 				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{5}),
 				model.NewQueryResultCol("metric__0__1__2_col_1", []float64{12.1}),
 				model.NewQueryResultCol("metric__0__1__2_col_2", []float64{22.2}),
@@ -2673,16 +2665,16 @@ var AggregationTests2 = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
-			  "aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
-			  "metric__0__1__2_col_0", "metric__0__1__2_col_1", "metric__0__1__2_col_2"
+			  "aggr__0__1__key_0", "aggr__0__1__count", "metric__0__1__2_col_0",
+			  "metric__0__1__2_col_1", "metric__0__1__2_col_2"
 			FROM (
 			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
-				"aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
-				"metric__0__1__2_col_0", "metric__0__1__2_col_1", "metric__0__1__2_col_2",
+				"aggr__0__1__key_0", "aggr__0__1__count", "metric__0__1__2_col_0",
+				"metric__0__1__2_col_1", "metric__0__1__2_col_2",
 				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
 				,
 				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
-				"aggr__0__1__order_1" DESC, "aggr__0__1__key_0" ASC) AS
+				"metric__0__1__2_col_1" DESC, "aggr__0__1__key_0" ASC) AS
 				"aggr__0__1__order_1_rank"
 			  FROM (
 				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 43200000) AS
@@ -2691,7 +2683,6 @@ var AggregationTests2 = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__1__parent_count", "container.name" AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count",
-				  quantiles(0.750000)("docker.cpu.total.pct") AS "aggr__0__1__order_1",
 				  quantiles(0.100000)("docker.cpu.total.pct") AS "metric__0__1__2_col_0",
 				  quantiles(0.750000)("docker.cpu.total.pct") AS "metric__0__1__2_col_1",
 				  quantiles(0.990000)("docker.cpu.total.pct") AS "metric__0__1__2_col_2"
@@ -2796,7 +2787,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", 212),
 				model.NewQueryResultCol("aggr__0__key_0", 0),
 				model.NewQueryResultCol("aggr__0__count", int64(181)),
-				model.NewQueryResultCol("aggr__0__order_1", 3.314917127071823),
 				model.NewQueryResultCol("metric__0__1_col_0", 3.314917127071823),
 				model.NewQueryResultCol("metric__0__1_col_1", 6.441097753551789),
 			}},
@@ -2804,7 +2794,6 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", 212),
 				model.NewQueryResultCol("aggr__0__key_0", 1),
 				model.NewQueryResultCol("aggr__0__count", int64(31)),
-				model.NewQueryResultCol("aggr__0__order_1", 3.225806451612903),
 				model.NewQueryResultCol("metric__0__1_col_0", 3.225806451612903),
 				model.NewQueryResultCol("metric__0__1_col_1", 9.813812484840025),
 			}},
@@ -2812,12 +2801,11 @@ var AggregationTests2 = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "Cancelled" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  countIf("DistanceKilometers"<=0)/count(*)*100 AS "aggr__0__order_1",
 			  countIf("DistanceKilometers"<=0)/count(*)*100 AS "metric__0__1_col_0",
 			  countIf("DistanceKilometers"<=50)/count(*)*100 AS "metric__0__1_col_1"
 			FROM __quesma_table_name
 			GROUP BY "Cancelled" AS "aggr__0__key_0"
-			ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC
+			ORDER BY "metric__0__1_col_0" DESC, "aggr__0__key_0" ASC
 			LIMIT 6`,
 	},
 	{ // [56]

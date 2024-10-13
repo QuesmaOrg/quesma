@@ -14,6 +14,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"testing"
 )
 
@@ -188,10 +189,13 @@ func TestIngestToCommonTable(t *testing.T) {
 			tableDisco := clickhouse.NewTableDiscovery(quesmaConfig, db, virtualTableStorage)
 			schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, quesmaConfig, clickhouse.SchemaTypeAdapter{})
 
+			resolver := table_resolver.NewEmptyTableResolver()
+
 			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db
 			ingest.virtualTableStorage = virtualTableStorage
 			ingest.schemaRegistry = schemaRegistry
+			ingest.tableResolver = resolver
 
 			if len(tt.alreadyExistingColumns) > 0 {
 
