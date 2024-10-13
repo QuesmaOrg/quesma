@@ -28,7 +28,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           cache-dependency-path: ${{ matrix.module }}/go.sum
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: gofmt
         working-directory: ${{ matrix.module }}
@@ -57,7 +57,7 @@ jobs:
 
       - uses: dominikh/staticcheck-action@v1.3.1
         with:
-          version: "2023.1.6"
+          version: "2024.1.1"
           install-go: false
           working-directory: ${{ matrix.module }}
 
@@ -70,39 +70,7 @@ jobs:
         run: go run gotest.tools/gotestsum@latest --format pkgname-and-test-fails ./...
 
   build-quesma-docker-image:
-    strategy:
-      matrix:
-        module: [ "quesma" ]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          cache-dependency-path: ${{ matrix.module }}/go.sum
-          go-version: '1.22'
-
-      - name: Build and export
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.module }}/.
-          tags: ${{ matrix.module }}:latest
-          outputs: type=docker,dest=/tmp/image.tar
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-        env:
-          DOCKER_BUILD_SUMMARY: false
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.module }}
-          path: /tmp/image.tar
-          retention-days: 1
+    uses: ./.github/workflows/build-quesma-docker-image.yml
 
   build-log-generator:
     strategy:
@@ -119,7 +87,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           cache-dependency-path: ${{ matrix.module }}/go.sum
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Build and export
         uses: docker/build-push-action@v6
@@ -149,7 +117,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           cache-dependency-path: smoke-test/go.sum
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Download images
         uses: actions/download-artifact@v4

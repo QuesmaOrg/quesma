@@ -1,0 +1,31 @@
+name: Docker image build (nightly)
+# Pipeline which builds `nightly` Docker images for Quesma
+# pushes them to Docker Hub as `quesma/quesma:nightly` (and `quesma/quesma:<VERSION>`, if VERSION is specified explicitly)
+#
+# This workflow is triggered by a push/merge to the `main` branch
+# quesma/quesma:nightly image is a pointer to latest released version.
+#
+# This workflow is not reusable, use build-quesma-docker-image.yml as a reusable workflow.
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # Handy for testing
+    inputs:
+      VERSION:
+        description: 'Version number to tag the image with (optional)'
+        default: nightly
+        required: true
+      PUSH:
+        description: 'Whether to push the image to the registry'
+        default: false
+        required: true
+jobs:
+  build-quesma-docker-image:
+    uses: ./.github/workflows/build-quesma-docker-image.yml
+    with:
+      VERSION: ${{ inputs.VERSION || 'nightly' }} # when called from the main branch, `github.event.inputs.VERSION` doesn't use default value and is just empty
+      # Pushes to DockerHub only for `main` branch builds, unless set explicitly in the job input
+      PUSH: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.PUSH }}
+    secrets:
+      DOCKER_USER: ${{ secrets.DOCKER_USER }}
+      DOCKER_PAT: ${{ secrets.DOCKER_PAT }}
