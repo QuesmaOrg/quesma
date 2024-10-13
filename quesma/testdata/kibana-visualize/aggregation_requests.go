@@ -238,8 +238,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  "aggr__0__1__parent_count", "severity" AS "aggr__0__1__key_0",
 				  "source" AS "aggr__0__1__key_1", count(*) AS "aggr__0__1__count"
 				FROM __quesma_table_name
-				WHERE ("@timestamp">=toDateTime64(1.716811196627e+09, 3) AND "@timestamp"<=
-                  toDateTime64(1.716812096627e+09, 3))
+				WHERE ("@timestamp">=fromUnixTimestamp64Milli(1716811196627) AND
+				  "@timestamp"<=fromUnixTimestamp64Milli(1716812096627))
 				GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
 				  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 30000) AS
 				  "aggr__0__key_0", "severity" AS "aggr__0__1__key_0",
@@ -1320,8 +1320,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  avgOrNull("FlightDelayMin") AS "metric__0__1_col_3",
 			  sumOrNull("FlightDelayMin") AS "metric__0__1_col_4"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-09-07T15:30:24.239Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-09-22T15:30:24.239Z'))
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1725723024239) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1727019024239))
 			GROUP BY "Carrier" AS "aggr__0__key_0"
 			ORDER BY "metric__0__1_col_1" DESC, "metric__0__1_col_0" DESC,
 			  "metric__0__1_col_3" DESC, "metric__0__1_col_2" ASC,
@@ -1488,8 +1488,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  stddevPop("FlightDelayMin") AS "metric__0__1_col_8",
 			  stddevSamp("FlightDelayMin") AS "metric__0__1_col_9"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-09-07T15:30:24.239Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-09-22T15:30:24.239Z'))
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1725723024239) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1727019024239))
 			GROUP BY "Carrier" AS "aggr__0__key_0"
 			ORDER BY "metric__0__1_col_1" DESC, "metric__0__1_col_0" DESC,
 			  "metric__0__1_col_3" DESC, "metric__0__1_col_2" ASC,

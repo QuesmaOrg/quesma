@@ -121,7 +121,7 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `SELECT maxOrNull("AvgTicketPrice") AS "metric__maxAgg_col_0", ` +
 			`minOrNull("AvgTicketPrice") AS "metric__minAgg_col_0" ` +
 			`FROM ` + TableName + ` ` +
-			`WHERE ("timestamp">=toDateTime64(1.706881636029e+09, 3) AND "timestamp"<=toDateTime64(1.707486436029e+09, 3))`,
+			`WHERE ("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))`,
 	},
 	{ // [1]
 		TestName: "2 sibling count aggregations",
@@ -312,7 +312,7 @@ var AggregationTests = []AggregationTestCase{
 			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0",
 			  countIf("FlightDelay"==true) AS "aggr__0__1-bucket__count"
 			FROM ` + TableName + `
-			WHERE ("timestamp">=toDateTime64(1.706881636029e+09, 3) AND "timestamp"<=toDateTime64(1.707486436029e+09, 3))
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))
 			GROUP BY "OriginCityName" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC
 			LIMIT 1001`,
@@ -519,7 +519,7 @@ var AggregationTests = []AggregationTestCase{
 				  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count"
 				FROM ` + TableName + `
-				WHERE ("timestamp">=toDateTime64(1.706881636029e+09, 3) AND "timestamp"<=toDateTime64(1.707486436029e+09, 3))
+				WHERE ("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))
 				GROUP BY "FlightDelayType" AS "aggr__0__key_0",
 				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 				  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0"))
@@ -619,7 +619,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `SELECT sumOrNull("taxful_total_price") AS "metric__0_col_0" ` +
 			`FROM ` + TableName + ` ` +
-			`WHERE ("order_date">=toDateTime64(1.707213597034e+09, 3) AND "order_date"<=toDateTime64(1.707818397034e+09, 3))`,
+			`WHERE ("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"<=fromUnixTimestamp64Milli(1707818397034))`,
 	},
 	{ // [4]
 		TestName: "cardinality",
@@ -751,7 +751,7 @@ var AggregationTests = []AggregationTestCase{
 			  "OriginCityName" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM ` + TableName + `
-			WHERE ("timestamp">=toDateTime64(1.706881636029e+09, 3) AND "timestamp"<=toDateTime64(1.707486436029e+09, 3))
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))
 			GROUP BY "OriginCityName" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
@@ -867,7 +867,7 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT countIf("FlightDelay"==true) AS "aggr__0-bucket__count"
 			FROM ` + TableName + `
-			 WHERE ("timestamp">=toDateTime64(1.706881636029e+09, 3) AND "timestamp"<=toDateTime64(1.707486436029e+09, 3))`,
+			 WHERE ("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))`,
 	},
 	{ // [6]
 		TestName: "filters",
@@ -1021,17 +1021,17 @@ var AggregationTests = []AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf(("timestamp">=toDateTime64(1.706881636029e+09, 3) AND "timestamp"
-              <=toDateTime64(1.707486436029e+09, 3))) AS
-              "filter_0__aggr__time_offset_split__count",
-              countIf(("timestamp">=toDateTime64(1.706276836029e+09, 3) AND "timestamp"<=
-              toDateTime64(1.706881636029e+09, 3))) AS
-              "filter_1__aggr__time_offset_split__count"
-            FROM __quesma_table_name
-            WHERE ("FlightDelay"==true AND (("timestamp">=toDateTime64(1.706881636029e+09, 3
-              ) AND "timestamp"<=toDateTime64(1.707486436029e+09, 3)) OR ("timestamp">=
-              toDateTime64(1.706276836029e+09, 3) AND "timestamp"<=toDateTime64(
-              1.706881636029e+09, 3))))`,
+			SELECT countIf(("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND
+			  "timestamp"<=fromUnixTimestamp64Milli(1707486436029))) AS
+			  "filter_0__aggr__time_offset_split__count",
+			  countIf(("timestamp">=fromUnixTimestamp64Milli(1706276836029) AND "timestamp"
+			  <=fromUnixTimestamp64Milli(1706881636029))) AS
+			  "filter_1__aggr__time_offset_split__count"
+			FROM __quesma_table_name
+			WHERE ("FlightDelay"==true AND (("timestamp">=fromUnixTimestamp64Milli(
+			  1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029)) OR (
+			  "timestamp">=fromUnixTimestamp64Milli(1706276836029) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1706881636029))))`,
 	},
 	{ // [7]
 		TestName: "top hits, quite complex",
@@ -1621,8 +1621,8 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT "FlightDelayMin" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
 			FROM ` + TableName + `
-			WHERE (("timestamp">=toDateTime64(1.706881636029e+09, 3) AND "timestamp"<=
-              toDateTime64(1.707486436029e+09, 3)) AND NOT ("FlightDelayMin"==0))
+			WHERE (("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=
+              fromUnixTimestamp64Milli(1707486436029)) AND NOT ("FlightDelayMin"==0))
 			GROUP BY "FlightDelayMin" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 	},
@@ -1844,8 +1844,9 @@ var AggregationTests = []AggregationTestCase{
 				  "@timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count"
 				FROM __quesma_table_name
-				WHERE ("host.name" iLIKE '%prometheus%' AND ("@timestamp">=toDateTime64(
-                  1.70689180994e+09, 3) AND "@timestamp"<=toDateTime64(1.70749660994e+09, 3)))
+				WHERE ("host.name" iLIKE '%prometheus%' AND ("@timestamp">=
+				  fromUnixTimestamp64Milli(1706891809940) AND "@timestamp"<=
+				  fromUnixTimestamp64Milli(1707496609940)))
 				GROUP BY "severity" AS "aggr__0__key_0",
 				  toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
 				  "@timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0"))
@@ -2193,7 +2194,7 @@ var AggregationTests = []AggregationTestCase{
 			  "order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0",
 			  countIf("taxful_total_price" > '250') AS "aggr__1__2__count"
 			FROM __quesma_table_name
-			WHERE ("order_date">=toDateTime64(1.707213597034e+09, 3) AND "order_date"<=toDateTime64(1.707818397034e+09, 3))
+			WHERE ("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"<=fromUnixTimestamp64Milli(1707818397034))
 			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
 			  ("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0"
 			ORDER BY "aggr__1__2__key_0" ASC`,
@@ -2204,7 +2205,7 @@ var AggregationTests = []AggregationTestCase{
 				"order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0",
 				countIf("taxful_total_price" > '250') AS "aggr__1__2__count"
 			  FROM __quesma_table_name
-			  WHERE ("order_date">=toDateTime64(1.707213597034e+09, 3) AND "order_date"<=toDateTime64(1.707818397034e+09, 3))
+			  WHERE ("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"<=fromUnixTimestamp64Milli(1707818397034))
 			  GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(
 				toTimezone("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS
 				"aggr__1__2__key_0"
@@ -2221,8 +2222,8 @@ var AggregationTests = []AggregationTestCase{
 				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
 				toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 				"order_date", 'Europe/Warsaw'))*1000) / 43200000))
-			  WHERE ("taxful_total_price" > '250' AND ("order_date">=toDateTime64(1.707213597034e+09, 3)
-				AND "order_date"<=toDateTime64(1.707818397034e+09, 3))))
+			  WHERE ("taxful_total_price" > '250' AND ("order_date">=fromUnixTimestamp64Milli(1707213597034)
+				AND "order_date"<=fromUnixTimestamp64Milli(1707818397034))))
 			SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 			  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
 			FROM "quesma_top_hits_join"
@@ -2235,7 +2236,7 @@ var AggregationTests = []AggregationTestCase{
 				"order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0",
 				countIf("taxful_total_price" > '250') AS "aggr__1__2__count"
 			  FROM __quesma_table_name
-			  WHERE ("order_date">=toDateTime64(1.707213597034e+09, 3) AND "order_date"<=toDateTime64(1.707818397034e+09, 3))
+			  WHERE ("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"<=fromUnixTimestamp64Milli(1707818397034))
 			  GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(
 				toTimezone("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS
 				"aggr__1__2__key_0"
@@ -2253,7 +2254,7 @@ var AggregationTests = []AggregationTestCase{
 				toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 				"order_date", 'Europe/Warsaw'))*1000) / 43200000))
 			  WHERE ("taxful_total_price" > '250' AND 
-				("order_date">=toDateTime64(1.707213597034e+09, 3) AND "order_date"<=toDateTime64(1.707818397034e+09, 3))))
+				("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"<=fromUnixTimestamp64Milli(1707818397034))))
 			SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 			  "top_metrics__1__2__5_col_0", "top_metrics__1__2__5_col_1", "top_hits_rank"
 			FROM "quesma_top_hits_join"
@@ -2451,9 +2452,10 @@ var AggregationTests = []AggregationTestCase{
 			  count(*) AS "aggr__sample__top_values__count"
 			FROM (
 			  SELECT "host.name"
-			  FROM ` + TableName + `
-			  WHERE (("@timestamp">=toDateTime64(1.70600923682e+09, 3) AND "@timestamp"<=toDateTime64(1.70601013682e+09, 3)) AND
-				` + fullTextFieldName + ` iLIKE '%user%')
+			  FROM __quesma_table_name
+			  WHERE (("@timestamp">=fromUnixTimestamp64Milli(1706009236820) AND "@timestamp"
+				<=fromUnixTimestamp64Milli(1706010136820)) AND
+				"__quesma_fulltext_field_name" iLIKE '%user%')
 			  LIMIT 8000)
 			GROUP BY "host.name" AS "aggr__sample__top_values__key_0"
 			ORDER BY "aggr__sample__top_values__count" DESC,
@@ -2597,7 +2599,7 @@ var AggregationTests = []AggregationTestCase{
 			FROM ` + TableName + `
 
 			WHERE (` + fullTextFieldName + ` iLIKE '%user%' AND
-              ("@timestamp">=toDateTime64(1.706020999481e+09, 3) AND "@timestamp"<=toDateTime64(1.706021899481e+09, 3)))
+              ("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)))
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 			  "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
@@ -2736,7 +2738,7 @@ var AggregationTests = []AggregationTestCase{
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0", count(*) AS "aggr__stats__series__count"
 				FROM ` + TableName + `
-				WHERE ("@timestamp">toDateTime64(1.706194439033e+09, 3) AND "@timestamp"<=toDateTime64(1.706195339033e+09, 3))
+				WHERE ("@timestamp">fromUnixTimestamp64Milli(1706194439033) AND "@timestamp"<=fromUnixTimestamp64Milli(1706195339033))
 				GROUP BY COALESCE("event.dataset", 'unknown') AS "aggr__stats__key_0",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0"))
@@ -2975,7 +2977,7 @@ var AggregationTests = []AggregationTestCase{
 			  "aggr__0__key_0", count(*) AS "aggr__0__count",
 			  sumOrNull("taxful_total_price") AS "metric__0__1_col_0"
 			FROM ` + TableName + `
-			WHERE ("order_date">=toDateTime64(1.708364456351e+09, 3) AND "order_date"<=toDateTime64(1.708969256351e+09, 3))
+			WHERE ("order_date">=fromUnixTimestamp64Milli(1708364456351) AND "order_date"<=fromUnixTimestamp64Milli(1708969256351))
 			GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
 			  "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
@@ -3084,8 +3086,9 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "message" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
-			FROM ` + TableName + `
-			WHERE ("timestamp">=toDateTime64(1.708456413795e+09, 3) AND "timestamp"<=toDateTime64(1.70848807492e+09, 3))
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1708456413795) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1708488074920))
 			GROUP BY "message" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC
 			LIMIT 4`,
@@ -3255,7 +3258,7 @@ var AggregationTests = []AggregationTestCase{
 			  sumOrNullIf("taxful_total_price", "products.product_name" ILIKE '%watch%') AS
 			  "metric__0__1-bucket__1-metric_col_0"
 			FROM ` + TableName + `
-			WHERE ("order_date">=toDateTime64(1.708627654149e+09, 3) AND "order_date"<=toDateTime64(1.709232454149e+09, 3))
+			WHERE ("order_date">=fromUnixTimestamp64Milli(1708627654149) AND "order_date"<=fromUnixTimestamp64Milli(1709232454149))
 			GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) AS
 			  "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
@@ -3487,38 +3490,39 @@ var AggregationTests = []AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT sum(countIf(("order_date">=toDateTime64(1.708639056376e+09, 3) AND
-			  "order_date"<=toDateTime64(1.709243856376e+09, 3)))) OVER () AS
+			SELECT sum(countIf(("order_date">=fromUnixTimestamp64Milli(1708639056376) AND
+			  "order_date"<=fromUnixTimestamp64Milli(1709243856376)))) OVER () AS
 			  "filter_0__aggr__time_offset_split__count",
 			  toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
 			  "filter_0__aggr__time_offset_split__0__key_0",
-			  countIf(("order_date">=toDateTime64(1.708639056376e+09, 3) AND "order_date"<=
-			  toDateTime64(1.709243856376e+09, 3))) AS
+			  countIf(("order_date">=fromUnixTimestamp64Milli(1708639056376) AND
+			  "order_date"<=fromUnixTimestamp64Milli(1709243856376))) AS
 			  "filter_0__aggr__time_offset_split__0__count",
-			  sumOrNullIf("taxful_total_price", ("order_date">=toDateTime64(
-			  1.708639056376e+09, 3) AND "order_date"<=toDateTime64(1.709243856376e+09, 3)))
-			  AS "filter_0__metric__time_offset_split__0__1_col_0",
-			  sumOrNullIf("taxful_total_price", ("order_date">=toDateTime64(
-			  1.708639056376e+09, 3) AND "order_date"<=toDateTime64(1.709243856376e+09, 3)))
-			  AS "filter_0__metric__time_offset_split__0__2_col_0",
-			  sum(countIf(("order_date">=toDateTime64(1.708034256376e+09, 3) AND
-			  "order_date"<=toDateTime64(1.708639056376e+09, 3)))) OVER () AS
+			  sumOrNullIf("taxful_total_price", ("order_date">=fromUnixTimestamp64Milli(
+			  1708639056376) AND "order_date"<=fromUnixTimestamp64Milli(1709243856376))) AS
+			  "filter_0__metric__time_offset_split__0__1_col_0",
+			  sumOrNullIf("taxful_total_price", ("order_date">=fromUnixTimestamp64Milli(
+			  1708639056376) AND "order_date"<=fromUnixTimestamp64Milli(1709243856376))) AS
+			  "filter_0__metric__time_offset_split__0__2_col_0",
+			  sum(countIf(("order_date">=fromUnixTimestamp64Milli(1708034256376) AND
+			  "order_date"<=fromUnixTimestamp64Milli(1708639056376)))) OVER () AS
 			  "filter_1__aggr__time_offset_split__count",
 			  toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
 			  "filter_1__aggr__time_offset_split__0__key_0",
-			  countIf(("order_date">=toDateTime64(1.708034256376e+09, 3) AND "order_date"<=
-			  toDateTime64(1.708639056376e+09, 3))) AS
+			  countIf(("order_date">=fromUnixTimestamp64Milli(1708034256376) AND
+			  "order_date"<=fromUnixTimestamp64Milli(1708639056376))) AS
 			  "filter_1__aggr__time_offset_split__0__count",
-			  sumOrNullIf("taxful_total_price", ("order_date">=toDateTime64(
-			  1.708034256376e+09, 3) AND "order_date"<=toDateTime64(1.708639056376e+09, 3)))
-			  AS "filter_1__metric__time_offset_split__0__1_col_0",
-			  sumOrNullIf("taxful_total_price", ("order_date">=toDateTime64(
-			  1.708034256376e+09, 3) AND "order_date"<=toDateTime64(1.708639056376e+09, 3)))
-			  AS "filter_1__metric__time_offset_split__0__2_col_0"
+			  sumOrNullIf("taxful_total_price", ("order_date">=fromUnixTimestamp64Milli(
+			  1708034256376) AND "order_date"<=fromUnixTimestamp64Milli(1708639056376))) AS
+			  "filter_1__metric__time_offset_split__0__1_col_0",
+			  sumOrNullIf("taxful_total_price", ("order_date">=fromUnixTimestamp64Milli(
+			  1708034256376) AND "order_date"<=fromUnixTimestamp64Milli(1708639056376))) AS
+			  "filter_1__metric__time_offset_split__0__2_col_0"
 			FROM __quesma_table_name
-			WHERE (("order_date">=toDateTime64(1.708639056376e+09, 3) AND "order_date"<=
-			  toDateTime64(1.709243856376e+09, 3)) OR ("order_date">=toDateTime64(
-			  1.708034256376e+09, 3) AND "order_date"<=toDateTime64(1.708639056376e+09, 3)))
+			WHERE (("order_date">=fromUnixTimestamp64Milli(1708639056376) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1709243856376)) OR ("order_date">=
+			  fromUnixTimestamp64Milli(1708034256376) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1708639056376)))
 			GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
 			  "aggr__time_offset_split__0__key_0"
 			ORDER BY "aggr__time_offset_split__0__key_0" ASC`,
@@ -3640,7 +3644,7 @@ var AggregationTests = []AggregationTestCase{
 			FROM (
 			  SELECT "@timestamp"
 			  FROM ` + TableName + `
-			  WHERE ("@timestamp">=toDateTime64(1.709815794995e+09, 3) AND "@timestamp"<=toDateTime64(1.709816694995e+09, 3))
+			  WHERE ("@timestamp">=fromUnixTimestamp64Milli(1709815794995) AND "@timestamp"<=fromUnixTimestamp64Milli(1709816694995))
 			  LIMIT 20000)
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 15000) AS
 			  "aggr__sampler__eventRate__key_0"
@@ -4015,7 +4019,7 @@ var AggregationTests = []AggregationTestCase{
 			FROM (
 			  SELECT "bytes_gauge"
 			  FROM __quesma_table_name
-			  WHERE ("timestamp">=toDateTime64(1.709932426749e+09, 3) AND "timestamp"<=toDateTime64(1.711228426749e+09, 3))
+			  WHERE ("timestamp">=fromUnixTimestamp64Milli(1709932426749) AND "timestamp"<=fromUnixTimestamp64Milli(1711228426749))
 			  LIMIT 20000)`,
 		ExpectedAdditionalPancakeSQLs: []string{
 			`SELECT sum(count(*)) OVER () AS "aggr__sample__count",
@@ -4025,7 +4029,7 @@ var AggregationTests = []AggregationTestCase{
 			FROM (
 			  SELECT "bytes_gauge"
 			  FROM __quesma_table_name
-			  WHERE ("timestamp">=toDateTime64(1.709932426749e+09, 3) AND "timestamp"<=toDateTime64(1.711228426749e+09, 3))
+			  WHERE ("timestamp">=fromUnixTimestamp64Milli(1709932426749) AND "timestamp"<=fromUnixTimestamp64Milli(1711228426749))
 			  LIMIT 20000)
 			GROUP BY "bytes_gauge" AS "aggr__sample__bytes_gauge_top__key_0"
 			ORDER BY "aggr__sample__bytes_gauge_top__count" DESC,
@@ -4236,8 +4240,9 @@ var AggregationTests = []AggregationTestCase{
 			  countIf("bytes_gauge">=-5.5) AS "range_2__aggr__2__count",
 			  countIf("bytes_gauge"<6.555) AS "range_3__aggr__2__count",
 			  countIf("bytes_gauge" IS NOT NULL) AS "range_4__aggr__2__count"
-			FROM ` + TableName + `
-			WHERE ("timestamp">=toDateTime64(1.71326971179e+09, 3) AND "timestamp"<=toDateTime64(1.71327061179e+09, 3))`,
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1713269711790) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1713270611790))`,
 		ExpectedAdditionalPancakeSQLs: []string{`
 			SELECT countIf(("bytes_gauge">=0 AND "bytes_gauge"<1000)) AS
 			  "range_0__aggr__3__count",
@@ -4246,8 +4251,9 @@ var AggregationTests = []AggregationTestCase{
 			  countIf("bytes_gauge">=-5.5) AS "range_2__aggr__3__count",
 			  countIf("bytes_gauge"<6.555) AS "range_3__aggr__3__count",
 			  countIf("bytes_gauge" IS NOT NULL) AS "range_4__aggr__3__count"
-			FROM ` + TableName + `
-			WHERE ("timestamp">=toDateTime64(1.71326971179e+09, 3) AND "timestamp"<=toDateTime64(1.71327061179e+09, 3))`,
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1713269711790) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1713270611790))`,
 		},
 	},
 	{ // [22]
@@ -4387,7 +4393,7 @@ var AggregationTests = []AggregationTestCase{
 			  countIf("timestamp">=toInt64(toUnixTimestamp('2024-04-14'))) AS
 			  "range_2__aggr__2__count"
 			FROM ` + TableName + ` 
-			WHERE ("timestamp">=toDateTime64(1.712388530059e+09, 3) AND "timestamp"<=toDateTime64(1.713288530059e+09, 3))`,
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1712388530059) AND "timestamp"<=fromUnixTimestamp64Milli(1713288530059))`,
 	},
 	{ // [23]
 		TestName: "significant terms aggregation: same as terms for now",
@@ -4723,7 +4729,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT floor("bytes"/100)*100 AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count"
 			FROM ` + TableName + `
-			 WHERE ("timestamp">=toDateTime64(1.715348876077e+09, 3) AND "timestamp"<=toDateTime64(1.715349776077e+09, 3))
+			 WHERE ("timestamp">=fromUnixTimestamp64Milli(1715348876077) AND "timestamp"<=fromUnixTimestamp64Milli(1715349776077))
 			GROUP BY floor("bytes"/100)*100 AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
@@ -4860,8 +4866,9 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 30000) AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count"
-			FROM ` + TableName + `
-			WHERE ("timestamp">=toDateTime64(1.7153513429e+09, 3) AND "timestamp"<=toDateTime64(1.7153522429e+09, 3))
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1715351342900) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1715352242900))
 			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 30000) AS
 			  "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
@@ -5578,7 +5585,7 @@ var AggregationTests = []AggregationTestCase{
 			  "machine.os" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  uniq("clientip") AS "metric__2__1_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=toDateTime64(1.715322159037e+09, 3) AND "timestamp"<=toDateTime64(1.715376159037e+09, 3))
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1715322159037) AND "timestamp"<=fromUnixTimestamp64Milli(1715376159037))
 			GROUP BY "machine.os" AS "aggr__2__key_0"
 			ORDER BY "metric__2__1_col_0" DESC, "aggr__2__key_0" ASC
 			LIMIT 6`,
@@ -6068,7 +6075,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-  			  "timestamp", 'Europe/Warsaw'))*1000) / 600000) AS "aggr__0__key_0",
+			  "timestamp", 'Europe/Warsaw'))*1000) / 600000) AS "aggr__0__key_0",
 			  count(*) AS "aggr__0__count", count("bytes") AS "metric__0__1_col_0",
 			  minOrNull("bytes") AS "metric__0__1_col_1",
 			  maxOrNull("bytes") AS "metric__0__1_col_2",
@@ -6089,8 +6096,9 @@ var AggregationTests = []AggregationTestCase{
 			  varSamp("bytes") AS "metric__0__2_col_7",
 			  stddevPop("bytes") AS "metric__0__2_col_8",
 			  stddevSamp("bytes") AS "metric__0__2_col_9"
-			FROM ` + TableName + `
-			WHERE ("timestamp">=toDateTime64(1.71632733421e+09, 3) AND "timestamp"<=toDateTime64(1.71638133421e+09, 3))
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1716327334210) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1716381334210))
 			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 			  "timestamp", 'Europe/Warsaw'))*1000) / 600000) AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
