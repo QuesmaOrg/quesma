@@ -147,7 +147,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(query *pancakeModel, b
 	countAliasedColumn := model.NewAliasedExpr(countColumn, bucketAggregation.InternalNameForCount())
 	addSelectColumns = append(addSelectColumns, countAliasedColumn)
 
-	if bucketAggregation.orderBy != nil && len(bucketAggregation.orderBy) > 0 {
+	if len(bucketAggregation.orderBy) > 0 {
 		rankOrderBy := make([]model.OrderByExpr, 0)
 
 		for i, orderBy := range bucketAggregation.orderBy {

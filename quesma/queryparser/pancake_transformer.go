@@ -375,7 +375,7 @@ func (a *pancakeTransformer) createTopHitAndTopMetricsPancakes(pancake *pancakeM
 }
 
 func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregationTree) (pancakeResults []*pancakeModel, err error) {
-	if topLevel.children == nil || len(topLevel.children) == 0 {
+	if len(topLevel.children) == 0 {
 		return nil, fmt.Errorf("no top level aggregations found")
 	}
 
