@@ -16,6 +16,7 @@ type (
 	Registry interface {
 		AllSchemas() map[TableName]Schema
 		FindSchema(name TableName) (Schema, bool)
+		UpdateFieldsOrigins(name TableName, fields map[FieldName]FieldSource)
 		UpdateDynamicConfiguration(name TableName, table Table)
 		UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName)
 		GetFieldEncodings() map[FieldEncodingKey]EncodedFieldName
@@ -34,6 +35,8 @@ type (
 		dynamicConfiguration    map[string]Table
 		fieldEncodingsLock      sync.RWMutex
 		fieldEncodings          map[FieldEncodingKey]EncodedFieldName
+		fieldOriginsLock        sync.RWMutex
+		fieldOrigins            map[TableName]map[FieldName]FieldSource
 	}
 	typeAdapter interface {
 		Convert(string) (QuesmaType, bool)
@@ -95,6 +98,7 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 		s.populateAliases(indexConfiguration, fields, aliases)
 		s.removeIgnoredFields(indexConfiguration, fields, aliases)
 		s.removeGeoPhysicalFields(fields)
+		s.populateFieldsOrigins(indexName, fields)
 		if tableDefinition, ok := definitions[indexName]; ok {
 			schemas[TableName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource, tableDefinition.DatabaseName)
 		} else {
@@ -274,4 +278,28 @@ func (s *schemaRegistry) removeGeoPhysicalFields(fields map[FieldName]Field) {
 			delete(fields, fieldName+".lon")
 		}
 	}
+}
+
+func (s *schemaRegistry) populateFieldsOrigins(indexName string, fields map[FieldName]Field) {
+	{
+		s.fieldOriginsLock.RLock()
+		if fieldOrigins, ok := s.fieldOrigins[TableName(indexName)]; ok {
+			for fieldName, field := range fields {
+				if origin, ok := fieldOrigins[field.InternalPropertyName]; ok {
+					field.Origin = origin
+					fields[fieldName] = field
+				}
+			}
+		}
+		s.fieldOriginsLock.RUnlock()
+	}
+}
+
+func (s *schemaRegistry) UpdateFieldsOrigins(name TableName, fields map[FieldName]FieldSource) {
+	s.fieldOriginsLock.Lock()
+	defer s.fieldOriginsLock.Unlock()
+	if s.fieldOrigins == nil {
+		s.fieldOrigins = make(map[TableName]map[FieldName]FieldSource)
+	}
+	s.fieldOrigins[name] = fields
 }

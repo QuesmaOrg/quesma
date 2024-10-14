@@ -650,6 +650,15 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		ignoredFields := ip.getIgnoredFields(tableName)
 		columnsFromJson := JsonToColumns("", jsonData[0], 1,
 			tableConfig, tableFormatter, ignoredFields)
+
+		fieldOrigins := make(map[schema.FieldName]schema.FieldSource)
+
+		for _, column := range columnsFromJson {
+			fieldOrigins[schema.FieldName(column.ClickHouseColumnName)] = schema.FieldSourceIngest
+		}
+
+		ip.schemaRegistry.UpdateFieldsOrigins(schema.TableName(tableName), fieldOrigins)
+
 		// This comes externally from (configuration)
 		// So we need to convert that separately
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter, tableName, ip.schemaRegistry.GetFieldEncodings())
@@ -749,32 +758,12 @@ func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, table
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter, isVirtualTable bool, sourceIndexSchema *schema.Schema, sourceIndex string) error {
 
-	statements, alterDDLMap, err := ip.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter, isVirtualTable)
+	statements, _, err := ip.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter, isVirtualTable)
 	if err != nil {
 		return err
 	}
 
 	var logVirtualTableDDL bool // maybe this should be a part of the config or sth
-
-	// TODO that's a hack, we add columns to quesma-common-table that
-	// came from mappings instead of ingest
-	if sourceIndexSchema != nil {
-		if ip.cfg.IndexConfig[sourceIndex].UseCommonTable && len(alterDDLMap) > 0 {
-			var columnsFromDynamicMapping []string
-			for _, field := range sourceIndexSchema.Fields {
-				if _, ok := alterDDLMap[field.InternalPropertyName.AsString()]; !ok {
-					if field.Origin == schema.FieldSourceMapping {
-						columnsFromDynamicMapping = append(columnsFromDynamicMapping, fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", tableName, field.InternalPropertyName, field.InternalPropertyType))
-						metadata := comment_metadata.NewCommentMetadata()
-						metadata.Values[comment_metadata.ElasticFieldName] = field.PropertyName.AsString()
-						comment := metadata.Marshall()
-						columnsFromDynamicMapping = append(columnsFromDynamicMapping, fmt.Sprintf("ALTER TABLE \"%s\" COMMENT COLUMN \"%s\" '%s'", tableName, field.InternalPropertyName, comment))
-					}
-				}
-			}
-			statements = append(columnsFromDynamicMapping, statements...)
-		}
-	}
 
 	if isVirtualTable && logVirtualTableDDL {
 		for _, statement := range statements {

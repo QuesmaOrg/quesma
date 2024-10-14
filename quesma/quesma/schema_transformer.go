@@ -463,7 +463,9 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 
 		cols := make([]string, 0, len(indexSchema.Fields))
 		for _, col := range indexSchema.Fields {
-			cols = append(cols, col.InternalPropertyName.AsString())
+			if col.Origin == schema.FieldSourceIngest {
+				cols = append(cols, col.InternalPropertyName.AsString())
+			}
 		}
 		sort.Strings(cols)
 
@@ -491,7 +493,9 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 
 	for _, field := range indexSchema.Fields {
 		if field.Type.IsFullText() {
-			fullTextFields = append(fullTextFields, field.InternalPropertyName.AsString())
+			if field.Origin == schema.FieldSourceIngest {
+				fullTextFields = append(fullTextFields, field.InternalPropertyName.AsString())
+			}
 		}
 	}
 
