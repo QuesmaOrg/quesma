@@ -281,18 +281,16 @@ func (s *schemaRegistry) removeGeoPhysicalFields(fields map[FieldName]Field) {
 }
 
 func (s *schemaRegistry) populateFieldsOrigins(indexName string, fields map[FieldName]Field) {
-	{
-		s.fieldOriginsLock.RLock()
-		if fieldOrigins, ok := s.fieldOrigins[TableName(indexName)]; ok {
-			for fieldName, field := range fields {
-				if origin, ok := fieldOrigins[field.InternalPropertyName]; ok {
-					field.Origin = origin
-					fields[fieldName] = field
-				}
+	s.fieldOriginsLock.RLock()
+	if fieldOrigins, ok := s.fieldOrigins[TableName(indexName)]; ok {
+		for fieldName, field := range fields {
+			if origin, ok := fieldOrigins[field.InternalPropertyName]; ok {
+				field.Origin = origin
+				fields[fieldName] = field
 			}
 		}
-		s.fieldOriginsLock.RUnlock()
 	}
+	s.fieldOriginsLock.RUnlock()
 }
 
 func (s *schemaRegistry) UpdateFieldsOrigins(name TableName, fields map[FieldName]FieldSource) {
