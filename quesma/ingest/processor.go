@@ -761,6 +761,7 @@ func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, table
 			var columnsFromDynamicMapping []string
 			for _, field := range sourceIndexSchema.Fields {
 				if _, ok := alterDDLMap[field.InternalPropertyName.AsString()]; !ok {
+
 					if field.Origin == schema.FieldSourceMapping {
 						columnsFromDynamicMapping = append(columnsFromDynamicMapping, fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", tableName, field.InternalPropertyName, field.InternalPropertyType))
 						metadata := comment_metadata.NewCommentMetadata()
@@ -768,6 +769,7 @@ func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, table
 						comment := metadata.Marshall()
 						columnsFromDynamicMapping = append(columnsFromDynamicMapping, fmt.Sprintf("ALTER TABLE \"%s\" COMMENT COLUMN \"%s\" '%s'", tableName, field.InternalPropertyName, comment))
 					}
+
 				}
 			}
 			statements = append(columnsFromDynamicMapping, statements...)
