@@ -57,7 +57,7 @@ jobs:
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           slack-message: |
-            :exclamation: *Integration tests failed.* :exclamation: @channel
+            :exclamation: *Integration tests failed.* :exclamation: <!channel>
             Last commit by: ${{ steps.get_author.outputs.author }}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

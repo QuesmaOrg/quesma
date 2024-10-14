@@ -26,3 +26,13 @@ func TestReadingClickHouseTablesIntegrationTestcase(t *testing.T) {
 	testCase := testcases.NewReadingClickHouseTablesIntegrationTestcase()
 	runIntegrationTest(t, testCase)
 }
+
+func TestQueryAndIngestPipelineTestcase(t *testing.T) {
+	testCase := testcases.NewQueryAndIngestPipelineTestcase()
+	runIntegrationTest(t, testCase)
+}
+
+func TestDualWriteAndCommonTableTestcase(t *testing.T) {
+	testCase := testcases.NewDualWriteAndCommonTableTestcase()
+	runIntegrationTest(t, testCase)
+}

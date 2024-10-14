@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"io"
+	"net/http"
 	"testing"
 )
 
@@ -41,7 +42,7 @@ func (a *TransparentProxyIntegrationTestcase) testBasicRequest(ctx context.Conte
 		t.Fatalf("Failed to make GET request: %s", err)
 	}
 	defer resp.Body.Close()
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func (a *TransparentProxyIntegrationTestcase) testIfCatHealthRequestReachesElasticsearch(ctx context.Context, t *testing.T) {
@@ -54,7 +55,7 @@ func (a *TransparentProxyIntegrationTestcase) testIfCatHealthRequestReachesElast
 	if err != nil {
 		t.Fatalf("Failed to read response body: %s", err)
 	}
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-elastic-product"))
 	assert.Contains(t, string(bodyBytes), "green")
 }
