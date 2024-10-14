@@ -730,19 +730,17 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 			clonedJsonData = append(clonedJsonData, jsonValue.Clone())
 		}
 
-		err := lm.processInsertQueryInternal(ctx, tableName, clonedJsonData, transformer, tableFormatter, true, nil, tableName)
+		err := lm.processInsertQueryInternal(ctx, tableName, clonedJsonData, transformer, tableFormatter, true)
 		if err != nil {
 			// we ignore an error here, because we want to process the data and don't lose it
 			logger.ErrorWithCtx(ctx).Msgf("error processing insert query - virtual table schema update: %v", err)
 		}
-		sourceIndexSchema := findSchemaPointer(lm.schemaRegistry, tableName)
-		sourceIndex := tableName
 		pipeline := jsonprocessor.IngestTransformerPipeline{}
 		pipeline = append(pipeline, &common_table.IngestAddIndexNameTransformer{IndexName: tableName})
 		pipeline = append(pipeline, transformer)
 		tableName = common_table.TableName
 
-		err = lm.processInsertQueryInternal(ctx, common_table.TableName, jsonData, pipeline, tableFormatter, false, sourceIndexSchema, sourceIndex)
+		err = lm.processInsertQueryInternal(ctx, common_table.TableName, jsonData, pipeline, tableFormatter, false)
 		if err != nil {
 			return fmt.Errorf("error processing insert query to a common table: %w", err)
 		}
@@ -750,13 +748,13 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 		return nil
 	}
 
-	return lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, false, nil, tableName)
+	return lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, false)
 
 }
 
 func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
-	tableFormatter TableColumNameFormatter, isVirtualTable bool, sourceIndexSchema *schema.Schema, sourceIndex string) error {
+	tableFormatter TableColumNameFormatter, isVirtualTable bool) error {
 
 	statements, _, err := ip.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter, isVirtualTable)
 	if err != nil {
