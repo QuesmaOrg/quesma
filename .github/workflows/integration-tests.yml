@@ -47,6 +47,24 @@ jobs:
         id: get_author
         run: echo "::set-output name=author::$(git log -1 --pretty=format:'%an <%ae> sha1={%H}')"
 
+      - name: License Header Verification
+        working-directory: ci/it
+        run: |
+          LICENSE_COMMENT="// Copyright Quesma, licensed under the Elastic License 2.0.
+          // SPDX-License-Identifier: Elastic-2.0"
+          failed=false
+          while IFS= read -r -d '' file; do
+            file_content=$(< "$file")
+
+            if [[ "$file_content" != "$LICENSE_COMMENT"* ]]; then
+              echo "License header missing or incorrect in file: $file"
+              failed=true
+            fi
+          done < <(find . -type f -name "*.go" -print0)
+          if [ "$failed" = true ]; then
+            exit 1
+          fi
+
       - name: Run integration tests
         working-directory: ci/it
         run: go test -v
