@@ -53,7 +53,7 @@ jobs:
 
       - name: Send Slack notification on failure
         if: failure()
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v1.27.0
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           slack-message: |
@@ -64,7 +64,7 @@ jobs:
 
       - name: Send Slack notification on success
         if: success()
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v1.27.0
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           slack-message: |
