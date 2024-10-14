@@ -12,7 +12,6 @@ type FieldSource int
 const (
 	FieldSourceIngest FieldSource = iota
 	FieldSourceMapping
-	FieldSourceAutoDiscovery
 	FieldSourceStaticConfiguration
 )
 
