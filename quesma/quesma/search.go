@@ -520,15 +520,6 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 	return
 }
 
-func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
-	size := 0
-	q.AsyncRequestStorage.Range(func(key string, value *async_search_storage.AsyncRequestResult) bool {
-		size += len(value.GetResponseBody())
-		return true
-	})
-	return size
-}
-
 func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
 	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		logger.ErrorWithCtx(ctx).Msgf("non quesma async id: %v", id)
@@ -573,7 +564,7 @@ func (q *QueryRunner) deleteAsyncSeach(id string) ([]byte, error) {
 }
 
 func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncId string, doneCh chan<- AsyncSearchWithError) bool {
-	if q.AsyncRequestStorage.Size() < asyncQueriesLimit && q.asyncQueriesCumulatedBodySize() < asyncQueriesLimitBytes {
+	if q.AsyncRequestStorage.DocCount() < asyncQueriesLimit && q.AsyncRequestStorage.SizeInBytes() < asyncQueriesLimitBytes {
 		return false
 	}
 	err := errors.New("too many async queries")
