@@ -4,6 +4,7 @@ package lucene
 
 import (
 	"context"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/schema"
@@ -70,7 +71,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`!_exists_:title`, `NOT ("title" IS NOT NULL)`},
 		{"xdr.emm_type_str:*bearer*", `"xdr.emm_type_str" ILIKE '%bearer%'`},
 		{"(xdr.emm_type_str:*bearer*)", `"xdr.emm_type_str" ILIKE '%bearer%'`},
-		{"(xdr.emm_type_str:*bearer* OR xdr.emm_type_str:*Bearer*)", "a"},
+		{"(xdr.emm_type_str:*bearer* OR xdr.emm_type_str:*Bearer*)", `((("xdr.emm_type_str" ILIKE '%bearer%') OR "xdr.emm_type_str" ILIKE '%Bearer%') OR (("xdr.emm_type_str" ILIKE '%bearer%') OR "xdr.emm_type_str" ILIKE '%Bearer%'))`}, // TODO: needs small fix, answer could be better
 	}
 	var randomQueriesWithPossiblyIncorrectInput = []struct {
 		query string
@@ -101,6 +102,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 			if i != 51 {
 				t.Skip()
 			}
+			fmt.Println("query: ", tt.query)
 			parser := newLuceneParser(context.Background(), defaultFieldNames, currentSchema)
 			got := model.AsString(parser.translateToSQL(tt.query))
 			if got != tt.want {

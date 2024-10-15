@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"quesma/logger"
 	"quesma/model"
-	//wc "quesma/queryparser/where_clause"
 )
 
 func (p *luceneParser) BuildWhereStatement() model.Expr {
@@ -86,21 +85,12 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 		fieldname := p.buildValue([]value{}, 0).(termValue)
 		currentStatement = model.NewInfixExpr(model.NewColumnRef(fieldname.term), " IS NOT ", model.NewLiteral("NULL"))
 	case leftParenthesisToken:
-		fmt.Println("leftParenthesisToken", currentStatement)
-		// it can be either statement (e.g. a: b), or value (e.g. a)
-		fieldNames := p.defaultFieldNames
-		if len(p.tokens) > 2 {
-			if fieldnameToken, ok := p.tokens[0].(fieldNameToken); ok {
-				if _, ok := p.tokens[1].(separatorToken); ok {
-					p.tokens = p.tokens[2:]
-					fieldNames = []string{fieldnameToken.fieldName}
-				} else {
-					logger.ErrorWithCtx(p.ctx).Msgf("invalid expression, missing separator, tokens: %v", p.tokens)
-				}
-			}
-		}
-		currentStatement = newLeafStatement(fieldNames, p.buildValue([]value{}, 1))
-		fmt.Println("leftParenthesisToken", currentStatement)
+		fmt.Println("expr leftParenthesisToken", currentStatement)
+		currentStatement = model.NewParenExpr(p.buildWhereStatement(true))
+		fmt.Println("expr leftParenthesisToken", currentStatement)
+	case rightParenthesisToken:
+		fmt.Println("expr buildWhereStmt right")
+		return p.WhereStatement
 	default:
 		logger.Error().Msgf("buildExpression: invalid expression, unexpected token: %#v, tokens: %v", currentToken, p.tokens)
 		return invalidStatement
