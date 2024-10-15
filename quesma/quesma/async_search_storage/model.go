@@ -9,10 +9,11 @@ import (
 
 type AsyncRequestResultStorage interface {
 	Store(id string, result *AsyncRequestResult)
-	Range(func(key string, value *AsyncRequestResult) bool) // ideally I'd like to get rid of this, but not sure if it's possible
 	Load(id string) (*AsyncRequestResult, bool)
 	Delete(id string)
-	Size() int
+	DocCount() int
+	SizeInBytes() uint64
+	SizeInBytesLimit() uint64
 }
 
 // TODO: maybe merge those 2?

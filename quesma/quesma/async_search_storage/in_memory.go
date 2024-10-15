@@ -41,8 +41,17 @@ func (s AsyncSearchStorageInMemory) Delete(id string) {
 	s.idToResult.Delete(id)
 }
 
-func (s AsyncSearchStorageInMemory) Size() int {
+func (s AsyncSearchStorageInMemory) DocCount() int {
 	return s.idToResult.Size()
+}
+
+func (s AsyncSearchStorageInMemory) SizeInBytes() int {
+	size := 0
+	s.Range(func(key string, value *AsyncRequestResult) bool {
+		size += len(value.GetResponseBody())
+		return true
+	})
+	return size
 }
 
 type AsyncQueryContextStorageInMemory struct {
