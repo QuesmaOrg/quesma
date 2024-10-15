@@ -33,9 +33,9 @@ func (a *TransparentProxyIntegrationTestcase) SetupContainers(ctx context.Contex
 }
 
 func (a *TransparentProxyIntegrationTestcase) RunTests(ctx context.Context, t *testing.T) error {
-	a.testBasicRequest(ctx, t)
-	a.testIfCatHealthRequestReachesElasticsearch(ctx, t)
-	a.testIfIndexCreationWorks(ctx, t)
+	t.Run("test basic request", func(t *testing.T) { a.testBasicRequest(ctx, t) })
+	t.Run("test if cat health request reaches elasticsearch", func(t *testing.T) { a.testIfCatHealthRequestReachesElasticsearch(ctx, t) })
+	t.Run("test if index creation works", func(t *testing.T) { a.testIfIndexCreationWorks(ctx, t) })
 	return nil
 }
 

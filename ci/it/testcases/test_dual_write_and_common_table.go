@@ -34,12 +34,12 @@ func (a *DualWriteAndCommonTableTestcase) SetupContainers(ctx context.Context) e
 }
 
 func (a *DualWriteAndCommonTableTestcase) RunTests(ctx context.Context, t *testing.T) error {
-	a.testBasicRequest(ctx, t)
-	a.testIngestToClickHouseWorks(ctx, t)
-	a.testIngestToCommonTableWorks(ctx, t)
-	a.testDualQueryReturnsDataFromClickHouse(ctx, t)
-	a.testDualWritesWork(ctx, t)
-	a.testWildcardGoesToElastic(ctx, t)
+	t.Run("test basic request", func(t *testing.T) { a.testBasicRequest(ctx, t) })
+	t.Run("test ingest to clickhouse works", func(t *testing.T) { a.testIngestToClickHouseWorks(ctx, t) })
+	t.Run("test ingest to common table works", func(t *testing.T) { a.testIngestToCommonTableWorks(ctx, t) })
+	t.Run("test dual query returns data from clickhouse", func(t *testing.T) { a.testDualQueryReturnsDataFromClickHouse(ctx, t) })
+	t.Run("test dual writes work", func(t *testing.T) { a.testDualWritesWork(ctx, t) })
+	t.Run("test wildcard goes to elastic", func(t *testing.T) { a.testWildcardGoesToElastic(ctx, t) })
 	return nil
 }
 

@@ -34,10 +34,10 @@ func (a *QueryAndIngestPipelineTestcase) SetupContainers(ctx context.Context) er
 }
 
 func (a *QueryAndIngestPipelineTestcase) RunTests(ctx context.Context, t *testing.T) error {
-	a.testBasicRequest(ctx, t)
-	a.testWildcardGoesToElastic(ctx, t)
-	a.testEmptyTargetDoc(ctx, t)
-	a.testEmptyTargetBulk(ctx, t)
+	t.Run("test basic request", func(t *testing.T) { a.testBasicRequest(ctx, t) })
+	t.Run("test wildcard goes to elastic", func(t *testing.T) { a.testWildcardGoesToElastic(ctx, t) })
+	t.Run("test empty target doc", func(t *testing.T) { a.testEmptyTargetDoc(ctx, t) })
+	t.Run("test empty target bulk", func(t *testing.T) { a.testEmptyTargetBulk(ctx, t) })
 	return nil
 }
 
