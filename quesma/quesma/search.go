@@ -248,7 +248,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 		} else {
 			responseBody, err = response.response.Marshal()
 		}
-		pushSecondaryInfo(q.quesmaManagementConsole, id, "", "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
+		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
 		sendMainPlanResult(responseBody, err)
 		return responseBody, err
 	} else {
@@ -436,7 +436,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		responseBody = []byte(fmt.Sprintf("Invalid Queries: %v, err: %v", queriesBody, err))
 		logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
 		bodyAsBytes, _ := body.Bytes()
-		pushSecondaryInfo(q.quesmaManagementConsole, id, "", "", path, bodyAsBytes, queriesBody, responseBody, startTime)
+		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
 		return responseBody, errors.New(string(responseBody))
 	}
 
@@ -471,6 +471,7 @@ func (q *QueryRunner) removeNotExistingTables(sourcesClickhouse []string) []stri
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncId string,
 	startTime time.Time, path string, body types.JSON, result asyncSearchWithError, keep bool, opaqueId string) (responseBody []byte, err error) {
 
+	took := time.Since(startTime)
 	bodyAsBytes, _ := body.Bytes()
 	if result.err == nil {
 		okStatus := 200
@@ -481,7 +482,16 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 		err = result.err
 	}
 
-	pushSecondaryInfo(qmc, id, asyncId, opaqueId, path, bodyAsBytes, result.translatedQueryBody, responseBody, startTime)
+	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+		Id:                     id,
+		AsyncId:                asyncId,
+		OpaqueId:               opaqueId,
+		Path:                   path,
+		IncomingQueryBody:      bodyAsBytes,
+		QueryBodyTranslated:    result.translatedQueryBody,
+		QueryTranslatedResults: responseBody,
+		SecondaryTook:          took,
+	})
 
 	if keep {
 		compressedBody := responseBody
@@ -847,11 +857,10 @@ func pushPrimaryInfo(qmc *ui.QuesmaManagementConsole, Id string, QueryResp []byt
 	})
 }
 
-func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, OpaqueId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []types.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
+func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []types.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     Id,
 		AsyncId:                AsyncId,
-		OpaqueId:               OpaqueId,
 		Path:                   Path,
 		IncomingQueryBody:      IncomingQueryBody,
 		QueryBodyTranslated:    QueryBodyTranslated,
