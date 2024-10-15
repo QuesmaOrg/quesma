@@ -46,3 +46,7 @@ func (e *StaticRegistry) GetFieldEncodings() map[FieldEncodingKey]EncodedFieldNa
 	}
 	return e.FieldEncodings
 }
+
+func (e *StaticRegistry) UpdateFieldsOrigins(name TableName, fields map[FieldName]FieldSource) {
+
+}
