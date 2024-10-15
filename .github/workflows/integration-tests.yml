@@ -76,8 +76,8 @@ jobs:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           slack-message: |
             :exclamation: *Integration tests failed.* :exclamation: <!channel>
-            Last commit by: ${{ steps.get_author.outputs.author }}
-            Workflow run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            *Last commit by:* ${{ steps.get_author.outputs.author }}
+            *Workflow run URL:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
@@ -88,8 +88,8 @@ jobs:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           slack-message: |
             :white_check_mark: *Integration tests passed.* Good job team!
-            Last commit by: ${{ steps.get_author.outputs.author }}
-            Workflow run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            *Last commit by:* ${{ steps.get_author.outputs.author }}
+            *Workflow run URL:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
