@@ -27,6 +27,7 @@ const (
 	// map (it has the original key, doesn't know about the processed one)
 	// with date_histogram's map (it already has a "valid", processed key, after TranslateSqlResponseToJson)
 	OriginalKeyName      = "__quesma_originalKey"
+	NoExtendedBound      = -1
 	maxEmptyBucketsAdded = 1000
 )
 
@@ -36,13 +37,15 @@ type DateHistogram struct {
 	interval          string
 	timezone          string
 	wantedTimezone    *time.Location // key is in `timezone` time, and we need it to be UTC
+	extendedBoundsMin int64
+	extendedBoundsMax int64
 	minDocCount       int
 	intervalType      DateHistogramIntervalType
 	fieldDateTimeType clickhouse.DateTimeType
 }
 
-func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone string,
-	minDocCount int, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
+func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone string, minDocCount int,
+	extendedBoundsMin, extendedBoundsMax int64, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
 
 	wantedTimezone, err := time.LoadLocation(timezone)
 	if err != nil {
@@ -51,7 +54,8 @@ func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone 
 	}
 
 	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone, wantedTimezone: wantedTimezone,
-		minDocCount: minDocCount, intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
+		minDocCount: minDocCount, extendedBoundsMin: extendedBoundsMin, extendedBoundsMax: extendedBoundsMax,
+		intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
 }
 
 func (typ DateHistogramIntervalType) String(ctx context.Context) string {
@@ -83,7 +87,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 	// Implement default when query.minDocCount == DefaultMinDocCount, we need to return
 	// all buckets between the first bucket that matches documents and the last one.
 
-	if query.minDocCount == 0 {
+	if query.minDocCount == 0 || query.extendedBoundsMin != NoExtendedBound || query.extendedBoundsMax != NoExtendedBound {
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
@@ -226,7 +230,7 @@ func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
 }
 
 func (query *DateHistogram) calculateKeyAsString(key int64) string {
-	return time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000")
+	return time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000") // TODO: check if this necessary Format("2006/01/02 15:04:05")
 }
 
 func (query *DateHistogram) OriginalKeyToKeyAsString(originalKey any) string {
