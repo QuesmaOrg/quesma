@@ -78,15 +78,14 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 		field := cw.parseFieldField(dateHistogram, "date_histogram")
 
-		didWeAddMissing := false
+		weAddedMissing := false
 		if missingRaw, exists := dateHistogram["missing"]; exists {
 			if missing, ok := missingRaw.(string); ok {
 				dateManager := kibana.NewDateManager()
-				timestamp, parsingTimestampOk := dateManager.MissingInDateHistogramToUnixTimestamp(missing)
-				if parsingTimestampOk {
+				if unixTimestamp, parsingOk := dateManager.ParseMissingInDateHistogram(missing); parsingOk {
 					field = model.NewFunction("COALESCE", field,
-						model.NewFunction("toDateTime", model.NewLiteral(timestamp)))
-					didWeAddMissing = true
+						model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(unixTimestamp)))
+					weAddedMissing = true
 				} else {
 					logger.ErrorWithCtx(cw.Ctx).Msgf("unknown format of missing in date_histogram: %v. Skipping it.", missing)
 				}
@@ -100,7 +99,8 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			ebmin, ebmax = int64(extendedBounds["min"].(float64)), int64(extendedBounds["max"].(float64))
 		}
 
-		if !didWeAddMissing {
+		if !weAddedMissing {
+			// if we don't add missing, we need to filter out nulls later
 			aggregation.filterOutEmptyKeyBucket = true
 		}
 
