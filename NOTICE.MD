@@ -2055,13 +2055,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/oauth2
-Version : v0.17.0
-Time    : 2024-02-08T13:19:31Z
+Version : v0.23.0
+Time    : 2024-08-21T18:21:24Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/oauth2@v0.17.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/oauth2@v0.23.0/LICENSE:
 
-Copyright (c) 2009 The Go Authors. All rights reserved.
+Copyright 2009 The Go Authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -2073,7 +2073,7 @@ notice, this list of conditions and the following disclaimer.
 copyright notice, this list of conditions and the following disclaimer
 in the documentation and/or other materials provided with the
 distribution.
-   * Neither the name of Google Inc. nor the names of its
+   * Neither the name of Google LLC nor the names of its
 contributors may be used to endorse or promote products derived from
 this software without specific prior written permission.
 
@@ -2370,11 +2370,11 @@ Contents of probable licence file $GOMODCACHE/cloud.google.com/go/compute@v1.20.
 
 --------------------------------------------------------------------------------
 #### Module  : cloud.google.com/go/compute/metadata
-Version : v0.2.3
-Time    : 2022-12-15T21:47:22Z
+Version : v0.3.0
+Time    : 2024-04-15T20:50:16Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/cloud.google.com/go/compute/metadata@v0.2.3/LICENSE:
+Contents of probable licence file $GOMODCACHE/cloud.google.com/go/compute/metadata@v0.3.0/LICENSE:
 
 
                                  Apache License
@@ -11641,11 +11641,11 @@ SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/yuin/goldmark
-Version : v1.4.13
-Time    : 2022-07-09T07:22:17Z
+Version : v1.2.1
+Time    : 2020-07-30T13:33:42Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/yuin/goldmark@v1.4.13/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/yuin/goldmark@v1.2.1/LICENSE:
 
 MIT License
 
@@ -13451,11 +13451,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/term
-Version : v0.0.0-20210927222741-03fcf44c2211
-Time    : 2021-09-27T22:27:41Z
+Version : v0.0.0-20201126162022-7de9c90e9dd1
+Time    : 2020-11-26T16:20:22Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/term@v0.0.0-20210927222741-03fcf44c2211/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/term@v0.0.0-20201126162022-7de9c90e9dd1/LICENSE:
 
 Copyright (c) 2009 The Go Authors. All rights reserved.
 
@@ -13488,11 +13488,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/text
-Version : v0.3.8
-Time    : 2022-10-11T16:58:47Z
+Version : v0.3.7
+Time    : 2021-08-10T18:28:16Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/text@v0.3.8/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/text@v0.3.7/LICENSE:
 
 Copyright (c) 2009 The Go Authors. All rights reserved.
 
