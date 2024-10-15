@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/model/bucket_aggregations"
 	"quesma/model/typical_queries"
 	"quesma/quesma/types"
 )
@@ -150,15 +149,18 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 
 	// 3. Now process filter(s) first, because they apply to everything else on the same level or below.
 	// Also filter introduces count to current level.
-	if filterRaw, ok := queryMap["filter"]; ok {
-		if filter, ok := filterRaw.(QueryMap); ok {
-			whereClause := cw.parseQueryMap(filter).WhereClause
-			aggregation.queryType = bucket_aggregations.NewFilterAgg(cw.Ctx, whereClause)
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping", filterRaw, filterRaw)
+	// is it safe to remove?
+	/*
+		if filterRaw, ok := queryMap["filter"]; ok {
+			if filter, ok := filterRaw.(QueryMap); ok {
+				whereClause := cw.parseQueryMap(filter).WhereClause
+				aggregation.queryType = bucket_aggregations.NewFilterAgg(cw.Ctx, whereClause)
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping", filterRaw, filterRaw)
+			}
+			delete(queryMap, "filter")
 		}
-		delete(queryMap, "filter")
-	}
+	*/
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
 	// 	bucketAggrPresent, err := cw.pancakeTryBucketAggregation(aggregation, queryMap)

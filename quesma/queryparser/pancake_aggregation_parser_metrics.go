@@ -22,6 +22,8 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 		return nil
 	}
 
+	fmt.Println("metricsAggr.AggrType: ", metricsAggr.AggrType)
+
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
 		result = []model.Expr{model.NewFunction(metricsAggr.AggrType+"OrNull", getFirstExpression())}
@@ -118,6 +120,8 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 			result = append(result, model.NewFunction("avgOrNull", castLon))
 			result = append(result, model.NewCountFunc())
 		}
+	case "filter":
+		result = metricsAggr.Fields
 	default:
 		logger.WarnWithCtx(ctx).Msgf("unknown metrics aggregation: %s", metricsAggr.AggrType)
 		return nil, fmt.Errorf("unknown metrics aggregation %s", metricsAggr.AggrType)
@@ -153,6 +157,8 @@ func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) mo
 		return metrics_aggregations.NewPercentileRanks(ctx, metricsAggr.CutValues, metricsAggr.Keyed)
 	case "geo_centroid":
 		return metrics_aggregations.NewGeoCentroid(ctx)
+	case "filter":
+		return metrics_aggregations.NewCount(ctx)
 	}
 	return nil
 }

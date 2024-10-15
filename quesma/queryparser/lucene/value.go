@@ -229,6 +229,8 @@ func (p *luceneParser) buildValue(stack []value, parenthesisLevel int) value {
 			}
 		}
 
+		fmt.Printf("buildValue, curToken: %T %v\n", tok, tok)
+
 		switch currentToken := tok.(type) {
 		case leftParenthesisToken:
 			stack = append(stack, p.buildValue([]value{}, 1))

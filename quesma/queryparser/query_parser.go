@@ -730,17 +730,20 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) model.Simp
 // This one is really complicated (https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html)
 // `query` uses Lucene language, we don't support 100% of it, but most.
 func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.SimpleQuery {
+	fmt.Println("parseQueryString", queryMap)
 	var fields []string
 	if fieldsRaw, ok := queryMap["fields"]; ok {
 		fields = cw.extractFields(fieldsRaw.([]interface{}))
-	} else {
-		fields = []string{model.FullTextFieldNamePlaceHolder}
 	}
 
 	query := queryMap["query"].(string) // query: (Required, string)
+	if query == "*" && len(fields) == 0 {
+		return model.NewSimpleQuery(model.NewLiteral("True"), true)
+	}
 
 	// we always call `TranslateToSQL` - Lucene parser returns "false" in case of invalid query
 	whereStmtFromLucene := lucene.TranslateToSQL(cw.Ctx, query, fields, cw.Schema)
+	pp.Println("whereStmtFromLucene", whereStmtFromLucene)
 	return model.NewSimpleQuery(whereStmtFromLucene, true)
 }
 
@@ -1262,6 +1265,13 @@ func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap, defaultSize in
 		return defaultSize
 	} else if sizeAsFloat, ok := sizeRaw.(float64); ok {
 		return int(sizeAsFloat)
+	} else if sizeAsString, ok := sizeRaw.(string); ok {
+		if sizeAsInt, err := strconv.Atoi(sizeAsString); err == nil {
+			return sizeAsInt
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected int", sizeRaw, sizeRaw)
+			return defaultSize
+		}
 	} else {
 		logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected float64", sizeRaw, sizeRaw)
 		return defaultSize

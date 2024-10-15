@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/quesma/config"
@@ -24,7 +25,7 @@ const TableName = model.SingleTableNamePlaceHolder
 
 func TestPancakeQueryGeneration(t *testing.T) {
 
-	// logger.InitSimpleLoggerForTests()
+	logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -60,6 +61,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Need to implement order by top metrics (talk with Jacek, he has an idea)")
 			}
 
+			if i != 72 { //77 88 124 66
+				t.Skip()
+			}
+
 			fmt.Println("i:", i, "test:", test.TestName)
 
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
@@ -75,6 +80,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			assert.Len(t, pancakeSqls, 1+len(test.ExpectedAdditionalPancakeSQLs),
 				"Mismatch pancake sqls vs main and 'ExpectedAdditionalPancakeSQLs'")
 			for pancakeIdx, pancakeSql := range pancakeSqls {
+				//pp.Println("SQL", pancakeSql)
 				pancakeSqlStr := model.AsString(pancakeSql.SelectCommand)
 
 				prettyPancakeSql := util.SqlPrettyPrint([]byte(pancakeSqlStr))

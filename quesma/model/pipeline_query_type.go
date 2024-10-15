@@ -27,4 +27,5 @@ type PipelineQueryType interface {
 	IsCount() bool
 
 	SetParentBucketAggregation(parentBucketAggregation QueryType)
+	GetParentBucketAggregation() QueryType
 }

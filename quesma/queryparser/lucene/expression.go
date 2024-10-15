@@ -3,14 +3,15 @@
 package lucene
 
 import (
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
-	//wc "quesma/queryparser/where_clause"
 )
 
 func (p *luceneParser) BuildWhereStatement() model.Expr {
 	for len(p.tokens) > 0 {
 		p.WhereStatement = p.buildWhereStatement(true)
+		fmt.Println(p.WhereStatement)
 	}
 	if p.WhereStatement == nil {
 		p.WhereStatement = model.NewLiteral("true")
@@ -79,8 +80,17 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 	case notToken:
 		latterExp := p.buildWhereStatement(false)
 		currentStatement = model.NewPrefixExpr("NOT", []model.Expr{latterExp})
+	case existsToken:
+		// TODO probably not fully right, make it more like all other cases.
+		fieldname := p.buildValue([]value{}, 0).(termValue)
+		currentStatement = model.NewInfixExpr(model.NewColumnRef(fieldname.term), " IS NOT ", model.NewLiteral("NULL"))
 	case leftParenthesisToken:
-		currentStatement = newLeafStatement(p.defaultFieldNames, p.buildValue([]value{}, 1))
+		fmt.Println("expr leftParenthesisToken", currentStatement)
+		currentStatement = model.NewParenExpr(p.buildWhereStatement(true))
+		fmt.Println("expr leftParenthesisToken", currentStatement)
+	case rightParenthesisToken:
+		fmt.Println("expr buildWhereStmt right")
+		return p.WhereStatement
 	default:
 		logger.Error().Msgf("buildExpression: invalid expression, unexpected token: %#v, tokens: %v", currentToken, p.tokens)
 		return invalidStatement
