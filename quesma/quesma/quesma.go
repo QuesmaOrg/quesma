@@ -166,7 +166,8 @@ func (r *router) errorResponse(ctx context.Context, err error, w http.ResponseWr
 }
 
 func (*router) closedIndexResponse(ctx context.Context, w http.ResponseWriter, pattern string) {
-	w.WriteHeader(http.StatusBadRequest)
+	// TODO we should return a proper status code here (400?)
+	w.WriteHeader(http.StatusOK)
 
 	response := make(types.JSON)
 
@@ -250,16 +251,22 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		if decision != nil {
 
 			if decision.Err != nil {
+				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+				addProductAndContentHeaders(req.Header, w.Header())
 				r.errorResponse(ctx, decision.Err, w)
 				return
 			}
 
 			if decision.IsClosed {
+				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+				addProductAndContentHeaders(req.Header, w.Header())
 				r.closedIndexResponse(ctx, w, decision.IndexPattern)
 				return
 			}
 
 			if decision.IsEmpty {
+				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+				addProductAndContentHeaders(req.Header, w.Header())
 				w.WriteHeader(http.StatusNoContent)
 				w.Write(queryparser.EmptySearchResponse(ctx))
 				return
