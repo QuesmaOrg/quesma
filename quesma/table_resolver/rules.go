@@ -126,8 +126,7 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 
 					case QueryPipeline:
 
-						if (targets[0] == config.ClickhouseTarget && targets[1] == config.ElasticsearchTarget) ||
-							(targets[0] == config.ElasticsearchTarget && targets[1] == config.ClickhouseTarget) {
+						if targets[0] == config.ClickhouseTarget && targets[1] == config.ElasticsearchTarget {
 
 							return &Decision{
 								Reason:          "Enabled in the config. A/B testing.",
