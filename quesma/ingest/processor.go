@@ -641,6 +641,15 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		ignoredFields := ip.getIgnoredFields(tableName)
 		columnsFromJson := JsonToColumns("", jsonData[0], 1,
 			tableConfig, tableFormatter, ignoredFields)
+
+		fieldOrigins := make(map[schema.FieldName]schema.FieldSource)
+
+		for _, column := range columnsFromJson {
+			fieldOrigins[schema.FieldName(column.ClickHouseColumnName)] = schema.FieldSourceIngest
+		}
+
+		ip.schemaRegistry.UpdateFieldsOrigins(schema.TableName(tableName), fieldOrigins)
+
 		// This comes externally from (configuration)
 		// So we need to convert that separately
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter, tableName, ip.schemaRegistry.GetFieldEncodings())

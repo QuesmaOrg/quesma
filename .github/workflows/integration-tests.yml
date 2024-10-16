@@ -26,7 +26,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           cache-dependency-path: smoke-test/go.sum
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Download images
         uses: actions/download-artifact@v4
@@ -47,29 +47,49 @@ jobs:
         id: get_author
         run: echo "::set-output name=author::$(git log -1 --pretty=format:'%an <%ae> sha1={%H}')"
 
+      - name: License Header Verification
+        working-directory: ci/it
+        run: |
+          LICENSE_COMMENT="// Copyright Quesma, licensed under the Elastic License 2.0.
+          // SPDX-License-Identifier: Elastic-2.0"
+          failed=false
+          while IFS= read -r -d '' file; do
+            file_content=$(< "$file")
+
+            if [[ "$file_content" != "$LICENSE_COMMENT"* ]]; then
+              echo "License header missing or incorrect in file: $file"
+              failed=true
+            fi
+          done < <(find . -type f -name "*.go" -print0)
+          if [ "$failed" = true ]; then
+            exit 1
+          fi
+
       - name: Run integration tests
         working-directory: ci/it
         run: go test -v
 
       - name: Send Slack notification on failure
         if: failure()
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v1.27.0
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           slack-message: |
-            :exclamation: *Integration tests failed.* :exclamation: @channel
-            Last commit by: ${{ steps.get_author.outputs.author }}
+            :exclamation: *Integration tests failed.* :exclamation: <!channel>
+            *Last commit by:* ${{ steps.get_author.outputs.author }}
+            *Workflow run URL:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
       - name: Send Slack notification on success
         if: success()
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v1.27.0
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           slack-message: |
             :white_check_mark: *Integration tests passed.* Good job team!
-            Last commit by: ${{ steps.get_author.outputs.author }}
+            *Last commit by:* ${{ steps.get_author.outputs.author }}
+            *Workflow run URL:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 

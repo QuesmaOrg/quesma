@@ -1,9 +1,13 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
+
 package testcases
 
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"io"
+	"net/http"
 	"testing"
 )
 
@@ -29,9 +33,9 @@ func (a *TransparentProxyIntegrationTestcase) SetupContainers(ctx context.Contex
 }
 
 func (a *TransparentProxyIntegrationTestcase) RunTests(ctx context.Context, t *testing.T) error {
-	a.testBasicRequest(ctx, t)
-	a.testIfCatHealthRequestReachesElasticsearch(ctx, t)
-	a.testIfIndexCreationWorks(ctx, t)
+	t.Run("test basic request", func(t *testing.T) { a.testBasicRequest(ctx, t) })
+	t.Run("test if cat health request reaches elasticsearch", func(t *testing.T) { a.testIfCatHealthRequestReachesElasticsearch(ctx, t) })
+	t.Run("test if index creation works", func(t *testing.T) { a.testIfIndexCreationWorks(ctx, t) })
 	return nil
 }
 
@@ -41,7 +45,7 @@ func (a *TransparentProxyIntegrationTestcase) testBasicRequest(ctx context.Conte
 		t.Fatalf("Failed to make GET request: %s", err)
 	}
 	defer resp.Body.Close()
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func (a *TransparentProxyIntegrationTestcase) testIfCatHealthRequestReachesElasticsearch(ctx context.Context, t *testing.T) {
@@ -54,7 +58,7 @@ func (a *TransparentProxyIntegrationTestcase) testIfCatHealthRequestReachesElast
 	if err != nil {
 		t.Fatalf("Failed to read response body: %s", err)
 	}
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-elastic-product"))
 	assert.Contains(t, string(bodyBytes), "green")
 }

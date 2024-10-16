@@ -473,38 +473,38 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		dateTimeTimestampField: `SELECT toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0",
 									  count(*) AS "aggr__0__count"
 									FROM __quesma_table_name
-									WHERE ((("timestamp64">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z')
-									  AND "timestamp64"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')) AND
-									  ("timestamp">=parseDateTimeBestEffort('2024-01-29T15:36:36.491Z') AND
-									  "timestamp"<=parseDateTimeBestEffort('2024-01-29T18:11:36.491Z'))) AND NOT ((
-									  "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND
-									  "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))))
+									WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
+									  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
+									  fromUnixTimestamp64Milli(1706542596491) AND "timestamp"<=
+									  fromUnixTimestamp64Milli(1706551896491))) AND NOT (("@timestamp">=
+									  fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=
+									  fromUnixTimestamp64Milli(1706551896491))))
 									GROUP BY toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0"
 									ORDER BY "aggr__0__key_0" ASC`,
 		dateTime64TimestampField: `SELECT toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
 									  "aggr__0__key_0", count(*) AS "aggr__0__count"
 									FROM __quesma_table_name
-									WHERE ((("timestamp64">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z')
-									  AND "timestamp64"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')) AND
-									  ("timestamp">=parseDateTimeBestEffort('2024-01-29T15:36:36.491Z') AND
-									  "timestamp"<=parseDateTimeBestEffort('2024-01-29T18:11:36.491Z'))) AND NOT ((
-									  "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND
-									  "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))))
+									WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
+									  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
+									  fromUnixTimestamp64Milli(1706542596491) AND "timestamp"<=
+									  fromUnixTimestamp64Milli(1706551896491))) AND NOT (("@timestamp">=
+									  fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=
+									  fromUnixTimestamp64Milli(1706551896491))))
 									GROUP BY toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
 									  "aggr__0__key_0"
 									ORDER BY "aggr__0__key_0" ASC`,
 		dateTime64OurTimestampField: `SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS "aggr__0__key_0"
-										  , count(*) AS "aggr__0__count"
-										FROM __quesma_table_name
-										WHERE ((("timestamp64">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z')
-										  AND "timestamp64"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')) AND
-										  ("timestamp">=parseDateTimeBestEffort('2024-01-29T15:36:36.491Z') AND
-										  "timestamp"<=parseDateTimeBestEffort('2024-01-29T18:11:36.491Z'))) AND NOT ((
-										  "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND
-										  "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))))
-										GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
-										  "aggr__0__key_0"
-										ORDER BY "aggr__0__key_0" ASC`,
+									  , count(*) AS "aggr__0__count"
+									FROM __quesma_table_name
+									WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
+									  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
+									  fromUnixTimestamp64Milli(1706542596491) AND "timestamp"<=
+									  fromUnixTimestamp64Milli(1706551896491))) AND NOT (("@timestamp">=
+									  fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=
+									  fromUnixTimestamp64Milli(1706551896491))))
+									GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
+									  "aggr__0__key_0"
+									ORDER BY "aggr__0__key_0" ASC`,
 	}
 
 	db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)

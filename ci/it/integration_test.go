@@ -1,3 +1,6 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
+
 package it
 
 import (
@@ -24,5 +27,15 @@ func TestTransparentProxy(t *testing.T) {
 
 func TestReadingClickHouseTablesIntegrationTestcase(t *testing.T) {
 	testCase := testcases.NewReadingClickHouseTablesIntegrationTestcase()
+	runIntegrationTest(t, testCase)
+}
+
+func TestQueryAndIngestPipelineTestcase(t *testing.T) {
+	testCase := testcases.NewQueryAndIngestPipelineTestcase()
+	runIntegrationTest(t, testCase)
+}
+
+func TestDualWriteAndCommonTableTestcase(t *testing.T) {
+	testCase := testcases.NewDualWriteAndCommonTableTestcase()
 	runIntegrationTest(t, testCase)
 }
