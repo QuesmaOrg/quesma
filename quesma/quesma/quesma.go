@@ -134,6 +134,64 @@ func (r *router) registerPreprocessor(preprocessor RequestPreprocessor) {
 	r.requestPreprocessors = append(r.requestPreprocessors, preprocessor)
 }
 
+func (r *router) errorResponse(ctx context.Context, err error, w http.ResponseWriter) {
+	r.failedRequests.Add(1)
+
+	msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
+	reason := "Failed request."
+	result := mux.ServerErrorResult()
+
+	// if error is an error with user-friendly message, we should use it
+	var endUserError *end_user_errors.EndUserError
+	if errors.As(err, &endUserError) {
+		msg = endUserError.EndUserErrorMessage()
+		reason = endUserError.Reason()
+
+		// we treat all `Q1xxx` errors as bad requests here
+		if endUserError.ErrorType().Number < 2000 {
+			result = mux.BadReqeustResult()
+		}
+	}
+
+	logger.ErrorWithCtxAndReason(ctx, reason).Msgf("quesma request failed: %v", err)
+
+	requestId := "n/a"
+	if contextRid, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
+		requestId = contextRid
+	}
+
+	// We should not send our error message to the client. There can be sensitive information in it.
+	// We will send ID of failed request instead
+	responseFromQuesma(ctx, []byte(fmt.Sprintf("%s\nRequest ID: %s\n", msg, requestId)), w, result, false)
+}
+
+func (*router) closedIndexResponse(ctx context.Context, w http.ResponseWriter, pattern string) {
+	// TODO we should return a proper status code here (400?)
+	w.WriteHeader(http.StatusOK)
+
+	response := make(types.JSON)
+
+	response["error"] = queryparser.Error{
+		RootCause: []queryparser.RootCause{
+			{
+				Type:   "index_closed_exception",
+				Reason: fmt.Sprintf("pattern %s is not routed to any connector", pattern),
+			},
+		},
+		Type:   "index_closed_exception",
+		Reason: fmt.Sprintf("pattern %s is not routed to any connector", pattern),
+	}
+
+	b, err := response.Bytes()
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("Error marshalling response: %v", err)
+		return
+	}
+
+	w.Write(b)
+
+}
+
 func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
@@ -155,7 +213,14 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
 
-	handler, found := router.Matches(quesmaRequest)
+	handler, found, decision := router.Matches(quesmaRequest)
+
+	if decision != nil {
+		w.Header().Set(quesmaTableResolverHeader, decision.String())
+	} else {
+		w.Header().Set(quesmaTableResolverHeader, "n/a")
+	}
+
 	if found {
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
 			return handler(ctx, quesmaRequest)
@@ -177,50 +242,66 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			responseFromQuesma(ctx, unzipped, w, quesmaResponse, zip)
 
 		} else {
-
-			r.failedRequests.Add(1)
-
-			msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
-			reason := "Failed request."
-			result := mux.ServerErrorResult()
-
-			// if error is an error with user-friendly message, we should use it
-			var endUserError *end_user_errors.EndUserError
-			if errors.As(err, &endUserError) {
-				msg = endUserError.EndUserErrorMessage()
-				reason = endUserError.Reason()
-
-				// we treat all `Q1xxx` errors as bad requests here
-				if endUserError.ErrorType().Number < 2000 {
-					result = mux.BadReqeustResult()
-				}
-			}
-
-			logger.ErrorWithCtxAndReason(ctx, reason).Msgf("quesma request failed: %v", err)
-
-			requestId := "n/a"
-			if contextRid, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
-				requestId = contextRid
-			}
-
-			// We should not send our error message to the client. There can be sensitive information in it.
-			// We will send ID of failed request instead
-			responseFromQuesma(ctx, []byte(fmt.Sprintf("%s\nRequest ID: %s\n", msg, requestId)), w, result, zip)
+			r.errorResponse(ctx, err, w)
 		}
 	} else {
 
-		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(opaqueIdHeaderKey), logManager.ResolveIndexPattern)
+		var sendToElastic bool
 
-		rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
-		response := rawResponse.response
-		if response != nil {
-			responseFromElastic(ctx, response, w)
-		} else {
-			w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
-			w.WriteHeader(500)
-			if rawResponse.error != nil {
-				_, _ = w.Write([]byte(rawResponse.error.Error()))
+		if decision != nil {
+
+			if decision.Err != nil {
+				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+				addProductAndContentHeaders(req.Header, w.Header())
+				r.errorResponse(ctx, decision.Err, w)
+				return
 			}
+
+			if decision.IsClosed {
+				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+				addProductAndContentHeaders(req.Header, w.Header())
+				r.closedIndexResponse(ctx, w, decision.IndexPattern)
+				return
+			}
+
+			if decision.IsEmpty {
+				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+				addProductAndContentHeaders(req.Header, w.Header())
+				w.WriteHeader(http.StatusNoContent)
+				w.Write(queryparser.EmptySearchResponse(ctx))
+				return
+			}
+
+			for _, connector := range decision.UseConnectors {
+				if _, ok := connector.(*table_resolver.ConnectorDecisionElastic); ok {
+					// this is desired elastic call
+					sendToElastic = true
+					break
+				}
+			}
+
+		} else {
+			// this is fallback case
+			// in case we don't support sth, we should send it to Elastic
+			sendToElastic = true
+		}
+
+		if sendToElastic {
+			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(opaqueIdHeaderKey), logManager.ResolveIndexPattern)
+
+			rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
+			response := rawResponse.response
+			if response != nil {
+				responseFromElastic(ctx, response, w)
+			} else {
+				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
+				w.WriteHeader(500)
+				if rawResponse.error != nil {
+					_, _ = w.Write([]byte(rawResponse.error.Error()))
+				}
+			}
+		} else {
+			r.errorResponse(ctx, end_user_errors.ErrNoConnector.New(fmt.Errorf("no connector found")), w)
 		}
 	}
 }

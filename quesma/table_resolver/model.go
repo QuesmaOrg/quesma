@@ -9,17 +9,22 @@ import (
 )
 
 type Decision struct {
+	// input
+	IndexPattern string "json:\"index_pattern\""
+
 	// obvious fields
-	IsClosed bool
-	Err      error
-	IsEmpty  bool
+	IsClosed bool  "json:\"is_closed\""
+	Err      error "json:\"error\""
+	IsEmpty  bool  "json:\"is_empty\""
+
+	EnableABTesting bool "json:\"enable_ab_testing\""
 
 	// which connector to use, and how
-	UseConnectors []ConnectorDecision
+	UseConnectors []ConnectorDecision "json:\"use_connectors\""
 
 	// who made the decision and why
-	Message      string
-	ResolverName string
+	Reason       string "json:\"reason\""
+	ResolverName string "json:\"resolver_name\""
 }
 
 func (d *Decision) String() string {
@@ -42,7 +47,11 @@ func (d *Decision) String() string {
 		lines = append(lines, connector.Message())
 	}
 
-	lines = append(lines, fmt.Sprintf("%s (%s).", d.Message, d.ResolverName))
+	if d.EnableABTesting {
+		lines = append(lines, "Enable AB testing.")
+	}
+
+	lines = append(lines, fmt.Sprintf("%s (%s).", d.Reason, d.ResolverName))
 
 	return strings.Join(lines, " ")
 }
@@ -53,18 +62,24 @@ type ConnectorDecision interface {
 
 type ConnectorDecisionElastic struct {
 	// TODO  instance of elastic connector
+	ManagementCall bool "json:\"management_call\""
 }
 
-func (*ConnectorDecisionElastic) Message() string {
-	return "Pass to Elasticsearch."
+func (d *ConnectorDecisionElastic) Message() string {
+	var lines []string
+	lines = append(lines, "Pass to Elasticsearch.")
+	if d.ManagementCall {
+		lines = append(lines, "Management call.")
+	}
+	return strings.Join(lines, " ")
 }
 
 type ConnectorDecisionClickhouse struct {
 	// TODO  instance of clickhouse connector
 
-	ClickhouseTableName string
-	ClickhouseTables    []string
-	IsCommonTable       bool
+	ClickhouseTableName string   "json:\"clickhouse_table_name\""
+	ClickhouseTables    []string "json:\"clickhouse_tables\""
+	IsCommonTable       bool     "json:\"is_common_table\""
 }
 
 func (d *ConnectorDecisionClickhouse) Message() string {

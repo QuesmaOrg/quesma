@@ -1,0 +1,6 @@
+POST localhost:8080/logs_disabled/_doc
+Content-Type: application/json
+
+{
+  "message": "Hello World!"
+}
