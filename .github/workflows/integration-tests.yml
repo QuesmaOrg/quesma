@@ -70,7 +70,7 @@ jobs:
         run: go test -v
 
       - name: Send Slack notification on failure
-        if: failure()
+        if: ${{ failure() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         uses: slackapi/slack-github-action@v1.27.0
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
@@ -82,7 +82,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
       - name: Send Slack notification on success
-        if: success()
+        if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         uses: slackapi/slack-github-action@v1.27.0
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
