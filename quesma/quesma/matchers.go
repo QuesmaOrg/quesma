@@ -35,6 +35,10 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 
 				decision := tableResolver.Resolve(table_resolver.IngestPipeline, name)
 
+				if decision.IsClosed {
+					return mux.MatchResult{Matched: true, Decision: decision}
+				}
+
 				// if have any enabled Clickhouse connector, then return true
 				for _, connector := range decision.UseConnectors {
 					if _, ok := connector.(*table_resolver.ConnectorDecisionClickhouse); ok {
