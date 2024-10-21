@@ -3,26 +3,31 @@
 package lucene
 
 import (
+	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
-	//wc "quesma/queryparser/where_clause"
 )
+
+var invalidStatement = model.NewLiteral("false")
 
 func (p *luceneParser) BuildWhereStatement() model.Expr {
 	for len(p.tokens) > 0 {
 		p.WhereStatement = p.buildWhereStatement(true)
+		fmt.Println("PETLA", p.WhereStatement)
 	}
+	pp.Println(p.WhereStatement)
 	if p.WhereStatement == nil {
-		p.WhereStatement = model.NewLiteral("true")
+		return model.NewLiteral("true")
 	}
 	return p.WhereStatement
 }
 
-// LeafStatement is a smallest part of a query that can be translated into SQL,
+// LeafStatement is the smallest part of a query that can be translated into SQL,
 // e.g. "title:abc", or "abc", or "title:(abc OR def)".
 func newLeafStatement(fieldNames []string, value value) model.Expr {
 	if len(fieldNames) == 0 {
-		return model.NewLiteral("false")
+		return invalidStatement
 	}
 
 	var newStatement model.Expr
@@ -38,13 +43,15 @@ func newLeafStatement(fieldNames []string, value value) model.Expr {
 	return newStatement
 }
 
-var invalidStatement = model.NewLiteral("false")
-
 // buildWhereStatement builds a WHERE statement from the tokens.
 // During parsing, we only keep one expression, because we're combining leafExpressions into
 // a tree of expressions. We keep the lastExpression to combine it with the next one.
 // E.g. "title:abc AND text:def" is parsed into andExpression(title:abc, text:def)".
 func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
+	if len(p.tokens) == 0 {
+		return invalidStatement
+	}
+	fmt.Printf("p.tokens: %v %T\n", p.tokens, p.tokens[0])
 	tok := p.tokens[0]
 	p.tokens = p.tokens[1:]
 	var currentStatement model.Expr
@@ -79,13 +86,28 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 	case notToken:
 		latterExp := p.buildWhereStatement(false)
 		currentStatement = model.NewPrefixExpr("NOT", []model.Expr{latterExp})
+	case existsToken:
+		fmt.Println("p.tokens", p.tokens)
+		fieldName, ok := p.buildValue([]value{}, 0).(termValue)
+		if !ok {
+			logger.Error().Msgf("buildExpression: invalid expression, unexpected token: %#v, tokens: %v", currentToken, p.tokens)
+			return invalidStatement
+		}
+		currentStatement = model.NewInfixExpr(model.NewColumnRef(fieldName.term), " IS NOT ", model.NewLiteral("NULL"))
 	case leftParenthesisToken:
-		currentStatement = newLeafStatement(p.defaultFieldNames, p.buildValue([]value{}, 1))
+		currentStatement = model.NewParenExpr(p.buildWhereStatement(true))
+	case rightParenthesisToken:
+		if p.WhereStatement == nil {
+			return invalidStatement
+		}
+		return p.WhereStatement
 	default:
 		logger.Error().Msgf("buildExpression: invalid expression, unexpected token: %#v, tokens: %v", currentToken, p.tokens)
 		return invalidStatement
 	}
+	fmt.Println("currentStatement", currentStatement)
 	if !addDefaultOperator || p.WhereStatement == nil {
+		pp.Println("in if", addDefaultOperator, p.WhereStatement, currentStatement)
 		return currentStatement
 	}
 	switch stmt := currentStatement.(type) {
