@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 )
 
 // 2. Translate aggregation tree into pancake model.
@@ -374,6 +375,36 @@ func (a *pancakeTransformer) createTopHitAndTopMetricsPancakes(pancake *pancakeM
 	return
 }
 
+func (a *pancakeTransformer) transformAutoDateHistogram(layers []*pancakeModelLayer, whereClause model.Expr) {
+	for _, layer := range layers {
+		if layer.nextBucketAggregation != nil {
+			if autoDateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.AutoDateHistogram); ok {
+				timestampLowerBound, ok := model.FindTimestampLowerBound(whereClause)
+				if !ok {
+					logger.WarnWithCtx(a.ctx).Msgf("could not find timestamp lower bound for auto_date_histogram %v", autoDateHistogram)
+					continue
+				}
+				if autoDateHistogram.GetField() != timestampLowerBound.Left {
+					logger.WarnWithCtx(a.ctx).Msgf("auto_date_histogram field %s does not match timestamp lower bound %s", autoDateHistogram.GetField(), timestampLowerBound.Left)
+					continue
+				}
+				var b any
+				if fun, ok := timestampLowerBound.Right.(model.FunctionExpr); ok && len(fun.Args) == 1 {
+					if s, ok := fun.Args[0].(model.LiteralExpr); ok {
+						b = s.Value
+					}
+				}
+				x, err := time.Parse("2006-01-02T15:04:05.000Z", b.(string)[1:len(b.(string))-1])
+				if err != nil {
+					//fmt.Println(err)
+					continue
+				}
+				autoDateHistogram.SetKey(x.UnixMilli())
+			}
+		}
+	}
+}
+
 func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregationTree) (pancakeResults []*pancakeModel, err error) {
 	if len(topLevel.children) == 0 {
 		return nil, fmt.Errorf("no top level aggregations found")
@@ -398,6 +429,7 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		}
 
 		a.connectPipelineAggregations(layers)
+		a.transformAutoDateHistogram(layers, topLevel.whereClause)
 
 		newPancake := pancakeModel{
 			layers:      layers,
