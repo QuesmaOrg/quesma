@@ -51,6 +51,13 @@ type QuesmaNewConfiguration struct {
 	DisableTelemetry           bool                 `koanf:"disableTelemetry"`
 }
 
+type LoggingConfiguration struct {
+	Path              string         `koanf:"path"`
+	Level             *zerolog.Level `koanf:"level"`
+	RemoteLogDrainUrl *Url           `koanf:"remoteUrl"`
+	FileLogging       bool           `koanf:"fileLogging"`
+}
+
 type Pipeline struct {
 	Name               string   `koanf:"name"`
 	FrontendConnectors []string `koanf:"frontendConnectors"`
@@ -73,6 +80,25 @@ type BackendConnector struct {
 	Name   string                    `koanf:"name"`
 	Type   string                    `koanf:"type"`
 	Config RelationalDbConfiguration `koanf:"config"`
+}
+
+type RelationalDbConfiguration struct {
+	//ConnectorName string `koanf:"name"`
+	ConnectorType string `koanf:"type"`
+	Url           *Url   `koanf:"url"`
+	User          string `koanf:"user"`
+	Password      string `koanf:"password"`
+	Database      string `koanf:"database"`
+	AdminUrl      *Url   `koanf:"adminUrl"`
+	DisableTLS    bool   `koanf:"disableTLS"`
+}
+
+func (c *RelationalDbConfiguration) IsEmpty() bool {
+	return c != nil && c.Url == nil && c.User == "" && c.Password == "" && c.Database == ""
+}
+
+func (c *RelationalDbConfiguration) IsNonEmpty() bool {
+	return !c.IsEmpty()
 }
 
 type Processor struct {
@@ -458,6 +484,21 @@ func (c *QuesmaNewConfiguration) getProcessorByName(name string) *Processor {
 	return nil
 }
 
+func (c *QuesmaNewConfiguration) getTargetType(backendConnectorName string) (string, bool) {
+	backendConnector := c.getBackendConnectorByName(backendConnectorName)
+	if backendConnector == nil {
+		return "", false
+	}
+	switch backendConnector.Type {
+	case ElasticsearchBackendConnectorName:
+		return ElasticsearchTarget, true
+	case ClickHouseOSBackendConnectorName, ClickHouseBackendConnectorName, HydrolixBackendConnectorName:
+		return ClickhouseTarget, true
+	default:
+		return "", false
+	}
+}
+
 func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	var err, errAcc error
 	var conf QuesmaConfiguration
@@ -505,25 +546,20 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			// this a COPY-PASTE from the dual pipeline case, but we need to do it here as well
 			// TODO refactor this to a separate function
 
-			elasticBackendName := c.getElasticsearchBackendConnector().Name
-			var relationalDBBackendName string
-			if relationalDBBackend, _ := c.getRelationalDBBackendConnector(); relationalDBBackend != nil {
-				relationalDBBackendName = relationalDBBackend.Name
-			}
-
 			conf.IndexConfig = make(map[string]IndexConfiguration)
 			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 				processedConfig := indexConfig
 				processedConfig.Name = indexName
 
-				if slices.Contains(indexConfig.Target, elasticBackendName) {
-					processedConfig.QueryTarget = append(processedConfig.QueryTarget, ElasticsearchTarget)
-				}
-				if slices.Contains(indexConfig.Target, relationalDBBackendName) {
-					processedConfig.QueryTarget = append(processedConfig.QueryTarget, ClickhouseTarget)
+				for _, target := range indexConfig.Target {
+					if targetType, found := c.getTargetType(target); found {
+						processedConfig.QueryTarget = append(processedConfig.QueryTarget, targetType)
+					} else {
+						errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
+					}
 				}
 
-				if len(processedConfig.QueryTarget) == 2 && !(indexConfig.Target[0] == relationalDBBackendName && indexConfig.Target[1] == elasticBackendName) {
+				if len(processedConfig.QueryTarget) == 2 && !(processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration - when you specify two targets, ClickHouse has to be the primary one and Elastic has to be the secondary one", indexName))
 					continue
 				}
@@ -566,12 +602,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			goto END
 		}
 
-		elasticBackendName := c.getElasticsearchBackendConnector().Name
-		var relationalDBBackendName string
-		if relationalDBBackend, _ := c.getRelationalDBBackendConnector(); relationalDBBackend != nil {
-			relationalDBBackendName = relationalDBBackend.Name
-		}
-
 		conf.IndexConfig = make(map[string]IndexConfiguration)
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 			processedConfig := indexConfig
@@ -579,14 +609,15 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			processedConfig.IngestTarget = DefaultIngestTarget
 
-			if slices.Contains(indexConfig.Target, elasticBackendName) {
-				processedConfig.QueryTarget = append(processedConfig.QueryTarget, ElasticsearchTarget)
-			}
-			if slices.Contains(indexConfig.Target, relationalDBBackendName) {
-				processedConfig.QueryTarget = append(processedConfig.QueryTarget, ClickhouseTarget)
+			for _, target := range indexConfig.Target {
+				if targetType, found := c.getTargetType(target); found {
+					processedConfig.QueryTarget = append(processedConfig.QueryTarget, targetType)
+				} else {
+					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
+				}
 			}
 
-			if len(processedConfig.QueryTarget) == 2 && !(indexConfig.Target[0] == relationalDBBackendName && indexConfig.Target[1] == elasticBackendName) {
+			if len(processedConfig.QueryTarget) == 2 && !(processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) {
 				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration - when you specify two targets, ClickHouse has to be the primary one and Elastic has to be the secondary one", indexName))
 				continue
 			}
@@ -616,11 +647,12 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			}
 
 			processedConfig.IngestTarget = make([]string, 0) // reset previously set DefaultIngestTarget
-			if slices.Contains(indexConfig.Target, elasticBackendName) {
-				processedConfig.IngestTarget = append(processedConfig.IngestTarget, ElasticsearchTarget)
-			}
-			if slices.Contains(indexConfig.Target, relationalDBBackendName) {
-				processedConfig.IngestTarget = append(processedConfig.IngestTarget, ClickhouseTarget)
+			for _, target := range indexConfig.Target {
+				if targetType, found := c.getTargetType(target); found {
+					processedConfig.IngestTarget = append(processedConfig.IngestTarget, targetType)
+				} else {
+					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
+				}
 			}
 
 			conf.IndexConfig[indexName] = processedConfig

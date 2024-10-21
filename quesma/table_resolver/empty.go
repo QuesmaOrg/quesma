@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Elastic-2.0
 package table_resolver
 
+import "fmt"
+
 type EmptyTableResolver struct {
 	Decisions          map[string]*Decision
 	RecentDecisionList []PatternDecisions
@@ -15,7 +17,16 @@ func NewEmptyTableResolver() *EmptyTableResolver {
 }
 
 func (r *EmptyTableResolver) Resolve(pipeline string, indexPattern string) *Decision {
-	return r.Decisions[indexPattern]
+	d, ok := r.Decisions[indexPattern]
+	if ok {
+		return d
+	}
+	msg := fmt.Sprintf("Could not resolve pattern %v. Fix you test setup first.", indexPattern)
+	return &Decision{
+		Err:          fmt.Errorf("%s", msg),
+		Reason:       msg,
+		ResolverName: "EmptyTableResolver.Resolve",
+	}
 }
 
 func (r *EmptyTableResolver) RecentDecisions() []PatternDecisions {
