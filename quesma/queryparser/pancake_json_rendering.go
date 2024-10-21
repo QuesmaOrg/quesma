@@ -180,7 +180,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 		if err != nil {
 			return nil, err
 		}
-		return util.MergeMaps(p.ctx, aggJson, subAggr, model.KeyAddedByQuesma), nil
+		return util.MergeMaps(p.ctx, aggJson, subAggr), nil
 	case bucket_aggregations.CombinatorAggregationInterface:
 		var bucketArray []model.JsonMap
 		for _, subGroup := range queryType.CombinatorGroups() {
@@ -194,8 +194,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), selectedRowsWithoutPrefix)
 			aggJson := queryType.CombinatorTranslateSqlResponseToJson(subGroup, selectedRows)
 
-			bucketArray = append(bucketArray,
-				util.MergeMaps(p.ctx, aggJson, subAggr, model.KeyAddedByQuesma))
+			bucketArray = append(bucketArray, util.MergeMaps(p.ctx, aggJson, subAggr))
 			bucketArray[len(bucketArray)-1]["key"] = subGroup.Key
 		}
 		var bucketsJson any
@@ -258,6 +257,29 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			return result, nil
 		}
 
+		hasSubaggregations := len(remainingLayers) > 1
+		var nextLayer *pancakeModelLayer
+		if hasSubaggregations {
+			// If we have pipeline parent aggregation, we need to *always* set min_doc_count to 0 in the parent bucket aggregation
+			// Important to do that early, before processing it after this if.
+			nextLayer = remainingLayers[1]
+			anyPipelineParentAggregation := false
+			for _, pipeline := range nextLayer.childrenPipelineAggregations {
+				if pipeline.queryType.PipelineAggregationType() == model.PipelineParentAggregation {
+					anyPipelineParentAggregation = true
+					break
+				}
+			}
+			if anyPipelineParentAggregation {
+				switch parentBucketAggreagation := layer.nextBucketAggregation.queryType.(type) {
+				case *bucket_aggregations.DateHistogram:
+					parentBucketAggreagation.SetMinDocCountToZero()
+				case *bucket_aggregations.Histogram:
+					parentBucketAggreagation.SetMinDocCountToZero()
+				}
+			}
+		}
+
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
 		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
 
@@ -271,9 +293,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			return result, nil
 		}
 
-		hasSubaggregations := len(remainingLayers) > 1
 		if hasSubaggregations {
-			nextLayer := remainingLayers[1]
 			pipelineBucketsPerAggregation := p.pipeline.currentPipelineBucketAggregations(layer, nextLayer, bucketRows, subAggrRows)
 
 			// Add subAggregations (both normal and pipeline)
@@ -296,12 +316,11 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						continue
 					}
 
-					// TODO: Maybe add model.KeyAddedByQuesma if there are more than one pancake
 					subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[i])
 					if err != nil {
 						return nil, err
 					}
-					bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr, model.KeyAddedByQuesma)
+					bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
 				}
 			} else {
 				// A bit harder case. Observation: len(bucketArr) > len(subAggrRows) and set(subAggrRows' keys) is a subset of set(bucketArr's keys)
@@ -318,9 +337,13 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						continue
 					}
 
-					key, exists := bucket["key"]
+					// if our bucket aggregation is a date_histogram, we need original key, not processed one, which is "key"
+					key, exists := bucket[bucket_aggregations.OriginalKeyName]
 					if !exists {
-						return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
+						key, exists = bucket["key"]
+						if !exists {
+							return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
+						}
 					}
 
 					columnNameWithKey := layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
@@ -330,7 +353,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						if err != nil {
 							return nil, err
 						}
-						bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr, model.KeyAddedByQuesma)
+						bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
 						subAggrIdx++
 					} else {
 						bucketArr[i] = bucket

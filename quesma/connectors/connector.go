@@ -64,5 +64,13 @@ func registerConnectors(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHome
 			logger.Error().Msgf("Unknown connector type [%s]", conn.ConnectorType)
 		}
 	}
+
+	// Mock connector for transparent proxy, perhaps improve at some point
+	if len(cfg.Connectors) == 0 && cfg.TransparentProxy {
+		conns = append(conns, &ClickHouseOSConnector{
+			Connector: clickhouse.NewEmptyLogManager(cfg, chDb, phoneHomeAgent, loader),
+		})
+	}
+
 	return conns
 }

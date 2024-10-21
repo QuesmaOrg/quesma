@@ -12,12 +12,11 @@ import (
 )
 
 type AverageBucket struct {
-	ctx context.Context
-	PipelineAggregation
+	*PipelineAggregation
 }
 
 func NewAverageBucket(ctx context.Context, bucketsPath string) AverageBucket {
-	return AverageBucket{ctx: ctx, PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
+	return AverageBucket{PipelineAggregation: newPipelineAggregation(ctx, bucketsPath)}
 }
 
 func (query AverageBucket) AggregationType() model.AggregationType {
@@ -88,4 +87,8 @@ func (query AverageBucket) calculateSingleAvgBucket(parentRows []model.QueryResu
 
 func (query AverageBucket) String() string {
 	return fmt.Sprintf("avg_bucket(%s)", query.Parent)
+}
+
+func (query AverageBucket) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineSiblingAggregation
 }

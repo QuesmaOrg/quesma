@@ -41,3 +41,7 @@ func (query BucketScript) CalculateResultWhenMissing(*model.Query, []model.Query
 func (query BucketScript) String() string {
 	return "bucket script"
 }
+
+func (query BucketScript) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineParentAggregation // not sure, maybe it's sibling.
+}

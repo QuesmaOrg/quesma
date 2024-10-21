@@ -19,6 +19,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/testdata"
 	"quesma/tracing"
@@ -41,9 +42,20 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			logChan := logger.InitOnlyChannelLoggerForTests()
-			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
+
+			resolver := table_resolver.NewEmptyTableResolver()
+			resolver.Decisions[tableName] = &table_resolver.Decision{
+				UseConnectors: []table_resolver.ConnectorDecision{
+					&table_resolver.ConnectorDecisionClickhouse{
+						ClickhouseTableName: tableName,
+						ClickhouseTables:    []string{tableName},
+					},
+				},
+			}
+
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
 			go managementConsole.RunOnlyChannelProcessor()
-			s := schema.StaticRegistry{
+			s := &schema.StaticRegistry{
 				Tables: map[schema.TableName]schema.Schema{
 					tableName: {
 						Fields: map[schema.FieldName]schema.Field{
@@ -61,9 +73,9 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 				},
 			}
 
-			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), resolver)
 			newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
-			_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(tt.QueryRequestJson))
+			queryRunner.handleSearch(newCtx, tableName, types.MustJSON(tt.QueryRequestJson))
 
 			for _, queryType := range model.AllQueryTypes {
 				if queryType != tt.QueryType {
@@ -108,9 +120,20 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 
 	lm := clickhouse.NewLogManagerWithConnection(db, table)
 	logChan := logger.InitOnlyChannelLoggerForTests()
-	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
+
+	resolver := table_resolver.NewEmptyTableResolver()
+	resolver.Decisions[tableName] = &table_resolver.Decision{
+		UseConnectors: []table_resolver.ConnectorDecision{
+			&table_resolver.ConnectorDecisionClickhouse{
+				ClickhouseTableName: tableName,
+				ClickhouseTables:    []string{tableName},
+			},
+		},
+	}
+
+	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
 	go managementConsole.RunOnlyChannelProcessor()
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
@@ -129,7 +152,7 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 		},
 	}
 
-	queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+	queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), resolver)
 	for _, testNr := range testNrs {
 		newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
 		_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(testdata.UnsupportedQueriesTests[testNr].QueryRequestJson))

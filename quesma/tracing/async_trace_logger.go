@@ -42,7 +42,7 @@ func FormatMessages(messages []string) string {
 func (h *AsyncTraceLogger) Run(e *zerolog.Event, level zerolog.Level, message string) {
 	ctx := e.GetCtx()
 	if asyncId, ok := ctx.Value(AsyncIdCtxKey).(string); ok {
-		_, ok := ctx.Value(DumpedCtxKey).(bool)
+		_, ok = ctx.Value(DumpedCtxKey).(bool)
 		if ok {
 			return
 		}
@@ -50,7 +50,7 @@ func (h *AsyncTraceLogger) Run(e *zerolog.Event, level zerolog.Level, message st
 			return
 		}
 
-		if _, ok := ctx.Value(TraceEndCtxKey).(bool); ok {
+		if _, ok = ctx.Value(TraceEndCtxKey).(bool); ok {
 			e.Discard()
 			h.AsyncQueryTrace.Delete(asyncId)
 		} else if level == zerolog.ErrorLevel || level == zerolog.FatalLevel || level == zerolog.PanicLevel {
@@ -81,7 +81,7 @@ func (h *AsyncTraceLogger) Run(e *zerolog.Event, level zerolog.Level, message st
 					traceCtx.Updated = time.Now()
 					h.AsyncQueryTrace.Store(asyncId, traceCtx)
 				} else {
-					traceCtx := TraceCtx{
+					traceCtx = TraceCtx{
 						Messages: []string{message},
 						Path:     "",
 						Added:    time.Now(),

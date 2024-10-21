@@ -19,6 +19,7 @@ import (
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/stats"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"sort"
 	"strings"
@@ -68,7 +69,7 @@ type (
 )
 
 func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor,
-	cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []BulkItem, err error) {
+	cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent, tableResolver table_resolver.TableResolver) (results []BulkItem, err error) {
 	defer recovery.LogPanic()
 
 	bulkSize := len(bulk) / 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
@@ -76,7 +77,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 
 	// The returned results should be in the same order as the input request, however splitting the bulk might change the order.
 	// Therefore, each BulkRequestEntry has a corresponding pointer to the result entry, allowing us to freely split and reshuffle the bulk.
-	results, clickhouseDocumentsToInsert, elasticRequestBody, elasticBulkEntries, err := splitBulk(ctx, defaultIndex, bulk, bulkSize, cfg)
+	results, clickhouseDocumentsToInsert, elasticRequestBody, elasticBulkEntries, err := splitBulk(ctx, defaultIndex, bulk, bulkSize, cfg, tableResolver)
 	if err != nil {
 		return []BulkItem{}, err
 	}
@@ -110,7 +111,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 	return results, nil
 }
 
-func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bulkSize int, cfg *config.QuesmaConfiguration) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
+func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bulkSize int, cfg *config.QuesmaConfiguration, tableResolver table_resolver.TableResolver) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
 	results := make([]BulkItem, bulkSize)
 
 	clickhouseDocumentsToInsert := make(map[string][]BulkRequestEntry, bulkSize)
@@ -138,36 +139,13 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 			}
 		}
 
-		indexConfig, found := cfg.IndexConfig[index]
-		if !found || indexConfig.IsElasticIngestEnabled() {
-			// Bulk entry for Elastic - forward the request as-is
-			opBytes, err := rawOp.Bytes()
-			if err != nil {
-				return err
-			}
-			elasticRequestBody = append(elasticRequestBody, opBytes...)
-			elasticRequestBody = append(elasticRequestBody, '\n')
+		decision := tableResolver.Resolve(table_resolver.IngestPipeline, index)
 
-			documentBytes, err := document.Bytes()
-			if err != nil {
-				return err
-			}
-			elasticRequestBody = append(elasticRequestBody, documentBytes...)
-			elasticRequestBody = append(elasticRequestBody, '\n')
-
-			elasticBulkEntries = append(elasticBulkEntries, entryWithResponse)
+		if decision.Err != nil {
+			return decision.Err
 		}
-		if found && indexConfig.IsClickhouseIngestEnabled() {
-			// Bulk entry for Clickhouse
-			if operation != "create" && operation != "index" {
-				// Elastic also fails the entire bulk in such case
-				logger.ErrorWithCtxAndReason(ctx, "unsupported bulk operation type").Msgf("unsupported bulk operation type: %s", operation)
-				return fmt.Errorf("unsupported bulk operation type: %s. Operation: %v, Document: %v", operation, rawOp, document)
-			}
 
-			clickhouseDocumentsToInsert[index] = append(clickhouseDocumentsToInsert[index], entryWithResponse)
-		}
-		if indexConfig.IsIngestDisabled() {
+		if decision.IsClosed || len(decision.UseConnectors) == 0 {
 			bulkSingleResponse := BulkSingleResponse{
 				Shards: BulkShardsResponse{
 					Failed:     1,
@@ -198,6 +176,46 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 				return fmt.Errorf("unsupported bulk operation type: %s. Document: %v", operation, document)
 			}
 		}
+
+		for _, connector := range decision.UseConnectors {
+
+			switch connector.(type) {
+
+			case *table_resolver.ConnectorDecisionElastic:
+				// Bulk entry for Elastic - forward the request as-is
+				opBytes, err := rawOp.Bytes()
+				if err != nil {
+					return err
+				}
+				elasticRequestBody = append(elasticRequestBody, opBytes...)
+				elasticRequestBody = append(elasticRequestBody, '\n')
+
+				documentBytes, err := document.Bytes()
+				if err != nil {
+					return err
+				}
+				elasticRequestBody = append(elasticRequestBody, documentBytes...)
+				elasticRequestBody = append(elasticRequestBody, '\n')
+
+				elasticBulkEntries = append(elasticBulkEntries, entryWithResponse)
+
+			case *table_resolver.ConnectorDecisionClickhouse:
+
+				// Bulk entry for Clickhouse
+				if operation != "create" && operation != "index" {
+					// Elastic also fails the entire bulk in such case
+					logger.ErrorWithCtxAndReason(ctx, "unsupported bulk operation type").Msgf("unsupported bulk operation type: %s", operation)
+					return fmt.Errorf("unsupported bulk operation type: %s. Operation: %v, Document: %v", operation, rawOp, document)
+				}
+
+				clickhouseDocumentsToInsert[index] = append(clickhouseDocumentsToInsert[index], entryWithResponse)
+
+			default:
+				return fmt.Errorf("unsupported connector type: %T", connector)
+			}
+
+		}
+
 		return nil
 	})
 

@@ -266,16 +266,9 @@ var AggregationTests = []testdata.AggregationTestCase{
 										{
 											"_id": "YcwMII8BiWIsMAbUDSt-",
 											"_index": "device_logs",
-											"_score": null,
+											"_score": 1.0,
 											"_source": {
-												"properties": {
-													"entry_time": 1704129696028
-												}
-											},
-											"fields": {
-												"properties.entry_time": [
-													1704129696028
-												]
+												"properties.entry_time": 1704129696028
 											},
 											"sort": [
 												1714229611000
@@ -284,23 +277,16 @@ var AggregationTests = []testdata.AggregationTestCase{
 										{
 											"_id": "YswMII8BiWIsMAbUDSt-",
 											"_index": "device_logs",
-											"_score": null,
+											"_score": 1.0,
 											"_source": {
-												"properties": {
-													"entry_time": 1704129696028
-												}
-											},
-											"fields": {
-												"properties.entry_time": [
-													1704129696028
-												]
+												"properties.entry_time": 1704129696028
 											},
 											"sort": [
 												1714229611000
 											]
 										}
 									],
-									"max_score": null,
+									"max_score": 1.0,
 									"total": {
 										"relation": "eq",
 										"value": 1880
@@ -324,8 +310,40 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 3
 		}`,
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedPancakeSQL:     "TODO",
+		// TODO: Remove value as it is used for total hits
+		// TODO: Remove sort, it should be implemented
+		AdditionalAcceptableDifference: []string{"_index", "_id", "value", "sort"},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("range_0__aggr__2__count", uint64(0)),
+				model.NewQueryResultCol("range_1__aggr__2__count", uint64(1880)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT countIf("properties.entry_time"<1000) AS "range_0__aggr__2__count",
+			  countIf("properties.entry_time">=-100) AS "range_1__aggr__2__count"
+			FROM __quesma_table_name
+			WHERE ("epoch_time">='2024-04-27T14:38:33.527Z' AND "epoch_time"<=
+			  '2024-04-27T14:53:33.527Z')`,
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{{}}, // 0 results
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("top_hits__2__1_col_0", uint64(1704129696028))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("top_hits__2__1_col_0", uint64(1704129696028))}},
+			},
+		},
+		ExpectedAdditionalPancakeSQLs: []string{`
+			SELECT "properties.entry_time" AS "top_hits__2__1_col_0"
+			FROM __quesma_table_name
+			WHERE ("properties.entry_time"<1000 AND ("epoch_time">=
+			  '2024-04-27T14:38:33.527Z' AND "epoch_time"<='2024-04-27T14:53:33.527Z'))
+			LIMIT 2`, `
+			SELECT "properties.entry_time" AS "top_hits__2__1_col_0"
+			FROM __quesma_table_name
+			WHERE ("properties.entry_time">=-100 AND ("epoch_time">=
+			  '2024-04-27T14:38:33.527Z' AND "epoch_time"<='2024-04-27T14:53:33.527Z'))
+			LIMIT 2`,
+		},
 	},
 	{ // [2]
 		TestName: "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Sum, Buckets: Aggregation: Range",
@@ -701,7 +719,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 						{
 							"1": {
 								"value": 1714687096297.0,
-								"value_as_string": "2024-05-02T21:58:16.297Z"
+								"value_as_string": "2024-05-02T21:58:16.297"
 							},
 							"bg_count": 2570,
 							"doc_count": 2570,
@@ -711,7 +729,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 						{
 							"1": {
 								"value": 1714665552949.0,
-								"value_as_string": "2024-05-02T15:59:12.949Z"
+								"value_as_string": "2024-05-02T15:59:12.949"
 							},
 							"bg_count": 94,
 							"doc_count": 94,
@@ -753,8 +771,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  maxOrNull("timestamp") AS "metric__2__1_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z'))
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1713401399517) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1714697399517))
 			GROUP BY "response" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
@@ -846,7 +864,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 						{
 							"1": {
 								"value": 1713659942912.0,
-								"value_as_string": "2024-04-21T00:39:02.912Z"
+								"value_as_string": "2024-04-21T00:39:02.912"
 							},
 							"bg_count": 2570,
 							"doc_count": 2570,
@@ -856,7 +874,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 						{
 							"1": {
 								"value": 1713670225131.0,
-								"value_as_string": "2024-04-21T03:30:25.131Z"
+								"value_as_string": "2024-04-21T03:30:25.131"
 							},
 							"bg_count": 94,
 							"doc_count": 94,
@@ -897,8 +915,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
 			  minOrNull("timestamp") AS "metric__2__1_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z'))
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1713401460471) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1714697460471))
 			GROUP BY "response" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,
@@ -1074,8 +1092,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  quantiles(0.950000)("timestamp") AS "metric__2__1_col_5",
 			  quantiles(0.990000)("timestamp") AS "metric__2__1_col_6"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1713401475845) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1714697475845))
 			GROUP BY "response" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
 			LIMIT 4`,

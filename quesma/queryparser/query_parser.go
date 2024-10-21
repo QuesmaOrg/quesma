@@ -7,7 +7,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
+	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -19,9 +21,6 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-
-	"github.com/k0kubun/pp"
-	"github.com/relvacode/iso8601"
 )
 
 type QueryMap = map[string]interface{}
@@ -67,13 +66,15 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		queries = append(queries, listQuery)
 	}
 
+	runtimeMappings := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
+
 	// we apply post query transformer for certain aggregation types
 	// this should be a part of the query parsing process
 
 	queryResultTransformers := make([]model.QueryRowsTransformer, len(queries))
 	for i, query := range queries {
 		switch agg := query.Type.(type) {
-		case bucket_aggregations.Histogram:
+		case *bucket_aggregations.Histogram:
 			queryResultTransformers[i] = agg.NewRowsTransformer()
 
 		case *bucket_aggregations.DateHistogram:
@@ -82,7 +83,8 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	}
 
 	for _, query := range queries {
-		query.TableName = cw.Table.Name // TODO remove this line
+		query.TableName = cw.Table.Name
+		query.RuntimeMappings = runtimeMappings
 		query.Indexes = cw.Indexes
 		query.Schema = cw.Schema
 	}
@@ -761,7 +763,6 @@ func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (strin
 
 	exp, err := ParseDateMathExpression(expr)
 	if err != nil {
-		logger.Warn().Msgf("error parsing date math expression: %s", expr)
 		return "", err
 	}
 
@@ -772,7 +773,6 @@ func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (strin
 
 	sql, err := builder.RenderSQL(exp)
 	if err != nil {
-		logger.Warn().Msgf("error rendering date math expression: %s", expr)
 		return "", err
 	}
 
@@ -789,84 +789,81 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 		return model.NewSimpleQuery(nil, false)
 	}
 
-	for field, v := range queryMap {
-		field = cw.ResolveField(cw.Ctx, field)
+	for fieldName, v := range queryMap {
+		fieldName = cw.ResolveField(cw.Ctx, fieldName)
+		fieldType := cw.Table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName))
 		stmts := make([]model.Expr, 0)
 		if _, ok := v.(QueryMap); !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid range type: %T, value: %v", v, v)
 			continue
 		}
-		isDatetimeInDefaultFormat := true // in 99% requests, format is "strict_date_optional_time", which we can parse with time.Parse(time.RFC3339Nano, ..)
-		if format, ok := v.(QueryMap)["format"]; ok && format == "epoch_millis" {
-			isDatetimeInDefaultFormat = false
-		}
 
 		keysSorted := util.MapKeysSorted(v.(QueryMap))
 		for _, op := range keysSorted {
-			v := v.(QueryMap)[op]
-			var timeFormatFuncName string
-			var finalLHS, valueToCompare model.Expr
-			fieldType := cw.Table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, field))
-			vToPrint := sprint(v)
-			valueToCompare = model.NewLiteral(vToPrint)
-			finalLHS = model.NewColumnRef(field)
-			if !isDatetimeInDefaultFormat {
-				timeFormatFuncName = "toUnixTimestamp64Milli"
-				finalLHS = model.NewFunction(timeFormatFuncName, model.NewColumnRef(field))
-			} else {
-				switch fieldType {
-				case clickhouse.DateTime64, clickhouse.DateTime:
-					if dateTime, ok := v.(string); ok {
-						// if it's a date, we need to parse it to Clickhouse's DateTime format
-						// how to check if it does not contain date math expression?
-						if _, err := iso8601.ParseString(dateTime); err == nil {
-							_, timeFormatFuncName = cw.parseDateTimeString(cw.Table, field, dateTime)
-							// TODO Investigate the quotation below
-							valueToCompare = model.NewFunction(timeFormatFuncName, model.NewLiteral(fmt.Sprintf("'%s'", dateTime)))
-						} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
-							vToPrint, err = cw.parseDateMathExpression(vToPrint)
-							valueToCompare = model.NewLiteral(vToPrint)
-							if err != nil {
-								logger.WarnWithCtx(cw.Ctx).Msgf("error parsing date math expression: %s", vToPrint)
-								return model.NewSimpleQuery(nil, false)
-							}
-						}
-					} else if v == nil {
-						vToPrint = "NULL"
-						valueToCompare = model.NewLiteral("NULL")
+			valueRaw := v.(QueryMap)[op]
+			value := sprint(valueRaw)
+			defaultValue := model.NewLiteral(value)
+			dateManager := kibana.NewDateManager()
+
+			// Three stages:
+			// 1. dateManager.ParseRange
+			// 2. cw.parseDateMathExpression
+			// 3. just a number
+			// Dates use 1-3 and finish as soon as any succeeds
+			// Numbers use just 3rd
+
+			var finalValue model.Expr
+			doneParsing, isQuoted := false, len(value) > 2 && value[0] == '\'' && value[len(value)-1] == '\''
+			switch fieldType {
+			case clickhouse.DateTime, clickhouse.DateTime64:
+				// TODO add support for "time_zone" parameter in ParseRange
+				finalValue, doneParsing = dateManager.ParseRange(value) // stage 1
+
+				if !doneParsing && (op == "gte" || op == "lte" || op == "gt" || op == "lt") { // stage 2
+					parsed, err := cw.parseDateMathExpression(value)
+					if err == nil {
+						doneParsing = true
+						finalValue = model.NewLiteral(parsed)
 					}
-				case clickhouse.Invalid: // assumes it is number that does not need formatting
-					if len(vToPrint) > 2 && vToPrint[0] == '\'' && vToPrint[len(vToPrint)-1] == '\'' {
-						isNumber := true
-						for _, c := range vToPrint[1 : len(vToPrint)-1] {
-							if !unicode.IsDigit(c) && c != '.' {
-								isNumber = false
-							}
-						}
-						if isNumber {
-							vToPrint = vToPrint[1 : len(vToPrint)-1]
-						} else {
-							logger.WarnWithCtx(cw.Ctx).Msgf("we use range with unknown literal %s, field %s", vToPrint, field)
-						}
-						valueToCompare = model.NewLiteral(vToPrint)
-					}
-				default:
-					logger.WarnWithCtx(cw.Ctx).Msgf("invalid DateTime type for field: %s, parsed dateTime value: %s", field, vToPrint)
 				}
+
+				if !doneParsing && isQuoted { // stage 3
+					finalValue, doneParsing = dateManager.ParseRange(value[1 : len(value)-1])
+				}
+			case clickhouse.Invalid:
+				if isQuoted {
+					isNumber, unquoted := true, value[1:len(value)-1]
+					for _, c := range unquoted {
+						if !unicode.IsDigit(c) && c != '.' {
+							isNumber = false
+						}
+					}
+					if isNumber {
+						finalValue = model.NewLiteral(unquoted)
+						doneParsing = true
+					}
+				}
+			default:
+				logger.ErrorWithCtx(cw.Ctx).Msgf("invalid DateTime type for field: %s, parsed dateTime value: %s", fieldName, value)
 			}
 
+			if !doneParsing {
+				finalValue = defaultValue
+			}
+
+			field := model.NewColumnRef(fieldName)
 			switch op {
 			case "gte":
-				stmt := model.NewInfixExpr(finalLHS, ">=", valueToCompare)
+				stmt := model.NewInfixExpr(field, ">=", finalValue)
 				stmts = append(stmts, stmt)
 			case "lte":
-				stmt := model.NewInfixExpr(finalLHS, "<=", valueToCompare)
+				stmt := model.NewInfixExpr(field, "<=", finalValue)
 				stmts = append(stmts, stmt)
 			case "gt":
-				stmt := model.NewInfixExpr(finalLHS, ">", valueToCompare)
+				stmt := model.NewInfixExpr(field, ">", finalValue)
 				stmts = append(stmts, stmt)
 			case "lt":
-				stmt := model.NewInfixExpr(finalLHS, "<", valueToCompare)
+				stmt := model.NewInfixExpr(field, "<", finalValue)
 				stmts = append(stmts, stmt)
 			case "format":
 				// ignored
@@ -874,27 +871,12 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 				logger.WarnWithCtx(cw.Ctx).Msgf("invalid range operator: %s", op)
 			}
 		}
-		return model.NewSimpleQueryWithFieldName(model.And(stmts), true, field)
+		return model.NewSimpleQuery(model.And(stmts), true)
 	}
 
 	// unreachable unless something really weird happens
 	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
 	return model.NewSimpleQuery(nil, false)
-}
-
-// parseDateTimeString returns string used to parse DateTime in Clickhouse (depends on column type)
-
-func (cw *ClickhouseQueryTranslator) parseDateTimeString(table *clickhouse.Table, field, dateTime string) (string, string) {
-	typ := table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, field))
-	switch typ {
-	case clickhouse.DateTime64:
-		return "parseDateTime64BestEffort('" + dateTime + "')", "parseDateTime64BestEffort"
-	case clickhouse.DateTime:
-		return "parseDateTimeBestEffort('" + dateTime + "')", "parseDateTimeBestEffort"
-	default:
-		logger.Error().Msgf("invalid DateTime type: %T for field: %s, parsed dateTime value: %s", typ, field, dateTime)
-		return "", ""
-	}
 }
 
 // TODO: not supported:

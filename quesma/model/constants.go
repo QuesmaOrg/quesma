@@ -6,4 +6,6 @@ const (
 	SingleTableNamePlaceHolder   = "__quesma_table_name"
 	FullTextFieldNamePlaceHolder = "__quesma_fulltext_field_name"
 	TimestampFieldName           = "@timestamp"
+
+	DateHourFunction = "__quesma_date_hour"
 )

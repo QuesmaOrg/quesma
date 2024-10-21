@@ -44,7 +44,8 @@ type QuesmaConfiguration struct {
 	DisableAuth                bool
 	AutodiscoveryEnabled       bool
 
-	EnableIngest bool // this is computed from the configuration 2.0
+	EnableIngest      bool // this is computed from the configuration 2.0
+	CreateCommonTable bool
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
@@ -89,9 +90,11 @@ func (c *QuesmaConfiguration) Validate() error {
 	}
 	connectorCount := len(c.Connectors)
 	if connectorCount != 1 {
-		result = multierror.Append(result, fmt.Errorf("%d connectors configured - at this moment Quesma requires **exactly** one connector specified", connectorCount))
+		if !(connectorCount == 0 && c.TransparentProxy) { // no connectors for transparent proxy is fine
+			result = multierror.Append(result, fmt.Errorf("%d connectors configured - at this moment Quesma requires **exactly** one connector specified", connectorCount))
+		}
 	}
-	if c.ClickHouse.Url == nil && c.Hydrolix.Url == nil {
+	if c.ClickHouse.Url == nil && c.Hydrolix.Url == nil && !c.TransparentProxy {
 		result = multierror.Append(result, fmt.Errorf("clickHouse or hydrolix URL is required"))
 	}
 	if c.ClickHouse.IsNonEmpty() && c.Hydrolix.IsNonEmpty() {
@@ -122,6 +125,9 @@ func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, r
 }
 
 func (c *QuesmaConfiguration) validateIndexName(indexName string, result error) error {
+	if indexName == DefaultWildcardIndexName {
+		return result
+	}
 	if strings.Contains(indexName, "*") || indexName == "_all" {
 		result = multierror.Append(result, fmt.Errorf("wildcard patterns are not allowed in index configuration: %s", indexName))
 	}
@@ -157,7 +163,7 @@ func (c *QuesmaConfiguration) optimizersConfigAsString(s string, cfg map[string]
 			status = "enabled"
 		}
 		lines = append(lines, fmt.Sprintf("            %s: %s", k, status))
-		if v.Properties != nil && len(v.Properties) > 0 {
+		if len(v.Properties) > 0 {
 			lines = append(lines, fmt.Sprintf("                properties: %v", v.Properties))
 		}
 	}
@@ -172,7 +178,7 @@ func (c *QuesmaConfiguration) OptimizersConfigAsString() string {
 	lines = append(lines, "\n")
 
 	for indexName, indexConfig := range c.IndexConfig {
-		if indexConfig.Optimizers != nil && len(indexConfig.Optimizers) > 0 {
+		if len(indexConfig.Optimizers) > 0 {
 			lines = append(lines, c.optimizersConfigAsString(indexName, indexConfig.Optimizers))
 		}
 	}

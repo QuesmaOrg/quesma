@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"quesma/elasticsearch"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 )
@@ -85,12 +86,8 @@ func (p *ElasticJSONDatabase) Put(key string, data string) error {
 }
 
 func (p *ElasticJSONDatabase) setupRequest(req *http.Request) {
-	if p.user != "" {
-		req.SetBasicAuth(p.user, p.password)
-	}
-
+	elasticsearch.AddBasicAuthIfNeeded(req, p.user, p.password)
 	req.Header.Set("Content-Type", "application/json")
-
 }
 
 func (p *ElasticJSONDatabase) Get(key string) (string, bool, error) {

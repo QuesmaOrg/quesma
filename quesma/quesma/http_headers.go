@@ -21,6 +21,8 @@ const (
 	quesmaSourceHeader     = "X-Quesma-Source"
 	quesmaSourceElastic    = "Elasticsearch"
 	quesmaSourceClickhouse = "Clickhouse"
+
+	quesmaTableResolverHeader = "X-Quesma-Table-Resolver"
 )
 
 // Certain Elasticsearch SaaS providers might add custom headers to the response,
