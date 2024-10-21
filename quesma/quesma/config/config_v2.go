@@ -51,6 +51,13 @@ type QuesmaNewConfiguration struct {
 	DisableTelemetry           bool                 `koanf:"disableTelemetry"`
 }
 
+type LoggingConfiguration struct {
+	Path              string         `koanf:"path"`
+	Level             *zerolog.Level `koanf:"level"`
+	RemoteLogDrainUrl *Url           `koanf:"remoteUrl"`
+	FileLogging       bool           `koanf:"fileLogging"`
+}
+
 type Pipeline struct {
 	Name               string   `koanf:"name"`
 	FrontendConnectors []string `koanf:"frontendConnectors"`
@@ -73,6 +80,25 @@ type BackendConnector struct {
 	Name   string                    `koanf:"name"`
 	Type   string                    `koanf:"type"`
 	Config RelationalDbConfiguration `koanf:"config"`
+}
+
+type RelationalDbConfiguration struct {
+	//ConnectorName string `koanf:"name"`
+	ConnectorType string `koanf:"type"`
+	Url           *Url   `koanf:"url"`
+	User          string `koanf:"user"`
+	Password      string `koanf:"password"`
+	Database      string `koanf:"database"`
+	AdminUrl      *Url   `koanf:"adminUrl"`
+	DisableTLS    bool   `koanf:"disableTLS"`
+}
+
+func (c *RelationalDbConfiguration) IsEmpty() bool {
+	return c != nil && c.Url == nil && c.User == "" && c.Password == "" && c.Database == ""
+}
+
+func (c *RelationalDbConfiguration) IsNonEmpty() bool {
+	return !c.IsEmpty()
 }
 
 type Processor struct {
