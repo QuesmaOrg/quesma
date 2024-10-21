@@ -256,17 +256,17 @@ func setupAllContainersWithCh(ctx context.Context, quesmaConfigTemplate string) 
 		"clickhouse_port":    chPort.Port(),
 	}
 	if err := RenderQuesmaConfig(quesmaConfigTemplate, data); err != nil {
-		log.Fatalf("Failed to render Quesma config: %s", err)
+		log.Fatalf("Failed to render Quesma config: %v", err)
 	}
 
 	quesma, err := setupQuesma(ctx, quesmaConfigTemplate)
 	if err != nil {
-		println(err)
+		log.Fatalf("Failed to start Quesma, %v", err)
 	}
 
 	kibana, err := setupKibana(ctx, quesma)
 	if err != nil {
-		log.Fatalf("Failed to start Kibana container: %s", err)
+		log.Fatalf("Failed to start Kibana container: %v", err)
 	}
 
 	return &Containers{
