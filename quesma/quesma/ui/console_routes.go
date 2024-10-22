@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
@@ -28,6 +29,10 @@ const (
 var uiFs embed.FS
 
 const quesmaSessionName = "quesma-session"
+
+func init() {
+	gothic.Store = sessions.NewCookieStore(securecookie.GenerateRandomKey(32))
+}
 
 func authCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := gothic.CompleteUserAuth(w, r)
@@ -247,7 +252,9 @@ func (qmc *QuesmaManagementConsole) initPprof(router *mux.Router) {
 	router.HandleFunc("/debug/pprof/trace", pprof.Trace)
 }
 
-var store = sessions.NewCookieStore([]byte("test"))
+var authKey = securecookie.GenerateRandomKey(64)
+var encryptionKey = securecookie.GenerateRandomKey(32)
+var store = sessions.NewCookieStore(authKey, encryptionKey)
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
