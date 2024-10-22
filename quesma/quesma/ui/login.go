@@ -22,7 +22,7 @@ func (qmc *QuesmaManagementConsole) generateLoginForm() []byte {
 	buffer.Html(`<p style="color: #ccc;">Log in to Quesma admin console using your Elasticsearch credentials</p>`)
 	buffer.Html(`<form action="/login-with-elasticsearch" method="post">`)
 	buffer.Html(`<label for="username">Username:</label>`)
-	buffer.Html(`<input type="text" id="username" name="username" placeholder="Enter your Elasticsearch username">`)
+	buffer.Html(`<input type="text" id="username" name="username" placeholder="Enter your Elasticsearch username" autofocus>`)
 	buffer.Html(`<label for="password">Password:</label>`)
 	buffer.Html(`<input type="password" id="password" name="password" placeholder="Enter your Elasticsearch password">`)
 	buffer.Html(`<input type="submit" value="Login">`)
