@@ -616,6 +616,8 @@ func ExtractInt64(value any) int64 {
 		return int64(*valueTyped)
 	case *uint32:
 		return int64(*valueTyped)
+	case float64:
+		return int64(valueTyped)
 	}
 	logger.Error().Msgf("ExtractInt64, value of incorrect type. Expected (*)(u)int64, received: %v; type: %T", value, value)
 	return -1
@@ -682,6 +684,8 @@ func ExtractFloat64(value any) float64 {
 		return float64(valueTyped)
 	case *float32:
 		return float64(*valueTyped)
+	case uint64:
+		return float64(valueTyped)
 	}
 	logger.Error().Msgf("ExtractFloat64, value of incorrect type. Expected (*)float64, received: %v; type: %T", value, value)
 	return -1

@@ -94,6 +94,11 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			}
 		}
 
+		var ebmin, ebmax int64
+		if extendedBounds, exists := dateHistogram["extended_bounds"].(QueryMap); exists {
+			ebmin, ebmax = int64(extendedBounds["min"].(float64)), int64(extendedBounds["max"].(float64))
+		}
+
 		if !weAddedMissing {
 			// if we don't add missing, we need to filter out nulls later
 			aggregation.filterOutEmptyKeyBucket = true
@@ -110,7 +115,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 
 		dateHistogramAggr := bucket_aggregations.NewDateHistogram(
-			cw.Ctx, field, interval, timezone, minDocCount, intervalType, dateTimeType)
+			cw.Ctx, field, interval, timezone, minDocCount, ebmin, ebmax, intervalType, dateTimeType)
 		aggregation.queryType = dateHistogramAggr
 
 		sqlQuery := dateHistogramAggr.GenerateSQL()
@@ -119,6 +124,11 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 
 		delete(queryMap, "date_histogram")
 		return success, nil
+	}
+	if autoDateHistogram := cw.parseAutoDateHistogram(queryMap["auto_date_histogram"]); autoDateHistogram != nil {
+		aggregation.queryType = autoDateHistogram
+		delete(queryMap, "auto_date_histogram")
+		return
 	}
 	for _, termsType := range []string{"terms", "significant_terms"} {
 		termsRaw, ok := queryMap[termsType]
@@ -136,15 +146,8 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			aggregation.filterOutEmptyKeyBucket = true
 		}
 
-		size := 10
-		if sizeRaw, ok := terms["size"]; ok {
-			if sizeParsed, ok := sizeRaw.(float64); ok {
-				size = int(sizeParsed)
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("size is not an float64, but %T, value: %v. Using default", sizeRaw, sizeRaw)
-			}
-		}
-
+		const defaultSize = 10
+		size := cw.parseSize(terms, defaultSize)
 		orderBy := cw.parseOrder(terms, queryMap, []model.Expr{fieldExpression})
 		aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", orderBy[0]) // TODO probably full, not [0]
 		aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)
@@ -344,6 +347,17 @@ func (cw *ClickhouseQueryTranslator) parseRandomSampler(randomSamplerRaw any) bu
 		cw.parseFloatField(randomSampler, "probability", defaultProbability),
 		cw.parseIntField(randomSampler, "seed", defaultSeed),
 	)
+}
+
+func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(paramsRaw any) *bucket_aggregations.AutoDateHistogram {
+	params, ok := paramsRaw.(QueryMap)
+	if !ok {
+		return nil
+	}
+
+	field := cw.parseFieldField(params, "auto_date_histogram")
+	bucketsNr := cw.parseIntField(params, "buckets", 10)
+	return bucket_aggregations.NewAutoDateHistogram(cw.Ctx, field, bucketsNr)
 }
 
 func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldExpressions []model.Expr) []model.OrderByExpr {

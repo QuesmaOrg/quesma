@@ -4,6 +4,7 @@ package lucene
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"quesma/logger"
 	"quesma/model"
@@ -68,6 +69,8 @@ var specialOperators = map[string]token{
 	"AND ":                   andToken{},
 	"OR ":                    orToken{},
 	"NOT ":                   notToken{},
+	"!":                      notToken{},
+	"_exists_:":              existsToken{},
 	string(leftParenthesis):  leftParenthesisToken{},
 	string(rightParenthesis): rightParenthesisToken{},
 }
@@ -104,6 +107,7 @@ func (p *luceneParser) tokenizeQuery(query string) {
 		p.tokens = append(p.tokens, nextTokens...)
 		query = strings.TrimSpace(remainingQuery)
 	}
+	fmt.Println(p.tokens)
 }
 
 func (p *luceneParser) nextToken(query string) (tokens []token, remainingQuery string) {

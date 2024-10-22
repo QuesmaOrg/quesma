@@ -4,6 +4,7 @@ package metrics_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 )
@@ -28,7 +29,11 @@ func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 	if len(rows) > 1 {
 		logger.WarnWithCtx(query.ctx).Msg("More than one row returned for count aggregation")
 	}
-	return model.JsonMap{"doc_count": rows[0].Cols[0]}
+	if len(rows[0].Cols) == 0 {
+		return model.JsonMap{"doc_count": -1}
+	}
+	fmt.Println("COUNT", rows)
+	return model.JsonMap{"doc_count": rows[0].Cols[0].Value}
 }
 
 func (query Count) String() string {

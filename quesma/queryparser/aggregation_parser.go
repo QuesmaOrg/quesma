@@ -3,6 +3,8 @@
 package queryparser
 
 import (
+	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -153,6 +155,23 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			Fields:   []model.Expr{cw.parseFieldField(extendedStats, "extended_stats")},
 			sigma:    sigma,
 		}, true
+	}
+
+	if filterRaw, ok := queryMap["filter"]; ok {
+		if filter, ok := filterRaw.(QueryMap); ok {
+			pp.Println(cw.parseQueryMap(filter))
+			whereClause := cw.parseQueryMap(filter).WhereClause
+			if whereClause == nil {
+				whereClause = model.NewLiteral("True")
+			}
+			fmt.Println("WHERE", whereClause)
+			return metricsAggregation{
+				AggrType: "filter",
+				Fields:   []model.Expr{model.NewFunction("countIf", whereClause)},
+			}, true
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping", filterRaw, filterRaw)
+		}
 	}
 
 	return metricsAggregation{}, false
