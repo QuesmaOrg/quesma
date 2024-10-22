@@ -31,6 +31,10 @@ var uiFs embed.FS
 const quesmaSessionName = "quesma-session"
 
 func init() {
+
+	// Here we generate a random key for the session store
+	// TODO We should use a secure key from the environment on production.
+	// 32 - is a default key length, taken for example
 	gothic.Store = sessions.NewCookieStore(securecookie.GenerateRandomKey(32))
 }
 
@@ -252,6 +256,9 @@ func (qmc *QuesmaManagementConsole) initPprof(router *mux.Router) {
 	router.HandleFunc("/debug/pprof/trace", pprof.Trace)
 }
 
+// Here we generate keys for the session store.
+// TODO We should use a secure key from the environment on production.
+// 32,64 are default key lengths.
 var authKey = securecookie.GenerateRandomKey(64)
 var encryptionKey = securecookie.GenerateRandomKey(32)
 var store = sessions.NewCookieStore(authKey, encryptionKey)
