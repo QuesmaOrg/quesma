@@ -197,15 +197,12 @@ func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors(pipeline stri
 				}
 
 				// but maybe we should also check against the actual indexes ??
-
-				if r.conf.AutodiscoveryEnabled {
-
-					for indexName := range r.elasticIndexes {
-						if util.IndexPatternMatches(pattern, indexName) {
-							matchedElastic = append(matchedElastic, indexName)
-						}
+				for indexName := range r.elasticIndexes {
+					if util.IndexPatternMatches(pattern, indexName) {
+						matchedElastic = append(matchedElastic, indexName)
 					}
-
+				}
+				if r.conf.AutodiscoveryEnabled {
 					for tableName := range r.clickhouseIndexes {
 						if util.IndexPatternMatches(pattern, tableName) {
 							matchedClickhouse = append(matchedClickhouse, tableName)

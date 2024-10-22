@@ -90,7 +90,7 @@ func main() {
 	tableDisco := clickhouse.NewTableDiscovery(&cfg, connectionPool, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.SchemaTypeAdapter{})
 
-	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
+	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch)
 
 	connManager := connectors.NewConnectorManager(&cfg, connectionPool, phoneHomeAgent, tableDisco)
 	lm := connManager.GetConnector()
