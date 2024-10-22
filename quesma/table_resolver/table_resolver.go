@@ -171,6 +171,11 @@ func (r *tableRegistryImpl) updateIndexes() {
 			name: index.Name,
 		}
 	}
+	for _, index := range sources.DataStreams {
+		elasticIndexes[index.Name] = table{
+			name: index.Name,
+		}
+	}
 
 	logger.Info().Msgf("Elastic tables updated: %v", elasticIndexes)
 	r.elasticIndexes = elasticIndexes
