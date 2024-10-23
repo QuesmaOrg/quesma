@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
-	"io"
 	"net/http"
 	"testing"
 )
@@ -42,8 +41,7 @@ func (a *QueryAndIngestPipelineTestcase) RunTests(ctx context.Context, t *testin
 }
 
 func (a *QueryAndIngestPipelineTestcase) testBasicRequest(ctx context.Context, t *testing.T) {
-	resp := a.RequestToQuesma(ctx, t, "GET", "/", nil)
-	defer resp.Body.Close()
+	resp, _ := a.RequestToQuesma(ctx, t, "GET", "/", nil)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
@@ -60,12 +58,7 @@ func (a *QueryAndIngestPipelineTestcase) testWildcardGoesToElastic(ctx context.C
 		t.Fatalf("Failed to refresh index: %s", err)
 	}
 	// When Quesma searches for that document
-	resp := a.RequestToQuesma(ctx, t, "POST", "/unmentioned_index/_search", []byte(`{"query": {"match_all": {}}}`))
-	defer resp.Body.Close()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %s", err)
-	}
+	resp, bodyBytes := a.RequestToQuesma(ctx, t, "POST", "/unmentioned_index/_search", []byte(`{"query": {"match_all": {}}}`))
 	var jsonResponse map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &jsonResponse); err != nil {
 		t.Fatalf("Failed to unmarshal response body: %s", err)
@@ -82,13 +75,7 @@ func (a *QueryAndIngestPipelineTestcase) testWildcardGoesToElastic(ctx context.C
 }
 
 func (a *QueryAndIngestPipelineTestcase) testEmptyTargetDoc(ctx context.Context, t *testing.T) {
-	resp := a.RequestToQuesma(ctx, t, "POST", "/logs_disabled/_doc", []byte(`{"name": "Alice"}`))
-	defer resp.Body.Close()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %s", err)
-	}
-
+	resp, bodyBytes := a.RequestToQuesma(ctx, t, "POST", "/logs_disabled/_doc", []byte(`{"name": "Alice"}`))
 	assert.Contains(t, string(bodyBytes), "index_closed_exception")
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
@@ -103,13 +90,7 @@ func (a *QueryAndIngestPipelineTestcase) testEmptyTargetBulk(ctx context.Context
 		{ "name": "Bob", "age": 25 }
 	
 `)
-	resp := a.RequestToQuesma(ctx, t, "POST", "/_bulk", bulkPayload)
-	defer resp.Body.Close()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %s", err)
-	}
-
+	resp, bodyBytes := a.RequestToQuesma(ctx, t, "POST", "/_bulk", bulkPayload)
 	assert.Contains(t, string(bodyBytes), "index_closed_exception")
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))

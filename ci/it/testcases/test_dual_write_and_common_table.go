@@ -44,13 +44,11 @@ func (a *DualWriteAndCommonTableTestcase) RunTests(ctx context.Context, t *testi
 }
 
 func (a *DualWriteAndCommonTableTestcase) testBasicRequest(ctx context.Context, t *testing.T) {
-	resp := a.RequestToQuesma(ctx, t, "GET", "/", nil)
-	defer resp.Body.Close()
+	resp, _ := a.RequestToQuesma(ctx, t, "GET", "/", nil)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 func (a *DualWriteAndCommonTableTestcase) testIngestToCommonTableWorks(ctx context.Context, t *testing.T) {
-	resp := a.RequestToQuesma(ctx, t, "POST", "/logs-4/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
-	defer resp.Body.Close()
+	resp, _ := a.RequestToQuesma(ctx, t, "POST", "/logs-4/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	chQuery := "SELECT * FROM 'quesma_common_table'"
@@ -95,21 +93,14 @@ func (a *DualWriteAndCommonTableTestcase) testIngestToCommonTableWorks(ctx conte
 	assert.Equal(t, 31337, age)
 	assert.Equal(t, "logs-4", quesmaIndexName)
 
-	resp = a.RequestToQuesma(ctx, t, "GET", "/logs-4/_search", []byte(`{"query": {"match_all": {}}}`))
-	defer resp.Body.Close()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %s", err)
-	}
-
+	resp, bodyBytes := a.RequestToQuesma(ctx, t, "GET", "/logs-4/_search", []byte(`{"query": {"match_all": {}}}`))
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Contains(t, string(bodyBytes), "Przemyslaw")
 	assert.Contains(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
 }
 
 func (a *DualWriteAndCommonTableTestcase) testDualQueryReturnsDataFromClickHouse(ctx context.Context, t *testing.T) {
-	resp := a.RequestToQuesma(ctx, t, "POST", "/logs-dual-query/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
-	defer resp.Body.Close()
+	resp, _ := a.RequestToQuesma(ctx, t, "POST", "/logs-dual-query/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	chQuery := "SELECT * FROM 'logs-dual-query'"
@@ -154,21 +145,14 @@ func (a *DualWriteAndCommonTableTestcase) testDualQueryReturnsDataFromClickHouse
 		t.Fatalf("Failed to make DELETE request: %s", err)
 	}
 	// FINAL TEST - WHETHER QUESMA RETURNS DATA FROM CLICKHOUSE
-	resp = a.RequestToQuesma(ctx, t, "GET", "/logs-dual-query/_search", []byte(`{"query": {"match_all": {}}}`))
-	defer resp.Body.Close()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %s", err)
-	}
-
+	resp, bodyBytes := a.RequestToQuesma(ctx, t, "GET", "/logs-dual-query/_search", []byte(`{"query": {"match_all": {}}}`))
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Contains(t, string(bodyBytes), "Przemyslaw")
 	assert.Contains(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
 }
 
 func (a *DualWriteAndCommonTableTestcase) testIngestToClickHouseWorks(ctx context.Context, t *testing.T) {
-	resp := a.RequestToQuesma(ctx, t, "POST", "/logs-2/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
-	defer resp.Body.Close()
+	resp, _ := a.RequestToQuesma(ctx, t, "POST", "/logs-2/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	chQuery := "SELECT * FROM 'logs-2'"
@@ -223,8 +207,7 @@ func (a *DualWriteAndCommonTableTestcase) testIngestToClickHouseWorks(ctx contex
 }
 
 func (a *DualWriteAndCommonTableTestcase) testDualWritesWork(ctx context.Context, t *testing.T) {
-	resp := a.RequestToQuesma(ctx, t, "POST", "/logs-3/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
-	defer resp.Body.Close()
+	resp, _ := a.RequestToQuesma(ctx, t, "POST", "/logs-3/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	chQuery := "SELECT * FROM 'logs-3'"
@@ -292,12 +275,8 @@ func (a *DualWriteAndCommonTableTestcase) testWildcardGoesToElastic(ctx context.
 		t.Fatalf("Failed to refresh index: %s", err)
 	}
 	// When Quesma searches for that document
-	resp := a.RequestToQuesma(ctx, t, "POST", "/unmentioned_index/_search", []byte(`{"query": {"match_all": {}}}`))
-	defer resp.Body.Close()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %s", err)
-	}
+	resp, bodyBytes := a.RequestToQuesma(ctx, t, "POST", "/unmentioned_index/_search", []byte(`{"query": {"match_all": {}}}`))
+
 	var jsonResponse map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &jsonResponse); err != nil {
 		t.Fatalf("Failed to unmarshal response body: %s", err)

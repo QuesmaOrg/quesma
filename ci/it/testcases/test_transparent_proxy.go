@@ -40,25 +40,20 @@ func (a *TransparentProxyIntegrationTestcase) RunTests(ctx context.Context, t *t
 }
 
 func (a *TransparentProxyIntegrationTestcase) testBasicRequest(ctx context.Context, t *testing.T) {
-	resp := a.RequestToQuesma(ctx, t, "GET", "/", nil)
+	resp, _ := a.RequestToQuesma(ctx, t, "GET", "/", nil)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func (a *TransparentProxyIntegrationTestcase) testIfCatHealthRequestReachesElasticsearch(ctx context.Context, t *testing.T) {
-	resp := a.RequestToQuesma(ctx, t, "GET", "/_cat/health", nil)
-	defer resp.Body.Close()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %s", err)
-	}
+	resp, bodyBytes := a.RequestToQuesma(ctx, t, "GET", "/_cat/health", nil)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-elastic-product"))
 	assert.Contains(t, string(bodyBytes), "green")
 }
 
 func (a *TransparentProxyIntegrationTestcase) testIfIndexCreationWorks(ctx context.Context, t *testing.T) {
-	_ = a.RequestToQuesma(ctx, t, "PUT", "/index_1", nil)
-	_ = a.RequestToQuesma(ctx, t, "PUT", "/index_2", nil)
+	_, _ = a.RequestToQuesma(ctx, t, "PUT", "/index_1", nil)
+	_, _ = a.RequestToQuesma(ctx, t, "PUT", "/index_2", nil)
 
 	resp, err := a.RequestToElasticsearch(ctx, "GET", "/_cat/indices", nil)
 	if err != nil {
