@@ -8,12 +8,12 @@ These docs are just static files generated with [Vitepress](https://vitepress.de
 
 Install Vitepress first:
 ```shell
- npm add -D vitepress
+npm add -D vitepress
 ```
 
 Preview docs locally while editing:
 ```shell
- npm run docs:dev
+npm run docs:dev
 ```
 
 
