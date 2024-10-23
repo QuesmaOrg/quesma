@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
-	"io"
 	"net/http"
 	"testing"
 )
@@ -41,11 +40,7 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) RunTests(ctx context.Contex
 }
 
 func (a *ReadingClickHouseTablesIntegrationTestcase) testBasicRequest(ctx context.Context, t *testing.T) {
-	resp, err := a.RequestToQuesma(ctx, "GET", "/", nil)
-	if err != nil {
-		t.Fatalf("Failed to make GET request: %s", err)
-	}
-	defer resp.Body.Close()
+	resp, _ := a.RequestToQuesma(ctx, t, "GET", "/", nil)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
@@ -63,11 +58,7 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) testRandomThing(ctx context
 	// This returns 500 Internal Server Error, but will be tackled in separate PR.
 	// (The table has not yet been discovered by Quesma )
 	// ERR quesma/quesma/quesma.go:198 > quesma request failed: Q2002: Missing table. Table: test_table: can't load test_table table opaque_id= path=/test_table/_search reason="Missing table." request_id=01926654-b214-7e1d-944a-a7545cd7d419
-	resp, err := a.RequestToQuesma(ctx, "GET", "/test_table/_search", []byte(`{"query": {"match_all": {}}}`))
-	if err != nil {
-		t.Fatalf("Failed to make GET request: %s", err)
-	}
-	defer resp.Body.Close()
+	resp, _ := a.RequestToQuesma(ctx, t, "GET", "/test_table/_search", []byte(`{"query": {"match_all": {}}}`))
 	assert.Equal(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
 }
 
@@ -84,15 +75,7 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) testWildcardGoesToElastic(c
 		t.Fatalf("Failed to refresh index: %s", err)
 	}
 	// When Quesma searches for that document
-	resp, err := a.RequestToQuesma(ctx, "POST", "/extra_index/_search", []byte(`{"query": {"match_all": {}}}`))
-	if err != nil {
-		t.Fatalf("Failed to make GET request: %s", err)
-	}
-	defer resp.Body.Close()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %s", err)
-	}
+	resp, bodyBytes := a.RequestToQuesma(ctx, t, "POST", "/extra_index/_search", []byte(`{"query": {"match_all": {}}}`))
 	var jsonResponse map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &jsonResponse); err != nil {
 		t.Fatalf("Failed to unmarshal response body: %s", err)
