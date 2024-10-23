@@ -231,7 +231,7 @@ func TestIngestToCommonTable(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			formatter := clickhouse.DefaultColumnNameFormatter()
+			formatter := DefaultColumnNameFormatter()
 
 			transformer := jsonprocessor.IngestTransformerFor(indexName, quesmaConfig)
 
