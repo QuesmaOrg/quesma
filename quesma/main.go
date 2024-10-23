@@ -116,7 +116,7 @@ func main() {
 
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry, tableResolver) //FIXME no ingest processor here just for now
 
-	abTestingController := sender.NewSenderCoordinator(&cfg)
+	abTestingController := sender.NewSenderCoordinator(&cfg, ingestProcessor)
 	abTestingController.Start()
 
 	instance := constructQuesma(&cfg, tableDisco, lm, ingestProcessor, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender(), tableResolver)

@@ -63,7 +63,7 @@ func (t *elasticSearchFanout) process(in EnrichedResults) (out EnrichedResults, 
 
 type internalIngestFanout struct {
 	indexName       string
-	ingestProcessor ingest.IIngestProcessor
+	ingestProcessor ingest.Ingester
 }
 
 func (t *internalIngestFanout) name() string {
@@ -85,11 +85,10 @@ func (t *internalIngestFanout) process(in EnrichedResults) (out EnrichedResults,
 		return
 	}
 
-	// TODO collect and send in bulk every 10 seconds or 1000 records for example
+	err = t.ingestProcessor.Ingest(context.Background(), t.indexName, []types.JSON{asJson})
 
-	t.ingestProcessor.Ingest(context.Background(), t.indexName, []types.JSON{asJson})
-
-	return in, false, nil
+	return in, false, err
 }
 
 var _ = &internalIngestFanout{}
+var _ = &elasticSearchFanout{}

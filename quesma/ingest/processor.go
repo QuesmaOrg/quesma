@@ -51,7 +51,7 @@ type (
 	IngestFieldStatistics map[IngestFieldBucketKey]int64
 )
 
-type IIngestProcessor interface {
+type Ingester interface {
 	Ingest(ctx context.Context, tableName string, jsonData []types.JSON) error
 }
 
