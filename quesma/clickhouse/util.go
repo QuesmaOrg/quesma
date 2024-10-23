@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-
-
 // Code doesn't need to be pretty, 99.9% it's just for our purposes
 // Parses type from SHOW COLUMNS FROM "table"
 func parseTypeFromShowColumns(typ, name string) (Type, string) {
