@@ -95,8 +95,7 @@ func main() {
 	connManager := connectors.NewConnectorManager(&cfg, connectionPool, phoneHomeAgent, tableDisco)
 	lm := connManager.GetConnector()
 
-	// TODO index configuration for ingest and query is the same for now
-	tableResolver := table_resolver.NewTableResolver(cfg, tableDisco, im)
+	tableResolver := table_resolver.NewTableResolver(cfg, tableDisco, im) // TODO index configuration for ingest and query is the same for now
 	tableResolver.Start()
 
 	var ingestProcessor *ingest.IngestProcessor
