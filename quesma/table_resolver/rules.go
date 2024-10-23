@@ -57,12 +57,43 @@ func resolveInternalElasticName(pattern parsedPattern) *Decision {
 	return nil
 }
 
-func makeElasticIsDefault(cfg map[string]config.IndexConfiguration) func(input parsedPattern) *Decision {
-
+func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string) func(input parsedPattern) *Decision {
 	return func(input parsedPattern) *Decision {
+		var targets []string
+		var useConnectors []ConnectorDecision
+
+		switch pipeline {
+		case IngestPipeline:
+			targets = quesmaConf.DefaultIngestTarget
+		case QueryPipeline:
+			targets = quesmaConf.DefaultQueryTarget
+		default:
+			return &Decision{
+				Reason: "Unsupported configuration",
+				Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported pipeline: %s", pipeline)),
+			}
+		}
+
+		for _, target := range targets {
+			switch target {
+			case config.ClickhouseTarget:
+				useConnectors = append(useConnectors, &ConnectorDecisionClickhouse{
+					ClickhouseTableName: input.source,
+					ClickhouseTables:    []string{input.source},
+				})
+			case config.ElasticsearchTarget:
+				useConnectors = append(useConnectors, &ConnectorDecisionElastic{})
+			default:
+				return &Decision{
+					Reason: "Unsupported configuration",
+					Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported target: %s", target)),
+				}
+			}
+		}
+
 		return &Decision{
-			UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
-			Reason:        "Elastic is default.",
+			UseConnectors: useConnectors,
+			Reason:        fmt.Sprintf("Using default wildcard ('%s') configuration for %s processor", config.DefaultWildcardIndexName, pipeline),
 		}
 	}
 }
