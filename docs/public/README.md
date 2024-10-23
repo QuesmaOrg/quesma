@@ -1,6 +1,6 @@
 # Quesma EAP documentation
 
-This repository contains our EAP documentation avaialable at https://eap.quesma.com.
+This folder contains our EAP documentation available at https://eap.quesma.com.
 These docs are just static files generated with [Vitepress](https://vitepress.dev) and published via CloudFlare Pages.
 
 
