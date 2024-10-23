@@ -261,74 +261,71 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 	for indexName, documents := range clickhouseDocumentsToInsert {
 		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 
-		config.RunConfiguredIngest(ctx, cfg, indexName, make(types.JSON), func() error {
-			for _, document := range documents {
-				stats.GlobalStatistics.Process(cfg, indexName, document.document, clickhouse.NestedSeparator)
-			}
-			// if the index is mapped to specified database table in the configuration, use that table
-			if len(cfg.IndexConfig[indexName].Override) > 0 {
-				indexName = cfg.IndexConfig[indexName].Override
-			}
+		for _, document := range documents {
+			stats.GlobalStatistics.Process(cfg, indexName, document.document, clickhouse.NestedSeparator)
+		}
+		// if the index is mapped to specified database table in the configuration, use that table
+		if len(cfg.IndexConfig[indexName].Override) > 0 {
+			indexName = cfg.IndexConfig[indexName].Override
+		}
 
-			inserts := make([]types.JSON, len(documents))
-			for i, document := range documents {
-				inserts[i] = document.document
+		inserts := make([]types.JSON, len(documents))
+		for i, document := range documents {
+			inserts[i] = document.document
+		}
+
+		nameFormatter := clickhouse.DefaultColumnNameFormatter()
+		transformer := jsonprocessor.IngestTransformerFor(indexName, cfg)
+		err := ip.ProcessInsertQuery(ctx, indexName, inserts, transformer, nameFormatter)
+
+		for _, document := range documents {
+			bulkSingleResponse := BulkSingleResponse{
+				ID:          "fakeId",
+				Index:       document.index,
+				PrimaryTerm: 1,
+				SeqNo:       0,
+				Shards: BulkShardsResponse{
+					Failed:     0,
+					Successful: 1,
+					Total:      1,
+				},
+				Version: 0,
+				Result:  "created",
+				Status:  201,
+				Type:    "_doc",
 			}
-
-			nameFormatter := clickhouse.DefaultColumnNameFormatter()
-			transformer := jsonprocessor.IngestTransformerFor(indexName, cfg)
-			err := ip.ProcessInsertQuery(ctx, indexName, inserts, transformer, nameFormatter)
-
-			for _, document := range documents {
-				bulkSingleResponse := BulkSingleResponse{
-					ID:          "fakeId",
-					Index:       document.index,
-					PrimaryTerm: 1,
-					SeqNo:       0,
-					Shards: BulkShardsResponse{
-						Failed:     0,
-						Successful: 1,
-						Total:      1,
-					},
-					Version: 0,
-					Result:  "created",
-					Status:  201,
-					Type:    "_doc",
+			if err != nil {
+				bulkSingleResponse.Result = ""
+				bulkSingleResponse.Status = 400
+				bulkSingleResponse.Shards = BulkShardsResponse{
+					Failed:     1,
+					Successful: 0,
+					Total:      1,
 				}
-				if err != nil {
-					bulkSingleResponse.Result = ""
-					bulkSingleResponse.Status = 400
-					bulkSingleResponse.Shards = BulkShardsResponse{
-						Failed:     1,
-						Successful: 0,
-						Total:      1,
-					}
-					bulkSingleResponse.Error = queryparser.Error{
-						RootCause: []queryparser.RootCause{
-							{
-								Type:   "quesma_error",
-								Reason: err.Error(),
-							},
+				bulkSingleResponse.Error = queryparser.Error{
+					RootCause: []queryparser.RootCause{
+						{
+							Type:   "quesma_error",
+							Reason: err.Error(),
 						},
-						Type:   "quesma_error",
-						Reason: err.Error(),
-					}
-				}
-
-				// Fill out the response pointer (a pointer to the results array we will return for a bulk)
-				switch document.operation {
-				case "create":
-					document.response.Create = bulkSingleResponse
-
-				case "index":
-					document.response.Index = bulkSingleResponse
-
-				default:
-					return fmt.Errorf("unsupported bulk operation type: %s. Document: %v", document.operation, document.document)
+					},
+					Type:   "quesma_error",
+					Reason: err.Error(),
 				}
 			}
-			return nil
-		})
+
+			// Fill out the response pointer (a pointer to the results array we will return for a bulk)
+			switch document.operation {
+			case "create":
+				document.response.Create = bulkSingleResponse
+
+			case "index":
+				document.response.Index = bulkSingleResponse
+
+			default:
+				logger.Error().Msgf("unsupported bulk operation type: %s. Document: %v", document.operation, document.document)
+			}
+		}
 	}
 }
 

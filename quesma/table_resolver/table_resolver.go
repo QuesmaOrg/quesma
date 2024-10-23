@@ -289,7 +289,7 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 				{"singleIndex", res.singleIndex(indexConf, IngestPipeline)},
 				{"commonTable", res.makeCommonTableResolver(indexConf, IngestPipeline)},
 
-				{"elasticAsDefault", makeElasticIsDefault(indexConf)},
+				{"defaultWildcard", makeDefaultWildcard(quesmaConf, IngestPipeline)},
 			},
 		},
 		recentDecisions: make(map[string]*Decision),
@@ -311,7 +311,7 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 				{"commonTable", res.makeCommonTableResolver(indexConf, QueryPipeline)},
 
 				// default action
-				{"elasticAsDefault", makeElasticIsDefault(indexConf)},
+				{"defaultWildcard", makeDefaultWildcard(quesmaConf, QueryPipeline)},
 			},
 		},
 		recentDecisions: make(map[string]*Decision),
