@@ -46,6 +46,9 @@ type QuesmaConfiguration struct {
 
 	EnableIngest      bool // this is computed from the configuration 2.0
 	CreateCommonTable bool
+
+	DefaultIngestTarget []string
+	DefaultQueryTarget  []string
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
