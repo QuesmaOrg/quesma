@@ -301,6 +301,10 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 	router.Register(routes.IndexPath, and(method("PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
+		if req.Body == "" {
+			logger.Warn().Msgf("empty body in PUT /%s request, Quesma is not doing anything", index)
+			return putIndexResult(index)
+		}
 
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
