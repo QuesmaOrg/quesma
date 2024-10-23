@@ -42,10 +42,7 @@ func (a *QueryAndIngestPipelineTestcase) RunTests(ctx context.Context, t *testin
 }
 
 func (a *QueryAndIngestPipelineTestcase) testBasicRequest(ctx context.Context, t *testing.T) {
-	resp, err := a.RequestToQuesma(ctx, "GET", "/", nil)
-	if err != nil {
-		t.Fatalf("Failed to make GET request: %s", err)
-	}
+	resp := a.RequestToQuesma(ctx, t, "GET", "/", nil)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
@@ -63,10 +60,7 @@ func (a *QueryAndIngestPipelineTestcase) testWildcardGoesToElastic(ctx context.C
 		t.Fatalf("Failed to refresh index: %s", err)
 	}
 	// When Quesma searches for that document
-	resp, err := a.RequestToQuesma(ctx, "POST", "/unmentioned_index/_search", []byte(`{"query": {"match_all": {}}}`))
-	if err != nil {
-		t.Fatalf("Failed to make GET request: %s", err)
-	}
+	resp := a.RequestToQuesma(ctx, t, "POST", "/unmentioned_index/_search", []byte(`{"query": {"match_all": {}}}`))
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -88,10 +82,7 @@ func (a *QueryAndIngestPipelineTestcase) testWildcardGoesToElastic(ctx context.C
 }
 
 func (a *QueryAndIngestPipelineTestcase) testEmptyTargetDoc(ctx context.Context, t *testing.T) {
-	resp, err := a.RequestToQuesma(ctx, "POST", "/logs_disabled/_doc", []byte(`{"name": "Alice"}`))
-	if err != nil {
-		t.Fatalf("Error sending POST request: %s", err)
-	}
+	resp := a.RequestToQuesma(ctx, t, "POST", "/logs_disabled/_doc", []byte(`{"name": "Alice"}`))
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -112,10 +103,7 @@ func (a *QueryAndIngestPipelineTestcase) testEmptyTargetBulk(ctx context.Context
 		{ "name": "Bob", "age": 25 }
 	
 `)
-	resp, err := a.RequestToQuesma(ctx, "POST", "/_bulk", bulkPayload)
-	if err != nil {
-		t.Fatalf("Error sending POST request: %s", err)
-	}
+	resp := a.RequestToQuesma(ctx, t, "POST", "/_bulk", bulkPayload)
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
