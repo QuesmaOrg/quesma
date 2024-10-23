@@ -12,7 +12,6 @@ import (
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/ingest"
-	"quesma/jsonprocessor"
 	"quesma/logger"
 	"quesma/queryparser"
 	"quesma/quesma/config"
@@ -275,9 +274,7 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 				inserts[i] = document.document
 			}
 
-			nameFormatter := clickhouse.DefaultColumnNameFormatter()
-			transformer := jsonprocessor.IngestTransformerFor(indexName, cfg)
-			err := ip.ProcessInsertQuery(ctx, indexName, inserts, transformer, nameFormatter)
+			err := ip.Ingest(ctx, indexName, inserts)
 
 			for _, document := range documents {
 				bulkSingleResponse := BulkSingleResponse{
