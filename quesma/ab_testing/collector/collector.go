@@ -34,6 +34,8 @@ type EnrichedResults struct {
 	QuesmaVersion   string           `json:"quesma_version"`
 	QuesmaBuildHash string           `json:"quesma_hash"`
 	Errors          []string         `json:"errors,omitempty"`
+
+	KibanaDashboardId string `json:"kibana_dashboard_id,omitempty"`
 }
 
 type pipelineProcessor interface {
@@ -78,6 +80,7 @@ func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessa
 		cancelFunc:   cancel,
 		pipeline: []pipelineProcessor{
 			&probabilisticSampler{ratio: 1},
+			&extractKibanaIds{},
 			&unifySyncAsyncResponse{},
 			&diffTransformer{},
 			//&ppPrintFanout{},
