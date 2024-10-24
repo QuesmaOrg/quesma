@@ -553,6 +553,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				}
 			}
 			if defaultConfig.UseCommonTable {
+				// We set both flags to true here
+				// as creating common table depends on the first one
+				conf.CreateCommonTable = true
 				conf.CreateCommonTableForWildcard = true
 			}
 			if len(defaultConfig.QueryTarget) > 1 {
@@ -623,6 +626,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			}
 		}
 		if defaultConfig.UseCommonTable {
+			// We set both flags to true here
+			// as creating common table depends on the first one
+			conf.CreateCommonTable = true
 			conf.CreateCommonTableForWildcard = true
 		}
 
@@ -635,6 +641,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			}
 		}
 		if ingestProcessorDefaultIndexConfig.UseCommonTable {
+			// We set both flags to true here
+			// as creating common table depends on the first one
+			conf.CreateCommonTable = true
 			conf.CreateCommonTableForWildcard = true
 		}
 
