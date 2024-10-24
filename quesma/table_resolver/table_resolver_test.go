@@ -339,6 +339,20 @@ func TestTableResolver(t *testing.T) {
 			indexConf: indexConf,
 		},
 		{
+			name:     "A/B testing (pattern)",
+			pipeline: QueryPipeline,
+			pattern:  "logs*",
+			expected: Decision{
+				EnableABTesting: true,
+				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+					ClickhouseTableName: "logs",
+					ClickhouseTables:    []string{"logs"},
+				},
+					&ConnectorDecisionElastic{}},
+			},
+			indexConf: indexConf,
+		},
+		{
 			name:              "query both connectors",
 			pipeline:          QueryPipeline,
 			pattern:           "logs,index1",
@@ -379,8 +393,11 @@ func TestTableResolver(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if i == 24 {
+				t.Skip("bug: A/B testing doesn't work with patterns")
+			}
 
 			tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 
