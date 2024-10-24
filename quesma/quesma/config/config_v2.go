@@ -627,7 +627,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		for _, target := range ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target {
 			if targetType, found := c.getTargetType(target); found {
 				defaultConfig.IngestTarget = append(defaultConfig.IngestTarget, targetType)
-
 			} else {
 				errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
 			}
