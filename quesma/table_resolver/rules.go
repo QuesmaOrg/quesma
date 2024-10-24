@@ -94,6 +94,7 @@ func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string)
 
 		return &Decision{
 			UseConnectors: useConnectors,
+			IsClosed:      len(useConnectors) == 0,
 			Reason:        fmt.Sprintf("Using default wildcard ('%s') configuration for %s processor", config.DefaultWildcardIndexName, pipeline),
 		}
 	}

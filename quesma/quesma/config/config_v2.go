@@ -381,8 +381,8 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 				return fmt.Errorf("index name '%s' in processor configuration is an index pattern, not allowed", indexName)
 			}
 			if p.Type == QuesmaV1ProcessorQuery {
-				if len(indexConfig.Target) != 1 && len(indexConfig.Target) != 2 {
-					return fmt.Errorf("configuration of index %s must have one or two targets (query processor)", indexName)
+				if len(indexConfig.Target) > 2 {
+					return fmt.Errorf("configuration of index %s must have at most two targets (query processor)", indexName)
 				}
 			} else {
 				if len(indexConfig.Target) > 2 {
