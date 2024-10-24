@@ -45,7 +45,8 @@ jobs:
 
       - name: Get last commit author
         id: get_author
-        run: echo "::set-output name=author::$(git log -1 --pretty=format:'%an <%ae> sha1={%H}')"
+        run: >
+          echo "author=$(git log -1 --pretty=format:'%an <%ae>, commit URL: ${{ github.server_url }}/${{ github.repository }}/commit/%H')" >> $GITHUB_OUTPUT
 
       - name: License Header Verification
         working-directory: ci/it
