@@ -44,9 +44,10 @@ type QuesmaConfiguration struct {
 	DisableAuth                bool
 	AutodiscoveryEnabled       bool
 
-	EnableIngest      bool // this is computed from the configuration 2.0
-	CreateCommonTable bool
-
+	EnableIngest                 bool // this is computed from the configuration 2.0
+	CreateCommonTable            bool
+	CreateCommonTableForWildcard bool // the meaning of this is to create a common table for wildcard indexes
+	// and is a duplication for now due to some corner cases
 	DefaultIngestTarget []string
 	DefaultQueryTarget  []string
 }
