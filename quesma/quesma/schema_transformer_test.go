@@ -81,7 +81,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			TableName: "kibana_sample_data_logs_nested", FieldName: "nested.clientip"}: "nested_clientip",
 	}
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: indexConfig}
+	transform := &SchemaCheckPass{cfg: &cfg}
 	s.UpdateFieldEncodings(fieldEncodings)
 
 	selectColumns := []model.Expr{model.NewColumnRef("message")}
@@ -430,7 +430,7 @@ func Test_arrayType(t *testing.T) {
 		Fields: fields,
 	}
 
-	transform := &SchemaCheckPass{cfg: indexConfig}
+	transform := &SchemaCheckPass{cfg: &config.QuesmaConfiguration{IndexConfig: indexConfig}}
 
 	tests := []struct {
 		name     string
@@ -607,7 +607,7 @@ func TestApplyWildCard(t *testing.T) {
 		},
 	}
 
-	transform := &SchemaCheckPass{cfg: indexConfig}
+	transform := &SchemaCheckPass{cfg: &config.QuesmaConfiguration{IndexConfig: indexConfig}}
 
 	tests := []struct {
 		name     string
@@ -697,7 +697,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 	td.Store(tableDefinition.Name, &tableDefinition)
 
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: indexConfig}
+	transform := &SchemaCheckPass{cfg: &config.QuesmaConfiguration{IndexConfig: indexConfig}}
 
 	tests := []struct {
 		name     string
@@ -958,7 +958,7 @@ func TestFullTextFields(t *testing.T) {
 			}
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-			transform := &SchemaCheckPass{cfg: indexConfig}
+			transform := &SchemaCheckPass{cfg: &config.QuesmaConfiguration{IndexConfig: indexConfig}}
 
 			indexSchema, ok := s.FindSchema("test")
 			if !ok {
