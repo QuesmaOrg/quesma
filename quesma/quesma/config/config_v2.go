@@ -641,6 +641,11 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		if len(defaultConfig.QueryTarget) > 1 {
 			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
 		}
+
+		if defaultConfig.UseCommonTable != ingestProcessorDefaultIndexConfig.UseCommonTable {
+			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor and ingest processor should consistently use quesma common table property", DefaultWildcardIndexName))
+		}
+
 		// No restrictions for ingest target!
 		conf.DefaultIngestTarget = defaultConfig.IngestTarget
 		conf.DefaultQueryTarget = defaultConfig.QueryTarget
