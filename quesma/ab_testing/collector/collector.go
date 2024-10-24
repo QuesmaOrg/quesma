@@ -6,6 +6,7 @@ import (
 	"context"
 	"quesma/ab_testing"
 	"quesma/buildinfo"
+	"quesma/ingest"
 	"quesma/logger"
 	"quesma/quesma/recovery"
 	"time"
@@ -65,14 +66,11 @@ func (r *InMemoryCollector) String() string {
 	return "InMemoryCollector(sends data to Quesma)"
 }
 
-func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessage) *InMemoryCollector {
+func NewCollector(ctx context.Context, ingester ingest.Ingester, healthQueue chan<- ab_testing.HealthMessage) *InMemoryCollector {
 
 	ctx, cancel := context.WithCancel(ctx)
 
 	// TODO read config here
-
-	// avoid unused struct error
-	var _ = &mismatchedOnlyFilter{}
 
 	return &InMemoryCollector{
 		receiveQueue: make(chan ab_testing.Result, 1000),
@@ -85,9 +83,13 @@ func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessa
 			&diffTransformer{},
 			//&ppPrintFanout{},
 			//&mismatchedOnlyFilter{},
-			&elasticSearchFanout{
-				url:       "http://localhost:8080",
-				indexName: "ab_testing_logs",
+			//&elasticSearchFanout{
+			//	url:       "http://localhost:8080",
+			//	indexName: "ab_testing_logs",
+			//},
+			&internalIngestFanout{
+				indexName:       "ab_testing_logs",
+				ingestProcessor: ingester,
 			},
 		},
 		healthQueue:         healthQueue,
