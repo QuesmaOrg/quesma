@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"quesma/quesma/types"
+	"regexp"
 )
 
 // unifySyncAsyncResponse is a processor that processes that removes async "wrapper" from the response
@@ -56,5 +57,36 @@ func (t *unifySyncAsyncResponse) process(in EnrichedResults) (out EnrichedResult
 	in.A.Body = respA
 	in.B.Body = respB
 
+	return in, false, nil
+}
+
+type extractKibanaIds struct {
+}
+
+func (t *extractKibanaIds) name() string {
+	return "extractKibanaIds"
+}
+
+var opaqueIdKibanaDashboardIdRegexp = regexp.MustCompile(`dashboards:([0-9a-f-]+)`)
+
+func (t *extractKibanaIds) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
+
+	opaqueId := in.OpaqueID
+
+	// TODO maybe we should extract panel id as well
+
+	if opaqueId == "" {
+		in.KibanaDashboardId = "n/a"
+		return in, false, nil
+	}
+
+	matches := opaqueIdKibanaDashboardIdRegexp.FindStringSubmatch(opaqueId)
+
+	if len(matches) < 2 {
+		in.KibanaDashboardId = "n/a"
+		return in, false, nil
+	}
+
+	in.KibanaDashboardId = matches[1]
 	return in, false, nil
 }
