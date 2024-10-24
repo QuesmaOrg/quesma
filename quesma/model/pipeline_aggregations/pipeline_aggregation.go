@@ -27,7 +27,7 @@ func newPipelineAggregation(ctx context.Context, bucketsPath string) *PipelineAg
 	const delimiter = ">"
 	if len(bucketsPath) == 0 {
 		logger.WarnWithCtx(ctx).Msgf("invalid bucketsPath: %s. Using empty string as parent.", bucketsPath)
-		return &PipelineAggregation{}
+		return &PipelineAggregation{isCount: true} // count, as it's the simplest case
 	}
 
 	parent := ""
@@ -52,6 +52,10 @@ func (p *PipelineAggregation) GetPathToParent() []string {
 
 func (p *PipelineAggregation) IsCount() bool {
 	return p.isCount
+}
+
+func (p *PipelineAggregation) GetParentBucketAggregation() model.QueryType {
+	return p.parentBucketAggregation
 }
 
 func (p *PipelineAggregation) SetParentBucketAggregation(parentBucketAggregation model.QueryType) {
