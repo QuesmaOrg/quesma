@@ -81,7 +81,7 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
 		transformationPipeline: TransformationPipeline{
 			transformers: []model.QueryTransformer{
-				&SchemaCheckPass{cfg: cfg.IndexConfig},
+				&SchemaCheckPass{cfg: cfg},
 			},
 		},
 		schemaRegistry:  schemaRegistry,
