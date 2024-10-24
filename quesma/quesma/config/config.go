@@ -44,11 +44,11 @@ type QuesmaConfiguration struct {
 	DisableAuth                bool
 	AutodiscoveryEnabled       bool
 
-	EnableIngest      bool // this is computed from the configuration 2.0
-	CreateCommonTable bool
-
-	DefaultIngestTarget []string
-	DefaultQueryTarget  []string
+	EnableIngest              bool // this is computed from the configuration 2.0
+	CreateCommonTable         bool
+	UseCommonTableForWildcard bool //the meaning of this is to use a common table for wildcard (default) indexes
+	DefaultIngestTarget       []string
+	DefaultQueryTarget        []string
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {

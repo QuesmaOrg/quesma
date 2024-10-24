@@ -79,6 +79,7 @@ func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string)
 			case config.ClickhouseTarget:
 				useConnectors = append(useConnectors, &ConnectorDecisionClickhouse{
 					ClickhouseTableName: input.source,
+					IsCommonTable:       quesmaConf.UseCommonTableForWildcard,
 					ClickhouseTables:    []string{input.source},
 				})
 			case config.ElasticsearchTarget:
