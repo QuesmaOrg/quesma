@@ -6,6 +6,7 @@ package testcases
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
@@ -36,6 +37,7 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) RunTests(ctx context.Contex
 	t.Run("test basic request", func(t *testing.T) { a.testBasicRequest(ctx, t) })
 	t.Run("test random thing", func(t *testing.T) { a.testRandomThing(ctx, t) })
 	t.Run("test wildcard goes to elastic", func(t *testing.T) { a.testWildcardGoesToElastic(ctx, t) })
+	t.Run("test ingest is disabled", func(t *testing.T) { a.testIngestIsDisabled(ctx, t) })
 	return nil
 }
 
@@ -91,5 +93,15 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) testWildcardGoesToElastic(c
 	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
 }
 
-// At this moment this configuration does not disable ingest (ingest req's will get routed to ES and handled normally)
-// Future test idea -> ensure ingest req gets rejected.
+func (a *ReadingClickHouseTablesIntegrationTestcase) testIngestIsDisabled(ctx context.Context, t *testing.T) {
+	// There is no ingest pipeline, so Quesma should reject all ingest requests
+	for _, tt := range []string{"test_table", "extra_index"} {
+		t.Run(tt, func(t *testing.T) {
+			resp, bodyBytes := a.RequestToQuesma(ctx, t, "POST", fmt.Sprintf("/%s/_doc", tt), []byte(`{"name": "Piotr", "age": 11111}`))
+			assert.Contains(t, string(bodyBytes), "index_closed_exception")
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Equal(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
+			assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
+		})
+	}
+}
