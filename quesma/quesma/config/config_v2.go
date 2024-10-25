@@ -381,8 +381,8 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 				return fmt.Errorf("index name '%s' in processor configuration is an index pattern, not allowed", indexName)
 			}
 			if p.Type == QuesmaV1ProcessorQuery {
-				if len(indexConfig.Target) != 1 && len(indexConfig.Target) != 2 {
-					return fmt.Errorf("configuration of index %s must have one or two targets (query processor)", indexName)
+				if len(indexConfig.Target) > 2 {
+					return fmt.Errorf("configuration of index %s must have at most two targets (query processor)", indexName)
 				}
 			} else {
 				if len(indexConfig.Target) > 2 {
@@ -552,6 +552,12 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
 				}
 			}
+			if defaultConfig.UseCommonTable {
+				// We set both flags to true here
+				// as creating common table depends on the first one
+				conf.CreateCommonTable = true
+				conf.UseCommonTableForWildcard = true
+			}
 			if len(defaultConfig.QueryTarget) > 1 {
 				errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
 			}
@@ -619,6 +625,14 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
 			}
 		}
+		if defaultConfig.UseCommonTable {
+			// We set both flags to true here
+			// as creating common table depends on the first one
+			conf.CreateCommonTable = true
+			conf.UseCommonTableForWildcard = true
+		}
+
+		ingestProcessorDefaultIndexConfig := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName]
 		for _, target := range ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target {
 			if targetType, found := c.getTargetType(target); found {
 				defaultConfig.IngestTarget = append(defaultConfig.IngestTarget, targetType)
@@ -626,9 +640,21 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
 			}
 		}
+		if ingestProcessorDefaultIndexConfig.UseCommonTable {
+			// We set both flags to true here
+			// as creating common table depends on the first one
+			conf.CreateCommonTable = true
+			conf.UseCommonTableForWildcard = true
+		}
+
 		if len(defaultConfig.QueryTarget) > 1 {
 			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
 		}
+
+		if defaultConfig.UseCommonTable != ingestProcessorDefaultIndexConfig.UseCommonTable {
+			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor and ingest processor should consistently use quesma common table property", DefaultWildcardIndexName))
+		}
+
 		// No restrictions for ingest target!
 		conf.DefaultIngestTarget = defaultConfig.IngestTarget
 		conf.DefaultQueryTarget = defaultConfig.QueryTarget

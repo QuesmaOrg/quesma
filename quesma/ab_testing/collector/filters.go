@@ -37,3 +37,6 @@ func (t *mismatchedOnlyFilter) process(in EnrichedResults) (out EnrichedResults,
 
 	return in, false, nil
 }
+
+// avoid unused struct error
+var _ = &mismatchedOnlyFilter{}

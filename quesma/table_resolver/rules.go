@@ -79,6 +79,7 @@ func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string)
 			case config.ClickhouseTarget:
 				useConnectors = append(useConnectors, &ConnectorDecisionClickhouse{
 					ClickhouseTableName: input.source,
+					IsCommonTable:       quesmaConf.UseCommonTableForWildcard,
 					ClickhouseTables:    []string{input.source},
 				})
 			case config.ElasticsearchTarget:
@@ -93,6 +94,7 @@ func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string)
 
 		return &Decision{
 			UseConnectors: useConnectors,
+			IsClosed:      len(useConnectors) == 0,
 			Reason:        fmt.Sprintf("Using default wildcard ('%s') configuration for %s processor", config.DefaultWildcardIndexName, pipeline),
 		}
 	}

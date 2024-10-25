@@ -47,14 +47,13 @@ func (a *QueryAndIngestPipelineTestcase) testBasicRequest(ctx context.Context, t
 
 func (a *QueryAndIngestPipelineTestcase) testWildcardGoesToElastic(ctx context.Context, t *testing.T) {
 	// Given an index in Elasticsearch which falls under `*` in the configuration
-	var err error
-	if _, err = a.RequestToElasticsearch(ctx, "PUT", "/unmentioned_index", nil); err != nil {
+	if _, err := a.RequestToElasticsearch(ctx, "PUT", "/unmentioned_index", nil); err != nil {
 		t.Fatalf("Failed to create index: %s", err)
 	}
-	if _, err = a.RequestToElasticsearch(ctx, "POST", "/unmentioned_index/_doc/1", []byte(`{"name": "Alice"}`)); err != nil {
+	if _, err := a.RequestToElasticsearch(ctx, "POST", "/unmentioned_index/_doc/1", []byte(`{"name": "Alice"}`)); err != nil {
 		t.Fatalf("Failed to insert document: %s", err)
 	}
-	if _, err = a.RequestToElasticsearch(ctx, "POST", "/unmentioned_index/_refresh", nil); err != nil {
+	if _, err := a.RequestToElasticsearch(ctx, "POST", "/unmentioned_index/_refresh", nil); err != nil {
 		t.Fatalf("Failed to refresh index: %s", err)
 	}
 	// When Quesma searches for that document
