@@ -4,6 +4,7 @@ package quesma
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -61,7 +62,7 @@ func (q *QueryRunner) runABTestingResultsCollector(ctx context.Context, indexPat
 				}
 
 			case <-time.After(1 * time.Minute):
-				logger.ErrorWithCtx(ctx).Msg("timeout waiting for A/B results")
+				logger.ErrorWithCtx(ctx).Msgf("timeout waiting for A/B results. A result: %v, B result: %v", aResult, bResult)
 				// and cancel the context to stop the execution of the alternative plan
 				cancelFunc()
 				return
@@ -204,6 +205,7 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 		response := <-doneCh
 		if response.err != nil {
 			err = response.err
+			sendABResult(nil, err)
 			return nil, err
 		}
 
@@ -259,7 +261,13 @@ func (q *QueryRunner) callElastic(ctx context.Context, plan *model.ExecutionPlan
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("error calling elastic. got error code: %d", resp.StatusCode)
+		// here we try to parse the response as JSON, if it fails we return the plain text
+		responseBody, err = types.ParseJSON(string(data))
+		if err != nil {
+			responseBody = types.JSON{"plainText": string(data)}
+		}
+
+		return responseBody, fmt.Errorf("error calling elastic. got error code: %d", resp.StatusCode)
 	}
 
 	contextValues := tracing.ExtractValues(ctx)
@@ -271,9 +279,36 @@ func (q *QueryRunner) callElastic(ctx context.Context, plan *model.ExecutionPlan
 		return nil, err
 	}
 
-	// fake async response if needed
-
 	return responseBody, nil
+}
+
+// this is a copy of  AsyncSearchEntireResp
+type AsyncSearchElasticResp struct {
+	StartTimeInMillis      uint64 `json:"start_time_in_millis"`
+	CompletionTimeInMillis uint64 `json:"completion_time_in_millis"`
+	ExpirationTimeInMillis uint64 `json:"expiration_time_in_millis"`
+	ID                     string `json:"id,omitempty"`
+	IsRunning              bool   `json:"is_running"`
+	IsPartial              bool   `json:"is_partial"`
+	// CompletionStatus If the async search completed, this field shows the status code of the
+	// search.
+	// For example, 200 indicates that the async search was successfully completed.
+	// 503 indicates that the async search was completed with an error.
+	CompletionStatus *int `json:"completion_status,omitempty"`
+	Response         any  `json:"response"`
+}
+
+func WrapElasticResponseAsAsync(searchResponse any, asyncId string, isPartial bool, completionStatus *int) *AsyncSearchElasticResp {
+
+	response := AsyncSearchElasticResp{
+		Response:  searchResponse,
+		ID:        asyncId,
+		IsPartial: isPartial,
+		IsRunning: isPartial,
+	}
+
+	response.CompletionStatus = completionStatus
+	return &response
 }
 
 // TODO rename and change signature to use asyncElasticSearchWithError
@@ -288,13 +323,12 @@ func (q *QueryRunner) storeAsyncSearchWithRaw(qmc *ui.QuesmaManagementConsole, i
 	}
 
 	if resultError == nil {
-		responseBody, err = resultJSON.Bytes()
-		if err != nil {
-			return nil, err
-		}
+		okStatus := 200
+		asyncResponse := WrapElasticResponseAsAsync(resultJSON, asyncId, false, &okStatus)
+		responseBody, err = json.MarshalIndent(asyncResponse, "", "  ")
 	} else {
 		responseBody, _ = queryparser.EmptyAsyncSearchResponse(asyncId, false, 503)
-		return responseBody, resultError
+		err = resultError
 	}
 
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
