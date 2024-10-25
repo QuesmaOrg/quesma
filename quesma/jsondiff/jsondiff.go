@@ -25,7 +25,7 @@ func newType(code, message string) mismatchType {
 var (
 	invalidType                 = newType("invalid_type", "Types are not equal")
 	invalidValue                = newType("invalid_value", "Values are not equal")
-	invalidFloadValue           = newType("invalid_float_value", "Numbers  are not equal")
+	invalidNumberValue          = newType("invalid_number_value", "Numbers are not equal")
 	invalidDateValue            = newType("invalid_date_value", "Dates are not equal")
 	invalidArrayLength          = newType("invalid_array_length", "Array lengths are not equal")
 	invalidArrayLengthOffByOne  = newType("invalid_array_length_off_by_one", "Array lengths are off by one.")
@@ -415,12 +415,12 @@ func (d *JSONDiff) compare(expected any, actual any) {
 				relativeDiff := absDiff / math.Max(math.Abs(aFloat), math.Abs(bFloat))
 
 				if relativeDiff > relativeTolerance {
-					d.addMismatch(invalidFloadValue, d.asValue(expected), d.asValue(actual))
+					d.addMismatch(invalidNumberValue, d.asValue(expected), d.asValue(actual))
 				}
 			}
 
 		default:
-			d.addMismatch(invalidFloadValue, d.asType(expected), d.asType(actual))
+			d.addMismatch(invalidType, d.asType(expected), d.asType(actual))
 		}
 
 	case string:
