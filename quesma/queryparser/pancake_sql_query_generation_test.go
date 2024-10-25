@@ -62,6 +62,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 
 			if i != 72 { //77 88 124 66
+				//t.Skip()
+			}
+
+			if !strings.Contains(test.TestName, "multiple buckets_path") {
 				t.Skip()
 			}
 
