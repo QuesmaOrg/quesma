@@ -66,21 +66,28 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 	}
 
 	if len(mismatches) > 0 {
-		b, err := json.MarshalIndent(mismatches, "", " ")
 
-		if err != nil {
-			return in, false, fmt.Errorf("failed to marshal mismatches: %w", err)
-		}
-
-		in.Mismatch.Mismatches = string(b)
 		in.Mismatch.IsOK = false
 		in.Mismatch.Count = len(mismatches)
-		in.Mismatch.Message = mismatches.String()
 
 		topMismatchType, _ := t.mostCommonMismatchType(mismatches)
 		if topMismatchType != "" {
 			in.Mismatch.TopMismatchType = topMismatchType
 		}
+
+		// if there are too many mismatches, we only show the first 20
+		// this is to avoid overwhelming the user with too much information
+		if len(mismatches) > 20 {
+			mismatches = mismatches[:20]
+		}
+
+		b, err := json.MarshalIndent(mismatches, "", " ")
+
+		if err != nil {
+			return in, false, fmt.Errorf("failed to marshal mismatches: %w", err)
+		}
+		in.Mismatch.Mismatches = string(b)
+		in.Mismatch.Message = mismatches.String()
 
 	} else {
 		in.Mismatch.Mismatches = "[]"

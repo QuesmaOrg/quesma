@@ -35,7 +35,7 @@ type executionPlanResult struct {
 func (q *QueryRunner) runABTestingResultsCollector(ctx context.Context, indexPattern string, body types.JSON) (chan<- executionPlanResult, context.Context) {
 
 	contextValues := tracing.ExtractValues(ctx)
-	
+
 	backgroundContext, cancelFunc := context.WithCancel(tracing.NewContextWithRequest(ctx))
 
 	numberOfExpectedResults := len([]string{model.MainExecutionPlan, model.AlternativeExecutionPlan})
@@ -54,7 +54,6 @@ func (q *QueryRunner) runABTestingResultsCollector(ctx context.Context, indexPat
 			select {
 
 			case r := <-optComparePlansCh:
-				logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan.Name)
 				if r.isMain {
 					aResult = &r
 				} else {
@@ -181,7 +180,6 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 	doneCh := make(chan asyncElasticSearchWithError, 1)
 
 	sendABResult := func(response []byte, err error) {
-		fmt.Println("sendABResult", response, err)
 		optComparePlansCh <- executionPlanResult{
 			isMain:       abTestingMainPlan, // TODO
 			plan:         plan,
@@ -196,8 +194,7 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 			doneCh <- asyncElasticSearchWithError{err: err}
 		})
 
-		resp, err := q.callElastic(ctx, plan, requestBody)
-		fmt.Println("callElastic", resp, err)
+		resp, err := q.callElastic(ctx, plan, requestBody, optAsync)
 
 		doneCh <- asyncElasticSearchWithError{response: resp, translatedQueryBody: nil, err: err}
 	}()
@@ -235,7 +232,7 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 	}
 }
 
-func (q *QueryRunner) callElastic(ctx context.Context, plan *model.ExecutionPlan, requestBody types.JSON) (responseBody types.JSON, err error) {
+func (q *QueryRunner) callElastic(ctx context.Context, plan *model.ExecutionPlan, requestBody types.JSON, optAsync *AsyncQuery) (responseBody types.JSON, err error) {
 
 	url := fmt.Sprintf("%s/_search", plan.IndexPattern)
 
@@ -274,9 +271,12 @@ func (q *QueryRunner) callElastic(ctx context.Context, plan *model.ExecutionPlan
 		return nil, err
 	}
 
+	// fake async response if needed
+
 	return responseBody, nil
 }
 
+// TODO rename and change signature to use asyncElasticSearchWithError
 func (q *QueryRunner) storeAsyncSearchWithRaw(qmc *ui.QuesmaManagementConsole, id, asyncId string,
 	startTime time.Time, path string, body types.JSON, resultJSON types.JSON, resultError error, translatedQueryBody []types.TranslatedSQLQuery, keep bool, opaqueId string) (responseBody []byte, err error) {
 
