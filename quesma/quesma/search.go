@@ -446,53 +446,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	plan.StartTime = startTime
 	plan.Name = model.MainExecutionPlan
 
-	// Some flags may trigger alternative execution plans, this is primary for dev
-
-	if !decision.EnableABTesting {
-		return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, nil, true)
-	}
-	return q.executeABTesting(ctx, plan, queryTranslator, table, body, optAsync, decision, indexPattern)
-}
-
-func (q *QueryRunner) storeAsyncSearchWithRaw(qmc *ui.QuesmaManagementConsole, id, asyncId string,
-	startTime time.Time, path string, body types.JSON, resultJSON types.JSON, resultError error, translatedQueryBody []types.TranslatedSQLQuery, keep bool, opaqueId string) (responseBody []byte, err error) {
-
-	took := time.Since(startTime)
-
-	bodyAsBytes, err := body.Bytes()
-	if err != nil {
-		return nil, err
+	if decision.EnableABTesting {
+		return q.executeABTesting(ctx, plan, queryTranslator, table, body, optAsync, decision, indexPattern)
 	}
 
-	responseBody, err = resultJSON.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
-	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-		Id:                     id,
-		AsyncId:                asyncId,
-		OpaqueId:               opaqueId,
-		Path:                   path,
-		IncomingQueryBody:      bodyAsBytes,
-		QueryBodyTranslated:    translatedQueryBody,
-		QueryTranslatedResults: responseBody,
-		SecondaryTook:          took,
-	})
-
-	if keep {
-		compressedBody := responseBody
-		isCompressed := false
-		if err == nil {
-			if compressed, compErr := util.Compress(responseBody); compErr == nil {
-				compressedBody = compressed
-				isCompressed = true
-			}
-		}
-		q.AsyncRequestStorage.Store(asyncId, async_search_storage.NewAsyncRequestResult(compressedBody, err, time.Now(), isCompressed))
-	}
-
-	return
+	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, nil, true)
 
 }
 

@@ -5,7 +5,6 @@ package quesma
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"io"
 	"net/http"
 	"quesma/ab_testing"
@@ -13,10 +12,14 @@ import (
 	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/queryparser"
+	"quesma/quesma/async_search_storage"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
+	"quesma/quesma/ui"
 	"quesma/table_resolver"
 	"quesma/tracing"
+	"quesma/util"
 	"time"
 )
 
@@ -29,9 +32,11 @@ type executionPlanResult struct {
 }
 
 // runABTestingResultsCollector runs the alternative plan and comparison method in the background. It returns a channel to collect the main plan results.
-func (q *QueryRunner) runABTestingResultsCollector(ctx context.Context, indexPattern string, body types.JSON) chan<- executionPlanResult {
+func (q *QueryRunner) runABTestingResultsCollector(ctx context.Context, indexPattern string, body types.JSON) (chan<- executionPlanResult, context.Context) {
 
 	contextValues := tracing.ExtractValues(ctx)
+	
+	backgroundContext, cancelFunc := context.WithCancel(tracing.NewContextWithRequest(ctx))
 
 	numberOfExpectedResults := len([]string{model.MainExecutionPlan, model.AlternativeExecutionPlan})
 
@@ -41,17 +46,26 @@ func (q *QueryRunner) runABTestingResultsCollector(ctx context.Context, indexPat
 	go func(optComparePlansCh <-chan executionPlanResult) {
 		defer recovery.LogPanic()
 
-		var aResult executionPlanResult
-		var bResult executionPlanResult
+		var aResult *executionPlanResult
+		var bResult *executionPlanResult
 
-		for range numberOfExpectedResults {
-			r := <-optComparePlansCh
-			pp.Println("XXX Result: ", r)
-			logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan.Name)
-			if r.isMain {
-				aResult = r
-			} else {
-				bResult = r
+		for aResult == nil || bResult == nil {
+
+			select {
+
+			case r := <-optComparePlansCh:
+				logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan.Name)
+				if r.isMain {
+					aResult = &r
+				} else {
+					bResult = &r
+				}
+
+			case <-time.After(1 * time.Minute):
+				logger.ErrorWithCtx(ctx).Msg("timeout waiting for A/B results")
+				// and cancel the context to stop the execution of the alternative plan
+				cancelFunc()
+				return
 			}
 		}
 
@@ -91,41 +105,35 @@ func (q *QueryRunner) runABTestingResultsCollector(ctx context.Context, indexPat
 			OpaqueID:  contextValues.OpaqueId,
 		}
 
-		pp.Println("AB Result: ", abResult)
-
 		q.ABResultsSender.Send(abResult)
 
 	}(optComparePlansCh)
 
-	return optComparePlansCh
+	return optComparePlansCh, backgroundContext
 }
 
 func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, decision *table_resolver.Decision, indexPattern string) ([]byte, error) {
 
-	var optComparePlansCh chan<- executionPlanResult
+	optComparePlansCh, backgroundContext := q.runABTestingResultsCollector(ctx, indexPattern, body)
 
-	if decision.EnableABTesting {
-		optComparePlansCh = q.runABTestingResultsCollector(ctx, indexPattern, body)
-	}
-
-	var planExecutors []func() ([]byte, error)
+	var planExecutors []func(ctx context.Context) ([]byte, error)
 
 	for i, connector := range decision.UseConnectors {
 
 		isMainPlan := i == 0
 
-		var fn func() ([]byte, error)
+		var planExecutor func(ctx context.Context) ([]byte, error)
 
 		switch connector.(type) {
 
 		case *table_resolver.ConnectorDecisionClickhouse:
-			fn = func() ([]byte, error) {
+			planExecutor = func(ctx context.Context) ([]byte, error) {
 				plan.Name = "clickhouse"
-				return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, nil, isMainPlan)
+				return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh, isMainPlan)
 			}
 
 		case *table_resolver.ConnectorDecisionElastic:
-			fn = func() ([]byte, error) {
+			planExecutor = func(ctx context.Context) ([]byte, error) {
 				elasticPlan := &model.ExecutionPlan{
 					IndexPattern:          plan.IndexPattern,
 					QueryRowsTransformers: []model.QueryRowsTransformer{},
@@ -139,29 +147,31 @@ func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.Executio
 		default:
 			return nil, fmt.Errorf("unknown connector type: %T", connector)
 		}
-		planExecutors = append(planExecutors, fn)
+		planExecutors = append(planExecutors, planExecutor)
 	}
 
-	// run other plans in background
-
-	for _, executor := range planExecutors[1:] {
-		fn := executor // capture the loop variable
-		go func() {
-			defer recovery.LogPanic()
-			_, _ = fn() // ignore the result,
-		}()
+	if len(planExecutors) != 2 {
+		return nil, fmt.Errorf("expected 2 plans, got %d", len(planExecutors))
 	}
 
+	// B plan aka alternative
+	go func() {
+		defer recovery.LogPanic()
+		_, _ = planExecutors[1](backgroundContext) // ignore the result
+	}()
+
+	// A plan aka main plan
 	// run the first plan in the main thread
-	return planExecutors[0]()
+	return planExecutors[0](ctx)
+}
+
+type asyncElasticSearchWithError struct {
+	response            types.JSON
+	translatedQueryBody []types.TranslatedSQLQuery
+	err                 error
 }
 
 func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.ExecutionPlan, requestBody types.JSON, optAsync *AsyncQuery, optComparePlansCh chan<- executionPlanResult, abTestingMainPlan bool) (responseBody []byte, err error) {
-	type asyncElasticSearchWithError struct {
-		response            types.JSON
-		translatedQueryBody []types.TranslatedSQLQuery
-		err                 error
-	}
 
 	contextValues := tracing.ExtractValues(ctx)
 	id := contextValues.RequestId
@@ -170,15 +180,14 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 
 	doneCh := make(chan asyncElasticSearchWithError, 1)
 
-	sendMainPlanResult := func(responseBody []byte, err error) {
-		if optComparePlansCh != nil {
-			optComparePlansCh <- executionPlanResult{
-				isMain:       abTestingMainPlan, // TODO
-				plan:         plan,
-				err:          err,
-				responseBody: responseBody,
-				endTime:      time.Now(),
-			}
+	sendABResult := func(response []byte, err error) {
+		fmt.Println("sendABResult", response, err)
+		optComparePlansCh <- executionPlanResult{
+			isMain:       abTestingMainPlan, // TODO
+			plan:         plan,
+			err:          err,
+			responseBody: response,
+			endTime:      time.Now(),
 		}
 	}
 
@@ -188,6 +197,7 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 		})
 
 		resp, err := q.callElastic(ctx, plan, requestBody)
+		fmt.Println("callElastic", resp, err)
 
 		doneCh <- asyncElasticSearchWithError{response: resp, translatedQueryBody: nil, err: err}
 	}()
@@ -201,21 +211,25 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 		}
 
 		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
-		sendMainPlanResult(responseBody, err)
+		sendABResult(responseBody, err)
 		return responseBody, err
 	} else {
 		select {
+
+		case <-ctx.Done():
+			return nil, ctx.Err()
+
 		case <-time.After(time.Duration(optAsync.waitForResultsMs) * time.Millisecond):
 			go func() { // Async search takes longer. Return partial results and wait for
 				recovery.LogPanicWithCtx(ctx)
 				res := <-doneCh
 				responseBody, err = q.storeAsyncSearchWithRaw(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, requestBody, res.response, res.err, res.translatedQueryBody, true, opaqueId)
-				sendMainPlanResult(responseBody, err)
+				sendABResult(responseBody, err)
 			}()
 			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
 		case res := <-doneCh:
 			responseBody, err = q.storeAsyncSearchWithRaw(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, requestBody, res.response, res.err, res.translatedQueryBody, true, opaqueId)
-			sendMainPlanResult(responseBody, err)
+			sendABResult(responseBody, err)
 			return responseBody, err
 		}
 	}
@@ -232,7 +246,7 @@ func (q *QueryRunner) callElastic(ctx context.Context, plan *model.ExecutionPlan
 		return nil, err
 	}
 
-	resp, err := client.Request(ctx, url, "POST", requestBodyAsBytes)
+	resp, err := client.Request(ctx, "POST", url, requestBodyAsBytes)
 
 	if err != nil {
 		return nil, err
@@ -261,5 +275,50 @@ func (q *QueryRunner) callElastic(ctx context.Context, plan *model.ExecutionPlan
 	}
 
 	return responseBody, nil
+}
 
+func (q *QueryRunner) storeAsyncSearchWithRaw(qmc *ui.QuesmaManagementConsole, id, asyncId string,
+	startTime time.Time, path string, body types.JSON, resultJSON types.JSON, resultError error, translatedQueryBody []types.TranslatedSQLQuery, keep bool, opaqueId string) (responseBody []byte, err error) {
+
+	took := time.Since(startTime)
+
+	bodyAsBytes, err := body.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	if resultError == nil {
+		responseBody, err = resultJSON.Bytes()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		responseBody, _ = queryparser.EmptyAsyncSearchResponse(asyncId, false, 503)
+		return responseBody, resultError
+	}
+
+	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+		Id:                     id,
+		AsyncId:                asyncId,
+		OpaqueId:               opaqueId,
+		Path:                   path,
+		IncomingQueryBody:      bodyAsBytes,
+		QueryBodyTranslated:    translatedQueryBody,
+		QueryTranslatedResults: responseBody,
+		SecondaryTook:          took,
+	})
+
+	if keep {
+		compressedBody := responseBody
+		isCompressed := false
+		if err == nil {
+			if compressed, compErr := util.Compress(responseBody); compErr == nil {
+				compressedBody = compressed
+				isCompressed = true
+			}
+		}
+		q.AsyncRequestStorage.Store(asyncId, async_search_storage.NewAsyncRequestResult(compressedBody, err, time.Now(), isCompressed))
+	}
+
+	return
 }
