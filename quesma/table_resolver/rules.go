@@ -57,12 +57,45 @@ func resolveInternalElasticName(pattern parsedPattern) *Decision {
 	return nil
 }
 
-func makeElasticIsDefault(cfg map[string]config.IndexConfiguration) func(input parsedPattern) *Decision {
-
+func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string) func(input parsedPattern) *Decision {
 	return func(input parsedPattern) *Decision {
+		var targets []string
+		var useConnectors []ConnectorDecision
+
+		switch pipeline {
+		case IngestPipeline:
+			targets = quesmaConf.DefaultIngestTarget
+		case QueryPipeline:
+			targets = quesmaConf.DefaultQueryTarget
+		default:
+			return &Decision{
+				Reason: "Unsupported configuration",
+				Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported pipeline: %s", pipeline)),
+			}
+		}
+
+		for _, target := range targets {
+			switch target {
+			case config.ClickhouseTarget:
+				useConnectors = append(useConnectors, &ConnectorDecisionClickhouse{
+					ClickhouseTableName: input.source,
+					IsCommonTable:       quesmaConf.UseCommonTableForWildcard,
+					ClickhouseTables:    []string{input.source},
+				})
+			case config.ElasticsearchTarget:
+				useConnectors = append(useConnectors, &ConnectorDecisionElastic{})
+			default:
+				return &Decision{
+					Reason: "Unsupported configuration",
+					Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported target: %s", target)),
+				}
+			}
+		}
+
 		return &Decision{
-			UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
-			Reason:        "Elastic is default.",
+			UseConnectors: useConnectors,
+			IsClosed:      len(useConnectors) == 0,
+			Reason:        fmt.Sprintf("Using default wildcard ('%s') configuration for %s processor", config.DefaultWildcardIndexName, pipeline),
 		}
 	}
 }
@@ -197,15 +230,12 @@ func (r *tableRegistryImpl) makeCheckIfPatternMatchesAllConnectors(pipeline stri
 				}
 
 				// but maybe we should also check against the actual indexes ??
-
-				if r.conf.AutodiscoveryEnabled {
-
-					for indexName := range r.elasticIndexes {
-						if util.IndexPatternMatches(pattern, indexName) {
-							matchedElastic = append(matchedElastic, indexName)
-						}
+				for indexName := range r.elasticIndexes {
+					if util.IndexPatternMatches(pattern, indexName) {
+						matchedElastic = append(matchedElastic, indexName)
 					}
-
+				}
+				if r.conf.AutodiscoveryEnabled {
 					for tableName := range r.clickhouseIndexes {
 						if util.IndexPatternMatches(pattern, tableName) {
 							matchedClickhouse = append(matchedClickhouse, tableName)

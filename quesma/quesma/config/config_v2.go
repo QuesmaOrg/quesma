@@ -107,11 +107,6 @@ type Processor struct {
 	Config QuesmaProcessorConfig `koanf:"config"`
 }
 
-var (
-	DefaultIngestTarget = []string{ElasticsearchTarget}
-	DefaultQueryTarget  = []string{ElasticsearchTarget}
-)
-
 // An index configuration under this name in IndexConfig
 // specifies the default configuration for all (non-configured) indexes
 const DefaultWildcardIndexName = "*"
@@ -386,8 +381,8 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 				return fmt.Errorf("index name '%s' in processor configuration is an index pattern, not allowed", indexName)
 			}
 			if p.Type == QuesmaV1ProcessorQuery {
-				if len(indexConfig.Target) != 1 && len(indexConfig.Target) != 2 {
-					return fmt.Errorf("configuration of index %s must have one or two targets (query processor)", indexName)
+				if len(indexConfig.Target) > 2 {
+					return fmt.Errorf("configuration of index %s must have at most two targets (query processor)", indexName)
 				}
 			} else {
 				if len(indexConfig.Target) > 2 {
@@ -547,6 +542,30 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			// TODO refactor this to a separate function
 
 			conf.IndexConfig = make(map[string]IndexConfiguration)
+
+			// Handle default index configuration
+			defaultConfig := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]
+			for _, target := range defaultConfig.Target {
+				if targetType, found := c.getTargetType(target); found {
+					defaultConfig.QueryTarget = append(defaultConfig.QueryTarget, targetType)
+				} else {
+					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
+				}
+			}
+			if defaultConfig.UseCommonTable {
+				// We set both flags to true here
+				// as creating common table depends on the first one
+				conf.CreateCommonTable = true
+				conf.UseCommonTableForWildcard = true
+			}
+			if len(defaultConfig.QueryTarget) > 1 {
+				errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
+			}
+			conf.DefaultIngestTarget = []string{}
+			conf.DefaultQueryTarget = defaultConfig.QueryTarget
+			conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
+			delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
+
 			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 				processedConfig := indexConfig
 				processedConfig.Name = indexName
@@ -575,13 +594,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 				conf.IndexConfig[indexName] = processedConfig
 			}
-
-			// Handle default index configuration
-			defaultConfig := conf.IndexConfig[DefaultWildcardIndexName]
-			if !reflect.DeepEqual(defaultConfig.QueryTarget, []string{ElasticsearchTarget}) {
-				errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
-			}
-			delete(conf.IndexConfig, DefaultWildcardIndexName)
 		} else {
 			errAcc = multierror.Append(errAcc, fmt.Errorf("unsupported processor %s in single pipeline", procType))
 		}
@@ -603,11 +615,58 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 
 		conf.IndexConfig = make(map[string]IndexConfiguration)
+
+		// Handle default index configuration
+		defaultConfig := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]
+		for _, target := range defaultConfig.Target {
+			if targetType, found := c.getTargetType(target); found {
+				defaultConfig.QueryTarget = append(defaultConfig.QueryTarget, targetType)
+			} else {
+				errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
+			}
+		}
+		if defaultConfig.UseCommonTable {
+			// We set both flags to true here
+			// as creating common table depends on the first one
+			conf.CreateCommonTable = true
+			conf.UseCommonTableForWildcard = true
+		}
+
+		ingestProcessorDefaultIndexConfig := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName]
+		for _, target := range ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target {
+			if targetType, found := c.getTargetType(target); found {
+				defaultConfig.IngestTarget = append(defaultConfig.IngestTarget, targetType)
+			} else {
+				errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
+			}
+		}
+		if ingestProcessorDefaultIndexConfig.UseCommonTable {
+			// We set both flags to true here
+			// as creating common table depends on the first one
+			conf.CreateCommonTable = true
+			conf.UseCommonTableForWildcard = true
+		}
+
+		if len(defaultConfig.QueryTarget) > 1 {
+			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
+		}
+
+		if defaultConfig.UseCommonTable != ingestProcessorDefaultIndexConfig.UseCommonTable {
+			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor and ingest processor should consistently use quesma common table property", DefaultWildcardIndexName))
+		}
+
+		// No restrictions for ingest target!
+		conf.DefaultIngestTarget = defaultConfig.IngestTarget
+		conf.DefaultQueryTarget = defaultConfig.QueryTarget
+		conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
+		delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
+		delete(ingestProcessor.Config.IndexConfig, DefaultWildcardIndexName)
+
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 			processedConfig := indexConfig
 			processedConfig.Name = indexName
 
-			processedConfig.IngestTarget = DefaultIngestTarget
+			processedConfig.IngestTarget = defaultConfig.IngestTarget
 
 			for _, target := range indexConfig.Target {
 				if targetType, found := c.getTargetType(target); found {
@@ -643,10 +702,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				// use the ingest processor's configuration as the base (similarly as in the previous loop)
 				processedConfig = indexConfig
 				processedConfig.Name = indexName
-				processedConfig.QueryTarget = DefaultQueryTarget
+				processedConfig.QueryTarget = defaultConfig.QueryTarget
 			}
 
-			processedConfig.IngestTarget = make([]string, 0) // reset previously set DefaultIngestTarget
+			processedConfig.IngestTarget = make([]string, 0) // reset previously set defaultConfig.IngestTarget
 			for _, target := range indexConfig.Target {
 				if targetType, found := c.getTargetType(target); found {
 					processedConfig.IngestTarget = append(processedConfig.IngestTarget, targetType)
@@ -657,16 +716,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			conf.IndexConfig[indexName] = processedConfig
 		}
-
-		// Handle default index configuration
-		defaultConfig := conf.IndexConfig[DefaultWildcardIndexName]
-		if !reflect.DeepEqual(defaultConfig.QueryTarget, []string{ElasticsearchTarget}) {
-			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
-		}
-		if !reflect.DeepEqual(defaultConfig.IngestTarget, []string{ElasticsearchTarget}) {
-			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of ingest processor is not currently supported", DefaultWildcardIndexName))
-		}
-		delete(conf.IndexConfig, DefaultWildcardIndexName)
 	}
 
 END:

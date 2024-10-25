@@ -16,7 +16,7 @@ import (
 )
 
 type SchemaCheckPass struct {
-	cfg map[string]config.IndexConfiguration
+	cfg *config.QuesmaConfiguration
 }
 
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
@@ -354,8 +354,10 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 	var useCommonTable bool
 	if len(query.Indexes) == 1 {
-		if indexConf, ok := s.cfg[query.Indexes[0]]; ok {
+		if indexConf, ok := s.cfg.IndexConfig[query.Indexes[0]]; ok {
 			useCommonTable = indexConf.UseCommonTable
+		} else if s.cfg.UseCommonTableForWildcard {
+			useCommonTable = true
 		}
 	} else { // we can handle querying multiple indexes from common table only
 		useCommonTable = true

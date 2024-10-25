@@ -25,3 +25,6 @@ quesma/config.yaml
 quesma/.installation_id
 examples/kibana-sample-data/quesma/logs/*
 bin/.running-docker-compose
+docs/public/node_modules
+docs/public/docs/.vitepress/cache/deps
+docs/public/docs/.vitepress/dist
