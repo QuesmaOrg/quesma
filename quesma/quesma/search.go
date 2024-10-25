@@ -203,7 +203,7 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 	}()
 }
 
-func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, optComparePlansCh chan<- executionPlanResult) (responseBody []byte, err error) {
+func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, optComparePlansCh chan<- executionPlanResult, abTestingMainPlan bool) (responseBody []byte, err error) {
 	contextValues := tracing.ExtractValues(ctx)
 	id := contextValues.RequestId
 	path := contextValues.RequestPath
@@ -214,7 +214,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	sendMainPlanResult := func(responseBody []byte, err error) {
 		if optComparePlansCh != nil {
 			optComparePlansCh <- executionPlanResult{
-				isMain:       true,
+				isMain:       abTestingMainPlan,
 				plan:         plan,
 				err:          err,
 				responseBody: responseBody,
@@ -448,15 +448,52 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	// Some flags may trigger alternative execution plans, this is primary for dev
 
-	alternativePlan, alternativePlanExecutor := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedIndexes, plan, queryTranslator, body, table, optAsync != nil)
+	if !decision.EnableABTesting {
+		return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, nil, true)
+	}
+	return q.executeABTesting(ctx, plan, queryTranslator, table, body, optAsync, decision, indexPattern)
+}
 
-	var optComparePlansCh chan<- executionPlanResult
+func (q *QueryRunner) storeAsyncSearchWithRaw(qmc *ui.QuesmaManagementConsole, id, asyncId string,
+	startTime time.Time, path string, body types.JSON, resultJSON types.JSON, resultError error, translatedQueryBody []types.TranslatedSQLQuery, keep bool, opaqueId string) (responseBody []byte, err error) {
 
-	if alternativePlan != nil {
-		optComparePlansCh = q.runAlternativePlanAndComparison(ctx, alternativePlan, alternativePlanExecutor, body)
+	took := time.Since(startTime)
+
+	bodyAsBytes, err := body.Bytes()
+	if err != nil {
+		return nil, err
 	}
 
-	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh)
+	responseBody, err = resultJSON.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+		Id:                     id,
+		AsyncId:                asyncId,
+		OpaqueId:               opaqueId,
+		Path:                   path,
+		IncomingQueryBody:      bodyAsBytes,
+		QueryBodyTranslated:    translatedQueryBody,
+		QueryTranslatedResults: responseBody,
+		SecondaryTook:          took,
+	})
+
+	if keep {
+		compressedBody := responseBody
+		isCompressed := false
+		if err == nil {
+			if compressed, compErr := util.Compress(responseBody); compErr == nil {
+				compressedBody = compressed
+				isCompressed = true
+			}
+		}
+		q.AsyncRequestStorage.Store(asyncId, async_search_storage.NewAsyncRequestResult(compressedBody, err, time.Now(), isCompressed))
+	}
+
+	return
+
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncId string,
