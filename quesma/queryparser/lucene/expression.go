@@ -95,7 +95,7 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 		}
 		currentStatement = model.NewInfixExpr(model.NewColumnRef(fieldName.term), " IS NOT ", model.NewLiteral("NULL"))
 	case leftParenthesisToken:
-		currentStatement = model.NewParenExpr(p.buildWhereStatement(true))
+		currentStatement = model.NewParenExpr(p.buildWhereStatement(false))
 	case rightParenthesisToken:
 		if p.WhereStatement == nil {
 			return invalidStatement
