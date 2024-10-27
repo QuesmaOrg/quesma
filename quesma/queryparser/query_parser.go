@@ -730,14 +730,19 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) model.Simp
 // This one is really complicated (https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html)
 // `query` uses Lucene language, we don't support 100% of it, but most.
 func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.SimpleQuery {
+	noFieldsParam := false
 	var fields []string
 	if fieldsRaw, ok := queryMap["fields"]; ok {
 		fields = cw.extractFields(fieldsRaw.([]interface{}))
 	} else {
+		noFieldsParam = true
 		fields = []string{model.FullTextFieldNamePlaceHolder}
 	}
 
 	query := queryMap["query"].(string) // query: (Required, string)
+	if query == "*" && noFieldsParam {
+		return model.NewSimpleQuery(model.TrueExpr, true)
+	}
 
 	// we always call `TranslateToSQL` - Lucene parser returns "false" in case of invalid query
 	whereStmtFromLucene := lucene.TranslateToSQL(cw.Ctx, query, fields, cw.Schema)

@@ -18,7 +18,7 @@ func NewFilterAgg(ctx context.Context, whereClause model.Expr) FilterAgg {
 }
 
 func (query FilterAgg) AggregationType() model.AggregationType {
-	return model.BucketAggregation
+	return model.MetricsAggregation
 }
 
 func (query FilterAgg) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {

@@ -23,12 +23,16 @@ func (query Count) AggregationType() model.AggregationType {
 func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for count aggregation")
-		return make(model.JsonMap, 0)
+		return make(model.JsonMap)
 	}
 	if len(rows) > 1 {
 		logger.WarnWithCtx(query.ctx).Msg("More than one row returned for count aggregation")
 	}
-	return model.JsonMap{"doc_count": rows[0].Cols[0]}
+	if len(rows[0].Cols) == 0 {
+		logger.WarnWithCtx(query.ctx).Msg("no columns returned for count aggregation")
+		return model.JsonMap{"doc_count": -1}
+	}
+	return model.JsonMap{"doc_count": rows[0].Cols[0].Value}
 }
 
 func (query Count) String() string {
