@@ -288,29 +288,29 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", 46),
 				model.NewQueryResultCol("aggr__0__key_0", "Abu Dhabi"),
 				model.NewQueryResultCol("aggr__0__count", uint64(23)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", 7),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", 7),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", 3),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", 46),
 				model.NewQueryResultCol("aggr__0__key_0", "Adelaide"),
 				model.NewQueryResultCol("aggr__0__count", uint64(20)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", 3),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", 3),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", 2),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", 46),
 				model.NewQueryResultCol("aggr__0__key_0", "Albuquerque"),
 				model.NewQueryResultCol("aggr__0__count", uint64(3)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", 0),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", 0),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", 2),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0",
-			  countIf("FlightDelay"==true) AS "aggr__0__1-bucket__count"
+			  countIf("FlightDelay"==true) AS "metric__0__1-bucket_col_0",
+			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0"
 			FROM ` + TableName + `
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))
 			GROUP BY "OriginCityName" AS "aggr__0__key_0"

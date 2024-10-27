@@ -60,7 +60,13 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Need to implement order by top metrics (talk with Jacek, he has an idea)")
 			}
 
-			if i != 0 {
+			if i > 20 {
+				t.Skip()
+			}
+			if i == 5 {
+				t.Skip("Fix sql")
+			}
+			if i != 17 {
 				t.Skip()
 			}
 

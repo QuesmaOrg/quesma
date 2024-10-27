@@ -34,14 +34,9 @@ type metricsAggregation struct {
 const metricsAggregationDefaultFieldType = clickhouse.Invalid
 
 // Tries to parse metrics aggregation from queryMap. If it's not a metrics aggregation, returns false.
+// full list: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-Aggregations-metrics.html
+// shouldn't be hard to handle others, if necessary
 func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (metricAggregation metricsAggregation, success bool) {
-	if len(queryMap) != 1 {
-		return metricsAggregation{}, false
-	}
-
-	// full list: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-Aggregations-metrics.html
-	// shouldn't be hard to handle others, if necessary
-
 	metricsAggregations := []string{"sum", "avg", "min", "max", "cardinality", "value_count", "stats", "geo_centroid"}
 	for k, v := range queryMap {
 		if slices.Contains(metricsAggregations, k) {

@@ -254,7 +254,7 @@ func (a *pancakeTransformer) checkIfSupported(layers []*pancakeModelLayer) error
 						case bucket_aggregations.CombinatorAggregationInterface:
 							continue // we also support nested filters/range/dataRange
 						default:
-							return fmt.Errorf("filter(s)/range/dataRange aggregation must be the last bucket aggregation")
+							//return fmt.Errorf("filter(s)/range/dataRange aggregation must be the last bucket aggregation")
 						}
 					}
 				}

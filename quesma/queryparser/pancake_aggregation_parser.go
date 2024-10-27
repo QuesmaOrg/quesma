@@ -5,6 +5,7 @@ package queryparser
 import (
 	"errors"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/typical_queries"
@@ -129,6 +130,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 
 	// 1. Metrics aggregation => always leaf
 	if metricsAggrResult, isMetrics := cw.tryMetricsAggregation(queryMap); isMetrics {
+		pp.Println(isMetrics, metricsAggrResult)
 		columns, err := generateMetricSelectedColumns(cw.Ctx, metricsAggrResult)
 		if err != nil {
 			return nil, err
@@ -138,7 +140,8 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 		if aggregation.queryType == nil { // Should never happen, we should hit earlier error
 			return nil, fmt.Errorf("unknown metrics aggregation: %v" + metricsAggrResult.AggrType)
 		}
-		return aggregation, nil
+		//return aggregation, nil
+		delete(queryMap, metricsAggrResult.AggrType)
 	}
 
 	// 2. Pipeline aggregation => always leaf (for now)
