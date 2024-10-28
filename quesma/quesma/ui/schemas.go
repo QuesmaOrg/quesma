@@ -9,7 +9,7 @@ import (
 
 func (qmc *QuesmaManagementConsole) generateSchemas() []byte {
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("schemas"))
+	buffer.Write(qmc.generateTopNavigation("schemas"))
 	buffer.Html(`<main id="schemas">`)
 
 	schemas := qmc.schemasProvider.AllSchemas()
