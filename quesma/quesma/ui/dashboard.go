@@ -21,7 +21,7 @@ import (
 
 func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("dashboard"))
+	buffer.Write(qmc.generateTopNavigation("dashboard"))
 
 	buffer.Html(`<main id="dashboard-main">` + "\n")
 
