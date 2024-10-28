@@ -70,7 +70,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`!_exists_:title`, `NOT ("title" IS NOT NULL)`},
 		{"db.str:*weaver*", `"db.str" ILIKE '%weaver%'`},
 		{"(db.str:*weaver*)", `("db.str" ILIKE '%weaver%')`},
-		{"(xdr.emm_type_str:*bearer* OR xdr.emm_type_str:*Bearer*)", `(("xdr.emm_type_str" ILIKE '%bearer%') OR "xdr.emm_type_str" ILIKE '%Bearer%')`},
+		{"(a.type:*ab* OR a.type:*Ab*)", `(("a.type" ILIKE '%ab%') OR "a.type" ILIKE '%Ab%')`},
 	}
 	var randomQueriesWithPossiblyIncorrectInput = []struct {
 		query string
