@@ -51,6 +51,10 @@ type (
 	IngestFieldStatistics map[IngestFieldBucketKey]int64
 )
 
+type Ingester interface {
+	Ingest(ctx context.Context, tableName string, jsonData []types.JSON) error
+}
+
 type (
 	IngestProcessor struct {
 		ctx                       context.Context
@@ -699,6 +703,13 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
 
 	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
+}
+
+func (lm *IngestProcessor) Ingest(ctx context.Context, tableName string, jsonData []types.JSON) error {
+
+	nameFormatter := DefaultColumnNameFormatter()
+	transformer := jsonprocessor.IngestTransformerFor(tableName, lm.cfg)
+	return lm.ProcessInsertQuery(ctx, tableName, jsonData, transformer, nameFormatter)
 }
 
 func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName string,

@@ -55,7 +55,7 @@ func TestTableResolver(t *testing.T) {
 		},
 	}
 
-	cfg := config.QuesmaConfiguration{IndexConfig: indexConf}
+	cfg := config.QuesmaConfiguration{IndexConfig: indexConf, DefaultQueryTarget: []string{config.ElasticsearchTarget}, DefaultIngestTarget: []string{config.ElasticsearchTarget}}
 
 	tests := []struct {
 		name              string

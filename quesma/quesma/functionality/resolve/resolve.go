@@ -42,7 +42,7 @@ func HandleResolve(pattern string, sr schema.Registry, cfg *config.QuesmaConfigu
 	// Combine results from both schema.Registry and Elasticsearch:
 
 	// todo avoid creating new instances all the time
-	sourcesFromElastic, _, err := elasticsearch.NewIndexResolver(cfg.Elasticsearch.Url.String()).Resolve(normalizedPattern)
+	sourcesFromElastic, _, err := elasticsearch.NewIndexResolver(cfg.Elasticsearch).Resolve(normalizedPattern)
 	if err != nil {
 		return elasticsearch.Sources{}, err
 	}

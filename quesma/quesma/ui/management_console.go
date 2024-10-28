@@ -102,6 +102,8 @@ type (
 		schemasProvider           SchemasProvider
 		totalUnsupportedQueries   int
 		tableResolver             table_resolver.TableResolver
+
+		isAuthEnabled bool
 	}
 	SchemasProvider interface {
 		AllSchemas() map[schema.TableName]schema.Schema

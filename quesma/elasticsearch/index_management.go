@@ -34,10 +34,10 @@ type (
 	}
 )
 
-func NewIndexManagement(elasticsearchUrl string) IndexManagement {
+func NewIndexManagement(elasticsearch config.ElasticsearchConfiguration) IndexManagement {
 	return &indexManagement{
-		ElasticsearchUrl: elasticsearchUrl,
-		indexResolver:    NewIndexResolver(elasticsearchUrl),
+		ElasticsearchUrl: elasticsearch.Url.String(),
+		indexResolver:    NewIndexResolver(elasticsearch),
 	}
 }
 

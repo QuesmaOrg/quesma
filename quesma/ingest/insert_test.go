@@ -443,7 +443,7 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			ingest.tableResolver = resolver
 
 			ctx := context.Background()
-			formatter := clickhouse.DefaultColumnNameFormatter()
+			formatter := DefaultColumnNameFormatter()
 
 			transformer := jsonprocessor.IngestTransformerFor(indexName, quesmaConfig)
 

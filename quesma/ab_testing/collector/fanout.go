@@ -4,10 +4,13 @@ package collector
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"quesma/ingest"
 	"quesma/logger"
+	"quesma/quesma/types"
 )
 
 type elasticSearchFanout struct {
@@ -57,3 +60,35 @@ func (t *elasticSearchFanout) process(in EnrichedResults) (out EnrichedResults, 
 	// Elasticsearch logic here
 	return in, false, nil
 }
+
+type internalIngestFanout struct {
+	indexName       string
+	ingestProcessor ingest.Ingester
+}
+
+func (t *internalIngestFanout) name() string {
+	return "internalIngestFanout"
+}
+
+func (t *internalIngestFanout) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
+
+	asBytes, err := json.Marshal(in)
+	if err != nil {
+		logger.Error().Msgf("failed to marshal A/B results line: %v", err)
+		return in, false, err
+	}
+
+	asJson, err := types.ParseJSON(string(asBytes))
+
+	if err != nil {
+		logger.Error().Msgf("failed to parse A/B results line: %v", err)
+		return
+	}
+
+	err = t.ingestProcessor.Ingest(context.Background(), t.indexName, []types.JSON{asJson})
+
+	return in, false, err
+}
+
+var _ = &internalIngestFanout{}
+var _ = &elasticSearchFanout{}

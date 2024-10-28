@@ -139,7 +139,7 @@ func TestAddTimestamp(t *testing.T) {
 		CastUnsupportedAttrValueTypesToString: false,
 		PreferCastingToOthers:                 false,
 	}
-	nameFormatter := clickhouse.DefaultColumnNameFormatter()
+	nameFormatter := DefaultColumnNameFormatter()
 	ip := newIngestProcessorEmpty()
 	ip.schemaRegistry = &schema.StaticRegistry{}
 	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
