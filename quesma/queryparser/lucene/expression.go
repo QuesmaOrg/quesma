@@ -3,8 +3,6 @@
 package lucene
 
 import (
-	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 )
@@ -14,9 +12,7 @@ var invalidStatement = model.NewLiteral("false")
 func (p *luceneParser) BuildWhereStatement() model.Expr {
 	for len(p.tokens) > 0 {
 		p.WhereStatement = p.buildWhereStatement(true)
-		fmt.Println("PETLA", p.WhereStatement)
 	}
-	pp.Println(p.WhereStatement)
 	if p.WhereStatement == nil {
 		return model.NewLiteral("true")
 	}
@@ -51,10 +47,11 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 	if len(p.tokens) == 0 {
 		return invalidStatement
 	}
-	fmt.Printf("p.tokens: %v %T\n", p.tokens, p.tokens[0])
+
 	tok := p.tokens[0]
 	p.tokens = p.tokens[1:]
 	var currentStatement model.Expr
+
 	switch currentToken := tok.(type) {
 	case fieldNameToken:
 		if len(p.tokens) <= 1 {
@@ -87,7 +84,6 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 		latterExp := p.buildWhereStatement(false)
 		currentStatement = model.NewPrefixExpr("NOT", []model.Expr{latterExp})
 	case existsToken:
-		fmt.Println("p.tokens", p.tokens)
 		fieldName, ok := p.buildValue([]value{}, 0).(termValue)
 		if !ok {
 			logger.Error().Msgf("buildExpression: invalid expression, unexpected token: %#v, tokens: %v", currentToken, p.tokens)
@@ -105,11 +101,11 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 		logger.Error().Msgf("buildExpression: invalid expression, unexpected token: %#v, tokens: %v", currentToken, p.tokens)
 		return invalidStatement
 	}
-	fmt.Println("currentStatement", currentStatement)
+
 	if !addDefaultOperator || p.WhereStatement == nil {
-		pp.Println("in if", addDefaultOperator, p.WhereStatement, currentStatement)
 		return currentStatement
 	}
+
 	switch stmt := currentStatement.(type) {
 	case model.PrefixExpr:
 		if stmt.Op == "NOT" {

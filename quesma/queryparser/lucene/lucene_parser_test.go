@@ -4,7 +4,6 @@ package lucene
 
 import (
 	"context"
-	"quesma/logger"
 	"quesma/model"
 	"quesma/schema"
 	"strconv"
@@ -12,7 +11,7 @@ import (
 )
 
 func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
-	logger.InitSimpleLoggerForTests()
+	// logger.InitSimpleLoggerForTests()
 	defaultFieldNames := []string{"title", "text"}
 	var properQueries = []struct {
 		query string
