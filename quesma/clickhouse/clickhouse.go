@@ -215,6 +215,10 @@ func (lm *LogManager) executeRawQuery(query string) (*sql.Rows, error) {
 	}
 }
 
+func (lm *LogManager) GetDB() *sql.DB {
+	return lm.chDb
+}
+
 /* The logic below contains a simple checks that are executed by connectors to ensure that they are
 not connected to the data sources which are not allowed by current license. */
 

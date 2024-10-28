@@ -106,6 +106,18 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
+	authenticatedRoutes.HandleFunc("/ab-testing-dashboard", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qmc.generateABTestingDashboard()
+		_, _ = writer.Write(buf)
+	})
+
+	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/report", func(writer http.ResponseWriter, req *http.Request) {
+		kibanaUrl := req.PostFormValue("kibana_url")
+
+		buf := qmc.generateABTestingReport(kibanaUrl)
+		_, _ = writer.Write(buf)
+	})
+
 	authenticatedRoutes.HandleFunc("/tables/reload", func(writer http.ResponseWriter, req *http.Request) {
 
 		qmc.logManager.ReloadTables()
