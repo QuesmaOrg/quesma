@@ -89,7 +89,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`  title       `, `("title" = 'title' OR "text" = 'title')`},
 		{`  title : (+a -b c)`, `(("title" = '+a' OR "title" = '-b') OR "title" = 'c')`}, // we don't support '+', '-' operators, but in that case the answer seems good enough + nothing crashes
 		{`title:()`, `false`},
-		{`() a`, `((false) OR ("title" = 'a' OR "text" = 'a'))`}, // a bit weird, but 'false OR false' is OK as I think nothing should match '()'
+		{`() a`, `((false) OR ("title" = 'a' OR "text" = 'a'))`}, // a bit weird, but '(false)' is OK as I think nothing should match '()'
 	}
 
 	currentSchema := schema.Schema{
