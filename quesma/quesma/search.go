@@ -308,6 +308,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		case *table_resolver.ConnectorDecisionClickhouse:
 			clickhouseConnector = c
 
+		case *table_resolver.ConnectorDecisionElastic:
+			// NOP
+
 		default:
 			return nil, fmt.Errorf("unknown connector type: %T", c)
 		}

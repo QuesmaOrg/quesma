@@ -120,7 +120,7 @@ func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.Executio
 
 	for i, connector := range decision.UseConnectors {
 
-		isMainPlan := i == 0
+		isMainPlan := i == 0 // the first plan is the main plan
 
 		var planExecutor func(ctx context.Context) ([]byte, error)
 

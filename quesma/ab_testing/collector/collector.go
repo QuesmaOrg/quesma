@@ -89,7 +89,7 @@ func NewCollector(ctx context.Context, ingester ingest.Ingester, healthQueue cha
 			//	indexName: "ab_testing_logs",
 			//},
 			&internalIngestFanout{
-				indexName:       "ab_testing_logs",
+				indexName:       ab_testing.ABTestingTableName,
 				ingestProcessor: ingester,
 			},
 		},
