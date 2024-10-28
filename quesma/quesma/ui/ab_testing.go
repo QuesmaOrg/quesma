@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: Elastic-2.0
 package ui
 
-import "fmt"
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"quesma/elasticsearch"
+	"strings"
+)
 
 func (qmc *QuesmaManagementConsole) generateABTestingDashboard() []byte {
 
@@ -30,6 +37,77 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl string) []
 	buffer := newBufferWithHead()
 
 	buffer.Html(`<h2>AB Testing Report</h2>`)
+
+	kibanaDashboardId2Name := make(map[string]string)
+
+	elasticQuery := `
+{
+  "_source": false,
+  "fields": [
+    "_id",
+    "dashboard.title",
+    "panelsJSON",
+    "dashboard.panelsJSON"
+    ],
+    "query": {
+        "bool": {
+        	"filter": [
+               {
+        	    	"term": {
+                    	 "type": "dashboard"
+                	}
+            	}
+        	]
+        }
+    }
+}
+`
+	client := elasticsearch.NewSimpleClient(&qmc.cfg.Elasticsearch)
+
+	resp, err := client.Request(context.Background(), "POST", ".kibana_analytics/_search", []byte(elasticQuery))
+
+	if err != nil {
+		buffer.Text(fmt.Sprintf("Error: %s", err))
+		return buffer.Bytes()
+	}
+
+	if resp.StatusCode != 200 {
+		buffer.Text(fmt.Sprintf("Error: %s", resp.Body))
+		return buffer.Bytes()
+	}
+
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		buffer.Text(fmt.Sprintf("Error: %s", err))
+		return buffer.Bytes()
+	}
+
+	type responseSchema struct {
+		Hits struct {
+			Hits []struct {
+				Fields struct {
+					Id    []string `json:"_id"`
+					Title []string `json:"dashboard.title"`
+				} `json:"fields"`
+			} `json:"hits"`
+		} `json:"hits"`
+	}
+
+	var response responseSchema
+	err = json.Unmarshal(data, &response)
+	if err != nil {
+		buffer.Text(fmt.Sprintf("Error: %s", err))
+		return buffer.Bytes()
+	}
+
+	for _, hit := range response.Hits.Hits {
+		_id := hit.Fields.Id[0]
+		title := hit.Fields.Title[0]
+		_id = strings.TrimPrefix(_id, "dashboard:")
+		kibanaDashboardId2Name[_id] = title
+	}
 
 	sql := `
 with xx as (
@@ -83,7 +161,12 @@ group by
 		}
 
 		row.dashboardUrl = fmt.Sprintf("%s/app/kibana#/dashboard/%s", kibanaUrl, row.dashboardId)
-		row.dashboardName = fmt.Sprintf("Dashboard %s", row.dashboardId)
+
+		if name, ok := kibanaDashboardId2Name[row.dashboardId]; ok {
+			row.dashboardName = name
+		} else {
+			row.dashboardName = fmt.Sprintf("Dashboard %s", row.dashboardId)
+		}
 
 		report = append(report, row)
 	}
