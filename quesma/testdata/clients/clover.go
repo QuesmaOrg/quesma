@@ -8,7 +8,7 @@ import (
 )
 
 var CloverTests = []testdata.AggregationTestCase{
-	{ // [0]
+	{ // [0] TODO: add empty bucket for 1 of date_histogram buckets, because of min_doc_count=0 and extended_bounds. After extended_bounds PR.
 		TestName: "todo",
 		QueryRequestJson: `
 		{
@@ -79,89 +79,81 @@ var CloverTests = []testdata.AggregationTestCase{
 			},
 			"aggregations": {
 				"1": {
-				"buckets": [
-					{
-						"doc_count": 672,
-						"key": "/apm",
-						"timeseries": {
-							"buckets": [
-								{
-									"2": {
-										"value": 0
+					"buckets": [
+						{
+							"doc_count": 672,
+							"key": "/apm",
+							"timeseries": {
+								"buckets": [
+									{
+										"2": {
+											"value": 319
+										},
+										"doc_count": 319,
+										"key": 1728856800000,
+										"key_as_string": "2024-10-13T22:00:00.000"
+									}
+								]
+							}
+						},
+						{
+							"doc_count": 655,
+							"key": "/",
+							"timeseries": {
+								"buckets": [
+									{
+										"2": {
+											"value": 12
+										},
+										"doc_count": 12,
+										"key": 1726264800000,
+										"key_as_string": "2024-09-13T22:00:00.000"
 									},
-									"doc_count": 0,
-									"key": 1726264800000,
-									"key_as_string": "2024/09/14 00:00:00"
-								},
-								{
-									"2": {
-										"value": 319
-									},
-									"doc_count": 319,
-									"key": 1728856800000,
-									"key_as_string": "2024/10/14 00:00:00"
-								}
-							]
+									{
+										"2": {
+											"value": 301
+										},
+										"doc_count": 301,
+										"key": 1728856800000,
+										"key_as_string": "2024-10-13T22:00:00.000"
+									}
+								]
+							}
 						}
+					],
+					"doc_count_error_upper_bound": 0,
+					"meta": {
+						"indexPatternString": "ab*",
+						"intervalString": "2592000s",
+						"panelId": "0",
+						"seriesId": "1",
+						"timeField": "timestamp"
 					},
-					{
-						"doc_count": 655,
-						"key": "/",
-						"timeseries": {
-							"buckets": [
-								{
-									"2": {
-										"value": 12
-									},
-									"doc_count": 12,
-									"key": 1726264800000,
-									"key_as_string": "2024/09/14 00:00:00"
-								},
-								{
-									"2": {
-										"value": 301
-									},
-									"doc_count": 301,
-									"key": 1728856800000,
-									"key_as_string": "2024/10/14 00:00:00"
-								}
-							]
-						}
-					}
-				],
-				"doc_count_error_upper_bound": 0,
-				"meta": {
-					"indexPatternString": "ab*",
-					"intervalString": "2592000s",
-					"panelId": "0",
-					"seriesId": "1",
-					"timeField": "timestamp"
-				},
-				"sum_other_doc_count": 12747
+					"sum_other_doc_count": 49100
+				}
 			}
-		}
-	}`,
+		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1__parent_count", int64(50427)),
 				model.NewQueryResultCol("aggr__1__key_0", "/apm"),
-				model.NewQueryResultCol("aggr__1__count", int64(1036)),
-				model.NewQueryResultCol("aggr__1__timeseries__key_0", int64(1726264800000/2592000000)),
+				model.NewQueryResultCol("aggr__1__count", int64(672)),
+				model.NewQueryResultCol("aggr__1__timeseries__key_0", int64(1728864000000/2592000000)),
 				model.NewQueryResultCol("aggr__1__timeseries__count", int64(319)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1__parent_count", int64(50427)),
 				model.NewQueryResultCol("aggr__1__key_0", "/"),
-				model.NewQueryResultCol("aggr__1__count", int64(1036)),
-				model.NewQueryResultCol("aggr__1__timeseries__key_0", int64(50)),
-				model.NewQueryResultCol("aggr__1__timeseries__count", int64(24)),
+				model.NewQueryResultCol("aggr__1__count", int64(655)),
+				model.NewQueryResultCol("aggr__1__timeseries__key_0", int64(1726272000000/2592000000)),
+				model.NewQueryResultCol("aggr__1__timeseries__count", int64(12)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__1__parent_count", int64(50427)),
 				model.NewQueryResultCol("aggr__1__key_0", "/"),
-				model.NewQueryResultCol("aggr__1__count", int64(1036)),
-				model.NewQueryResultCol("aggr__1__timeseries__key_0", int64(50)),
-				model.NewQueryResultCol("aggr__1__timeseries__count", int64(24)),
+				model.NewQueryResultCol("aggr__1__count", int64(655)),
+				model.NewQueryResultCol("aggr__1__timeseries__key_0", int64(1728864000000/2592000000)),
+				model.NewQueryResultCol("aggr__1__timeseries__count", int64(301)),
 			}},
 		},
 		ExpectedPancakeSQL: `

@@ -36,7 +36,7 @@ func (query BucketScript) TranslateSqlResponseToJson(rows []model.QueryResultRow
 		return model.JsonMap{"value": numerator / denominator}
 	default:
 		for _, row := range rows {
-			return model.JsonMap{"value": util.ExtractInt64(row.LastColValue())}
+			return model.JsonMap{"value": util.ExtractNumeric64(row.LastColValue())}
 		}
 	}
 
@@ -52,7 +52,7 @@ func (query BucketScript) CalculateResultWhenMissing(parentRows []model.QueryRes
 	resultRows := make([]model.QueryResultRow, 0, len(parentRows))
 	for _, parentRow := range parentRows {
 		resultRow := parentRow.Copy()
-		resultRow.Cols[len(resultRow.Cols)-1].Value = float64(util.ExtractInt64(parentRow.LastColValue()))
+		resultRow.Cols[len(resultRow.Cols)-1].Value = util.ExtractNumeric64(parentRow.LastColValue())
 		//fmt.Printf("last col %T %v", resultRow.LastColValue(), resultRow.LastColValue())
 		resultRows = append(resultRows, resultRow)
 	}
