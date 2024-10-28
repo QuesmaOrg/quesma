@@ -151,7 +151,7 @@ func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.Executio
 	}
 
 	if len(planExecutors) != 2 {
-		return nil, fmt.Errorf("expected 2 plans, got %d", len(planExecutors))
+		return nil, fmt.Errorf("expected 2 plans (A,B) to execute, but  got %d", len(planExecutors))
 	}
 
 	// B plan aka alternative

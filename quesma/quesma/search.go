@@ -300,16 +300,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("no connectors to use"))
 	}
 
-	var clickhouseDecision *table_resolver.ConnectorDecisionClickhouse
-	var elasticDecision *table_resolver.ConnectorDecisionElastic
+	var clickhouseConnector *table_resolver.ConnectorDecisionClickhouse
+
 	for _, connector := range decision.UseConnectors {
 		switch c := connector.(type) {
 
 		case *table_resolver.ConnectorDecisionClickhouse:
-			clickhouseDecision = c
-
-		case *table_resolver.ConnectorDecisionElastic:
-			elasticDecision = c
+			clickhouseConnector = c
 
 		default:
 			return nil, fmt.Errorf("unknown connector type: %T", c)
@@ -317,12 +314,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 
 	// it's impossible here to don't have a clickhouse decision
-	if clickhouseDecision == nil {
+	if clickhouseConnector == nil {
 		return nil, fmt.Errorf("no clickhouse connector")
-	}
-
-	if elasticDecision != nil {
-		fmt.Println("elastic", elasticDecision)
 	}
 
 	var responseBody []byte
@@ -343,7 +336,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	var table *clickhouse.Table // TODO we should use schema here only
 	var currentSchema schema.Schema
-	resolvedIndexes := clickhouseDecision.ClickhouseTables
+	resolvedIndexes := clickhouseConnector.ClickhouseTables
 
 	if len(resolvedIndexes) == 1 {
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
