@@ -11,7 +11,6 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 )
@@ -30,36 +29,52 @@ type parsedPattern struct {
 	parts     []string
 }
 
+type patternSplitter struct {
+	name     string
+	resolver func(pattern string) (parsedPattern, *Decision)
+}
+
 type basicResolver struct {
 	name     string
 	resolver func(pattern parsedPattern) *Decision
 }
 
+type decisionMerger struct {
+	name   string
+	merger func(decisions []*Decision) *Decision
+}
+
 type compoundResolver struct {
-	decisionLadder []basicResolver
+	patternSplitter patternSplitter
+	decisionLadder  []basicResolver
+	decisionMerger  decisionMerger
 }
 
 func (ir *compoundResolver) resolve(indexName string) *Decision {
-	patterns := strings.Split(indexName, ",")
-
-	input := parsedPattern{
-		source:    indexName,
-		isPattern: len(patterns) > 1 || strings.Contains(indexName, "*"),
-		parts:     patterns,
+	input, decision := ir.patternSplitter.resolver(indexName)
+	if decision != nil {
+		decision.ResolverName = ir.patternSplitter.name
+		return decision
 	}
 
-	for _, resolver := range ir.decisionLadder {
-		decision := resolver.resolver(input)
+	var decisions []*Decision
+	for _, part := range input.parts {
+		for _, resolver := range ir.decisionLadder {
+			decision := resolver.resolver(parsedPattern{
+				source:    part,
+				isPattern: false,
+				parts:     []string{part},
+			})
 
-		if decision != nil {
-			decision.ResolverName = resolver.name
-			return decision
+			if decision != nil {
+				decision.ResolverName = resolver.name
+				decisions = append(decisions, decision)
+				break
+			}
 		}
 	}
-	return &Decision{
-		Reason: "Could not resolve pattern. This is a bug.",
-		Err:    fmt.Errorf("could not resolve index"), // TODO better error
-	}
+
+	return ir.decisionMerger.merger(decisions)
 }
 
 // HACK: we should have separate config for each pipeline
@@ -281,8 +296,11 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 		pipelineName: IngestPipeline,
 
 		resolver: &compoundResolver{
+			patternSplitter: patternSplitter{
+				name:     "singleIndexSplitter",
+				resolver: singleIndexSplitter,
+			},
 			decisionLadder: []basicResolver{
-				{"patternIsNotAllowed", patternIsNotAllowed},
 				{"kibanaInternal", resolveInternalElasticName},
 				{"disabled", makeIsDisabledInConfig(indexConf, IngestPipeline)},
 
@@ -290,6 +308,10 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 				{"commonTable", res.makeCommonTableResolver(indexConf, IngestPipeline)},
 
 				{"defaultWildcard", makeDefaultWildcard(quesmaConf, IngestPipeline)},
+			},
+			decisionMerger: decisionMerger{
+				name:   "basicDecisionMerger",
+				merger: basicDecisionMerger,
 			},
 		},
 		recentDecisions: make(map[string]*Decision),
@@ -301,6 +323,10 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 		pipelineName: QueryPipeline,
 
 		resolver: &compoundResolver{
+			patternSplitter: patternSplitter{
+				name:     "legacyPatternSplitter",
+				resolver: res.legacyPatternSplitter(QueryPipeline),
+			},
 			decisionLadder: []basicResolver{
 				// checking if we can handle the parsedPattern
 				{"kibanaInternal", resolveInternalElasticName},
@@ -312,6 +338,10 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 
 				// default action
 				{"defaultWildcard", makeDefaultWildcard(quesmaConf, QueryPipeline)},
+			},
+			decisionMerger: decisionMerger{
+				name:   "basicDecisionMerger",
+				merger: basicDecisionMerger,
 			},
 		},
 		recentDecisions: make(map[string]*Decision),
