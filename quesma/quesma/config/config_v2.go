@@ -503,10 +503,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	if conf.Elasticsearch, err = c.getElasticsearchConfig(); err != nil {
 		errAcc = multierror.Append(errAcc, err)
 	}
-	if !c.DisableTelemetry {
-		conf.QuesmaInternalTelemetryUrl = telemetryUrl
-		conf.Logging.RemoteLogDrainUrl = telemetryUrl
-	}
 	// This is perhaps a little oversimplification, **but** in case any of the FE connectors has auth disabled, we disable auth for the whole incomming traffic
 	// After all, the "duality" of frontend connectors is still an architectural choice we tend to question
 	for _, fConn := range c.FrontendConnectors {
@@ -518,6 +514,14 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	conf.Logging = c.Logging
 	if conf.Logging.Level == nil {
 		conf.Logging.Level = &DefaultLogLevel
+	}
+
+	if !c.DisableTelemetry {
+		conf.QuesmaInternalTelemetryUrl = telemetryUrl
+		conf.Logging.RemoteLogDrainUrl = telemetryUrl
+	} else {
+		conf.QuesmaInternalTelemetryUrl = nil
+		conf.Logging.RemoteLogDrainUrl = nil
 	}
 
 	conf.InstallationId = c.InstallationId
