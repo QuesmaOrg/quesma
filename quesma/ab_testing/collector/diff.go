@@ -77,8 +77,10 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 
 		// if there are too many mismatches, we only show the first 20
 		// this is to avoid overwhelming the user with too much information
-		if len(mismatches) > 20 {
-			mismatches = mismatches[:20]
+		const mismatchesSize = 20
+
+		if len(mismatches) > mismatchesSize {
+			mismatches = mismatches[:mismatchesSize]
 		}
 
 		b, err := json.MarshalIndent(mismatches, "", " ")
