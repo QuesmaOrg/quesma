@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/model/metrics_aggregations"
@@ -292,7 +293,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	addIfCombinators := make([]addIfCombinator, 0)
 	var optTopHitsOrMetrics *pancakeModelMetricAggregation
 
-	for _, layer := range aggregation.layers {
+	for i, layer := range aggregation.layers {
 		for _, metric := range layer.currentMetricAggregations {
 			switch metric.queryType.(type) {
 			case *metrics_aggregations.TopMetrics, *metrics_aggregations.TopHits:
@@ -309,7 +310,15 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 
 		if layer.nextBucketAggregation != nil {
 			if combinator, isCombinator := layer.nextBucketAggregation.queryType.(bucket_aggregations.CombinatorAggregationInterface); isCombinator {
-				addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), combinator})
+				var isFilter bool
+				pp.Println(combinator)
+				switch combinator.(type) {
+				case *bucket_aggregations.FilterAgg, bucket_aggregations.Filters:
+					isFilter = true
+				}
+				if !isFilter || i > 0 {
+					addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), combinator})
+				}
 			}
 
 			if layer.nextBucketAggregation.DoesHaveGroupBy() {
@@ -333,6 +342,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	// this change selects by adding -If suffix, e.g. count(*) -> countIf(response_time < 1000)
 	// they may also add more columns with different prefix and where clauses
 	var combinatorWhere []model.Expr
+	fmt.Println("len(addIfCombinators): ", len(addIfCombinators))
 	for i := len(addIfCombinators) - 1; i >= 0; i-- { // reverse order is important
 		combinator := addIfCombinators[i]
 		selectsBefore := selectColumns[:combinator.selectNr]

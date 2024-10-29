@@ -125,9 +125,14 @@ type layerAndNextBucket struct {
 }
 
 func (a *pancakeTransformer) optimizeSimpleFilter(previousAggrNames []string, result *layerAndNextBucket, childAgg *pancakeAggregationTreeNode) bool {
+	if len(previousAggrNames) == 0 { // already optimized
+		//return false
+	}
+
 	_, isFilter := result.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg)
 	secondFilter, isFilter2 := childAgg.queryType.(bucket_aggregations.FilterAgg)
 
+	fmt.Println("dupa", isFilter, isFilter2, len(childAgg.children))
 	if isFilter && isFilter2 && len(childAgg.children) == 0 {
 		metrics, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
 		if err != nil {
@@ -241,6 +246,7 @@ func (a *pancakeTransformer) aggregationChildrenToLayers(aggrNames []string, chi
 
 func (a *pancakeTransformer) checkIfSupported(layers []*pancakeModelLayer) error {
 	// for now we support filter only as last bucket aggregation
+	/* let's try to support everything
 	for layerIdx, layer := range layers {
 		if layer.nextBucketAggregation != nil {
 			switch layer.nextBucketAggregation.queryType.(type) {
@@ -253,14 +259,17 @@ func (a *pancakeTransformer) checkIfSupported(layers []*pancakeModelLayer) error
 							continue // histogram are fine
 						case bucket_aggregations.CombinatorAggregationInterface:
 							continue // we also support nested filters/range/dataRange
+						case *bucket_aggregations.Filters:
+							continue
 						default:
-							return fmt.Errorf("filter(s)/range/dataRange aggregation must be the last bucket aggregation")
+							return fmt.Errorf("filter(s)/range/dataRange aggregation must be the last bucket aggregation (found %s)", bucket.queryType.String())
 						}
 					}
 				}
 			}
 		}
 	}
+	*/
 	return nil
 }
 
@@ -378,6 +387,8 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 	if len(topLevel.children) == 0 {
 		return nil, fmt.Errorf("no top level aggregations found")
 	}
+
+	//pp.Println("pancakeAggregationTree", topLevel, topLevel.children[0])
 
 	resultLayers, err := a.aggregationChildrenToLayers([]string{}, topLevel.children)
 
