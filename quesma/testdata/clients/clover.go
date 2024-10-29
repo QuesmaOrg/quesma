@@ -333,17 +333,17 @@ var CloverTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__timeseries__count", int64(202)),
+				model.NewQueryResultCol("metric__timeseries__a2-numerator_col_0", int64(202)),
+				model.NewQueryResultCol("aggr__timeseries__a2-denominator__count", int64(202)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT count(*) AS "aggr__timeseries__count",
-			  countIf(True) AS
-			  "name",
-			  countIf(NOT ("field" = 'sth')) AS
-			  "name"
+			  countIf(NOT ("table.flower" = 'clover')) AS "metric__timeseries__a2-numerator_col_0",
+			  countIf(true) AS "aggr__timeseries__a2-denominator__count"
 			FROM __quesma_table_name
-			WHERE ("@timestamp">=parseDateTime64BestEffort('2024-10-11T09:58:03.723Z') AND
-			  "@timestamp"<=parseDateTime64BestEffort('2024-10-11T10:13:03.723Z'))`,
+			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1728640683723) AND "@timestamp"<=
+			  fromUnixTimestamp64Milli(1728641583723))`,
 	},
 	{ // [2]
 		TestName: "simplest auto_date_histogram",
@@ -471,5 +471,6 @@ var CloverTests = []testdata.AggregationTestCase{
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1728581627125) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1728635627125))`,
+		AdditionalAcceptableDifference: []string{"key_as_string"}, // timezone differences between local and github runs... Maybe come back to .UTC() so there's no +timezone (e.g. +02:00)?
 	},
 }

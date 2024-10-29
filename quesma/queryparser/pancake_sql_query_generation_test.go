@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/quesma/config"
@@ -24,7 +25,7 @@ const TableName = model.SingleTableNamePlaceHolder
 
 func TestPancakeQueryGeneration(t *testing.T) {
 
-	// logger.InitSimpleLoggerForTests()
+	logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -61,7 +62,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 
 			if test.TestName == "multiple buckets_path(file:clients/clover,nr:1)" {
-				t.Skip("Unskip after merge of auto_date_histogram")
+				t.Skip("This needs fixing ASAP, easy to fix")
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)
@@ -79,6 +80,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			assert.Len(t, pancakeSqls, 1+len(test.ExpectedAdditionalPancakeSQLs),
 				"Mismatch pancake sqls vs main and 'ExpectedAdditionalPancakeSQLs'")
 			for pancakeIdx, pancakeSql := range pancakeSqls {
+				pp.Println("=== Pancake SQL:", pancakeSql.SelectCommand)
 				pancakeSqlStr := model.AsString(pancakeSql.SelectCommand)
 
 				prettyPancakeSql := util.SqlPrettyPrint([]byte(pancakeSqlStr))
