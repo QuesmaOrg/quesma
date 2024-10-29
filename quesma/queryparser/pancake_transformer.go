@@ -12,7 +12,6 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	"time"
 )
 
 // 2. Translate aggregation tree into pancake model.
@@ -394,12 +393,7 @@ func (a *pancakeTransformer) transformAutoDateHistogram(layers []*pancakeModelLa
 						b = s.Value
 					}
 				}
-				x, err := time.Parse("2006-01-02T15:04:05.000Z", b.(string)[1:len(b.(string))-1])
-				if err != nil {
-					//fmt.Println(err)
-					continue
-				}
-				autoDateHistogram.SetKey(x.UnixMilli())
+				autoDateHistogram.SetKey(b.(int64))
 			}
 		}
 	}

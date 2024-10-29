@@ -469,7 +469,7 @@ var CloverTests = []testdata.AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT count(*) AS "aggr__timeseries__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-10-10T17:33:47.125Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-10-11T08:33:47.125Z'))`,
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1728581627125) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1728635627125))`,
 	},
 }
