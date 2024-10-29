@@ -333,16 +333,14 @@ var CloverTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__timeseries__count", int64(202)),
-				model.NewQueryResultCol("metric__timeseries__61ca57f2-469d-11e7-af02-69e470af7417-denominator_col_0", int64(202)),
-				model.NewQueryResultCol("metric__timeseries__61ca57f2-469d-11e7-af02-69e470af7417-numerator_col_0", int64(0)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT count(*) AS "aggr__timeseries__count",
 			  countIf(True) AS
-			  "metric__timeseries__61ca57f2-469d-11e7-af02-69e470af7417-denominator_col_0",
-			  countIf(NOT ("xdr.result_code_str" = 'DIAMETER_SUCCESS')) AS
-			  "metric__timeseries__61ca57f2-469d-11e7-af02-69e470af7417-numerator_col_0"
+			  "name",
+			  countIf(NOT ("field" = 'sth')) AS
+			  "name"
 			FROM __quesma_table_name
 			WHERE ("@timestamp">=parseDateTime64BestEffort('2024-10-11T09:58:03.723Z') AND
 			  "@timestamp"<=parseDateTime64BestEffort('2024-10-11T10:13:03.723Z'))`,
