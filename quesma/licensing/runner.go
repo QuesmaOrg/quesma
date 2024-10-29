@@ -3,6 +3,8 @@
 package licensing
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -24,7 +26,10 @@ const (
 )
 
 func isAirgapKeyValid(key string) bool {
-	return true
+	hasher := sha256.New()
+	hasher.Write([]byte(key))
+	keyHash := hex.EncodeToString(hasher.Sum(nil))
+	return keyHash == "78b14371a310f4e4f7e6c19a444f771bbe5d2c4f2154715191334bcf58420435"
 }
 
 func Init(config *config.QuesmaConfiguration) *LicenseModule {
