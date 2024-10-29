@@ -15,7 +15,7 @@ import (
 func (qmc *QuesmaManagementConsole) generateABTestingDashboard() []byte {
 
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("ab-testing-dashboard"))
+	buffer.Write(qmc.generateTopNavigation("ab-testing-dashboard"))
 
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
