@@ -9,20 +9,71 @@ import (
 	"quesma/end_user_errors"
 	"quesma/quesma/config"
 	"quesma/util"
+	"reflect"
 	"slices"
+	"strings"
 )
 
 // TODO these rules may be incorrect and incomplete
 // They will be fixed int the next iteration.
 
-func patternIsNotAllowed(input parsedPattern) *Decision {
-	if !input.isPattern {
-		return nil
+func (r *tableRegistryImpl) legacyPatternSplitter(pipeline string) func(pattern string) (parsedPattern, *Decision) {
+	return func(pattern string) (parsedPattern, *Decision) {
+		patterns := strings.Split(pattern, ",")
+
+		// Given a (potentially wildcard) pattern, find all non-wildcard index names that match the pattern
+		var matchingSingleNames []string
+		for _, pattern := range patterns {
+			if !elasticsearch.IsIndexPattern(pattern) || elasticsearch.IsInternalIndex(pattern) {
+				matchingSingleNames = append(matchingSingleNames, pattern)
+				continue
+			}
+
+			for indexName := range r.conf.IndexConfig {
+				if util.IndexPatternMatches(pattern, indexName) {
+					matchingSingleNames = append(matchingSingleNames, indexName)
+				}
+			}
+
+			// but maybe we should also check against the actual indexes ??
+			for indexName := range r.elasticIndexes {
+				if util.IndexPatternMatches(pattern, indexName) {
+					matchingSingleNames = append(matchingSingleNames, indexName)
+				}
+			}
+			if r.conf.AutodiscoveryEnabled {
+				for tableName := range r.clickhouseIndexes {
+					if util.IndexPatternMatches(pattern, tableName) {
+						matchingSingleNames = append(matchingSingleNames, tableName)
+					}
+				}
+			}
+		}
+
+		matchingSingleNames = util.Distinct(matchingSingleNames)
+
+		return parsedPattern{
+			source:    pattern,
+			isPattern: len(patterns) > 1 || strings.Contains(pattern, "*"),
+			parts:     matchingSingleNames,
+		}, nil
 	}
-	return &Decision{
-		Reason: "Pattern is not allowed.",
-		Err:    fmt.Errorf("pattern is not allowed"),
+}
+
+func singleIndexSplitter(pattern string) (parsedPattern, *Decision) {
+	patterns := strings.Split(pattern, ",")
+	if len(patterns) > 1 || strings.Contains(pattern, "*") {
+		return parsedPattern{}, &Decision{
+			Reason: "Pattern is not allowed.",
+			Err:    fmt.Errorf("pattern is not allowed"),
+		}
 	}
+
+	return parsedPattern{
+		source:    pattern,
+		isPattern: false,
+		parts:     patterns,
+	}, nil
 }
 
 func makeIsDisabledInConfig(cfg map[string]config.IndexConfiguration, pipeline string) func(input parsedPattern) *Decision {
@@ -418,5 +469,135 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 		}
 
 		return nil
+	}
+}
+
+func mergeUseConnectors(lhs []ConnectorDecision, rhs []ConnectorDecision) ([]ConnectorDecision, *Decision) {
+	for _, connDecisionRhs := range rhs {
+		foundMatching := false
+		for _, connDecisionLhs := range lhs {
+			if _, ok := connDecisionRhs.(*ConnectorDecisionElastic); ok {
+				if _, ok := connDecisionLhs.(*ConnectorDecisionElastic); ok {
+					foundMatching = true
+				}
+			}
+			if rhsClickhouse, ok := connDecisionRhs.(*ConnectorDecisionClickhouse); ok {
+				if lhsClickhouse, ok := connDecisionLhs.(*ConnectorDecisionClickhouse); ok {
+					if lhsClickhouse.ClickhouseTableName != rhsClickhouse.ClickhouseTableName {
+						return nil, &Decision{
+							Reason: "Inconsistent ClickHouse table usage",
+							Err:    fmt.Errorf("inconsistent ClickHouse table usage - %s and %s", connDecisionRhs, connDecisionLhs),
+						}
+					}
+					if lhsClickhouse.IsCommonTable {
+						if !rhsClickhouse.IsCommonTable {
+							return nil, &Decision{
+								Reason: "Inconsistent common table usage",
+								Err:    fmt.Errorf("inconsistent common table usage - %s and %s", connDecisionRhs, connDecisionLhs),
+							}
+						}
+						lhsClickhouse.ClickhouseTables = append(lhsClickhouse.ClickhouseTables, rhsClickhouse.ClickhouseTables...)
+						lhsClickhouse.ClickhouseTables = util.Distinct(lhsClickhouse.ClickhouseTables)
+					} else {
+						if !reflect.DeepEqual(lhsClickhouse, rhsClickhouse) {
+							return nil, &Decision{
+								Reason: "Inconsistent ClickHouse table usage",
+								Err:    fmt.Errorf("inconsistent ClickHouse table usage - %s and %s", connDecisionRhs, connDecisionLhs),
+							}
+						}
+					}
+					foundMatching = true
+				}
+			}
+		}
+		if !foundMatching {
+			return nil, &Decision{
+				Reason: "Inconsistent connectors",
+				Err:    fmt.Errorf("inconsistent connectors - %s and %s", connDecisionRhs, lhs), // TODO: improve error message
+			}
+		}
+	}
+
+	return lhs, nil
+}
+
+func basicDecisionMerger(decisions []*Decision) *Decision {
+	if len(decisions) == 0 {
+		return &Decision{
+			IsEmpty: true,
+			Reason:  "No indexes matched, no decisions made.",
+		}
+	}
+	if len(decisions) == 1 {
+		return decisions[0]
+	}
+
+	for _, decision := range decisions {
+		if decision == nil {
+			return &Decision{
+				Reason: "Got a nil decision. This is a bug.",
+				Err:    fmt.Errorf("could not resolve index"),
+			}
+		}
+
+		if decision.Err != nil {
+			return decision
+		}
+
+		if decision.IsEmpty {
+			return &Decision{
+				Reason: "Got an empty decision. This is a bug.",
+				Err:    fmt.Errorf("could not resolve index, empty index: %s", decision.IndexPattern),
+			}
+		}
+
+		if decision.EnableABTesting != decisions[0].EnableABTesting {
+			return &Decision{
+				Reason: "One of the indexes matching the pattern does A/B testing, while another index does not - inconsistency.",
+				Err:    fmt.Errorf("inconsistent A/B testing configuration - index %s (A/B testing: %v) and index %s (A/B testing: %v)", decision.IndexPattern, decision.EnableABTesting, decisions[0].IndexPattern, decisions[0].EnableABTesting),
+			}
+		}
+	}
+
+	var nonClosedDecisions []*Decision
+	for _, decision := range decisions {
+		if !decision.IsClosed {
+			nonClosedDecisions = append(nonClosedDecisions, decision)
+		}
+	}
+	if len(nonClosedDecisions) == 0 {
+		// All indexes are closed
+		return &Decision{
+			IsClosed: true,
+			Reason:   "All indexes matching the pattern are closed.",
+		}
+	}
+	// Discard all closed indexes
+	decisions = nonClosedDecisions
+
+	useConnectors := decisions[0].UseConnectors
+
+	for i, decision := range decisions {
+		if i == 0 {
+			continue
+		}
+		if len(decision.UseConnectors) != len(decisions[0].UseConnectors) {
+			return &Decision{
+				Reason: "Inconsistent number of connectors",
+				Err:    fmt.Errorf("inconsistent number of connectors - index %s (%d connectors) and index %s (%d connectors)", decision.IndexPattern, len(decision.UseConnectors), decisions[0].IndexPattern, len(decisions[0].UseConnectors)),
+			}
+		}
+
+		newUseConnectors, mergeDecision := mergeUseConnectors(useConnectors, decision.UseConnectors)
+		if mergeDecision != nil {
+			return mergeDecision
+		}
+		useConnectors = newUseConnectors
+	}
+
+	return &Decision{
+		UseConnectors:   useConnectors,
+		EnableABTesting: decisions[0].EnableABTesting,
+		Reason:          "Merged decisions",
 	}
 }

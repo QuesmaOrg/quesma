@@ -9,7 +9,6 @@ import (
 	"quesma/clickhouse"
 	"quesma/common_table"
 	"quesma/elasticsearch"
-	"quesma/end_user_errors"
 	"quesma/quesma/config"
 	"reflect"
 	"strings"
@@ -81,7 +80,7 @@ func TestTableResolver(t *testing.T) {
 			pipeline: QueryPipeline,
 			pattern:  "*",
 			expected: Decision{
-				Err: end_user_errors.ErrSearchCondition.New(fmt.Errorf("")),
+				Err: fmt.Errorf("inconsistent A/B testing configuration"),
 			},
 			indexConf: indexConf,
 		},
@@ -91,7 +90,7 @@ func TestTableResolver(t *testing.T) {
 			pattern:           "*",
 			clickhouseIndexes: []string{"index1", "index2"},
 			expected: Decision{
-				Err: end_user_errors.ErrSearchCondition.New(fmt.Errorf("")),
+				Err: fmt.Errorf(""),
 			},
 			indexConf: indexConf,
 		},
@@ -102,7 +101,7 @@ func TestTableResolver(t *testing.T) {
 			clickhouseIndexes: []string{"index1", "index2"},
 			elasticIndexes:    []string{"index3"},
 			expected: Decision{
-				Err: end_user_errors.ErrSearchCondition.New(fmt.Errorf("")),
+				Err: fmt.Errorf(""),
 			},
 			indexConf: indexConf,
 		},
@@ -217,7 +216,7 @@ func TestTableResolver(t *testing.T) {
 			pattern:        "index1,index2",
 			elasticIndexes: []string{"index3"},
 			expected: Decision{
-				Err: end_user_errors.ErrSearchCondition.New(fmt.Errorf("")),
+				Err: fmt.Errorf(""),
 			},
 			indexConf: indexConf,
 		},
@@ -227,11 +226,7 @@ func TestTableResolver(t *testing.T) {
 			pattern:        "index1,index-not-existing",
 			elasticIndexes: []string{"index1,index-not-existing"},
 			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
-					ClickhouseTableName: "index1",
-					ClickhouseTables:    []string{"index1"},
-					IsCommonTable:       false,
-				}},
+				Err: fmt.Errorf(""), // index1 in Clickhouse, index-not-existing in Elastic ('*')
 			},
 			indexConf: indexConf,
 		},
@@ -260,20 +255,6 @@ func TestTableResolver(t *testing.T) {
 			name:          "query pattern",
 			pipeline:      QueryPipeline,
 			pattern:       "index2,foo*",
-			virtualTables: []string{"index2"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
-					ClickhouseTableName: common_table.TableName,
-					ClickhouseTables:    []string{"index2"},
-					IsCommonTable:       true,
-				}},
-			},
-			indexConf: indexConf,
-		},
-		{
-			name:          "query pattern",
-			pipeline:      QueryPipeline,
-			pattern:       "indexa,index2",
 			virtualTables: []string{"index2"},
 			expected: Decision{
 				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
@@ -360,7 +341,7 @@ func TestTableResolver(t *testing.T) {
 			clickhouseIndexes: []string{"index1"},
 			elasticIndexes:    []string{"logs"},
 			expected: Decision{
-				Err: end_user_errors.ErrSearchCondition.New(fmt.Errorf("")),
+				Err: fmt.Errorf(""),
 			},
 		},
 		{
@@ -393,12 +374,8 @@ func TestTableResolver(t *testing.T) {
 		},
 	}
 
-	for i, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if i == 24 {
-				t.Skip("bug: A/B testing doesn't work with patterns")
-			}
-
 			tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 
 			for _, index := range tt.clickhouseIndexes {
