@@ -118,6 +118,14 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
+	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/details", func(writer http.ResponseWriter, req *http.Request) {
+		dashboardId := req.FormValue("dashboard_id")
+		panelId := req.FormValue("panel_id")
+
+		buf := qmc.generateABDetails(dashboardId, panelId)
+		_, _ = writer.Write(buf)
+	})
+
 	authenticatedRoutes.HandleFunc("/tables/reload", func(writer http.ResponseWriter, req *http.Request) {
 
 		qmc.logManager.ReloadTables()

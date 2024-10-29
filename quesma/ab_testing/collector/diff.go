@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"quesma/jsondiff"
@@ -73,6 +74,8 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 		}
 
 		in.Mismatch.Mismatches = string(b)
+		hash := sha1.Sum(b)
+		in.Mismatch.SHA1 = fmt.Sprintf("%x", hash)
 		in.Mismatch.IsOK = false
 		in.Mismatch.Count = len(mismatches)
 		in.Mismatch.Message = mismatches.String()

@@ -17,6 +17,7 @@ type ResponseMismatch struct {
 
 	Mismatches string `json:"mismatches"` // JSON array of differences
 	Message    string `json:"message"`    // human readable variant of the array above
+	SHA1       string `json:"sha1"`       // SHA1 of the differences
 
 	Count           int    `json:"count"`             // number of differences
 	TopMismatchType string `json:"top_mismatch_type"` // most common difference type

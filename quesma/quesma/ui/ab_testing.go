@@ -6,9 +6,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"io"
 	"quesma/elasticsearch"
+	"quesma/jsondiff"
 	"strings"
 )
 
@@ -34,17 +34,14 @@ func (qmc *QuesmaManagementConsole) generateABTestingDashboard() []byte {
 	return buffer.Bytes()
 }
 
-func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl string) []byte {
-	buffer := newBufferWithHead()
+type kibanaDashboard struct {
+	name   string
+	panels map[string]string
+}
 
-	buffer.Html(`<h2>AB Testing Report</h2>`)
+func (qmc *QuesmaManagementConsole) readKibanaDashboards() (map[string]kibanaDashboard, error) {
 
-	type kibanaDashboard struct {
-		name   string
-		panels map[string]string
-	}
-
-	kibanaDashboardId2Name := make(map[string]kibanaDashboard)
+	result := make(map[string]kibanaDashboard)
 
 	elasticQuery := `
 {
@@ -73,21 +70,18 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl string) []
 	resp, err := client.Request(context.Background(), "POST", ".kibana_analytics/_search", []byte(elasticQuery))
 
 	if err != nil {
-		buffer.Text(fmt.Sprintf("Error: %s", err))
-		return buffer.Bytes()
+		return result, err
 	}
 
 	if resp.StatusCode != 200 {
-		buffer.Text(fmt.Sprintf("Error: %s", resp.Body))
-		return buffer.Bytes()
+		return result, fmt.Errorf("Error: %s", resp.Status)
 	}
 
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		buffer.Text(fmt.Sprintf("Error: %s", err))
-		return buffer.Bytes()
+		return result, err
 	}
 
 	type responseSchema struct {
@@ -111,8 +105,7 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl string) []
 	var response responseSchema
 	err = json.Unmarshal(data, &response)
 	if err != nil {
-		buffer.Text(fmt.Sprintf("Error: %s", err))
-		return buffer.Bytes()
+		return result, err
 	}
 
 	for _, hit := range response.Hits.Hits {
@@ -125,11 +118,8 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl string) []
 		var panelsJson []panelSchema
 		err := json.Unmarshal([]byte(panels), &panelsJson)
 		if err != nil {
-			buffer.Text(fmt.Sprintf("Error: %s", err))
-			return buffer.Bytes()
+			return result, err
 		}
-
-		pp.Println(_id, title, panelsJson)
 
 		dashboard := kibanaDashboard{
 			name:   title,
@@ -144,7 +134,22 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl string) []
 			}
 		}
 
-		kibanaDashboardId2Name[_id] = dashboard
+		result[_id] = dashboard
+	}
+
+	return result, nil
+
+}
+
+func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl string) []byte {
+	buffer := newBufferWithHead()
+
+	buffer.Html(`<h2>AB Testing Report</h2>`)
+
+	kibanaDashboards, err := qmc.readKibanaDashboards()
+	if err != nil {
+		buffer.Text(fmt.Sprintf("Error: %s", err))
+		return buffer.Bytes()
 	}
 
 	sql := `
@@ -179,6 +184,8 @@ order by 1,2,3
 		dashboardId   string
 		panelId       string
 		dashboardUrl  string
+		panelUrl      string
+		detailsUrl    string
 		dashboardName string
 		panelName     string
 		testName      string
@@ -206,8 +213,10 @@ order by 1,2,3
 		}
 
 		row.dashboardUrl = fmt.Sprintf("%s/app/kibana#/dashboard/%s", kibanaUrl, row.dashboardId)
+		row.panelUrl = row.dashboardUrl
+		row.detailsUrl = fmt.Sprintf("/ab-testing-dashboard/details?dashboard_id=%s&panel_id=%s", row.dashboardId, row.panelId)
 
-		if dashboard, ok := kibanaDashboardId2Name[row.dashboardId]; ok {
+		if dashboard, ok := kibanaDashboards[row.dashboardId]; ok {
 			row.dashboardName = dashboard.name
 
 			if panelName, ok := dashboard.panels[row.panelId]; ok {
@@ -234,10 +243,10 @@ order by 1,2,3
 	buffer.Html(`<tr>` + "\n")
 	buffer.Html(`<th class="key">Dashboard</th>` + "\n")
 	buffer.Html(`<th class="key">Panel</th>` + "\n")
-	buffer.Html(`<th class="key">Test name</th>` + "\n")
 	buffer.Html(`<th class="key">Count</th>` + "\n")
 	buffer.Html(`<th class="key">Success rate</th>` + "\n")
 	buffer.Html(`<th class="key">Time ratio</th>` + "\n")
+	buffer.Html(`<th class="key"></th>` + "\n")
 	buffer.Html("</tr>\n")
 	buffer.Html("</thead>\n")
 
@@ -251,6 +260,8 @@ order by 1,2,3
 
 			buffer.Html(`<td>`)
 			buffer.Html(`<a target="_blank" href="`).Text(row.dashboardUrl).Html(`">`).Text(row.dashboardName).Html(`</a>`)
+			buffer.Html("<br>")
+			buffer.Text(fmt.Sprintf("(%s)", row.testName))
 			buffer.Html(`</td>`)
 			lastDashboardId = row.dashboardId
 		} else {
@@ -258,11 +269,7 @@ order by 1,2,3
 		}
 
 		buffer.Html(`<td>`)
-		buffer.Html(`<a target="_blank" href="`).Text(row.dashboardUrl).Html(`">`).Text(row.panelName).Html(`</a>`)
-		buffer.Html(`</td>`)
-
-		buffer.Html(`<td>`)
-		buffer.Text(row.testName)
+		buffer.Html(`<a target="_blank" href="`).Text(row.panelUrl).Html(`">`).Text(row.panelName).Html(`</a>`)
 		buffer.Html(`</td>`)
 
 		buffer.Html(`<td>`)
@@ -284,6 +291,130 @@ order by 1,2,3
 			buffer.Text("n/a")
 		}
 		buffer.Html(`</td>`)
+
+		buffer.Html("<td>")
+
+		buffer.Html(`<a target="_blank" href="`)
+		buffer.Text(row.detailsUrl)
+		buffer.Html(`">`)
+		buffer.Text("Details")
+		buffer.Html(`</a>`)
+
+		buffer.Html("</td>")
+
+		buffer.Html("</tr>\n")
+	}
+
+	buffer.Html("</tbody>\n")
+	buffer.Html("</table>\n")
+
+	return buffer.Bytes()
+}
+
+func (qmc *QuesmaManagementConsole) generateABDetails(dashboardId, panelId string) []byte {
+	buffer := newBufferWithHead()
+
+	buffer.Html(`<h2>AB Testing Details</h2>`)
+
+	buffer.Text(fmt.Sprintf("Dashboard: %s", dashboardId))
+	buffer.Text(fmt.Sprintf("Panel: %s", panelId))
+
+	sql := `
+		select  response_mismatch_mismatches, count() as c
+		from ab_testing_logs 
+		where kibana_dashboard_id = ? and 
+		      kibana_dashboard_panel_id = ? and 
+		      response_mismatch_is_ok = false
+		group  by 1
+		order by c desc
+		limit 100
+`
+
+	db := qmc.logManager.GetDB()
+
+	rows, err := db.Query(sql, dashboardId, panelId)
+	if err != nil {
+		buffer.Text(fmt.Sprintf("Error: %s", err))
+		return buffer.Bytes()
+	}
+
+	buffer.Html("<table>\n")
+	buffer.Html("<thead>\n")
+	buffer.Html(`<tr>` + "\n")
+	buffer.Html(`<th class="key">Mismatch</th>`)
+	buffer.Html(`<th class="key">Count</th>`)
+	buffer.Html(`<th class="key"></th>`)
+	buffer.Html("</tr>\n")
+
+	buffer.Html("</thead>\n")
+	buffer.Html("<tbody>\n")
+
+	for rows.Next() {
+
+		var mismatch string
+		var count int
+
+		err := rows.Scan(&mismatch, &count)
+		if err != nil {
+			buffer.Text(fmt.Sprintf("Error: %s", err))
+			return buffer.Bytes()
+		}
+
+		buffer.Html(`<tr>` + "\n")
+
+		buffer.Html(`<td>`)
+
+		var mismatches []jsondiff.JSONMismatch
+		err = json.Unmarshal([]byte(mismatch), &mismatches)
+		if err == nil {
+
+			buffer.Html(`<ol>`)
+			for _, m := range mismatches {
+				buffer.Html(`<li>`)
+				buffer.Html(`<p>`)
+				buffer.Text(m.Message)
+				buffer.Text(" ")
+				buffer.Html(`<code>`)
+				buffer.Text(`(`)
+				buffer.Text(m.Path)
+				buffer.Text(`)`)
+				buffer.Html(`</code>`)
+
+				buffer.Html(`<ul>`)
+
+				buffer.Html(`<li>`)
+				buffer.Html(`<code>`)
+				buffer.Text("Actual: ")
+				buffer.Text(m.Actual)
+				buffer.Html(`</code>`)
+				buffer.Html(`</li>`)
+
+				buffer.Html(`<li>`)
+				buffer.Html(`<code>`)
+				buffer.Text("Expected: ")
+				buffer.Text(m.Expected)
+				buffer.Html(`</code>`)
+				buffer.Html(`</li>`)
+
+				buffer.Html(`</p>`)
+				buffer.Html(`</ul>`)
+				buffer.Html(`</li>`)
+			}
+			buffer.Html(`</ol>`)
+
+		} else {
+			buffer.Text(mismatch)
+		}
+
+		buffer.Html(`</td>`)
+
+		buffer.Html(`<td>`)
+		buffer.Text(fmt.Sprintf("%d", count))
+		buffer.Html(`</td>`)
+
+		buffer.Html("<td>")
+		buffer.Html("</td>")
+
 		buffer.Html("</tr>\n")
 	}
 
