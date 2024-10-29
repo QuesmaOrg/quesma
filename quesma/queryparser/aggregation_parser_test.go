@@ -10,6 +10,9 @@ import (
 	"quesma/schema"
 	"quesma/testdata"
 	"quesma/testdata/clients"
+	dashboard_1 "quesma/testdata/dashboard-1"
+	kibana_visualize "quesma/testdata/kibana-visualize"
+	opensearch_visualize "quesma/testdata/opensearch-visualize"
 	"testing"
 )
 
@@ -652,18 +655,18 @@ func allAggregationTests() []testdata.AggregationTestCase {
 		}
 	}
 
-	//add(testdata.AggregationTests, "agg_req")
-	//add(testdata.AggregationTests2, "agg_req_2")
-	//add(testdata.AggregationTestsWithDates, "dates")
-	//add(opensearch_visualize.AggregationTests, "opensearch-visualize/agg_req")
-	//add(dashboard_1.AggregationTests, "dashboard-1/agg_req")
-	//add(testdata.PipelineAggregationTests, "pipeline_agg_req")
-	//add(opensearch_visualize.PipelineAggregationTests, "opensearch-visualize/pipeline_agg_req")
-	//add(kibana_visualize.AggregationTests, "kibana-visualize/agg_req")
-	//add(kibana_visualize.PipelineAggregationTests, "kibana-visualize/pipeline_agg_req")
-	//add(clients.KunkkaTests, "clients/kunkka")
-	//add(clients.OpheliaTests, "clients/ophelia")
-	//add(clients.OpheliaTests, "clients/ophelia")
+	add(testdata.AggregationTests, "agg_req")
+	add(testdata.AggregationTests2, "agg_req_2")
+	add(testdata.AggregationTestsWithDates, "dates")
+	add(opensearch_visualize.AggregationTests, "opensearch-visualize/agg_req")
+	add(dashboard_1.AggregationTests, "dashboard-1/agg_req")
+	add(testdata.PipelineAggregationTests, "pipeline_agg_req")
+	add(opensearch_visualize.PipelineAggregationTests, "opensearch-visualize/pipeline_agg_req")
+	add(kibana_visualize.AggregationTests, "kibana-visualize/agg_req")
+	add(kibana_visualize.PipelineAggregationTests, "kibana-visualize/pipeline_agg_req")
+	add(clients.KunkkaTests, "clients/kunkka")
+	add(clients.OpheliaTests, "clients/ophelia")
+	add(clients.OpheliaTests, "clients/ophelia")
 	add(clients.CloverTests, "clients/clover")
 
 	return allTests

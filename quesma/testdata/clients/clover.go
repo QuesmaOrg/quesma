@@ -345,7 +345,7 @@ var CloverTests = []testdata.AggregationTestCase{
 			WHERE ("@timestamp">=parseDateTime64BestEffort('2024-10-11T09:58:03.723Z') AND
 			  "@timestamp"<=parseDateTime64BestEffort('2024-10-11T10:13:03.723Z'))`,
 	},
-	{ // [1]
+	{ // [2]
 		TestName: "todo",
 		QueryRequestJson: `
 		{
@@ -405,36 +405,25 @@ var CloverTests = []testdata.AggregationTestCase{
 					"total": 1
 				},
 				"aggregations": {
-					"sampler": {
-						"doc_count": 4675,
-						"eventRate": {
-							"buckets": [
-								{
-									"doc_count": 442,
-									"key": 1726358400000,
-									"key_as_string": "2024-09-15T00:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1726963200000,
-									"key_as_string": "2024-09-22T00:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1727568000000,
-									"key_as_string": "2024-09-29T00:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1728172800000,
-									"key_as_string": "2024-10-06T00:00:00.000"
-								},
-								{
-									"doc_count": 1,
-									"key": 1728777600000,
-									"key_as_string": "2024-10-13T00:00:00.000"
+					"other-filter": {
+						"buckets": {
+							"": {
+								"doc_count": 4675,
+								"3": {
+									"sum_other_doc_count":         0,
+									"doc_count_error_upper_bound": 0,
+									"buckets": [
+										{
+											"doc_count": 4674,
+											"key": "field"
+										},
+										{
+											"doc_count": 1,
+											"key": "bad-field"
+										}
+									]
 								}
-							]
+							}
 						}
 					}
 				},
@@ -456,24 +445,27 @@ var CloverTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__other-filter__count", int64(4675)),
 				model.NewQueryResultCol("aggr__other-filter__3__parent_count", int64(4675)),
 				model.NewQueryResultCol("aggr__other-filter__3__key_0", "field"),
-				model.NewQueryResultCol("aggr__other-filter__3__count", int64(442)),
+				model.NewQueryResultCol("aggr__other-filter__3__count", int64(4674)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__other-filter__count", int64(4675)),
+				model.NewQueryResultCol("aggr__other-filter__3__parent_count", int64(4675)),
+				model.NewQueryResultCol("aggr__other-filter__3__key_0", "bad-field"),
+				model.NewQueryResultCol("aggr__other-filter__3__count", int64(1)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT sum(countIf(("a" iLIKE '%b%' AND "c" iLIKE '%d%'))) OVER () AS
-			  "aggr__other-filter__count",
-			  sum(countIf(("a" iLIKE '%b%' AND "c" iLIKE '%d%'))) OVER () AS
-			  "aggr__other-filter__3__parent_count",
-			  "field" AS "aggr__other-filter__3__key_0",
-			  countIf(("a" iLIKE '%b%' AND "c" iLIKE '%d%')) AS
-			  "aggr__other-filter__3__count"
-			FROM __quesma_table_name
-			GROUP BY "field" AS "aggr__other-filter__3__key_0"
-			ORDER BY "aggr__other-filter__3__count" DESC,
-			  "aggr__other-filter__3__key_0" ASC
-			LIMIT 16`,
+			SELECT sum(count(*)) OVER () AS "aggr__other-filter__count",
+              sum(count(*)) OVER () AS "aggr__other-filter__3__parent_count",
+              "field" AS "aggr__other-filter__3__key_0",
+              count(*) AS "aggr__other-filter__3__count"
+            FROM __quesma_table_name
+            GROUP BY "field" AS "aggr__other-filter__3__key_0"
+            ORDER BY "aggr__other-filter__3__count" DESC,
+              "aggr__other-filter__3__key_0" ASC
+            LIMIT 16`,
 	},
-	{ // [2]
+	{ // [3]
 		TestName: "todo",
 		QueryRequestJson: `
 		{
@@ -498,9 +490,8 @@ var CloverTests = []testdata.AggregationTestCase{
 									"min": 1728507729621
 								},
 								"field": "@timestamp",
-								"fixed_interval": "100ms",
-								"min_doc_count": 0,
-								"time_zone": "Europe/Warsaw"
+								"fixed_interval": "7d",
+								"min_doc_count": 0
 							},
 							"meta": {
 								"type": "time_buckets"
@@ -563,36 +554,49 @@ var CloverTests = []testdata.AggregationTestCase{
 					"total": 1
 				},
 				"aggregations": {
-					"sampler": {
-						"doc_count": 4675,
-						"eventRate": {
-							"buckets": [
-								{
-									"doc_count": 442,
-									"key": 1726358400000,
-									"key_as_string": "2024-09-15T00:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1726963200000,
-									"key_as_string": "2024-09-22T00:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1727568000000,
-									"key_as_string": "2024-09-29T00:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1728172800000,
-									"key_as_string": "2024-10-06T00:00:00.000"
-								},
-								{
-									"doc_count": 1,
-									"key": 1728777600000,
-									"key_as_string": "2024-10-13T00:00:00.000"
+					"q": {
+						"buckets": {
+							"*": {
+								"doc_count": 4675,
+								"time_buckets": {
+									"meta": {
+										"type": "time_buckets"
+									},
+									"buckets": [
+										{
+											"doc_count": 442,
+											"key": 1726704000000,
+											"key_as_string": "2024-09-19T00:00:00.000",
+											"count": {
+												"value": 442
+											}
+										},
+										{
+											"doc_count": 0,
+											"key": 1727308800000,
+											"key_as_string": "2024-09-26T00:00:00.000"
+										},
+										{
+											"doc_count": 0,
+											"key": 1727913600000,
+											"key_as_string": "2024-10-03T00:00:00.000"
+										},
+										{
+											"doc_count": 0,
+											"key": 1728518400000,
+											"key_as_string": "2024-10-10T00:00:00.000"
+										},
+										{
+											"doc_count": 1,
+											"key": 1729123200000,
+											"key_as_string": "2024-10-17T00:00:00.000",
+											"count": {
+												"value": 1.0
+											}
+										}
+									]
 								}
-							]
+							}
 						}
 					}
 				},
@@ -611,25 +615,26 @@ var CloverTests = []testdata.AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__other-filter__count", int64(4675)),
-				model.NewQueryResultCol("aggr__other-filter__3__parent_count", int64(4675)),
-				model.NewQueryResultCol("aggr__other-filter__3__key_0", "field"),
-				model.NewQueryResultCol("aggr__other-filter__3__count", int64(442)),
+				model.NewQueryResultCol("aggr__q__count", int64(4675)),
+				model.NewQueryResultCol("aggr__q__time_buckets__key_0", int64(2855)),
+				model.NewQueryResultCol("aggr__q__time_buckets__count", int64(442)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__q__count", int64(4675)),
+				model.NewQueryResultCol("aggr__q__time_buckets__key_0", int64(2859)),
+				model.NewQueryResultCol("aggr__q__time_buckets__count", int64(1)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT sum(countIf(("a" iLIKE '%b%' AND "c" iLIKE '%d%'))) OVER () AS
-			  "aggr__other-filter__count",
-			  sum(countIf(("a" iLIKE '%b%' AND "c" iLIKE '%d%'))) OVER () AS
-			  "aggr__other-filter__3__parent_count",
-			  "field" AS "aggr__other-filter__3__key_0",
-			  countIf(("a" iLIKE '%b%' AND "c" iLIKE '%d%')) AS
-			  "aggr__other-filter__3__count"
+			SELECT sum(count(*)) OVER () AS "aggr__q__count",
+			  toInt64(toUnixTimestamp64Milli("@timestamp") / 604800000) AS
+			  "aggr__q__time_buckets__key_0", count(*) AS "aggr__q__time_buckets__count"
 			FROM __quesma_table_name
-			GROUP BY "field" AS "aggr__other-filter__3__key_0"
-			ORDER BY "aggr__other-filter__3__count" DESC,
-			  "aggr__other-filter__3__key_0" ASC
-			LIMIT 16`,
+			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1728507729621) AND "@timestamp"<=
+			  fromUnixTimestamp64Milli(1728507732621))
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 604800000) AS
+			  "aggr__q__time_buckets__key_0"
+			ORDER BY "aggr__q__time_buckets__key_0" ASC`,
 	},
 	{ // [1]
 		TestName: "Clover",
@@ -742,27 +747,28 @@ var CloverTests = []testdata.AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1726358400000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", int64(442)),
+				model.NewQueryResultCol("aggr__q__count", int64(4675)),
+				model.NewQueryResultCol("aggr__q__time_buckets__key_0", int64(1726358400000/1800000)),
+				model.NewQueryResultCol("aggr__q__time_buckets__count", int64(442)),
+				model.NewQueryResultCol("metric__q__time_buckets__sum(count)_col_0", int64(442)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1728777600000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", int64(1)),
+				model.NewQueryResultCol("aggr__q__count", int64(4675)),
+				model.NewQueryResultCol("aggr__q__time_buckets__key_0", int64(1726361400000/1800000)),
+				model.NewQueryResultCol("aggr__q__time_buckets__count", int64(442)),
+				model.NewQueryResultCol("metric__q__time_buckets__sum(count)_col_0", int64(442)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__sampler__count",
-			  toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC'))))*1000
-			  AS "aggr__sampler__eventRate__key_0",
-			  count(*) AS "aggr__sampler__eventRate__count"
-			FROM (
-			  SELECT "order_date"
-			  FROM __quesma_table_name
-			  LIMIT 20000)
-			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC')))
-			  )*1000 AS "aggr__sampler__eventRate__key_0"
-			ORDER BY "aggr__sampler__eventRate__key_0" ASC`,
+			SELECT sum(count(*)) OVER () AS "aggr__q__count",
+			  toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+			  "@timestamp", 'Europe/Warsaw'))*1000) / 1800000) AS
+			  "aggr__q__time_buckets__key_0", count(*) AS "aggr__q__time_buckets__count",
+			  sumOrNull("count") AS "metric__q__time_buckets__sum(count)_col_0"
+			FROM __quesma_table_name
+			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
+			  ("@timestamp", 'Europe/Warsaw'))*1000) / 1800000) AS
+			  "aggr__q__time_buckets__key_0"
+			ORDER BY "aggr__q__time_buckets__key_0" ASC`,
 	},
 }
