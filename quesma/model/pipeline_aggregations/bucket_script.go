@@ -26,19 +26,17 @@ func (query BucketScript) AggregationType() model.AggregationType {
 
 func (query BucketScript) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	const defaultValue = 0.
-	switch query.script {
-	case "params.numerator != null && params.denominator != null && params.denominator != 0 ? params.numerator / params.denominator : 0":
+	switch {
+	case query.script == "params.numerator != null && params.denominator != null && params.denominator != 0 ? params.numerator / params.denominator : 0":
 		numerator := query.findFilterValue(rows, "numerator")
 		denominator := query.findFilterValue(rows, "denominator")
 		if denominator == 0 {
 			return model.JsonMap{"value": defaultValue}
 		}
 		return model.JsonMap{"value": numerator / denominator}
-	default:
-		if len(rows) == 1 {
-			for _, row := range rows {
-				return model.JsonMap{"value": util.ExtractNumeric64(row.LastColValue())}
-			}
+	case len(rows) == 1:
+		for _, row := range rows {
+			return model.JsonMap{"value": util.ExtractNumeric64(row.LastColValue())}
 		}
 	}
 
@@ -47,20 +45,21 @@ func (query BucketScript) TranslateSqlResponseToJson(rows []model.QueryResultRow
 }
 
 func (query BucketScript) CalculateResultWhenMissing(parentRows []model.QueryResultRow) []model.QueryResultRow {
-	if len(parentRows) == 0 {
-		return parentRows
-	}
 	resultRows := make([]model.QueryResultRow, 0, len(parentRows))
 	for _, parentRow := range parentRows {
 		resultRow := parentRow.Copy()
-		resultRow.Cols[len(resultRow.Cols)-1].Value = util.ExtractNumeric64(parentRow.LastColValue())
+		if len(resultRow.Cols) != 0 {
+			resultRow.Cols[len(resultRow.Cols)-1].Value = util.ExtractNumeric64(parentRow.LastColValue())
+		} else {
+			logger.ErrorWithCtx(query.ctx).Msgf("unexpected empty parent row in bucket_script: %s", query.String())
+		}
 		resultRows = append(resultRows, resultRow)
 	}
 	return resultRows
 }
 
 func (query BucketScript) String() string {
-	return fmt.Sprintf("bucket script(isCount: %v, parent: %s, pathToParent: %v, parentBucketAggregation: %v, script: %v)",
+	return fmt.Sprintf("bucket_script(isCount: %v, parent: %s, pathToParent: %v, parentBucketAggregation: %v, script: %v)",
 		query.isCount, query.Parent, query.PathToParent, query.parentBucketAggregation, query.script)
 }
 

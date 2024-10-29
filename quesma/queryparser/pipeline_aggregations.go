@@ -230,6 +230,8 @@ func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggr
 					logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a map with string values, but %T. Skipping this aggregation", bucketPath)
 					return
 				}
+				// Kinda weird to return just the first value, but seems working on all cases so far.
+				// After fixing the TODO above, it should also get fixed.
 				return bucketPath.(string), true
 			}
 		} else {
