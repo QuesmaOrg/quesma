@@ -22,6 +22,8 @@ type andToken struct{}
 
 type notToken struct{}
 
+type existsToken struct{}
+
 type leftParenthesisToken struct{}
 
 type rightParenthesisToken struct{}
