@@ -18,7 +18,7 @@ func generateSimpleTop(title string) []byte {
 	return buffer.Bytes()
 }
 
-func generateTopNavigation(target string) []byte {
+func (qmc *QuesmaManagementConsole) generateTopNavigation(target string) []byte {
 	var buffer builder.HtmlBuffer
 	buffer.Html(`<div class="topnav">` + "\n")
 	buffer.Html(`<div class="topnav-menu">` + "\n")
@@ -84,6 +84,11 @@ func generateTopNavigation(target string) []byte {
 	buffer.Html(`><a href="/ab-testing-dashboard">A/B</a></li>`)
 
 	buffer.Html(`<li><a href="/logout">Logout</a></li>`)
+
+	if qmc.isAuthEnabled {
+		buffer.Html(`<li><a href="/logout">Logout</a></li>`)
+	}
+
 	buffer.Html("\n</ul>\n")
 	buffer.Html("\n</div>\n")
 
