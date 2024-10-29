@@ -25,21 +25,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [1]
-		TestName:  "bucket aggregation: auto_date_histogram",
-		QueryType: "auto_date_histogram",
-		QueryRequestJson: `
-		{
-			"aggs": {
-				"sales_over_time": {
-					"auto_date_histogram": {
-						"field": "date",
-						"buckets": 10
-					}
-				}
-			}
-		}`,
-	},
 	{ // [2]
 		TestName:  "bucket aggregation: categorize_text",
 		QueryType: "categorize_text",

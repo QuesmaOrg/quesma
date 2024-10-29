@@ -12,7 +12,7 @@ More info: https://www.elastic.co/guide/en/elasticsearch/reference/current/searc
  Metrics aggregation       |        Support         | Bucket aggregation           |      Support       | Pipeline aggregation   |      Support       |
 ---------------------------|:----------------------:|------------------------------|:------------------:|------------------------|:------------------:|
  Avg                       |   :white_check_mark:   | Adjacency matrix             |        :x:         | Average bucket         | :white_check_mark: |
- Cardinality               |   :white_check_mark:   | Auto-interval date histogram |        :x:         | Bucket script          |        :x:         |
+ Cardinality               |   :white_check_mark:   | Auto-interval date histogram |    :wavy_dash:     | Bucket script          |     :wavy_dash:    |
  Extended Stats            | :white_check_mark:[^1] | Categorize text              |        :x:         | Bucket count K-S test  |        :x:         |
  Avg                       |   :white_check_mark:   | Children                     |        :x:         | Bucket correlation     |        :x:         |
  Boxplot                   |          :x:           | Composite                    |        :x:         | Bucket selector        |        :x:         |

@@ -432,11 +432,11 @@ var CloverTests = []testdata.AggregationTestCase{
 									"value": 202.0
 								},
 								"doc_count": 202,
-								"key": 1728518400000,
-								"key_as_string": "2024-10-10T00:00:00.000Z"
+								"key": 1728581627125,
+								"key_as_string": "2024-10-10T19:33:47.125+02:00"
 							}
 						],
-						"interval": "7d",
+						"interval": "100y",
 						"meta": {
 							"dataViewId": "d3d7af60-4c81-11e8-b3d7-01146121b73d",
 							"indexPatternString": "kibana_sample_data_flights",

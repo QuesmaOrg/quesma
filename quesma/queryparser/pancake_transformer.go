@@ -378,12 +378,23 @@ func (a *pancakeTransformer) transformAutoDateHistogram(layers []*pancakeModelLa
 	for _, layer := range layers {
 		if layer.nextBucketAggregation != nil {
 			if autoDateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.AutoDateHistogram); ok {
-				timestampLowerBound, ok := model.FindTimestampLowerBound(whereClause)
+				lowerBoundsInWhere, ok := model.FindLowerBounds(whereClause)
 				if !ok {
 					logger.WarnWithCtx(a.ctx).Msgf("could not find timestamp lower bound for auto_date_histogram %v", autoDateHistogram)
 					continue
 				}
-				if autoDateHistogram.GetField() != timestampLowerBound.Left {
+				var (
+					timestampLowerBound model.InfixExpr
+					found               bool
+				)
+				for _, lowerBound := range lowerBoundsInWhere {
+					if lowerBound.Left == autoDateHistogram.GetField() {
+						timestampLowerBound = lowerBound
+						found = true
+						break
+					}
+				}
+				if !found {
 					logger.WarnWithCtx(a.ctx).Msgf("auto_date_histogram field %s does not match timestamp lower bound %s", autoDateHistogram.GetField(), timestampLowerBound.Left)
 					continue
 				}

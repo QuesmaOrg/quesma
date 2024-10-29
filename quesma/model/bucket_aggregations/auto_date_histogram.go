@@ -26,10 +26,12 @@ func (query *AutoDateHistogram) AggregationType() model.AggregationType {
 }
 
 func (query *AutoDateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	fmt.Println(rows)
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msgf("no rows returned for %s", query.String())
 		return make(model.JsonMap, 0)
+	}
+	if len(rows) != 1 {
+		logger.WarnWithCtx(query.ctx).Msgf("unexpected (!= 1) number of rows returned for %s: %d.", query.String(), len(rows))
 	}
 	return model.JsonMap{
 		"buckets": []model.JsonMap{{
