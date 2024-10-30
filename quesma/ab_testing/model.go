@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Elastic-2.0
 package ab_testing
 
+const ABTestingTableName = "ab_testing_logs"
+
 type Request struct {
 	Path      string `json:"path"`
 	IndexName string `json:"index_name"`

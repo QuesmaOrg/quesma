@@ -203,7 +203,7 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 	}()
 }
 
-func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, optComparePlansCh chan<- executionPlanResult) (responseBody []byte, err error) {
+func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, optComparePlansCh chan<- executionPlanResult, abTestingMainPlan bool) (responseBody []byte, err error) {
 	contextValues := tracing.ExtractValues(ctx)
 	id := contextValues.RequestId
 	path := contextValues.RequestPath
@@ -214,7 +214,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	sendMainPlanResult := func(responseBody []byte, err error) {
 		if optComparePlansCh != nil {
 			optComparePlansCh <- executionPlanResult{
-				isMain:       true,
+				isMain:       abTestingMainPlan,
 				plan:         plan,
 				err:          err,
 				responseBody: responseBody,
@@ -300,16 +300,16 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("no connectors to use"))
 	}
 
-	var clickhouseDecision *table_resolver.ConnectorDecisionClickhouse
-	var elasticDecision *table_resolver.ConnectorDecisionElastic
+	var clickhouseConnector *table_resolver.ConnectorDecisionClickhouse
+
 	for _, connector := range decision.UseConnectors {
 		switch c := connector.(type) {
 
 		case *table_resolver.ConnectorDecisionClickhouse:
-			clickhouseDecision = c
+			clickhouseConnector = c
 
 		case *table_resolver.ConnectorDecisionElastic:
-			elasticDecision = c
+			// NOP
 
 		default:
 			return nil, fmt.Errorf("unknown connector type: %T", c)
@@ -317,12 +317,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 
 	// it's impossible here to don't have a clickhouse decision
-	if clickhouseDecision == nil {
+	if clickhouseConnector == nil {
 		return nil, fmt.Errorf("no clickhouse connector")
-	}
-
-	if elasticDecision != nil {
-		fmt.Println("elastic", elasticDecision)
 	}
 
 	var responseBody []byte
@@ -343,7 +339,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	var table *clickhouse.Table // TODO we should use schema here only
 	var currentSchema schema.Schema
-	resolvedIndexes := clickhouseDecision.ClickhouseTables
+	resolvedIndexes := clickhouseConnector.ClickhouseTables
 
 	if len(resolvedIndexes) == 1 {
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
@@ -446,17 +442,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	plan.StartTime = startTime
 	plan.Name = model.MainExecutionPlan
 
-	// Some flags may trigger alternative execution plans, this is primary for dev
-
-	alternativePlan, alternativePlanExecutor := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedIndexes, plan, queryTranslator, body, table, optAsync != nil)
-
-	var optComparePlansCh chan<- executionPlanResult
-
-	if alternativePlan != nil {
-		optComparePlansCh = q.runAlternativePlanAndComparison(ctx, alternativePlan, alternativePlanExecutor, body)
+	if decision.EnableABTesting {
+		return q.executeABTesting(ctx, plan, queryTranslator, table, body, optAsync, decision, indexPattern)
 	}
 
-	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh)
+	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, nil, true)
+
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncId string,
