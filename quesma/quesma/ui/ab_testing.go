@@ -50,13 +50,14 @@ func (qmc *QuesmaManagementConsole) generateABTestingDashboard() []byte {
 	buffer.Write(qmc.generateTopNavigation("ab-testing-dashboard"))
 
 	buffer.Html(`<main id="ab_testing_dashboard">`)
+	buffer.Html(`<h2>A/B Testing Dashboard</h2>`)
 
 	if qmc.hasABTestingTable() {
 
 		buffer.Html(`<form hx-post="/ab-testing-dashboard/report" hx-target="#report">
 		<label for="kibana_url">Kibana URL</label>
 		<input id="kibana_url" name="kibana_url" type="text" value="http://localhost:5601" />
-		<button type="submit">Submit</button>
+		<button type="submit">Generate report</button>
 	</form>`)
 
 		buffer.Html(`<div id="report"></div>`)
@@ -268,7 +269,6 @@ order by 1,2,3
 		dashboardId   string
 		panelId       string
 		dashboardUrl  string
-		panelUrl      string
 		detailsUrl    string
 		dashboardName string
 		panelName     string
@@ -297,7 +297,7 @@ order by 1,2,3
 		}
 
 		row.dashboardUrl = fmt.Sprintf("%s/app/kibana#/dashboard/%s", kibanaUrl, row.dashboardId)
-		row.panelUrl = row.dashboardUrl
+
 		row.detailsUrl = fmt.Sprintf("/ab-testing-dashboard/panel?dashboard_id=%s&panel_id=%s", row.dashboardId, row.panelId)
 
 		row.dashboardName = kibanaDashboards.dashboardName(row.dashboardId)
@@ -343,7 +343,7 @@ order by 1,2,3
 		}
 
 		buffer.Html(`<td>`)
-		buffer.Html(`<a target="_blank" href="`).Text(row.panelUrl).Html(`">`).Text(row.panelName).Html(`</a>`)
+		buffer.Text(row.panelName)
 		buffer.Html(`</td>`)
 
 		buffer.Html(`<td>`)
