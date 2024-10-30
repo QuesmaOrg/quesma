@@ -9,7 +9,9 @@ import (
 	"io"
 	"quesma/elasticsearch"
 	"quesma/jsondiff"
+	"quesma/logger"
 	"strings"
+	"time"
 )
 
 func (qmc *QuesmaManagementConsole) generateABTestingDashboard() []byte {
@@ -39,9 +41,31 @@ type kibanaDashboard struct {
 	panels map[string]string
 }
 
-func (qmc *QuesmaManagementConsole) readKibanaDashboards() (map[string]kibanaDashboard, error) {
+type resolvedDashboards struct {
+	dashboards map[string]kibanaDashboard
+}
 
-	result := make(map[string]kibanaDashboard)
+func (l resolvedDashboards) dashboardName(dashboardId string) string {
+	if dashboard, ok := l.dashboards[dashboardId]; ok {
+		return dashboard.name
+	}
+	return dashboardId
+}
+
+func (k *resolvedDashboards) panelName(dashboardId, panelId string) string {
+	if dashboard, ok := k.dashboards[dashboardId]; ok {
+		if name, ok := dashboard.panels[panelId]; ok {
+			return name
+		}
+	}
+	return panelId
+}
+
+func (qmc *QuesmaManagementConsole) readKibanaDashboards() (resolvedDashboards, error) {
+
+	result := resolvedDashboards{
+		dashboards: make(map[string]kibanaDashboard),
+	}
 
 	elasticQuery := `
 {
@@ -134,11 +158,37 @@ func (qmc *QuesmaManagementConsole) readKibanaDashboards() (map[string]kibanaDas
 			}
 		}
 
-		result[_id] = dashboard
+		result.dashboards[_id] = dashboard
 	}
 
 	return result, nil
 
+}
+
+func parseMismatches(mismatch string) ([]jsondiff.JSONMismatch, error) {
+	var mismatches []jsondiff.JSONMismatch
+	err := json.Unmarshal([]byte(mismatch), &mismatches)
+	return mismatches, err
+}
+
+func formatJSON(in *string) string {
+
+	if in == nil {
+		return "n/a"
+	}
+
+	m := make(map[string]interface{})
+
+	err := json.Unmarshal([]byte(*in), &m)
+	if err != nil {
+		return err.Error()
+	}
+
+	b, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+	return string(b)
 }
 
 func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl string) []byte {
@@ -214,20 +264,10 @@ order by 1,2,3
 
 		row.dashboardUrl = fmt.Sprintf("%s/app/kibana#/dashboard/%s", kibanaUrl, row.dashboardId)
 		row.panelUrl = row.dashboardUrl
-		row.detailsUrl = fmt.Sprintf("/ab-testing-dashboard/details?dashboard_id=%s&panel_id=%s", row.dashboardId, row.panelId)
+		row.detailsUrl = fmt.Sprintf("/ab-testing-dashboard/panel?dashboard_id=%s&panel_id=%s", row.dashboardId, row.panelId)
 
-		if dashboard, ok := kibanaDashboards[row.dashboardId]; ok {
-			row.dashboardName = dashboard.name
-
-			if panelName, ok := dashboard.panels[row.panelId]; ok {
-				row.panelName = panelName
-			} else {
-				row.panelName = row.panelId
-			}
-
-		} else {
-			row.dashboardName = row.dashboardId
-		}
+		row.dashboardName = kibanaDashboards.dashboardName(row.dashboardId)
+		row.panelName = kibanaDashboards.panelName(row.dashboardId, row.panelId)
 
 		report = append(report, row)
 	}
@@ -311,21 +351,37 @@ order by 1,2,3
 	return buffer.Bytes()
 }
 
-func (qmc *QuesmaManagementConsole) generateABDetails(dashboardId, panelId string) []byte {
+func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId string) []byte {
 	buffer := newBufferWithHead()
 
-	buffer.Html(`<h2>AB Testing Details</h2>`)
+	dashboards, err := qmc.readKibanaDashboards()
+	dashboardName := dashboardId
+	panelName := panelId
 
-	buffer.Text(fmt.Sprintf("Dashboard: %s", dashboardId))
-	buffer.Text(fmt.Sprintf("Panel: %s", panelId))
+	if err == nil {
+		dashboardName = dashboards.dashboardName(dashboardId)
+		panelName = dashboards.panelName(dashboardId, panelId)
+	} else {
+		logger.Warn().Err(err).Msgf("Error reading dashboards %v", err)
+	}
+
+	buffer.Html(`<main id="ab_testing_dashboard">`)
+
+	buffer.Html(`<h2>AB Testing Panel Details </h2>`)
+	buffer.Html(`<h3>`)
+	buffer.Text(fmt.Sprintf("Dashboard: %s", dashboardName))
+	buffer.Html(`</h3>`)
+	buffer.Html(`<h3>`)
+	buffer.Text(fmt.Sprintf("Panel: %s", panelName))
+	buffer.Html(`</h3>`)
 
 	sql := `
-		select  response_mismatch_mismatches, count() as c
+		select  response_mismatch_mismatches, response_mismatch_sha1, count() as c
 		from ab_testing_logs 
 		where kibana_dashboard_id = ? and 
 		      kibana_dashboard_panel_id = ? and 
 		      response_mismatch_is_ok = false
-		group  by 1
+		group  by 1,2
 		order by c desc
 		limit 100
 `
@@ -339,8 +395,9 @@ func (qmc *QuesmaManagementConsole) generateABDetails(dashboardId, panelId strin
 	}
 
 	type row struct {
-		mismatch string
-		count    int
+		mismatch   string
+		mismatchId string
+		count      int
 	}
 
 	var tableRows []row
@@ -348,42 +405,54 @@ func (qmc *QuesmaManagementConsole) generateABDetails(dashboardId, panelId strin
 
 		var mismatch string
 		var count int
+		var mismatchId string
 
-		err := rows.Scan(&mismatch, &count)
+		err := rows.Scan(&mismatch, &mismatchId, &count)
 		if err != nil {
 			buffer.Text(fmt.Sprintf("Error: %s", err))
 			return buffer.Bytes()
 		}
 
 		r := row{
-			mismatch: mismatch,
-			count:    count,
+			mismatch:   mismatch,
+			mismatchId: mismatchId,
+			count:      count,
 		}
 		tableRows = append(tableRows, r)
 	}
 
 	if len(tableRows) > 0 {
 
-		buffer.Html("<table>\n")
-		buffer.Html("<thead>\n")
-		buffer.Html(`<tr>` + "\n")
+		buffer.Html("<table>")
+		buffer.Html("<thead>")
+		buffer.Html(`<tr>`)
 		buffer.Html(`<th class="key">Mismatch</th>`)
 		buffer.Html(`<th class="key">Count</th>`)
 		buffer.Html(`<th class="key"></th>`)
-		buffer.Html("</tr>\n")
+		buffer.Html("</tr>")
 
 		buffer.Html("</thead>\n")
 		buffer.Html("<tbody>\n")
 
 		for _, row := range tableRows {
 
-			buffer.Html(`<tr>` + "\n")
+			buffer.Html(`<tr>`)
 
 			buffer.Html(`<td>`)
 
-			var mismatches []jsondiff.JSONMismatch
-			err = json.Unmarshal([]byte(row.mismatch), &mismatches)
+			mismatches, err := parseMismatches(row.mismatch)
+
 			if err == nil {
+
+				const limit = 10
+
+				size := len(mismatches)
+				if size > limit {
+					mismatches = mismatches[:limit]
+					mismatches = append(mismatches, jsondiff.JSONMismatch{
+						Message: fmt.Sprintf("... and %d more", size-limit),
+					})
+				}
 
 				buffer.Html(`<ol>`)
 				for _, m := range mismatches {
@@ -391,30 +460,34 @@ func (qmc *QuesmaManagementConsole) generateABDetails(dashboardId, panelId strin
 					buffer.Html(`<p>`)
 					buffer.Text(m.Message)
 					buffer.Text(" ")
-					buffer.Html(`<code>`)
-					buffer.Text(`(`)
-					buffer.Text(m.Path)
-					buffer.Text(`)`)
-					buffer.Html(`</code>`)
 
-					buffer.Html(`<ul>`)
+					if m.Path != "" {
+						buffer.Html(`<code>`)
+						buffer.Text(`(`)
+						buffer.Text(m.Path)
+						buffer.Text(`)`)
+						buffer.Html(`</code>`)
 
-					buffer.Html(`<li>`)
-					buffer.Html(`<code>`)
-					buffer.Text("Actual: ")
-					buffer.Text(m.Actual)
-					buffer.Html(`</code>`)
-					buffer.Html(`</li>`)
+						{
+							buffer.Html(`<ul>`)
+							buffer.Html(`<li>`)
+							buffer.Html(`<code>`)
+							buffer.Text("Actual: ")
+							buffer.Text(m.Actual)
+							buffer.Html(`</code>`)
+							buffer.Html(`</li>`)
 
-					buffer.Html(`<li>`)
-					buffer.Html(`<code>`)
-					buffer.Text("Expected: ")
-					buffer.Text(m.Expected)
-					buffer.Html(`</code>`)
-					buffer.Html(`</li>`)
+							buffer.Html(`<li>`)
+							buffer.Html(`<code>`)
+							buffer.Text("Expected: ")
+							buffer.Text(m.Expected)
+							buffer.Html(`</code>`)
+							buffer.Html(`</li>`)
+							buffer.Html(`</ul>`)
+						}
+					}
 
 					buffer.Html(`</p>`)
-					buffer.Html(`</ul>`)
 					buffer.Html(`</li>`)
 				}
 				buffer.Html(`</ol>`)
@@ -430,6 +503,7 @@ func (qmc *QuesmaManagementConsole) generateABDetails(dashboardId, panelId strin
 			buffer.Html(`</td>`)
 
 			buffer.Html("<td>")
+			buffer.Html(`<a target="_blank" href="`).Text(fmt.Sprintf("/ab-testing-dashboard/mismatch?mismatch_id=%s", row.mismatchId)).Html(`">`).Text("Details").Html(`</a>`)
 			buffer.Html("</td>")
 
 			buffer.Html("</tr>\n")
@@ -437,10 +511,318 @@ func (qmc *QuesmaManagementConsole) generateABDetails(dashboardId, panelId strin
 
 		buffer.Html("</tbody>\n")
 		buffer.Html("</table>\n")
+		buffer.Html("\n</main>\n\n")
 	} else {
 		buffer.Html(`<h3>No mismatches found</h3>`)
 
 	}
 
+	return buffer.Bytes()
+}
+
+func (qmc *QuesmaManagementConsole) generateABMismatchDetails(mismatchId string) []byte {
+	buffer := newBufferWithHead()
+
+	buffer.Html(`<main id="ab_testing_dashboard">`)
+
+	buffer.Html(`<h2>AB Testing Mismatches </h2>`)
+
+	sql := `
+		select "@timestamp", request_id, request_path, opaque_id
+		from ab_testing_logs 
+		where response_mismatch_sha1 = ?  
+
+		order by 1 desc
+		limit 100
+`
+
+	type tableRow struct {
+		timestamp   string
+		requestId   string
+		requestPath string
+		opaqueId    string
+	}
+
+	db := qmc.logManager.GetDB()
+
+	rows, err := db.Query(sql, mismatchId)
+	if err != nil {
+		buffer.Text(fmt.Sprintf("Error: %s", err))
+		return buffer.Bytes()
+	}
+
+	var allRows []tableRow
+	for rows.Next() {
+
+		row := tableRow{}
+		err := rows.Scan(&row.timestamp, &row.requestId, &row.requestPath, &row.opaqueId)
+		if err != nil {
+			buffer.Text(fmt.Sprintf("Error: %s", err))
+			return buffer.Bytes()
+		}
+
+		allRows = append(allRows, row)
+
+	}
+	if rows.Err() != nil {
+		buffer.Text(fmt.Sprintf("Error: %s", rows.Err()))
+		return buffer.Bytes()
+	}
+
+	buffer.Html("<table>")
+	buffer.Html("<thead>")
+	buffer.Html(`<tr>`)
+	buffer.Html(`<th class="key">Timestamp</th>`)
+	buffer.Html(`<th class="key">Request ID</th>`)
+	buffer.Html(`<th class="key">Request Path</th>`)
+	buffer.Html(`<th class="key">Opaque ID</th>`)
+
+	buffer.Html("</tr>")
+
+	buffer.Html("</thead>\n")
+	buffer.Html("<tbody>\n")
+
+	for _, row := range allRows {
+
+		buffer.Html(`<tr>`)
+		buffer.Html(`<td>`)
+		buffer.Text(row.timestamp)
+		buffer.Html(`</td>`)
+
+		buffer.Html(`<td>`)
+		buffer.Html(`<a target="_blank" href="`).Text(fmt.Sprintf("/ab-testing-dashboard/request?request_id=%s", row.requestId)).Html(`">`).Text(row.requestId).Html(`</a>`)
+
+		buffer.Html(`</td>`)
+
+		buffer.Html(`<td>`)
+		buffer.Text(row.requestPath)
+		buffer.Html(`</td>`)
+
+		buffer.Html(`<td>`)
+		buffer.Text(row.opaqueId)
+		buffer.Html(`</td>`)
+
+		buffer.Html("</tr>\n")
+	}
+
+	buffer.Html("</tbody>\n")
+	buffer.Html("</table>\n")
+
+	buffer.Html(`</main>`)
+	return buffer.Bytes()
+}
+
+func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []byte {
+	buffer := newBufferWithHead()
+	buffer.Html(`<main id="ab_testing_dashboard">`)
+
+	buffer.Html(`<h2>AB Testing Request </h2>`)
+
+	sql := `SELECT
+	 request_id, request_path, request_index_name,
+		request_body, response_b_time, response_b_error, response_b_name, response_b_body,
+		quesma_hash, kibana_dashboard_id, opaque_id, response_a_body, response_a_time,
+		response_a_error, response_a_name, "@timestamp", response_mismatch_sha1,
+		response_mismatch_count, response_mismatch_top_mismatch_type, response_mismatch_is_ok,
+		response_mismatch_mismatches, response_mismatch_message, quesma_version,
+		kibana_dashboard_panel_id 
+	FROM ab_testing_logs 
+	WHERE request_id = ?`
+
+	db := qmc.logManager.GetDB()
+
+	type request struct {
+		requestID                  *string
+		requestPath                *string
+		requestIndexName           *string
+		requestBody                *string
+		responseBTime              *float64
+		responseBError             *string
+		responseBName              *string
+		responseBBody              *string
+		quesmaHash                 *string
+		kibanaDashboardID          *string
+		opaqueID                   *string
+		responseABody              *string
+		responseATime              *float64
+		responseAError             *string
+		responseAName              *string
+		timestamp                  time.Time
+		responseMismatchSHA1       *string
+		responseMismatchCount      *int64
+		responseMismatchTopType    *string
+		responseMismatchIsOK       *bool
+		responseMismatchMismatches *string
+		responseMismatchMessage    *string
+		quesmaVersion              *string
+		kibanaDashboardPanelID     *string
+		errors                     []string
+	}
+
+	row := db.QueryRow(sql, requestId)
+
+	rec := request{}
+	err := row.Scan(
+		&rec.requestID, &rec.requestPath, &rec.requestIndexName,
+		&rec.requestBody, &rec.responseBTime, &rec.responseBError, &rec.responseBName, &rec.responseBBody,
+		&rec.quesmaHash, &rec.kibanaDashboardID, &rec.opaqueID, &rec.responseABody, &rec.responseATime,
+		&rec.responseAError, &rec.responseAName, &rec.timestamp, &rec.responseMismatchSHA1,
+		&rec.responseMismatchCount, &rec.responseMismatchTopType, &rec.responseMismatchIsOK,
+		&rec.responseMismatchMismatches, &rec.responseMismatchMessage, &rec.quesmaVersion,
+		&rec.kibanaDashboardPanelID)
+
+	if err != nil {
+		buffer.Text(fmt.Sprintf("Error: %s", err))
+		return buffer.Bytes()
+	}
+
+	fmtAny := func(value any) string {
+		if value == nil {
+			return "n/a"
+		}
+
+		switch v := value.(type) {
+		case *string:
+			return *v
+		case *float64:
+			return fmt.Sprintf("%f", *v)
+		case *int64:
+			return fmt.Sprintf("%d", *v)
+		case *bool:
+			return fmt.Sprintf("%t", *v)
+		default:
+			return fmt.Sprintf("%s", value)
+		}
+	}
+
+	tableRow := func(label string, value any, pre bool) {
+
+		buffer.Html(`<tr>`)
+		buffer.Html(`<td width="20%">`)
+		buffer.Text(label)
+		buffer.Html(`</td>`)
+		buffer.Html(`<td width="80%">`)
+		if pre {
+			buffer.Html(`<pre>`)
+		}
+		buffer.Text(fmtAny(value))
+		if pre {
+			buffer.Html(`</pre>`)
+		}
+		buffer.Html(`</td>`)
+		buffer.Html("</tr>\n")
+
+	}
+
+	var dashboardName string
+	var panelName string
+
+	dashboards, err := qmc.readKibanaDashboards()
+
+	if err == nil {
+
+		if rec.kibanaDashboardID != nil {
+
+			dashboardName = dashboards.dashboardName(*rec.kibanaDashboardID)
+			if rec.kibanaDashboardPanelID != nil {
+				panelName = dashboards.panelName(*rec.kibanaDashboardID, *rec.kibanaDashboardPanelID)
+			}
+		}
+	} else {
+		logger.Warn().Err(err).Msgf("Error reading dashboards %v", err)
+	}
+
+	buffer.Html(`<table width="90%">`)
+	tableRow("Request ID", rec.requestID, true)
+	tableRow("Timestamp", rec.timestamp, true)
+	tableRow("Kibana Dashboard ID", dashboardName, false)
+	tableRow("Kibana Dashboard Panel ID", panelName, false)
+	tableRow("Opaque ID", rec.opaqueID, true)
+	tableRow("Quesma Hash", rec.quesmaHash, true)
+	tableRow("Quesma Version", rec.quesmaVersion, true)
+	tableRow("Request Path", rec.requestPath, true)
+	tableRow("Request Index Name", rec.requestIndexName, false)
+	tableRow("Request Body", formatJSON(rec.requestBody), true)
+	buffer.Html(`</table>`)
+
+	rowAB := func(label string, valueA any, valueB any, pre bool) {
+
+		buffer.Html(`<tr>`)
+		buffer.Html(`<td>`)
+		buffer.Text(label)
+		buffer.Html(`</td>`)
+		buffer.Html(`<td>`)
+		if pre {
+			buffer.Html(`<pre>`)
+		}
+		buffer.Text(fmtAny(valueA))
+		if pre {
+			buffer.Html(`</pre>`)
+		}
+		buffer.Html(`</td>`)
+		buffer.Html(`<td>`)
+		if pre {
+			buffer.Html(`<pre>`)
+		}
+		buffer.Text(fmtAny(valueB))
+		if pre {
+			buffer.Html(`</pre>`)
+		}
+		buffer.Html(`</td>`)
+		buffer.Html("</tr>\n")
+
+	}
+
+	buffer.Html(`<h3>Response A vs Response B</h3>`)
+	buffer.Html(`<table width="90%">`)
+	buffer.Html(`<tr>`)
+	buffer.Html(`<th width="10%">Label</th>`)
+	buffer.Html(`<th width="45%">Response A</th>`)
+	buffer.Html(`<th width="45%">Response B</th>`)
+	buffer.Html("</tr>")
+
+	rowAB("Name", rec.responseAName, rec.responseBName, false)
+	rowAB("Time", rec.responseATime, rec.responseBTime, false)
+	rowAB("Error", rec.responseAError, rec.responseBError, true)
+	rowAB("Response Body", formatJSON(rec.responseABody), formatJSON(rec.responseBBody), true)
+	buffer.Html(`</table>`)
+
+	buffer.Html(`<h3>Difference</h3>`)
+	if rec.responseMismatchSHA1 != nil {
+
+		mismaches, err := parseMismatches(*rec.responseMismatchMismatches)
+		if err != nil {
+			buffer.Text(fmt.Sprintf("Error: %s", err))
+
+		} else {
+
+			buffer.Html(`<table width="90%">`)
+			buffer.Html(`<tr>`)
+			buffer.Html(`<th>Message</th>`)
+			buffer.Html(`<th>Path</th>`)
+			buffer.Html(`<th>Actual</th>`)
+			buffer.Html(`<th>Expected</th>`)
+			buffer.Html("</tr>")
+
+			for _, m := range mismaches {
+				buffer.Html(`<tr>`)
+				buffer.Html(`<td>`)
+				buffer.Text(m.Message)
+				buffer.Html(`</td>`)
+				buffer.Html(`<td>`)
+				buffer.Text(m.Path)
+				buffer.Html(`</td>`)
+				buffer.Html(`<td>`)
+				buffer.Text(m.Actual)
+				buffer.Html(`</td>`)
+				buffer.Html(`<td>`)
+				buffer.Text(m.Expected)
+				buffer.Html(`</td>`)
+				buffer.Html("</tr>")
+			}
+		}
+	}
+
+	buffer.Html(`</main>`)
 	return buffer.Bytes()
 }

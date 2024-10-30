@@ -119,11 +119,25 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
-	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/details", func(writer http.ResponseWriter, req *http.Request) {
+	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/panel", func(writer http.ResponseWriter, req *http.Request) {
 		dashboardId := req.FormValue("dashboard_id")
 		panelId := req.FormValue("panel_id")
 
-		buf := qmc.generateABDetails(dashboardId, panelId)
+		buf := qmc.generateABPanelDetails(dashboardId, panelId)
+		_, _ = writer.Write(buf)
+	})
+
+	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/mismatch", func(writer http.ResponseWriter, req *http.Request) {
+		mismatchId := req.FormValue("mismatch_id")
+
+		buf := qmc.generateABMismatchDetails(mismatchId)
+		_, _ = writer.Write(buf)
+	})
+
+	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/request", func(writer http.ResponseWriter, req *http.Request) {
+		request_id := req.FormValue("request_id")
+
+		buf := qmc.generateABSingleRequest(request_id)
 		_, _ = writer.Write(buf)
 	})
 
