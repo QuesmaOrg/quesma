@@ -266,6 +266,7 @@ type DateHistogramRowsTransformer struct {
 }
 
 // if MinDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
+// Also if extendedBounds are present, we need to add all keys between them.
 // CAUTION: a different kind of postprocessing is needed for MinDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
 func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	if qt.MinDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 {
@@ -286,7 +287,7 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		postprocessedRows = append(postprocessedRows, rowsFromDB[0])
 	}
 
-	// add "mid" keys, so any needed key between [first_row_date_key, last_row_date_key]
+	// add "mid" keys, so any needed key between [first_row_key, last_row_key]
 	for i := 1; i < len(rowsFromDB); i++ {
 		if len(rowsFromDB[i-1].Cols) < 2 || len(rowsFromDB[i].Cols) < 2 {
 			logger.ErrorWithCtx(ctx).Msgf(
@@ -307,23 +308,46 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		postprocessedRows = append(postprocessedRows, rowsFromDB[i])
 	}
 
-	// add "pre" and "post" keys, so any needed key between [extendedBoundsMin, extendedBoundsMax]
-	firstRequiredKey := (qt.extendedBoundsMin+1000*60*60*2)/qt.differenceBetweenTwoNextKeys - 1 // more or less, might be slightly off, seems to work for a few different test cases
-	if len(postprocessedRows) == 0 {
-		postprocessedRows = append(postprocessedRows, model.QueryResultRow{
-			Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("", firstRequiredKey),
-				model.NewQueryResultCol("", qt.EmptyValue),
-			},
-		})
+	// some cases where we don't need to add anything more
+	switch {
+	case qt.extendedBoundsMax == NoExtendedBound && qt.extendedBoundsMin == NoExtendedBound:
+	case len(postprocessedRows) == 0 && (qt.extendedBoundsMax == NoExtendedBound || qt.extendedBoundsMin == NoExtendedBound):
+		return postprocessedRows
 	}
 
-	for midKey := firstRequiredKey + 1; midKey*qt.differenceBetweenTwoNextKeys < qt.extendedBoundsMax+1000*60*60*2; midKey++ {
-		preRow := postprocessedRows[0].Copy()
-		preRow.Cols[len(preRow.Cols)-2].Value = midKey
-		preRow.Cols[len(preRow.Cols)-1].Value = qt.EmptyValue
-		postprocessedRows = append(postprocessedRows, preRow)
-		emptyRowsAdded++
+	// add "pre" keys, so any needed key between [extendedBoundsMin, first_row_key]
+	if qt.extendedBoundsMin != NoExtendedBound {
+		firstRequiredKey := (qt.extendedBoundsMin+1000*60*60*2)/qt.differenceBetweenTwoNextKeys - 1 // more or less, might be slightly off, seems to work for a few different test cases
+		var lastRequiredKey int64
+		if len(postprocessedRows) > 0 {
+			lastRequiredKey = qt.getKey(postprocessedRows[0])
+		} else {
+			// we know qt.extendedBoundsMax != NoExtendedBound, because we would've returned earlier - line below is safe
+			lastRequiredKey = (qt.extendedBoundsMax + 1000*60*60*2) / qt.differenceBetweenTwoNextKeys
+		}
+		preRows := make([]model.QueryResultRow, max(0, int(lastRequiredKey-firstRequiredKey)))
+		for preKey := firstRequiredKey; preKey <= lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; preKey++ {
+			preRows = append(preRows, model.QueryResultRow{
+				Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("", preKey),
+					model.NewQueryResultCol("", qt.EmptyValue),
+				},
+			})
+			emptyRowsAdded++
+		}
+		postprocessedRows = append(preRows, postprocessedRows...)
+	}
+
+	// add "post" keys, so any needed key between [last_row_key, extendedBoundsMax]
+	if qt.extendedBoundsMax != NoExtendedBound {
+		lastRequiredKey := (qt.extendedBoundsMax + 1000*60*60*2) / qt.differenceBetweenTwoNextKeys
+		for postKey := qt.getKey(postprocessedRows[len(postprocessedRows)-1]); postKey <= lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; postKey++ {
+			postRow := postprocessedRows[0].Copy()
+			postRow.Cols[len(postRow.Cols)-2].Value = postKey
+			postRow.Cols[len(postRow.Cols)-1].Value = qt.EmptyValue
+			postprocessedRows = append(postprocessedRows, postRow)
+			emptyRowsAdded++
+		}
 	}
 
 	return postprocessedRows
