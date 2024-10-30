@@ -128,9 +128,11 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	})
 
 	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/mismatch", func(writer http.ResponseWriter, req *http.Request) {
+		dashboardId := req.FormValue("dashboard_id")
+		panelId := req.FormValue("panel_id")
 		mismatchId := req.FormValue("mismatch_id")
 
-		buf := qmc.generateABMismatchDetails(mismatchId)
+		buf := qmc.generateABMismatchDetails(dashboardId, panelId, mismatchId)
 		_, _ = writer.Write(buf)
 	})
 

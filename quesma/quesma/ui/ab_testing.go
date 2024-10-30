@@ -503,7 +503,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 			buffer.Html(`</td>`)
 
 			buffer.Html("<td>")
-			buffer.Html(`<a target="_blank" href="`).Text(fmt.Sprintf("/ab-testing-dashboard/mismatch?mismatch_id=%s", row.mismatchId)).Html(`">`).Text("Details").Html(`</a>`)
+			buffer.Html(`<a target="_blank" href="`).Text(fmt.Sprintf("/ab-testing-dashboard/mismatch?dashboard_id=%s&panel_id=%s&mismatch_id=%s", dashboardId, panelId, row.mismatchId)).Html(`">`).Text("Requests").Html(`</a>`)
 			buffer.Html("</td>")
 
 			buffer.Html("</tr>\n")
@@ -520,17 +520,20 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 	return buffer.Bytes()
 }
 
-func (qmc *QuesmaManagementConsole) generateABMismatchDetails(mismatchId string) []byte {
+func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panelId, mismatchHash string) []byte {
 	buffer := newBufferWithHead()
 
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
-	buffer.Html(`<h2>AB Testing Mismatches </h2>`)
+	buffer.Html(`<h2>AB Testing - Panel requests</h2>`)
 
 	sql := `
 		select "@timestamp", request_id, request_path, opaque_id
 		from ab_testing_logs 
-		where response_mismatch_sha1 = ?  
+		where
+		    kibana_dashboard_id = ? and 
+		    kibana_dashboard_panel_id = ? and 
+		    response_mismatch_sha1 = ?  
 
 		order by 1 desc
 		limit 100
@@ -545,7 +548,7 @@ func (qmc *QuesmaManagementConsole) generateABMismatchDetails(mismatchId string)
 
 	db := qmc.logManager.GetDB()
 
-	rows, err := db.Query(sql, mismatchId)
+	rows, err := db.Query(sql, dashboardId, panelId, mismatchHash)
 	if err != nil {
 		buffer.Text(fmt.Sprintf("Error: %s", err))
 		return buffer.Bytes()
@@ -616,7 +619,7 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 	buffer := newBufferWithHead()
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
-	buffer.Html(`<h2>AB Testing Request </h2>`)
+	buffer.Html(`<h2>A/B Testing - Request Results </h2>`)
 
 	sql := `SELECT
 	 request_id, request_path, request_index_name,
