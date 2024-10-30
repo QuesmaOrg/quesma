@@ -338,17 +338,12 @@ func (qmc *QuesmaManagementConsole) generateABDetails(dashboardId, panelId strin
 		return buffer.Bytes()
 	}
 
-	buffer.Html("<table>\n")
-	buffer.Html("<thead>\n")
-	buffer.Html(`<tr>` + "\n")
-	buffer.Html(`<th class="key">Mismatch</th>`)
-	buffer.Html(`<th class="key">Count</th>`)
-	buffer.Html(`<th class="key"></th>`)
-	buffer.Html("</tr>\n")
+	type row struct {
+		mismatch string
+		count    int
+	}
 
-	buffer.Html("</thead>\n")
-	buffer.Html("<tbody>\n")
-
+	var tableRows []row
 	for rows.Next() {
 
 		var mismatch string
@@ -360,66 +355,92 @@ func (qmc *QuesmaManagementConsole) generateABDetails(dashboardId, panelId strin
 			return buffer.Bytes()
 		}
 
-		buffer.Html(`<tr>` + "\n")
-
-		buffer.Html(`<td>`)
-
-		var mismatches []jsondiff.JSONMismatch
-		err = json.Unmarshal([]byte(mismatch), &mismatches)
-		if err == nil {
-
-			buffer.Html(`<ol>`)
-			for _, m := range mismatches {
-				buffer.Html(`<li>`)
-				buffer.Html(`<p>`)
-				buffer.Text(m.Message)
-				buffer.Text(" ")
-				buffer.Html(`<code>`)
-				buffer.Text(`(`)
-				buffer.Text(m.Path)
-				buffer.Text(`)`)
-				buffer.Html(`</code>`)
-
-				buffer.Html(`<ul>`)
-
-				buffer.Html(`<li>`)
-				buffer.Html(`<code>`)
-				buffer.Text("Actual: ")
-				buffer.Text(m.Actual)
-				buffer.Html(`</code>`)
-				buffer.Html(`</li>`)
-
-				buffer.Html(`<li>`)
-				buffer.Html(`<code>`)
-				buffer.Text("Expected: ")
-				buffer.Text(m.Expected)
-				buffer.Html(`</code>`)
-				buffer.Html(`</li>`)
-
-				buffer.Html(`</p>`)
-				buffer.Html(`</ul>`)
-				buffer.Html(`</li>`)
-			}
-			buffer.Html(`</ol>`)
-
-		} else {
-			buffer.Text(mismatch)
+		r := row{
+			mismatch: mismatch,
+			count:    count,
 		}
-
-		buffer.Html(`</td>`)
-
-		buffer.Html(`<td>`)
-		buffer.Text(fmt.Sprintf("%d", count))
-		buffer.Html(`</td>`)
-
-		buffer.Html("<td>")
-		buffer.Html("</td>")
-
-		buffer.Html("</tr>\n")
+		tableRows = append(tableRows, r)
 	}
 
-	buffer.Html("</tbody>\n")
-	buffer.Html("</table>\n")
+	if len(tableRows) > 0 {
+
+		buffer.Html("<table>\n")
+		buffer.Html("<thead>\n")
+		buffer.Html(`<tr>` + "\n")
+		buffer.Html(`<th class="key">Mismatch</th>`)
+		buffer.Html(`<th class="key">Count</th>`)
+		buffer.Html(`<th class="key"></th>`)
+		buffer.Html("</tr>\n")
+
+		buffer.Html("</thead>\n")
+		buffer.Html("<tbody>\n")
+
+		for _, row := range tableRows {
+
+			buffer.Html(`<tr>` + "\n")
+
+			buffer.Html(`<td>`)
+
+			var mismatches []jsondiff.JSONMismatch
+			err = json.Unmarshal([]byte(row.mismatch), &mismatches)
+			if err == nil {
+
+				buffer.Html(`<ol>`)
+				for _, m := range mismatches {
+					buffer.Html(`<li>`)
+					buffer.Html(`<p>`)
+					buffer.Text(m.Message)
+					buffer.Text(" ")
+					buffer.Html(`<code>`)
+					buffer.Text(`(`)
+					buffer.Text(m.Path)
+					buffer.Text(`)`)
+					buffer.Html(`</code>`)
+
+					buffer.Html(`<ul>`)
+
+					buffer.Html(`<li>`)
+					buffer.Html(`<code>`)
+					buffer.Text("Actual: ")
+					buffer.Text(m.Actual)
+					buffer.Html(`</code>`)
+					buffer.Html(`</li>`)
+
+					buffer.Html(`<li>`)
+					buffer.Html(`<code>`)
+					buffer.Text("Expected: ")
+					buffer.Text(m.Expected)
+					buffer.Html(`</code>`)
+					buffer.Html(`</li>`)
+
+					buffer.Html(`</p>`)
+					buffer.Html(`</ul>`)
+					buffer.Html(`</li>`)
+				}
+				buffer.Html(`</ol>`)
+
+			} else {
+				buffer.Text(row.mismatch)
+			}
+
+			buffer.Html(`</td>`)
+
+			buffer.Html(`<td>`)
+			buffer.Text(fmt.Sprintf("%d", row.count))
+			buffer.Html(`</td>`)
+
+			buffer.Html("<td>")
+			buffer.Html("</td>")
+
+			buffer.Html("</tr>\n")
+		}
+
+		buffer.Html("</tbody>\n")
+		buffer.Html("</table>\n")
+	} else {
+		buffer.Html(`<h3>No mismatches found</h3>`)
+
+	}
 
 	return buffer.Bytes()
 }
