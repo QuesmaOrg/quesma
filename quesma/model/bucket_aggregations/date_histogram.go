@@ -27,7 +27,7 @@ const (
 	// map (it has the original key, doesn't know about the processed one)
 	// with date_histogram's map (it already has a "valid", processed key, after TranslateSqlResponseToJson)
 	OriginalKeyName      = "__quesma_originalKey"
-	NoExtendedBound      = -1
+	NoExtendedBound      = int64(-1) // -1 and not e.g. 0, as 0 is a valid value
 	maxEmptyBucketsAdded = 1000
 )
 
@@ -243,17 +243,16 @@ func (query *DateHistogram) SetMinDocCountToZero() {
 }
 
 func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
-	differenceBetweenTwoNextKeys := int64(1)
-	if query.intervalType == DateHistogramCalendarInterval {
-		duration, err := kibana.ParseInterval(query.interval)
-		if err == nil {
-			differenceBetweenTwoNextKeys = duration.Milliseconds()
-		} else {
-			logger.ErrorWithCtx(query.ctx).Err(err)
-			differenceBetweenTwoNextKeys = 0
-		}
+	duration, err := kibana.ParseInterval(query.interval)
+	var differenceBetweenTwoNextKeys int64
+	if err == nil {
+		differenceBetweenTwoNextKeys = duration.Milliseconds()
+	} else {
+		// 0 is fine value for differenceBetweenTwoNextKeys, as it means we don't add keys
+		logger.ErrorWithCtx(query.ctx).Err(err)
 	}
-	return &DateHistogramRowsTransformer{MinDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys, EmptyValue: 0}
+	return &DateHistogramRowsTransformer{MinDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys,
+		extendedBoundsMin: query.extendedBoundsMin, extendedBoundsMax: query.extendedBoundsMax, EmptyValue: 0}
 }
 
 // we're sure len(row.Cols) >= 2
@@ -261,13 +260,15 @@ func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 type DateHistogramRowsTransformer struct {
 	MinDocCount                  int
 	differenceBetweenTwoNextKeys int64 // if 0, we don't add keys
+	extendedBoundsMin            int64 // simply copied from DateHistogram
+	extendedBoundsMax            int64 // simply copied from DateHistogram
 	EmptyValue                   any
 }
 
 // if MinDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
 // CAUTION: a different kind of postprocessing is needed for MinDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
 func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	if qt.MinDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 || len(rowsFromDB) < 2 {
+	if qt.MinDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 {
 		// we only add empty rows, when
 		// a) MinDocCount == 0
 		// b) we have valid differenceBetweenTwoNextKeys (>0)
@@ -281,7 +282,11 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 
 	emptyRowsAdded := 0
 	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
-	postprocessedRows = append(postprocessedRows, rowsFromDB[0])
+	if len(rowsFromDB) > 0 {
+		postprocessedRows = append(postprocessedRows, rowsFromDB[0])
+	}
+
+	// add "mid" keys, so any needed key between [first_row_date_key, last_row_date_key]
 	for i := 1; i < len(rowsFromDB); i++ {
 		if len(rowsFromDB[i-1].Cols) < 2 || len(rowsFromDB[i].Cols) < 2 {
 			logger.ErrorWithCtx(ctx).Msgf(
@@ -301,6 +306,26 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		}
 		postprocessedRows = append(postprocessedRows, rowsFromDB[i])
 	}
+
+	// add "pre" and "post" keys, so any needed key between [extendedBoundsMin, extendedBoundsMax]
+	firstRequiredKey := (qt.extendedBoundsMin+1000*60*60*2)/qt.differenceBetweenTwoNextKeys - 1 // more or less, might be slightly off, seems to work for a few different test cases
+	if len(postprocessedRows) == 0 {
+		postprocessedRows = append(postprocessedRows, model.QueryResultRow{
+			Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("", firstRequiredKey),
+				model.NewQueryResultCol("", qt.EmptyValue),
+			},
+		})
+	}
+
+	for midKey := firstRequiredKey + 1; midKey*qt.differenceBetweenTwoNextKeys < qt.extendedBoundsMax+1000*60*60*2; midKey++ {
+		preRow := postprocessedRows[0].Copy()
+		preRow.Cols[len(preRow.Cols)-2].Value = midKey
+		preRow.Cols[len(preRow.Cols)-1].Value = qt.EmptyValue
+		postprocessedRows = append(postprocessedRows, preRow)
+		emptyRowsAdded++
+	}
+
 	return postprocessedRows
 }
 
