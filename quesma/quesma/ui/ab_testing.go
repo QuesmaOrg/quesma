@@ -10,6 +10,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/jsondiff"
 	"quesma/logger"
+	"quesma/quesma/ui/internal/builder"
 	"strings"
 	"time"
 )
@@ -29,6 +30,17 @@ func (qmc *QuesmaManagementConsole) hasABTestingTable() bool {
 	}
 
 	return true
+
+}
+
+func (qmc *QuesmaManagementConsole) renderError(buff *builder.HtmlBuffer, err error) {
+
+	buff.Html(`<div style="border: 10px solid red; padding: 5em; margin: 5em; color: red">`)
+	buff.Html(`<h2>Error</h2>`)
+	buff.Html(`<p>`)
+	buff.Text(err.Error())
+	buff.Html(`</p>`)
+	buff.Html(`</div>`)
 
 }
 
@@ -221,12 +233,11 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl string) []
 
 	kibanaDashboards, err := qmc.readKibanaDashboards()
 	if err != nil {
-		buffer.Text(fmt.Sprintf("Error: %s", err))
-		return buffer.Bytes()
+		logger.Warn().Msgf("Error reading dashboards %v", err)
 	}
 
 	sql := `
-with xx as (
+with subresults as (
 select
    kibana_dashboard_id, 
    kibana_dashboard_panel_id,
@@ -247,7 +258,7 @@ select
   (avgIf(a_time,ok)/ avgIf(b_time,ok)) *100  as time_ratio,
   sum(c) as count
 from
-  xx 
+  subresults 
 group by 
  kibana_dashboard_id,kibana_dashboard_panel_id, name
 order by 1,2,3 
@@ -273,7 +284,7 @@ order by 1,2,3
 
 	rows, err := db.Query(sql)
 	if err != nil {
-		buffer.Text(fmt.Sprintf("Error: %s", err))
+		qmc.renderError(&buffer, err)
 		return buffer.Bytes()
 	}
 
@@ -281,7 +292,7 @@ order by 1,2,3
 		row := reportRow{}
 		err := rows.Scan(&row.dashboardId, &row.panelId, &row.testName, &row.successRate, &row.timeRatio, &row.count)
 		if err != nil {
-			buffer.Text(fmt.Sprintf("Error: %s", err))
+			qmc.renderError(&buffer, err)
 			return buffer.Bytes()
 		}
 
@@ -296,7 +307,7 @@ order by 1,2,3
 	}
 
 	if rows.Err() != nil {
-		buffer.Text(fmt.Sprintf("Error: %s", rows.Err()))
+		qmc.renderError(&buffer, rows.Err())
 		return buffer.Bytes()
 	}
 
@@ -390,7 +401,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
-	buffer.Html(`<h2>A/B Testing -  Panel Details</h2>`)
+	buffer.Html(`<h2>A/B Testing - Panel Details</h2>`)
 	buffer.Html(`<h3>`)
 	buffer.Text(fmt.Sprintf("Dashboard: %s", dashboardName))
 	buffer.Html(`</h3>`)
@@ -413,7 +424,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 
 	rows, err := db.Query(sql, dashboardId, panelId)
 	if err != nil {
-		buffer.Text(fmt.Sprintf("Error: %s", err))
+		qmc.renderError(&buffer, err)
 		return buffer.Bytes()
 	}
 
@@ -432,7 +443,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 
 		err := rows.Scan(&mismatch, &mismatchId, &count)
 		if err != nil {
-			buffer.Text(fmt.Sprintf("Error: %s", err))
+			qmc.renderError(&buffer, err)
 			return buffer.Bytes()
 		}
 
@@ -442,6 +453,11 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 			count:      count,
 		}
 		tableRows = append(tableRows, r)
+	}
+
+	if rows.Err() != nil {
+		qmc.renderError(&buffer, rows.Err())
+		return buffer.Bytes()
 	}
 
 	if len(tableRows) > 0 {
@@ -591,7 +607,7 @@ func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panel
 
 	rows, err := db.Query(sql, dashboardId, panelId, mismatchHash)
 	if err != nil {
-		buffer.Text(fmt.Sprintf("Error: %s", err))
+		qmc.renderError(&buffer, err)
 		return buffer.Bytes()
 	}
 
@@ -601,7 +617,7 @@ func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panel
 		row := tableRow{}
 		err := rows.Scan(&row.timestamp, &row.requestId, &row.requestPath, &row.opaqueId)
 		if err != nil {
-			buffer.Text(fmt.Sprintf("Error: %s", err))
+			qmc.renderError(&buffer, err)
 			return buffer.Bytes()
 		}
 
@@ -609,7 +625,7 @@ func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panel
 
 	}
 	if rows.Err() != nil {
-		buffer.Text(fmt.Sprintf("Error: %s", rows.Err()))
+		qmc.renderError(&buffer, rows.Err())
 		return buffer.Bytes()
 	}
 
@@ -715,7 +731,12 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 		&rec.kibanaDashboardPanelID)
 
 	if err != nil {
-		buffer.Text(fmt.Sprintf("Error: %s", err))
+		qmc.renderError(&buffer, err)
+		return buffer.Bytes()
+	}
+
+	if row.Err() != nil {
+		qmc.renderError(&buffer, row.Err())
 		return buffer.Bytes()
 	}
 
