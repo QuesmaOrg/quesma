@@ -98,7 +98,7 @@ func (qmc *QuesmaManagementConsole) readKibanaDashboards() (resolvedDashboards, 
 	}
 
 	if resp.StatusCode != 200 {
-		return result, fmt.Errorf("Error: %s", resp.Status)
+		return result, fmt.Errorf("unexpected HTTP status: %s", resp.Status)
 	}
 
 	defer resp.Body.Close()
@@ -659,7 +659,6 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 		responseMismatchMessage    *string
 		quesmaVersion              *string
 		kibanaDashboardPanelID     *string
-		errors                     []string
 	}
 
 	row := db.QueryRow(sql, requestId)
