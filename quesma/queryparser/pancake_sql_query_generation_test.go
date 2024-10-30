@@ -60,15 +60,29 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Need to implement order by top metrics (talk with Jacek, he has an idea)")
 			}
 
-			if i == 1 {
+			if test.TestName == "multiple buckets_path(file:clients/clover,nr:1)" {
 				t.Skip("auto date histogram")
 			}
-			if i == 4 {
+			if test.TestName == "Clover(file:clients/clover,nr:4)" {
 				t.Skip("answers are fine, need to update test")
 			}
 
-			if i != 6 {
-				t.Skip()
+			if test.TestName == "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)(file:opensearch-visualize/pipeline_agg_req,nr:20)" ||
+				test.TestName == "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range(file:opensearch-visualize/pipeline_agg_req,nr:21)" {
+				t.Skip("Wrong key in max_bucket, should be an easy fix")
+			}
+
+			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:24)" {
+				t.Skip("Was skipped before, no expected results")
+			}
+
+			// 18 wtf?
+
+			if i >= 85 {
+				//t.Skip()
+			}
+			if i != 137 {
+				//t.Skip()
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)

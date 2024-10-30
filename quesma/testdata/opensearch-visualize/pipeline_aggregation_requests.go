@@ -3891,50 +3891,22 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 189
 		}`,
-		/*ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2183))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`count()`, 0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 4968221.14887619),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`count()`, 722),
-				}},
-			},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("filter_0__aggr__1-bucket__count", uint64(0)),
+				model.NewQueryResultCol("filter_0__metric__1-bucket__1-metric_col_0", 0.0),
+				model.NewQueryResultCol("filter_1__aggr__1-bucket__count", uint64(722)),
+				model.NewQueryResultCol("filter_1__metric__1-bucket__1-metric_col_0", 4968221.14887619),
+			}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` `,
-			`NoDBQuery`,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "FlightDelayMin" > '-100' `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "FlightDelayMin" > '-100' `,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE false `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE false `,
-		},
-		*/
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT countIf("FlightDelayMin" > '-100') AS "filter_0__aggr__1-bucket__count",
+			  sumOrNullIf("DistanceKilometers", "FlightDelayMin" > '-100') AS
+			  "filter_0__metric__1-bucket__1-metric_col_0",
+			  countIf(false) AS "filter_1__aggr__1-bucket__count",
+			  sumOrNullIf("DistanceKilometers", false) AS
+			  "filter_1__metric__1-bucket__1-metric_col_0"
+			FROM __quesma_table_name`,
 	},
 	/* waits for probably a simple filters fix */
 	{ // [22] TODO check this test with other pipeline aggregations

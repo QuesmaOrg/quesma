@@ -456,14 +456,15 @@ var CloverTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__other-filter__count",
-              sum(count(*)) OVER () AS "aggr__other-filter__3__parent_count",
-              "field" AS "aggr__other-filter__3__key_0",
-              count(*) AS "aggr__other-filter__3__count"
-            FROM __quesma_table_name
-            GROUP BY "field" AS "aggr__other-filter__3__key_0"
-            ORDER BY "aggr__other-filter__3__count" DESC,
-              "aggr__other-filter__3__key_0" ASC
-            LIMIT 16`,
+			  sum(count(*)) OVER () AS "aggr__other-filter__3__parent_count",
+			  "field" AS "aggr__other-filter__3__key_0",
+			  count(*) AS "aggr__other-filter__3__count"
+			FROM __quesma_table_name
+			WHERE ("a" iLIKE '%b%' AND "c" iLIKE '%d%')
+			GROUP BY "field" AS "aggr__other-filter__3__key_0"
+			ORDER BY "aggr__other-filter__3__count" DESC,
+			  "aggr__other-filter__3__key_0" ASC
+			LIMIT 16`,
 	},
 	{ // [3]
 		TestName: "todo",
@@ -630,8 +631,9 @@ var CloverTests = []testdata.AggregationTestCase{
 			  toInt64(toUnixTimestamp64Milli("@timestamp") / 604800000) AS
 			  "aggr__q__time_buckets__key_0", count(*) AS "aggr__q__time_buckets__count"
 			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1728507729621) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1728507732621))
+			WHERE (("@timestamp">=fromUnixTimestamp64Milli(1728507729621) AND "@timestamp"<=
+			  fromUnixTimestamp64Milli(1728507732621)) AND "__quesma_fulltext_field_name"
+			  ILIKE '%')
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 604800000) AS
 			  "aggr__q__time_buckets__key_0"
 			ORDER BY "aggr__q__time_buckets__key_0" ASC`,
@@ -766,6 +768,7 @@ var CloverTests = []testdata.AggregationTestCase{
 			  "aggr__q__time_buckets__key_0", count(*) AS "aggr__q__time_buckets__count",
 			  sumOrNull("count") AS "metric__q__time_buckets__sum(count)_col_0"
 			FROM __quesma_table_name
+			WHERE NOT ("str_field" = 'CRASH')
 			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
 			  ("@timestamp", 'Europe/Warsaw'))*1000) / 1800000) AS
 			  "aggr__q__time_buckets__key_0"

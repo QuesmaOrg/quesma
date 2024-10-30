@@ -5,6 +5,7 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -410,6 +411,8 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 
 		a.connectPipelineAggregations(layers)
 
+		// what if filters both at start and end?
+
 		newPancake := pancakeModel{
 			layers:      layers,
 			whereClause: topLevel.whereClause,
@@ -419,12 +422,24 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		pancakeResults = append(pancakeResults, &newPancake)
 
 		additionalTopHitPancakes, err := a.createTopHitAndTopMetricsPancakes(&newPancake)
+		fmt.Println(topLevel.whereClause)
 		if err != nil {
 			return nil, err
 		}
-
 		pancakeResults = append(pancakeResults, additionalTopHitPancakes...)
+
+		additionalFiltersPancakes, err := a.createFiltersPancakes(&newPancake)
+		if err != nil {
+			return nil, err
+		}
+		pancakeResults = append(pancakeResults, additionalFiltersPancakes...)
 	}
+
+	return
+}
+
+func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (result []*pancakeModel, err error) {
+	pp.Println("PANCAKE", pancake)
 
 	return
 }
