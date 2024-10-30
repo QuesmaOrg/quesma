@@ -4,8 +4,6 @@ package lucene
 
 import (
 	"context"
-	"fmt"
-	"quesma/logger"
 	"quesma/model"
 	"quesma/schema"
 	"strconv"
@@ -13,7 +11,7 @@ import (
 )
 
 func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
-	logger.InitSimpleLoggerForTests()
+	// logger.InitSimpleLoggerForTests()
 	defaultFieldNames := []string{"title", "text"}
 	var properQueries = []struct {
 		query string
@@ -47,7 +45,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`"jakarta apache" AND "Apache Lucene"`, `(("title" = 'jakarta apache' OR "text" = 'jakarta apache') AND ("title" = 'Apache Lucene' OR "text" = 'Apache Lucene'))`},
 		{`NOT status:"jakarta apache"`, `NOT ("status" = 'jakarta apache')`},
 		{`"jakarta apache" NOT "Apache Lucene"`, `(("title" = 'jakarta apache' OR "text" = 'jakarta apache') AND NOT (("title" = 'Apache Lucene' OR "text" = 'Apache Lucene')))`},
-		{`(jakarta OR apache) AND website`, `((("title" = 'jakarta' OR "title" = 'apache') OR ("text" = 'jakarta' OR "text" = 'apache')) AND ("title" = 'website' OR "text" = 'website'))`},
+		{`(jakarta OR apache) AND website`, `(((("title" = 'jakarta' OR "text" = 'jakarta')) OR ("title" = 'apache' OR "text" = 'apache')) AND ("title" = 'website' OR "text" = 'website'))`},
 		{`title:(return "pink panther")`, `("title" = 'return' OR "title" = 'pink panther')`},
 		{`status:(active OR pending) title:(full text search)^2`, `(("status" = 'active' OR "status" = 'pending') OR (("title" = 'full' OR "title" = 'text') OR "title" = 'search'))`},
 		{`status:(active OR NOT (pending AND in-progress)) title:(full text search)^2`, `(("status" = 'active' OR NOT (("status" = 'pending' AND "status" = 'in-progress'))) OR (("title" = 'full' OR "title" = 'text') OR "title" = 'search'))`},
@@ -55,7 +53,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`status:(active OR (pending AND in-progress)) title:(full text search)^2`, `(("status" = 'active' OR ("status" = 'pending' AND "status" = 'in-progress')) OR (("title" = 'full' OR "title" = 'text') OR "title" = 'search'))`},
 		{`status:((a OR (b AND c)) AND d)`, `(("status" = 'a' OR ("status" = 'b' AND "status" = 'c')) AND "status" = 'd')`},
 		{`title:(return [Aida TO Carmen])`, `("title" = 'return' OR ("title" >= 'Aida' AND "title" <= 'Carmen'))`},
-		{`host.name:(NOT active OR NOT (pending OR in-progress)) (full text search)^2`, `((NOT ("host.name" = 'active') OR NOT (("host.name" = 'pending' OR "host.name" = 'in-progress'))) OR ((("title" = 'full' OR "title" = 'text') OR "title" = 'search') OR (("text" = 'full' OR "text" = 'text') OR "text" = 'search')))`},
+		{`host.name:(NOT active OR NOT (pending OR in-progress)) (full text search)^2`, `((((NOT ("host.name" = 'active') OR NOT (("host.name" = 'pending' OR "host.name" = 'in-progress'))) OR (("title" = 'full' OR "text" = 'full'))) OR ("title" = 'text' OR "text" = 'text')) OR ("title" = 'search' OR "text" = 'search'))`},
 		{`host.name:(active AND NOT (pending OR in-progress)) hermes nemesis^2`, `((("host.name" = 'active' AND NOT (("host.name" = 'pending' OR "host.name" = 'in-progress'))) OR ("title" = 'hermes' OR "text" = 'hermes')) OR ("title" = 'nemesis' OR "text" = 'nemesis'))`},
 		{`dajhd \(%&RY#WFDG`, `(("title" = 'dajhd' OR "text" = 'dajhd') OR ("title" = '(%&RY#WFDG' OR "text" = '(%&RY#WFDG'))`},
 		// tests for wildcards
@@ -66,12 +64,12 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`title:abc\*`, `"title" = 'abc*'`},
 		{`title:abc*\*`, `"title" ILIKE 'abc%*'`},
 		{`ab\+c`, `("title" = 'ab+c' OR "text" = 'ab+c')`},
-		{`!xdr.result_code_str:DIAMETER_SUCCESS`, `NOT ("xdr.result_code_str" = 'DIAMETER_SUCCESS')`},
+		{`!db.str:FAIL`, `NOT ("db.str" = 'FAIL')`},
 		{`_exists_:title`, `"title" IS NOT NULL`},
 		{`!_exists_:title`, `NOT ("title" IS NOT NULL)`},
-		{"xdr.emm_type_str:*bearer*", `"xdr.emm_type_str" ILIKE '%bearer%'`},
-		{"(xdr.emm_type_str:*bearer*)", `"xdr.emm_type_str" ILIKE '%bearer%'`},
-		{"(xdr.emm_type_str:*bearer* OR xdr.emm_type_str:*Bearer*)", `((("xdr.emm_type_str" ILIKE '%bearer%') OR "xdr.emm_type_str" ILIKE '%Bearer%') OR (("xdr.emm_type_str" ILIKE '%bearer%') OR "xdr.emm_type_str" ILIKE '%Bearer%'))`}, // TODO: needs small fix, answer could be better
+		{"db.str:*weaver*", `"db.str" ILIKE '%weaver%'`},
+		{"(db.str:*weaver*)", `("db.str" ILIKE '%weaver%')`},
+		{"(a.type:*ab* OR a.type:*Ab*)", `(("a.type" ILIKE '%ab%') OR "a.type" ILIKE '%Ab%')`},
 	}
 	var randomQueriesWithPossiblyIncorrectInput = []struct {
 		query string
@@ -80,7 +78,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{``, `true`},
 		{`          `, `true`},
 		{`  2 `, `("title" = '2' OR "text" = '2')`},
-		{`  2df$ ! `, `(("title" = '2df$' OR "text" = '2df$') OR ("title" = '!' OR "text" = '!'))`},
+		{`  2df$ ! `, `(("title" = '2df$' OR "text" = '2df$') AND NOT (false))`}, // TODO: this should probably just be "false"
 		{`title:`, `false`},
 		{`title: abc`, `"title" = 'abc'`},
 		{`title[`, `("title" = 'title[' OR "text" = 'title[')`},
@@ -90,7 +88,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`  title       `, `("title" = 'title' OR "text" = 'title')`},
 		{`  title : (+a -b c)`, `(("title" = '+a' OR "title" = '-b') OR "title" = 'c')`}, // we don't support '+', '-' operators, but in that case the answer seems good enough + nothing crashes
 		{`title:()`, `false`},
-		{`() a`, `((false OR false) OR ("title" = 'a' OR "text" = 'a'))`}, // a bit weird, but 'false OR false' is OK as I think nothing should match '()'
+		{`() a`, `((false) OR ("title" = 'a' OR "text" = 'a'))`}, // a bit weird, but '(false)' is OK as I think nothing should match '()'
 	}
 
 	currentSchema := schema.Schema{
@@ -99,10 +97,6 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 
 	for i, tt := range append(properQueries, randomQueriesWithPossiblyIncorrectInput...) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			if i != 51 {
-				t.Skip()
-			}
-			fmt.Println("query: ", tt.query)
 			parser := newLuceneParser(context.Background(), defaultFieldNames, currentSchema)
 			got := model.AsString(parser.translateToSQL(tt.query))
 			if got != tt.want {

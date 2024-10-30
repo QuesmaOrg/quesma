@@ -672,6 +672,9 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	} else if !table.Created {
 		createTableCmd = table.CreateTableString()
 	}
+	if table == nil {
+		return nil, fmt.Errorf("table %s not found", tableName)
+	}
 	tableConfig = table.Config
 	var jsonsReadyForInsertion []string
 	var alterCmd []string

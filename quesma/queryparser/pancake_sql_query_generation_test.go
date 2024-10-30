@@ -25,7 +25,7 @@ const TableName = model.SingleTableNamePlaceHolder
 
 func TestPancakeQueryGeneration(t *testing.T) {
 
-	logger.InitSimpleLoggerForTests()
+	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -61,12 +61,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Need to implement order by top metrics (talk with Jacek, he has an idea)")
 			}
 
-			if i != 72 { //77 88 124 66
-				//t.Skip()
-			}
-
-			if !strings.Contains(test.TestName, "multiple buckets_path") {
-				t.Skip()
+			if test.TestName == "multiple buckets_path(file:clients/clover,nr:1)" {
+				t.Skip("Unskip after merge of auto_date_histogram")
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)

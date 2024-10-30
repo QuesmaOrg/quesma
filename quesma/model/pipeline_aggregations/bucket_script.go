@@ -5,14 +5,15 @@ package pipeline_aggregations
 import (
 	"context"
 	"fmt"
+	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
 	"strings"
 )
 
 type BucketScript struct {
-	script string
 	*PipelineAggregation
+	script string
 }
 
 func NewBucketScript(ctx context.Context, script string) BucketScript {
@@ -24,57 +25,52 @@ func (query BucketScript) AggregationType() model.AggregationType {
 }
 
 func (query BucketScript) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	//fmt.Println("bucket_script", query.String(), rows)
-	if len(rows) == 0 {
-		//logger.WarnWithCtx(query.ctx).Msg("no rows returned for bucket script aggregation")
-	}
 	const defaultValue = 0.
-	switch query.script {
-	case "params.numerator != null && params.denominator != null && params.denominator != 0 ? params.numerator / params.denominator : 0":
-		numerator := query.findFilterValue("numerator", rows)
-		denominator := query.findFilterValue("denominator", rows)
+	switch {
+	case query.script == "params.numerator != null && params.denominator != null && params.denominator != 0 ? params.numerator / params.denominator : 0":
+		numerator := query.findFilterValue(rows, "numerator")
+		denominator := query.findFilterValue(rows, "denominator")
 		if denominator == 0 {
 			return model.JsonMap{"value": defaultValue}
 		}
 		return model.JsonMap{"value": numerator / denominator}
-	default:
+	case len(rows) == 1:
 		for _, row := range rows {
-			return model.JsonMap{"value": util.ExtractInt64(row.LastColValue())}
+			return model.JsonMap{"value": util.ExtractNumeric64(row.LastColValue())}
 		}
 	}
 
-	return model.JsonMap{"value": 0.0}
+	logger.WarnWithCtx(query.ctx).Msgf("unexpected result in bucket_script: %s, len(rows): %d. Returning default.", query.String(), len(rows))
+	return model.JsonMap{"value": defaultValue}
 }
 
 func (query BucketScript) CalculateResultWhenMissing(parentRows []model.QueryResultRow) []model.QueryResultRow {
-	//fmt.Println("bucket_script", query.String(), parentRows[:max(0, len(parentRows))])
-	if len(parentRows) == 0 {
-		//logger.WarnWithCtx(query.ctx).Msg("no rows returned for bucket script aggregation")
-		return parentRows
-	}
 	resultRows := make([]model.QueryResultRow, 0, len(parentRows))
 	for _, parentRow := range parentRows {
 		resultRow := parentRow.Copy()
-		resultRow.Cols[len(resultRow.Cols)-1].Value = float64(util.ExtractInt64(parentRow.LastColValue()))
-		//fmt.Printf("last col %T %v", resultRow.LastColValue(), resultRow.LastColValue())
+		if len(resultRow.Cols) != 0 {
+			resultRow.Cols[len(resultRow.Cols)-1].Value = util.ExtractNumeric64(parentRow.LastColValue())
+		} else {
+			logger.ErrorWithCtx(query.ctx).Msgf("unexpected empty parent row in bucket_script: %s", query.String())
+		}
 		resultRows = append(resultRows, resultRow)
 	}
 	return resultRows
 }
 
 func (query BucketScript) String() string {
-	return fmt.Sprintf("bucket script(isCount: %v, parent: %s, pathToParent: %v, parentBucketAggregation: %v, script: %v)",
+	return fmt.Sprintf("bucket_script(isCount: %v, parent: %s, pathToParent: %v, parentBucketAggregation: %v, script: %v)",
 		query.isCount, query.Parent, query.PathToParent, query.parentBucketAggregation, query.script)
 }
 
 func (query BucketScript) PipelineAggregationType() model.PipelineAggregationType {
-	return model.PipelineParentAggregation // not sure, maybe it's sibling. doesnt change the result
+	return model.PipelineParentAggregation // not sure, maybe it's sibling. change hasn't changed the result when running some tests.
 }
 
-func (query BucketScript) findFilterValue(filterName string, rows []model.QueryResultRow) float64 {
+func (query BucketScript) findFilterValue(rows []model.QueryResultRow, filterName string) float64 {
+	const defaultValue = 0.0
 	for _, row := range rows {
 		for _, col := range row.Cols {
-			//fmt.Println("col", col)
 			colName := col.ColName
 			if !strings.HasSuffix(colName, "_col_0") {
 				continue
@@ -85,5 +81,8 @@ func (query BucketScript) findFilterValue(filterName string, rows []model.QueryR
 			}
 		}
 	}
-	return 0
+
+	logger.WarnWithCtx(query.ctx).Msgf("could not find filter value for filter: %s, bucket_script: %s, len(rows): %d."+
+		"Returning default", filterName, query.String(), len(rows))
+	return defaultValue
 }
