@@ -24,7 +24,7 @@ import (
 // - escaped " inside quoted fieldnames, so e.g.
 //     * "a\"b" - not supported
 //     * abc"def - supported
-// - +, -, &&, ||, ! operators. But AND, OR, NOT are fully supported and they seem equivalent.
+// - +, -, &&, ||, operators. But AND, OR, NOT are fully supported and they seem equivalent.
 
 // Date ranges are only in format YYYY-MM-DD, as in docs there are no other examples. That can be changed if needed.
 
@@ -68,6 +68,8 @@ var specialOperators = map[string]token{
 	"AND ":                   andToken{},
 	"OR ":                    orToken{},
 	"NOT ":                   notToken{},
+	"!":                      notToken{},
+	"_exists_:":              existsToken{},
 	string(leftParenthesis):  leftParenthesisToken{},
 	string(rightParenthesis): rightParenthesisToken{},
 }

@@ -6,6 +6,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/pipeline_aggregations"
+	"strings"
 )
 
 // CAUTION: maybe "return" everywhere isn't corrent, as maybe there can be multiple pipeline aggregations at one level.
@@ -168,17 +169,20 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 	if !ok {
 		return
 	}
-	if bucketsPath != pipeline_aggregations.BucketsPathCount {
+	if !strings.HasSuffix(bucketsPath, pipeline_aggregations.BucketsPathCount) {
 		logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not '_count', but %s. Skipping this aggregation", bucketsPath)
 		return
 	}
 
-	// if ["script"]["source"] != "_value", skip the aggregation
 	scriptRaw, exists := bucketScript["script"]
 	if !exists {
 		logger.WarnWithCtx(cw.Ctx).Msg("no script in bucket_script. Skipping this aggregation")
 		return
 	}
+	if script, ok := scriptRaw.(string); ok {
+		return pipeline_aggregations.NewBucketScript(cw.Ctx, script), true
+	}
+
 	script, ok := scriptRaw.(QueryMap)
 	if !ok {
 		logger.WarnWithCtx(cw.Ctx).Msgf("script is not a map, but %T, value: %v. Skipping this aggregation", scriptRaw, scriptRaw)
@@ -186,8 +190,8 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 	}
 	if sourceRaw, exists := script["source"]; exists {
 		if source, ok := sourceRaw.(string); ok {
-			if source != "_value" {
-				logger.WarnWithCtx(cw.Ctx).Msgf("source is not '_value', but %s. Skipping this aggregation", source)
+			if source != "_value" && source != "count * 1" {
+				logger.WarnWithCtx(cw.Ctx).Msgf("source is not '_value'/'count * 1', but %s. Skipping this aggregation", source)
 				return
 			}
 		} else {
@@ -200,10 +204,10 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 	}
 
 	// okay, we've checked everything, it's indeed a simple count
-	return pipeline_aggregations.NewBucketScript(cw.Ctx), true
+	return pipeline_aggregations.NewBucketScript(cw.Ctx, ""), true
 }
 
-func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggregationName string) (bucketsPath string, success bool) {
+func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggregationName string) (bucketsPathStr string, success bool) {
 	queryMap, ok := shouldBeQueryMap.(QueryMap)
 	if !ok {
 		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a map, but %T, value: %v", aggregationName, shouldBeQueryMap, shouldBeQueryMap)
@@ -214,10 +218,27 @@ func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggr
 		logger.WarnWithCtx(cw.Ctx).Msg("no buckets_path in avg_bucket")
 		return
 	}
-	bucketsPath, ok = bucketsPathRaw.(string)
-	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a string, but %T, value: %v", bucketsPathRaw, bucketsPathRaw)
-		return
+
+	switch bucketsPath := bucketsPathRaw.(type) {
+	case string:
+		return bucketsPath, true
+	case QueryMap:
+		// TODO: handle arbitrary nr of keys (and arbitrary scripts, because we also handle only one special case)
+		if len(bucketsPath) == 1 || len(bucketsPath) == 2 {
+			for _, bucketPath := range bucketsPath {
+				if _, ok = bucketPath.(string); !ok {
+					logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a map with string values, but %T. Skipping this aggregation", bucketPath)
+					return
+				}
+				// Kinda weird to return just the first value, but seems working on all cases so far.
+				// After fixing the TODO above, it should also get fixed.
+				return bucketPath.(string), true
+			}
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a map with one or two keys, but %d. Skipping this aggregation", len(bucketsPath))
+		}
 	}
-	return bucketsPath, true
+
+	logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path in wrong format, type: %T, value: %v", bucketsPathRaw, bucketsPathRaw)
+	return
 }

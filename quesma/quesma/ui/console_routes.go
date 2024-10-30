@@ -76,6 +76,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	if qmc.cfg.Elasticsearch.User == "" && qmc.cfg.Elasticsearch.Password == "" {
 		logger.Warn().Msg("admin console authentication is disabled")
 	} else {
+		qmc.isAuthEnabled = true
 		authenticatedRoutes.Use(authMiddleware)
 	}
 
@@ -262,6 +263,12 @@ func (qmc *QuesmaManagementConsole) initPprof(router *mux.Router) {
 var authKey = securecookie.GenerateRandomKey(64)
 var encryptionKey = securecookie.GenerateRandomKey(32)
 var store = sessions.NewCookieStore(authKey, encryptionKey)
+
+func init() { // Safari does not allow Secure cookies on localhost
+	store.Options = &sessions.Options{
+		Secure: false,
+	}
+}
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

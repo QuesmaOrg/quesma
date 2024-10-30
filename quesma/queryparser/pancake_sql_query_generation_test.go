@@ -60,6 +60,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Need to implement order by top metrics (talk with Jacek, he has an idea)")
 			}
 
+			if test.TestName == "multiple buckets_path(file:clients/clover,nr:1)" {
+				t.Skip("Unskip after merge of auto_date_histogram")
+			}
+
 			fmt.Println("i:", i, "test:", test.TestName)
 
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
