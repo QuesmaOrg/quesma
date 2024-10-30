@@ -45,15 +45,15 @@ type resolvedDashboards struct {
 	dashboards map[string]kibanaDashboard
 }
 
-func (l resolvedDashboards) dashboardName(dashboardId string) string {
-	if dashboard, ok := l.dashboards[dashboardId]; ok {
+func (d resolvedDashboards) dashboardName(dashboardId string) string {
+	if dashboard, ok := d.dashboards[dashboardId]; ok {
 		return dashboard.name
 	}
 	return dashboardId
 }
 
-func (k *resolvedDashboards) panelName(dashboardId, panelId string) string {
-	if dashboard, ok := k.dashboards[dashboardId]; ok {
+func (d resolvedDashboards) panelName(dashboardId, panelId string) string {
+	if dashboard, ok := d.dashboards[dashboardId]; ok {
 		if name, ok := dashboard.panels[panelId]; ok {
 			return name
 		}
@@ -367,7 +367,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
-	buffer.Html(`<h2>AB Testing Panel Details </h2>`)
+	buffer.Html(`<h2>A/B Testing -  Panel Details</h2>`)
 	buffer.Html(`<h3>`)
 	buffer.Text(fmt.Sprintf("Dashboard: %s", dashboardName))
 	buffer.Html(`</h3>`)
@@ -503,7 +503,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 			buffer.Html(`</td>`)
 
 			buffer.Html("<td>")
-			buffer.Html(`<a target="_blank" href="`).Text(fmt.Sprintf("/ab-testing-dashboard/mismatch?dashboard_id=%s&panel_id=%s&mismatch_id=%s", dashboardId, panelId, row.mismatchId)).Html(`">`).Text("Requests").Html(`</a>`)
+			buffer.Html(`<a href="`).Text(fmt.Sprintf("/ab-testing-dashboard/mismatch?dashboard_id=%s&panel_id=%s&mismatch_id=%s", dashboardId, panelId, row.mismatchId)).Html(`">`).Text("Requests").Html(`</a>`)
 			buffer.Html("</td>")
 
 			buffer.Html("</tr>\n")
@@ -523,9 +523,27 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panelId, mismatchHash string) []byte {
 	buffer := newBufferWithHead()
 
+	dashboards, err := qmc.readKibanaDashboards()
+	dashboardName := dashboardId
+	panelName := panelId
+
+	if err == nil {
+		dashboardName = dashboards.dashboardName(dashboardId)
+		panelName = dashboards.panelName(dashboardId, panelId)
+	} else {
+		logger.Warn().Err(err).Msgf("Error reading dashboards %v", err)
+	}
+
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
-	buffer.Html(`<h2>AB Testing - Panel requests</h2>`)
+	buffer.Html(`<h2>A/B Testing - Panel requests</h2>`)
+
+	buffer.Html(`<h3>`)
+	buffer.Text(fmt.Sprintf("Dashboard: %s", dashboardName))
+	buffer.Html(`</h3>`)
+	buffer.Html(`<h3>`)
+	buffer.Text(fmt.Sprintf("Panel: %s", panelName))
+	buffer.Html(`</h3>`)
 
 	sql := `
 		select "@timestamp", request_id, request_path, opaque_id
@@ -593,7 +611,7 @@ func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panel
 		buffer.Html(`</td>`)
 
 		buffer.Html(`<td>`)
-		buffer.Html(`<a target="_blank" href="`).Text(fmt.Sprintf("/ab-testing-dashboard/request?request_id=%s", row.requestId)).Html(`">`).Text(row.requestId).Html(`</a>`)
+		buffer.Html(`<a href="`).Text(fmt.Sprintf("/ab-testing-dashboard/request?request_id=%s", row.requestId)).Html(`">`).Text(row.requestId).Html(`</a>`)
 
 		buffer.Html(`</td>`)
 
