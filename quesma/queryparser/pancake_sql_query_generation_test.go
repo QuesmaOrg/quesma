@@ -61,7 +61,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 
 			if test.TestName == "multiple buckets_path(file:clients/clover,nr:1)" {
-				t.Skip("auto date histogram")
+				t.Skip("Unskip after merge of auto_date_histogram")
 			}
 			if test.TestName == "Clover(file:clients/clover,nr:4)" {
 				t.Skip("answers are fine, need to update test")
@@ -69,20 +69,11 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 			if test.TestName == "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)(file:opensearch-visualize/pipeline_agg_req,nr:20)" ||
 				test.TestName == "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range(file:opensearch-visualize/pipeline_agg_req,nr:21)" {
-				t.Skip("Wrong key in max_bucket, should be an easy fix")
+				t.Skip("Was skipped before. Wrong key in max_bucket, should be an easy fix")
 			}
 
 			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:24)" {
 				t.Skip("Was skipped before, no expected results")
-			}
-
-			// 18 wtf?
-
-			if i >= 85 {
-				//t.Skip()
-			}
-			if i != 6 {
-				//t.Skip()
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)
@@ -172,7 +163,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if len(expectedMinusActual) != 0 {
 				pp.Println("EXPECTED diff", expectedMinusActual)
 			}
-			pp.Println("ACTUAL", pancakeJson)
+			//pp.Println("ACTUAL", pancakeJson)
 			//pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))

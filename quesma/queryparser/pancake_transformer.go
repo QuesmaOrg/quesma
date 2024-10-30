@@ -5,7 +5,6 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -126,14 +125,9 @@ type layerAndNextBucket struct {
 }
 
 func (a *pancakeTransformer) optimizeSimpleFilter(previousAggrNames []string, result *layerAndNextBucket, childAgg *pancakeAggregationTreeNode) bool {
-	if len(previousAggrNames) == 0 { // already optimized
-		//return false
-	}
-
 	_, isFilter := result.nextBucketAggregation.queryType.(bucket_aggregations.FilterAgg)
 	secondFilter, isFilter2 := childAgg.queryType.(bucket_aggregations.FilterAgg)
 
-	fmt.Println("dupa", isFilter, isFilter2, len(childAgg.children))
 	if isFilter && isFilter2 && len(childAgg.children) == 0 {
 		metrics, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
 		if err != nil {
@@ -246,31 +240,8 @@ func (a *pancakeTransformer) aggregationChildrenToLayers(aggrNames []string, chi
 }
 
 func (a *pancakeTransformer) checkIfSupported(layers []*pancakeModelLayer) error {
-	// for now we support filter only as last bucket aggregation
-	/* let's try to support everything
-	for layerIdx, layer := range layers {
-		if layer.nextBucketAggregation != nil {
-			switch layer.nextBucketAggregation.queryType.(type) {
-			case bucket_aggregations.CombinatorAggregationInterface:
-				for _, followingLayer := range layers[layerIdx+1:] {
-					bucket := followingLayer.nextBucketAggregation
-					if bucket != nil {
-						switch bucket.queryType.(type) {
-						case *bucket_aggregations.DateHistogram:
-							continue // histogram are fine
-						case bucket_aggregations.CombinatorAggregationInterface:
-							continue // we also support nested filters/range/dataRange
-						case *bucket_aggregations.Filters:
-							continue
-						default:
-							return fmt.Errorf("filter(s)/range/dataRange aggregation must be the last bucket aggregation (found %s)", bucket.queryType.String())
-						}
-					}
-				}
-			}
-		}
-	}
-	*/
+	// Let's say we support everything. That'll be true when I add support for filters/date_range/range in the middle of aggregation tree (@trzysiek)
+	// Erase this function by then.
 	return nil
 }
 
@@ -389,8 +360,6 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		return nil, fmt.Errorf("no top level aggregations found")
 	}
 
-	//pp.Println("pancakeAggregationTree", topLevel, topLevel.children[0])
-
 	resultLayers, err := a.aggregationChildrenToLayers([]string{}, topLevel.children)
 
 	if err != nil {
@@ -422,7 +391,6 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		pancakeResults = append(pancakeResults, &newPancake)
 
 		additionalTopHitPancakes, err := a.createTopHitAndTopMetricsPancakes(&newPancake)
-		fmt.Println(topLevel.whereClause)
 		if err != nil {
 			return nil, err
 		}
@@ -439,8 +407,6 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 }
 
 func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (result []*pancakeModel, err error) {
-	pp.Println("PANCAKE", pancake)
-	fmt.Println("hoho", len(pancake.layers), pancake.layers[0].nextBucketAggregation == nil)
 	if len(pancake.layers) == 0 || pancake.layers[0].nextBucketAggregation == nil {
 		return
 	}
@@ -452,19 +418,16 @@ func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (resul
 	}
 	if len(firstLayer.currentMetricAggregations) == 0 && len(firstLayer.currentPipelineAggregations) == 0 && len(pancake.layers) > 1 { // maybe secondLayer, not first?
 		// If filter is in the first layer, we can just add it to the where clause
-		fmt.Println("jestem tu?", len(filters.Filters))
 		for i, filter := range filters.Filters[1:] {
 			newPancake := pancake.Clone()
 			// new (every) pancake has only 1 filter instead of all
 			bucketAggr := newPancake.layers[0].nextBucketAggregation.ShallowClone()
 			bucketAggr.queryType = filters.NewFiltersSingleFilter(i + 1) // +1 because we iterate over [1:]
-			pp.Println("new filter", bucketAggr.queryType)
 			newPancake.layers[0] = newPancakeModelLayer(&bucketAggr)
 			newPancake.whereClause = model.And([]model.Expr{newPancake.whereClause, filter.Sql.WhereClause})
 			result = append(result, newPancake)
 		}
 		pancake.layers[0].nextBucketAggregation.queryType = filters.NewFiltersSingleFilter(0)
-		pp.Println("hoho", filters)
 	}
 	return
 }
