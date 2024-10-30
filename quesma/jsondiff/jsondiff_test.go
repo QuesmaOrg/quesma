@@ -39,7 +39,7 @@ func TestJSONDiff(t *testing.T) {
 			name:     "Test 2",
 			expected: `{"a": 1, "b": 2, "c": 3}`,
 			actual:   `{"a": 1, "b": 3, "c": 3}`,
-			problems: []JSONMismatch{mismatch("b", invalidValue)},
+			problems: []JSONMismatch{mismatch("b", invalidNumberValue)},
 		},
 
 		{
@@ -67,7 +67,7 @@ func TestJSONDiff(t *testing.T) {
 			name:     "array element difference",
 			expected: `{"a": [1, 2, 3], "b": 2, "c": 3}`,
 			actual:   `{"a": [1, 2, 4], "b": 2, "c": 3}`,
-			problems: []JSONMismatch{mismatch("a.[2]", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.[2]", invalidNumberValue)},
 		},
 
 		{
@@ -81,28 +81,28 @@ func TestJSONDiff(t *testing.T) {
 			name:     "object difference",
 			expected: `{"a": {"b": 1}, "c": 3}`,
 			actual:   `{"a": {"b": 2}, "c": 3}`,
-			problems: []JSONMismatch{mismatch("a.b", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.b", invalidNumberValue)},
 		},
 
 		{
 			name:     "deep path difference",
 			expected: `{"a": {"d": {"b": 1}}, "c": 3}`,
 			actual:   `{"a": {"d": {"b": 2}}, "c": 3}`,
-			problems: []JSONMismatch{mismatch("a.d.b", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.d.b", invalidNumberValue)},
 		},
 
 		{
 			name:     "deep path difference",
 			expected: `{"a": {"d": {"b": 1}}, "c": 3, "_ignore": 1}`,
 			actual:   `{"a": {"d": {"b": 2}}, "c": 3}`,
-			problems: []JSONMismatch{mismatch("a.d.b", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.d.b", invalidNumberValue)},
 		},
 
 		{
 			name:     "array sort difference ",
 			expected: `{"a": [1, 2, 3], "b": 2, "c": 3}`,
 			actual:   `{"a": [1, 3, 2], "b": 2, "c": 3}`,
-			problems: []JSONMismatch{mismatch("a.[1]", invalidValue), mismatch("a.[2]", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.[1]", invalidNumberValue), mismatch("a.[2]", invalidNumberValue)},
 		},
 
 		{
