@@ -169,6 +169,19 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 									ClickhouseTables:    []string{input.source}},
 									&ConnectorDecisionElastic{}},
 							}
+						} else if targets[0] == config.ElasticsearchTarget && targets[1] == config.ClickhouseTarget {
+
+							return &Decision{
+								Reason:          "Enabled in the config. A/B testing.",
+								EnableABTesting: true,
+								UseConnectors: []ConnectorDecision{
+									&ConnectorDecisionElastic{},
+									&ConnectorDecisionClickhouse{
+										ClickhouseTableName: input.source,
+										ClickhouseTables:    []string{input.source}},
+								},
+							}
+
 						}
 
 					default:
