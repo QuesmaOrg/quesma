@@ -453,17 +453,17 @@ func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (resul
 	if len(firstLayer.currentMetricAggregations) == 0 && len(firstLayer.currentPipelineAggregations) == 0 && len(pancake.layers) > 1 { // maybe secondLayer, not first?
 		// If filter is in the first layer, we can just add it to the where clause
 		fmt.Println("jestem tu?", len(filters.Filters))
-		for _, filter := range filters.Filters[1:] {
-			newPancake := pancake.ShallowClone()
+		for i, filter := range filters.Filters[1:] {
+			newPancake := pancake.Clone()
 			// new (every) pancake has only 1 filter instead of all
 			bucketAggr := newPancake.layers[0].nextBucketAggregation.ShallowClone()
-			bucketAggr.queryType = bucket_aggregations.NewFilters(filters.Ctx, []bucket_aggregations.Filter{filter})
+			bucketAggr.queryType = filters.NewFiltersSingleFilter(i + 1) // +1 because we iterate over [1:]
 			pp.Println("new filter", bucketAggr.queryType)
 			newPancake.layers[0] = newPancakeModelLayer(&bucketAggr)
 			newPancake.whereClause = model.And([]model.Expr{newPancake.whereClause, filter.Sql.WhereClause})
 			result = append(result, newPancake)
 		}
-		pancake.layers[0].nextBucketAggregation.queryType = bucket_aggregations.NewFilters(filters.Ctx, []bucket_aggregations.Filter{filters.Filters[0]})
+		pancake.layers[0].nextBucketAggregation.queryType = filters.NewFiltersSingleFilter(0)
 		pp.Println("hoho", filters)
 	}
 	return

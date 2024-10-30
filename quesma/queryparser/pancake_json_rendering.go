@@ -5,7 +5,6 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -185,12 +184,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 	case bucket_aggregations.CombinatorAggregationInterface:
 		var bucketArray []model.JsonMap
 		for _, subGroup := range queryType.CombinatorGroups() {
-			fmt.Println("subGroup", subGroup, rows)
 			selectedRowsWithoutPrefix := p.selectPrefixRows(subGroup.Prefix, rows)
-			if len(selectedRowsWithoutPrefix) == 0 || len(selectedRowsWithoutPrefix[0].Cols) == 0 {
-				selectedRowsWithoutPrefix = rows // haaaack
-			}
-			fmt.Println("selectedRowsWithoutPrefix", selectedRowsWithoutPrefix)
 
 			subAggr, err := p.layerToJSON(remainingLayers[1:], selectedRowsWithoutPrefix)
 			if err != nil {
@@ -254,11 +248,8 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 
 	if layer.nextBucketAggregation != nil {
 		// sampler and filter are special
-		pp.Println("DoesHaveGroupBy", layer.nextBucketAggregation.DoesHaveGroupBy())
 		if !layer.nextBucketAggregation.DoesHaveGroupBy() {
-			fmt.Println("jestem :blush:")
 			json, err := p.combinatorBucketToJSON(remainingLayers, rows)
-			pp.Println("json", json)
 			if err != nil {
 				return nil, err
 			}
@@ -293,7 +284,6 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
 
 		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows)
-		fmt.Println("buckets", buckets)
 
 		if len(buckets) == 0 { // without this we'd generate {"buckets": []} in the response, which Elastic doesn't do.
 			if layer.nextBucketAggregation.metadata != nil {

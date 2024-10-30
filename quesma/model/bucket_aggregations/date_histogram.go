@@ -83,13 +83,9 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 	// Implement default when query.minDocCount == DefaultMinDocCount, we need to return
 	// all buckets between the first bucket that matches documents and the last one.
 
-	fmt.Println("rowsy", rows)
-
 	if query.minDocCount == 0 {
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
-
-	fmt.Println("rowsy", rows)
 
 	var response []model.JsonMap
 	for _, row := range rows {

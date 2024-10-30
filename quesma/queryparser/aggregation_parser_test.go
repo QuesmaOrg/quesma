@@ -666,7 +666,6 @@ func allAggregationTests() []testdata.AggregationTestCase {
 	add(kibana_visualize.PipelineAggregationTests, "kibana-visualize/pipeline_agg_req")
 	add(clients.KunkkaTests, "clients/kunkka")
 	add(clients.OpheliaTests, "clients/ophelia")
-	add(clients.OpheliaTests, "clients/ophelia")
 	add(clients.CloverTests, "clients/clover")
 
 	return allTests
