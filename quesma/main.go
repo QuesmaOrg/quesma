@@ -90,13 +90,13 @@ func main() {
 	tableDisco := clickhouse.NewTableDiscovery(&cfg, connectionPool, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.SchemaTypeAdapter{})
 
+	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch)
+
 	connManager := connectors.NewConnectorManager(&cfg, connectionPool, phoneHomeAgent, tableDisco)
 	lm := connManager.GetConnector()
 
-	elasticIndexResolver := elasticsearch.NewIndexResolver(cfg.Elasticsearch.Url.String())
-
 	// TODO index configuration for ingest and query is the same for now
-	tableResolver := table_resolver.NewTableResolver(cfg, tableDisco, elasticIndexResolver)
+	tableResolver := table_resolver.NewTableResolver(cfg, tableDisco, im)
 	tableResolver.Start()
 
 	var ingestProcessor *ingest.IngestProcessor
@@ -112,13 +112,11 @@ func main() {
 		logger.Info().Msg("Ingest processor is disabled.")
 	}
 
-	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
-
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry, tableResolver) //FIXME no ingest processor here just for now
 
-	abTestingController := sender.NewSenderCoordinator(&cfg)
+	abTestingController := sender.NewSenderCoordinator(&cfg, ingestProcessor)
 	abTestingController.Start()
 
 	instance := constructQuesma(&cfg, tableDisco, lm, ingestProcessor, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender(), tableResolver)

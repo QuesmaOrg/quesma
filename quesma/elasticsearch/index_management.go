@@ -7,6 +7,7 @@ import (
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
+	"quesma/util"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -33,10 +34,10 @@ type (
 	}
 )
 
-func NewIndexManagement(elasticsearchUrl string) IndexManagement {
+func NewIndexManagement(elasticsearch config.ElasticsearchConfiguration) IndexManagement {
 	return &indexManagement{
-		ElasticsearchUrl: elasticsearchUrl,
-		indexResolver:    NewIndexResolver(elasticsearchUrl),
+		ElasticsearchUrl: elasticsearch.Url.String(),
+		indexResolver:    NewIndexResolver(elasticsearch),
 	}
 }
 
@@ -114,4 +115,41 @@ func (im *indexManagement) Start() {
 
 func (im *indexManagement) Stop() {
 	im.cancel()
+}
+
+func NewFixedIndexManagement(indexes ...string) IndexManagement {
+	return stubIndexManagement{indexes: indexes}
+}
+
+type stubIndexManagement struct {
+	indexes []string
+}
+
+func (s stubIndexManagement) Start()         {}
+func (s stubIndexManagement) Stop()          {}
+func (s stubIndexManagement) ReloadIndices() {}
+func (s stubIndexManagement) GetSources() Sources {
+	var dataStreams = []DataStream{}
+	for _, index := range s.indexes {
+		dataStreams = append(dataStreams, DataStream{Name: index})
+	}
+	return Sources{DataStreams: dataStreams}
+}
+
+func (s stubIndexManagement) GetSourceNames() map[string]bool {
+	var result = make(map[string]bool)
+	for _, index := range s.indexes {
+		result[index] = true
+	}
+	return result
+}
+
+func (s stubIndexManagement) GetSourceNamesMatching(indexPattern string) map[string]bool {
+	var result = make(map[string]bool)
+	for _, index := range s.indexes {
+		if util.IndexPatternMatches(indexPattern, index) {
+			result[index] = true
+		}
+	}
+	return result
 }

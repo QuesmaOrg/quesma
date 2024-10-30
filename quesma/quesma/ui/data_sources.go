@@ -10,7 +10,7 @@ import (
 
 func (qmc *QuesmaManagementConsole) generateDatasourcesPage() []byte {
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("data-sources"))
+	buffer.Write(qmc.generateTopNavigation("data-sources"))
 
 	buffer.Html(`<main id="data-sources">`)
 	buffer.Write(qmc.generateDatasources())

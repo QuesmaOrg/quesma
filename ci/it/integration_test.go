@@ -39,3 +39,13 @@ func TestDualWriteAndCommonTableTestcase(t *testing.T) {
 	testCase := testcases.NewDualWriteAndCommonTableTestcase()
 	runIntegrationTest(t, testCase)
 }
+
+func TestWildcardDisabledTestcase(t *testing.T) {
+	testCase := testcases.NewWildcardDisabledTestcase()
+	runIntegrationTest(t, testCase)
+}
+
+func TestWildcardClickhouseTestcase(t *testing.T) {
+	testCase := testcases.NewWildcardClickhouseTestcase()
+	runIntegrationTest(t, testCase)
+}

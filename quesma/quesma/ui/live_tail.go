@@ -15,7 +15,7 @@ import (
 
 func (qmc *QuesmaManagementConsole) generateLiveTail() []byte {
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("queries"))
+	buffer.Write(qmc.generateTopNavigation("queries"))
 
 	// This preserves scrolling, but does not work if new queries appear.
 	buffer.Html(`<script>

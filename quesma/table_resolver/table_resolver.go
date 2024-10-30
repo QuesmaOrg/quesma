@@ -57,8 +57,8 @@ func (ir *compoundResolver) resolve(indexName string) *Decision {
 		}
 	}
 	return &Decision{
-		Message: "Could not resolve pattern. This is a bug.",
-		Err:     fmt.Errorf("could not resolve index"), // TODO better error
+		Reason: "Could not resolve pattern. This is a bug.",
+		Err:    fmt.Errorf("could not resolve index"), // TODO better error
 	}
 }
 
@@ -93,13 +93,14 @@ type tableRegistryImpl struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	tableDiscovery       clickhouse.TableDiscovery
-	elasticIndexResolver elasticsearch.IndexResolver
+	tableDiscovery clickhouse.TableDiscovery
+	indexManager   elasticsearch.IndexManagement
 
 	elasticIndexes    map[string]table
 	clickhouseIndexes map[string]table
 
 	pipelineResolvers map[string]*pipelineResolver
+	conf              config.QuesmaConfiguration
 }
 
 func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decision {
@@ -108,8 +109,12 @@ func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decis
 
 	res, exists := r.pipelineResolvers[pipeline]
 	if !exists {
-		// proper error handling
-		return nil
+		return &Decision{
+			IndexPattern: indexPattern,
+			Err:          fmt.Errorf("pipeline '%s' not found", pipeline),
+			Reason:       "Pipeline not found. This is a bug.",
+			ResolverName: "tableRegistryImpl",
+		}
 	}
 
 	if decision, ok := res.recentDecisions[indexPattern]; ok {
@@ -117,6 +122,7 @@ func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decis
 	}
 
 	decision := res.resolver.resolve(indexPattern)
+	decision.IndexPattern = indexPattern
 	res.recentDecisions[indexPattern] = decision
 
 	logger.Debug().Msgf("Decision for pipeline '%s', pattern '%s':  %s", pipeline, indexPattern, decision.String())
@@ -157,17 +163,15 @@ func (r *tableRegistryImpl) updateIndexes() {
 	logger.Info().Msgf("Clickhouse tables updated: %v", clickhouseIndexes)
 
 	elasticIndexes := make(map[string]table)
-	sources, ok, err := r.elasticIndexResolver.Resolve("*")
-	if err != nil {
-		logger.Error().Msgf("Could not resolve indexes from Elastic: %v", err)
-		return
-	}
-	if !ok {
-		logger.Error().Msg("Could not resolve indexes from Elastic")
-		return
-	}
+	r.indexManager.ReloadIndices()
+	sources := r.indexManager.GetSources()
 
 	for _, index := range sources.Indices {
+		elasticIndexes[index.Name] = table{
+			name: index.Name,
+		}
+	}
+	for _, index := range sources.DataStreams {
 		elasticIndexes[index.Name] = table{
 			name: index.Name,
 		}
@@ -254,7 +258,7 @@ func (r *tableRegistryImpl) Pipelines() []string {
 	return res
 }
 
-func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhouse.TableDiscovery, elasticResolver elasticsearch.IndexResolver) TableResolver {
+func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhouse.TableDiscovery, elasticResolver elasticsearch.IndexManagement) TableResolver {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	indexConf := quesmaConf.IndexConfig
@@ -263,9 +267,11 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 		ctx:    ctx,
 		cancel: cancel,
 
-		tableDiscovery:       discovery,
-		elasticIndexResolver: elasticResolver,
-		pipelineResolvers:    make(map[string]*pipelineResolver),
+		conf: quesmaConf,
+
+		tableDiscovery:    discovery,
+		indexManager:      elasticResolver,
+		pipelineResolvers: make(map[string]*pipelineResolver),
 	}
 
 	// TODO Here we should read the config and create resolver for each pipeline defined.
@@ -278,12 +284,12 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 			decisionLadder: []basicResolver{
 				{"patternIsNotAllowed", patternIsNotAllowed},
 				{"kibanaInternal", resolveInternalElasticName},
-				{"disabled", makeIsDisabledInConfig(indexConf, QueryPipeline)},
+				{"disabled", makeIsDisabledInConfig(indexConf, IngestPipeline)},
 
 				{"singleIndex", res.singleIndex(indexConf, IngestPipeline)},
-				{"commonTable", res.makeCommonTableResolver(indexConf)},
+				{"commonTable", res.makeCommonTableResolver(indexConf, IngestPipeline)},
 
-				{"elasticAsDefault", makeElasticIsDefault(indexConf)},
+				{"defaultWildcard", makeDefaultWildcard(quesmaConf, IngestPipeline)},
 			},
 		},
 		recentDecisions: make(map[string]*Decision),
@@ -298,14 +304,14 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 			decisionLadder: []basicResolver{
 				// checking if we can handle the parsedPattern
 				{"kibanaInternal", resolveInternalElasticName},
-				{"searchAcrossConnectors", res.makeCheckIfPatternMatchesAllConnectors()},
+				{"searchAcrossConnectors", res.makeCheckIfPatternMatchesAllConnectors(QueryPipeline)},
 				{"disabled", makeIsDisabledInConfig(indexConf, QueryPipeline)},
 
 				{"singleIndex", res.singleIndex(indexConf, QueryPipeline)},
-				{"commonTable", res.makeCommonTableResolver(indexConf)},
+				{"commonTable", res.makeCommonTableResolver(indexConf, QueryPipeline)},
 
 				// default action
-				{"elasticAsDefault", makeElasticIsDefault(indexConf)},
+				{"defaultWildcard", makeDefaultWildcard(quesmaConf, QueryPipeline)},
 			},
 		},
 		recentDecisions: make(map[string]*Decision),
