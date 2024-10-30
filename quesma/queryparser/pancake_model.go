@@ -20,6 +20,23 @@ type pancakeModel struct {
 	sampleLimit int
 }
 
+func (p *pancakeModel) ShallowClone() *pancakeModel {
+	layers := make([]*pancakeModelLayer, len(p.layers))
+	for i, layer := range p.layers {
+		layers[i] = &pancakeModelLayer{
+			nextBucketAggregation:        layer.nextBucketAggregation,
+			currentMetricAggregations:    layer.currentMetricAggregations,
+			currentPipelineAggregations:  layer.currentPipelineAggregations,
+			childrenPipelineAggregations: layer.childrenPipelineAggregations,
+		}
+	}
+	return &pancakeModel{
+		layers:      layers,
+		whereClause: p.whereClause,
+		sampleLimit: p.sampleLimit,
+	}
+}
+
 type pancakeModelLayer struct {
 	nextBucketAggregation       *pancakeModelBucketAggregation
 	currentMetricAggregations   []*pancakeModelMetricAggregation

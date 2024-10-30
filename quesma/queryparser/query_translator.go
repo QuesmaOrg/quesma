@@ -4,6 +4,7 @@ package queryparser
 
 import (
 	"context"
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -86,11 +87,14 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 	aggregations := model.JsonMap{}
 
 	for i, query := range queries {
+		fmt.Println("hmm, resultsets", ResultSets[i], len(queries))
 		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
 			if i >= len(ResultSets) {
 				continue
 			}
+			fmt.Println("hmm, resultsets", ResultSets[i], len(queries))
 			aggregation, err := pancake.RenderAggregationJson(cw.Ctx, ResultSets[i])
+			fmt.Println("hmm, aggregation", aggregation, err)
 			if err != nil {
 				return nil, err
 			}

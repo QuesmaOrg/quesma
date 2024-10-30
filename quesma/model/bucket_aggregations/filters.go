@@ -10,16 +10,16 @@ import (
 )
 
 type Filters struct {
-	ctx     context.Context
+	Ctx     context.Context
 	Filters []Filter
 }
 
 func NewFiltersEmpty(ctx context.Context) Filters {
-	return Filters{ctx: ctx}
+	return Filters{Ctx: ctx}
 }
 
 func NewFilters(ctx context.Context, filters []Filter) Filters {
-	return Filters{ctx: ctx, Filters: filters}
+	return Filters{Ctx: ctx, Filters: filters}
 }
 
 type Filter struct {
@@ -41,7 +41,7 @@ func (query Filters) TranslateSqlResponseToJson(rows []model.QueryResultRow) mod
 		if len(rows[0].Cols) > 0 {
 			value = rows[0].Cols[len(rows[0].Cols)-1].Value
 		} else {
-			logger.ErrorWithCtx(query.ctx).Msgf("unexpected number of columns in filters aggregation response, len(rows[0].Cols): %d", len(rows[0].Cols))
+			logger.ErrorWithCtx(query.Ctx).Msgf("unexpected number of columns in filters aggregation response, len(rows[0].Cols): %d", len(rows[0].Cols))
 		}
 	}
 	return model.JsonMap{
@@ -58,6 +58,7 @@ func (query Filters) DoesNotHaveGroupBy() bool {
 }
 
 func (query Filters) CombinatorGroups() (result []CombinatorGroup) {
+	fmt.Println("combining groups", query.Filters)
 	for filterIdx, filter := range query.Filters {
 		prefix := fmt.Sprintf("filter_%d__", filterIdx)
 		if len(query.Filters) == 1 {
@@ -80,7 +81,7 @@ func (query Filters) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGro
 func (query Filters) CombinatorSplit() []model.QueryType {
 	result := make([]model.QueryType, 0, len(query.Filters))
 	for _, filter := range query.Filters {
-		result = append(result, NewFilters(query.ctx, []Filter{filter}))
+		result = append(result, NewFilters(query.Ctx, []Filter{filter}))
 	}
 	return result
 }

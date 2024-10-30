@@ -81,7 +81,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if i >= 85 {
 				//t.Skip()
 			}
-			if i != 137 {
+			if i != 6 {
 				//t.Skip()
 			}
 
@@ -172,7 +172,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if len(expectedMinusActual) != 0 {
 				pp.Println("EXPECTED diff", expectedMinusActual)
 			}
-			//pp.Println("ACTUAL", pancakeJson)
+			pp.Println("ACTUAL", pancakeJson)
 			//pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
@@ -193,16 +193,15 @@ func TestPancakeQueryGeneration(t *testing.T) {
 // We generate correct SQL, but result JSON did not match
 func incorrectResult(testName string) bool {
 	t1 := testName == "date_range aggregation(file:agg_req,nr:22)" // we use relative time
-	t2 := testName == "complex filters(file:agg_req,nr:18)"        // almost, we differ in doc 0 counts
 	// to be deleted after pancakes
-	t3 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
+	t2 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
 		"Output more or less works, but is different and worse than what Elastic returns."+
 		"If it starts failing, maybe that's a good thing(file:clients/kunkka,nr:0)"
 	// below test is replacing it
 	// testName == "it's the same input as in previous test, but with the original output from Elastic."+
 	//	"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
 	//	"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix"
-	return t1 || t2 || t3
+	return t1 || t2
 }
 
 // TODO remove after fix

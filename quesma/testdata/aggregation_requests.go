@@ -3479,18 +3479,6 @@ var AggregationTests = []AggregationTestCase{
 				//model.NewQueryResultCol("filter_1__metric__time_offset_split__0__1_col_0", nil),
 				//model.NewQueryResultCol("filter_1__metric__time_offset_split__0__2_col_0", nil),
 			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__time_offset_split__count", int64(1051)),
-				model.NewQueryResultCol("aggr__time_offset_split__0__key_0", int64(1707955200000/86400000)),
-				model.NewQueryResultCol("aggr__time_offset_split__0__count", int64(0)),
-				model.NewQueryResultCol("metric__time_offset_split__0__1_col_0", nil),
-				model.NewQueryResultCol("metric__time_offset_split__0__2_col_0", nil),
-				//model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", int64(1026)),
-				//model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__key_0", int64(1707955200000/86400000)),
-				//model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__count", int64(7)),
-				//model.NewQueryResultCol("filter_1__metric__time_offset_split__0__1_col_0", 465.843750),
-				//model.NewQueryResultCol("filter_1__metric__time_offset_split__0__2_col_0", 466.843750),
-			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__time_offset_split__count",
@@ -3509,6 +3497,35 @@ var AggregationTests = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
 			  "aggr__time_offset_split__0__key_0"
 			ORDER BY "aggr__time_offset_split__0__key_0" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{
+			`SELECT sum(count(*)) OVER () AS "aggr__time_offset_split__count",
+			  toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
+			  "aggr__time_offset_split__0__key_0",
+			  count(*) AS "aggr__time_offset_split__0__count",
+			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__1_col_0",
+			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__2_col_0"
+			FROM __quesma_table_name
+			WHERE (((("order_date">=fromUnixTimestamp64Milli(1708639056376) AND "order_date"
+			  <=fromUnixTimestamp64Milli(1709243856376)) OR ("order_date">=
+			  fromUnixTimestamp64Milli(1708034256376) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1708639056376))) AND ("order_date">=
+			  fromUnixTimestamp64Milli(1708034256376) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1708639056376))) AND ("order_date">=
+			  fromUnixTimestamp64Milli(1708034256376) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1708639056376)))
+			GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
+			  "aggr__time_offset_split__0__key_0"
+			ORDER BY "aggr__time_offset_split__0__key_0" ASC`,
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__time_offset_split__count", int64(1026)),
+				model.NewQueryResultCol("aggr__time_offset_split__0__key_0", int64(1707955200000/86400000)),
+				model.NewQueryResultCol("aggr__time_offset_split__0__count", int64(7)),
+				model.NewQueryResultCol("metric__time_offset_split__0__1_col_0", 465.843750),
+				model.NewQueryResultCol("metric__time_offset_split__0__2_col_0", 466.843750),
+			}}},
+		},
 	},
 	{ // [19]
 		TestName: "random sampler, from Explorer > Field statistics",

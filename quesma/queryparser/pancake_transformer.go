@@ -440,6 +440,31 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 
 func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (result []*pancakeModel, err error) {
 	pp.Println("PANCAKE", pancake)
+	fmt.Println("hoho", len(pancake.layers), pancake.layers[0].nextBucketAggregation == nil)
+	if len(pancake.layers) == 0 || pancake.layers[0].nextBucketAggregation == nil {
+		return
+	}
 
+	firstLayer := pancake.layers[0]
+	filters, isFilters := firstLayer.nextBucketAggregation.queryType.(bucket_aggregations.Filters)
+	if !isFilters {
+		return
+	}
+	if len(firstLayer.currentMetricAggregations) == 0 && len(firstLayer.currentPipelineAggregations) == 0 && len(pancake.layers) > 1 { // maybe secondLayer, not first?
+		// If filter is in the first layer, we can just add it to the where clause
+		fmt.Println("jestem tu?", len(filters.Filters))
+		for _, filter := range filters.Filters[1:] {
+			newPancake := pancake.ShallowClone()
+			// new (every) pancake has only 1 filter instead of all
+			bucketAggr := newPancake.layers[0].nextBucketAggregation.ShallowClone()
+			bucketAggr.queryType = bucket_aggregations.NewFilters(filters.Ctx, []bucket_aggregations.Filter{filter})
+			pp.Println("new filter", bucketAggr.queryType)
+			newPancake.layers[0] = newPancakeModelLayer(&bucketAggr)
+			newPancake.whereClause = model.And([]model.Expr{newPancake.whereClause, filter.Sql.WhereClause})
+			result = append(result, newPancake)
+		}
+		pancake.layers[0].nextBucketAggregation.queryType = bucket_aggregations.NewFilters(filters.Ctx, []bucket_aggregations.Filter{filters.Filters[0]})
+		pp.Println("hoho", filters)
+	}
 	return
 }
