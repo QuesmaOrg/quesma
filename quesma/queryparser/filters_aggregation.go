@@ -41,7 +41,8 @@ func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (success bo
 		}
 		filter := cw.parseQueryMap(filterMap)
 		if filter.WhereClause == nil {
-			filter = model.NewSimpleQuery(model.TrueExpr, true)
+			filter.WhereClause = model.TrueExpr
+			filter.CanParse = true
 		}
 		filters = append(filters, bucket_aggregations.NewFilter(name, filter))
 	}

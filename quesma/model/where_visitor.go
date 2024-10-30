@@ -3,7 +3,8 @@
 package model
 
 // FindLowerBounds returns x if there is "x>=y" or "x>y" in the WHERE clause, but only as a single top-level expression.
-// (I mean by that a>=0 is fine, a>=0 AND e2 [AND ...]] is also fine, but a>=0 OR e2 is not fine.)
+// (I mean by that a>=0 is fine, a>=0 AND expr2 [AND ...]] is also fine (AND between all), but a>=0 OR e2 is not fine.
+// a>=0 AND (expr2 OR expr3) is also fine, as on top level it's only an AND.
 // We achieve that by only descending for AND operators.
 func FindLowerBounds(expr Expr) ([]InfixExpr, bool) {
 	if expr == nil {
