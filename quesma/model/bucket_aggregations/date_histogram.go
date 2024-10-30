@@ -212,6 +212,14 @@ func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
 }
 
+func (query *DateHistogram) d(originalKey int64) int64 {
+	if query.intervalType == DateHistogramCalendarInterval {
+		return originalKey
+	}
+	intervalInMilliseconds := query.intervalAsDuration().Milliseconds()
+	return originalKey * intervalInMilliseconds
+}
+
 // originalKey is the key as it came from our SQL request (e.g. returned by query.getKey)
 func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
 	var key int64
@@ -224,8 +232,10 @@ func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
 
 	ts := time.UnixMilli(key).UTC()
 	intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), query.wantedTimezone)
+	fmt.Println("d", intervalStartNotUTC, ts)
 
 	_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
+	fmt.Println(key, timezoneOffsetInSeconds)
 	return key - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
 }
 
@@ -251,17 +261,19 @@ func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 		// 0 is fine value for differenceBetweenTwoNextKeys, as it means we don't add keys
 		logger.ErrorWithCtx(query.ctx).Err(err)
 	}
-	return &DateHistogramRowsTransformer{MinDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys,
-		extendedBoundsMin: query.extendedBoundsMin, extendedBoundsMax: query.extendedBoundsMax, EmptyValue: 0}
+	return &DateHistogramRowsTransformer{dateHistogram: query, MinDocCount: query.minDocCount,
+		differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys, EmptyValue: 0,
+		extendedBoundsMin: query.extendedBoundsMin, extendedBoundsMax: query.extendedBoundsMax}
 }
 
 // we're sure len(row.Cols) >= 2
 
 type DateHistogramRowsTransformer struct {
-	MinDocCount                  int
+	dateHistogram                *DateHistogram
 	differenceBetweenTwoNextKeys int64 // if 0, we don't add keys
 	extendedBoundsMin            int64 // simply copied from DateHistogram
 	extendedBoundsMax            int64 // simply copied from DateHistogram
+	MinDocCount                  int
 	EmptyValue                   any
 }
 
@@ -281,6 +293,8 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		return rowsFromDB
 	}
 
+	fmt.Printf("%+v %v\n", qt, rowsFromDB)
+
 	emptyRowsAdded := 0
 	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
 	if len(rowsFromDB) > 0 {
@@ -296,17 +310,27 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 				i-1, rowsFromDB[i-1], i, rowsFromDB[i],
 			)
 		}
-		lastKey := qt.getKey(rowsFromDB[i-1])
-		currentKey := qt.getKey(rowsFromDB[i])
+		lastKey := qt.dateHistogram.d(qt.getKey(rowsFromDB[i-1]))
+		currentKey := qt.dateHistogram.d(qt.getKey(rowsFromDB[i]))
+		doWeDivide := (currentKey/qt.getKey(rowsFromDB[i])) >= 100 || (float64(currentKey)/float64(qt.getKey(rowsFromDB[i]))) <= 0.01
+		fmt.Println(lastKey, currentKey)
 		for midKey := lastKey + qt.differenceBetweenTwoNextKeys; midKey < currentKey && emptyRowsAdded < maxEmptyBucketsAdded; midKey += qt.differenceBetweenTwoNextKeys {
 			midRow := rowsFromDB[i-1].Copy()
-			midRow.Cols[len(midRow.Cols)-2].Value = midKey
+			divideBy := int64(1)
+			if doWeDivide {
+				divideBy = qt.differenceBetweenTwoNextKeys
+			}
+			fmt.Println("ki", qt.getKey(postprocessedRows[len(postprocessedRows)-1])*30000, divideBy, midKey/divideBy*30000, float64(midKey)/float64(divideBy), midKey/divideBy, float64(qt.getKey(rowsFromDB[i]))/float64(divideBy))
+			midRow.Cols[len(midRow.Cols)-2].Value = midKey / divideBy
 			midRow.Cols[len(midRow.Cols)-1].Value = qt.EmptyValue
+			fmt.Printf("%+v\n", midRow)
 			postprocessedRows = append(postprocessedRows, midRow)
 			emptyRowsAdded++
 		}
 		postprocessedRows = append(postprocessedRows, rowsFromDB[i])
 	}
+
+	fmt.Println(postprocessedRows)
 
 	// some cases where we don't need to add anything more
 	switch {
@@ -317,14 +341,15 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 
 	// add "pre" keys, so any needed key between [extendedBoundsMin, first_row_key]
 	if qt.extendedBoundsMin != NoExtendedBound {
-		firstRequiredKey := (qt.extendedBoundsMin+1000*60*60*2)/qt.differenceBetweenTwoNextKeys - 1 // more or less, might be slightly off, seems to work for a few different test cases
+		firstRequiredKey := qt.extendedBoundsMin/qt.differenceBetweenTwoNextKeys - 1 // more or less, might be slightly off, seems to work for a few different test cases
 		var lastRequiredKey int64
 		if len(postprocessedRows) > 0 {
-			lastRequiredKey = qt.getKey(postprocessedRows[0])
+			lastRequiredKey = qt.getKey(postprocessedRows[0]) / qt.differenceBetweenTwoNextKeys
 		} else {
 			// we know qt.extendedBoundsMax != NoExtendedBound, because we would've returned earlier - line below is safe
 			lastRequiredKey = (qt.extendedBoundsMax + 1000*60*60*2) / qt.differenceBetweenTwoNextKeys
 		}
+		fmt.Println("a", firstRequiredKey, lastRequiredKey)
 		preRows := make([]model.QueryResultRow, max(0, int(lastRequiredKey-firstRequiredKey)))
 		for preKey := firstRequiredKey; preKey <= lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; preKey++ {
 			preRows = append(preRows, model.QueryResultRow{
@@ -336,11 +361,16 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 			emptyRowsAdded++
 		}
 		postprocessedRows = append(preRows, postprocessedRows...)
+		fmt.Println(postprocessedRows)
 	}
+
+	fmt.Println("dupa")
 
 	// add "post" keys, so any needed key between [last_row_key, extendedBoundsMax]
 	if qt.extendedBoundsMax != NoExtendedBound {
-		lastRequiredKey := (qt.extendedBoundsMax + 1000*60*60*2) / qt.differenceBetweenTwoNextKeys
+		//lastRequiredKey := (qt.extendedBoundsMax + 1000*60*60*2) / qt.differenceBetweenTwoNextKeys
+		lastRequiredKey := qt.extendedBoundsMax / qt.differenceBetweenTwoNextKeys
+		fmt.Println(qt.getKey(postprocessedRows[len(postprocessedRows)-1]), lastRequiredKey)
 		for postKey := qt.getKey(postprocessedRows[len(postprocessedRows)-1]); postKey <= lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; postKey++ {
 			postRow := postprocessedRows[0].Copy()
 			postRow.Cols[len(postRow.Cols)-2].Value = postKey
