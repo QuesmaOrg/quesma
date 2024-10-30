@@ -471,6 +471,6 @@ var CloverTests = []testdata.AggregationTestCase{
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1728581627125) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1728635627125))`,
-		AdditionalAcceptableDifference: []string{"key_as_string"}, // timezone differences between local and github runs... Maybe come back to .UTC() so there's no +timezone (e.g. +02:00)?
+		AdditionalAcceptableDifference: []string{"key_as_string"}, // timezone differences between local and github runs... There's always 2h difference between those, need to investigate. Maybe come back to .UTC() so there's no "+timezone" (e.g. +02:00)?
 	},
 }

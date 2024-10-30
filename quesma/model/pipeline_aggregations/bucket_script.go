@@ -30,6 +30,7 @@ func (query BucketScript) TranslateSqlResponseToJson(rows []model.QueryResultRow
 	case query.script == "params.numerator != null && params.denominator != null && params.denominator != 0 ? params.numerator / params.denominator : 0":
 		parent := query.GetPathToParent()
 		if len(parent) != 1 {
+			// TODO: research if this limitation can be removed, and do so if possible.
 			logger.WarnWithCtx(query.ctx).Msgf("unexpected parent path in bucket_script: %s. Returning default.", query.String())
 			return model.JsonMap{"value": defaultValue}
 		}

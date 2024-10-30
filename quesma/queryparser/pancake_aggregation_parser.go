@@ -153,7 +153,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 	if filterRaw, ok := queryMap["filter"]; ok {
 		if filter, ok := filterRaw.(QueryMap); ok {
 			whereClause := cw.parseQueryMap(filter).WhereClause
-			if whereClause == nil { // empty filter same as true
+			if whereClause == nil { // empty filter <=> true
 				whereClause = model.TrueExpr
 			}
 			aggregation.queryType = bucket_aggregations.NewFilterAgg(cw.Ctx, whereClause)
