@@ -383,6 +383,7 @@ func (a *pancakeTransformer) transformAutoDateHistogram(layers []*pancakeModelLa
 					logger.WarnWithCtx(a.ctx).Msgf("could not find timestamp lower bound for auto_date_histogram %v", autoDateHistogram)
 					continue
 				}
+
 				var (
 					timestampLowerBound model.InfixExpr
 					found               bool
@@ -398,13 +399,22 @@ func (a *pancakeTransformer) transformAutoDateHistogram(layers []*pancakeModelLa
 					logger.WarnWithCtx(a.ctx).Msgf("auto_date_histogram field %s does not match timestamp lower bound %s", autoDateHistogram.GetField(), timestampLowerBound.Left)
 					continue
 				}
-				var b any
+
+				var timestamp int64
 				if fun, ok := timestampLowerBound.Right.(model.FunctionExpr); ok && len(fun.Args) == 1 {
-					if s, ok := fun.Args[0].(model.LiteralExpr); ok {
-						b = s.Value
+					if expr, ok := fun.Args[0].(model.LiteralExpr); ok {
+						if ts, ok := expr.Value.(int64); ok {
+							timestamp = ts
+						} else {
+							logger.WarnWithCtx(a.ctx).Msgf("timestamp lower bound is not a number, but %T, value: %v", expr.Value, expr.Value)
+						}
+					} else {
+						logger.WarnWithCtx(a.ctx).Msgf("timestamp lower bound is not a literal, but %T, value: %v", fun.Args[0], fun.Args[0])
 					}
+				} else {
+					logger.WarnWithCtx(a.ctx).Msgf("timestamp lower bound is not a function, but %T, value: %v", timestampLowerBound.Right, timestampLowerBound.Right)
 				}
-				autoDateHistogram.SetKey(b.(int64))
+				autoDateHistogram.SetKey(timestamp)
 			}
 		}
 	}

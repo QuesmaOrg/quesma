@@ -6,6 +6,8 @@ package model
 // (I mean by that a>=0 is fine, a>=0 AND expr2 [AND ...]] is also fine (AND between all), but a>=0 OR e2 is not fine.
 // a>=0 AND (expr2 OR expr3) is also fine, as on top level it's only an AND.
 // We achieve that by only descending for AND operators.
+//
+// TODO: add upper bound here too, when bucket_nr=1 in auto_date_histogram (only use case of this function), it's not needed.
 func FindLowerBounds(expr Expr) ([]InfixExpr, bool) {
 	if expr == nil {
 		return []InfixExpr{}, false
