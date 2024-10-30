@@ -14,6 +14,24 @@ import (
 	"time"
 )
 
+func (qmc *QuesmaManagementConsole) hasABTestingTable() bool {
+
+	db := qmc.logManager.GetDB()
+
+	sql := `SELECT count(*) FROM ab_testing_logs`
+
+	row := db.QueryRow(sql)
+	var count int
+	err := row.Scan(&count)
+	if err != nil {
+		logger.Error().Err(err).Msg("Error checking for ab_testing_logs table")
+		return false
+	}
+
+	return true
+
+}
+
 func (qmc *QuesmaManagementConsole) generateABTestingDashboard() []byte {
 
 	buffer := newBufferWithHead()
@@ -21,16 +39,21 @@ func (qmc *QuesmaManagementConsole) generateABTestingDashboard() []byte {
 
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
-	buffer.Html(`<form hx-post="/ab-testing-dashboard/report" hx-target="#report">
+	if qmc.hasABTestingTable() {
+
+		buffer.Html(`<form hx-post="/ab-testing-dashboard/report" hx-target="#report">
 		<label for="kibana_url">Kibana URL</label>
 		<input id="kibana_url" name="kibana_url" type="text" value="http://localhost:5601" />
 		<button type="submit">Submit</button>
 	</form>`)
 
-	buffer.Html(`<div id="report"></div>`)
+		buffer.Html(`<div id="report"></div>`)
 
-	buffer.Html(`<div class="menu">`)
-	buffer.Html("\n</div>")
+		buffer.Html(`<div class="menu">`)
+		buffer.Html("\n</div>")
+	} else {
+		buffer.Html(`<p>A/B Testing results are not available.</p>`)
+	}
 
 	buffer.Html("\n</main>\n\n")
 	return buffer.Bytes()

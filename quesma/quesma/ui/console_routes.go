@@ -107,40 +107,55 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
+	checkIfAbAvailable := func(writer http.ResponseWriter, req *http.Request) bool {
+		if qmc.hasABTestingTable() {
+			return true
+		}
+
+		_, _ = writer.Write([]byte("AB Testing results are not available."))
+		return false
+	}
+
 	authenticatedRoutes.HandleFunc("/ab-testing-dashboard", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateABTestingDashboard()
 		_, _ = writer.Write(buf)
 	})
 
 	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/report", func(writer http.ResponseWriter, req *http.Request) {
-		kibanaUrl := req.PostFormValue("kibana_url")
-
-		buf := qmc.generateABTestingReport(kibanaUrl)
-		_, _ = writer.Write(buf)
+		if checkIfAbAvailable(writer, req) {
+			kibanaUrl := req.PostFormValue("kibana_url")
+			buf := qmc.generateABTestingReport(kibanaUrl)
+			_, _ = writer.Write(buf)
+		}
 	})
 
 	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/panel", func(writer http.ResponseWriter, req *http.Request) {
-		dashboardId := req.FormValue("dashboard_id")
-		panelId := req.FormValue("panel_id")
+		if checkIfAbAvailable(writer, req) {
+			dashboardId := req.FormValue("dashboard_id")
+			panelId := req.FormValue("panel_id")
 
-		buf := qmc.generateABPanelDetails(dashboardId, panelId)
-		_, _ = writer.Write(buf)
+			buf := qmc.generateABPanelDetails(dashboardId, panelId)
+			_, _ = writer.Write(buf)
+		}
 	})
 
 	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/mismatch", func(writer http.ResponseWriter, req *http.Request) {
-		dashboardId := req.FormValue("dashboard_id")
-		panelId := req.FormValue("panel_id")
-		mismatchId := req.FormValue("mismatch_id")
+		if checkIfAbAvailable(writer, req) {
+			dashboardId := req.FormValue("dashboard_id")
+			panelId := req.FormValue("panel_id")
+			mismatchId := req.FormValue("mismatch_id")
 
-		buf := qmc.generateABMismatchDetails(dashboardId, panelId, mismatchId)
-		_, _ = writer.Write(buf)
+			buf := qmc.generateABMismatchDetails(dashboardId, panelId, mismatchId)
+			_, _ = writer.Write(buf)
+		}
 	})
 
 	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/request", func(writer http.ResponseWriter, req *http.Request) {
-		request_id := req.FormValue("request_id")
-
-		buf := qmc.generateABSingleRequest(request_id)
-		_, _ = writer.Write(buf)
+		if checkIfAbAvailable(writer, req) {
+			requestId := req.FormValue("request_id")
+			buf := qmc.generateABSingleRequest(requestId)
+			_, _ = writer.Write(buf)
+		}
 	})
 
 	authenticatedRoutes.HandleFunc("/tables/reload", func(writer http.ResponseWriter, req *http.Request) {
