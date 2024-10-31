@@ -30,7 +30,6 @@ func (qmc *QuesmaManagementConsole) hasABTestingTable() bool {
 	}
 
 	return true
-
 }
 
 func (qmc *QuesmaManagementConsole) renderError(buff *builder.HtmlBuffer, err error) {
@@ -146,7 +145,6 @@ func (qmc *QuesmaManagementConsole) readKibanaDashboards() (resolvedDashboards, 
 	client := elasticsearch.NewSimpleClient(&qmc.cfg.Elasticsearch)
 
 	resp, err := client.Request(context.Background(), "POST", ".kibana_analytics/_search", []byte(elasticQuery))
-
 	if err != nil {
 		return result, err
 	}
@@ -211,12 +209,10 @@ func (qmc *QuesmaManagementConsole) readKibanaDashboards() (resolvedDashboards, 
 				dashboard.panels[panel.PanelID] = panel.Name
 			}
 		}
-
 		result.dashboards[_id] = dashboard
 	}
 
 	return result, nil
-
 }
 
 func parseMismatches(mismatch string) ([]jsondiff.JSONMismatch, error) {
@@ -226,7 +222,6 @@ func parseMismatches(mismatch string) ([]jsondiff.JSONMismatch, error) {
 }
 
 func formatJSON(in *string) string {
-
 	if in == nil {
 		return "n/a"
 	}
@@ -313,7 +308,6 @@ GROUP BY
 	var report []reportRow
 
 	db := qmc.logManager.GetDB()
-
 	rows, err := db.Query(sql, orderBySQL)
 	if err != nil {
 		qmc.renderError(&buffer, err)
@@ -329,9 +323,7 @@ GROUP BY
 		}
 
 		row.dashboardUrl = fmt.Sprintf("%s/app/kibana#/dashboard/%s", kibanaUrl, row.dashboardId)
-
 		row.detailsUrl = fmt.Sprintf("/ab-testing-dashboard/panel?dashboard_id=%s&panel_id=%s", row.dashboardId, row.panelId)
-
 		row.dashboardName = kibanaDashboards.dashboardName(row.dashboardId)
 		row.panelName = kibanaDashboards.panelName(row.dashboardId, row.panelId)
 
@@ -344,7 +336,6 @@ GROUP BY
 	}
 
 	buffer.Html("<table>\n")
-
 	buffer.Html("<thead>\n")
 	buffer.Html(`<tr>` + "\n")
 	buffer.Html(`<th class="key">Dashboard</th>` + "\n")
@@ -355,7 +346,6 @@ GROUP BY
 	buffer.Html(`<th class="key"></th>` + "\n")
 	buffer.Html("</tr>\n")
 	buffer.Html("</thead>\n")
-
 	buffer.Html("<tbody>\n")
 
 	var lastDashboardId string
@@ -363,7 +353,6 @@ GROUP BY
 		buffer.Html(`<tr>` + "\n")
 
 		if lastDashboardId != row.dashboardId {
-
 			buffer.Html(`<td>`)
 			buffer.Html(`<a target="_blank" href="`).Text(row.dashboardUrl).Html(`">`).Text(row.dashboardName).Html(`</a>`)
 			buffer.Html("<br>")
@@ -407,8 +396,7 @@ GROUP BY
 		buffer.Html(`</a>`)
 
 		buffer.Html("</td>")
-
-		buffer.Html("</tr>\n")
+		buffer.Html("</tr>")
 	}
 
 	buffer.Html("</tbody>\n")
@@ -451,7 +439,6 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 		order by c desc
 		limit 100
 `
-
 	db := qmc.logManager.GetDB()
 
 	rows, err := db.Query(sql, dashboardId, panelId)
@@ -493,7 +480,6 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 	}
 
 	if len(tableRows) > 0 {
-
 		buffer.Html("<table>")
 		buffer.Html("<thead>")
 		buffer.Html(`<tr>`)
@@ -506,17 +492,12 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 		buffer.Html("<tbody>\n")
 
 		for _, row := range tableRows {
-
 			buffer.Html(`<tr>`)
-
 			buffer.Html(`<td>`)
 
 			mismatches, err := parseMismatches(row.mismatch)
-
 			if err == nil {
-
 				const limit = 10
-
 				size := len(mismatches)
 				if size > limit {
 					mismatches = mismatches[:limit]
@@ -538,8 +519,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 						buffer.Text(m.Path)
 						buffer.Text(`)`)
 						buffer.Html(`</code>`)
-
-						{
+						{ // poor man's HTML indent
 							buffer.Html(`<ul>`)
 							buffer.Html(`<li>`)
 							buffer.Html(`<code>`)
@@ -557,16 +537,13 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 							buffer.Html(`</ul>`)
 						}
 					}
-
 					buffer.Html(`</p>`)
 					buffer.Html(`</li>`)
 				}
 				buffer.Html(`</ol>`)
-
 			} else {
 				buffer.Text(row.mismatch)
 			}
-
 			buffer.Html(`</td>`)
 
 			buffer.Html(`<td>`)
@@ -652,7 +629,6 @@ func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panel
 			qmc.renderError(&buffer, err)
 			return buffer.Bytes()
 		}
-
 		allRows = append(allRows, row)
 
 	}
@@ -668,11 +644,10 @@ func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panel
 	buffer.Html(`<th class="key">Request ID</th>`)
 	buffer.Html(`<th class="key">Request Path</th>`)
 	buffer.Html(`<th class="key">Opaque ID</th>`)
-
 	buffer.Html("</tr>")
+	buffer.Html("</thead>")
 
-	buffer.Html("</thead>\n")
-	buffer.Html("<tbody>\n")
+	buffer.Html("<tbody>")
 
 	for _, row := range allRows {
 
@@ -842,7 +817,6 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 	buffer.Html(`</table>`)
 
 	rowAB := func(label string, valueA any, valueB any, pre bool) {
-
 		buffer.Html(`<tr>`)
 		buffer.Html(`<td>`)
 		buffer.Text(label)
@@ -866,7 +840,6 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 		}
 		buffer.Html(`</td>`)
 		buffer.Html("</tr>\n")
-
 	}
 
 	buffer.Html(`<h3>Response A vs Response B</h3>`)
@@ -885,13 +858,10 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 
 	buffer.Html(`<h3>Difference</h3>`)
 	if rec.responseMismatchSHA1 != nil {
-
 		mismaches, err := parseMismatches(*rec.responseMismatchMismatches)
 		if err != nil {
 			buffer.Text(fmt.Sprintf("Error: %s", err))
-
 		} else {
-
 			buffer.Html(`<table width="90%">`)
 			buffer.Html(`<tr>`)
 			buffer.Html(`<th>Message</th>`)
