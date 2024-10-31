@@ -32,8 +32,8 @@ var CloverTests = []testdata.AggregationTestCase{
 							},
 							"date_histogram": {
 								"extended_bounds": {
-									"max": 1726264800000,
-									"min": 1726264800000
+									"max": 1726264900000,
+									"min": 1726264900000
 								},
 								"field": "@timestamp",
 								"fixed_interval": "2592000s",

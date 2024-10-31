@@ -14,8 +14,13 @@ Quesma has been tested with the following software versions:
 | Docker                           | `24.0.7`        | 
 | Elasticsearch/Kibana             | `8.11.1`        |
 | ClickHouse                       | `24.1`, `23.12` |
+| ClickHouse Cloud                 | `24.5`          |
 | OpenSearch/OpenSearch Dashboards | `2.12.0`        |
 | Hydrolix                         | `v4.8.12`       |
+
+### ClickHouse limitations
+* When using a cluster deployment of ClickHouse, the tables automatically created by Quesma (during [Ingest](/ingest.md)) will use the `MergeTree` engine. If you wish to use the `ReplicatedMergeTree` engine instead, you will have to create the tables manually with  `ReplicatedMergeTree` engine before ingesting data to Quesma.
+  * *Note: On ClickHouse Cloud, the tables automatically created by Quesma will use the `ReplicatedMergeTree` engine (ClickHouse Cloud default engine).* 
 
 ## Functional limitations
 Currently supported:

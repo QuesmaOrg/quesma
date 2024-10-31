@@ -1037,7 +1037,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 1714874400000,
 							"key_as_string": "2024-05-05T02:00:00.000"
 						},
-{
+						{
 							"1": {
 								"value": 0.0
 							},

@@ -3537,8 +3537,8 @@ var AggregationTests = []AggregationTestCase{
 						"eventRate": {
 							"date_histogram": {
 								"extended_bounds": {
-									"max": 1709816694995,
-									"min": 1709815794995
+									"min": 1709816824995,
+									"max": 1709816834995
 								},
 								"field": "@timestamp",
 								"fixed_interval": "15000ms",
@@ -3600,14 +3600,19 @@ var AggregationTests = []AggregationTestCase{
 						"eventRate": {
 							"buckets": [
 								{
-									"doc_count": 0,
+									"doc_count": 2,
 									"key": 1709816790000,
 									"key_as_string": "2024-03-07T13:06:30.000"
 								},
 								{
-									"doc_count": 0,
+									"doc_count": 1,
 									"key": 1709816805000,
 									"key_as_string": "2024-03-07T13:06:45.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1709816820000,
+									"key_as_string": "2024-03-07T13:07:00.000"
 								}
 							]
 						},
@@ -3628,12 +3633,12 @@ var AggregationTests = []AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sampler__count", uint64(15)),
 				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1709816790000/15000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", 0),
+				model.NewQueryResultCol("aggr__sampler__eventRate__count", 2),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sampler__count", uint64(15)),
 				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1709816805000/15000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", 0),
+				model.NewQueryResultCol("aggr__sampler__eventRate__count", 1),
 			}},
 		},
 		ExpectedPancakeSQL: `
