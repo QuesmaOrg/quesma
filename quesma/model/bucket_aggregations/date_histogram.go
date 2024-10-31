@@ -333,6 +333,12 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 	case qt.extendedBoundsMax == NoExtendedBound && qt.extendedBoundsMin == NoExtendedBound:
 	case len(postprocessedRows) == 0 && (qt.extendedBoundsMax == NoExtendedBound || qt.extendedBoundsMin == NoExtendedBound):
 		return postprocessedRows
+
+	}
+	noBounds := qt.extendedBoundsMax == NoExtendedBound && qt.extendedBoundsMin == NoExtendedBound
+	noRowsAndNotFullyBounded := len(postprocessedRows) == 0 && (qt.extendedBoundsMax == NoExtendedBound || qt.extendedBoundsMin == NoExtendedBound)
+	if noBounds || noRowsAndNotFullyBounded {
+		return postprocessedRows
 	}
 
 	// add "pre" keys, so any needed key between [extendedBoundsMin, first_row_key]
