@@ -3537,8 +3537,8 @@ var AggregationTests = []AggregationTestCase{
 						"eventRate": {
 							"date_histogram": {
 								"extended_bounds": {
-									"min": 1709816614995,
-									"max": 1709816694995
+									"min": 1709816824995,
+									"max": 1709816834995
 								},
 								"field": "@timestamp",
 								"fixed_interval": "15000ms",
@@ -3608,6 +3608,11 @@ var AggregationTests = []AggregationTestCase{
 									"doc_count": 1,
 									"key": 1709816805000,
 									"key_as_string": "2024-03-07T13:06:45.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1709816820000,
+									"key_as_string": "2024-03-07T13:07:00.000"
 								}
 							]
 						},

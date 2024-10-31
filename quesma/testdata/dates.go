@@ -199,11 +199,6 @@ var AggregationTestsWithDates = []AggregationTestCase{
 						"buckets": [
 							{
 								"doc_count": 0,
-								"key": 1730370410000,
-								"key_as_string": "2024-10-31T10:26:50.000"
-							},
-							{
-								"doc_count": 0,
 								"key": 1730370420000,
 								"key_as_string": "2024-10-31T10:27:00.000"
 							},

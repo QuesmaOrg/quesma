@@ -185,12 +185,15 @@ func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
 	switch query.interval {
 	case "minute", "1m":
 		query.interval = "1m"
+		query.intervalType = DateHistogramFixedInterval
 		return query.generateSQLForFixedInterval()
 	case "hour", "1h":
 		query.interval = "1h"
+		query.intervalType = DateHistogramFixedInterval
 		return query.generateSQLForFixedInterval()
 	case "day", "1d":
 		query.interval = "1d"
+		query.intervalType = DateHistogramFixedInterval
 		return query.generateSQLForFixedInterval()
 	case "week", "1w":
 		return exprForBiggerIntervals("toStartOfWeek")
@@ -211,6 +214,7 @@ func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
 }
 
 func (query *DateHistogram) calculateResponseKeyInUTC(originalKey int64) int64 {
+	fmt.Printf("%+v\n%v\n", query, query.intervalType.String(query.ctx))
 	if query.intervalType == DateHistogramCalendarInterval {
 		return originalKey
 	}
@@ -349,15 +353,18 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 
 	// add "pre" keys, so any needed key between [extendedBoundsMin, first_row_key]
 	if qt.extendedBoundsMin != NoExtendedBound {
-		firstRequiredKey := qt.dateHistogram.fromUTCToWantedTimezone(qt.extendedBoundsMin) / qt.differenceBetweenTwoNextKeys
+		firstRequiredKey := (qt.dateHistogram.fromUTCToWantedTimezone(qt.extendedBoundsMin) + qt.differenceBetweenTwoNextKeys - 1) / qt.differenceBetweenTwoNextKeys
 		var lastRequiredKey int64
 		if len(postprocessedRows) > 0 {
 			lastRequiredKey = qt.getKey(postprocessedRows[0])
+			if qt.dateHistogram.intervalType == DateHistogramCalendarInterval {
+				lastRequiredKey /= qt.differenceBetweenTwoNextKeys
+			}
 		} else {
 			// we know qt.extendedBoundsMax != NoExtendedBound, because we would've returned earlier - line below is safe
 			lastRequiredKey = qt.dateHistogram.fromUTCToWantedTimezone(qt.extendedBoundsMax) / qt.differenceBetweenTwoNextKeys
 		}
-		fmt.Println("keys", firstRequiredKey, qt.getKey(postprocessedRows[0]), postprocessedRows[0].Cols[0], lastRequiredKey)
+		fmt.Println("1keys", firstRequiredKey, lastRequiredKey, qt.getKey(postprocessedRows[0]), postprocessedRows[0].Cols[0])
 		fmt.Println("ERA", emptyRowsAdded)
 		preRows := make([]model.QueryResultRow, 0, max(0, int(lastRequiredKey-firstRequiredKey)))
 		for preKey := firstRequiredKey; preKey < lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; preKey++ {
@@ -386,7 +393,7 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		}
 	}
 
-	fmt.Println("ERA", emptyRowsAdded)
+	fmt.Println("ERA", emptyRowsAdded, postprocessedRows)
 	return postprocessedRows
 }
 
