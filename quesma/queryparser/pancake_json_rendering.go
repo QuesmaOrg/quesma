@@ -351,37 +351,29 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						}
 					}
 					var (
-						columnNameWithKey = layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
-						found             bool
-						subAggrKey        any
+						columnNameWithKey        = layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
+						found                    bool
+						subAggrKey               any
+						currentBucketSubAggrRows []model.QueryResultRow
 					)
-					if len(subAggrRows) > subAggrIdx {
+					if subAggrIdx < len(subAggrRows) {
 						subAggrKey, found = p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
 					}
+
 					if found && subAggrKey == key {
-						subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[subAggrIdx])
-						if err != nil {
-							return nil, err
-						}
-						bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
-						if _, exists = bucketArr[i][bucket_aggregations.OriginalKeyName]; exists {
-							delete(bucketArr[i], bucket_aggregations.OriginalKeyName)
-						}
+						currentBucketSubAggrRows = subAggrRows[subAggrIdx]
 						subAggrIdx++
 					} else {
-						// used to be just "bucketArr[i] = bucket" here
-						// Back then, no empty subaggregation results were created, now they are, which is needed
-						// e.g.
-						// before: {"buckets": [{"key": "a", "doc_count": 0}]}
-						// now: {"buckets": [{"key": "a", "doc_count": 0, "subaggr": {value: 0}}]}
-						json, err := p.layerToJSON(remainingLayers[1:], []model.QueryResultRow{})
-						if err != nil {
-							return nil, err
-						}
-						bucketArr[i] = util.MergeMaps(p.ctx, bucket, json)
-						if _, exists = bucketArr[i][bucket_aggregations.OriginalKeyName]; exists {
-							delete(bucketArr[i], bucket_aggregations.OriginalKeyName)
-						}
+						currentBucketSubAggrRows = []model.QueryResultRow{}
+					}
+
+					subAggr, err := p.layerToJSON(remainingLayers[1:], currentBucketSubAggrRows)
+					if err != nil {
+						return nil, err
+					}
+					bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
+					if _, exists = bucketArr[i][bucket_aggregations.OriginalKeyName]; exists {
+						delete(bucketArr[i], bucket_aggregations.OriginalKeyName)
 					}
 				}
 			}
@@ -392,6 +384,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		}
 		result[layer.nextBucketAggregation.name] = buckets
 	}
+
 	return result, nil
 }
 
