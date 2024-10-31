@@ -61,7 +61,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 
 			if test.TestName == "multiple buckets_path(file:clients/clover,nr:1)" {
-				t.Skip("Unskip after merge of auto_date_histogram")
+				t.Skip("This needs fixing ASAP, easy to fix")
 			}
 			if test.TestName == "Clover(file:clients/clover,nr:4)" {
 				t.Skip("answers are fine, need to update test")

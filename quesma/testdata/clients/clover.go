@@ -333,17 +333,145 @@ var CloverTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__timeseries__count", int64(202)),
+				model.NewQueryResultCol("metric__timeseries__a2-numerator_col_0", int64(202)),
+				model.NewQueryResultCol("aggr__timeseries__a2-denominator__count", int64(202)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT count(*) AS "aggr__timeseries__count",
-			  countIf(True) AS
-			  "name",
-			  countIf(NOT ("field" = 'sth')) AS
-			  "name"
+			  countIf(NOT ("table.flower" = 'clover')) AS "metric__timeseries__a2-numerator_col_0",
+			  countIf(true) AS "aggr__timeseries__a2-denominator__count"
 			FROM __quesma_table_name
-			WHERE ("@timestamp">=parseDateTime64BestEffort('2024-10-11T09:58:03.723Z') AND
-			  "@timestamp"<=parseDateTime64BestEffort('2024-10-11T10:13:03.723Z'))`,
+			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1728640683723) AND "@timestamp"<=
+			  fromUnixTimestamp64Milli(1728641583723))`,
+	},
+	{ // [2]
+		TestName: "simplest auto_date_histogram",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"timeseries": {
+					"aggs": {
+						"469ef7fe-5927-42d1-918b-37c738c600f0": {
+							"bucket_script": {
+								"buckets_path": {
+									"count": "_count"
+								},
+								"gap_policy": "skip",
+								"script": {
+									"lang": "expression",
+									"source": "count * 1"
+								}
+							}
+						}
+					},
+					"auto_date_histogram": {
+						"buckets": 1,
+						"field": "timestamp"
+					},
+					"meta": {
+						"dataViewId": "d3d7af60-4c81-11e8-b3d7-01146121b73d",
+						"indexPatternString": "kibana_sample_data_flights",
+						"intervalString": "54000000ms",
+						"normalized": true,
+						"panelId": "1a1d745d-0c21-4103-a2ae-df41d4fbd366",
+						"seriesId": "866fb08f-b9a4-43eb-a400-38ebb6c13aed",
+						"timeField": "timestamp"
+					}
+				}
+			},
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-10-10T17:33:47.125Z",
+									"lte": "2024-10-11T08:33:47.125Z"
+								}
+							}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"size": 0,
+			"timeout": "30000ms",
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1728635627258,
+			"expiration_time_in_millis": 1728635687254,
+			"id": "FlhaTzBhMkpQU3lLMmlzNHhBeU9FMHcbaUp3ZGNYdDNSaGF3STVFZ2xWY3RuQTo2MzU4",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"timeseries": {
+						"buckets": [
+							{
+								"469ef7fe-5927-42d1-918b-37c738c600f0": {
+									"value": 202.0
+								},
+								"doc_count": 202,
+								"key": 1728581627125,
+								"key_as_string": "2024-10-10T19:33:47.125+02:00"
+							}
+						],
+						"interval": "100y",
+						"meta": {
+							"dataViewId": "d3d7af60-4c81-11e8-b3d7-01146121b73d",
+							"indexPatternString": "kibana_sample_data_flights",
+							"intervalString": "54000000ms",
+							"normalized": true,
+							"panelId": "1a1d745d-0c21-4103-a2ae-df41d4fbd366",
+							"seriesId": "866fb08f-b9a4-43eb-a400-38ebb6c13aed",
+							"timeField": "timestamp"
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 202
+					}
+				},
+				"timed_out": false,
+				"took": 4
+			},
+			"start_time_in_millis": 1728635627254
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__timeseries__count", int64(202)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT count(*) AS "aggr__timeseries__count"
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1728581627125) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1728635627125))`,
+		AdditionalAcceptableDifference: []string{"key_as_string"}, // timezone differences between local and github runs... There's always 2h difference between those, need to investigate. Maybe come back to .UTC() so there's no "+timezone" (e.g. +02:00)?
 	},
 	{ // [2]
 		TestName: "todo",
