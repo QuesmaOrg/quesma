@@ -524,7 +524,7 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 		return nil, jsonMap, nil, err
 	}
 
-	mDiff := DifferenceMap(jsonMap, table) // TODO change to DifferenceMap(m, t)
+	mDiff := DifferenceMap(jsonMap, table)
 
 	if len(mDiff) == 0 && string(schemaFieldsJson) == string(jsonAsBytesSlice) && len(inValidJson) == 0 { // no need to modify, just insert 'js'
 		return nil, jsonMap, nil, nil

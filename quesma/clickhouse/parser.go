@@ -113,26 +113,8 @@ func RemoveNonSchemaFields(m SchemaMap, t *Table) SchemaMap {
 				delete(mCur, fieldName)
 			}
 		}
-		/*
-			for fieldName, v := range mCur {
-				mSchemaNested, ok := col.[fieldName]
-				if !ok {
-					delete(mCur, fieldName)
-					continue
-				} else {
-					mSchemaNestedCasted, ok1 := mSchemaNested.(SchemaMap)
-					mCurNested, ok2 := v.(SchemaMap)
-					if ok1 && ok2 {
-						descendRec(mSchemaNestedCasted, mCurNested, mCur)
-					}
-				}
-				vCasted, ok := v.(SchemaMap)
-				if ok && len(vCasted) == 0 {
-					delete(mCur, fieldName)
-				}
-			}*/
 	}
-
+	toDelete := []string{}
 	for fieldName, v := range m {
 		col, ok := t.Cols[fieldName]
 		if ok {
@@ -141,8 +123,11 @@ func RemoveNonSchemaFields(m SchemaMap, t *Table) SchemaMap {
 				descendRec(col, vCasted)
 			}
 		} else {
-			delete(m, fieldName) // TODO check if it's fine? In c++ not, but here seems to work
+			toDelete = append(toDelete, fieldName)
 		}
+	}
+	for _, fieldName := range toDelete {
+		delete(m, fieldName)
 	}
 	return m
 }
