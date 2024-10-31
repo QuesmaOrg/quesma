@@ -534,7 +534,7 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 	}
 }
 
-func (q *QueryRunner) deleteAsyncSeach(id string) ([]byte, error) {
+func (q *QueryRunner) deleteAsyncSearch(id string) ([]byte, error) {
 	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		return nil, errors.New("invalid quesma async search id : " + id)
 	}

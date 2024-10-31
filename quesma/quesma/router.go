@@ -239,7 +239,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	})
 
 	router.Register(routes.AsyncSearchIdPath, and(method("DELETE"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-		responseBody, err := queryRunner.deleteAsyncSeach(req.Params["id"])
+		responseBody, err := queryRunner.deleteAsyncSearch(req.Params["id"])
 		if err != nil {
 			return nil, err
 		}
