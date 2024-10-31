@@ -374,47 +374,18 @@ func (a *pancakeTransformer) createTopHitAndTopMetricsPancakes(pancake *pancakeM
 	return
 }
 
+// Auto date histogram is a date histogram, that automatically creates buckets based on time range.
+// To do that we need parse WHERE clause which happens in this method.
 func (a *pancakeTransformer) transformAutoDateHistogram(layers []*pancakeModelLayer, whereClause model.Expr) {
 	for _, layer := range layers {
 		if layer.nextBucketAggregation != nil {
 			if autoDateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.AutoDateHistogram); ok {
-				lowerBoundsInWhere := model.FindLowerBounds(whereClause)
-				if len(lowerBoundsInWhere) == 0 {
-					logger.WarnWithCtx(a.ctx).Msgf("could not find timestamp lower bound for auto_date_histogram %v", autoDateHistogram)
-					continue
-				}
-
-				var (
-					timestampLowerBound model.InfixExpr
-					found               bool
-				)
-				for _, lowerBound := range lowerBoundsInWhere {
-					if lowerBound.Left == autoDateHistogram.GetField() {
-						timestampLowerBound = lowerBound
-						found = true
-						break
-					}
-				}
-				if !found {
-					logger.WarnWithCtx(a.ctx).Msgf("auto_date_histogram field %s does not match timestamp lower bound %s", autoDateHistogram.GetField(), timestampLowerBound.Left)
-					continue
-				}
-
-				var timestamp int64
-				if fun, ok := timestampLowerBound.Right.(model.FunctionExpr); ok && len(fun.Args) == 1 {
-					if expr, ok := fun.Args[0].(model.LiteralExpr); ok {
-						if ts, ok := expr.Value.(int64); ok {
-							timestamp = ts
-						} else {
-							logger.WarnWithCtx(a.ctx).Msgf("timestamp lower bound is not a number, but %T, value: %v", expr.Value, expr.Value)
-						}
-					} else {
-						logger.WarnWithCtx(a.ctx).Msgf("timestamp lower bound is not a literal, but %T, value: %v", fun.Args[0], fun.Args[0])
-					}
+				if tsLowerBound, found := model.FindTimestampLowerBound(autoDateHistogram.GetField(), whereClause); found {
+					autoDateHistogram.SetKey(tsLowerBound)
 				} else {
-					logger.WarnWithCtx(a.ctx).Msgf("timestamp lower bound is not a function, but %T, value: %v", timestampLowerBound.Right, timestampLowerBound.Right)
+					logger.WarnWithCtx(a.ctx).Msgf("could not find timestamp lower bound (field: %v, where clause: %v)",
+						autoDateHistogram.GetField(), whereClause)
 				}
-				autoDateHistogram.SetKey(timestamp)
 			}
 		}
 	}

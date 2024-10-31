@@ -50,7 +50,7 @@ func (query *AutoDateHistogram) String() string {
 	return fmt.Sprintf("auto_date_histogram(field: %v, bucketsNr: %d)", model.AsString(query.field), query.bucketsNr)
 }
 
-func (query *AutoDateHistogram) GetField() model.Expr {
+func (query *AutoDateHistogram) GetField() model.ColumnRef {
 	return query.field
 }
 
