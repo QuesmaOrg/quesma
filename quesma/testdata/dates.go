@@ -118,4 +118,115 @@ var AggregationTestsWithDates = []AggregationTestCase{
 			  )*1000 AS "aggr__sampler__eventRate__key_0"
 			ORDER BY "aggr__sampler__eventRate__key_0" ASC`,
 	},
+	{ // [1]
+		TestName: "multiple buckets_path",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"timeseries": {
+					"aggs": {
+						"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+							"bucket_script": {
+								"buckets_path": {
+									"count": "_count"
+								},
+								"gap_policy": "skip",
+								"script": {
+									"lang": "expression",
+									"source": "count * 1"
+								}
+							}
+						}
+					},
+					"date_histogram": {
+						"extended_bounds": {
+							"max": 1730370516174,
+							"min": 1730369696174
+						},
+						"field": "@timestamp",
+						"fixed_interval": "10s",
+						"min_doc_count": 0,
+						"time_zone": "Europe/Warsaw"
+					},
+					"meta": {
+						"dataViewId": "logs-generic",
+						"indexPatternString": "logs-generic-*",
+						"intervalString": "10s",
+						"normalized": true,
+						"panelId": "b8a0f82e-3186-4e4c-9b77-2092922d38e6",
+						"seriesId": "0eb0b521-7833-495a-b99b-877b01eb0513",
+						"timeField": "@timestamp"
+					}
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"timeout": "30000ms",
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 0,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"failed": 0,
+				"skipped": 0
+			},
+			"hits": {
+				"total": {
+					"value": 26,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"__quesma_total_count": {},
+				"timeseries": {
+					"buckets": [
+						{
+							"__quesma_originalKey": 173036968,
+							"doc_count": 0,
+							"key": 1730366080000,
+							"key_as_string": "2024-10-31T09:14:40.000"
+						},
+						{
+							"__quesma_originalKey": 173036969,
+							"doc_count": 1,
+							"key": 1730366090000,
+							"key_as_string": "2024-10-31T09:14:50.000", 
+							"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+								"value": 1
+							}
+						}
+					],
+					"meta": {
+						"dataViewId": "logs-generic",
+						"indexPatternString": "logs-generic-*",
+						"intervalString": "10s",
+						"normalized": true,
+						"panelId": "b8a0f82e-3186-4e4c-9b77-2092922d38e6",
+						"seriesId": "0eb0b521-7833-495a-b99b-877b01eb0513",
+						"timeField": "@timestamp"
+					}
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__timeseries__key_0", int64(1730369690000/10000)),
+				model.NewQueryResultCol("aggr__timeseries__count", int64(1)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+			  "@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0",
+			  count(*) AS "aggr__timeseries__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
+			  ("@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0"
+			ORDER BY "aggr__timeseries__key_0" ASC`,
+	},
 }

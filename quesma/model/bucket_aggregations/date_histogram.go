@@ -28,7 +28,7 @@ const (
 	// with date_histogram's map (it already has a "valid", processed key, after TranslateSqlResponseToJson)
 	OriginalKeyName      = "__quesma_originalKey"
 	NoExtendedBound      = int64(-1) // -1 and not e.g. 0, as 0 is a valid value
-	maxEmptyBucketsAdded = 1000
+	maxEmptyBucketsAdded = 1
 )
 
 type DateHistogram struct {
@@ -92,6 +92,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 	}
 
 	var response []model.JsonMap
+	fmt.Println("ROWZ", rows)
 	for _, row := range rows {
 		docCount := row.LastColValue()
 		if util.ExtractInt64(docCount) < int64(query.minDocCount) {
@@ -184,15 +185,12 @@ func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
 	switch query.interval {
 	case "minute", "1m":
 		query.interval = "1m"
-		query.intervalType = DateHistogramFixedInterval
 		return query.generateSQLForFixedInterval()
 	case "hour", "1h":
 		query.interval = "1h"
-		query.intervalType = DateHistogramFixedInterval
 		return query.generateSQLForFixedInterval()
 	case "day", "1d":
 		query.interval = "1d"
-		query.intervalType = DateHistogramFixedInterval
 		return query.generateSQLForFixedInterval()
 	case "week", "1w":
 		return exprForBiggerIntervals("toStartOfWeek")
@@ -229,6 +227,15 @@ func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
 
 	_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
 	return keyInUTC - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
+}
+
+func (query *DateHistogram) toUTC(timestampNotUTC int64) int64 {
+	ts := time.UnixMilli(timestampNotUTC)
+	dateNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), query.wantedTimezone)
+
+	_, timezoneOffsetInSeconds := dateNotUTC.Zone()
+	fmt.Println("diff", timezoneOffsetInSeconds)
+	return timestampNotUTC - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
 }
 
 func (query *DateHistogram) calculateKeyAsString(key int64) string {
@@ -273,6 +280,7 @@ type DateHistogramRowsTransformer struct {
 // Also if extendedBounds are present, we need to add all keys between them.
 // CAUTION: a different kind of postprocessing is needed for MinDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
 func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+	fmt.Printf("%+v\n", qt)
 	if qt.MinDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 {
 		// we only add empty rows, when
 		// a) MinDocCount == 0
@@ -332,15 +340,19 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 
 	// add "pre" keys, so any needed key between [extendedBoundsMin, first_row_key]
 	if qt.extendedBoundsMin != NoExtendedBound {
-		firstRequiredKey := qt.extendedBoundsMin/qt.differenceBetweenTwoNextKeys - 1 // more or less, might be slightly off, seems to work for a few different test cases
+		//ebMinUTC := qt.dateHistogram.toUTC(qt.extendedBoundsMin)
+		ebMinUTC := qt.extendedBoundsMin
+		firstRequiredKey := ebMinUTC/qt.differenceBetweenTwoNextKeys - 1 // more or less, might be slightly off, seems to work for a few different test cases
 		var lastRequiredKey int64
 		if len(postprocessedRows) > 0 {
-			lastRequiredKey = qt.getKey(postprocessedRows[0]) / qt.differenceBetweenTwoNextKeys
+			lastRequiredKey = qt.dateHistogram.calculateResponseKeyInUTC(qt.getKey(postprocessedRows[0])) / qt.differenceBetweenTwoNextKeys
 		} else {
 			// we know qt.extendedBoundsMax != NoExtendedBound, because we would've returned earlier - line below is safe
 			lastRequiredKey = (qt.extendedBoundsMax + 1000*60*60*2) / qt.differenceBetweenTwoNextKeys
 		}
-		preRows := make([]model.QueryResultRow, max(0, int(lastRequiredKey-firstRequiredKey)))
+		fmt.Println("keys", firstRequiredKey, firstRequiredKey*10000, postprocessedRows[0].Cols[0], lastRequiredKey)
+		fmt.Println("ERA", emptyRowsAdded)
+		preRows := make([]model.QueryResultRow, 0, max(0, int(lastRequiredKey-firstRequiredKey)))
 		for preKey := firstRequiredKey; preKey <= lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; preKey++ {
 			preRows = append(preRows, model.QueryResultRow{
 				Cols: []model.QueryResultCol{
@@ -350,6 +362,7 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 			})
 			emptyRowsAdded++
 		}
+		fmt.Println("ERA", emptyRowsAdded)
 		postprocessedRows = append(preRows, postprocessedRows...)
 	}
 
@@ -357,7 +370,7 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 	if qt.extendedBoundsMax != NoExtendedBound {
 		//lastRequiredKey := (qt.extendedBoundsMax + 1000*60*60*2) / qt.differenceBetweenTwoNextKeys
 		lastRequiredKey := qt.extendedBoundsMax / qt.differenceBetweenTwoNextKeys
-		for postKey := qt.getKey(postprocessedRows[len(postprocessedRows)-1]); postKey <= lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; postKey++ {
+		for postKey := qt.getKey(postprocessedRows[len(postprocessedRows)-1]) + 1; postKey <= lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; postKey++ {
 			postRow := postprocessedRows[0].Copy()
 			postRow.Cols[len(postRow.Cols)-2].Value = postKey
 			postRow.Cols[len(postRow.Cols)-1].Value = qt.EmptyValue
@@ -366,6 +379,7 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		}
 	}
 
+	fmt.Println("ERA", emptyRowsAdded)
 	return postprocessedRows
 }
 

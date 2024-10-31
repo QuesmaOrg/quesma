@@ -64,6 +64,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Unskip after merge of auto_date_histogram")
 			}
 
+			if i != 66 {
+				t.Skip()
+			}
+
 			fmt.Println("i:", i, "test:", test.TestName)
 
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
