@@ -50,7 +50,8 @@ func (qmc *QuesmaManagementConsole) generateABTestingDashboard() []byte {
 	buffer.Write(qmc.generateTopNavigation("ab-testing-dashboard"))
 
 	buffer.Html(`<main id="ab_testing_dashboard">`)
-	buffer.Html(`<h2>A/B Testing Dashboard</h2>`)
+
+	buffer.Html(`<h2>Kibana dashboards compatibility report <span title="This table compares results and performance of Kibana dashboards and its panels as seen by Quesma. Every panel query returning similar results is a success, load times are calculated into Time ration in the following way..."><small>&#9432;</small></span></h2>`)
 
 	if qmc.hasABTestingTable() {
 
@@ -230,8 +231,6 @@ func formatJSON(in *string) string {
 func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl string) []byte {
 	buffer := newBufferWithHead()
 
-	buffer.Html(`<h2>AB Testing Report</h2>`)
-
 	kibanaDashboards, err := qmc.readKibanaDashboards()
 	if err != nil {
 		logger.Warn().Msgf("Error reading dashboards %v", err)
@@ -242,40 +241,43 @@ with subresults as (
 select
    kibana_dashboard_id, 
    kibana_dashboard_panel_id,
-   concat(response_a_name,' vs ',response_b_name) as name, 
+   response_a_name as a_name,
+   response_b_name as b_name,
    response_mismatch_is_ok as ok ,
    count(*) as c,
    avg(response_a_time) as a_time, 
    avg(response_b_time) as b_time 
 from
-  ab_testing_logs group by 1,2,3,4
+  ab_testing_logs group by 1,2,3,4,5
 )
 
 select 
   kibana_dashboard_id,
   kibana_dashboard_panel_id,
-  name as name,
+  a_name,
+  b_name,
   (sumIf(c,ok)/ sum(c)) * 100 as success_rate,
-  (avgIf(a_time,ok)/ avgIf(b_time,ok)) *100  as time_ratio,
+  ((avgIf(a_time,ok)- avgIf(b_time,ok))/avgIf(a_time,ok))*100.0  as performance_gain,
   sum(c) as count
 from
   subresults 
 group by 
- kibana_dashboard_id,kibana_dashboard_panel_id, name
-order by 1,2,3 
+ kibana_dashboard_id,kibana_dashboard_panel_id,a_name,b_name
+order by 1,2,3,4 
 `
 
 	type reportRow struct {
-		dashboardId   string
-		panelId       string
-		dashboardUrl  string
-		detailsUrl    string
-		dashboardName string
-		panelName     string
-		testName      string
-		successRate   *float64
-		timeRatio     *float64
-		count         int
+		dashboardId     string
+		panelId         string
+		dashboardUrl    string
+		detailsUrl      string
+		dashboardName   string
+		panelName       string
+		aName           string
+		bName           string
+		successRate     *float64
+		performanceGain *float64
+		count           int
 	}
 
 	var report []reportRow
@@ -290,7 +292,7 @@ order by 1,2,3
 
 	for rows.Next() {
 		row := reportRow{}
-		err := rows.Scan(&row.dashboardId, &row.panelId, &row.testName, &row.successRate, &row.timeRatio, &row.count)
+		err := rows.Scan(&row.dashboardId, &row.panelId, &row.aName, &row.bName, &row.successRate, &row.performanceGain, &row.count)
 		if err != nil {
 			qmc.renderError(&buffer, err)
 			return buffer.Bytes()
@@ -317,9 +319,9 @@ order by 1,2,3
 	buffer.Html(`<tr>` + "\n")
 	buffer.Html(`<th class="key">Dashboard</th>` + "\n")
 	buffer.Html(`<th class="key">Panel</th>` + "\n")
-	buffer.Html(`<th class="key">Count</th>` + "\n")
-	buffer.Html(`<th class="key">Success rate</th>` + "\n")
-	buffer.Html(`<th class="key">Time ratio</th>` + "\n")
+	buffer.Html(`<th class="key">Count <br> <small>(since start)</small></th>` + "\n")
+	buffer.Html(`<th class="key">Response similarity</th>` + "\n")
+	buffer.Html(`<th class="key">Performance gain</th>` + "\n")
 	buffer.Html(`<th class="key"></th>` + "\n")
 	buffer.Html("</tr>\n")
 	buffer.Html("</thead>\n")
@@ -335,7 +337,7 @@ order by 1,2,3
 			buffer.Html(`<td>`)
 			buffer.Html(`<a target="_blank" href="`).Text(row.dashboardUrl).Html(`">`).Text(row.dashboardName).Html(`</a>`)
 			buffer.Html("<br>")
-			buffer.Text(fmt.Sprintf("(%s)", row.testName))
+			buffer.Text(fmt.Sprintf("(%s vs %s)", row.aName, row.bName))
 			buffer.Html(`</td>`)
 			lastDashboardId = row.dashboardId
 		} else {
@@ -352,15 +354,15 @@ order by 1,2,3
 
 		buffer.Html(`<td>`)
 		if row.successRate != nil {
-			buffer.Text(fmt.Sprintf("%f", *row.successRate))
+			buffer.Text(fmt.Sprintf("%.01f%%", *row.successRate))
 		} else {
 			buffer.Text("n/a")
 		}
 		buffer.Html(`</td>`)
 
 		buffer.Html(`<td>`)
-		if row.timeRatio != nil {
-			buffer.Text(fmt.Sprintf("%f", *row.timeRatio))
+		if row.performanceGain != nil {
+			buffer.Text(fmt.Sprintf("%.01f%%", *row.performanceGain))
 		} else {
 			buffer.Text("n/a")
 		}
