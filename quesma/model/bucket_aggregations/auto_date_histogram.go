@@ -10,14 +10,17 @@ import (
 	"time"
 )
 
+// TODO: only bucketsNr=1 is supported for now. Implement other cases.
 type AutoDateHistogram struct {
 	ctx       context.Context
-	field     model.Expr // name of the field, e.g. timestamp
+	field     model.ColumnRef // name of the field, e.g. timestamp
 	bucketsNr int
 	key       int64
 }
 
-func NewAutoDateHistogram(ctx context.Context, field model.Expr, bucketsNr int) *AutoDateHistogram {
+// NewAutoDateHistogram creates a new AutoDateHistogram aggregation, during parsing.
+// Key is set later, during pancake transformation.
+func NewAutoDateHistogram(ctx context.Context, field model.ColumnRef, bucketsNr int) *AutoDateHistogram {
 	return &AutoDateHistogram{ctx: ctx, field: field, bucketsNr: bucketsNr}
 }
 

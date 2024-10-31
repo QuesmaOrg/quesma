@@ -350,7 +350,12 @@ func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(paramsRaw any) *buck
 		return nil
 	}
 
-	field := cw.parseFieldField(params, "auto_date_histogram")
+	fieldRaw := cw.parseFieldField(params, "auto_date_histogram")
+	var field model.ColumnRef
+	if field, ok = fieldRaw.(model.ColumnRef); !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v. Skipping auto_date_histogram", fieldRaw, fieldRaw)
+		return nil
+	}
 	bucketsNr := cw.parseIntField(params, "buckets", 10)
 	return bucket_aggregations.NewAutoDateHistogram(cw.Ctx, field, bucketsNr)
 }
