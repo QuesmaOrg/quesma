@@ -16,8 +16,8 @@ import (
 )
 
 func initDBConnection(c *config.QuesmaConfiguration, tlsConfig *tls.Config) *sql.DB {
-
 	options := clickhouse.Options{Addr: []string{c.ClickHouse.Url.Host}}
+
 	if c.ClickHouse.User != "" || c.ClickHouse.Password != "" || c.ClickHouse.Database != "" {
 
 		options.Auth = clickhouse.Auth{
@@ -28,6 +28,18 @@ func initDBConnection(c *config.QuesmaConfiguration, tlsConfig *tls.Config) *sql
 	}
 	if !c.ClickHouse.DisableTLS {
 		options.TLS = tlsConfig
+	}
+	if c.ClickHouse.Url.Scheme == "clickhouse" {
+		options.Protocol = clickhouse.Native
+	} else if c.ClickHouse.Url.Scheme == "http" {
+		logger.Warn().Msgf("Using HTTP protocol to connect to ClickHouse. We recommend using ClickHouse Native protocol instead (default port 9000).")
+		options.Protocol = clickhouse.HTTP
+		options.TLS = nil
+	} else if c.ClickHouse.Url.Scheme == "https" {
+		logger.Warn().Msgf("Using HTTPS protocol to connect to ClickHouse. We recommend using ClickHouse Native protocol instead (default port 9000).")
+		options.Protocol = clickhouse.HTTP
+	} else {
+		logger.Error().Msgf("Unknown ClickHouse endpoint protocol '%s' in the provided URL %s. Defaulting to ClickHouse Native protocol. Please provide the ClickHouse URL in the following format: clickhouse://host:port", c.ClickHouse.Url.Scheme, c.ClickHouse.Url.String())
 	}
 
 	info := struct {
