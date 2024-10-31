@@ -374,6 +374,23 @@ func (a *pancakeTransformer) createTopHitAndTopMetricsPancakes(pancake *pancakeM
 	return
 }
 
+// Auto date histogram is a date histogram, that automatically creates buckets based on time range.
+// To do that we need parse WHERE clause which happens in this method.
+func (a *pancakeTransformer) transformAutoDateHistogram(layers []*pancakeModelLayer, whereClause model.Expr) {
+	for _, layer := range layers {
+		if layer.nextBucketAggregation != nil {
+			if autoDateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.AutoDateHistogram); ok {
+				if tsLowerBound, found := model.FindTimestampLowerBound(autoDateHistogram.GetField(), whereClause); found {
+					autoDateHistogram.SetKey(tsLowerBound)
+				} else {
+					logger.WarnWithCtx(a.ctx).Msgf("could not find timestamp lower bound (field: %v, where clause: %v)",
+						autoDateHistogram.GetField(), whereClause)
+				}
+			}
+		}
+	}
+}
+
 func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregationTree) (pancakeResults []*pancakeModel, err error) {
 	if len(topLevel.children) == 0 {
 		return nil, fmt.Errorf("no top level aggregations found")
@@ -398,6 +415,7 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		}
 
 		a.connectPipelineAggregations(layers)
+		a.transformAutoDateHistogram(layers, topLevel.whereClause)
 
 		newPancake := pancakeModel{
 			layers:      layers,

@@ -16,8 +16,8 @@ type BucketScript struct {
 	script string
 }
 
-func NewBucketScript(ctx context.Context, script string) BucketScript {
-	return BucketScript{script: script, PipelineAggregation: newPipelineAggregation(ctx, "_count")}
+func NewBucketScript(ctx context.Context, path, script string) BucketScript {
+	return BucketScript{script: script, PipelineAggregation: newPipelineAggregation(ctx, path)}
 }
 
 func (query BucketScript) AggregationType() model.AggregationType {
@@ -28,8 +28,16 @@ func (query BucketScript) TranslateSqlResponseToJson(rows []model.QueryResultRow
 	const defaultValue = 0.
 	switch {
 	case query.script == "params.numerator != null && params.denominator != null && params.denominator != 0 ? params.numerator / params.denominator : 0":
-		numerator := query.findFilterValue(rows, "numerator")
-		denominator := query.findFilterValue(rows, "denominator")
+		parent := query.GetPathToParent()
+		if len(parent) != 1 {
+			// TODO: research if this limitation can be removed, and do so if possible.
+			logger.WarnWithCtx(query.ctx).Msgf("unexpected parent path in bucket_script: %s. Returning default.", query.String())
+			return model.JsonMap{"value": defaultValue}
+		}
+
+		// replaceAll - hack but get the job done for the customer's case, and won't break anything in any other case.
+		numerator := query.findFilterValue(rows, strings.ReplaceAll(parent[0], "denominator", "numerator"))
+		denominator := query.findFilterValue(rows, strings.ReplaceAll(parent[0], "numerator", "denominator"))
 		if denominator == 0 {
 			return model.JsonMap{"value": defaultValue}
 		}
@@ -77,7 +85,7 @@ func (query BucketScript) findFilterValue(rows []model.QueryResultRow, filterNam
 			}
 			colName = strings.TrimSuffix(colName, "_col_0")
 			if strings.HasSuffix(colName, "-"+filterName) {
-				return float64(util.ExtractInt64(col.Value))
+				return util.ExtractNumeric64(col.Value)
 			}
 		}
 	}
