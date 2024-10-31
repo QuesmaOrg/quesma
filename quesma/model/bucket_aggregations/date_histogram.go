@@ -233,15 +233,6 @@ func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
 	return keyInUTC - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
 }
 
-func (query *DateHistogram) toUTC(timestampNotUTC int64) int64 {
-	ts := time.UnixMilli(timestampNotUTC)
-	dateNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), query.wantedTimezone)
-
-	_, timezoneOffsetInSeconds := dateNotUTC.Zone()
-	fmt.Println("diff", timezoneOffsetInSeconds)
-	return timestampNotUTC - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
-}
-
 func (query *DateHistogram) fromUTCToWantedTimezone(tsUTC int64) int64 {
 	dateUTC := time.UnixMilli(tsUTC)
 	date := time.Date(dateUTC.Year(), dateUTC.Month(), dateUTC.Day(), dateUTC.Hour(), dateUTC.Minute(), dateUTC.Second(), dateUTC.Nanosecond(), query.wantedTimezone)
