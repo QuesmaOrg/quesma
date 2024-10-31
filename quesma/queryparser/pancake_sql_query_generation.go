@@ -321,11 +321,11 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 					// If filter is in the first layer, we can just add it to the where clause
 					switch combinatorTyped := combinator.(type) {
 					case bucket_aggregations.FilterAgg:
-						aggregation.whereClause = model.And([]model.Expr{aggregation.whereClause, combinatorTyped.WhereClause})
+						//aggregation.whereClause = model.And([]model.Expr{aggregation.whereClause, combinatorTyped.WhereClause})
 					case bucket_aggregations.Filters:
 						// TODO accept second
 						fmt.Println("Adding ", combinatorTyped.Filters[0].Sql.WhereClause)
-						aggregation.whereClause = model.And([]model.Expr{aggregation.whereClause, combinatorTyped.Filters[0].Sql.WhereClause}) // TODO check [0]
+						//aggregation.whereClause = model.And([]model.Expr{aggregation.whereClause, combinatorTyped.Filters[0].Sql.WhereClause}) // TODO check [0]
 					}
 				} else {
 					addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), combinator})

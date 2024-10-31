@@ -380,33 +380,28 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 
 		a.connectPipelineAggregations(layers)
 
-		// what if filters both at start and end?
-
 		newPancake := pancakeModel{
 			layers:      layers,
 			whereClause: topLevel.whereClause,
 			sampleLimit: sampleLimit,
 		}
-
-		pancakeResults = append(pancakeResults, &newPancake)
-
 		additionalTopHitPancakes, err := a.createTopHitAndTopMetricsPancakes(&newPancake)
 		if err != nil {
 			return nil, err
 		}
 		pancakeResults = append(pancakeResults, additionalTopHitPancakes...)
+		pancakeResults = append(pancakeResults, a.createFiltersPancakes(&newPancake)...)
+	}
 
-		additionalFiltersPancakes, err := a.createFiltersPancakes(&newPancake)
-		if err != nil {
-			return nil, err
-		}
-		pancakeResults = append(pancakeResults, additionalFiltersPancakes...)
+	for _, pancake := range pancakeResults {
+		fmt.Println("PANC", pancake.whereClause)
+		fmt.Println()
 	}
 
 	return
 }
 
-func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (result []*pancakeModel, err error) {
+func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (newPancakes []*pancakeModel) {
 	if len(pancake.layers) == 0 || pancake.layers[0].nextBucketAggregation == nil {
 		return
 	}
@@ -416,16 +411,19 @@ func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (resul
 	if !isFilters {
 		return
 	}
+	fmt.Println("WTF PRZECIEZ TUTAJ")
 	if len(firstLayer.currentMetricAggregations) == 0 && len(firstLayer.currentPipelineAggregations) == 0 && len(pancake.layers) > 1 { // maybe secondLayer, not first?
 		// If filter is in the first layer, we can just add it to the where clause
+		fmt.Println("WTF PRZECIEZ TUTAJ 2", len(filters.Filters), filters.Filters)
 		for i, filter := range filters.Filters[1:] {
 			newPancake := pancake.Clone()
 			// new (every) pancake has only 1 filter instead of all
 			bucketAggr := newPancake.layers[0].nextBucketAggregation.ShallowClone()
-			bucketAggr.queryType = filters.NewFiltersSingleFilter(i + 1) // +1 because we iterate over [1:]
+			bucketAggr.queryType = filters.NewFiltersSingleFilter(i + 1)
 			newPancake.layers[0] = newPancakeModelLayer(&bucketAggr)
 			newPancake.whereClause = model.And([]model.Expr{newPancake.whereClause, filter.Sql.WhereClause})
-			result = append(result, newPancake)
+			fmt.Println("WTF PRZECIEZ TUTAJ 3", newPancake.whereClause)
+			newPancakes = append(newPancakes, newPancake)
 		}
 		pancake.layers[0].nextBucketAggregation.queryType = filters.NewFiltersSingleFilter(0)
 	}

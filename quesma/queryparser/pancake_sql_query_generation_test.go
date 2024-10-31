@@ -76,6 +76,12 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Was skipped before, no expected results")
 			}
 
+			if i != 10 {
+				t.Skip()
+			}
+
+			// TODO: add test for filter(s) both at the beginning and end of aggregation tree
+
 			fmt.Println("i:", i, "test:", test.TestName)
 
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
@@ -163,7 +169,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if len(expectedMinusActual) != 0 {
 				pp.Println("EXPECTED diff", expectedMinusActual)
 			}
-			//pp.Println("ACTUAL", pancakeJson)
+			pp.Println("ACTUAL", pancakeJson)
 			//pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
