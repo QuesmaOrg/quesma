@@ -51,7 +51,16 @@ func (qmc *QuesmaManagementConsole) generateABTestingDashboard() []byte {
 
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
-	buffer.Html(`<h2>Kibana dashboards compatibility report <span title="This table compares results and performance of Kibana dashboards and its panels as seen by Quesma. Every panel query returning similar results is a success, load times are calculated into Time ration in the following way..."><small>&#9432;</small></span></h2>`)
+	explanation := `
+This table compares results and performance of Kibana dashboards and its panels as seen by Quesma. 
+Every panel query returning similar results is a success, 
+load times are calculated into performance gain  as a percentage by comparing the average times of first and second backend connectors for successful responses.
+If the performance gain is positive, it means that the second backend connector is faster than the first one.
+	`
+
+	buffer.Html(`<h2>Kibana dashboards compatibility report <span class="tooltip" data-tooltip="`)
+	buffer.Text(explanation)
+	buffer.Html(`">&#9432;</span></h2>`)
 
 	if qmc.hasABTestingTable() {
 
