@@ -55,12 +55,20 @@ func (qmc *QuesmaManagementConsole) generateABTestingDashboard() []byte {
 
 	if qmc.hasABTestingTable() {
 
-		buffer.Html(`<form hx-post="/ab-testing-dashboard/report" hx-target="#report">`)
+		buffer.Html(`<form name="form1" hx-post="/ab-testing-dashboard/report" hx-trigger="submit,load,change" hx-target="#report">`)
 		buffer.Html(`<label for="kibana_url">Kibana URL</label>`)
-		buffer.Html(`<input id="kibana_url" name="kibana_url" type="text" value="http://localhost:5601" />`)
-		buffer.Html(`<button type="submit">Generate report</button>`)
+		buffer.Html(`<input id="kibana_url" name="kibana_url" type="text"  value="http://localhost:5601"/>`)
+		buffer.Html(`<br>`)
+		buffer.Html(`<label for="order_by">Sort by</label>`)
+		buffer.Html(`<select id="order_by" name="order_by">`)
+		buffer.Html(`<option value="default">Default</option>`)
+		buffer.Html(`<option value="response_similarity">Response similarity</option>`)
+		buffer.Html(`<option value="performance_gain">Performance gain</option>`)
+		buffer.Html(`<option value="count">Count</option>`)
+		buffer.Html(`</select>`)
+		buffer.Html(`<br>`)
+		buffer.Html(`<button type="submit">Refresh</button>`)
 		buffer.Html(`</form>`)
-
 		buffer.Html(`<div id="report"></div>`)
 
 		buffer.Html(`<div class="menu">`)
@@ -228,7 +236,7 @@ func formatJSON(in *string) string {
 	return string(b)
 }
 
-func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl string) []byte {
+func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl, orderBy string) []byte {
 	buffer := newBufferWithHead()
 
 	kibanaDashboards, err := qmc.readKibanaDashboards()
@@ -236,35 +244,48 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl string) []
 		logger.Warn().Msgf("Error reading dashboards %v", err)
 	}
 
+	orderByToSQL := map[string]string{
+		"default":             "dashboard_id, panel_id, a_name, b_name",
+		"response_similarity": "response_similarity DESC, dashboard_id, panel_id, a_name, b_name",
+		"performance_gain":    "performance_gain DESC,dashboard_id, panel_id, a_name, b_name",
+		"count":               "count DESC,dashboard_id, panel_id, a_name, b_name",
+	}
+
+	orderBySQL, ok := orderByToSQL[orderBy]
+	if !ok {
+		orderBySQL = orderByToSQL["default"]
+	}
+
 	sql := `
-with subresults as (
-select
-   kibana_dashboard_id, 
+WITH subresults AS (
+SELECT
+   kibana_dashboard_id , 
    kibana_dashboard_panel_id,
-   response_a_name as a_name,
-   response_b_name as b_name,
-   response_mismatch_is_ok as ok ,
-   count(*) as c,
-   avg(response_a_time) as a_time, 
-   avg(response_b_time) as b_time 
-from
-  ab_testing_logs group by 1,2,3,4,5
+   response_a_name AS a_name,
+   response_b_name AS b_name,
+   response_mismatch_is_ok AS ok ,
+   count(*) AS c,
+   avg(response_a_time) AS a_time, 
+   avg(response_b_time) AS b_time 
+FROM
+  ab_testing_logs GROUP BY 1,2,3,4,5
 )
 
-select 
-  kibana_dashboard_id,
-  kibana_dashboard_panel_id,
+SELECT 
+  kibana_dashboard_id AS dashboard_id,
+  kibana_dashboard_panel_id  AS panel_id,
   a_name,
   b_name,
-  (sumIf(c,ok)/ sum(c)) * 100 as success_rate,
+  (sumIf(c,ok)/ sum(c)) * 100 as response_similarity,
   ((avgIf(a_time,ok)- avgIf(b_time,ok))/avgIf(a_time,ok))*100.0  as performance_gain,
   sum(c) as count
-from
+FROM
   subresults 
-group by 
- kibana_dashboard_id,kibana_dashboard_panel_id,a_name,b_name
-order by 1,2,3,4 
+GROUP BY  
+ kibana_dashboard_id,kibana_dashboard_panel_id,a_name,b_name 
 `
+
+	sql = sql + " ORDER BY " + orderBySQL
 
 	type reportRow struct {
 		dashboardId     string
@@ -284,7 +305,7 @@ order by 1,2,3,4
 
 	db := qmc.logManager.GetDB()
 
-	rows, err := db.Query(sql)
+	rows, err := db.Query(sql, orderBySQL)
 	if err != nil {
 		qmc.renderError(&buffer, err)
 		return buffer.Bytes()

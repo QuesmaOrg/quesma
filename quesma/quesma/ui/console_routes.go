@@ -124,7 +124,8 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/report", func(writer http.ResponseWriter, req *http.Request) {
 		if checkIfAbAvailable(writer, req) {
 			kibanaUrl := req.PostFormValue("kibana_url")
-			buf := qmc.generateABTestingReport(kibanaUrl)
+			orderBy := req.PostFormValue("order_by")
+			buf := qmc.generateABTestingReport(kibanaUrl, orderBy)
 			_, _ = writer.Write(buf)
 		}
 	})
