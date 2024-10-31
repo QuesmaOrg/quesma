@@ -93,10 +93,15 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 				logger.ErrorWithCtx(cw.Ctx).Msgf("missing %v is not a string, but: %T. Skipping it.", missingRaw, missingRaw)
 			}
 		}
-
 		if !weAddedMissing {
 			// if we don't add missing, we need to filter out nulls later
 			aggregation.filterOutEmptyKeyBucket = true
+		}
+
+		ebMin, ebMax := bucket_aggregations.NoExtendedBound, bucket_aggregations.NoExtendedBound
+		if extendedBounds, exists := dateHistogram["extended_bounds"].(QueryMap); exists {
+			ebMin = cw.parseInt64Field(extendedBounds, "min", bucket_aggregations.NoExtendedBound)
+			ebMax = cw.parseInt64Field(extendedBounds, "max", bucket_aggregations.NoExtendedBound)
 		}
 
 		minDocCount := cw.parseMinDocCount(dateHistogram)
@@ -110,7 +115,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 
 		dateHistogramAggr := bucket_aggregations.NewDateHistogram(
-			cw.Ctx, field, interval, timezone, minDocCount, intervalType, dateTimeType)
+			cw.Ctx, field, interval, timezone, minDocCount, ebMin, ebMax, intervalType, dateTimeType)
 		aggregation.queryType = dateHistogramAggr
 
 		sqlQuery := dateHistogramAggr.GenerateSQL()
