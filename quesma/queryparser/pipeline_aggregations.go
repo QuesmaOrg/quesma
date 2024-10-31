@@ -180,7 +180,7 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 		return
 	}
 	if script, ok := scriptRaw.(string); ok {
-		return pipeline_aggregations.NewBucketScript(cw.Ctx, script), true
+		return pipeline_aggregations.NewBucketScript(cw.Ctx, bucketsPath, script), true
 	}
 
 	script, ok := scriptRaw.(QueryMap)
@@ -204,7 +204,7 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 	}
 
 	// okay, we've checked everything, it's indeed a simple count
-	return pipeline_aggregations.NewBucketScript(cw.Ctx, ""), true
+	return pipeline_aggregations.NewBucketScript(cw.Ctx, bucketsPath, ""), true
 }
 
 func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggregationName string) (bucketsPathStr string, success bool) {
