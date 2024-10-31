@@ -283,7 +283,8 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]colum
 		} else {
 			maybeTimestampField = td.tableTimestampField(databaseName, table, ClickHouse)
 		}
-		configuredTables[table] = discoveredTable{table, databaseName, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField, true}
+		const isVirtualTable = false
+		configuredTables[table] = discoveredTable{table, databaseName, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField, isVirtualTable}
 
 	}
 	for tableName, table := range configuredTables {

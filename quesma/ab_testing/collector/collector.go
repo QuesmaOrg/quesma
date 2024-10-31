@@ -85,12 +85,13 @@ func NewCollector(ctx context.Context, ingester ingest.Ingester, healthQueue cha
 			&diffTransformer{},
 			//&ppPrintFanout{},
 			//&mismatchedOnlyFilter{},
+			&redactOkResults{},
 			//&elasticSearchFanout{
 			//	url:       "http://localhost:8080",
 			//	indexName: "ab_testing_logs",
 			//},
 			&internalIngestFanout{
-				indexName:       "ab_testing_logs",
+				indexName:       ab_testing.ABTestingTableName,
 				ingestProcessor: ingester,
 			},
 		},

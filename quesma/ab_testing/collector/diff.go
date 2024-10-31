@@ -67,7 +67,8 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 	}
 
 	if len(mismatches) > 0 {
-		b, err := json.MarshalIndent(mismatches, "", " ")
+
+		b, err := json.Marshal(mismatches)
 
 		if err != nil {
 			return in, false, fmt.Errorf("failed to marshal mismatches: %w", err)
@@ -78,12 +79,27 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 		in.Mismatch.SHA1 = fmt.Sprintf("%x", hash)
 		in.Mismatch.IsOK = false
 		in.Mismatch.Count = len(mismatches)
-		in.Mismatch.Message = mismatches.String()
 
 		topMismatchType, _ := t.mostCommonMismatchType(mismatches)
 		if topMismatchType != "" {
 			in.Mismatch.TopMismatchType = topMismatchType
 		}
+
+		size := len(mismatches)
+
+		// if there are too many mismatches, we only show the first 20
+		// this is to avoid overwhelming the user with too much information
+		const mismatchesSize = 20
+
+		if len(mismatches) > mismatchesSize {
+			mismatches = mismatches[:mismatchesSize]
+			mismatches = append(mismatches, jsondiff.JSONMismatch{
+				Type:    "info",
+				Message: fmt.Sprintf("only first %d mismatches, total %d", mismatchesSize, size),
+			})
+		}
+
+		in.Mismatch.Message = mismatches.String()
 
 	} else {
 		in.Mismatch.Mismatches = "[]"

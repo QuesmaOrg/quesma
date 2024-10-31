@@ -503,10 +503,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	if conf.Elasticsearch, err = c.getElasticsearchConfig(); err != nil {
 		errAcc = multierror.Append(errAcc, err)
 	}
-	if !c.DisableTelemetry {
-		conf.QuesmaInternalTelemetryUrl = telemetryUrl
-		conf.Logging.RemoteLogDrainUrl = telemetryUrl
-	}
 	// This is perhaps a little oversimplification, **but** in case any of the FE connectors has auth disabled, we disable auth for the whole incomming traffic
 	// After all, the "duality" of frontend connectors is still an architectural choice we tend to question
 	for _, fConn := range c.FrontendConnectors {
@@ -518,6 +514,14 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	conf.Logging = c.Logging
 	if conf.Logging.Level == nil {
 		conf.Logging.Level = &DefaultLogLevel
+	}
+
+	if !c.DisableTelemetry {
+		conf.QuesmaInternalTelemetryUrl = telemetryUrl
+		conf.Logging.RemoteLogDrainUrl = telemetryUrl
+	} else {
+		conf.QuesmaInternalTelemetryUrl = nil
+		conf.Logging.RemoteLogDrainUrl = nil
 	}
 
 	conf.InstallationId = c.InstallationId
@@ -578,8 +582,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					}
 				}
 
-				if len(processedConfig.QueryTarget) == 2 && !(processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) {
-					errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration - when you specify two targets, ClickHouse has to be the primary one and Elastic has to be the secondary one", indexName))
+				if len(processedConfig.QueryTarget) == 2 && !((processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) ||
+					(processedConfig.QueryTarget[0] == ElasticsearchTarget && processedConfig.QueryTarget[1] == ClickhouseTarget)) {
+					errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration", indexName))
 					continue
 				}
 
@@ -676,10 +681,12 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				}
 			}
 
-			if len(processedConfig.QueryTarget) == 2 && !(processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) {
-				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration - when you specify two targets, ClickHouse has to be the primary one and Elastic has to be the secondary one", indexName))
+			if len(processedConfig.QueryTarget) == 2 && !((processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) ||
+				(processedConfig.QueryTarget[0] == ElasticsearchTarget && processedConfig.QueryTarget[1] == ClickhouseTarget)) {
+				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration", indexName))
 				continue
 			}
+
 			if len(processedConfig.QueryTarget) == 2 {
 				// Turn on A/B testing
 				processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
