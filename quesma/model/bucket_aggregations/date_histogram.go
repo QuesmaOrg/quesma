@@ -28,7 +28,7 @@ const (
 	// with date_histogram's map (it already has a "valid", processed key, after TranslateSqlResponseToJson)
 	OriginalKeyName      = "__quesma_originalKey"
 	NoExtendedBound      = int64(-1) // -1 and not e.g. 0, as 0 is a valid value
-	maxEmptyBucketsAdded = 1
+	maxEmptyBucketsAdded = 1000
 )
 
 type DateHistogram struct {
@@ -238,6 +238,15 @@ func (query *DateHistogram) toUTC(timestampNotUTC int64) int64 {
 	return timestampNotUTC - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
 }
 
+func (query *DateHistogram) fromUTCToWantedTimezone(tsUTC int64) int64 {
+	dateUTC := time.UnixMilli(tsUTC)
+	date := time.Date(dateUTC.Year(), dateUTC.Month(), dateUTC.Day(), dateUTC.Hour(), dateUTC.Minute(), dateUTC.Second(), dateUTC.Nanosecond(), query.wantedTimezone)
+
+	_, timezoneOffsetInSeconds := date.Zone()
+	fmt.Println("diff", timezoneOffsetInSeconds)
+	return tsUTC + int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
+}
+
 func (query *DateHistogram) calculateKeyAsString(key int64) string {
 	return time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000") // TODO: check if this necessary Format("2006/01/02 15:04:05")
 }
@@ -340,20 +349,18 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 
 	// add "pre" keys, so any needed key between [extendedBoundsMin, first_row_key]
 	if qt.extendedBoundsMin != NoExtendedBound {
-		//ebMinUTC := qt.dateHistogram.toUTC(qt.extendedBoundsMin)
-		ebMinUTC := qt.extendedBoundsMin
-		firstRequiredKey := ebMinUTC/qt.differenceBetweenTwoNextKeys - 1 // more or less, might be slightly off, seems to work for a few different test cases
+		firstRequiredKey := qt.dateHistogram.fromUTCToWantedTimezone(qt.extendedBoundsMin) / qt.differenceBetweenTwoNextKeys
 		var lastRequiredKey int64
 		if len(postprocessedRows) > 0 {
-			lastRequiredKey = qt.dateHistogram.calculateResponseKeyInUTC(qt.getKey(postprocessedRows[0])) / qt.differenceBetweenTwoNextKeys
+			lastRequiredKey = qt.getKey(postprocessedRows[0])
 		} else {
 			// we know qt.extendedBoundsMax != NoExtendedBound, because we would've returned earlier - line below is safe
-			lastRequiredKey = (qt.extendedBoundsMax + 1000*60*60*2) / qt.differenceBetweenTwoNextKeys
+			lastRequiredKey = qt.dateHistogram.fromUTCToWantedTimezone(qt.extendedBoundsMax) / qt.differenceBetweenTwoNextKeys
 		}
-		fmt.Println("keys", firstRequiredKey, firstRequiredKey*10000, postprocessedRows[0].Cols[0], lastRequiredKey)
+		fmt.Println("keys", firstRequiredKey, qt.getKey(postprocessedRows[0]), postprocessedRows[0].Cols[0], lastRequiredKey)
 		fmt.Println("ERA", emptyRowsAdded)
 		preRows := make([]model.QueryResultRow, 0, max(0, int(lastRequiredKey-firstRequiredKey)))
-		for preKey := firstRequiredKey; preKey <= lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; preKey++ {
+		for preKey := firstRequiredKey; preKey < lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; preKey++ {
 			preRows = append(preRows, model.QueryResultRow{
 				Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("", preKey),
@@ -368,9 +375,9 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 
 	// add "post" keys, so any needed key between [last_row_key, extendedBoundsMax]
 	if qt.extendedBoundsMax != NoExtendedBound {
-		//lastRequiredKey := (qt.extendedBoundsMax + 1000*60*60*2) / qt.differenceBetweenTwoNextKeys
-		lastRequiredKey := qt.extendedBoundsMax / qt.differenceBetweenTwoNextKeys
-		for postKey := qt.getKey(postprocessedRows[len(postprocessedRows)-1]) + 1; postKey <= lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; postKey++ {
+		firstRequiredKey := qt.dateHistogram.calculateResponseKeyInUTC(qt.getKey(postprocessedRows[len(postprocessedRows)-1]))/qt.differenceBetweenTwoNextKeys + 1
+		lastRequiredKey := qt.dateHistogram.fromUTCToWantedTimezone(qt.extendedBoundsMax) / qt.differenceBetweenTwoNextKeys
+		for postKey := firstRequiredKey; postKey <= lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; postKey++ {
 			postRow := postprocessedRows[0].Copy()
 			postRow.Cols[len(postRow.Cols)-2].Value = postKey
 			postRow.Cols[len(postRow.Cols)-1].Value = qt.EmptyValue

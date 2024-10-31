@@ -64,7 +64,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Unskip after merge of auto_date_histogram")
 			}
 
-			if i != 66 {
+			if i != 15 {
 				t.Skip()
 			}
 
