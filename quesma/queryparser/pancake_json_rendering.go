@@ -236,7 +236,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		default:
 			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
 		}
-		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows)
+		if metric.name != PancakeTotalCountMetricName {
+			result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows)
+		}
 		// TODO: maybe add metadata also here? probably not needed
 	}
 
@@ -252,6 +254,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			json, err := p.combinatorBucketToJSON(remainingLayers, rows)
 			if err != nil {
 				return nil, err
+			}
+			if layer.nextBucketAggregation.metadata != nil {
+				json["meta"] = layer.nextBucketAggregation.metadata
 			}
 			result[layer.nextBucketAggregation.name] = json
 			return result, nil
@@ -345,18 +350,38 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 							return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
 						}
 					}
-
-					columnNameWithKey := layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
-					subAggrKey, found := p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
+					var (
+						columnNameWithKey = layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
+						found             bool
+						subAggrKey        any
+					)
+					if len(subAggrRows) > subAggrIdx {
+						subAggrKey, found = p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
+					}
 					if found && subAggrKey == key {
 						subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[subAggrIdx])
 						if err != nil {
 							return nil, err
 						}
 						bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
+						if _, exists = bucketArr[i][bucket_aggregations.OriginalKeyName]; exists {
+							delete(bucketArr[i], bucket_aggregations.OriginalKeyName)
+						}
 						subAggrIdx++
 					} else {
-						bucketArr[i] = bucket
+						// used to be just "bucketArr[i] = bucket" here
+						// Back then, no empty subaggregation results were created, now they are, which is needed
+						// e.g.
+						// before: {"buckets": [{"key": "a", "doc_count": 0}]}
+						// now: {"buckets": [{"key": "a", "doc_count": 0, "subaggr": {value: 0}}]}
+						json, err := p.layerToJSON(remainingLayers[1:], []model.QueryResultRow{})
+						if err != nil {
+							return nil, err
+						}
+						bucketArr[i] = util.MergeMaps(p.ctx, bucket, json)
+						if _, exists = bucketArr[i][bucket_aggregations.OriginalKeyName]; exists {
+							delete(bucketArr[i], bucket_aggregations.OriginalKeyName)
+						}
 					}
 				}
 			}
