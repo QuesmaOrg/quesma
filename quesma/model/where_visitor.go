@@ -8,16 +8,16 @@ package model
 // We achieve that by only descending for AND operators.
 //
 // TODO: add upper bound here too, when bucket_nr=1 in auto_date_histogram (only use case of this function), it's not needed.
-func FindLowerBounds(expr Expr) ([]InfixExpr, bool) {
+func FindLowerBounds(expr Expr) []InfixExpr {
 	if expr == nil {
-		return []InfixExpr{}, false
+		return []InfixExpr{}
 	}
 
-	candidates := make([]InfixExpr, 0)
+	lowerBounds := make([]InfixExpr, 0)
 	visitor := NewBaseVisitor()
 	visitor.OverrideVisitInfix = func(visitor *BaseExprVisitor, e InfixExpr) interface{} {
 		if e.Op == ">=" || e.Op == ">" {
-			candidates = append(candidates, e)
+			lowerBounds = append(lowerBounds, e)
 		} else if e.Op == "AND" {
 			e.Left.Accept(visitor)
 			e.Right.Accept(visitor)
@@ -26,8 +26,5 @@ func FindLowerBounds(expr Expr) ([]InfixExpr, bool) {
 	}
 
 	expr.Accept(visitor)
-	if len(candidates) >= 1 {
-		return candidates, true
-	}
-	return []InfixExpr{}, false
+	return lowerBounds
 }

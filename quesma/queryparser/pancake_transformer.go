@@ -378,8 +378,8 @@ func (a *pancakeTransformer) transformAutoDateHistogram(layers []*pancakeModelLa
 	for _, layer := range layers {
 		if layer.nextBucketAggregation != nil {
 			if autoDateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.AutoDateHistogram); ok {
-				lowerBoundsInWhere, ok := model.FindLowerBounds(whereClause)
-				if !ok {
+				lowerBoundsInWhere := model.FindLowerBounds(whereClause)
+				if len(lowerBoundsInWhere) == 0 {
 					logger.WarnWithCtx(a.ctx).Msgf("could not find timestamp lower bound for auto_date_histogram %v", autoDateHistogram)
 					continue
 				}
