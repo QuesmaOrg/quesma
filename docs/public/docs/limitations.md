@@ -6,6 +6,17 @@ It does not do tokenization, natural language processing or scoring.
 * Unsupported example: You need top 10 results for query car and expect to find article with word automobile.
 * Good fit: Searching for logs such as `InvalidPassword` should also match `InvalidPasswordError` without `*` as required in Elastic.
 
+## Software and hardware requirements
+We recommend setting up at least 2 CPU cores and 2GBs of RAM for the Quesma container. The requirements may vary depending on the workload and the number of concurrent connections.
+Quesma has been tested with the following software versions:
+| Software                         | Version         |
+|----------------------------------|-----------------|
+| Docker                           | `24.0.7`        | 
+| Elasticsearch/Kibana             | `8.11.1`        |
+| ClickHouse                       | `24.1`, `23.12` |
+| OpenSearch/OpenSearch Dashboards | `2.12.0`        |
+| Hydrolix                         | `v4.8.12`       |
+
 ## Functional limitations
 Currently supported:
 - front-end support for Kibana and Open Search Dashboards, limited to Discover(LogExplorer) interface and Dashboard panels
