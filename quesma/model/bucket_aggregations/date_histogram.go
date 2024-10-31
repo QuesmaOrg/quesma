@@ -341,6 +341,23 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		return postprocessedRows
 	}
 
+	newRow := func(key int64) model.QueryResultRow {
+		var row model.QueryResultRow
+		if len(postprocessedRows) > 0 {
+			row = postprocessedRows[0].Copy()
+			row.Cols[len(row.Cols)-2].Value = key
+			row.Cols[len(row.Cols)-1].Value = qt.EmptyValue
+		} else {
+			row = model.QueryResultRow{
+				Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("", key),
+					model.NewQueryResultCol("", qt.EmptyValue),
+				},
+			}
+		}
+		return row
+	}
+
 	// add "pre" keys, so any needed key between [extendedBoundsMin, first_row_key]
 	if qt.extendedBoundsMin != NoExtendedBound {
 		firstRequiredKey := (qt.dateHistogram.fromUTCToWantedTimezone(qt.extendedBoundsMin) + qt.differenceBetweenTwoNextKeys - 1) / qt.differenceBetweenTwoNextKeys
@@ -356,12 +373,7 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		}
 		preRows := make([]model.QueryResultRow, 0, max(0, int(lastRequiredKey-firstRequiredKey)))
 		for preKey := firstRequiredKey; preKey < lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; preKey++ {
-			preRows = append(preRows, model.QueryResultRow{
-				Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("", preKey),
-					model.NewQueryResultCol("", qt.EmptyValue),
-				},
-			})
+			preRows = append(preRows, newRow(preKey))
 			emptyRowsAdded++
 		}
 
@@ -373,10 +385,7 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		firstRequiredKey := qt.dateHistogram.calculateResponseKeyInUTC(qt.getKey(postprocessedRows[len(postprocessedRows)-1]))/qt.differenceBetweenTwoNextKeys + 1
 		lastRequiredKey := qt.dateHistogram.fromUTCToWantedTimezone(qt.extendedBoundsMax) / qt.differenceBetweenTwoNextKeys
 		for postKey := firstRequiredKey; postKey <= lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; postKey++ {
-			postRow := postprocessedRows[0].Copy()
-			postRow.Cols[len(postRow.Cols)-2].Value = postKey
-			postRow.Cols[len(postRow.Cols)-1].Value = qt.EmptyValue
-			postprocessedRows = append(postprocessedRows, postRow)
+			postprocessedRows = append(postprocessedRows, newRow(postKey))
 			emptyRowsAdded++
 		}
 	}
