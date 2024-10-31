@@ -183,7 +183,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	buffer.Html(`<div id="dashboard-quesma" class="component">`)
 	buffer.Html(`<h3>Quesma</h3>`)
 
-	buffer = maybePrintUpgradeAvailableBanner(buffer)
+	buffer.Write(qmc.maybePrintUpgradeAvailableBanner())
 
 	buffer.Html(`<div class="status">Version: `)
 	buffer.Text(buildinfo.Version)
@@ -244,13 +244,17 @@ type latestVersionCheckResult struct {
 
 // maybePrintUpgradeAvailableBanner has time cap of 500ms to check for the latest version, if it takes longer than that,
 // it will log an error message and don't render anything
-func maybePrintUpgradeAvailableBanner(buffer builder.HtmlBuffer) builder.HtmlBuffer {
+func (qmc *QuesmaManagementConsole) maybePrintUpgradeAvailableBanner() []byte {
+	if qmc.cfg.Logging.RemoteLogDrainUrl == nil {
+		return nil
+	}
 
 	resultChan := make(chan latestVersionCheckResult, 1)
 	go func() {
 		upgradeAvailable, message := buildinfo.CheckForTheLatestVersion()
 		resultChan <- latestVersionCheckResult{upgradeAvailable, message}
 	}()
+	buffer := builder.HtmlBuffer{}
 	select {
 	case result := <-resultChan:
 		if result.upgradeAvailable {
@@ -261,5 +265,5 @@ func maybePrintUpgradeAvailableBanner(buffer builder.HtmlBuffer) builder.HtmlBuf
 	case <-time.After(500 * time.Millisecond):
 		logger.Error().Msg("Timeout while checking for the latest version.")
 	}
-	return buffer
+	return buffer.Bytes()
 }
