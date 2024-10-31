@@ -54,11 +54,11 @@ func (qmc *QuesmaManagementConsole) generateABTestingDashboard() []byte {
 
 	if qmc.hasABTestingTable() {
 
-		buffer.Html(`<form hx-post="/ab-testing-dashboard/report" hx-target="#report">
-		<label for="kibana_url">Kibana URL</label>
-		<input id="kibana_url" name="kibana_url" type="text" value="http://localhost:5601" />
-		<button type="submit">Generate report</button>
-	</form>`)
+		buffer.Html(`<form hx-post="/ab-testing-dashboard/report" hx-target="#report">`)
+		buffer.Html(`<label for="kibana_url">Kibana URL</label>`)
+		buffer.Html(`<input id="kibana_url" name="kibana_url" type="text" value="http://localhost:5601" />`)
+		buffer.Html(`<button type="submit">Generate report</button>`)
+		buffer.Html(`</form>`)
 
 		buffer.Html(`<div id="report"></div>`)
 
