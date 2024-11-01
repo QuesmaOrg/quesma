@@ -412,11 +412,6 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		pancakeResults = append(pancakeResults, a.createFiltersPancakes(&newPancake)...)
 	}
 
-	for _, pancake := range pancakeResults {
-		fmt.Println("PANC", pancake.whereClause)
-		fmt.Println()
-	}
-
 	return
 }
 
@@ -427,24 +422,25 @@ func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (newPa
 
 	firstLayer := pancake.layers[0]
 	filters, isFilters := firstLayer.nextBucketAggregation.queryType.(bucket_aggregations.Filters)
-	if !isFilters {
+	canSimplyAddFilterToWhereClause := len(firstLayer.currentMetricAggregations) == 0 && len(firstLayer.currentPipelineAggregations) == 0
+	isItNeeded := len(pancake.layers) > 1
+
+	if !isFilters || !canSimplyAddFilterToWhereClause || !isItNeeded {
 		return
 	}
-	fmt.Println("WTF PRZECIEZ TUTAJ")
-	if len(firstLayer.currentMetricAggregations) == 0 && len(firstLayer.currentPipelineAggregations) == 0 && len(pancake.layers) > 1 { // maybe secondLayer, not first?
-		// If filter is in the first layer, we can just add it to the where clause
-		fmt.Println("WTF PRZECIEZ TUTAJ 2", len(filters.Filters), filters.Filters)
-		for i, filter := range filters.Filters[1:] {
-			newPancake := pancake.Clone()
-			// new (every) pancake has only 1 filter instead of all
-			bucketAggr := newPancake.layers[0].nextBucketAggregation.ShallowClone()
-			bucketAggr.queryType = filters.NewFiltersSingleFilter(i + 1)
-			newPancake.layers[0] = newPancakeModelLayer(&bucketAggr)
-			newPancake.whereClause = model.And([]model.Expr{newPancake.whereClause, filter.Sql.WhereClause})
-			fmt.Println("WTF PRZECIEZ TUTAJ 3", newPancake.whereClause)
-			newPancakes = append(newPancakes, newPancake)
-		}
-		pancake.layers[0].nextBucketAggregation.queryType = filters.NewFiltersSingleFilter(0)
+
+	// First create N-1 new pancakes, each with different filter
+	for i := 1; i < len(filters.Filters); i++ {
+		newPancake := pancake.Clone()
+		bucketAggr := newPancake.layers[0].nextBucketAggregation.ShallowClone()
+		bucketAggr.queryType = filters.NewFiltersSingleFilter(i)
+		newPancake.layers[0] = newPancakeModelLayer(&bucketAggr)
+		newPancake.whereClause = model.And([]model.Expr{newPancake.whereClause, filters.Filters[i].Sql.WhereClause})
+		newPancakes = append(newPancakes, newPancake)
 	}
+
+	// Then update original to have 1 filter as well
+	pancake.layers[0].nextBucketAggregation.queryType = filters.NewFiltersSingleFilter(0)
+
 	return
 }
