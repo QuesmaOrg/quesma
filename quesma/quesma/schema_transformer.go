@@ -628,12 +628,12 @@ func (s *SchemaCheckPass) handleDottedTColumnNames(indexSchema schema.Schema, qu
 	doCompensation := false
 
 	visitor := model.NewBaseVisitor()
-
+	i := 0
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 
-		if strings.Contains(e.ColumnName, ".") {
+		if strings.Contains(e.ColumnName, ".") && i == 0 {
 			logger.Warn().Msgf("Dotted column name found: %s", e.ColumnName)
-
+			i++
 			if doCompensation {
 				return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
 			}
@@ -763,7 +763,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
-		{TransformationName: "DottedColumnNames", Transformation: s.handleDottedTColumnNames},
+		//{TransformationName: "DottedColumnNames", Transformation: s.handleDottedTColumnNames},
 	}
 
 	for k, query := range queries {

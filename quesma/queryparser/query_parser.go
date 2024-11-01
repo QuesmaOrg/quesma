@@ -1262,6 +1262,13 @@ func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap, defaultSize in
 		return defaultSize
 	} else if sizeAsFloat, ok := sizeRaw.(float64); ok {
 		return int(sizeAsFloat)
+	} else if sizeAsString, ok := sizeRaw.(string); ok {
+		if sizeAsInt, err := strconv.Atoi(sizeAsString); err == nil {
+			return sizeAsInt
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected int", sizeRaw, sizeRaw)
+			return defaultSize
+		}
 	} else {
 		logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected float64", sizeRaw, sizeRaw)
 		return defaultSize
