@@ -600,7 +600,7 @@ var CloverTests = []testdata.AggregationTestCase{
 								},
 								"doc_count": 1000,
 								"key": 1721399904783,
-								"key_as_string": "2024-07-19T16:38:24.783+02:00"
+								"key_as_string": "2024-07-19T14:38:24.783"
 							}
 						],
 						"interval": "100y",
