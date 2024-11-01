@@ -44,7 +44,7 @@ func (query Filters) AggregationType() model.AggregationType {
 }
 
 func (query Filters) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	var value any = nil
+	var value any = 0.0
 	if len(rows) > 0 {
 		if len(rows[0].Cols) > 0 {
 			value = rows[0].Cols[len(rows[0].Cols)-1].Value
