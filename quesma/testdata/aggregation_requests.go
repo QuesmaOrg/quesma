@@ -3487,9 +3487,9 @@ var AggregationTests = []AggregationTestCase{
 			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__1_col_0",
 			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__2_col_0"
 			FROM __quesma_table_name
-			WHERE ((("order_date">=fromUnixTimestamp64Milli(1708639056376) AND
-			  "order_date"<=fromUnixTimestamp64Milli(1709243856376)) OR
-			  ("order_date">=fromUnixTimestamp64Milli(1708034256376) AND "order_date"<=
+			WHERE ((("order_date">=fromUnixTimestamp64Milli(1708639056376) AND "order_date"
+			  <=fromUnixTimestamp64Milli(1709243856376)) OR ("order_date">=
+			  fromUnixTimestamp64Milli(1708034256376) AND "order_date"<=
 			  fromUnixTimestamp64Milli(1708639056376))) AND ("order_date">=
 			  fromUnixTimestamp64Milli(1708639056376) AND "order_date"<=
 			  fromUnixTimestamp64Milli(1709243856376)))
@@ -3504,14 +3504,12 @@ var AggregationTests = []AggregationTestCase{
 			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__1_col_0",
 			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__2_col_0"
 			FROM __quesma_table_name
-			WHERE (((("order_date">=fromUnixTimestamp64Milli(1708639056376) AND "order_date"
-			  <=fromUnixTimestamp64Milli(1709243856376)) OR ("order_date">=
-			  fromUnixTimestamp64Milli(1708034256376) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1708639056376))) AND ("order_date">=
-			  fromUnixTimestamp64Milli(1708034256376) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1708639056376))) AND ("order_date">=
-			  fromUnixTimestamp64Milli(1708034256376) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1708639056376)))
+			WHERE ((("order_date">=fromUnixTimestamp64Milli(1708639056376) AND
+			  "order_date"<=fromUnixTimestamp64Milli(1709243856376)) OR
+			  ("order_date">=fromUnixTimestamp64Milli(1708034256376) AND
+			  "order_date"<=fromUnixTimestamp64Milli(1708639056376))) AND
+			  ("order_date">=fromUnixTimestamp64Milli(1708034256376) AND
+			  "order_date"<=fromUnixTimestamp64Milli(1708639056376)))
 			GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
 			  "aggr__time_offset_split__0__key_0"
 			ORDER BY "aggr__time_offset_split__0__key_0" ASC`,

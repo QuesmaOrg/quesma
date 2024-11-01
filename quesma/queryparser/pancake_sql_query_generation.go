@@ -310,24 +310,12 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		if layer.nextBucketAggregation != nil {
 			if combinator, isCombinator := layer.nextBucketAggregation.queryType.(bucket_aggregations.CombinatorAggregationInterface); isCombinator {
 				var isFilter bool
-				//pp.Println(combinator)
 				switch combinator.(type) {
 				case *bucket_aggregations.FilterAgg, bucket_aggregations.Filters:
 					isFilter = true
 				}
-				fmt.Println("isFilter: ", isFilter, len(aggregation.layers))
-				//pp.Println(aggregation.layers[0])
-				if isFilter && i == 0 && len(aggregation.layers) > 1 && len(layer.currentMetricAggregations) == 0 && len(layer.currentPipelineAggregations) == 0 {
-					// If filter is in the first layer, we can just add it to the where clause
-					switch combinatorTyped := combinator.(type) {
-					case bucket_aggregations.FilterAgg:
-						//aggregation.whereClause = model.And([]model.Expr{aggregation.whereClause, combinatorTyped.WhereClause})
-					case bucket_aggregations.Filters:
-						// TODO accept second
-						fmt.Println("Adding ", combinatorTyped.Filters[0].Sql.WhereClause)
-						aggregation.whereClause = model.And([]model.Expr{aggregation.whereClause, combinatorTyped.Filters[0].Sql.WhereClause}) // TODO check [0]
-					}
-				} else {
+				filterAlreadyInWhereClause := i == 0 && len(aggregation.layers) > 1 && len(layer.currentMetricAggregations) == 0 && len(layer.currentPipelineAggregations) == 0
+				if !isFilter || !filterAlreadyInWhereClause {
 					addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), combinator})
 				}
 			}
@@ -353,7 +341,6 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	// this change selects by adding -If suffix, e.g. count(*) -> countIf(response_time < 1000)
 	// they may also add more columns with different prefix and where clauses
 	var combinatorWhere []model.Expr
-	fmt.Println("len(addIfCombinators): ", len(addIfCombinators))
 	for i := len(addIfCombinators) - 1; i >= 0; i-- { // reverse order is important
 		combinator := addIfCombinators[i]
 		selectsBefore := selectColumns[:combinator.selectNr]

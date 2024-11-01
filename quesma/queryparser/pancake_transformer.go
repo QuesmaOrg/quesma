@@ -403,18 +403,26 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 			whereClause: topLevel.whereClause,
 			sampleLimit: sampleLimit,
 		}
+		pancakeResults = append(pancakeResults, &newPancake)
+
+		// TODO: if both top_hits/top_metrics, and filters, it probably won't work...
+		// Care: order of these two functions is unfortunately important.
+		// Should be fixed after this TODO
+		newFiltersPancakes := a.createFiltersPancakes(&newPancake)
 		additionalTopHitPancakes, err := a.createTopHitAndTopMetricsPancakes(&newPancake)
 		if err != nil {
 			return nil, err
 		}
-		pancakeResults = append(pancakeResults, &newPancake)
+
 		pancakeResults = append(pancakeResults, additionalTopHitPancakes...)
-		pancakeResults = append(pancakeResults, a.createFiltersPancakes(&newPancake)...)
+		pancakeResults = append(pancakeResults, newFiltersPancakes...)
 	}
 
 	return
 }
 
+// createFiltersPancakes only does something, if first layer aggregation is Filters.
+// It creates new pancakes for each filter in that aggregation, and updates `pancake` to have only first filter.
 func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (newPancakes []*pancakeModel) {
 	if len(pancake.layers) == 0 || pancake.layers[0].nextBucketAggregation == nil {
 		return
@@ -423,9 +431,9 @@ func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (newPa
 	firstLayer := pancake.layers[0]
 	filters, isFilters := firstLayer.nextBucketAggregation.queryType.(bucket_aggregations.Filters)
 	canSimplyAddFilterToWhereClause := len(firstLayer.currentMetricAggregations) == 0 && len(firstLayer.currentPipelineAggregations) == 0
-	isItNeeded := len(pancake.layers) > 1
+	areNewPancakesReallyNeeded := len(pancake.layers) > 1 // if there is only one layer, it's better to get it done with combinators.
 
-	if !isFilters || !canSimplyAddFilterToWhereClause || !isItNeeded {
+	if !isFilters || !canSimplyAddFilterToWhereClause || !areNewPancakesReallyNeeded || len(filters.Filters) == 0 {
 		return
 	}
 
@@ -441,6 +449,7 @@ func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (newPa
 
 	// Then update original to have 1 filter as well
 	pancake.layers[0].nextBucketAggregation.queryType = filters.NewFiltersSingleFilter(0)
+	pancake.whereClause = model.And([]model.Expr{pancake.whereClause, filters.Filters[0].Sql.WhereClause})
 
 	return
 }

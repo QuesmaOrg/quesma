@@ -165,7 +165,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if len(expectedMinusActual) != 0 {
 				pp.Println("EXPECTED diff", expectedMinusActual)
 			}
-			pp.Println("ACTUAL", pancakeJson)
+			//pp.Println("ACTUAL", pancakeJson)
 			//pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
