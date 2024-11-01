@@ -473,4 +473,174 @@ var CloverTests = []testdata.AggregationTestCase{
 			  fromUnixTimestamp64Milli(1728635627125))`,
 		AdditionalAcceptableDifference: []string{"key_as_string"}, // timezone differences between local and github runs... There's always 2h difference between those, need to investigate. Maybe come back to .UTC() so there's no "+timezone" (e.g. +02:00)?
 	},
+	{ // [6]
+		TestName: "bucket_script with multiple buckets_path",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"timeseries": {
+					"aggs": {
+						"f2": {
+							"bucket_script": {
+								"buckets_path": {
+									"denominator": "f2-denominator>_count",
+									"numerator": "f2-numerator>_count"
+								},
+								"script": "params.numerator != null && params.denominator != null && params.denominator != 0 ? params.numerator / params.denominator : 0"
+							}
+						},
+						"f2-denominator": {
+							"filter": {
+								"bool": {
+									"filter": [],
+									"must": [],
+									"must_not": [],
+									"should": []
+								}
+							}
+						},
+						"f2-numerator": {
+							"filter": {
+								"bool": {
+									"filter": [],
+									"must": [
+										{
+											"query_string": {
+												"analyze_wildcard": true,
+												"query": "!_exists_:a.b_str"
+											}
+										}
+									],
+									"must_not": [],
+									"should": []
+								}
+							}
+						}
+					},
+					"auto_date_histogram": {
+						"buckets": 1,
+						"field": "@timestamp"
+					},
+					"meta": {
+						"indexPatternString": "ab*",
+						"intervalString": "9075600000ms",
+						"normalized": true,
+						"panelId": "f0",
+						"seriesId": "f1",
+						"timeField": "@timestamp"
+					}
+				}
+			},
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"range": {
+								"@timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-07-19T14:38:24.783Z",
+									"lte": "2024-11-01T15:38:24.783Z"
+								}
+							}
+						},
+						{
+							"bool": {
+								"filter": [],
+								"must": [],
+								"must_not": [],
+								"should": []
+							}
+						},
+						{
+							"bool": {
+								"filter": [],
+								"must": [],
+								"must_not": [],
+								"should": []
+							}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"timeout": "30000ms",
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 1730475504882,
+			"expiration_time_in_millis": 1730898929116,
+			"id": "quesma_async_0192e860-b4cb-7be4-a193-43d38686c80d",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"timeseries": {
+						"buckets": [
+							{
+								"f2": {
+									"value": 0.178
+								},
+								"f2-denominator": {
+									"doc_count": 1000
+								},
+								"f2-numerator": {
+									"doc_count": 178
+								},
+								"doc_count": 1000,
+								"key": 1721399904783,
+								"key_as_string": "2024-07-19T14:38:24.783"
+							}
+						],
+						"interval": "100y",
+						"meta": {
+							"indexPatternString": "ab*",
+							"intervalString": "9075600000ms",
+							"normalized": true,
+							"panelId": "f0",
+							"seriesId": "f1",
+							"timeField": "@timestamp"
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 1000
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__timeseries__count", int64(1000)),
+				model.NewQueryResultCol("metric__timeseries__f2-numerator_col_0", int64(178)),
+				model.NewQueryResultCol("aggr__timeseries__f2-denominator__count", int64(1000)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT count(*) AS "aggr__timeseries__count",
+			  countIf(NOT ("a.b_str" IS NOT NULL)) AS
+			  "metric__timeseries__f2-numerator_col_0",
+			  countIf(true) AS "aggr__timeseries__f2-denominator__count"
+			FROM __quesma_table_name
+			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1721399904783) AND "@timestamp"<=
+			  fromUnixTimestamp64Milli(1730475504783))`,
+	},
 }
