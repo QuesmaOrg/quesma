@@ -63,7 +63,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if test.TestName == "multiple buckets_path(file:clients/clover,nr:1)" {
 				t.Skip("This needs fixing ASAP, easy to fix")
 			}
-			if test.TestName == "Clover(file:clients/clover,nr:4)" {
+			if test.TestName == "Clover(file:clients/clover,nr:5)" {
 				t.Skip("answers are fine, need to update test")
 			}
 
@@ -74,10 +74,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:24)" {
 				t.Skip("Was skipped before, no expected results")
-			}
-
-			if i != 10 {
-				t.Skip()
 			}
 
 			// TODO: add test for filter(s) both at the beginning and end of aggregation tree

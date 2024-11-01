@@ -473,7 +473,7 @@ var CloverTests = []testdata.AggregationTestCase{
 			  fromUnixTimestamp64Milli(1728635627125))`,
 		AdditionalAcceptableDifference: []string{"key_as_string"}, // timezone differences between local and github runs... There's always 2h difference between those, need to investigate. Maybe come back to .UTC() so there's no "+timezone" (e.g. +02:00)?
 	},
-	{ // [2]
+	{ // [3]
 		TestName: "todo",
 		QueryRequestJson: `
 		{
@@ -594,7 +594,7 @@ var CloverTests = []testdata.AggregationTestCase{
 			  "aggr__other-filter__3__key_0" ASC
 			LIMIT 16`,
 	},
-	{ // [3]
+	{ // [4]
 		TestName: "todo",
 		QueryRequestJson: `
 		{
@@ -684,6 +684,9 @@ var CloverTests = []testdata.AggregationTestCase{
 				},
 				"aggregations": {
 					"q": {
+						"meta": {
+							"type": "split"
+						},
 						"buckets": {
 							"*": {
 								"doc_count": 4675,
@@ -766,7 +769,7 @@ var CloverTests = []testdata.AggregationTestCase{
 			  "aggr__q__time_buckets__key_0"
 			ORDER BY "aggr__q__time_buckets__key_0" ASC`,
 	},
-	{ // [1]
+	{ // [5]
 		TestName: "Clover",
 		QueryRequestJson: `
 		{

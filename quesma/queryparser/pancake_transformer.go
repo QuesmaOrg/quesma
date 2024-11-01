@@ -407,6 +407,7 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		if err != nil {
 			return nil, err
 		}
+		pancakeResults = append(pancakeResults, &newPancake)
 		pancakeResults = append(pancakeResults, additionalTopHitPancakes...)
 		pancakeResults = append(pancakeResults, a.createFiltersPancakes(&newPancake)...)
 	}

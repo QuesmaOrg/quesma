@@ -2230,9 +2230,8 @@ var AggregationTests = []AggregationTestCase{
 			  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
 			FROM "quesma_top_hits_join"
 			WHERE "top_hits_rank"<=10
-			ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC
-			`, `
-			WITH quesma_top_hits_group_table AS (
+			ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
+			`WITH quesma_top_hits_group_table AS (
 			  SELECT sum(count(*)) OVER () AS "aggr__1__count",
 				toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 				"order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0",
@@ -3488,9 +3487,9 @@ var AggregationTests = []AggregationTestCase{
 			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__1_col_0",
 			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__2_col_0"
 			FROM __quesma_table_name
-			WHERE ((("order_date">=fromUnixTimestamp64Milli(1708639056376) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1709243856376)) OR ("order_date">=
-			  fromUnixTimestamp64Milli(1708034256376) AND "order_date"<=
+			WHERE ((("order_date">=fromUnixTimestamp64Milli(1708639056376) AND
+			  "order_date"<=fromUnixTimestamp64Milli(1709243856376)) OR
+			  ("order_date">=fromUnixTimestamp64Milli(1708034256376) AND "order_date"<=
 			  fromUnixTimestamp64Milli(1708639056376))) AND ("order_date">=
 			  fromUnixTimestamp64Milli(1708639056376) AND "order_date"<=
 			  fromUnixTimestamp64Milli(1709243856376)))
