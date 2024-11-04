@@ -18,7 +18,7 @@ type IndexConfiguration struct {
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
 	Override        string                            `koanf:"override"`
 	UseCommonTable  bool                              `koanf:"useCommonTable"`
-	Target          []string                          `koanf:"target"`
+	Target          any                               `koanf:"target"`
 
 	// Computed based on the overall configuration
 	Name         string
