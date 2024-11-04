@@ -622,6 +622,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 						} else {
 							errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
 						}
+						if _, exists := target.properties["useCommonTable"]; exists {
+							processedConfig.UseCommonTable = true
+						}
 					}
 				}
 				// fallback to old style, simplified target configuration
@@ -781,6 +784,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					} else {
 						errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
 					}
+					if _, exists := target.properties["useCommonTable"]; exists {
+						processedConfig.UseCommonTable = true
+					}
 				}
 			}
 			// fallback to old style, simplified target configuration
@@ -837,6 +843,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 						processedConfig.IngestTarget = append(processedConfig.IngestTarget, targetType)
 					} else {
 						errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
+					}
+					if _, exists := target.properties["useCommonTable"]; exists {
+						processedConfig.UseCommonTable = true
 					}
 				}
 			}
