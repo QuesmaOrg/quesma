@@ -283,6 +283,9 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"1": {
 									"value": 5.0
 								},
+								"1-metric": {
+									"value": null
+								},
 								"doc_count": 0,
 								"key": 1728144360000,
 								"key_as_string": "2024-10-05T16:06:00.000"
@@ -290,6 +293,9 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							{
 								"1": {
 									"value": 5.0
+								},
+								"1-metric": {
+									"value": null
 								},
 								"doc_count": 0,
 								"key": 1728144420000,

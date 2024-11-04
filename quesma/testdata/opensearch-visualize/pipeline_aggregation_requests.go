@@ -755,12 +755,18 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"1": {
 									"value": null
 								},
+								"1-metric": {
+									"value": null
+								},
 								"doc_count": 0,
 								"key": 1715197200000,
 								"key_as_string": "2024-05-08T19:40:00.000"
 							},
 							{
 								"1": {
+									"value": null
+								},
+								"1-metric": {
 									"value": null
 								},
 								"doc_count": 0,
@@ -1625,12 +1631,18 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"1": {
 									"value": null
 								},
+								"1-metric": {
+									"value": null
+								},
 								"doc_count": 0,
 								"key": 1715197200000,
 								"key_as_string": "2024-05-08T19:40:00.000"
 							},
 							{
 								"1": {
+									"value": null
+								},
+								"1-metric": {
 									"value": null
 								},
 								"doc_count": 0,
@@ -3691,6 +3703,9 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 3.0
 						},
 						{
+							"1-metric": {
+								"value": null
+							},
 							"3": {
 								"value": null
 							},

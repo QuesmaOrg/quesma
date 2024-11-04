@@ -316,11 +316,6 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						bucketArr[i][pipelineAggrName] = pipelineAggrResult[i]
 					}
 
-					if docCount, ok := bucket["doc_count"]; ok && fmt.Sprintf("%v", docCount) == "0" {
-						// Not sure, but it does the trick.
-						continue
-					}
-
 					subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[i])
 					if err != nil {
 						return nil, err
@@ -335,11 +330,6 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 				for i, bucket := range bucketArr {
 					for pipelineAggrName, pipelineAggrResult := range pipelineBucketsPerAggregation {
 						bucketArr[i][pipelineAggrName] = pipelineAggrResult[i]
-					}
-
-					if docCount, ok := bucket["doc_count"]; ok && fmt.Sprintf("%v", docCount) == "0" {
-						// Not sure, but it does the trick.
-						continue
 					}
 
 					// if our bucket aggregation is a date_histogram, we need original key, not processed one, which is "key"
@@ -372,10 +362,11 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						return nil, err
 					}
 					bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
-					if _, exists = bucketArr[i][bucket_aggregations.OriginalKeyName]; exists {
-						delete(bucketArr[i], bucket_aggregations.OriginalKeyName)
-					}
 				}
+			}
+
+			for i := 0; i < len(bucketArr); i++ {
+				delete(bucketArr[i], bucket_aggregations.OriginalKeyName)
 			}
 		}
 

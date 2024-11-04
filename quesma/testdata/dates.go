@@ -198,21 +198,33 @@ var AggregationTestsWithDates = []AggregationTestCase{
 					"timeseries": {
 						"buckets": [
 							{
+								"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+									"value": 0
+								},
 								"doc_count": 0,
 								"key": 1730370420000,
 								"key_as_string": "2024-10-31T10:27:00.000"
 							},
 							{
+								"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+									"value": 0
+								},
 								"doc_count": 0,
 								"key": 1730370430000,
 								"key_as_string": "2024-10-31T10:27:10.000"
 							},
 							{
+								"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+									"value": 0
+								},
 								"doc_count": 0,
 								"key": 1730370440000,
 								"key_as_string": "2024-10-31T10:27:20.000"
 							},
 							{
+								"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+									"value": 0
+								},
 								"doc_count": 0,
 								"key": 1730370450000,
 								"key_as_string": "2024-10-31T10:27:30.000"
@@ -226,21 +238,33 @@ var AggregationTestsWithDates = []AggregationTestCase{
 								"key_as_string": "2024-10-31T10:27:40.000"
 							},
 							{
+								"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+									"value": 0
+								},
 								"doc_count": 0,
 								"key": 1730370470000,
 								"key_as_string": "2024-10-31T10:27:50.000"
 							},
 							{
+								"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+									"value": 0
+								},
 								"doc_count": 0,
 								"key": 1730370480000,
 								"key_as_string": "2024-10-31T10:28:00.000"
 							},
 							{
+								"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+									"value": 0
+								},
 								"doc_count": 0,
 								"key": 1730370490000,
 								"key_as_string": "2024-10-31T10:28:10.000"
 							},
 							{
+								"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+									"value": 0
+								},
 								"doc_count": 0,
 								"key": 1730370500000,
 								"key_as_string": "2024-10-31T10:28:20.000"
@@ -387,21 +411,33 @@ var AggregationTestsWithDates = []AggregationTestCase{
 								"key_as_string": "2024-10-31T10:27:40.000"
 							},
 							{
+								"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+									"value": 0
+								},
 								"doc_count": 0,
 								"key": 1730370470000,
 								"key_as_string": "2024-10-31T10:27:50.000"
 							},
 							{
+								"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+									"value": 0
+								},
 								"doc_count": 0,
 								"key": 1730370480000,
 								"key_as_string": "2024-10-31T10:28:00.000"
 							},
 							{
+								"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+									"value": 0
+								},
 								"doc_count": 0,
 								"key": 1730370490000,
 								"key_as_string": "2024-10-31T10:28:10.000"
 							},
 							{
+								"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+									"value": 0
+								},
 								"doc_count": 0,
 								"key": 1730370500000,
 								"key_as_string": "2024-10-31T10:28:20.000"
@@ -415,6 +451,9 @@ var AggregationTestsWithDates = []AggregationTestCase{
 								"key_as_string": "2024-10-31T10:28:30.000"
 							},
 							{
+								"c4a48962-08e6-4791-ae9e-b50f1b111488": {
+									"value": 0
+								},
 								"doc_count": 0,
 								"key": 1730370520000,
 								"key_as_string": "2024-10-31T10:28:40.000"
