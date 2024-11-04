@@ -1780,23 +1780,38 @@ var AggregationTests2 = []AggregationTestCase{
 						},
 						{
 							"doc_count": 0,
-							"key": 9200.0
+							"key": 9200.0,
+							"3": {
+								"buckets": []
+							}
 						},
 						{
 							"doc_count": 0,
-							"key": 9300.0
+							"key": 9300.0,
+							"3": {
+								"buckets": []
+							}
 						},
 						{
 							"doc_count": 0,
-							"key": 9400.0
+							"key": 9400.0,
+							"3": {
+								"buckets": []
+							}
 						},
 						{
 							"doc_count": 0,
-							"key": 9500.0
+							"key": 9500.0,
+							"3": {
+								"buckets": []
+							}
 						},
 						{
 							"doc_count": 0,
-							"key": 9600.0
+							"key": 9600.0,
+							"3": {
+								"buckets": []
+							}
 						},
 						{
 							"doc_count": 2,

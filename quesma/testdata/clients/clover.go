@@ -876,17 +876,26 @@ var CloverTests = []testdata.AggregationTestCase{
 										{
 											"doc_count": 0,
 											"key": 1727308800000,
-											"key_as_string": "2024-09-26T00:00:00.000"
+											"key_as_string": "2024-09-26T00:00:00.000",
+											"count": {
+												"value": 0
+											}
 										},
 										{
 											"doc_count": 0,
 											"key": 1727913600000,
-											"key_as_string": "2024-10-03T00:00:00.000"
+											"key_as_string": "2024-10-03T00:00:00.000",
+											"count": {
+												"value": 0
+											}
 										},
 										{
 											"doc_count": 0,
 											"key": 1728518400000,
-											"key_as_string": "2024-10-10T00:00:00.000"
+											"key_as_string": "2024-10-10T00:00:00.000",
+											"count": {
+												"value": 0
+											}
 										},
 										{
 											"doc_count": 1,

@@ -134,10 +134,16 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"key": 0
 						},
 						{
+							"1": {
+								"buckets": []
+							},
 							"doc_count": 0,
 							"key": 2000000
 						},
 						{
+							"1": {
+								"buckets": []
+							},
 							"doc_count": 0,
 							"key": 4000000
 						},
@@ -310,7 +316,12 @@ var AggregationTests = []testdata.AggregationTestCase{
 									},
 									{
 										"doc_count": 0,
-										"key": 1
+										"key": 1,
+										"2": {
+											"values": {
+												"95.0": null
+											}
+										}
 									},
 									{
 										"2": {
@@ -328,6 +339,9 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"key_as_string": "2024-04-24T11:15:30.000"
 						},
 						{
+							"1": {
+								"buckets": []
+							},
 							"doc_count": 0,
 							"key": 1713957360000,
 							"key_as_string": "2024-04-24T11:16:00.000"
@@ -345,6 +359,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 										"key": 1
 									},
 									{
+										"2": {
+											"values": {
+												"95.0": null
+											}
+										},
 										"doc_count": 0,
 										"key": 1.5
 									},
@@ -358,6 +377,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 										"key": 2
 									},
 									{
+										"2": {
+											"values": {
+												"95.0": null
+											}
+										},
 										"doc_count": 0,
 										"key": 2.5
 									},
