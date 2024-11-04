@@ -19,7 +19,7 @@ func (u *Url) UnmarshalText(text []byte) error {
 		return err
 	}
 	if len(urlValue.Scheme) == 0 || len(urlValue.Host) == 0 {
-		return fmt.Errorf("Invalid URL (missing protocol and/or hostname). Expected URL in a format 'protocol://hostname:port' (e.g. 'http://localhost:8123'), but instead got: %s", urlValue)
+		return fmt.Errorf("invalid URL (missing protocol and/or hostname). Expected URL in a format 'protocol://hostname:port' (e.g. 'http://localhost:8123'), but instead got: %s", urlValue)
 	}
 	if len(urlValue.Port()) == 0 {
 		return fmt.Errorf("URL port (e.g. 8123 in 'http://localhost:8123') is missing from the provided URL: %s", urlValue)
