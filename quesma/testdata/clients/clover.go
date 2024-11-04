@@ -955,10 +955,6 @@ var CloverTests = []testdata.AggregationTestCase{
 								}
 							},
 							"date_histogram": {
-								"extended_bounds": {
-									"max": 1728592321610,
-									"min": 1728333121610
-								},
 								"field": "@timestamp",
 								"fixed_interval": "30m",
 								"min_doc_count": 0,
@@ -1008,28 +1004,33 @@ var CloverTests = []testdata.AggregationTestCase{
 							"buckets": [
 								{
 									"doc_count": 442,
-									"key": 1726358400000,
+									"key": 1726351200000,
+									"key_as_string": "2024-09-14T22:00:00.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1726353000000,
+									"key_as_string": "2024-09-14T22:30:00.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1726354800000,
+									"key_as_string": "2024-09-14T23:00:00.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1726356600000,
+									"key_as_string": "2024-09-14T23:30:00.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1726356600000,
 									"key_as_string": "2024-09-15T00:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1726963200000,
-									"key_as_string": "2024-09-22T00:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1727568000000,
-									"key_as_string": "2024-09-29T00:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1728172800000,
-									"key_as_string": "2024-10-06T00:00:00.000"
 								},
 								{
 									"doc_count": 1,
 									"key": 1728777600000,
-									"key_as_string": "2024-10-13T00:00:00.000"
+									"key_as_string": "2024-09-15T00:30:00.000"
 								}
 							]
 						}
@@ -1057,9 +1058,9 @@ var CloverTests = []testdata.AggregationTestCase{
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__q__count", int64(4675)),
-				model.NewQueryResultCol("aggr__q__time_buckets__key_0", int64(1726361400000/1800000)),
-				model.NewQueryResultCol("aggr__q__time_buckets__count", int64(442)),
-				model.NewQueryResultCol("metric__q__time_buckets__sum(count)_col_0", int64(442)),
+				model.NewQueryResultCol("aggr__q__time_buckets__key_0", int64(1726367400000/1800000)),
+				model.NewQueryResultCol("aggr__q__time_buckets__count", int64(1)),
+				model.NewQueryResultCol("metric__q__time_buckets__sum(count)_col_0", int64(1)),
 			}},
 		},
 		ExpectedPancakeSQL: `

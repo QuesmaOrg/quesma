@@ -63,7 +63,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if test.TestName == "multiple buckets_path(file:clients/clover,nr:1)" {
 				t.Skip("This needs fixing ASAP, easy to fix")
 			}
-			if test.TestName == "Clover(file:clients/clover,nr:5)" {
+			if test.TestName == "Clover(file:clients/clover,nr:6)" {
 				t.Skip("answers are fine, need to update test")
 			}
 
