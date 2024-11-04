@@ -318,7 +318,7 @@ var AggregationTests = []AggregationTestCase{
 			LIMIT 1001`,
 	},
 	{ // [2]
-		TestName: "date_histogram",
+		TestName: "date_histogram + size as string",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -345,7 +345,7 @@ var AggregationTests = []AggregationTestCase{
 							"_count": "desc"
 						},
 						"shard_size": 25,
-						"size": 10
+						"size": "10"
 					}
 				}
 			},
