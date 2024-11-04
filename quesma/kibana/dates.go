@@ -3,16 +3,21 @@
 package kibana
 
 import (
+	"context"
+	"quesma/clickhouse"
+	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
 	"strconv"
 	"time"
 )
 
-type DateManager struct{}
+type DateManager struct {
+	ctx context.Context
+}
 
-func NewDateManager() DateManager {
-	return DateManager{}
+func NewDateManager(ctx context.Context) DateManager {
+	return DateManager{ctx}
 }
 
 var acceptableDateTimeFormats = []string{"2006", "2006-01", "2006-01-02", "2006-01-02", "2006-01-02T15",
@@ -67,9 +72,17 @@ func (dm DateManager) ParseMissingInDateHistogram(missing any) (unixTimestamp in
 // ParseRange parses range filter.
 // We assume it's in [strict_date_optional_time || epoch_millis] format (TODO: other formats)
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
-func (dm DateManager) ParseRange(Range any) (timestampExpr model.Expr, parsingSucceeded bool) {
+func (dm DateManager) ParseRange(Range any, datetimeType clickhouse.DateTimeType) (timestampExpr model.Expr, parsingSucceeded bool) {
 	if timestamp, success := dm.parseStrictDateOptionalTimeOrEpochMillis(Range); success {
-		return model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(timestamp)), true
+		switch datetimeType {
+		case clickhouse.DateTime64:
+			return model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(timestamp)), true
+		case clickhouse.DateTime:
+			return model.NewFunction("fromUnixTimestamp", model.NewLiteral(timestamp)), true
+		default:
+			logger.WarnWithCtx().Msgf("Unknown datetimeType: %v", datetimeType)
+		}
+
 	}
 	return nil, false
 }

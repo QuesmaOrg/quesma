@@ -81,8 +81,9 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		weAddedMissing := false
 		if missingRaw, exists := dateHistogram["missing"]; exists {
 			if missing, ok := missingRaw.(string); ok {
-				dateManager := kibana.NewDateManager()
-				if unixTimestamp, parsingOk := dateManager.ParseMissingInDateHistogram(missing); parsingOk {
+				dateManager := kibana.NewDateManager(cw.Ctx)
+				fieldType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
+				if unixTimestamp, parsingOk := dateManager.ParseMissingInDateHistogram(missing, fieldType); parsingOk {
 					field = model.NewFunction("COALESCE", field,
 						model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(unixTimestamp)))
 					weAddedMissing = true
