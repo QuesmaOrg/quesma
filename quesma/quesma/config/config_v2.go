@@ -39,23 +39,22 @@ const (
 )
 
 type QuesmaNewConfiguration struct {
-	BackendConnectors          []BackendConnector   `koanf:"backendConnectors"`
-	FrontendConnectors         []FrontendConnector  `koanf:"frontendConnectors"`
-	InstallationId             string               `koanf:"installationId"`
-	LicenseKey                 string               `koanf:"licenseKey"`
-	Logging                    LoggingConfiguration `koanf:"logging"`
-	IngestStatistics           bool                 `koanf:"ingestStatistics"`
-	QuesmaInternalTelemetryUrl *Url                 `koanf:"internalTelemetryUrl"`
-	Processors                 []Processor          `koanf:"processors"`
-	Pipelines                  []Pipeline           `koanf:"pipelines"`
-	DisableTelemetry           bool                 `koanf:"disableTelemetry"`
+	BackendConnectors  []BackendConnector   `koanf:"backendConnectors"`
+	FrontendConnectors []FrontendConnector  `koanf:"frontendConnectors"`
+	InstallationId     string               `koanf:"installationId"`
+	LicenseKey         string               `koanf:"licenseKey"`
+	Logging            LoggingConfiguration `koanf:"logging"`
+	IngestStatistics   bool                 `koanf:"ingestStatistics"`
+	Processors         []Processor          `koanf:"processors"`
+	Pipelines          []Pipeline           `koanf:"pipelines"`
+	DisableTelemetry   bool                 `koanf:"disableTelemetry"`
 }
 
 type LoggingConfiguration struct {
 	Path              string         `koanf:"path"`
 	Level             *zerolog.Level `koanf:"level"`
-	RemoteLogDrainUrl *Url           `koanf:"remoteUrl"`
 	FileLogging       bool           `koanf:"fileLogging"`
+	RemoteLogDrainUrl *Url
 }
 
 type Pipeline struct {
@@ -118,9 +117,6 @@ type QuesmaProcessorConfig struct {
 
 func LoadV2Config() QuesmaNewConfiguration {
 	var v2config QuesmaNewConfiguration
-	v2config.QuesmaInternalTelemetryUrl = telemetryUrl
-	v2config.Logging.RemoteLogDrainUrl = telemetryUrl
-
 	loadConfigFile()
 	// We have to use custom env provider to allow array overrides
 	if err := k.Load(Env2JsonProvider("QUESMA_", "_", nil), json.Parser(), koanf.WithMergeFunc(mergeDictFunc)); err != nil {
