@@ -575,8 +575,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					} else {
 						errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
 					}
-					if useCommonTable, exists := target.properties["useCommonTable"]; exists {
-						fmt.Printf("  UseCommonTable: %v\n", useCommonTable)
+					if _, exists := target.properties["useCommonTable"]; exists {
+						conf.CreateCommonTable = true
+						conf.UseCommonTableForWildcard = true
 					}
 				}
 			}
@@ -687,8 +688,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				} else {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
 				}
-				if useCommonTable, exists := target.properties["useCommonTable"]; exists {
-					fmt.Printf("  UseCommonTable: %v\n", useCommonTable)
+				if _, exists := target.properties["useCommonTable"]; exists {
+					conf.CreateCommonTable = true
+					conf.UseCommonTableForWildcard = true
 				}
 			}
 		}
@@ -723,8 +725,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				} else {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
 				}
-				if useCommonTable, exists := target.properties["useCommonTable"]; exists {
-					fmt.Printf("  UseCommonTable: %v\n", useCommonTable)
+				if _, exists := target.properties["useCommonTable"]; exists {
+					conf.CreateCommonTable = true
+					conf.UseCommonTableForWildcard = true
 				}
 			}
 		}
