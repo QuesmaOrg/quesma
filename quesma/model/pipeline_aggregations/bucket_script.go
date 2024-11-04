@@ -80,11 +80,13 @@ func (query BucketScript) findFilterValue(rows []model.QueryResultRow, filterNam
 	for _, row := range rows {
 		for _, col := range row.Cols {
 			colName := col.ColName
-			if !strings.HasSuffix(colName, "_col_0") {
-				continue
+			switch { // remove possible suffix
+			case strings.HasSuffix(colName, "_col_0"):
+				colName = strings.TrimSuffix(colName, "_col_0")
+			case strings.HasSuffix(colName, "__count"):
+				colName = strings.TrimSuffix(colName, "__count")
 			}
-			colName = strings.TrimSuffix(colName, "_col_0")
-			if strings.HasSuffix(colName, "-"+filterName) {
+			if strings.HasSuffix(colName, filterName) {
 				return util.ExtractNumeric64(col.Value)
 			}
 		}

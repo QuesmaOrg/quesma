@@ -39,7 +39,7 @@ func (query *AutoDateHistogram) TranslateSqlResponseToJson(rows []model.QueryRes
 	return model.JsonMap{
 		"buckets": []model.JsonMap{{
 			"key":           query.key,
-			"key_as_string": time.UnixMilli(query.key).Format("2006-01-02T15:04:05.000-07:00"),
+			"key_as_string": time.UnixMilli(query.key).UTC().Format("2006-01-02T15:04:05.000"),
 			"doc_count":     rows[0].LastColValue(),
 		}},
 		"interval": "100y", // seems working for bucketsNr=1 case. Will have to be changed for other cases.
