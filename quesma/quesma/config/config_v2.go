@@ -389,7 +389,10 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 					}
 				}
 			}
-			targets := c.getTargetsExtendedConfig(indexConfig.Target)
+			targets, errTarget := c.getTargetsExtendedConfig(indexConfig.Target)
+			if errTarget != nil {
+				return errTarget
+			}
 			// fallback to old style, simplified target configuration
 			if len(targets) > 0 {
 				for _, target := range targets {
@@ -561,7 +564,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			// Handle default index configuration
 			defaultConfig := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]
-			targets := c.getTargetsExtendedConfig(defaultConfig.Target)
+			targets, errTarget := c.getTargetsExtendedConfig(defaultConfig.Target)
+			if errTarget != nil {
+				errAcc = multierror.Append(errAcc, errTarget)
+			}
 			if len(targets) > 0 {
 				for _, target := range targets {
 					if targetType, found := c.getTargetType(target.target); found {
@@ -604,7 +610,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 				processedConfig := indexConfig
 				processedConfig.Name = indexName
-				targets := c.getTargetsExtendedConfig(indexConfig.Target)
+				targets, errTarget := c.getTargetsExtendedConfig(indexConfig.Target)
+				if errTarget != nil {
+					errAcc = multierror.Append(errAcc, errTarget)
+				}
 				if len(targets) > 0 {
 					for _, target := range targets {
 						if targetType, found := c.getTargetType(target.target); found {
@@ -667,7 +676,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 		// Handle default index configuration
 		defaultConfig := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]
-		targets := c.getTargetsExtendedConfig(defaultConfig.Target)
+		targets, errTarget := c.getTargetsExtendedConfig(defaultConfig.Target)
+		if errTarget != nil {
+			errAcc = multierror.Append(errAcc, errTarget)
+		}
 		if len(targets) > 0 {
 			for _, target := range targets {
 				if targetType, found := c.getTargetType(target.target); found {
@@ -700,7 +712,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 
 		ingestProcessorDefaultIndexConfig := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName]
-		targets = c.getTargetsExtendedConfig(ingestProcessorDefaultIndexConfig.Target)
+		targets, errTarget = c.getTargetsExtendedConfig(ingestProcessorDefaultIndexConfig.Target)
+		if errTarget != nil {
+			errAcc = multierror.Append(errAcc, errTarget)
+		}
 		if len(targets) > 0 {
 			for _, target := range targets {
 				if targetType, found := c.getTargetType(target.target); found {
@@ -752,7 +767,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			processedConfig.Name = indexName
 
 			processedConfig.IngestTarget = defaultConfig.IngestTarget
-			targets = c.getTargetsExtendedConfig(indexConfig.Target)
+			targets, errTarget = c.getTargetsExtendedConfig(indexConfig.Target)
+			if errTarget != nil {
+				errAcc = multierror.Append(errAcc, errTarget)
+			}
 			if len(targets) > 0 {
 				for _, target := range targets {
 					if targetType, found := c.getTargetType(target.target); found {
@@ -806,7 +824,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			}
 
 			processedConfig.IngestTarget = make([]string, 0) // reset previously set defaultConfig.IngestTarget
-			targets = c.getTargetsExtendedConfig(indexConfig.Target)
+			targets, errTarget = c.getTargetsExtendedConfig(indexConfig.Target)
+			if errTarget != nil {
+				errAcc = multierror.Append(errAcc, errTarget)
+			}
 			if len(targets) > 0 {
 				for _, target := range targets {
 					if targetType, found := c.getTargetType(target.target); found {
@@ -936,10 +957,10 @@ func getAllowedProcessorTypes() []ProcessorType {
 	return []ProcessorType{QuesmaV1ProcessorNoOp, QuesmaV1ProcessorQuery, QuesmaV1ProcessorIngest}
 }
 
-func (c *QuesmaNewConfiguration) getTargetsExtendedConfig(target any) []struct {
+func (c *QuesmaNewConfiguration) getTargetsExtendedConfig(target any) ([]struct {
 	target     string
 	properties map[string]interface{}
-} {
+}, error) {
 	result := make([]struct {
 		target     string
 		properties map[string]interface{}
@@ -955,11 +976,11 @@ func (c *QuesmaNewConfiguration) getTargetsExtendedConfig(target any) []struct {
 							properties map[string]interface{}
 						}{target: name, properties: settingsMap})
 					} else {
-						// TODO return error
+						return nil, fmt.Errorf("invalid target properties for target %s", name)
 					}
 				}
 			}
 		}
 	}
-	return result
+	return result, nil
 }
