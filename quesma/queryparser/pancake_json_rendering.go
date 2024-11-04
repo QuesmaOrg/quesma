@@ -366,9 +366,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			}
 
 			for i := 0; i < len(bucketArr); i++ {
-				if _, exists := bucketArr[i][bucket_aggregations.OriginalKeyName]; exists {
-					delete(bucketArr[i], bucket_aggregations.OriginalKeyName)
-				}
+				delete(bucketArr[i], bucket_aggregations.OriginalKeyName)
 			}
 		}
 
