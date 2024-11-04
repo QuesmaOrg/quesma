@@ -19,7 +19,6 @@ type IndexConfiguration struct {
 	Override        string                            `koanf:"override"`
 	UseCommonTable  bool                              `koanf:"useCommonTable"`
 	Target          any                               `koanf:"target"`
-	Target2         any                               `koanf:"target2"`
 
 	// Computed based on the overall configuration
 	Name         string
