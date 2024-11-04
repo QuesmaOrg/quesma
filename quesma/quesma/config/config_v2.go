@@ -569,6 +569,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					} else {
 						errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
 					}
+					if useCommonTable, exists := target.properties["useCommonTable"]; exists {
+						fmt.Printf("  UseCommonTable: %v\n", useCommonTable)
+					}
 				}
 			}
 			// fallback to old style, simplified target configuration
@@ -672,6 +675,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				} else {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
 				}
+				if useCommonTable, exists := target.properties["useCommonTable"]; exists {
+					fmt.Printf("  UseCommonTable: %v\n", useCommonTable)
+				}
 			}
 		}
 		// fallback to old style, simplified target configuration
@@ -701,6 +707,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					defaultConfig.IngestTarget = append(defaultConfig.IngestTarget, targetType)
 				} else {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
+				}
+				if useCommonTable, exists := target.properties["useCommonTable"]; exists {
+					fmt.Printf("  UseCommonTable: %v\n", useCommonTable)
 				}
 			}
 		}
@@ -940,16 +949,13 @@ func (c *QuesmaNewConfiguration) getTargetsExtendedConfig(target any) []struct {
 		for _, target := range targets {
 			if targetMap, ok := target.(map[string]interface{}); ok {
 				for name, settings := range targetMap {
-					fmt.Printf("Target: %s\n", name)
-					// Type assert `settings` to access UseCommonTable if available.
 					if settingsMap, ok := settings.(map[string]interface{}); ok {
-						if useCommonTable, exists := settingsMap["useCommonTable"]; exists {
-							fmt.Printf("  UseCommonTable: %v\n", useCommonTable)
-						}
 						result = append(result, struct {
 							target     string
 							properties map[string]interface{}
 						}{target: name, properties: settingsMap})
+					} else {
+						// TODO return error
 					}
 				}
 			}
