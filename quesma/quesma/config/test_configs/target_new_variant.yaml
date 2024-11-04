@@ -32,10 +32,14 @@ processors:
         kibana_sample_data_ecommerce:
           target:
             - my-clickhouse-data-source:
-                useCommonTable: true
+                useCommonTable: false
         kibana_sample_data_flights:
           target:
             - my-clickhouse-data-source: {}
+        kibana_sample_data_logs:
+          target:
+            - my-clickhouse-data-source:
+                useCommonTable: true
         "*":
           target: [ my-minimal-elasticsearch ]
 
@@ -46,10 +50,14 @@ processors:
         kibana_sample_data_ecommerce:
           target:
             - my-clickhouse-data-source:
-                useCommonTable: true
+                useCommonTable: false
         kibana_sample_data_flights:
           target:
             - my-clickhouse-data-source: {}
+        kibana_sample_data_logs:
+          target:
+            - my-clickhouse-data-source:
+                useCommonTable: true
         "*":
           target: [ my-minimal-elasticsearch ]
 pipelines:
