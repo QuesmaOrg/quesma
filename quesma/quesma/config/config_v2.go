@@ -890,8 +890,6 @@ func (c *QuesmaNewConfiguration) getTargetsExtendedConfig(target any) ([]struct 
 					properties map[string]interface{}
 				}{target: targetName, properties: map[string]interface{}{}})
 			}
-		}
-		for _, target := range targets {
 			if targetMap, ok := target.(map[string]interface{}); ok {
 				for name, settings := range targetMap {
 					if settingsMap, ok := settings.(map[string]interface{}); ok {
