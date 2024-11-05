@@ -118,11 +118,10 @@ func (p *ElasticJSONDatabase) List() ([]string, error) {
 	}`
 
 	resp, err := p.httpClient.Request(context.Background(), "GET", elasticsearchURL, []byte(query))
-
+	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	jsonAsBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -142,7 +141,7 @@ func (p *ElasticJSONDatabase) List() ([]string, error) {
 	var ids []string
 	// Unmarshal the JSON response
 	var result map[string]interface{}
-	if err := json.Unmarshal(jsonAsBytes, &result); err != nil {
+	if err = json.Unmarshal(jsonAsBytes, &result); err != nil {
 		log.Fatalf("Error parsing the response JSON: %s", err)
 	}
 
