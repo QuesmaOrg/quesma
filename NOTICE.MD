@@ -8,11 +8,11 @@ Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/ClickHouse/clickhouse-go/v2
-Version : v2.29.0
-Time    : 2024-09-24T12:36:14Z
+Version : v2.30.0
+Time    : 2024-10-16T16:02:58Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.29.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.30.0/LICENSE:
 
 Copyright 2016-2023 ClickHouse, Inc.
 
@@ -2055,13 +2055,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/oauth2
-Version : v0.17.0
-Time    : 2024-02-08T13:19:31Z
+Version : v0.23.0
+Time    : 2024-08-21T18:21:24Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/oauth2@v0.17.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/oauth2@v0.23.0/LICENSE:
 
-Copyright (c) 2009 The Go Authors. All rights reserved.
+Copyright 2009 The Go Authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -2073,7 +2073,7 @@ notice, this list of conditions and the following disclaimer.
 copyright notice, this list of conditions and the following disclaimer
 in the documentation and/or other materials provided with the
 distribution.
-   * Neither the name of Google Inc. nor the names of its
+   * Neither the name of Google LLC nor the names of its
 contributors may be used to endorse or promote products derived from
 this software without specific prior written permission.
 
@@ -2370,11 +2370,11 @@ Contents of probable licence file $GOMODCACHE/cloud.google.com/go/compute@v1.20.
 
 --------------------------------------------------------------------------------
 #### Module  : cloud.google.com/go/compute/metadata
-Version : v0.2.3
-Time    : 2022-12-15T21:47:22Z
+Version : v0.3.0
+Time    : 2024-04-15T20:50:16Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/cloud.google.com/go/compute/metadata@v0.2.3/LICENSE:
+Contents of probable licence file $GOMODCACHE/cloud.google.com/go/compute/metadata@v0.3.0/LICENSE:
 
 
                                  Apache License
@@ -3137,11 +3137,11 @@ SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/andybalholm/brotli
-Version : v1.1.0
-Time    : 2024-01-12T01:31:05Z
+Version : v1.1.1
+Time    : 2024-07-29T16:56:04Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/andybalholm/brotli@v1.1.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/andybalholm/brotli@v1.1.1/LICENSE:
 
 Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors.
 
@@ -11610,6 +11610,27 @@ Contents of probable licence file $GOMODCACHE/github.com/xdg-go/stringprep@v1.0.
 
 
 --------------------------------------------------------------------------------
+#### Module  : github.com/xyproto/randomstring
+Version : v1.0.5
+Time    : 2023-02-06T10:49:41Z
+Licence : BSD-3-Clause
+
+Contents of probable licence file $GOMODCACHE/github.com/xyproto/randomstring@v1.0.5/LICENSE:
+
+Copyright 2023 Alexander F. Rødseth
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+--------------------------------------------------------------------------------
 #### Module  : github.com/youmark/pkcs8
 Version : v0.0.0-20181117223130-1be2e3e5546d
 Time    : 2018-11-17T22:31:30Z
@@ -11641,11 +11662,11 @@ SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/yuin/goldmark
-Version : v1.4.13
-Time    : 2022-07-09T07:22:17Z
+Version : v1.2.1
+Time    : 2020-07-30T13:33:42Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/yuin/goldmark@v1.4.13/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/yuin/goldmark@v1.2.1/LICENSE:
 
 MIT License
 
@@ -13266,11 +13287,11 @@ THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/crypto
-Version : v0.26.0
-Time    : 2024-08-06T15:38:17Z
+Version : v0.28.0
+Time    : 2024-10-04T15:35:24Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/crypto@v0.26.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/crypto@v0.28.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
@@ -13340,11 +13361,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/net
-Version : v0.28.0
-Time    : 2024-08-06T17:39:36Z
+Version : v0.30.0
+Time    : 2024-10-04T16:20:59Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/net@v0.28.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/net@v0.30.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
@@ -13414,11 +13435,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/sys
-Version : v0.23.0
-Time    : 2024-08-03T07:06:10Z
+Version : v0.26.0
+Time    : 2024-10-01T18:16:15Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/sys@v0.23.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/sys@v0.26.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
@@ -13451,11 +13472,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/term
-Version : v0.0.0-20210927222741-03fcf44c2211
-Time    : 2021-09-27T22:27:41Z
+Version : v0.0.0-20201126162022-7de9c90e9dd1
+Time    : 2020-11-26T16:20:22Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/term@v0.0.0-20210927222741-03fcf44c2211/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/term@v0.0.0-20201126162022-7de9c90e9dd1/LICENSE:
 
 Copyright (c) 2009 The Go Authors. All rights reserved.
 
@@ -13488,11 +13509,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/text
-Version : v0.3.8
-Time    : 2022-10-11T16:58:47Z
+Version : v0.3.7
+Time    : 2021-08-10T18:28:16Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/text@v0.3.8/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/text@v0.3.7/LICENSE:
 
 Copyright (c) 2009 The Go Authors. All rights reserved.
 

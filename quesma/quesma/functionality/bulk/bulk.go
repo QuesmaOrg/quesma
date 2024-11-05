@@ -12,7 +12,6 @@ import (
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/ingest"
-	"quesma/jsonprocessor"
 	"quesma/logger"
 	"quesma/queryparser"
 	"quesma/quesma/config"
@@ -122,9 +121,6 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 		index := op.GetIndex()
 		operation := op.GetOperation()
 
-		decision := tableResolver.Resolve(table_resolver.IngestPipeline, index)
-		table_resolver.TODO("splitBulk", decision)
-
 		entryWithResponse := BulkRequestEntry{
 			operation: operation,
 			index:     index,
@@ -142,36 +138,13 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 			}
 		}
 
-		indexConfig, found := cfg.IndexConfig[index]
-		if !found || indexConfig.IsElasticIngestEnabled() {
-			// Bulk entry for Elastic - forward the request as-is
-			opBytes, err := rawOp.Bytes()
-			if err != nil {
-				return err
-			}
-			elasticRequestBody = append(elasticRequestBody, opBytes...)
-			elasticRequestBody = append(elasticRequestBody, '\n')
+		decision := tableResolver.Resolve(table_resolver.IngestPipeline, index)
 
-			documentBytes, err := document.Bytes()
-			if err != nil {
-				return err
-			}
-			elasticRequestBody = append(elasticRequestBody, documentBytes...)
-			elasticRequestBody = append(elasticRequestBody, '\n')
-
-			elasticBulkEntries = append(elasticBulkEntries, entryWithResponse)
+		if decision.Err != nil {
+			return decision.Err
 		}
-		if found && indexConfig.IsClickhouseIngestEnabled() {
-			// Bulk entry for Clickhouse
-			if operation != "create" && operation != "index" {
-				// Elastic also fails the entire bulk in such case
-				logger.ErrorWithCtxAndReason(ctx, "unsupported bulk operation type").Msgf("unsupported bulk operation type: %s", operation)
-				return fmt.Errorf("unsupported bulk operation type: %s. Operation: %v, Document: %v", operation, rawOp, document)
-			}
 
-			clickhouseDocumentsToInsert[index] = append(clickhouseDocumentsToInsert[index], entryWithResponse)
-		}
-		if indexConfig.IsIngestDisabled() {
+		if decision.IsClosed || len(decision.UseConnectors) == 0 {
 			bulkSingleResponse := BulkSingleResponse{
 				Shards: BulkShardsResponse{
 					Failed:     1,
@@ -202,6 +175,46 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 				return fmt.Errorf("unsupported bulk operation type: %s. Document: %v", operation, document)
 			}
 		}
+
+		for _, connector := range decision.UseConnectors {
+
+			switch connector.(type) {
+
+			case *table_resolver.ConnectorDecisionElastic:
+				// Bulk entry for Elastic - forward the request as-is
+				opBytes, err := rawOp.Bytes()
+				if err != nil {
+					return err
+				}
+				elasticRequestBody = append(elasticRequestBody, opBytes...)
+				elasticRequestBody = append(elasticRequestBody, '\n')
+
+				documentBytes, err := document.Bytes()
+				if err != nil {
+					return err
+				}
+				elasticRequestBody = append(elasticRequestBody, documentBytes...)
+				elasticRequestBody = append(elasticRequestBody, '\n')
+
+				elasticBulkEntries = append(elasticBulkEntries, entryWithResponse)
+
+			case *table_resolver.ConnectorDecisionClickhouse:
+
+				// Bulk entry for Clickhouse
+				if operation != "create" && operation != "index" {
+					// Elastic also fails the entire bulk in such case
+					logger.ErrorWithCtxAndReason(ctx, "unsupported bulk operation type").Msgf("unsupported bulk operation type: %s", operation)
+					return fmt.Errorf("unsupported bulk operation type: %s. Operation: %v, Document: %v", operation, rawOp, document)
+				}
+
+				clickhouseDocumentsToInsert[index] = append(clickhouseDocumentsToInsert[index], entryWithResponse)
+
+			default:
+				return fmt.Errorf("unsupported connector type: %T", connector)
+			}
+
+		}
+
 		return nil
 	})
 
@@ -247,74 +260,70 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 	for indexName, documents := range clickhouseDocumentsToInsert {
 		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 
-		config.RunConfiguredIngest(ctx, cfg, indexName, make(types.JSON), func() error {
-			for _, document := range documents {
-				stats.GlobalStatistics.Process(cfg, indexName, document.document, clickhouse.NestedSeparator)
-			}
-			// if the index is mapped to specified database table in the configuration, use that table
-			if len(cfg.IndexConfig[indexName].Override) > 0 {
-				indexName = cfg.IndexConfig[indexName].Override
+		for _, document := range documents {
+			stats.GlobalStatistics.Process(cfg, indexName, document.document, clickhouse.NestedSeparator)
+		}
+		// if the index is mapped to specified database table in the configuration, use that table
+		if len(cfg.IndexConfig[indexName].Override) > 0 {
+			indexName = cfg.IndexConfig[indexName].Override
+		}
+
+		inserts := make([]types.JSON, len(documents))
+		for i, document := range documents {
+			inserts[i] = document.document
+		}
+
+		err := ip.Ingest(ctx, indexName, inserts)
+
+		for _, document := range documents {
+			bulkSingleResponse := BulkSingleResponse{
+				ID:          "fakeId",
+				Index:       document.index,
+				PrimaryTerm: 1,
+				SeqNo:       0,
+				Shards: BulkShardsResponse{
+					Failed:     0,
+					Successful: 1,
+					Total:      1,
+				},
+				Version: 0,
+				Result:  "created",
+				Status:  201,
+				Type:    "_doc",
 			}
 
-			inserts := make([]types.JSON, len(documents))
-			for i, document := range documents {
-				inserts[i] = document.document
-			}
-
-			nameFormatter := clickhouse.DefaultColumnNameFormatter()
-			transformer := jsonprocessor.IngestTransformerFor(indexName, cfg)
-			err := ip.ProcessInsertQuery(ctx, indexName, inserts, transformer, nameFormatter)
-
-			for _, document := range documents {
-				bulkSingleResponse := BulkSingleResponse{
-					ID:          "fakeId",
-					Index:       document.index,
-					PrimaryTerm: 1,
-					SeqNo:       0,
-					Shards: BulkShardsResponse{
-						Failed:     0,
-						Successful: 1,
-						Total:      1,
-					},
-					Version: 0,
-					Result:  "created",
-					Status:  201,
-					Type:    "_doc",
+			if err != nil {
+				bulkSingleResponse.Result = ""
+				bulkSingleResponse.Status = 400
+				bulkSingleResponse.Shards = BulkShardsResponse{
+					Failed:     1,
+					Successful: 0,
+					Total:      1,
 				}
-				if err != nil {
-					bulkSingleResponse.Result = ""
-					bulkSingleResponse.Status = 400
-					bulkSingleResponse.Shards = BulkShardsResponse{
-						Failed:     1,
-						Successful: 0,
-						Total:      1,
-					}
-					bulkSingleResponse.Error = queryparser.Error{
-						RootCause: []queryparser.RootCause{
-							{
-								Type:   "quesma_error",
-								Reason: err.Error(),
-							},
+				bulkSingleResponse.Error = queryparser.Error{
+					RootCause: []queryparser.RootCause{
+						{
+							Type:   "quesma_error",
+							Reason: err.Error(),
 						},
-						Type:   "quesma_error",
-						Reason: err.Error(),
-					}
-				}
-
-				// Fill out the response pointer (a pointer to the results array we will return for a bulk)
-				switch document.operation {
-				case "create":
-					document.response.Create = bulkSingleResponse
-
-				case "index":
-					document.response.Index = bulkSingleResponse
-
-				default:
-					return fmt.Errorf("unsupported bulk operation type: %s. Document: %v", document.operation, document.document)
+					},
+					Type:   "quesma_error",
+					Reason: err.Error(),
 				}
 			}
-			return nil
-		})
+
+			// Fill out the response pointer (a pointer to the results array we will return for a bulk)
+			switch document.operation {
+			case "create":
+				document.response.Create = bulkSingleResponse
+
+			case "index":
+				document.response.Index = bulkSingleResponse
+
+			default:
+				logger.Error().Msgf("unsupported bulk operation type: %s. Document: %v", document.operation, document.document)
+			}
+		}
 	}
 }
 

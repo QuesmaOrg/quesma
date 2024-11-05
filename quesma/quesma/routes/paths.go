@@ -25,6 +25,10 @@ const (
 	AsyncSearchIdPath    = "/_async_search/:id"
 	KibanaInternalPrefix = "/.kibana_"
 	IndexPath            = "/:index"
+
+	// Quesma internal paths
+
+	QuesmaTableResolverPath = "/:index/_quesma_table_resolver"
 )
 
 var notQueryPaths = []string{

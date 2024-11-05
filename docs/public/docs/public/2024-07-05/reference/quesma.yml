@@ -1,0 +1,41 @@
+# Quesma configuration, see: https://eap.quesma.com/eap-docs.html
+mode: "dual-write-query-clickhouse"
+port: 8080 # public tcp port to listen for incoming traffic
+installationId: "reference-setup"
+connectors:
+  ch-connector:
+    type: "clickhouse-os"
+elasticsearch:
+  call: false
+  adminUrl: "http://localhost:5601"
+clickhouse: # reference clickhouse service
+  url: "clickhouse://clickhouse:9000"
+  adminUrl: "http://localhost:8123/play"
+ingestStatistics: true
+internalTelemetryUrl: "https://api.quesma.com/phone-home"
+logging:
+  path: "logs"
+  level: "info"
+  remoteUrl: "https://api.quesma.com/phone-home"
+  disableFileLogging: false
+indexes:
+  kibana_sample_data_ecommerce:
+    enabled: true
+  opensearch_dashboards_sample_data_ecommerce:
+    enabled: true
+  kibana_sample_data_flights:
+    enabled: true
+  opensearch_dashboards_sample_data_flights:
+    enabled: true
+  kibana_sample_data_logs:
+    enabled: true
+    aliases:
+      timestamp:
+        source: "timestamp"
+        target: "@timestamp"
+  phone_home_logs:
+    enabled: true
+    fullTextFields: [ "message" ]
+  phone_home_data:
+    enabled: true
+    fullTextFields: [ "message" ]

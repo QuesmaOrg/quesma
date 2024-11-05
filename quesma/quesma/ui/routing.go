@@ -10,7 +10,7 @@ import (
 
 func (qmc *QuesmaManagementConsole) generateRouterStatisticsLiveTail() []byte {
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("routing-statistics"))
+	buffer.Write(qmc.generateTopNavigation("routing-statistics"))
 
 	buffer.Html(`<main id="routing-statistics">`)
 	buffer.Write(qmc.generateRouterStatistics())

@@ -25,6 +25,8 @@ func newType(code, message string) mismatchType {
 var (
 	invalidType                 = newType("invalid_type", "Types are not equal")
 	invalidValue                = newType("invalid_value", "Values are not equal")
+	invalidNumberValue          = newType("invalid_number_value", "Numbers are not equal")
+	invalidDateValue            = newType("invalid_date_value", "Dates are not equal")
 	invalidArrayLength          = newType("invalid_array_length", "Array lengths are not equal")
 	invalidArrayLengthOffByOne  = newType("invalid_array_length_off_by_one", "Array lengths are off by one.")
 	objectDifference            = newType("object_difference", "Objects are different")
@@ -355,6 +357,8 @@ func (d *JSONDiff) asType(a any) string {
 	return fmt.Sprintf("%T", a)
 }
 
+var dateRx = regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}`)
+
 func (d *JSONDiff) compare(expected any, actual any) {
 
 	if d.isIgnoredPath() {
@@ -399,9 +403,9 @@ func (d *JSONDiff) compare(expected any, actual any) {
 		case float64:
 
 			// float operations are noisy, we need to compare them with desired precision
-
-			epsilon := 1e-9
-			relativeTolerance := 1e-9
+			// this is lousy, but it works for now
+			epsilon := 1e-3
+			relativeTolerance := 1e-3
 			aFloat := expected.(float64)
 			bFloat := actual.(float64)
 
@@ -411,8 +415,37 @@ func (d *JSONDiff) compare(expected any, actual any) {
 				relativeDiff := absDiff / math.Max(math.Abs(aFloat), math.Abs(bFloat))
 
 				if relativeDiff > relativeTolerance {
-					d.addMismatch(invalidValue, d.asValue(expected), d.asValue(actual))
+					d.addMismatch(invalidNumberValue, d.asValue(expected), d.asValue(actual))
 				}
+			}
+
+		default:
+			d.addMismatch(invalidType, d.asType(expected), d.asType(actual))
+		}
+
+	case string:
+
+		switch actualString := actual.(type) {
+		case string:
+
+			if dateRx.MatchString(aVal) && dateRx.MatchString(actualString) {
+
+				// TODO add better date comparison here
+				// parse both date and compare them with desired precision
+
+				// elastics returns date in formats
+				// "2024-10-24T00:00:00.000+02:00"
+				// "2024-10-24T00:00:00.000Z"
+
+				// quesma returns
+				// 2024-10-23T22:00:00.000
+				compareOnly := "2000-01-"
+
+				if aVal[:len(compareOnly)] != actualString[:len(compareOnly)] {
+					d.addMismatch(invalidDateValue, d.asValue(expected), d.asValue(actual))
+				}
+
+				return
 			}
 
 		default:

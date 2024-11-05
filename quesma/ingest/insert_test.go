@@ -242,6 +242,12 @@ func TestProcessInsertQuery(t *testing.T) {
 					db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 					ip.ip.chDb = db
 					resolver := table_resolver.NewEmptyTableResolver()
+					decision := &table_resolver.Decision{
+						UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+							ClickhouseTableName: "test_table",
+						}}}
+					resolver.Decisions["test_table"] = decision
+
 					ip.ip.tableResolver = resolver
 					defer db.Close()
 
@@ -420,7 +426,13 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			}
 			schemaRegistry.Tables[schema.TableName(indexName)] = indexSchema
 
-			indexRegistry := table_resolver.NewEmptyTableResolver()
+			resolver := table_resolver.NewEmptyTableResolver()
+			decision := &table_resolver.Decision{
+				UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+					ClickhouseTableName: "test_index",
+				}}}
+			resolver.Decisions["test_index"] = decision
+
 			schemaRegistry.FieldEncodings = make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
 			schemaRegistry.FieldEncodings[schema.FieldEncodingKey{TableName: indexName, FieldName: "schema_field"}] = "schema_field"
 
@@ -428,10 +440,10 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			ingest.chDb = db
 			ingest.virtualTableStorage = virtualTableStorage
 			ingest.schemaRegistry = schemaRegistry
-			ingest.tableResolver = indexRegistry
+			ingest.tableResolver = resolver
 
 			ctx := context.Background()
-			formatter := clickhouse.DefaultColumnNameFormatter()
+			formatter := DefaultColumnNameFormatter()
 
 			transformer := jsonprocessor.IngestTransformerFor(indexName, quesmaConfig)
 

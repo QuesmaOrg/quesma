@@ -4,6 +4,7 @@ package queryparser
 
 import (
 	"quesma/logger"
+	"quesma/model"
 	"quesma/model/bucket_aggregations"
 )
 
@@ -32,13 +33,18 @@ func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (success bo
 	}
 
 	filters := make([]bucket_aggregations.Filter, 0, len(nestedMap))
-	for name, filter := range nestedMap {
-		filterMap, ok := filter.(QueryMap)
+	for name, filterRaw := range nestedMap {
+		filterMap, ok := filterRaw.(QueryMap)
 		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping.", filter, filter)
+			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping.", filterRaw, filterRaw)
 			continue
 		}
-		filters = append(filters, bucket_aggregations.NewFilter(name, cw.parseQueryMap(filterMap)))
+		filter := cw.parseQueryMap(filterMap)
+		if filter.WhereClause == nil {
+			filter.WhereClause = model.TrueExpr
+			filter.CanParse = true
+		}
+		filters = append(filters, bucket_aggregations.NewFilter(name, filter))
 	}
 	return true, bucket_aggregations.NewFilters(cw.Ctx, filters)
 }

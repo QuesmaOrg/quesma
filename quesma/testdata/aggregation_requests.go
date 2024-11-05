@@ -318,7 +318,7 @@ var AggregationTests = []AggregationTestCase{
 			LIMIT 1001`,
 	},
 	{ // [2]
-		TestName: "date_histogram",
+		TestName: "date_histogram + size as string",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -345,7 +345,7 @@ var AggregationTests = []AggregationTestCase{
 							"_count": "desc"
 						},
 						"shard_size": 25,
-						"size": 10
+						"size": "10"
 					}
 				}
 			},
@@ -2189,23 +2189,25 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedPancakeSQL: `
-			SELECT sum(countIf("taxful_total_price" > '250')) OVER () AS "aggr__1__count",
+			SELECT sum(count(*)) OVER () AS "aggr__1__count",
 			  toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 			  "order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0",
-			  countIf("taxful_total_price" > '250') AS "aggr__1__2__count"
+			  count(*) AS "aggr__1__2__count"
 			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"<=fromUnixTimestamp64Milli(1707818397034))
+			WHERE (("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1707818397034)) AND "taxful_total_price" > '250')
 			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
 			  ("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0"
 			ORDER BY "aggr__1__2__key_0" ASC`,
 		ExpectedAdditionalPancakeSQLs: []string{`
 			WITH quesma_top_hits_group_table AS (
-			  SELECT sum(countIf("taxful_total_price" > '250')) OVER () AS "aggr__1__count",
+			  SELECT sum(count(*)) OVER () AS "aggr__1__count",
 				toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 				"order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0",
-				countIf("taxful_total_price" > '250') AS "aggr__1__2__count"
+				count(*) AS "aggr__1__2__count"
 			  FROM __quesma_table_name
-			  WHERE ("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"<=fromUnixTimestamp64Milli(1707818397034))
+			  WHERE (("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"
+				<=fromUnixTimestamp64Milli(1707818397034)) AND "taxful_total_price" > '250')
 			  GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(
 				toTimezone("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS
 				"aggr__1__2__key_0"
@@ -2222,21 +2224,21 @@ var AggregationTests = []AggregationTestCase{
 				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
 				toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 				"order_date", 'Europe/Warsaw'))*1000) / 43200000))
-			  WHERE ("taxful_total_price" > '250' AND ("order_date">=fromUnixTimestamp64Milli(1707213597034)
-				AND "order_date"<=fromUnixTimestamp64Milli(1707818397034))))
+			  WHERE (("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"
+				<=fromUnixTimestamp64Milli(1707818397034)) AND "taxful_total_price" > '250'))
 			SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 			  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
 			FROM "quesma_top_hits_join"
 			WHERE "top_hits_rank"<=10
-			ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC
-			`, `
-			WITH quesma_top_hits_group_table AS (
-			  SELECT sum(countIf("taxful_total_price" > '250')) OVER () AS "aggr__1__count",
+			ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
+			`WITH quesma_top_hits_group_table AS (
+			  SELECT sum(count(*)) OVER () AS "aggr__1__count",
 				toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 				"order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0",
-				countIf("taxful_total_price" > '250') AS "aggr__1__2__count"
+				count(*) AS "aggr__1__2__count"
 			  FROM __quesma_table_name
-			  WHERE ("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"<=fromUnixTimestamp64Milli(1707818397034))
+			  WHERE (("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"
+				<=fromUnixTimestamp64Milli(1707818397034)) AND "taxful_total_price" > '250')
 			  GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(
 				toTimezone("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS
 				"aggr__1__2__key_0"
@@ -2253,8 +2255,8 @@ var AggregationTests = []AggregationTestCase{
 				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
 				toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 				"order_date", 'Europe/Warsaw'))*1000) / 43200000))
-			  WHERE ("taxful_total_price" > '250' AND 
-				("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"<=fromUnixTimestamp64Milli(1707818397034))))
+			  WHERE (("order_date">=fromUnixTimestamp64Milli(1707213597034) AND "order_date"
+				<=fromUnixTimestamp64Milli(1707818397034)) AND "taxful_total_price" > '250'))
 			SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 			  "top_metrics__1__2__5_col_0", "top_metrics__1__2__5_col_1", "top_hits_rank"
 			FROM "quesma_top_hits_join"
@@ -3452,80 +3454,75 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("filter_0__aggr__time_offset_split__count", int64(1051)),
-				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__key_0", int64(1708560000000/86400000)),
-				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__count", int64(10)),
-				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__1_col_0", 840.921875),
-				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__2_col_0", 841.921875),
-				model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", int64(1026)),
-				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__key_0", int64(1708560000000/86400000)),
-				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__count", int64(0)),
-				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__1_col_0", nil),
-				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__2_col_0", nil),
+				model.NewQueryResultCol("aggr__time_offset_split__count", int64(1051)),
+				model.NewQueryResultCol("aggr__time_offset_split__0__key_0", int64(1708560000000/86400000)),
+				model.NewQueryResultCol("aggr__time_offset_split__0__count", int64(10)),
+				model.NewQueryResultCol("metric__time_offset_split__0__1_col_0", 840.921875),
+				model.NewQueryResultCol("metric__time_offset_split__0__2_col_0", 841.921875),
+				//model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", int64(1026)),
+				//model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__key_0", int64(1708560000000/86400000)),
+				//model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__count", int64(0)),
+				//model.NewQueryResultCol("filter_1__metric__time_offset_split__0__1_col_0", nil),
+				//model.NewQueryResultCol("filter_1__metric__time_offset_split__0__2_col_0", nil),
 			}},
 
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("filter_0__aggr__time_offset_split__count", int64(1051)),
-				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__key_0", int64(1708646400000/86400000)),
-				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__count", int64(166)),
-				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__1_col_0", 13902.156250),
-				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__2_col_0", 13903.156250),
-				model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", int64(1026)),
-				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__key_0", int64(1708646400000/86400000)),
-				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__count", int64(0)),
-				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__1_col_0", nil),
-				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__2_col_0", nil),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("filter_0__aggr__time_offset_split__count", int64(1051)),
-				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__key_0", int64(1707955200000/86400000)),
-				model.NewQueryResultCol("filter_0__aggr__time_offset_split__0__count", int64(0)),
-				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__1_col_0", nil),
-				model.NewQueryResultCol("filter_0__metric__time_offset_split__0__2_col_0", nil),
-				model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", int64(1026)),
-				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__key_0", int64(1707955200000/86400000)),
-				model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__count", int64(7)),
-				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__1_col_0", 465.843750),
-				model.NewQueryResultCol("filter_1__metric__time_offset_split__0__2_col_0", 466.843750),
+				model.NewQueryResultCol("aggr__time_offset_split__count", int64(1051)),
+				model.NewQueryResultCol("aggr__time_offset_split__0__key_0", int64(1708646400000/86400000)),
+				model.NewQueryResultCol("aggr__time_offset_split__0__count", int64(166)),
+				model.NewQueryResultCol("metric__time_offset_split__0__1_col_0", 13902.156250),
+				model.NewQueryResultCol("metric__time_offset_split__0__2_col_0", 13903.156250),
+				//model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", int64(1026)),
+				//model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__key_0", int64(1708646400000/86400000)),
+				//model.NewQueryResultCol("filter_1__aggr__time_offset_split__0__count", int64(0)),
+				//model.NewQueryResultCol("filter_1__metric__time_offset_split__0__1_col_0", nil),
+				//model.NewQueryResultCol("filter_1__metric__time_offset_split__0__2_col_0", nil),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT sum(countIf(("order_date">=fromUnixTimestamp64Milli(1708639056376) AND
-			  "order_date"<=fromUnixTimestamp64Milli(1709243856376)))) OVER () AS
-			  "filter_0__aggr__time_offset_split__count",
+			SELECT sum(count(*)) OVER () AS "aggr__time_offset_split__count",
 			  toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
-			  "filter_0__aggr__time_offset_split__0__key_0",
-			  countIf(("order_date">=fromUnixTimestamp64Milli(1708639056376) AND
-			  "order_date"<=fromUnixTimestamp64Milli(1709243856376))) AS
-			  "filter_0__aggr__time_offset_split__0__count",
-			  sumOrNullIf("taxful_total_price", ("order_date">=fromUnixTimestamp64Milli(
-			  1708639056376) AND "order_date"<=fromUnixTimestamp64Milli(1709243856376))) AS
-			  "filter_0__metric__time_offset_split__0__1_col_0",
-			  sumOrNullIf("taxful_total_price", ("order_date">=fromUnixTimestamp64Milli(
-			  1708639056376) AND "order_date"<=fromUnixTimestamp64Milli(1709243856376))) AS
-			  "filter_0__metric__time_offset_split__0__2_col_0",
-			  sum(countIf(("order_date">=fromUnixTimestamp64Milli(1708034256376) AND
-			  "order_date"<=fromUnixTimestamp64Milli(1708639056376)))) OVER () AS
-			  "filter_1__aggr__time_offset_split__count",
-			  toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
-			  "filter_1__aggr__time_offset_split__0__key_0",
-			  countIf(("order_date">=fromUnixTimestamp64Milli(1708034256376) AND
-			  "order_date"<=fromUnixTimestamp64Milli(1708639056376))) AS
-			  "filter_1__aggr__time_offset_split__0__count",
-			  sumOrNullIf("taxful_total_price", ("order_date">=fromUnixTimestamp64Milli(
-			  1708034256376) AND "order_date"<=fromUnixTimestamp64Milli(1708639056376))) AS
-			  "filter_1__metric__time_offset_split__0__1_col_0",
-			  sumOrNullIf("taxful_total_price", ("order_date">=fromUnixTimestamp64Milli(
-			  1708034256376) AND "order_date"<=fromUnixTimestamp64Milli(1708639056376))) AS
-			  "filter_1__metric__time_offset_split__0__2_col_0"
+			  "aggr__time_offset_split__0__key_0",
+			  count(*) AS "aggr__time_offset_split__0__count",
+			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__1_col_0",
+			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__2_col_0"
 			FROM __quesma_table_name
-			WHERE (("order_date">=fromUnixTimestamp64Milli(1708639056376) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1709243856376)) OR ("order_date">=
+			WHERE ((("order_date">=fromUnixTimestamp64Milli(1708639056376) AND "order_date"
+			  <=fromUnixTimestamp64Milli(1709243856376)) OR ("order_date">=
 			  fromUnixTimestamp64Milli(1708034256376) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1708639056376)))
+			  fromUnixTimestamp64Milli(1708639056376))) AND ("order_date">=
+			  fromUnixTimestamp64Milli(1708639056376) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1709243856376)))
 			GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
 			  "aggr__time_offset_split__0__key_0"
 			ORDER BY "aggr__time_offset_split__0__key_0" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{
+			`SELECT sum(count(*)) OVER () AS "aggr__time_offset_split__count",
+			  toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
+			  "aggr__time_offset_split__0__key_0",
+			  count(*) AS "aggr__time_offset_split__0__count",
+			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__1_col_0",
+			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__2_col_0"
+			FROM __quesma_table_name
+			WHERE ((("order_date">=fromUnixTimestamp64Milli(1708639056376) AND
+			  "order_date"<=fromUnixTimestamp64Milli(1709243856376)) OR
+			  ("order_date">=fromUnixTimestamp64Milli(1708034256376) AND
+			  "order_date"<=fromUnixTimestamp64Milli(1708639056376))) AND
+			  ("order_date">=fromUnixTimestamp64Milli(1708034256376) AND
+			  "order_date"<=fromUnixTimestamp64Milli(1708639056376)))
+			GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 86400000) AS
+			  "aggr__time_offset_split__0__key_0"
+			ORDER BY "aggr__time_offset_split__0__key_0" ASC`,
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__time_offset_split__count", int64(1026)),
+				model.NewQueryResultCol("aggr__time_offset_split__0__key_0", int64(1707955200000/86400000)),
+				model.NewQueryResultCol("aggr__time_offset_split__0__count", int64(7)),
+				model.NewQueryResultCol("metric__time_offset_split__0__1_col_0", 465.843750),
+				model.NewQueryResultCol("metric__time_offset_split__0__2_col_0", 466.843750),
+			}}},
+		},
 	},
 	{ // [19]
 		TestName: "random sampler, from Explorer > Field statistics",
@@ -3537,8 +3534,8 @@ var AggregationTests = []AggregationTestCase{
 						"eventRate": {
 							"date_histogram": {
 								"extended_bounds": {
-									"max": 1709816694995,
-									"min": 1709815794995
+									"min": 1709816824995,
+									"max": 1709816834995
 								},
 								"field": "@timestamp",
 								"fixed_interval": "15000ms",
@@ -3600,14 +3597,19 @@ var AggregationTests = []AggregationTestCase{
 						"eventRate": {
 							"buckets": [
 								{
-									"doc_count": 0,
+									"doc_count": 2,
 									"key": 1709816790000,
 									"key_as_string": "2024-03-07T13:06:30.000"
 								},
 								{
-									"doc_count": 0,
+									"doc_count": 1,
 									"key": 1709816805000,
 									"key_as_string": "2024-03-07T13:06:45.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1709816820000,
+									"key_as_string": "2024-03-07T13:07:00.000"
 								}
 							]
 						},
@@ -3628,12 +3630,12 @@ var AggregationTests = []AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sampler__count", uint64(15)),
 				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1709816790000/15000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", 0),
+				model.NewQueryResultCol("aggr__sampler__eventRate__count", 2),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__sampler__count", uint64(15)),
 				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1709816805000/15000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", 0),
+				model.NewQueryResultCol("aggr__sampler__eventRate__count", 1),
 			}},
 		},
 		ExpectedPancakeSQL: `

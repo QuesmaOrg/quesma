@@ -51,6 +51,10 @@ type (
 	IngestFieldStatistics map[IngestFieldBucketKey]int64
 )
 
+type Ingester interface {
+	Ingest(ctx context.Context, tableName string, jsonData []types.JSON) error
+}
+
 type (
 	IngestProcessor struct {
 		ctx                       context.Context
@@ -668,6 +672,9 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	} else if !table.Created {
 		createTableCmd = table.CreateTableString()
 	}
+	if table == nil {
+		return nil, fmt.Errorf("table %s not found", tableName)
+	}
 	tableConfig = table.Config
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
@@ -701,43 +708,72 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
 }
 
+func (lm *IngestProcessor) Ingest(ctx context.Context, tableName string, jsonData []types.JSON) error {
+
+	nameFormatter := DefaultColumnNameFormatter()
+	transformer := jsonprocessor.IngestTransformerFor(tableName, lm.cfg)
+	return lm.ProcessInsertQuery(ctx, tableName, jsonData, transformer, nameFormatter)
+}
+
 func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
 
 	decision := lm.tableResolver.Resolve(table_resolver.IngestPipeline, tableName)
-	table_resolver.TODO("processInsertQuery", decision)
 
-	indexConf, ok := lm.cfg.IndexConfig[tableName]
-	if ok && indexConf.UseCommonTable {
-
-		// we have clone the data, because we want to process it twice
-		var clonedJsonData []types.JSON
-		for _, jsonValue := range jsonData {
-			clonedJsonData = append(clonedJsonData, jsonValue.Clone())
-		}
-
-		err := lm.processInsertQueryInternal(ctx, tableName, clonedJsonData, transformer, tableFormatter, true)
-		if err != nil {
-			// we ignore an error here, because we want to process the data and don't lose it
-			logger.ErrorWithCtx(ctx).Msgf("error processing insert query - virtual table schema update: %v", err)
-		}
-
-		pipeline := jsonprocessor.IngestTransformerPipeline{}
-		pipeline = append(pipeline, &common_table.IngestAddIndexNameTransformer{IndexName: tableName})
-		pipeline = append(pipeline, transformer)
-		tableName = common_table.TableName
-
-		err = lm.processInsertQueryInternal(ctx, common_table.TableName, jsonData, pipeline, tableFormatter, false)
-		if err != nil {
-			return fmt.Errorf("error processing insert query to a common table: %w", err)
-		}
-
-		return nil
+	if decision.Err != nil {
+		return decision.Err
 	}
 
-	return lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, false)
+	if decision.IsEmpty { // TODO
+		return fmt.Errorf("table %s not found", tableName)
+	}
 
+	if decision.IsClosed { // TODO
+		return fmt.Errorf("table %s is closed", tableName)
+	}
+
+	for _, connectorDecision := range decision.UseConnectors {
+
+		var clickhouseDecision *table_resolver.ConnectorDecisionClickhouse
+
+		var ok bool
+		if clickhouseDecision, ok = connectorDecision.(*table_resolver.ConnectorDecisionClickhouse); !ok {
+			continue
+		}
+
+		if clickhouseDecision.IsCommonTable {
+
+			// we have clone the data, because we want to process it twice
+			var clonedJsonData []types.JSON
+			for _, jsonValue := range jsonData {
+				clonedJsonData = append(clonedJsonData, jsonValue.Clone())
+			}
+
+			err := lm.processInsertQueryInternal(ctx, tableName, clonedJsonData, transformer, tableFormatter, true)
+			if err != nil {
+				// we ignore an error here, because we want to process the data and don't lose it
+				logger.ErrorWithCtx(ctx).Msgf("error processing insert query - virtual table schema update: %v", err)
+			}
+
+			pipeline := jsonprocessor.IngestTransformerPipeline{}
+			pipeline = append(pipeline, &common_table.IngestAddIndexNameTransformer{IndexName: tableName})
+			pipeline = append(pipeline, transformer)
+
+			err = lm.processInsertQueryInternal(ctx, common_table.TableName, jsonData, pipeline, tableFormatter, false)
+			if err != nil {
+				return fmt.Errorf("error processing insert query to a common table: %w", err)
+			}
+
+		} else {
+			err := lm.processInsertQueryInternal(ctx, clickhouseDecision.ClickhouseTableName, jsonData, transformer, tableFormatter, false)
+			if err != nil {
+				return fmt.Errorf("error processing insert query: %w", err)
+			}
+		}
+
+	}
+	return nil
 }
 
 func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, tableName string,

@@ -6,6 +6,7 @@ import (
 	"context"
 	"quesma/ab_testing"
 	"quesma/ab_testing/collector"
+	"quesma/ingest"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
@@ -20,10 +21,12 @@ type SenderCoordinator struct {
 
 	sender *sender // sender managed by this coordinator
 
+	ingester ingest.Ingester
+
 	enabled bool
 }
 
-func NewSenderCoordinator(cfg *config.QuesmaConfiguration) *SenderCoordinator {
+func NewSenderCoordinator(cfg *config.QuesmaConfiguration, ingester ingest.Ingester) *SenderCoordinator {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -44,6 +47,7 @@ func NewSenderCoordinator(cfg *config.QuesmaConfiguration) *SenderCoordinator {
 		ctx:        ctx,
 		cancelFunc: cancel,
 		enabled:    len(enabledForIndex) > 0,
+		ingester:   ingester,
 		// add quesma health monitor service here
 	}
 }
@@ -57,7 +61,7 @@ func (c *SenderCoordinator) GetSender() ab_testing.Sender {
 }
 
 func (c *SenderCoordinator) newInMemoryProcessor(healthQueue chan<- ab_testing.HealthMessage) *collector.InMemoryCollector {
-	repo := collector.NewCollector(c.ctx, healthQueue)
+	repo := collector.NewCollector(c.ctx, c.ingester, healthQueue)
 	repo.Start()
 	return repo
 }

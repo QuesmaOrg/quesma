@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"quesma/logger"
 	"quesma/quesma/types"
+	"quesma/table_resolver"
 	"strings"
 )
 
@@ -42,12 +43,16 @@ type (
 
 	Handler func(ctx context.Context, req *Request) (*Result, error)
 
+	MatchResult struct {
+		Matched  bool
+		Decision *table_resolver.Decision
+	}
 	RequestMatcher interface {
-		Matches(req *Request) bool
+		Matches(req *Request) MatchResult
 	}
 )
 
-type RequestMatcherFunc func(req *Request) bool
+type RequestMatcherFunc func(req *Request) MatchResult
 
 func ServerErrorResult() *Result {
 	return &Result{
@@ -63,7 +68,7 @@ func BadReqeustResult() *Result {
 	}
 }
 
-func (f RequestMatcherFunc) Matches(req *Request) bool {
+func (f RequestMatcherFunc) Matches(req *Request) MatchResult {
 	return f(req)
 }
 
@@ -81,20 +86,20 @@ func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler 
 
 }
 
-func (p *PathRouter) Matches(req *Request) (Handler, bool) {
-	handler, found := p.findHandler(req)
+func (p *PathRouter) Matches(req *Request) (Handler, bool, *table_resolver.Decision) {
+	handler, found, decision := p.findHandler(req)
 	if found {
 		routerStatistics.addMatched(req.Path)
 		logger.Debug().Msgf("Matched path: %s", req.Path)
-		return handler, true
+		return handler, true, decision
 	} else {
 		routerStatistics.addUnmatched(req.Path)
 		logger.Debug().Msgf("Non-matched path: %s", req.Path)
-		return handler, false
+		return handler, false, decision
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (Handler, bool) {
+func (p *PathRouter) findHandler(req *Request) (Handler, bool, *table_resolver.Decision) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)
@@ -103,26 +108,28 @@ func (p *PathRouter) findHandler(req *Request) (Handler, bool) {
 			req.Params = meta.Params
 			predicateResult := m.predicate.Matches(req)
 
-			if predicateResult {
-				return m.handler, true
+			if predicateResult.Matched {
+				return m.handler, true, predicateResult.Decision
+			} else {
+				return nil, false, predicateResult.Decision
 			}
 		}
 	}
-	return nil, false
+	return nil, false, nil
 }
 
 type httpMethodPredicate struct {
 	methods []string
 }
 
-func (p *httpMethodPredicate) Matches(req *Request) bool {
+func (p *httpMethodPredicate) Matches(req *Request) MatchResult {
 
 	for _, method := range p.methods {
 		if method == req.Method {
-			return true
+			return MatchResult{true, nil}
 		}
 	}
-	return false
+	return MatchResult{false, nil}
 }
 
 func IsHTTPMethod(methods ...string) RequestMatcher {
@@ -133,13 +140,17 @@ type predicateAnd struct {
 	predicates []RequestMatcher
 }
 
-func (p *predicateAnd) Matches(req *Request) bool {
+func (p *predicateAnd) Matches(req *Request) MatchResult {
+	var lastDecision *table_resolver.Decision
+
 	for _, predicate := range p.predicates {
-		if !predicate.Matches(req) {
-			return false
+		res := predicate.Matches(req)
+		lastDecision = res.Decision
+		if !res.Matched {
+			return MatchResult{false, res.Decision}
 		}
 	}
-	return true
+	return MatchResult{true, lastDecision}
 }
 
 func And(predicates ...RequestMatcher) RequestMatcher {
@@ -148,10 +159,20 @@ func And(predicates ...RequestMatcher) RequestMatcher {
 
 type predicateNever struct{}
 
-func (p *predicateNever) Matches(req *Request) bool {
-	return false
+func (p *predicateNever) Matches(req *Request) MatchResult {
+	return MatchResult{false, nil}
 }
 
 func Never() RequestMatcher {
 	return &predicateNever{}
+}
+
+type predicateAlways struct{}
+
+func (p *predicateAlways) Matches(req *Request) MatchResult {
+	return MatchResult{true, nil}
+}
+
+func Always() RequestMatcher {
+	return &predicateAlways{}
 }

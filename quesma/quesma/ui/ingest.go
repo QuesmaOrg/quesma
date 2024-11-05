@@ -11,7 +11,7 @@ import (
 
 func (qmc *QuesmaManagementConsole) generateIngestStatistics() []byte {
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("statistics"))
+	buffer.Write(qmc.generateTopNavigation("statistics"))
 
 	buffer.Html(`<main id="statistics">`)
 	buffer.Write(qmc.generateStatistics())

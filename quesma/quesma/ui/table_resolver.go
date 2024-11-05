@@ -10,7 +10,7 @@ import (
 func (qmc *QuesmaManagementConsole) generateTableResolver() []byte {
 
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("table_resolver"))
+	buffer.Write(qmc.generateTopNavigation("table_resolver"))
 
 	buffer.Html(`<main id="table_resolver">`)
 

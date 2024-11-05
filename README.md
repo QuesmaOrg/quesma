@@ -72,7 +72,7 @@ Once it's running, you can access:
 
 ### Development
 
-Developer documentation is available in the [docs](docs/DEVELOPMENT.MD) directory.
+Developer documentation is available in the [docs](docs/dev/DEVELOPMENT.MD) directory.
 
 ### License
 [Elastic License 2.0](https://github.com/QuesmaOrg/quesma/blob/main/LICENSE.MD)

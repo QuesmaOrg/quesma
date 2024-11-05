@@ -3,7 +3,7 @@
 package persistence
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,12 +15,8 @@ import (
 )
 
 type ElasticJSONDatabase struct {
-	url       string
-	indexName string
-	user      string
-	password  string
-
-	httpClient *http.Client
+	indexName  string
+	httpClient *elasticsearch.SimpleClient
 }
 
 // This is a wrapper to make document a single field doc.
@@ -32,20 +28,15 @@ type Wrapper struct {
 
 func NewElasticJSONDatabase(cfg config.ElasticsearchConfiguration, indexName string) *ElasticJSONDatabase {
 
-	httpClient := &http.Client{}
-
 	return &ElasticJSONDatabase{
-		httpClient: httpClient,
-		user:       cfg.User,
-		password:   cfg.Password,
-		url:        cfg.Url.String(),
+		httpClient: elasticsearch.NewSimpleClient(&cfg),
 		indexName:  indexName,
 	}
 }
 
 func (p *ElasticJSONDatabase) Put(key string, data string) error {
 
-	elasticsearchURL := fmt.Sprintf("%s/%s/_update/%s", p.url, p.indexName, key)
+	elasticsearchURL := fmt.Sprintf("%s/_update/%s", p.indexName, key)
 
 	w := Wrapper{Content: data}
 
@@ -58,14 +49,7 @@ func (p *ElasticJSONDatabase) Put(key string, data string) error {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", elasticsearchURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
-
-	p.setupRequest(req)
-
-	resp, err := p.httpClient.Do(req)
+	resp, err := p.httpClient.Request(context.Background(), "POST", elasticsearchURL, jsonData)
 	if err != nil {
 		return err
 	}
@@ -85,23 +69,10 @@ func (p *ElasticJSONDatabase) Put(key string, data string) error {
 	}
 }
 
-func (p *ElasticJSONDatabase) setupRequest(req *http.Request) {
-	elasticsearch.AddBasicAuthIfNeeded(req, p.user, p.password)
-	req.Header.Set("Content-Type", "application/json")
-}
-
 func (p *ElasticJSONDatabase) Get(key string) (string, bool, error) {
-	url := fmt.Sprintf("%s/%s/_source/%s", p.url, p.indexName, key)
+	url := fmt.Sprintf("%s/_source/%s", p.indexName, key)
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return "", false, err
-	}
-
-	p.setupRequest(req)
-
-	resp, err := p.httpClient.Do(req)
-
+	resp, err := p.httpClient.Request(context.Background(), "GET", url, nil)
 	if err != nil {
 		return "", false, err
 	}
@@ -135,7 +106,7 @@ func (p *ElasticJSONDatabase) Get(key string) (string, bool, error) {
 func (p *ElasticJSONDatabase) List() ([]string, error) {
 
 	// Define the Elasticsearch endpoint and the index you want to query
-	elasticsearchURL := fmt.Sprintf("%s/%s/_search", p.url, p.indexName)
+	elasticsearchURL := fmt.Sprintf("%s/_search", p.indexName)
 
 	// Build the query to get only document IDs
 	query := `{
@@ -146,17 +117,8 @@ func (p *ElasticJSONDatabase) List() ([]string, error) {
 		}
 	}`
 
-	// Create a new HTTP request
-	req, err := http.NewRequest("GET", elasticsearchURL, bytes.NewBuffer([]byte(query)))
-	if err != nil {
-		log.Fatalf("Error creating HTTP request: %s", err)
-	}
+	resp, err := p.httpClient.Request(context.Background(), "GET", elasticsearchURL, []byte(query))
 
-	p.setupRequest(req)
-
-	// Use the default HTTP client to execute the request
-	client := p.httpClient
-	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

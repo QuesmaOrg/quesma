@@ -84,16 +84,16 @@ func elapsedTime(t time.Time) time.Duration {
 	return time.Since(t)
 }
 
-type AsyncQueryIdWithTime struct {
+type asyncQueryIdWithTime struct {
 	id   string
 	time time.Time
 }
 
 func (e *AsyncQueriesEvictor) tryEvictAsyncRequests(timeFun func(time.Time) time.Duration) {
-	var ids []AsyncQueryIdWithTime
+	var ids []asyncQueryIdWithTime
 	e.AsyncRequestStorage.Range(func(key string, value *AsyncRequestResult) bool {
 		if timeFun(value.added) > EvictionInterval {
-			ids = append(ids, AsyncQueryIdWithTime{id: key, time: value.added})
+			ids = append(ids, asyncQueryIdWithTime{id: key, time: value.added})
 		}
 		return true
 	})

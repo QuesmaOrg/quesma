@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -113,9 +114,18 @@ func (tc *IntegrationTestcaseBase) ExecuteClickHouseStatement(ctx context.Contex
 	return res, nil
 }
 
-func (tc *IntegrationTestcaseBase) RequestToQuesma(ctx context.Context, method, uri string, body []byte) (*http.Response, error) {
+func (tc *IntegrationTestcaseBase) RequestToQuesma(ctx context.Context, t *testing.T, method, uri string, requestBody []byte) (*http.Response, []byte) {
 	endpoint := tc.getQuesmaEndpoint()
-	return tc.doRequest(ctx, method, endpoint+uri, body, nil)
+	resp, err := tc.doRequest(ctx, method, endpoint+uri, requestBody, nil)
+	if err != nil {
+		t.Fatalf("Error sending %s request to the endpoint '%s': %s", method, uri, err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body of %s request to the endpoint '%s': %s", method, uri, err)
+	}
+	return resp, responseBody
 }
 
 func (tc *IntegrationTestcaseBase) RequestToElasticsearch(ctx context.Context, method, uri string, body []byte) (*http.Response, error) {

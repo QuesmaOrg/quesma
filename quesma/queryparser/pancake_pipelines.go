@@ -19,6 +19,10 @@ func (p pancakePipelinesProcessor) selectPipelineRows(pipeline model.PipelineQue
 	bucketAggregation *pancakeModelBucketAggregation) (
 	result []model.QueryResultRow) {
 
+	if bucketAggregation == nil {
+		return rows
+	}
+
 	isCount := pipeline.IsCount()
 	for _, row := range rows {
 		newRow := model.QueryResultRow{Index: row.Index}

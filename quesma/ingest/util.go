@@ -25,6 +25,10 @@ func (t *columNameFormatter) Format(namespace, columnName string) string {
 	return fmt.Sprintf("%s%s%s", namespace, t.separator, columnName)
 }
 
+func DefaultColumnNameFormatter() TableColumNameFormatter {
+	return &columNameFormatter{separator: "_"}
+}
+
 // Code doesn't need to be pretty, 99.9% it's just for our purposes
 // Parses type from SHOW COLUMNS FROM "table"
 func parseTypeFromShowColumns(typ, name string) (clickhouse.Type, string) {

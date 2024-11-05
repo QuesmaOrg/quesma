@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
@@ -28,6 +29,14 @@ const (
 var uiFs embed.FS
 
 const quesmaSessionName = "quesma-session"
+
+func init() {
+
+	// Here we generate a random key for the session store
+	// TODO We should use a secure key from the environment on production.
+	// 32 - is a default key length, taken for example
+	gothic.Store = sessions.NewCookieStore(securecookie.GenerateRandomKey(32))
+}
 
 func authCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := gothic.CompleteUserAuth(w, r)
@@ -67,6 +76,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	if qmc.cfg.Elasticsearch.User == "" && qmc.cfg.Elasticsearch.Password == "" {
 		logger.Warn().Msg("admin console authentication is disabled")
 	} else {
+		qmc.isAuthEnabled = true
 		authenticatedRoutes.Use(authMiddleware)
 	}
 
@@ -247,7 +257,18 @@ func (qmc *QuesmaManagementConsole) initPprof(router *mux.Router) {
 	router.HandleFunc("/debug/pprof/trace", pprof.Trace)
 }
 
-var store = sessions.NewCookieStore([]byte("test"))
+// Here we generate keys for the session store.
+// TODO We should use a secure key from the environment on production.
+// 32,64 are default key lengths.
+var authKey = securecookie.GenerateRandomKey(64)
+var encryptionKey = securecookie.GenerateRandomKey(32)
+var store = sessions.NewCookieStore(authKey, encryptionKey)
+
+func init() { // Safari does not allow Secure cookies on localhost
+	store.Options = &sessions.Options{
+		Secure: false,
+	}
+}
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

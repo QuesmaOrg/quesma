@@ -9,7 +9,7 @@ import (
 
 func (qmc *QuesmaManagementConsole) generateTelemetry() []byte {
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("telemetry"))
+	buffer.Write(qmc.generateTopNavigation("telemetry"))
 	buffer.Html(`<main id="telemetry">`)
 
 	buffer.Html(`<h2>Telemetry</h2>`)

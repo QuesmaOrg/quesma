@@ -6,8 +6,8 @@ package testcases
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/stretchr/testify/assert"
-	"io"
 	"net/http"
 	"testing"
 )
@@ -37,15 +37,12 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) RunTests(ctx context.Contex
 	t.Run("test basic request", func(t *testing.T) { a.testBasicRequest(ctx, t) })
 	t.Run("test random thing", func(t *testing.T) { a.testRandomThing(ctx, t) })
 	t.Run("test wildcard goes to elastic", func(t *testing.T) { a.testWildcardGoesToElastic(ctx, t) })
+	t.Run("test ingest is disabled", func(t *testing.T) { a.testIngestIsDisabled(ctx, t) })
 	return nil
 }
 
 func (a *ReadingClickHouseTablesIntegrationTestcase) testBasicRequest(ctx context.Context, t *testing.T) {
-	resp, err := a.RequestToQuesma(ctx, "GET", "/", nil)
-	if err != nil {
-		t.Fatalf("Failed to make GET request: %s", err)
-	}
-	defer resp.Body.Close()
+	resp, _ := a.RequestToQuesma(ctx, t, "GET", "/", nil)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
@@ -63,11 +60,7 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) testRandomThing(ctx context
 	// This returns 500 Internal Server Error, but will be tackled in separate PR.
 	// (The table has not yet been discovered by Quesma )
 	// ERR quesma/quesma/quesma.go:198 > quesma request failed: Q2002: Missing table. Table: test_table: can't load test_table table opaque_id= path=/test_table/_search reason="Missing table." request_id=01926654-b214-7e1d-944a-a7545cd7d419
-	resp, err := a.RequestToQuesma(ctx, "GET", "/test_table/_search", []byte(`{"query": {"match_all": {}}}`))
-	if err != nil {
-		t.Fatalf("Failed to make GET request: %s", err)
-	}
-	defer resp.Body.Close()
+	resp, _ := a.RequestToQuesma(ctx, t, "GET", "/test_table/_search", []byte(`{"query": {"match_all": {}}}`))
 	assert.Equal(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
 }
 
@@ -84,15 +77,7 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) testWildcardGoesToElastic(c
 		t.Fatalf("Failed to refresh index: %s", err)
 	}
 	// When Quesma searches for that document
-	resp, err := a.RequestToQuesma(ctx, "POST", "/extra_index/_search", []byte(`{"query": {"match_all": {}}}`))
-	if err != nil {
-		t.Fatalf("Failed to make GET request: %s", err)
-	}
-	defer resp.Body.Close()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %s", err)
-	}
+	resp, bodyBytes := a.RequestToQuesma(ctx, t, "POST", "/extra_index/_search", []byte(`{"query": {"match_all": {}}}`))
 	var jsonResponse map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &jsonResponse); err != nil {
 		t.Fatalf("Failed to unmarshal response body: %s", err)
@@ -108,5 +93,15 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) testWildcardGoesToElastic(c
 	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
 }
 
-// At this moment this configuration does not disable ingest (ingest req's will get routed to ES and handled normally)
-// Future test idea -> ensure ingest req gets rejected.
+func (a *ReadingClickHouseTablesIntegrationTestcase) testIngestIsDisabled(ctx context.Context, t *testing.T) {
+	// There is no ingest pipeline, so Quesma should reject all ingest requests
+	for _, tt := range []string{"test_table", "extra_index"} {
+		t.Run(tt, func(t *testing.T) {
+			resp, bodyBytes := a.RequestToQuesma(ctx, t, "POST", fmt.Sprintf("/%s/_doc", tt), []byte(`{"name": "Piotr", "age": 11111}`))
+			assert.Contains(t, string(bodyBytes), "index_closed_exception")
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Equal(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
+			assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
+		})
+	}
+}
