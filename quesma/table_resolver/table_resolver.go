@@ -36,7 +36,7 @@ type patternSplitter struct {
 
 type basicResolver struct {
 	name     string
-	resolver func(pattern parsedPattern) *Decision
+	resolver func(part string) *Decision
 }
 
 type decisionMerger struct {
@@ -60,11 +60,7 @@ func (ir *compoundResolver) resolve(indexName string) *Decision {
 	var decisions []*Decision
 	for _, part := range input.parts {
 		for _, resolver := range ir.decisionLadder {
-			decision := resolver.resolver(parsedPattern{
-				source:    part,
-				isPattern: false,
-				parts:     []string{part},
-			})
+			decision := resolver.resolver(part)
 
 			if decision != nil {
 				decision.ResolverName = resolver.name
@@ -330,7 +326,6 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 			decisionLadder: []basicResolver{
 				// checking if we can handle the parsedPattern
 				{"kibanaInternal", resolveInternalElasticName},
-				{"searchAcrossConnectors", res.makeCheckIfPatternMatchesAllConnectors(QueryPipeline)},
 				{"disabled", makeIsDisabledInConfig(indexConf, QueryPipeline)},
 
 				{"singleIndex", res.singleIndex(indexConf, QueryPipeline)},
