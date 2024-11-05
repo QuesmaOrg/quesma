@@ -100,17 +100,19 @@ However, you can also store multiple indexes in a single table. To do this, conf
 ```yaml
 indexes:
   first_index:
-    target: [ backend-clickhouse ]
-    useCommonTable: true
+    target:
+      - backend-clickhouse:
+          useCommonTable: true
   second_index:
-    target: [ backend-clickhouse ]
-    useCommonTable: true
+    target:
+      - backend-clickhouse:
+          useCommonTable: true
   "*":
     target: [ backend-elastic ]
   ...        
 ```
 
-These indexes will then be stored in the quesma_common_table table.
+These indexes will then be stored in the `quesma_common_table` table.
 
 ### Schema evolution: adding new fields
 
