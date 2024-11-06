@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+const abTestingPath = "/ab-testing-dashboard"
+
 func (qmc *QuesmaManagementConsole) hasABTestingTable() bool {
 
 	db := qmc.logManager.GetDB()
@@ -63,7 +65,9 @@ If the performance gain is positive, it means that the second backend connector 
 
 	if qmc.hasABTestingTable() {
 
-		buffer.Html(`<form name="form1" hx-post="/ab-testing-dashboard/report" hx-trigger="submit,load,change" hx-target="#report">`)
+		buffer.Html(`<form name="form1" hx-post="`)
+		buffer.Text(abTestingPath)
+		buffer.Html(`/report" hx-trigger="submit,load,change" hx-target="#report">`)
 		buffer.Html(`<label for="kibana_url">Kibana URL</label>`)
 		buffer.Html(`<input id="kibana_url" name="kibana_url" type="text"  value="http://localhost:5601"/>`)
 		buffer.Html(`<br>`)
@@ -323,7 +327,7 @@ GROUP BY
 		}
 
 		row.dashboardUrl = fmt.Sprintf("%s/app/kibana#/dashboard/%s", kibanaUrl, row.dashboardId)
-		row.detailsUrl = fmt.Sprintf("/ab-testing-dashboard/panel?dashboard_id=%s&panel_id=%s", row.dashboardId, row.panelId)
+		row.detailsUrl = fmt.Sprintf("%s/panel?dashboard_id=%s&panel_id=%s", abTestingPath, row.dashboardId, row.panelId)
 		row.dashboardName = kibanaDashboards.dashboardName(row.dashboardId)
 		row.panelName = kibanaDashboards.panelName(row.dashboardId, row.panelId)
 
@@ -551,7 +555,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 			buffer.Html(`</td>`)
 
 			buffer.Html("<td>")
-			buffer.Html(`<a href="`).Text(fmt.Sprintf("/ab-testing-dashboard/mismatch?dashboard_id=%s&panel_id=%s&mismatch_id=%s", dashboardId, panelId, row.mismatchId)).Html(`">`).Text("Requests").Html(`</a>`)
+			buffer.Html(`<a href="`).Text(fmt.Sprintf("%s/mismatch?dashboard_id=%s&panel_id=%s&mismatch_id=%s", abTestingPath, dashboardId, panelId, row.mismatchId)).Html(`">`).Text("Requests").Html(`</a>`)
 			buffer.Html("</td>")
 
 			buffer.Html("</tr>\n")
@@ -657,7 +661,7 @@ func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panel
 		buffer.Html(`</td>`)
 
 		buffer.Html(`<td>`)
-		buffer.Html(`<a href="`).Text(fmt.Sprintf("/ab-testing-dashboard/request?request_id=%s", row.requestId)).Html(`">`).Text(row.requestId).Html(`</a>`)
+		buffer.Html(`<a href="`).Text(fmt.Sprintf("%s/request?request_id=%s", abTestingPath, row.requestId)).Html(`">`).Text(row.requestId).Html(`</a>`)
 
 		buffer.Html(`</td>`)
 

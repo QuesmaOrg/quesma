@@ -116,12 +116,14 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		return false
 	}
 
-	authenticatedRoutes.HandleFunc("/ab-testing-dashboard", func(writer http.ResponseWriter, req *http.Request) {
+
+
+	authenticatedRoutes.HandleFunc(abTestingPath, func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateABTestingDashboard()
 		_, _ = writer.Write(buf)
 	})
 
-	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/report", func(writer http.ResponseWriter, req *http.Request) {
+	authenticatedRoutes.HandleFunc(abTestingPath+"/report", func(writer http.ResponseWriter, req *http.Request) {
 		if checkIfAbAvailable(writer, req) {
 			kibanaUrl := req.PostFormValue("kibana_url")
 			orderBy := req.PostFormValue("order_by")
@@ -130,7 +132,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		}
 	})
 
-	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/panel", func(writer http.ResponseWriter, req *http.Request) {
+	authenticatedRoutes.HandleFunc(abTestingPath+"/panel", func(writer http.ResponseWriter, req *http.Request) {
 		if checkIfAbAvailable(writer, req) {
 			dashboardId := req.FormValue("dashboard_id")
 			panelId := req.FormValue("panel_id")
@@ -140,7 +142,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		}
 	})
 
-	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/mismatch", func(writer http.ResponseWriter, req *http.Request) {
+	authenticatedRoutes.HandleFunc(abTestingPath+"/mismatch", func(writer http.ResponseWriter, req *http.Request) {
 		if checkIfAbAvailable(writer, req) {
 			dashboardId := req.FormValue("dashboard_id")
 			panelId := req.FormValue("panel_id")
@@ -151,7 +153,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		}
 	})
 
-	authenticatedRoutes.HandleFunc("/ab-testing-dashboard/request", func(writer http.ResponseWriter, req *http.Request) {
+	authenticatedRoutes.HandleFunc(abTestingPath+"/request", func(writer http.ResponseWriter, req *http.Request) {
 		if checkIfAbAvailable(writer, req) {
 			requestId := req.FormValue("request_id")
 			buf := qmc.generateABSingleRequest(requestId)
