@@ -598,6 +598,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					if val, exists := target.properties["useCommonTable"]; exists {
 						processedConfig.UseCommonTable = val == "true"
 					}
+					if val, exists := target.properties["override"]; exists {
+						processedConfig.Override = val.(string)
+					}
+
 				}
 				if len(processedConfig.QueryTarget) == 2 && !((processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) ||
 					(processedConfig.QueryTarget[0] == ElasticsearchTarget && processedConfig.QueryTarget[1] == ClickhouseTarget)) {
@@ -718,6 +722,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				if val, exists := target.properties["useCommonTable"]; exists {
 					processedConfig.UseCommonTable = val == true
 				}
+				if val, exists := target.properties["override"]; exists {
+					processedConfig.Override = val.(string)
+				}
 			}
 			if len(processedConfig.QueryTarget) == 2 && !((processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) ||
 				(processedConfig.QueryTarget[0] == ElasticsearchTarget && processedConfig.QueryTarget[1] == ClickhouseTarget)) {
@@ -763,6 +770,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				}
 				if val, exists := target.properties["useCommonTable"]; exists {
 					processedConfig.UseCommonTable = val == true
+				}
+				if val, exists := target.properties["override"]; exists {
+					processedConfig.Override = val.(string)
 				}
 			}
 			conf.IndexConfig[indexName] = processedConfig
