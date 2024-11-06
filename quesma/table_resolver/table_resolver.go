@@ -44,6 +44,10 @@ type decisionMerger struct {
 	merger func(decisions []*Decision) *Decision
 }
 
+// Compound resolver works in the following way:
+// 1. patternSplitter splits a pattern, for example: logs* into concrete single indexes (e.g. logs1, logs2)
+// 2. decisionLadder rules are evaluated on each index separately, resulting in a decision for each index
+// 3. decisionMerger merges those decisions, making sure that the decisions are compatible. It yields a single decision.
 type compoundResolver struct {
 	patternSplitter patternSplitter
 	decisionLadder  []basicResolver
@@ -320,8 +324,8 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 
 		resolver: &compoundResolver{
 			patternSplitter: patternSplitter{
-				name:     "legacyPatternSplitter",
-				resolver: res.legacyPatternSplitter(QueryPipeline),
+				name:     "wildcardPatternSplitter",
+				resolver: res.wildcardPatternSplitter,
 			},
 			decisionLadder: []basicResolver{
 				// checking if we can handle the parsedPattern

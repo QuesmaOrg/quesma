@@ -16,47 +16,49 @@ import (
 // TODO these rules may be incorrect and incomplete
 // They will be fixed int the next iteration.
 
-func (r *tableRegistryImpl) legacyPatternSplitter(pipeline string) func(pattern string) (parsedPattern, *Decision) {
-	return func(pattern string) (parsedPattern, *Decision) {
-		patterns := strings.Split(pattern, ",")
+func (r *tableRegistryImpl) wildcardPatternSplitter(pattern string) (parsedPattern, *Decision) {
+	patterns := strings.Split(pattern, ",")
 
-		// Given a (potentially wildcard) pattern, find all non-wildcard index names that match the pattern
-		var matchingSingleNames []string
-		for _, pattern := range patterns {
-			if !elasticsearch.IsIndexPattern(pattern) || elasticsearch.IsInternalIndex(pattern) {
-				matchingSingleNames = append(matchingSingleNames, pattern)
-				continue
-			}
+	// Given a (potentially wildcard) pattern, find all non-wildcard index names that match the pattern
+	var matchingSingleNames []string
+	for _, pattern := range patterns {
+		// If pattern is not an actual pattern (so it's a single index), just add it to the list
+		// and skip further processing.
+		// If pattern is an internal Kibana index, add it to the list without any processing - resolveInternalElasticName
+		// will take care of it.
+		if !elasticsearch.IsIndexPattern(pattern) || elasticsearch.IsInternalIndex(pattern) {
+			matchingSingleNames = append(matchingSingleNames, pattern)
+			continue
+		}
 
-			for indexName := range r.conf.IndexConfig {
-				if util.IndexPatternMatches(pattern, indexName) {
-					matchingSingleNames = append(matchingSingleNames, indexName)
-				}
-			}
-
-			// but maybe we should also check against the actual indexes ??
-			for indexName := range r.elasticIndexes {
-				if util.IndexPatternMatches(pattern, indexName) {
-					matchingSingleNames = append(matchingSingleNames, indexName)
-				}
-			}
-			if r.conf.AutodiscoveryEnabled {
-				for tableName := range r.clickhouseIndexes {
-					if util.IndexPatternMatches(pattern, tableName) {
-						matchingSingleNames = append(matchingSingleNames, tableName)
-					}
-				}
+		for indexName := range r.conf.IndexConfig {
+			if util.IndexPatternMatches(pattern, indexName) {
+				matchingSingleNames = append(matchingSingleNames, indexName)
 			}
 		}
 
-		matchingSingleNames = util.Distinct(matchingSingleNames)
-
-		return parsedPattern{
-			source:    pattern,
-			isPattern: len(patterns) > 1 || strings.Contains(pattern, "*"),
-			parts:     matchingSingleNames,
-		}, nil
+		// but maybe we should also check against the actual indexes ??
+		for indexName := range r.elasticIndexes {
+			if util.IndexPatternMatches(pattern, indexName) {
+				matchingSingleNames = append(matchingSingleNames, indexName)
+			}
+		}
+		if r.conf.AutodiscoveryEnabled {
+			for tableName := range r.clickhouseIndexes {
+				if util.IndexPatternMatches(pattern, tableName) {
+					matchingSingleNames = append(matchingSingleNames, tableName)
+				}
+			}
+		}
 	}
+
+	matchingSingleNames = util.Distinct(matchingSingleNames)
+
+	return parsedPattern{
+		source:    pattern,
+		isPattern: len(patterns) > 1 || strings.Contains(pattern, "*"),
+		parts:     matchingSingleNames,
+	}, nil
 }
 
 func singleIndexSplitter(pattern string) (parsedPattern, *Decision) {
@@ -287,7 +289,7 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 	}
 }
 
-func mergeUseConnectors(lhs []ConnectorDecision, rhs []ConnectorDecision) ([]ConnectorDecision, *Decision) {
+func mergeUseConnectors(lhs []ConnectorDecision, rhs []ConnectorDecision, rhsIndexName string) ([]ConnectorDecision, *Decision) {
 	for _, connDecisionRhs := range rhs {
 		foundMatching := false
 		for _, connDecisionLhs := range lhs {
@@ -300,15 +302,15 @@ func mergeUseConnectors(lhs []ConnectorDecision, rhs []ConnectorDecision) ([]Con
 				if lhsClickhouse, ok := connDecisionLhs.(*ConnectorDecisionClickhouse); ok {
 					if lhsClickhouse.ClickhouseTableName != rhsClickhouse.ClickhouseTableName {
 						return nil, &Decision{
-							Reason: "Inconsistent ClickHouse table usage",
-							Err:    fmt.Errorf("inconsistent ClickHouse table usage - %s and %s", connDecisionRhs, connDecisionLhs),
+							Reason: "Incompatible decisions for two indexes - they use a different ClickHouse table",
+							Err:    fmt.Errorf("incompatible decisions for two indexes (different ClickHouse table) - %s and %s", connDecisionRhs, connDecisionLhs),
 						}
 					}
 					if lhsClickhouse.IsCommonTable {
 						if !rhsClickhouse.IsCommonTable {
 							return nil, &Decision{
-								Reason: "Inconsistent common table usage",
-								Err:    fmt.Errorf("inconsistent common table usage - %s and %s", connDecisionRhs, connDecisionLhs),
+								Reason: "Incompatible decisions for two indexes - one uses the common table, the other does not",
+								Err:    fmt.Errorf("incompatible decisions for two indexes (common table usage) - %s and %s", connDecisionRhs, connDecisionLhs),
 							}
 						}
 						lhsClickhouse.ClickhouseTables = append(lhsClickhouse.ClickhouseTables, rhsClickhouse.ClickhouseTables...)
@@ -316,8 +318,8 @@ func mergeUseConnectors(lhs []ConnectorDecision, rhs []ConnectorDecision) ([]Con
 					} else {
 						if !reflect.DeepEqual(lhsClickhouse, rhsClickhouse) {
 							return nil, &Decision{
-								Reason: "Inconsistent ClickHouse table usage",
-								Err:    fmt.Errorf("inconsistent ClickHouse table usage - %s and %s", connDecisionRhs, connDecisionLhs),
+								Reason: "Incompatible decisions for two indexes - they use ClickHouse tables differently",
+								Err:    fmt.Errorf("incompatible decisions for two indexes (different usage of ClickHouse) - %s and %s", connDecisionRhs, connDecisionLhs),
 							}
 						}
 					}
@@ -327,8 +329,8 @@ func mergeUseConnectors(lhs []ConnectorDecision, rhs []ConnectorDecision) ([]Con
 		}
 		if !foundMatching {
 			return nil, &Decision{
-				Reason: "Inconsistent connectors",
-				Err:    fmt.Errorf("inconsistent connectors - %s and %s", connDecisionRhs, lhs), // TODO: improve error message
+				Reason: "Incompatible decisions for two indexes - they use different connectors",
+				Err:    fmt.Errorf("incompatible decisions for two indexes - they use different connectors: could not find connector %s used for index %s in decisions: %s", connDecisionRhs, rhsIndexName, lhs),
 			}
 		}
 	}
@@ -403,7 +405,7 @@ func basicDecisionMerger(decisions []*Decision) *Decision {
 			}
 		}
 
-		newUseConnectors, mergeDecision := mergeUseConnectors(useConnectors, decision.UseConnectors)
+		newUseConnectors, mergeDecision := mergeUseConnectors(useConnectors, decision.UseConnectors, decision.IndexPattern)
 		if mergeDecision != nil {
 			return mergeDecision
 		}
