@@ -15,6 +15,7 @@ import (
 	"quesma/model"
 	"quesma/queryparser"
 	"quesma/quesma/async_search_storage"
+	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
@@ -128,7 +129,7 @@ func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.Executio
 
 		case *table_resolver.ConnectorDecisionClickhouse:
 			planExecutor = func(ctx context.Context) ([]byte, error) {
-				plan.Name = "clickhouse"
+				plan.Name = config.ClickhouseTarget
 				return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh, isMainPlan)
 			}
 
@@ -139,7 +140,7 @@ func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.Executio
 					QueryRowsTransformers: []model.QueryRowsTransformer{},
 					Queries:               []*model.Query{},
 					StartTime:             plan.StartTime,
-					Name:                  "elastic",
+					Name:                  config.ElasticsearchTarget,
 				}
 				return q.executePlanElastic(ctx, elasticPlan, body, optAsync, optComparePlansCh, isMainPlan)
 			}

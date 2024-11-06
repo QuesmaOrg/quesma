@@ -107,6 +107,58 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
+	checkIfAbAvailable := func(writer http.ResponseWriter, req *http.Request) bool {
+		if qmc.hasABTestingTable() {
+			return true
+		}
+
+		_, _ = writer.Write([]byte("AB Testing results are not available."))
+		return false
+	}
+
+	authenticatedRoutes.HandleFunc(abTestingPath, func(writer http.ResponseWriter, req *http.Request) {
+		buf := qmc.generateABTestingDashboard()
+		_, _ = writer.Write(buf)
+	})
+
+	authenticatedRoutes.HandleFunc(abTestingPath+"/report", func(writer http.ResponseWriter, req *http.Request) {
+		if checkIfAbAvailable(writer, req) {
+			kibanaUrl := req.PostFormValue("kibana_url")
+			orderBy := req.PostFormValue("order_by")
+			buf := qmc.generateABTestingReport(kibanaUrl, orderBy)
+			_, _ = writer.Write(buf)
+		}
+	})
+
+	authenticatedRoutes.HandleFunc(abTestingPath+"/panel", func(writer http.ResponseWriter, req *http.Request) {
+		if checkIfAbAvailable(writer, req) {
+			dashboardId := req.FormValue("dashboard_id")
+			panelId := req.FormValue("panel_id")
+
+			buf := qmc.generateABPanelDetails(dashboardId, panelId)
+			_, _ = writer.Write(buf)
+		}
+	})
+
+	authenticatedRoutes.HandleFunc(abTestingPath+"/mismatch", func(writer http.ResponseWriter, req *http.Request) {
+		if checkIfAbAvailable(writer, req) {
+			dashboardId := req.FormValue("dashboard_id")
+			panelId := req.FormValue("panel_id")
+			mismatchId := req.FormValue("mismatch_id")
+
+			buf := qmc.generateABMismatchDetails(dashboardId, panelId, mismatchId)
+			_, _ = writer.Write(buf)
+		}
+	})
+
+	authenticatedRoutes.HandleFunc(abTestingPath+"/request", func(writer http.ResponseWriter, req *http.Request) {
+		if checkIfAbAvailable(writer, req) {
+			requestId := req.FormValue("request_id")
+			buf := qmc.generateABSingleRequest(requestId)
+			_, _ = writer.Write(buf)
+		}
+	})
+
 	authenticatedRoutes.HandleFunc("/tables/reload", func(writer http.ResponseWriter, req *http.Request) {
 
 		qmc.logManager.ReloadTables()

@@ -563,6 +563,63 @@
             font-size: small;
         }
 
+        #ab_testing_dashboard table {
+            border-collapse: collapse;
+            table-layout: fixed;
+        //width: 98%;
+            word-wrap: break-word;
+            font-size: small;
+        }
+
+        #ab_testing_dashboard table th {
+            border: solid 1px black;
+        }
+
+        #ab_testing_dashboard table td {
+            border: solid 1px black;
+            overflow-x: auto;
+            vertical-align: top;
+        }
+
+        /* Tooltip container */
+        .tooltip {
+            position: relative;
+            cursor: pointer;
+            color: #0056b3; /* Optional: make it look like a link */
+            text-decoration: none;
+            font-size: small;
+            /* Optional: underline to indicate it's interactive */
+        }
+
+        /* Tooltip text */
+        .tooltip::after {
+            content: attr(data-tooltip); /* Get tooltip text from data attribute */
+            position: absolute;
+            top: 125%; /* Position below the span */
+            left: 50%;
+            transform: translateX(-20%);
+            background-color: #eee;
+            color: black;
+            padding: 1em;
+            border-radius: 5px;
+            width: 40em;
+            max-width: 50em; /* Set maximum width */
+            white-space: wrap; /* Allow text to wrap */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s;
+            z-index: 10;
+            pointer-events: none;
+            text-align: left; /* Center-align text for readability */
+        }
+
+        /* Show the tooltip on hover */
+        .tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+
         #quesma_all_logs table {
             border-collapse: collapse;
             table-layout: fixed;

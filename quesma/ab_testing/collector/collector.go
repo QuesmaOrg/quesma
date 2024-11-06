@@ -17,6 +17,7 @@ type ResponseMismatch struct {
 
 	Mismatches string `json:"mismatches"` // JSON array of differences
 	Message    string `json:"message"`    // human readable variant of the array above
+	SHA1       string `json:"sha1"`       // SHA1 of the differences
 
 	Count           int    `json:"count"`             // number of differences
 	TopMismatchType string `json:"top_mismatch_type"` // most common difference type
@@ -36,7 +37,8 @@ type EnrichedResults struct {
 	QuesmaBuildHash string           `json:"quesma_hash"`
 	Errors          []string         `json:"errors,omitempty"`
 
-	KibanaDashboardId string `json:"kibana_dashboard_id,omitempty"`
+	KibanaDashboardId      string `json:"kibana_dashboard_id,omitempty"`
+	KibanaDashboardPanelId string `json:"kibana_dashboard_panel_id,omitempty"`
 }
 
 type pipelineProcessor interface {
