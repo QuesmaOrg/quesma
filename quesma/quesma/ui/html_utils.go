@@ -81,7 +81,9 @@ func (qmc *QuesmaManagementConsole) generateTopNavigation(target string) []byte 
 	if target == "ab-testing-dashboard" {
 		buffer.Html(` class="active"`)
 	}
-	buffer.Html(`><a href="/ab-testing-dashboard">A/B</a></li>`)
+	buffer.Html(`><a href="`)
+	buffer.Html(abTestingPath)
+	buffer.Html(`">A/B</a></li>`)
 
 	buffer.Html(`<li><a href="/logout">Logout</a></li>`)
 
