@@ -20,6 +20,22 @@ type pancakeModel struct {
 	sampleLimit int
 }
 
+// Clone isn't a shallow copy, isn't also a full deep copy, but it's enough for our purposes.
+func (p *pancakeModel) Clone() *pancakeModel {
+	layers := make([]*pancakeModelLayer, len(p.layers))
+	for i, layer := range p.layers {
+		layers[i] = newPancakeModelLayer(layer.nextBucketAggregation)
+		layers[i].currentMetricAggregations = p.layers[i].currentMetricAggregations
+		layers[i].currentPipelineAggregations = p.layers[i].currentPipelineAggregations
+		layers[i].childrenPipelineAggregations = p.layers[i].childrenPipelineAggregations
+	}
+	return &pancakeModel{
+		layers:      layers,
+		whereClause: p.whereClause,
+		sampleLimit: p.sampleLimit,
+	}
+}
+
 type pancakeModelLayer struct {
 	nextBucketAggregation       *pancakeModelBucketAggregation
 	currentMetricAggregations   []*pancakeModelMetricAggregation

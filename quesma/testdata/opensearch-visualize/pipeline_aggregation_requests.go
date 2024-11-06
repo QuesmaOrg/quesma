@@ -755,12 +755,18 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"1": {
 									"value": null
 								},
+								"1-metric": {
+									"value": null
+								},
 								"doc_count": 0,
 								"key": 1715197200000,
 								"key_as_string": "2024-05-08T19:40:00.000"
 							},
 							{
 								"1": {
+									"value": null
+								},
+								"1-metric": {
 									"value": null
 								},
 								"doc_count": 0,
@@ -1037,7 +1043,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 1714874400000,
 							"key_as_string": "2024-05-05T02:00:00.000"
 						},
-{
+						{
 							"1": {
 								"value": 0.0
 							},
@@ -1625,12 +1631,18 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"1": {
 									"value": null
 								},
+								"1-metric": {
+									"value": null
+								},
 								"doc_count": 0,
 								"key": 1715197200000,
 								"key_as_string": "2024-05-08T19:40:00.000"
 							},
 							{
 								"1": {
+									"value": null
+								},
+								"1-metric": {
 									"value": null
 								},
 								"doc_count": 0,
@@ -3691,6 +3703,9 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 3.0
 						},
 						{
+							"1-metric": {
+								"value": null
+							},
 							"3": {
 								"value": null
 							},
@@ -3761,7 +3776,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			GROUP BY "bytes" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" ASC`,
 	},
-	/* waits for probably a simple filters fix
+	/* waits for probably a simple filters fix */
 	{ // [21]
 		TestName: "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)",
 		QueryRequestJson: `
@@ -3891,52 +3906,24 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 189
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2183))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`count()`, 0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 4968221.14887619),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`count()`, 722),
-				}},
-			},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("filter_0__aggr__1-bucket__count", uint64(0)),
+				model.NewQueryResultCol("filter_0__metric__1-bucket__1-metric_col_0", 0.0),
+				model.NewQueryResultCol("filter_1__aggr__1-bucket__count", uint64(722)),
+				model.NewQueryResultCol("filter_1__metric__1-bucket__1-metric_col_0", 4968221.14887619),
+			}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` `,
-			`NoDBQuery`,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "FlightDelayMin" > '-100' `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "FlightDelayMin" > '-100' `,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE false `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE false `,
-		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT countIf("FlightDelayMin" > '-100') AS "filter_0__aggr__1-bucket__count",
+			  sumOrNullIf("DistanceKilometers", "FlightDelayMin" > '-100') AS
+			  "filter_0__metric__1-bucket__1-metric_col_0",
+			  countIf(false) AS "filter_1__aggr__1-bucket__count",
+			  sumOrNullIf("DistanceKilometers", false) AS
+			  "filter_1__metric__1-bucket__1-metric_col_0"
+			FROM __quesma_table_name`,
 	},
-	*/
-	/* waits for probably a simple filters fix
+	/* waits for probably a simple filters fix */
 	{ // [22] TODO check this test with other pipeline aggregations
 		TestName: "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range",
 		QueryRequestJson: `
@@ -4124,61 +4111,63 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 78
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2184))}}},
-			{}, // NoDBQuery
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 82682.96674728394)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 140)}}},
-			{}, // NoDBQuery
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 140267.98315429688)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 62)}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL))`, 419),
-				model.NewQueryResultCol(`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL))`, 159),
-				model.NewQueryResultCol(`count()`, 2184),
-			}}},
-		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` `,
-			`NoDBQuery`,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
-			`NoDBQuery`,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
-			`SELECT count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL)), ` +
-				`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL)), ` +
-				`count() ` +
-				`FROM ` + testdata.QuotedTableName + ` `,
-		},
+		/*
+			ExpectedResults: [][]model.QueryResultRow{
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2184))}}},
+				{}, // NoDBQuery
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 82682.96674728394)}}},
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 140)}}},
+				{}, // NoDBQuery
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 140267.98315429688)}}},
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 62)}}},
+				{{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL))`, 419),
+					model.NewQueryResultCol(`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL))`, 159),
+					model.NewQueryResultCol(`count()`, 2184),
+				}}},
+			},
+			ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+			ExpectedSQLs: []string{
+				`SELECT count() ` +
+					`FROM ` + testdata.QuotedTableName + ` `,
+				`NoDBQuery`,
+				`SELECT sumOrNull("DistanceKilometers") ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
+				`SELECT count() ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
+				`SELECT sumOrNull("DistanceKilometers") ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
+				`SELECT count() ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
+				`NoDBQuery`,
+				`SELECT sumOrNull("DistanceKilometers") ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
+				`SELECT count() ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
+				`SELECT sumOrNull("DistanceKilometers") ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
+				`SELECT count() ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
+				`SELECT count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL)), ` +
+					`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL)), ` +
+					`count() ` +
+					`FROM ` + testdata.QuotedTableName + ` `,
+			},
+		*/
 		ExpectedPancakeSQL: "TODO",
-	}, */
+	},
 	{ // [23]
 		TestName: "Simplest sum_bucket. Reproduce: Visualize -> Horizontal Bar: Metrics: Sum Bucket (B ucket: Terms, Metric: Count)",
 		QueryRequestJson: `

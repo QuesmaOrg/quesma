@@ -292,7 +292,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	addIfCombinators := make([]addIfCombinator, 0)
 	var optTopHitsOrMetrics *pancakeModelMetricAggregation
 
-	for _, layer := range aggregation.layers {
+	for i, layer := range aggregation.layers {
 		for _, metric := range layer.currentMetricAggregations {
 			switch metric.queryType.(type) {
 			case *metrics_aggregations.TopMetrics, *metrics_aggregations.TopHits:
@@ -309,7 +309,15 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 
 		if layer.nextBucketAggregation != nil {
 			if combinator, isCombinator := layer.nextBucketAggregation.queryType.(bucket_aggregations.CombinatorAggregationInterface); isCombinator {
-				addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), combinator})
+				var isFilter bool
+				switch combinator.(type) {
+				case *bucket_aggregations.FilterAgg, bucket_aggregations.Filters:
+					isFilter = true
+				}
+				filterAlreadyInWhereClause := i == 0 && len(aggregation.layers) > 1 && len(layer.currentMetricAggregations) == 0 && len(layer.currentPipelineAggregations) == 0
+				if !isFilter || !filterAlreadyInWhereClause {
+					addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), combinator})
+				}
 			}
 
 			if layer.nextBucketAggregation.DoesHaveGroupBy() {

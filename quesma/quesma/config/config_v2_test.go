@@ -229,3 +229,31 @@ func TestMatchName(t *testing.T) {
 		})
 	}
 }
+
+func TestTargetNewVariant(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/target_new_variant.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+	assert.False(t, legacyConf.TransparentProxy)
+	assert.Equal(t, 3, len(legacyConf.IndexConfig))
+	ecommerce := legacyConf.IndexConfig["kibana_sample_data_ecommerce"]
+	flights := legacyConf.IndexConfig["kibana_sample_data_flights"]
+	logs := legacyConf.IndexConfig["kibana_sample_data_logs"]
+
+	assert.Equal(t, []string{ClickhouseTarget}, ecommerce.QueryTarget)
+	assert.Equal(t, []string{ClickhouseTarget}, ecommerce.IngestTarget)
+
+	assert.Equal(t, []string{ClickhouseTarget}, flights.QueryTarget)
+	assert.Equal(t, []string{ClickhouseTarget}, flights.IngestTarget)
+
+	assert.Equal(t, []string{ClickhouseTarget}, logs.QueryTarget)
+	assert.Equal(t, []string{ClickhouseTarget}, logs.IngestTarget)
+
+	assert.Equal(t, false, flights.UseCommonTable)
+	assert.Equal(t, false, ecommerce.UseCommonTable)
+	assert.Equal(t, true, logs.UseCommonTable)
+	assert.Equal(t, true, legacyConf.EnableIngest)
+}

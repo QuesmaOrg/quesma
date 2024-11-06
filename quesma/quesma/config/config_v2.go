@@ -39,23 +39,22 @@ const (
 )
 
 type QuesmaNewConfiguration struct {
-	BackendConnectors          []BackendConnector   `koanf:"backendConnectors"`
-	FrontendConnectors         []FrontendConnector  `koanf:"frontendConnectors"`
-	InstallationId             string               `koanf:"installationId"`
-	LicenseKey                 string               `koanf:"licenseKey"`
-	Logging                    LoggingConfiguration `koanf:"logging"`
-	IngestStatistics           bool                 `koanf:"ingestStatistics"`
-	QuesmaInternalTelemetryUrl *Url                 `koanf:"internalTelemetryUrl"`
-	Processors                 []Processor          `koanf:"processors"`
-	Pipelines                  []Pipeline           `koanf:"pipelines"`
-	DisableTelemetry           bool                 `koanf:"disableTelemetry"`
+	BackendConnectors  []BackendConnector   `koanf:"backendConnectors"`
+	FrontendConnectors []FrontendConnector  `koanf:"frontendConnectors"`
+	InstallationId     string               `koanf:"installationId"`
+	LicenseKey         string               `koanf:"licenseKey"`
+	Logging            LoggingConfiguration `koanf:"logging"`
+	IngestStatistics   bool                 `koanf:"ingestStatistics"`
+	Processors         []Processor          `koanf:"processors"`
+	Pipelines          []Pipeline           `koanf:"pipelines"`
+	DisableTelemetry   bool                 `koanf:"disableTelemetry"`
 }
 
 type LoggingConfiguration struct {
 	Path              string         `koanf:"path"`
 	Level             *zerolog.Level `koanf:"level"`
-	RemoteLogDrainUrl *Url           `koanf:"remoteUrl"`
 	FileLogging       bool           `koanf:"fileLogging"`
+	RemoteLogDrainUrl *Url
 }
 
 type Pipeline struct {
@@ -118,9 +117,6 @@ type QuesmaProcessorConfig struct {
 
 func LoadV2Config() QuesmaNewConfiguration {
 	var v2config QuesmaNewConfiguration
-	v2config.QuesmaInternalTelemetryUrl = telemetryUrl
-	v2config.Logging.RemoteLogDrainUrl = telemetryUrl
-
 	loadConfigFile()
 	// We have to use custom env provider to allow array overrides
 	if err := k.Load(Env2JsonProvider("QUESMA_", "_", nil), json.Parser(), koanf.WithMergeFunc(mergeDictFunc)); err != nil {
@@ -381,17 +377,24 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 				return fmt.Errorf("index name '%s' in processor configuration is an index pattern, not allowed", indexName)
 			}
 			if p.Type == QuesmaV1ProcessorQuery {
-				if len(indexConfig.Target) > 2 {
-					return fmt.Errorf("configuration of index %s must have at most two targets (query processor)", indexName)
+				if _, ok := indexConfig.Target.([]interface{}); ok {
+					if len(indexConfig.Target.([]interface{})) > 2 {
+						return fmt.Errorf("configuration of index %s must have at most two targets (query processor)", indexName)
+					}
 				}
 			} else {
-				if len(indexConfig.Target) > 2 {
-					return fmt.Errorf("configuration of index %s must have at most two targets (ingest processor)", indexName)
+				if _, ok := indexConfig.Target.([]interface{}); ok {
+					if len(indexConfig.Target.([]interface{})) > 2 {
+						return fmt.Errorf("configuration of index %s must have at most two targets (ingest processor)", indexName)
+					}
 				}
 			}
-
-			for _, target := range indexConfig.Target {
-				if c.getBackendConnectorByName(target) == nil {
+			targets, errTarget := c.getTargetsExtendedConfig(indexConfig.Target)
+			if errTarget != nil {
+				return errTarget
+			}
+			for _, target := range targets {
+				if c.getBackendConnectorByName(target.target) == nil {
 					return fmt.Errorf("invalid target %s in configuration of index %s", target, indexName)
 				}
 			}
@@ -549,13 +552,22 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			// Handle default index configuration
 			defaultConfig := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]
-			for _, target := range defaultConfig.Target {
-				if targetType, found := c.getTargetType(target); found {
+			targets, errTarget := c.getTargetsExtendedConfig(defaultConfig.Target)
+			if errTarget != nil {
+				errAcc = multierror.Append(errAcc, errTarget)
+			}
+			for _, target := range targets {
+				if targetType, found := c.getTargetType(target.target); found {
 					defaultConfig.QueryTarget = append(defaultConfig.QueryTarget, targetType)
 				} else {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
 				}
+				if val, exists := target.properties["useCommonTable"]; exists {
+					conf.CreateCommonTable = val == "true"
+					conf.UseCommonTableForWildcard = val == "true"
+				}
 			}
+
 			if defaultConfig.UseCommonTable {
 				// We set both flags to true here
 				// as creating common table depends on the first one
@@ -573,15 +585,20 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 				processedConfig := indexConfig
 				processedConfig.Name = indexName
-
-				for _, target := range indexConfig.Target {
-					if targetType, found := c.getTargetType(target); found {
+				targets, errTarget := c.getTargetsExtendedConfig(indexConfig.Target)
+				if errTarget != nil {
+					errAcc = multierror.Append(errAcc, errTarget)
+				}
+				for _, target := range targets {
+					if targetType, found := c.getTargetType(target.target); found {
 						processedConfig.QueryTarget = append(processedConfig.QueryTarget, targetType)
 					} else {
 						errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
 					}
+					if val, exists := target.properties["useCommonTable"]; exists {
+						processedConfig.UseCommonTable = val == "true"
+					}
 				}
-
 				if len(processedConfig.QueryTarget) == 2 && !((processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) ||
 					(processedConfig.QueryTarget[0] == ElasticsearchTarget && processedConfig.QueryTarget[1] == ClickhouseTarget)) {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration", indexName))
@@ -623,11 +640,19 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 		// Handle default index configuration
 		defaultConfig := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]
-		for _, target := range defaultConfig.Target {
-			if targetType, found := c.getTargetType(target); found {
+		targets, errTarget := c.getTargetsExtendedConfig(defaultConfig.Target)
+		if errTarget != nil {
+			errAcc = multierror.Append(errAcc, errTarget)
+		}
+		for _, target := range targets {
+			if targetType, found := c.getTargetType(target.target); found {
 				defaultConfig.QueryTarget = append(defaultConfig.QueryTarget, targetType)
 			} else {
 				errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
+			}
+			if val, exists := target.properties["useCommonTable"]; exists {
+				conf.CreateCommonTable = val == "true"
+				conf.UseCommonTableForWildcard = val == "true"
 			}
 		}
 		if defaultConfig.UseCommonTable {
@@ -638,11 +663,19 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 
 		ingestProcessorDefaultIndexConfig := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName]
-		for _, target := range ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target {
-			if targetType, found := c.getTargetType(target); found {
+		targets, errTarget = c.getTargetsExtendedConfig(ingestProcessorDefaultIndexConfig.Target)
+		if errTarget != nil {
+			errAcc = multierror.Append(errAcc, errTarget)
+		}
+		for _, target := range targets {
+			if targetType, found := c.getTargetType(target.target); found {
 				defaultConfig.IngestTarget = append(defaultConfig.IngestTarget, targetType)
 			} else {
 				errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
+			}
+			if val, exists := target.properties["useCommonTable"]; exists {
+				conf.CreateCommonTable = val == "true"
+				conf.UseCommonTableForWildcard = val == "true"
 			}
 		}
 		if ingestProcessorDefaultIndexConfig.UseCommonTable {
@@ -672,15 +705,20 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			processedConfig.Name = indexName
 
 			processedConfig.IngestTarget = defaultConfig.IngestTarget
-
-			for _, target := range indexConfig.Target {
-				if targetType, found := c.getTargetType(target); found {
+			targets, errTarget = c.getTargetsExtendedConfig(indexConfig.Target)
+			if errTarget != nil {
+				errAcc = multierror.Append(errAcc, errTarget)
+			}
+			for _, target := range targets {
+				if targetType, found := c.getTargetType(target.target); found {
 					processedConfig.QueryTarget = append(processedConfig.QueryTarget, targetType)
 				} else {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
 				}
+				if val, exists := target.properties["useCommonTable"]; exists {
+					processedConfig.UseCommonTable = val == true
+				}
 			}
-
 			if len(processedConfig.QueryTarget) == 2 && !((processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) ||
 				(processedConfig.QueryTarget[0] == ElasticsearchTarget && processedConfig.QueryTarget[1] == ClickhouseTarget)) {
 				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration", indexName))
@@ -713,14 +751,20 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			}
 
 			processedConfig.IngestTarget = make([]string, 0) // reset previously set defaultConfig.IngestTarget
-			for _, target := range indexConfig.Target {
-				if targetType, found := c.getTargetType(target); found {
+			targets, errTarget = c.getTargetsExtendedConfig(indexConfig.Target)
+			if errTarget != nil {
+				errAcc = multierror.Append(errAcc, errTarget)
+			}
+			for _, target := range targets {
+				if targetType, found := c.getTargetType(target.target); found {
 					processedConfig.IngestTarget = append(processedConfig.IngestTarget, targetType)
 				} else {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
 				}
+				if val, exists := target.properties["useCommonTable"]; exists {
+					processedConfig.UseCommonTable = val == true
+				}
 			}
-
 			conf.IndexConfig[indexName] = processedConfig
 		}
 	}
@@ -827,4 +871,38 @@ func (c *QuesmaNewConfiguration) validateBackendConnectors() error {
 
 func getAllowedProcessorTypes() []ProcessorType {
 	return []ProcessorType{QuesmaV1ProcessorNoOp, QuesmaV1ProcessorQuery, QuesmaV1ProcessorIngest}
+}
+
+func (c *QuesmaNewConfiguration) getTargetsExtendedConfig(target any) ([]struct {
+	target     string
+	properties map[string]interface{}
+}, error) {
+	result := make([]struct {
+		target     string
+		properties map[string]interface{}
+	}, 0)
+
+	if targets, ok := target.([]interface{}); ok {
+		for _, target := range targets {
+			if targetName, ok := target.(string); ok {
+				result = append(result, struct {
+					target     string
+					properties map[string]interface{}
+				}{target: targetName, properties: map[string]interface{}{}})
+			}
+			if targetMap, ok := target.(map[string]interface{}); ok {
+				for name, settings := range targetMap {
+					if settingsMap, ok := settings.(map[string]interface{}); ok {
+						result = append(result, struct {
+							target     string
+							properties map[string]interface{}
+						}{target: name, properties: settingsMap})
+					} else {
+						return nil, fmt.Errorf("invalid target properties for target %s", name)
+					}
+				}
+			}
+		}
+	}
+	return result, nil
 }

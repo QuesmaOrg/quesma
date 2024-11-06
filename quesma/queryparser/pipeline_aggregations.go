@@ -6,6 +6,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/pipeline_aggregations"
+	"quesma/util"
 	"strings"
 )
 
@@ -180,7 +181,7 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 		return
 	}
 	if script, ok := scriptRaw.(string); ok {
-		return pipeline_aggregations.NewBucketScript(cw.Ctx, script), true
+		return pipeline_aggregations.NewBucketScript(cw.Ctx, bucketsPath, script), true
 	}
 
 	script, ok := scriptRaw.(QueryMap)
@@ -204,7 +205,7 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 	}
 
 	// okay, we've checked everything, it's indeed a simple count
-	return pipeline_aggregations.NewBucketScript(cw.Ctx, ""), true
+	return pipeline_aggregations.NewBucketScript(cw.Ctx, bucketsPath, ""), true
 }
 
 func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggregationName string) (bucketsPathStr string, success bool) {
@@ -225,14 +226,16 @@ func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggr
 	case QueryMap:
 		// TODO: handle arbitrary nr of keys (and arbitrary scripts, because we also handle only one special case)
 		if len(bucketsPath) == 1 || len(bucketsPath) == 2 {
-			for _, bucketPath := range bucketsPath {
-				if _, ok = bucketPath.(string); !ok {
-					logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a map with string values, but %T. Skipping this aggregation", bucketPath)
+			// We return just 1 value here (for smallest key) (determinism here important, returning any of them is incorrect)
+			// Seems iffy, but works for all cases so far.
+			// After fixing the TODO above, it should also get fixed.
+			for _, key := range util.MapKeysSorted(bucketsPath) {
+				if path, ok := bucketsPath[key].(string); ok {
+					return path, true
+				} else {
+					logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a map with string values, but %T. Skipping this aggregation", path)
 					return
 				}
-				// Kinda weird to return just the first value, but seems working on all cases so far.
-				// After fixing the TODO above, it should also get fixed.
-				return bucketPath.(string), true
 			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a map with one or two keys, but %d. Skipping this aggregation", len(bucketsPath))
