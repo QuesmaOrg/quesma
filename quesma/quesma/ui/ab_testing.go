@@ -257,8 +257,21 @@ func formatJSON(in *string) string {
 	return string(b)
 }
 
-func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl, orderBy string) []byte {
-	buffer := newBufferWithHead()
+type abTestingReportRow struct {
+	dashboardId     string
+	panelId         string
+	dashboardUrl    string
+	detailsUrl      string
+	dashboardName   string
+	panelName       string
+	aName           string
+	bName           string
+	successRate     *float64
+	performanceGain *float64
+	count           int
+}
+
+func (qmc *QuesmaManagementConsole) abTestingReadReport(kibanaUrl, orderBy string) ([]abTestingReportRow, error) {
 
 	kibanaDashboards, err := qmc.readKibanaDashboards()
 	if err != nil {
@@ -308,35 +321,19 @@ GROUP BY
 
 	sql = sql + " ORDER BY " + orderBySQL
 
-	type reportRow struct {
-		dashboardId     string
-		panelId         string
-		dashboardUrl    string
-		detailsUrl      string
-		dashboardName   string
-		panelName       string
-		aName           string
-		bName           string
-		successRate     *float64
-		performanceGain *float64
-		count           int
-	}
-
-	var report []reportRow
+	var result []abTestingReportRow
 
 	db := qmc.logManager.GetDB()
 	rows, err := db.Query(sql, orderBySQL)
 	if err != nil {
-		qmc.renderError(&buffer, err)
-		return buffer.Bytes()
+		return nil, err
 	}
 
 	for rows.Next() {
-		row := reportRow{}
+		row := abTestingReportRow{}
 		err := rows.Scan(&row.dashboardId, &row.panelId, &row.aName, &row.bName, &row.successRate, &row.performanceGain, &row.count)
 		if err != nil {
-			qmc.renderError(&buffer, err)
-			return buffer.Bytes()
+			return nil, err
 		}
 
 		row.dashboardUrl = fmt.Sprintf("%s/app/kibana#/dashboard/%s", kibanaUrl, row.dashboardId)
@@ -344,13 +341,18 @@ GROUP BY
 		row.dashboardName = kibanaDashboards.dashboardName(row.dashboardId)
 		row.panelName = kibanaDashboards.panelName(row.dashboardId, row.panelId)
 
-		report = append(report, row)
+		result = append(result, row)
 	}
 
 	if rows.Err() != nil {
-		qmc.renderError(&buffer, rows.Err())
-		return buffer.Bytes()
+		return nil, rows.Err()
 	}
+
+	return result, nil
+}
+
+func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl, orderBy string) []byte {
+	buffer := newBufferWithHead()
 
 	buffer.Html("<table>\n")
 	buffer.Html("<thead>\n")
@@ -365,8 +367,14 @@ GROUP BY
 	buffer.Html("</thead>\n")
 	buffer.Html("<tbody>\n")
 
+	rows, err := qmc.abTestingReadReport(kibanaUrl, orderBy)
+	if err != nil {
+		qmc.renderError(&buffer, err)
+		return buffer.Bytes()
+	}
+
 	var lastDashboardId string
-	for _, row := range report {
+	for _, row := range rows {
 		buffer.Html(`<tr>` + "\n")
 
 		if lastDashboardId != row.dashboardId {
@@ -422,6 +430,94 @@ GROUP BY
 	return buffer.Bytes()
 }
 
+type abTestingPanelDetailsRow struct {
+	mismatch   string
+	mismatchId string
+	count      int
+}
+
+func (qmc *QuesmaManagementConsole) abTestingReadPanelDetails(dashboardId, panelId string) ([]abTestingPanelDetailsRow, error) {
+
+	sql := `
+		select  response_mismatch_mismatches, response_mismatch_sha1, count() as c
+		from ab_testing_logs 
+		where kibana_dashboard_id = ? and 
+		      kibana_dashboard_panel_id = ? and 
+		      response_mismatch_is_ok = false
+		group  by 1,2
+		order by c desc
+		limit 100
+`
+	db := qmc.logManager.GetDB()
+
+	rows, err := db.Query(sql, dashboardId, panelId)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []abTestingPanelDetailsRow
+	for rows.Next() {
+
+		var mismatch string
+		var count int
+		var mismatchId string
+
+		err := rows.Scan(&mismatch, &mismatchId, &count)
+		if err != nil {
+			return nil, err
+		}
+
+		r := abTestingPanelDetailsRow{
+			mismatch:   mismatch,
+			mismatchId: mismatchId,
+			count:      count,
+		}
+		result = append(result, r)
+	}
+
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+
+	return result, nil
+}
+
+func (qmc *QuesmaManagementConsole) renderABTestingMismatch(buffer *builder.HtmlBuffer, mismatch jsondiff.JSONMismatch) {
+
+	buffer.Html(`<li>`)
+	buffer.Html(`<p>`)
+	buffer.Text(mismatch.Message)
+	buffer.Text(" ")
+
+	if mismatch.Path != "" {
+		buffer.Html(`<code>`)
+		buffer.Text(`(`)
+		buffer.Text(mismatch.Path)
+		buffer.Text(`)`)
+		buffer.Html(`</code>`)
+		{ // poor man's HTML indent
+			buffer.Html(`<ul>`)
+			buffer.Html(`<li>`)
+			buffer.Html(`<code>`)
+			buffer.Text("Actual: ")
+			buffer.Text(mismatch.Actual)
+			buffer.Html(`</code>`)
+			buffer.Html(`</li>`)
+
+			buffer.Html(`<li>`)
+			buffer.Html(`<code>`)
+			buffer.Text("Expected: ")
+			buffer.Text(mismatch.Expected)
+			buffer.Html(`</code>`)
+			buffer.Html(`</li>`)
+			buffer.Html(`</ul>`)
+		}
+	}
+	buffer.Html(`</p>`)
+	buffer.Html(`</li>`)
+
+}
+
 func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId string) []byte {
 	buffer := newBufferWithHead()
 
@@ -446,57 +542,13 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 	buffer.Text(fmt.Sprintf("Panel: %s", panelName))
 	buffer.Html(`</h3>`)
 
-	sql := `
-		select  response_mismatch_mismatches, response_mismatch_sha1, count() as c
-		from ab_testing_logs 
-		where kibana_dashboard_id = ? and 
-		      kibana_dashboard_panel_id = ? and 
-		      response_mismatch_is_ok = false
-		group  by 1,2
-		order by c desc
-		limit 100
-`
-	db := qmc.logManager.GetDB()
-
-	rows, err := db.Query(sql, dashboardId, panelId)
+	rows, err := qmc.abTestingReadPanelDetails(dashboardId, panelId)
 	if err != nil {
 		qmc.renderError(&buffer, err)
 		return buffer.Bytes()
 	}
 
-	type row struct {
-		mismatch   string
-		mismatchId string
-		count      int
-	}
-
-	var tableRows []row
-	for rows.Next() {
-
-		var mismatch string
-		var count int
-		var mismatchId string
-
-		err := rows.Scan(&mismatch, &mismatchId, &count)
-		if err != nil {
-			qmc.renderError(&buffer, err)
-			return buffer.Bytes()
-		}
-
-		r := row{
-			mismatch:   mismatch,
-			mismatchId: mismatchId,
-			count:      count,
-		}
-		tableRows = append(tableRows, r)
-	}
-
-	if rows.Err() != nil {
-		qmc.renderError(&buffer, rows.Err())
-		return buffer.Bytes()
-	}
-
-	if len(tableRows) > 0 {
+	if len(rows) > 0 {
 		buffer.Html("<table>")
 		buffer.Html("<thead>")
 		buffer.Html(`<tr>`)
@@ -508,7 +560,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 		buffer.Html("</thead>\n")
 		buffer.Html("<tbody>\n")
 
-		for _, row := range tableRows {
+		for _, row := range rows {
 			buffer.Html(`<tr>`)
 			buffer.Html(`<td>`)
 
@@ -525,39 +577,10 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 
 				buffer.Html(`<ol>`)
 				for _, m := range mismatches {
-					buffer.Html(`<li>`)
-					buffer.Html(`<p>`)
-					buffer.Text(m.Message)
-					buffer.Text(" ")
-
-					if m.Path != "" {
-						buffer.Html(`<code>`)
-						buffer.Text(`(`)
-						buffer.Text(m.Path)
-						buffer.Text(`)`)
-						buffer.Html(`</code>`)
-						{ // poor man's HTML indent
-							buffer.Html(`<ul>`)
-							buffer.Html(`<li>`)
-							buffer.Html(`<code>`)
-							buffer.Text("Actual: ")
-							buffer.Text(m.Actual)
-							buffer.Html(`</code>`)
-							buffer.Html(`</li>`)
-
-							buffer.Html(`<li>`)
-							buffer.Html(`<code>`)
-							buffer.Text("Expected: ")
-							buffer.Text(m.Expected)
-							buffer.Html(`</code>`)
-							buffer.Html(`</li>`)
-							buffer.Html(`</ul>`)
-						}
-					}
-					buffer.Html(`</p>`)
-					buffer.Html(`</li>`)
+					qmc.renderABTestingMismatch(&buffer, m)
 				}
 				buffer.Html(`</ol>`)
+
 			} else {
 				buffer.Text(row.mismatch)
 			}
@@ -585,6 +608,51 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 	return buffer.Bytes()
 }
 
+type abTestingMismatchDetailsRow struct {
+	timestamp   string
+	requestId   string
+	requestPath string
+	opaqueId    string
+}
+
+func (qmc *QuesmaManagementConsole) abTestingReadMismatchDetails(dashboardId, panelId, mismatchHash string) ([]abTestingMismatchDetailsRow, error) {
+
+	sql := `
+		select "@timestamp", request_id, request_path, opaque_id
+		from ab_testing_logs 
+		where
+		    kibana_dashboard_id = ? and 
+		    kibana_dashboard_panel_id = ? and 
+		    response_mismatch_sha1 = ?  
+
+		order by 1 desc
+		limit 100
+`
+
+	db := qmc.logManager.GetDB()
+
+	rows, err := db.Query(sql, dashboardId, panelId, mismatchHash)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []abTestingMismatchDetailsRow
+	for rows.Next() {
+
+		row := abTestingMismatchDetailsRow{}
+		err := rows.Scan(&row.timestamp, &row.requestId, &row.requestPath, &row.opaqueId)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+	return result, nil
+}
+
 func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panelId, mismatchHash string) []byte {
 	buffer := newBufferWithHead()
 
@@ -610,50 +678,6 @@ func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panel
 	buffer.Text(fmt.Sprintf("Panel: %s", panelName))
 	buffer.Html(`</h3>`)
 
-	sql := `
-		select "@timestamp", request_id, request_path, opaque_id
-		from ab_testing_logs 
-		where
-		    kibana_dashboard_id = ? and 
-		    kibana_dashboard_panel_id = ? and 
-		    response_mismatch_sha1 = ?  
-
-		order by 1 desc
-		limit 100
-`
-
-	type tableRow struct {
-		timestamp   string
-		requestId   string
-		requestPath string
-		opaqueId    string
-	}
-
-	db := qmc.logManager.GetDB()
-
-	rows, err := db.Query(sql, dashboardId, panelId, mismatchHash)
-	if err != nil {
-		qmc.renderError(&buffer, err)
-		return buffer.Bytes()
-	}
-
-	var allRows []tableRow
-	for rows.Next() {
-
-		row := tableRow{}
-		err := rows.Scan(&row.timestamp, &row.requestId, &row.requestPath, &row.opaqueId)
-		if err != nil {
-			qmc.renderError(&buffer, err)
-			return buffer.Bytes()
-		}
-		allRows = append(allRows, row)
-
-	}
-	if rows.Err() != nil {
-		qmc.renderError(&buffer, rows.Err())
-		return buffer.Bytes()
-	}
-
 	buffer.Html("<table>")
 	buffer.Html("<thead>")
 	buffer.Html(`<tr>`)
@@ -666,7 +690,13 @@ func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panel
 
 	buffer.Html("<tbody>")
 
-	for _, row := range allRows {
+	rows, err := qmc.abTestingReadMismatchDetails(dashboardId, panelId, mismatchHash)
+	if err != nil {
+		qmc.renderError(&buffer, err)
+		return buffer.Bytes()
+	}
+
+	for _, row := range rows {
 
 		buffer.Html(`<tr>`)
 		buffer.Html(`<td>`)
@@ -696,12 +726,34 @@ func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panel
 	return buffer.Bytes()
 }
 
-func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []byte {
-	buffer := newBufferWithHead()
-	buffer.Html(`<main id="ab_testing_dashboard">`)
+type abTestingTableRow struct {
+	requestID                  *string
+	requestPath                *string
+	requestIndexName           *string
+	requestBody                *string
+	responseBTime              *float64
+	responseBError             *string
+	responseBName              *string
+	responseBBody              *string
+	quesmaHash                 *string
+	kibanaDashboardID          *string
+	opaqueID                   *string
+	responseABody              *string
+	responseATime              *float64
+	responseAError             *string
+	responseAName              *string
+	timestamp                  time.Time
+	responseMismatchSHA1       *string
+	responseMismatchCount      *int64
+	responseMismatchTopType    *string
+	responseMismatchIsOK       *bool
+	responseMismatchMismatches *string
+	responseMismatchMessage    *string
+	quesmaVersion              *string
+	kibanaDashboardPanelID     *string
+}
 
-	buffer.Html(`<h2>A/B Testing - Request Results </h2>`)
-
+func (qmc *QuesmaManagementConsole) abTestingReadRow(requestId string) (abTestingTableRow, error) {
 	sql := `SELECT
 	 request_id, request_path, request_index_name,
 		request_body, response_b_time, response_b_error, response_b_name, response_b_body,
@@ -715,36 +767,9 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 
 	db := qmc.logManager.GetDB()
 
-	type request struct {
-		requestID                  *string
-		requestPath                *string
-		requestIndexName           *string
-		requestBody                *string
-		responseBTime              *float64
-		responseBError             *string
-		responseBName              *string
-		responseBBody              *string
-		quesmaHash                 *string
-		kibanaDashboardID          *string
-		opaqueID                   *string
-		responseABody              *string
-		responseATime              *float64
-		responseAError             *string
-		responseAName              *string
-		timestamp                  time.Time
-		responseMismatchSHA1       *string
-		responseMismatchCount      *int64
-		responseMismatchTopType    *string
-		responseMismatchIsOK       *bool
-		responseMismatchMismatches *string
-		responseMismatchMessage    *string
-		quesmaVersion              *string
-		kibanaDashboardPanelID     *string
-	}
-
 	row := db.QueryRow(sql, requestId)
 
-	rec := request{}
+	rec := abTestingTableRow{}
 	err := row.Scan(
 		&rec.requestID, &rec.requestPath, &rec.requestIndexName,
 		&rec.requestBody, &rec.responseBTime, &rec.responseBError, &rec.responseBName, &rec.responseBBody,
@@ -755,14 +780,21 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 		&rec.kibanaDashboardPanelID)
 
 	if err != nil {
-		qmc.renderError(&buffer, err)
-		return buffer.Bytes()
+		return rec, err
 	}
 
 	if row.Err() != nil {
-		qmc.renderError(&buffer, row.Err())
-		return buffer.Bytes()
+		return rec, row.Err()
 	}
+
+	return rec, nil
+}
+
+func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []byte {
+	buffer := newBufferWithHead()
+	buffer.Html(`<main id="ab_testing_dashboard">`)
+
+	buffer.Html(`<h2>A/B Testing - Request Results </h2>`)
 
 	fmtAny := func(value any) string {
 		if value == nil {
@@ -806,14 +838,19 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 	var panelName string
 
 	dashboards, err := qmc.readKibanaDashboards()
+	if err != nil {
+		logger.Warn().Err(err).Msgf("Error reading dashboards %v", err)
+	}
+
+	row, err := qmc.abTestingReadRow(requestId)
 
 	if err == nil {
 
-		if rec.kibanaDashboardID != nil {
+		if row.kibanaDashboardID != nil {
 
-			dashboardName = dashboards.dashboardName(*rec.kibanaDashboardID)
-			if rec.kibanaDashboardPanelID != nil {
-				panelName = dashboards.panelName(*rec.kibanaDashboardID, *rec.kibanaDashboardPanelID)
+			dashboardName = dashboards.dashboardName(*row.kibanaDashboardID)
+			if row.kibanaDashboardPanelID != nil {
+				panelName = dashboards.panelName(*row.kibanaDashboardID, *row.kibanaDashboardPanelID)
 			}
 		}
 	} else {
@@ -821,16 +858,16 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 	}
 
 	buffer.Html(`<table width="90%">`)
-	tableRow("Request ID", rec.requestID, true)
-	tableRow("Timestamp", rec.timestamp, true)
+	tableRow("Request ID", row.requestID, true)
+	tableRow("Timestamp", row.timestamp, true)
 	tableRow("Kibana Dashboard ID", dashboardName, false)
 	tableRow("Kibana Dashboard Panel ID", panelName, false)
-	tableRow("Opaque ID", rec.opaqueID, true)
-	tableRow("Quesma Hash", rec.quesmaHash, true)
-	tableRow("Quesma Version", rec.quesmaVersion, true)
-	tableRow("Request Path", rec.requestPath, true)
-	tableRow("Request Index Name", rec.requestIndexName, false)
-	tableRow("Request Body", formatJSON(rec.requestBody), true)
+	tableRow("Opaque ID", row.opaqueID, true)
+	tableRow("Quesma Hash", row.quesmaHash, true)
+	tableRow("Quesma Version", row.quesmaVersion, true)
+	tableRow("Request Path", row.requestPath, true)
+	tableRow("Request Index Name", row.requestIndexName, false)
+	tableRow("Request Body", formatJSON(row.requestBody), true)
 	buffer.Html(`</table>`)
 
 	rowAB := func(label string, valueA any, valueB any, pre bool) {
@@ -867,15 +904,15 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 	buffer.Html(`<th width="45%">Response B</th>`)
 	buffer.Html("</tr>")
 
-	rowAB("Name", rec.responseAName, rec.responseBName, false)
-	rowAB("Time", rec.responseATime, rec.responseBTime, false)
-	rowAB("Error", rec.responseAError, rec.responseBError, true)
-	rowAB("Response Body", formatJSON(rec.responseABody), formatJSON(rec.responseBBody), true)
+	rowAB("Name", row.responseAName, row.responseBName, false)
+	rowAB("Time", row.responseATime, row.responseBTime, false)
+	rowAB("Error", row.responseAError, row.responseBError, true)
+	rowAB("Response Body", formatJSON(row.responseABody), formatJSON(row.responseBBody), true)
 	buffer.Html(`</table>`)
 
 	buffer.Html(`<h3>Difference</h3>`)
-	if rec.responseMismatchSHA1 != nil {
-		mismaches, err := parseMismatches(*rec.responseMismatchMismatches)
+	if row.responseMismatchSHA1 != nil {
+		mismaches, err := parseMismatches(*row.responseMismatchMismatches)
 		if err != nil {
 			buffer.Text(fmt.Sprintf("Error: %s", err))
 		} else {
