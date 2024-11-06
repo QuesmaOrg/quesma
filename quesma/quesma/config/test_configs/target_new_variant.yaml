@@ -40,6 +40,10 @@ processors:
           target:
             - my-clickhouse-data-source:
                 useCommonTable: true
+        "test_override":
+          target:
+            - my-clickhouse-data-source:
+                tableName: "new_override"
         "*":
           target: [ my-minimal-elasticsearch ]
 
@@ -58,6 +62,10 @@ processors:
           target:
             - my-clickhouse-data-source:
                 useCommonTable: true
+        "test_override":
+          target:
+            - my-clickhouse-data-source:
+                tableName: "new_override"
         "*":
           target: [ my-minimal-elasticsearch ]
 pipelines:
