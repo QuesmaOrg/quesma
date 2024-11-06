@@ -574,6 +574,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				conf.CreateCommonTable = true
 				conf.UseCommonTableForWildcard = true
 			}
+			if defaultConfig.SchemaOverrides != nil {
+				errAcc = multierror.Append(errAcc, fmt.Errorf("schema overrides of default index ('%s') are not currently supported (only supported in configuration of a specific index)", DefaultWildcardIndexName))
+			}
 			if len(defaultConfig.QueryTarget) > 1 {
 				errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
 			}
@@ -659,6 +662,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				conf.UseCommonTableForWildcard = val == "true"
 			}
 		}
+		if defaultConfig.SchemaOverrides != nil {
+			errAcc = multierror.Append(errAcc, fmt.Errorf("schema overrides of default index ('%s') are not currently supported (only supported in configuration of a specific index)", DefaultWildcardIndexName))
+		}
 		if defaultConfig.UseCommonTable {
 			// We set both flags to true here
 			// as creating common table depends on the first one
@@ -681,6 +687,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				conf.CreateCommonTable = val == "true"
 				conf.UseCommonTableForWildcard = val == "true"
 			}
+		}
+		if ingestProcessorDefaultIndexConfig.SchemaOverrides != nil {
+			errAcc = multierror.Append(errAcc, fmt.Errorf("schema overrides of default index ('%s') are not currently supported (only supported in configuration of a specific index)", DefaultWildcardIndexName))
 		}
 		if ingestProcessorDefaultIndexConfig.UseCommonTable {
 			// We set both flags to true here
