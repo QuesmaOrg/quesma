@@ -189,11 +189,25 @@ func (qmc *QuesmaManagementConsole) readKibanaDashboards() (resolvedDashboards, 
 	}
 
 	for _, hit := range response.Hits.Hits {
+		if len(hit.Fields.Id) == 0 {
+			continue // no ID, skip
+		}
 		_id := hit.Fields.Id[0]
-		title := hit.Fields.Title[0]
+
+		var title string
+		if len(hit.Fields.Title) > 0 {
+			title = hit.Fields.Title[0]
+		} else {
+			title = _id
+		}
 		_id = strings.TrimPrefix(_id, "dashboard:")
 
-		panels := hit.Fields.Panels[0]
+		var panels string
+		if len(hit.Fields.Panels) > 0 {
+			panels = hit.Fields.Panels[0]
+		} else {
+			panels = "[]" // empty array, so we can unmarshal it
+		}
 
 		var panelsJson []panelSchema
 		err := json.Unmarshal([]byte(panels), &panelsJson)
@@ -209,9 +223,8 @@ func (qmc *QuesmaManagementConsole) readKibanaDashboards() (resolvedDashboards, 
 		for _, panel := range panelsJson {
 			if panel.Name == "" {
 				panel.Name = panel.PanelID
-			} else {
-				dashboard.panels[panel.PanelID] = panel.Name
 			}
+			dashboard.panels[panel.PanelID] = panel.Name
 		}
 		result.dashboards[_id] = dashboard
 	}
