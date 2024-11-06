@@ -16,7 +16,7 @@ const (
 type IndexConfiguration struct {
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
-	Override        string                            `koanf:"override"`
+	Override        string                            `koanf:"tableName"`
 	UseCommonTable  bool                              `koanf:"useCommonTable"`
 	Target          any                               `koanf:"target"`
 

@@ -238,10 +238,11 @@ func TestTargetNewVariant(t *testing.T) {
 	}
 	legacyConf := cfg.TranslateToLegacyConfig()
 	assert.False(t, legacyConf.TransparentProxy)
-	assert.Equal(t, 3, len(legacyConf.IndexConfig))
+	assert.Equal(t, 4, len(legacyConf.IndexConfig))
 	ecommerce := legacyConf.IndexConfig["kibana_sample_data_ecommerce"]
 	flights := legacyConf.IndexConfig["kibana_sample_data_flights"]
 	logs := legacyConf.IndexConfig["kibana_sample_data_logs"]
+	override := legacyConf.IndexConfig["test_override"]
 
 	assert.Equal(t, []string{ClickhouseTarget}, ecommerce.QueryTarget)
 	assert.Equal(t, []string{ClickhouseTarget}, ecommerce.IngestTarget)
@@ -252,8 +253,17 @@ func TestTargetNewVariant(t *testing.T) {
 	assert.Equal(t, []string{ClickhouseTarget}, logs.QueryTarget)
 	assert.Equal(t, []string{ClickhouseTarget}, logs.IngestTarget)
 
+	assert.Equal(t, []string{ClickhouseTarget}, override.QueryTarget)
+	assert.Equal(t, []string{ClickhouseTarget}, override.IngestTarget)
+
 	assert.Equal(t, false, flights.UseCommonTable)
+	assert.Equal(t, "", flights.Override)
 	assert.Equal(t, false, ecommerce.UseCommonTable)
+	assert.Equal(t, "", ecommerce.Override)
 	assert.Equal(t, true, logs.UseCommonTable)
+	assert.Equal(t, "", logs.Override)
 	assert.Equal(t, true, legacyConf.EnableIngest)
+
+	const expectedOverride = "new_override"
+	assert.Equal(t, expectedOverride, override.Override)
 }
