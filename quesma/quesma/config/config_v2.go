@@ -598,7 +598,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					if val, exists := target.properties["useCommonTable"]; exists {
 						processedConfig.UseCommonTable = val == "true"
 					}
-					if val, exists := target.properties["override"]; exists {
+					if val, exists := target.properties["tableName"]; exists {
 						processedConfig.Override = val.(string)
 					}
 
@@ -722,7 +722,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				if val, exists := target.properties["useCommonTable"]; exists {
 					processedConfig.UseCommonTable = val == true
 				}
-				if val, exists := target.properties["override"]; exists {
+				if val, exists := target.properties["tableName"]; exists {
 					processedConfig.Override = val.(string)
 				}
 			}
@@ -771,7 +771,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				if val, exists := target.properties["useCommonTable"]; exists {
 					processedConfig.UseCommonTable = val == true
 				}
-				if val, exists := target.properties["override"]; exists {
+				if val, exists := target.properties["tableName"]; exists {
 					processedConfig.Override = val.(string)
 				}
 			}

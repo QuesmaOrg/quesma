@@ -43,7 +43,7 @@ processors:
         "test_override":
           target:
             - my-clickhouse-data-source:
-                override: "new_override"
+                tableName: "new_override"
         "*":
           target: [ my-minimal-elasticsearch ]
 
@@ -65,7 +65,7 @@ processors:
         "test_override":
           target:
             - my-clickhouse-data-source:
-                override: "new_override"
+                tableName: "new_override"
         "*":
           target: [ my-minimal-elasticsearch ]
 pipelines:
