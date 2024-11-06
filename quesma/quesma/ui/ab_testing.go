@@ -920,8 +920,12 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 			buffer.Html(`<tr>`)
 			buffer.Html(`<th>Message</th>`)
 			buffer.Html(`<th>Path</th>`)
-			buffer.Html(`<th>Actual</th>`)
-			buffer.Html(`<th>Expected</th>`)
+			buffer.Html(`<th>Expected (`)
+			buffer.Text(fmtAny(row.responseAName))
+			buffer.Html(`)</th>`)
+			buffer.Html(`<th>Actual (`)
+			buffer.Text(fmtAny(row.responseBName))
+			buffer.Html(`)</th>`)
 			buffer.Html("</tr>")
 
 			for _, m := range mismaches {
@@ -933,10 +937,10 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 				buffer.Text(m.Path)
 				buffer.Html(`</td>`)
 				buffer.Html(`<td>`)
-				buffer.Text(m.Actual)
+				buffer.Text(m.Expected)
 				buffer.Html(`</td>`)
 				buffer.Html(`<td>`)
-				buffer.Text(m.Expected)
+				buffer.Text(m.Actual)
 				buffer.Html(`</td>`)
 				buffer.Html("</tr>")
 			}
