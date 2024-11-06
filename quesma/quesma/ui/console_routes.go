@@ -116,8 +116,6 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		return false
 	}
 
-
-
 	authenticatedRoutes.HandleFunc(abTestingPath, func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateABTestingDashboard()
 		_, _ = writer.Write(buf)
