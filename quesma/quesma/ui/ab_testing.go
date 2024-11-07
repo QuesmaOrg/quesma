@@ -497,12 +497,6 @@ func (qmc *QuesmaManagementConsole) renderABTestingMismatch(buffer *builder.Html
 		buffer.Html(`</code>`)
 		{ // poor man's HTML indent
 			buffer.Html(`<ul>`)
-			buffer.Html(`<li>`)
-			buffer.Html(`<code>`)
-			buffer.Text("Actual: ")
-			buffer.Text(mismatch.Actual)
-			buffer.Html(`</code>`)
-			buffer.Html(`</li>`)
 
 			buffer.Html(`<li>`)
 			buffer.Html(`<code>`)
@@ -510,6 +504,14 @@ func (qmc *QuesmaManagementConsole) renderABTestingMismatch(buffer *builder.Html
 			buffer.Text(mismatch.Expected)
 			buffer.Html(`</code>`)
 			buffer.Html(`</li>`)
+
+			buffer.Html(`<li>`)
+			buffer.Html(`<code>`)
+			buffer.Text("Actual: ")
+			buffer.Text(mismatch.Actual)
+			buffer.Html(`</code>`)
+			buffer.Html(`</li>`)
+
 			buffer.Html(`</ul>`)
 		}
 	}
