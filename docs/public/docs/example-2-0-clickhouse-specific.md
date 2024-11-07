@@ -55,14 +55,14 @@ flowchart LR
       - name: minimal-elasticsearch
         type: elasticsearch
         config:
-          url: #PLACE_YOUR_ELASTICSEARCH_URL_HERE
+          url: #PLACE_YOUR_ELASTICSEARCH_URL_HERE, for example: http://192.168.0.7:9200
           user: #PLACE_YOUR_ELASTICSEARCH_USERNAME_HERE
           password: #PLACE_YOUR_ELASTICSEARCH_PASSWORD_HERE
       - name: clickhouse-instance
         type: clickhouse-os
         #type: clickhouse # use for ClickHouse cloud service only
         config:
-          url: #PLACE_YOUR_CLICKHOUSE_URL_HERE
+          url: #PLACE_YOUR_CLICKHOUSE_URL_HERE, for example: clickhouse://192.168.0.7:9000
           user: #PLACE_YOUR_CLICKHOUSE_USER_HERE
           password: #PLACE_YOUR_CLICKHOUSE_PASSWORD_HERE
           database: #PLACE_YOUR_CLICKHOUSE_DATABASE_NAME_HERE

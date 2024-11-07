@@ -41,8 +41,6 @@ export default defineConfig({
                   { text: 'Query Hydrolix tables as Elasticsearch indices', link: '/example-2-0'}
                 ]
               },
-              //{ text: 'Scenario I', link: '/scenario-1' },
-              //{ text: 'Reference Docker compose configurations', link: '/reference-conf' }
             ],
           },
           { text: 'Advanced configuration',
