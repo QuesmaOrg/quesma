@@ -10,14 +10,14 @@ require (
 	github.com/coreos/go-semver v0.3.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.4.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/knadh/koanf/parsers/json v0.1.0
 	github.com/knadh/koanf/parsers/yaml v0.1.0
-	github.com/knadh/koanf/providers/env v1.0.0
 	github.com/knadh/koanf/providers/file v1.1.2
-	github.com/knadh/koanf/v2 v2.1.1
+	github.com/knadh/koanf/v2 v2.1.2
 	github.com/markbates/goth v1.80.0
 	github.com/rs/zerolog v1.33.0
 	github.com/shirou/gopsutil/v3 v3.24.5
@@ -30,11 +30,11 @@ require (
 )
 
 require (
-	github.com/go-viper/mapstructure/v2 v2.0.0-alpha.1 // indirect
-	github.com/gorilla/securecookie v1.1.2 // indirect
+	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/knadh/koanf/maps v0.1.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
