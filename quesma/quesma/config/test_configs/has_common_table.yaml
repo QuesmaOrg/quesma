@@ -32,11 +32,11 @@ processors:
         logs-3:
           target: [ C, E ]
         logs-4:
-          useCommonTable: true
-          target: [ C ]
+          target:
+            - C:
+                useCommonTable: true
         logs-5:
-          useCommonTable: true
-          target: [ C ]
+          target:
         "*":
           target: [ E ]
 
@@ -51,13 +51,13 @@ processors:
         logs-3:
           target: [ C, E ]
         logs-4:
-          useCommonTable: true
-          target: [ C ]
+          target:
+            - C:
+                useCommonTable: true
         "*":
           target: [ E ]
         logs-5:
-          useCommonTable: true
-          target: [  ]
+          target:
 
 pipelines:
   - name: my-elasticsearch-proxy-read

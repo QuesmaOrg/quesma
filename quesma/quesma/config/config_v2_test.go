@@ -267,3 +267,25 @@ func TestTargetNewVariant(t *testing.T) {
 	const expectedOverride = "new_override"
 	assert.Equal(t, expectedOverride, override.Override)
 }
+
+func TestUseCommonTableGlobalProperty(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/use_common_table_global_property.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+	assert.False(t, legacyConf.TransparentProxy)
+	assert.Equal(t, 2, len(legacyConf.IndexConfig))
+	ecommerce := legacyConf.IndexConfig["kibana_sample_data_ecommerce"]
+	flights := legacyConf.IndexConfig["kibana_sample_data_flights"]
+
+	assert.Equal(t, []string{ClickhouseTarget}, ecommerce.QueryTarget)
+	assert.Equal(t, []string{ClickhouseTarget}, ecommerce.IngestTarget)
+
+	assert.Equal(t, []string{ClickhouseTarget}, flights.QueryTarget)
+	assert.Equal(t, []string{ClickhouseTarget}, flights.IngestTarget)
+
+	assert.Equal(t, true, flights.UseCommonTable)
+	assert.Equal(t, false, ecommerce.UseCommonTable)
+}
