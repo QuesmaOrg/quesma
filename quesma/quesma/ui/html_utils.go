@@ -85,8 +85,6 @@ func (qmc *QuesmaManagementConsole) generateTopNavigation(target string) []byte 
 	buffer.Html(abTestingPath)
 	buffer.Html(`">A/B</a></li>`)
 
-	buffer.Html(`<li><a href="/logout">Logout</a></li>`)
-
 	if qmc.isAuthEnabled {
 		buffer.Html(`<li><a href="/logout">Logout</a></li>`)
 	}
