@@ -470,6 +470,15 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 				cols = append(cols, col.InternalPropertyName.AsString())
 			}
 		}
+
+		if query.RuntimeMappings != nil {
+			// add columns that are not in the schema but are in the runtime mappings
+			// these columns  will be transformed later
+			for n, _ := range query.RuntimeMappings {
+				cols = append(cols, n)
+			}
+		}
+
 		sort.Strings(cols)
 
 		for _, col := range cols {
@@ -683,10 +692,22 @@ func (s *SchemaCheckPass) applyRuntimeMappings(indexSchema schema.Schema, query 
 		return query, nil
 	}
 
+	cols := query.SelectCommand.Columns
+
+	// replace column refs with runtime mappings with proper name
+	for i, col := range cols {
+		switch c := col.(type) {
+		case model.ColumnRef:
+			if mapping, ok := query.RuntimeMappings[c.ColumnName]; ok {
+				cols[i] = model.NewAliasedExpr(mapping.Expr, c.ColumnName)
+			}
+		}
+	}
+	query.SelectCommand.Columns = cols
+
+	// replace other places where column refs are used
 	visitor := model.NewBaseVisitor()
-
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-
 		if mapping, ok := query.RuntimeMappings[e.ColumnName]; ok {
 			return mapping.Expr
 		}
