@@ -112,7 +112,8 @@ const DefaultWildcardIndexName = "*"
 
 // Configuration of QuesmaV1ProcessorQuery and QuesmaV1ProcessorIngest
 type QuesmaProcessorConfig struct {
-	IndexConfig map[string]IndexConfiguration `koanf:"indexes"`
+	UseCommonTable bool                          `koanf:"useCommonTable"`
+	IndexConfig    map[string]IndexConfiguration `koanf:"indexes"`
 }
 
 func LoadV2Config() QuesmaNewConfiguration {
@@ -295,6 +296,9 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		if queryProcessor.Type != QuesmaV1ProcessorQuery &&
 			queryProcessor.Type != QuesmaV1ProcessorNoOp {
 			return fmt.Errorf("query pipeline must have query or noop processor")
+		}
+		if queryProcessor.Config.UseCommonTable != ingestProcessor.Config.UseCommonTable {
+			return fmt.Errorf("query and ingest processors must have the same configuration of 'useCommonTable'")
 		}
 		if !(queryProcessor.Type == QuesmaV1ProcessorNoOp) {
 			if _, found := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; !found {
