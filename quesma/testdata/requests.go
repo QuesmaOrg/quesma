@@ -63,7 +63,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
         }
     },
     "runtime_mappings": {},
-    "size": 0,
+    "size": "0",
     "track_total_hits": false
 }`,
 		`{
