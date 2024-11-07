@@ -203,7 +203,7 @@ The configuration for an index consists of the following configuration options:
    Currently only the ClickHouse backend connector supports the following attributes:
      - `useCommonTable` (optional): if enabled, Quesma will store data in a single Hydrolix/ClickHouse table named `quesma_common_table`. See [ingest documentation](/ingest.md) for more details.
      - `tableName` (optional): override the name of table in Hydrolix/ClickHouse (by default Quesma uses the same table name as the index name)
-- `schemaOverrides` (optional): manual overrides of schema information for an index. Quesma infers schema for an index based on the data ingested and the schema information fetched from ClickHouse. `schemaOverrides` allows you to override this infered schema with for some fields. For example the following configuration:
+- `schemaOverrides` (optional): manual overrides of schema information for an index. Quesma infers schema for an index based on the data ingested and the schema information fetched from ClickHouse. `schemaOverrides` allows you to override this inferred schema with for some fields. For example the following configuration:
     ```yaml
       my_index:
         target: [ backend-clickhouse ]
