@@ -1,6 +1,5 @@
 # TEST CONFIGURATION
 licenseKey: "cdd749a3-e777-11ee-bcf8-0242ac150004"
-useCommonTable: true
 frontendConnectors:
   - name: elastic-ingest
     type: elasticsearch-fe-ingest
@@ -29,6 +28,7 @@ processors:
   - name: my-query-processor
     type: quesma-v1-processor-query
     config:
+      useCommonTable: true
       indexes:
         kibana_sample_data_ecommerce:
           target:
@@ -43,6 +43,7 @@ processors:
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
+      useCommonTable: true
       indexes:
         kibana_sample_data_ecommerce:
           target:
