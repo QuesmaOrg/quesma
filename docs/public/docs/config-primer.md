@@ -72,7 +72,7 @@ frontendConnectors:
 
 The supported configuration options for frontend connectors (under `config`):
 * `listenPort` - port number on which the frontend connector will listen for incoming requests
-* `disableAuth` - when set to `true`, disables authentication for incoming requests (optional, defaults to false). If you use Kibana without authentication, set it to `true`.
+* `disableAuth` - when set to `true`, disables authentication for incoming requests (optional, defaults to false). If you use Elasticsearch/Kibana without authentication, set it to `true`.
 
 
 #### Backend connectors
