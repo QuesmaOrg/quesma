@@ -177,16 +177,11 @@ func (c *QuesmaConfiguration) optimizersConfigAsString(s string, cfg map[string]
 func (c *QuesmaConfiguration) OptimizersConfigAsString() string {
 
 	var lines []string
-
-	lines = append(lines, "\n")
-
 	for indexName, indexConfig := range c.IndexConfig {
 		if len(indexConfig.Optimizers) > 0 {
 			lines = append(lines, c.optimizersConfigAsString(indexName, indexConfig.Optimizers))
 		}
 	}
-
-	lines = append(lines, "\n")
 	return strings.Join(lines, "\n")
 }
 
@@ -253,8 +248,16 @@ Quesma Configuration:
 	Log Level: %v
 	Public TCP Port: %d
 	Ingest Statistics: %t,
-	Quesma Telemetry URL: %s
-    Optimizers: %s`,
+	Quesma Telemetry URL: %s,
+	Optimizers: %s,
+	DisableAuth: %t,
+	AutodiscoveryEnabled: %t,
+	EnableIngest: %t,
+	CreateCommonTable: %t,
+	UseCommonTableForWildcard: %t,
+	DefaultIngestTarget: %v,
+	DefaultQueryTarget: %v,
+`,
 		c.TransparentProxy,
 		elasticUrl,
 		elasticsearchExtra,
@@ -268,6 +271,13 @@ Quesma Configuration:
 		c.IngestStatistics,
 		quesmaInternalTelemetryUrl,
 		c.OptimizersConfigAsString(),
+		c.DisableAuth,
+		c.AutodiscoveryEnabled,
+		c.EnableIngest,
+		c.CreateCommonTable,
+		c.UseCommonTableForWildcard,
+		c.DefaultIngestTarget,
+		c.DefaultQueryTarget,
 	)
 }
 
