@@ -105,7 +105,7 @@ The supported configuration options for backend connectors (under `config`):
   * for ClickHouse/Hydrolix the expected format is `clickhouse://host:port` (ClickHouse default port is 9000, ClickHouse/Hydrolix default encrypted port is 9440). Note that Quesma supports only the ClickHouse native protocol  (`clickhouse://`) and does not support the HTTP protocol.
 * `user` - username for authentication
 * `password` - password for authentication 
-* `database` - name of the database to connect to (optional for ClickHouse, required for Hydrolix)
+* `database` - name of the database to connect to. It is optional for ClickHouse, but strictly required for Hydrolix, where it is also referred as "project".
 * `adminUrl` - URL for administrative operations (optional)
 * `disableTLS` - when set to true, disables TLS for the connection (optional)
 
