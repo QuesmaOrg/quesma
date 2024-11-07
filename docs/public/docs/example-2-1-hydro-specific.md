@@ -44,13 +44,13 @@ flowchart LR
       - name: elasticsearch-instance
         type: elasticsearch
         config:
-          url: #PLACE_YOUR_ELASTICSEARCH_URL_HERE
+          url: #PLACE_YOUR_ELASTICSEARCH_URL_HERE, for example: http://192.168.0.7:9200
           user: #PLACE_YOUR_ELASTICSEARCH_USERNAME_HERE
           password: #PLACE_YOUR_ELASTICSEARCH_PASSWORD_HERE
       - name: hydrolix-instance
         type: hydrolix
         config:
-          url: #PLACE_YOUR_HYDROLIX_URL_HERE
+          url: #PLACE_YOUR_HYDROLIX_URL_HERE, for example: clickhouse://companyname.hydrolix.live:9440
           user: #PLACE_YOUR_HYDROLIX_USER_HERE
           password: #PLACE_YOUR_HYDROLIX_PASSWORD_HERE
           database: #PLACE_YOUR_HYDROLIX_DATABASE_NAME_HERE
