@@ -208,6 +208,8 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 			err = response.err
 			sendABResult(nil, err)
 			return nil, err
+		} else {
+			responseBody, err = response.response.Bytes()
 		}
 
 		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
