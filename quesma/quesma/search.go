@@ -812,7 +812,6 @@ func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]
 		transformer model.ResultTransformer
 	}{
 		{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{indexSchema: indexSchema}},
-		{"arrayResultTransformer", &ArrayResultTransformer{}},
 	}
 
 	var err error

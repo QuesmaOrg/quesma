@@ -789,28 +789,3 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 	}
 	return queries, nil
 }
-
-// ArrayResultTransformer is a transformer that transforms array columns into string representation
-type ArrayResultTransformer struct {
-}
-
-func (g *ArrayResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
-
-	for i, rows := range result {
-
-		for j, row := range rows {
-			for k, col := range row.Cols {
-
-				if ary, ok := col.Value.([]string); ok {
-					aryStr := make([]string, 0, len(ary))
-					for _, el := range ary {
-						aryStr = append(aryStr, fmt.Sprintf("%v", el))
-					}
-					result[i][j].Cols[k].Value = fmt.Sprintf("[%s]", strings.Join(aryStr, ","))
-				}
-			}
-		}
-
-	}
-	return result, nil
-}
