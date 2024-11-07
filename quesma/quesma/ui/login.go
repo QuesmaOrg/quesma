@@ -20,7 +20,7 @@ func (qmc *QuesmaManagementConsole) generateLoginForm() []byte {
 	buffer.Html(`<div class="login-form">`)
 	buffer.Html(`<h2>Login</h2>`)
 	buffer.Html(`<p style="color: #ccc;">Log in to Quesma admin console using your Elasticsearch credentials</p>`)
-	buffer.Html(`<form action="/login-with-elasticsearch" method="post">`)
+	buffer.Html(`<form action="`).Text(loginWithElasticSearch).Html(`" method="post">`)
 	buffer.Html(`<label for="username">Username:</label>`)
 	buffer.Html(`<input type="text" id="username" name="username" placeholder="Enter your Elasticsearch username" autofocus>`)
 	buffer.Html(`<label for="password">Password:</label>`)
@@ -41,6 +41,7 @@ func (qmc *QuesmaManagementConsole) HandleElasticsearchLogin(writer http.Respons
 			return
 		}
 		writer.Header().Set("Content-Type", "text/html")
+		writer.Header().Set("HX-Redirect", loginWithElasticSearch)
 		writer.Write(qmc.generateLoginForm())
 	} else if req.Method == http.MethodPost {
 		username := req.FormValue("username")

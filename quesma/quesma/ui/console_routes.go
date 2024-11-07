@@ -23,6 +23,7 @@ const (
 	uiTcpPort              = "9999"
 	managementInternalPath = "/_quesma"
 	healthPath             = managementInternalPath + "/health"
+	loginWithElasticSearch = "/login-with-elasticsearch"
 )
 
 //go:embed asset/*
@@ -70,7 +71,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	router.HandleFunc("/auth/{provider}/callback", authCallbackHandler)
 
 	// our logic for login
-	router.HandleFunc("/login-with-elasticsearch", qmc.HandleElasticsearchLogin)
+	router.HandleFunc(loginWithElasticSearch, qmc.HandleElasticsearchLogin)
 
 	authenticatedRoutes := router.PathPrefix("/").Subrouter()
 	if qmc.cfg.Elasticsearch.User == "" && qmc.cfg.Elasticsearch.Password == "" {
