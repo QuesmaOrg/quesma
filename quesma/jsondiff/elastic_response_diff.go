@@ -6,7 +6,7 @@ import "fmt"
 
 // NewElasticResponseJSONDiff creates a JSONDiff instance that is tailored to compare Elasticsearch response JSONs.
 func NewElasticResponseJSONDiff() (*JSONDiff, error) {
-	d, err := NewJSONDiff("^id$", ".*Quesma_key_.*", "^took$", ".*__quesma_total_count", ".*\\._id", "^_shards.*", ".*\\._score", ".*\\._source", ".*\\.__quesma_originalKey")
+	d, err := NewJSONDiff("^id$", ".*Quesma_key_.*", "^took$", ".*__quesma_total_count", ".*\\._id", "^_shards.*", ".*\\._score", ".*\\._source", ".*\\.__quesma_originalKey", ".*\\._version$", ".*\\.keyword$")
 
 	if err != nil {
 		return nil, fmt.Errorf("could not create JSONDiff: %v", err)
