@@ -474,8 +474,8 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 		if query.RuntimeMappings != nil {
 			// add columns that are not in the schema but are in the runtime mappings
 			// these columns  will be transformed later
-			for n, _ := range query.RuntimeMappings {
-				cols = append(cols, n)
+			for name := range query.RuntimeMappings {
+				cols = append(cols, name)
 			}
 		}
 
