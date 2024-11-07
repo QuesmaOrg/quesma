@@ -132,9 +132,14 @@ func TestJSONDiff(t *testing.T) {
 			problems: []JSONMismatch{},
 		},
 		{
-			name:     "SKIP dates 3", // TODO fix this, not sure how we handle TZ
+			name:     "dates 3",
 			expected: `{"a": "2024-10-24T10:00:00.000"}`,
 			actual:   `{"a": "2024-10-24T12:00:00.000+02:00"}`,
+		},
+		{
+			name:     "dates 4",
+			expected: `{"a": "2024-10-31T11:00:00.000"}`,
+			actual:   `{"a": "2024-10-31T12:00:00.000+01:00"}`,
 		},
 	}
 
