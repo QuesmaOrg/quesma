@@ -80,7 +80,7 @@ The supported configuration options for frontend connectors (under `config`):
 Backend connector has to have a `name`, `type` and `config` fields.
 * `name` is a unique identifier for the connector
 * `type` specifies the type of the connector.\
-  At this moment, only three backend connector types are allowed: `elasticsearch`, `clickhouse` (used for ClickHouse Cloud SaaS service), `clickhouse-os` (ClickHouse OSS) and `hydrolix`.
+  At this moment, only three backend connector types are allowed: `elasticsearch`, `clickhouse` (used for ClickHouse Cloud SaaS service), `clickhouse-os` (self-hosted ClickHouse) and `hydrolix`.
 * `config` is a set of configuration options for the connector.
 ```yaml
 backendConnectors:
