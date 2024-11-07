@@ -528,11 +528,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.Logging.RemoteLogDrainUrl = nil
 	}
 
-	if !c.UseCommonTable {
-		conf.CreateCommonTable = false
-	} else {
-		conf.CreateCommonTable = c.UseCommonTable
-	}
+	conf.CreateCommonTable = c.UseCommonTable
 
 	conf.InstallationId = c.InstallationId
 	conf.LicenseKey = c.LicenseKey
