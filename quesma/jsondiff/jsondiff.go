@@ -325,10 +325,10 @@ func (d *JSONDiff) compareArray(expected []any, actual []any) {
 	}
 
 	if lenDiff > 1 {
-		d.addMismatch(invalidArrayLength, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
+		d.addMismatch(invalidArrayLength, fmt.Sprintf("%d", len(expected)), fmt.Sprintf("%d", len(actual)))
 		return
 	} else if lenDiff == 1 {
-		d.addMismatch(invalidArrayLengthOffByOne, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
+		d.addMismatch(invalidArrayLengthOffByOne, fmt.Sprintf("%d", len(expected)), fmt.Sprintf("%d", len(actual)))
 		return
 	}
 
@@ -345,7 +345,7 @@ func (d *JSONDiff) compareArray(expected []any, actual []any) {
 
 	for i := range len(actual) {
 		d.pushPath(fmt.Sprintf("[%d]", i))
-		d.compare(actual[i], expected[i])
+		d.compare(expected[i], actual[i])
 		d.popPath()
 	}
 }
