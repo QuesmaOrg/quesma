@@ -217,7 +217,8 @@ The configuration for an index consists of the following configuration options:
 
 ### Quesma licensing configuration
 
-In order to be able to use `hydrolix` or `clickhouse` backend connectors, one needs to supply `licenseKey` in the configuration file. Contact us at support@quesma.com if you need one.
+In order to be able to use `hydrolix` or `clickhouse` backend connectors Quesma requires a commercial license key (supplied in the `licenseKey` field of the configuration file). 
+Contact us at support@quesma.com if you need one.
 ```yaml
 licenseKey: ZXlKcGJuTjBZV3hz...
 ```  
