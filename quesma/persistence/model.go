@@ -20,21 +20,33 @@ type JSONDatabase interface {
 
 // T - type of the data to store, e.g. async_search_storage.AsyncRequestResult
 type JSONDatabaseWithEviction interface { // for sure JSON? maybe not only json? check
-	Put(row *Sizeable) error
-	Get(id string) (*Sizeable, bool)
+	Put(doc document) bool
+	Get(id string) (document, bool)
 	Delete(id string)
-	DocCount() int
-	SizeInBytes() int64
+	DocCount() (int, bool)
+	SizeInBytes() (int64, bool)
 	SizeInBytesLimit() int64
 }
 
-type basicDocumentInfo struct {
-	id              string
-	sizeInBytes     int64
-	timestamp       time.Time
-	markedAsDeleted bool
+type document struct {
+	Id              string    `json:"id"`
+	Data            string    `json:"data"`
+	Index           string    `json:"index,omitempty"`
+	SizeInBytes     int64     `json:"sizeInBytes"`
+	Timestamp       time.Time `json:"timestamp"`
+	MarkedAsDeleted bool      `json:"markedAsDeleted"`
 }
 
-type Sizeable interface {
-	SizeInBytes() int64
+/*
+type basicDocumentInfo struct {
+	Id               string
+	SizeInBytes int64
+	Timestamp        time.Time
+	MarkedAsDeleted  bool
 }
+
+// mb remove or change impl
+func (d *basicDocumentInfo) SizeInBytes() int64 {
+	return d.SizeInBytesTotal
+}
+*/
