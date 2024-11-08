@@ -46,12 +46,7 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 
 	if in.A.Error != "" || in.B.Error != "" {
 
-		in.Mismatch.IsOK = false
-		in.Mismatch.Message = "one of the responses has an error"
-
 		if in.A.Error != "" {
-			in.Mismatch.Message = in.Mismatch.Message + fmt.Sprintf("\nA response has an error: %s", in.A.Error)
-
 			mismatches = append(mismatches, jsondiff.JSONMismatch{
 				Type:     "error",
 				Message:  fmt.Sprintf("\nA response has an error: %s", in.A.Error),
@@ -59,11 +54,9 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 				Expected: "n/a",
 				Actual:   "n/a",
 			})
-
 		}
 
 		if in.B.Error != "" {
-
 			mismatches = append(mismatches, jsondiff.JSONMismatch{
 				Type:     "error",
 				Message:  fmt.Sprintf("\nB response has an error: %s", in.B.Error),
