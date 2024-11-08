@@ -325,10 +325,10 @@ func (d *JSONDiff) compareArray(expected []any, actual []any) {
 	}
 
 	if lenDiff > 1 {
-		d.addMismatch(invalidArrayLength, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
+		d.addMismatch(invalidArrayLength, fmt.Sprintf("%d", len(expected)), fmt.Sprintf("%d", len(actual)))
 		return
 	} else if lenDiff == 1 {
-		d.addMismatch(invalidArrayLengthOffByOne, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
+		d.addMismatch(invalidArrayLengthOffByOne, fmt.Sprintf("%d", len(expected)), fmt.Sprintf("%d", len(actual)))
 		return
 	}
 
@@ -345,7 +345,7 @@ func (d *JSONDiff) compareArray(expected []any, actual []any) {
 
 	for i := range len(actual) {
 		d.pushPath(fmt.Sprintf("[%d]", i))
-		d.compare(actual[i], expected[i])
+		d.compare(expected[i], actual[i])
 		d.popPath()
 	}
 }
@@ -361,10 +361,10 @@ func (d *JSONDiff) asType(a any) string {
 var dateRx = regexp.MustCompile(`\d{4}-\d{2}-\d{2}.\d{2}:\d{2}:`)
 
 func (d *JSONDiff) uniformTimeFormat(date string) string {
-	returnFormat := "2006-01-02T15:04:05.000Z"
+	returnFormat := time.RFC3339Nano
 
 	inputFormats := []string{
-		"2006-01-02T15:04:05.000+02:00",
+		"2006-01-02T15:04:05.000-07:00",
 		"2006-01-02T15:04:05.000Z",
 		"2006-01-02T15:04:05.000",
 		"2006-01-02 15:04:05",
@@ -375,7 +375,7 @@ func (d *JSONDiff) uniformTimeFormat(date string) string {
 	for _, format := range inputFormats {
 		parsedDate, err = time.Parse(format, date)
 		if err == nil {
-			return parsedDate.Format(returnFormat)
+			return parsedDate.UTC().Format(returnFormat)
 		}
 	}
 	return date

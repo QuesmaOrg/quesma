@@ -2354,7 +2354,7 @@ var TestSearchRuntimeMappings = []SearchTestCase{
 		model.ListAllFields,
 		////[]model.Query{newSimplestQuery()},
 		[]string{
-			`SELECT toHour("@timestamp") FROM ` + TableName + ` LIMIT 10`,
+			`SELECT toHour("@timestamp") AS "hour_of_day" FROM ` + TableName + ` LIMIT 10`,
 		},
 		[]string{},
 	},

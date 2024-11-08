@@ -13,7 +13,6 @@ import (
 	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/queryparser"
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
@@ -330,7 +329,10 @@ func (q *QueryRunner) storeAsyncSearchWithRaw(qmc *ui.QuesmaManagementConsole, i
 		asyncResponse := WrapElasticResponseAsAsync(resultJSON, asyncId, false, &okStatus)
 		responseBody, err = json.MarshalIndent(asyncResponse, "", "  ")
 	} else {
-		responseBody, _ = queryparser.EmptyAsyncSearchResponse(asyncId, false, 503)
+		responseBody, err = resultJSON.Bytes()
+		if err == nil {
+			logger.Warn().Msgf("error while marshalling async search response: %v: ", err)
+		}
 		err = resultError
 	}
 

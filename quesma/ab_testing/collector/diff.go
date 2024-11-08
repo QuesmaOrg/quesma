@@ -37,33 +37,60 @@ func (t *diffTransformer) mostCommonMismatchType(mismatches []jsondiff.JSONMisma
 
 func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
 
+	mismatches := jsondiff.Mismatches{}
+
 	d, err := jsondiff.NewElasticResponseJSONDiff()
 	if err != nil {
 		return in, false, err
 	}
 
-	jsonA, err := types.ParseJSON(in.A.Body)
-	if err != nil {
-		in.Mismatch.IsOK = false
-		in.Mismatch.Message = fmt.Sprintf("failed to parse A response: %v", err)
-		err = fmt.Errorf("failed to parse A response: %w", err)
-		in.Errors = append(in.Errors, err.Error())
-		return in, false, nil
-	}
+	if in.A.Error != "" || in.B.Error != "" {
 
-	jsonB, err := types.ParseJSON(in.B.Body)
-	if err != nil {
-		in.Mismatch.IsOK = false
-		in.Mismatch.Message = fmt.Sprintf("failed to parse B response: %v", err)
-		err = fmt.Errorf("failed to parse B response: %w", err)
-		in.Errors = append(in.Errors, err.Error())
-		return in, false, nil
-	}
+		if in.A.Error != "" {
+			mismatches = append(mismatches, jsondiff.JSONMismatch{
+				Type:     "error",
+				Message:  fmt.Sprintf("\nA response has an error: %s", in.A.Error),
+				Path:     "n/a",
+				Expected: "n/a",
+				Actual:   "n/a",
+			})
+		}
 
-	mismatches, err := d.Diff(jsonA, jsonB)
+		if in.B.Error != "" {
+			mismatches = append(mismatches, jsondiff.JSONMismatch{
+				Type:     "error",
+				Message:  fmt.Sprintf("\nB response has an error: %s", in.B.Error),
+				Path:     "n/a",
+				Expected: "n/a",
+				Actual:   "n/a",
+			})
+		}
 
-	if err != nil {
-		return in, false, err
+	} else {
+
+		jsonA, err := types.ParseJSON(in.A.Body)
+		if err != nil {
+			in.Mismatch.IsOK = false
+			in.Mismatch.Message = fmt.Sprintf("failed to parse A response: %v", err)
+			err = fmt.Errorf("failed to parse A response: %w", err)
+			in.Errors = append(in.Errors, err.Error())
+			return in, false, nil
+		}
+
+		jsonB, err := types.ParseJSON(in.B.Body)
+		if err != nil {
+			in.Mismatch.IsOK = false
+			in.Mismatch.Message = fmt.Sprintf("failed to parse B response: %v", err)
+			err = fmt.Errorf("failed to parse B response: %w", err)
+			in.Errors = append(in.Errors, err.Error())
+			return in, false, nil
+		}
+
+		mismatches, err = d.Diff(jsonA, jsonB)
+		if err != nil {
+			return in, false, err
+		}
+
 	}
 
 	if len(mismatches) > 0 {
