@@ -112,7 +112,8 @@ const DefaultWildcardIndexName = "*"
 
 // Configuration of QuesmaV1ProcessorQuery and QuesmaV1ProcessorIngest
 type QuesmaProcessorConfig struct {
-	IndexConfig map[string]IndexConfiguration `koanf:"indexes"`
+	UseCommonTable bool                          `koanf:"useCommonTable"`
+	IndexConfig    map[string]IndexConfiguration `koanf:"indexes"`
 }
 
 func LoadV2Config() QuesmaNewConfiguration {
@@ -295,6 +296,9 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		if queryProcessor.Type != QuesmaV1ProcessorQuery &&
 			queryProcessor.Type != QuesmaV1ProcessorNoOp {
 			return fmt.Errorf("query pipeline must have query or noop processor")
+		}
+		if queryProcessor.Config.UseCommonTable != ingestProcessor.Config.UseCommonTable {
+			return fmt.Errorf("query and ingest processors must have the same configuration of 'useCommonTable'")
 		}
 		if !(queryProcessor.Type == QuesmaV1ProcessorNoOp) {
 			if _, found := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; !found {
@@ -565,6 +569,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				if val, exists := target.properties["useCommonTable"]; exists {
 					conf.CreateCommonTable = val == "true"
 					conf.UseCommonTableForWildcard = val == "true"
+				} else {
+					// inherit setting from the processor level
+					conf.CreateCommonTable = queryProcessor.Config.UseCommonTable
+					conf.UseCommonTableForWildcard = queryProcessor.Config.UseCommonTable
 				}
 			}
 
@@ -600,6 +608,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					}
 					if val, exists := target.properties["useCommonTable"]; exists {
 						processedConfig.UseCommonTable = val == "true"
+					} else {
+						// inherit setting from the processor level
+						processedConfig.UseCommonTable = queryProcessor.Config.UseCommonTable
 					}
 					if val, exists := target.properties["tableName"]; exists {
 						processedConfig.Override = val.(string)
@@ -660,6 +671,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			if val, exists := target.properties["useCommonTable"]; exists {
 				conf.CreateCommonTable = val == "true"
 				conf.UseCommonTableForWildcard = val == "true"
+			} else {
+				// inherit setting from the processor level
+				conf.CreateCommonTable = queryProcessor.Config.UseCommonTable
+				conf.UseCommonTableForWildcard = queryProcessor.Config.UseCommonTable
 			}
 		}
 		if defaultConfig.SchemaOverrides != nil {
@@ -686,6 +701,10 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			if val, exists := target.properties["useCommonTable"]; exists {
 				conf.CreateCommonTable = val == "true"
 				conf.UseCommonTableForWildcard = val == "true"
+			} else {
+				// inherit setting from the processor level
+				conf.CreateCommonTable = ingestProcessor.Config.UseCommonTable
+				conf.UseCommonTableForWildcard = ingestProcessor.Config.UseCommonTable
 			}
 		}
 		if ingestProcessorDefaultIndexConfig.SchemaOverrides != nil {
@@ -730,6 +749,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				}
 				if val, exists := target.properties["useCommonTable"]; exists {
 					processedConfig.UseCommonTable = val == true
+				} else {
+					// inherit setting from the processor level
+					processedConfig.UseCommonTable = queryProcessor.Config.UseCommonTable
 				}
 				if val, exists := target.properties["tableName"]; exists {
 					processedConfig.Override = val.(string)
@@ -779,6 +801,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				}
 				if val, exists := target.properties["useCommonTable"]; exists {
 					processedConfig.UseCommonTable = val == true
+				} else {
+					// inherit setting from the processor level
+					processedConfig.UseCommonTable = ingestProcessor.Config.UseCommonTable
 				}
 				if val, exists := target.properties["tableName"]; exists {
 					processedConfig.Override = val.(string)

@@ -33,11 +33,13 @@ processors:
         logs-dual-query:
           target: [ c, e ]
         logs-4:
-          useCommonTable: true
-          target: [ c ]
+          target:
+            - c:
+                useCommonTable: true
         logs-5:
-          useCommonTable: true
-          target: [ c ]
+          target:
+            - c:
+                useCommonTable: true
         "*":
           target: [ e ]
   - name: IP
@@ -53,13 +55,13 @@ processors:
         logs-dual-query:
           target: [ c, e ]
         logs-4:
-          useCommonTable: true
-          target: [ c ]
+          target:
+            - c:
+                useCommonTable: true
+        logs-5:
+          target:
         "*":
           target: [ e ]
-        logs-5:
-          useCommonTable: true
-          target: [  ]
 
 pipelines:
   - name: my-elasticsearch-proxy-read
