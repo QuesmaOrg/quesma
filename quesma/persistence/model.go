@@ -18,7 +18,6 @@ type JSONDatabase interface {
 	Put(key string, data string) error
 }
 
-// T - type of the data to store, e.g. async_search_storage.AsyncRequestResult
 type JSONDatabaseWithEviction interface { // for sure JSON? maybe not only json? check
 	Put(doc document) bool
 	Get(id string) (document, bool)

@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const MAX_DOC_COUNT = 10000                          // prototype TODO: fix/make configurable/idk/etc
+const MAX_DOC_COUNT = 10000                          // TODO: fix/make configurable/idk/etc
 const defaultSizeInBytesLimit = int64(1_000_000_000) // 1GB
 
 // so far I serialize entire struct and keep only 1 string in ES
@@ -25,9 +25,9 @@ type ElasticDatabaseWithEviction struct {
 	sizeInBytesLimit int64
 }
 
-func NewElasticDatabaseWithEviction(ctx context.Context, cfg config.ElasticsearchConfiguration, indexName string, sizeInBytesLimit int64) *ElasticDatabaseWithEviction {
+func NewElasticDatabaseWithEviction(cfg config.ElasticsearchConfiguration, indexName string, sizeInBytesLimit int64) *ElasticDatabaseWithEviction {
 	return &ElasticDatabaseWithEviction{
-		ctx:                 ctx,
+		ctx:                 context.Background(),
 		ElasticJSONDatabase: NewElasticJSONDatabase(cfg, indexName),
 		EvictorInterface:    &Evictor{},
 		sizeInBytesLimit:    sizeInBytesLimit,
@@ -35,7 +35,7 @@ func NewElasticDatabaseWithEviction(ctx context.Context, cfg config.Elasticsearc
 }
 
 // mutexy? or what
-func (db *ElasticDatabaseWithEviction) Put(doc *document) bool {
+func (db *ElasticDatabaseWithEviction) Put(ctx context.Context, doc *document) bool {
 	dbSize, success := db.SizeInBytes()
 	if !success {
 		return false
@@ -43,14 +43,14 @@ func (db *ElasticDatabaseWithEviction) Put(doc *document) bool {
 	fmt.Println("kk dbg Put() dbSize:", dbSize)
 	bytesNeeded := dbSize + doc.SizeInBytes
 	if bytesNeeded > db.SizeInBytesLimit() {
-		logger.InfoWithCtx(db.ctx).Msgf("Database is full, need %d bytes more. Evicting documents", bytesNeeded-db.SizeInBytesLimit())
+		logger.InfoWithCtx(ctx).Msgf("Database is full, need %d bytes more. Evicting documents", bytesNeeded-db.SizeInBytesLimit())
 		allDocs, ok := db.getAll()
 		if !ok {
-			logger.WarnWithCtx(db.ctx).Msg("Error getting all documents")
+			logger.WarnWithCtx(ctx).Msg("Error getting all documents")
 			return false
 		}
 		indexesToEvict, bytesEvicted := db.SelectToEvict(allDocs, bytesNeeded-db.SizeInBytesLimit())
-		logger.InfoWithCtx(db.ctx).Msgf("Evicting %v indexes, %d bytes", indexesToEvict, bytesEvicted)
+		logger.InfoWithCtx(ctx).Msgf("Evicting %v indexes, %d bytes", indexesToEvict, bytesEvicted)
 		db.evict(indexesToEvict)
 		bytesNeeded -= bytesEvicted
 	}
@@ -69,13 +69,13 @@ func (db *ElasticDatabaseWithEviction) Put(doc *document) bool {
 
 	jsonData, err := json.Marshal(updateContent)
 	if err != nil {
-		logger.WarnWithCtx(db.ctx).Msgf("Error marshalling document: %v", err)
+		logger.WarnWithCtx(ctx).Msgf("Error marshalling document: %v", err)
 		return false
 	}
 
 	resp, err := db.httpClient.Request(context.Background(), "POST", elasticsearchURL, jsonData)
 	if err != nil {
-		logger.WarnWithCtx(db.ctx).Msgf("Error sending request to elastic: %v", err)
+		logger.WarnWithCtx(ctx).Msgf("Error sending request to elastic: %v", err)
 		return false
 	}
 	defer resp.Body.Close()
@@ -86,17 +86,17 @@ func (db *ElasticDatabaseWithEviction) Put(doc *document) bool {
 	default:
 		respBody, err := io.ReadAll(resp.Body)
 		if err != nil {
-			logger.WarnWithCtx(db.ctx).Msgf("Error reading response body: %v, respBody: %v", err, respBody)
+			logger.WarnWithCtx(ctx).Msgf("Error reading response body: %v, respBody: %v", err, respBody)
 		}
 		return false
 	}
 }
 
 // co zwraca? zrobić switch na oba typy jakie teraz mamy?
-func (db *ElasticDatabaseWithEviction) Get(id string) (string, bool) { // probably change return type to *Sizeable
+func (db *ElasticDatabaseWithEviction) Get(ctx context.Context, id string) (string, bool) { // probably change return type to *Sizeable
 	value, success, err := db.ElasticJSONDatabase.Get(id)
 	if err != nil {
-		logger.WarnWithCtx(db.ctx).Msgf("Error getting document, id: %s, error: %v", id, err)
+		logger.WarnWithCtx(ctx).Msgf("Error getting document, id: %s, error: %v", id, err)
 		return "", false
 	}
 	return value, success

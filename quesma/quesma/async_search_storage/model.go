@@ -7,6 +7,9 @@ import (
 	"time"
 )
 
+const EvictionInterval = 15 * time.Minute
+const GCInterval = 1 * time.Minute
+
 type AsyncRequestResultStorage interface {
 	Store(id string, result *AsyncRequestResult)
 	Load(id string) (*AsyncRequestResult, bool)
@@ -14,11 +17,13 @@ type AsyncRequestResultStorage interface {
 	DocCount() int
 	SizeInBytes() uint64
 	SizeInBytesLimit() uint64
+
+	evict(timeFun func(time.Time) time.Duration)
 }
 
-// TODO: maybe merge those 2?
 type AsyncQueryContextStorage interface {
 	Store(id string, context *AsyncQueryContext)
+	evict(timeFun func(time.Time) time.Duration)
 }
 
 type AsyncRequestResult struct {
