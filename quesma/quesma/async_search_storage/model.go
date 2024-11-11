@@ -24,7 +24,7 @@ type AsyncRequestResultStorage interface {
 }
 
 type AsyncQueryContextStorage interface {
-	Store(id string, context *AsyncQueryContext)
+	Store(context *AsyncQueryContext)
 	evict(olderThan time.Duration)
 }
 
@@ -71,10 +71,9 @@ func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id str
 	return &AsyncQueryContext{ctx: ctx, cancel: cancel, added: time.Now(), id: id}
 }
 
-func (c *AsyncQueryContext) toJSON() types.JSON {
+func (c *AsyncQueryContext) toJSON() *persistence.JSONWithSize {
 	json := types.JSON{}
 	json["id"] = c.id
 	json["added"] = c.added
-
-	return json
+	return persistence.NewJSONWithSize(json, c.id, 100) // 100 is a rough upper bound estimate of the size of the rest of the fields
 }

@@ -77,8 +77,8 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 
 	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
 		executionCtx: ctx, cancel: cancel,
-		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemory(),
-		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
+		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemoryFallbackElastic(),
+		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemoryFallbackElasticsearch(),
 		transformationPipeline: TransformationPipeline{
 			transformers: []model.QueryTransformer{
 				&SchemaCheckPass{cfg: cfg},
@@ -544,7 +544,7 @@ func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncId string, d
 }
 
 func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, asyncRequestIdStr string) {
-	q.AsyncQueriesContexts.Store(asyncRequestIdStr, async_search_storage.NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
+	q.AsyncQueriesContexts.Store(async_search_storage.NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
 }
 
 // This is a HACK

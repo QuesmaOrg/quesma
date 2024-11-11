@@ -14,41 +14,41 @@ import (
 	"time"
 )
 
-type AsyncSearchStorageInMemory struct {
+type AsyncRequestResultStorageInMemory struct {
 	idToResult *concurrent.Map[string, *AsyncRequestResult]
 }
 
-func NewAsyncSearchStorageInMemory() AsyncSearchStorageInMemory { // change result type to AsyncRequestResultStorage interface
-	return AsyncSearchStorageInMemory{
+func NewAsyncRequestResultStorageInMemory() AsyncRequestResultStorage { // change result type to AsyncRequestResultStorage interface
+	return AsyncRequestResultStorageInMemory{
 		idToResult: concurrent.NewMap[string, *AsyncRequestResult](),
 	}
 }
 
-func (s AsyncSearchStorageInMemory) Store(id string, result *AsyncRequestResult) {
+func (s AsyncRequestResultStorageInMemory) Store(id string, result *AsyncRequestResult) {
 	s.idToResult.Store(id, result)
 }
 
-func (s AsyncSearchStorageInMemory) Range(f func(key string, value *AsyncRequestResult) bool) {
+func (s AsyncRequestResultStorageInMemory) Range(f func(key string, value *AsyncRequestResult) bool) {
 	s.idToResult.Range(f)
 }
 
-func (s AsyncSearchStorageInMemory) Load(id string) (*AsyncRequestResult, error) {
+func (s AsyncRequestResultStorageInMemory) Load(id string) (*AsyncRequestResult, error) {
 	if val, ok := s.idToResult.Load(id); ok {
 		return val, nil
 	}
 	return nil, fmt.Errorf("key %s not found", id)
 }
 
-func (s AsyncSearchStorageInMemory) Delete(id string) {
+func (s AsyncRequestResultStorageInMemory) Delete(id string) {
 	s.idToResult.Delete(id)
 }
 
-func (s AsyncSearchStorageInMemory) DocCount() int {
+func (s AsyncRequestResultStorageInMemory) DocCount() int {
 	return s.idToResult.Size()
 }
 
 // in bytes
-func (s AsyncSearchStorageInMemory) SpaceInUse() int64 {
+func (s AsyncRequestResultStorageInMemory) SpaceInUse() int64 {
 	size := int64(0)
 	s.Range(func(key string, value *AsyncRequestResult) bool {
 		size += int64(len(value.GetResponseBody()))
@@ -57,11 +57,11 @@ func (s AsyncSearchStorageInMemory) SpaceInUse() int64 {
 	return size
 }
 
-func (s AsyncSearchStorageInMemory) SpaceMaxAvailable() int64 {
+func (s AsyncRequestResultStorageInMemory) SpaceMaxAvailable() int64 {
 	return math.MaxInt64 / 16 // some huge number for now, can be changed if we want to limit in-memory storage
 }
 
-func (s AsyncSearchStorageInMemory) evict(evictOlderThan time.Duration) {
+func (s AsyncRequestResultStorageInMemory) evict(evictOlderThan time.Duration) {
 	var ids []string
 	s.Range(func(key string, value *AsyncRequestResult) bool {
 		if time.Since(value.added) > evictOlderThan {
@@ -78,14 +78,14 @@ type AsyncQueryContextStorageInMemory struct {
 	idToContext *concurrent.Map[string, *AsyncQueryContext]
 }
 
-func NewAsyncQueryContextStorageInMemory() AsyncQueryContextStorageInMemory {
+func NewAsyncQueryContextStorageInMemory() AsyncQueryContextStorage {
 	return AsyncQueryContextStorageInMemory{
 		idToContext: concurrent.NewMap[string, *AsyncQueryContext](),
 	}
 }
 
-func (s AsyncQueryContextStorageInMemory) Store(id string, context *AsyncQueryContext) {
-	s.idToContext.Store(id, context)
+func (s AsyncQueryContextStorageInMemory) Store(context *AsyncQueryContext) {
+	s.idToContext.Store(context.id, context)
 }
 
 func (s AsyncQueryContextStorageInMemory) evict(evictOlderThan time.Duration) {

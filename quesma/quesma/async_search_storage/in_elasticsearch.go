@@ -14,11 +14,11 @@ import (
 	"time"
 )
 
-type AsyncSearchStorageInElastic struct {
+type AsyncRequestResultStorageInElasticsearch struct {
 	db *persistence.ElasticDatabaseWithEviction
 }
 
-func NewAsyncSearchStorageInElastic() AsyncSearchStorageInElastic {
+func NewAsyncRequestResultStorageInElasticsearch() AsyncRequestResultStorage {
 	// TODO use passed config
 	realUrl, err := url.Parse("http://localhost:9200")
 	if err != nil {
@@ -31,19 +31,19 @@ func NewAsyncSearchStorageInElastic() AsyncSearchStorageInElastic {
 		Password: "",
 	}
 	i := rand.Int()
-	return AsyncSearchStorageInElastic{
+	return AsyncRequestResultStorageInElasticsearch{
 		db: persistence.NewElasticDatabaseWithEviction(cfg, "quesma_async_storage-"+strconv.Itoa(i), 1_000_000_000),
 	}
 }
 
-func (s AsyncSearchStorageInElastic) Store(id string, result *AsyncRequestResult) {
+func (s AsyncRequestResultStorageInElasticsearch) Store(id string, result *AsyncRequestResult) {
 	err := s.db.Put(result.toJSON(id))
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to store document")
 	}
 }
 
-func (s AsyncSearchStorageInElastic) Load(id string) (*AsyncRequestResult, error) {
+func (s AsyncRequestResultStorageInElasticsearch) Load(id string) (*AsyncRequestResult, error) {
 	resultAsBytes, err := s.db.Get(id)
 	if err != nil {
 		return nil, err
@@ -58,14 +58,14 @@ func (s AsyncSearchStorageInElastic) Load(id string) (*AsyncRequestResult, error
 	return &result, nil
 }
 
-func (s AsyncSearchStorageInElastic) Delete(id string) {
+func (s AsyncRequestResultStorageInElasticsearch) Delete(id string) {
 	err := s.db.Delete(id)
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to delete document")
 	}
 }
 
-func (s AsyncSearchStorageInElastic) DeleteOld(t time.Duration) {
+func (s AsyncRequestResultStorageInElasticsearch) DeleteOld(t time.Duration) {
 	err := s.db.DeleteOld(t)
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to delete old documents")
@@ -73,7 +73,7 @@ func (s AsyncSearchStorageInElastic) DeleteOld(t time.Duration) {
 }
 
 // DocCount returns the number of documents in the database, or -1 if the count could not be retrieved.
-func (s AsyncSearchStorageInElastic) DocCount() int {
+func (s AsyncRequestResultStorageInElasticsearch) DocCount() int {
 	cnt, err := s.db.DocCount()
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to get document count")
@@ -83,7 +83,7 @@ func (s AsyncSearchStorageInElastic) DocCount() int {
 }
 
 // StorageSizeInBytes returns the total size of all documents in the database, or -1 if the size could not be retrieved.
-func (s AsyncSearchStorageInElastic) SpaceInUse() int64 {
+func (s AsyncRequestResultStorageInElasticsearch) SpaceInUse() int64 {
 	size, err := s.db.SizeInBytes()
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to get storage size")
@@ -92,24 +92,38 @@ func (s AsyncSearchStorageInElastic) SpaceInUse() int64 {
 	return size
 }
 
-func (s AsyncSearchStorageInElastic) SpaceMaxAvailable() int64 {
+func (s AsyncRequestResultStorageInElasticsearch) SpaceMaxAvailable() int64 {
 	return s.db.SizeInBytesLimit()
 }
 
-func (s AsyncSearchStorageInElastic) evict(evictOlderThan time.Duration) {
+func (s AsyncRequestResultStorageInElasticsearch) evict(evictOlderThan time.Duration) {
 	err := s.db.DeleteOld(evictOlderThan)
 	if err != nil {
 		logger.Warn().Err(err).Msgf("failed to evict documents, err: %v", err)
 	}
 }
 
-type AsyncQueryContextStorageInElastic struct {
+type AsyncQueryContextStorageInElasticsearch struct {
 	db *persistence.ElasticDatabaseWithEviction
 }
 
-func NewAsyncQueryContextStorageInElastic() AsyncQueryContextStorageInElastic {
-	return AsyncQueryContextStorageInElastic{
+func NewAsyncQueryContextStorageInElasticsearch() AsyncQueryContextStorage {
+	return AsyncQueryContextStorageInElasticsearch{
 		db: persistence.NewElasticDatabaseWithEviction(
 			config.ElasticsearchConfiguration{}, "async_search", 1_000_000_000),
+	}
+}
+
+func (s AsyncQueryContextStorageInElasticsearch) Store(context *AsyncQueryContext) {
+	err := s.db.Put(context.toJSON())
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to store document")
+	}
+}
+
+func (s AsyncQueryContextStorageInElasticsearch) evict(evictOlderThan time.Duration) {
+	err := s.db.DeleteOld(evictOlderThan)
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to delete old documents")
 	}
 }
