@@ -77,7 +77,7 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 
 	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
 		executionCtx: ctx, cancel: cancel,
-		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemoryFallbackElastic(),
+		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemoryFallbackElastic(cfg.Elasticsearch),
 		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemoryFallbackElasticsearch(),
 		transformationPipeline: TransformationPipeline{
 			transformers: []model.QueryTransformer{

@@ -8,6 +8,8 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
+	"net/url"
+	"quesma/quesma/config"
 	"testing"
 	"time"
 )
@@ -60,7 +62,7 @@ func TestAsyncQueriesEvictorStillAlive(t *testing.T) {
 
 func TestInMemoryFallbackElasticStorage(t *testing.T) {
 	t.Skip("passes locally, but requires elasticsearch to be running, so skipping")
-	storage := NewAsyncSearchStorageInMemoryFallbackElastic()
+	storage := NewAsyncSearchStorageInMemoryFallbackElastic(testConfig())
 	storage.Store("1", &AsyncRequestResult{})
 	storage.Store("2", &AsyncRequestResult{})
 	storage.Store("3", &AsyncRequestResult{})
@@ -92,6 +94,19 @@ func TestInMemoryFallbackElasticStorage(t *testing.T) {
 }
 
 const qid = "abc"
+
+func testConfig() config.ElasticsearchConfiguration {
+	realUrl, err := url.Parse("http://localhost:9201")
+	if err != nil {
+		fmt.Println("ERR", err)
+	}
+	cfgUrl := config.Url(*realUrl)
+	return config.ElasticsearchConfiguration{
+		Url:      &cfgUrl,
+		User:     "",
+		Password: "",
+	}
+}
 
 func TestKK(t *testing.T) {
 	t.Skip()

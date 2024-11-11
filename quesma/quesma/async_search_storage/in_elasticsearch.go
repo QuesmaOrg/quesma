@@ -4,9 +4,7 @@ package async_search_storage
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/rand"
-	"net/url"
 	"quesma/logger"
 	"quesma/persistence"
 	"quesma/quesma/config"
@@ -18,9 +16,9 @@ type AsyncRequestResultStorageInElasticsearch struct {
 	db *persistence.ElasticDatabaseWithEviction
 }
 
-func NewAsyncRequestResultStorageInElasticsearch() AsyncRequestResultStorage {
-	// TODO use passed config
-	realUrl, err := url.Parse("http://localhost:9200")
+func NewAsyncRequestResultStorageInElasticsearch(cfg config.ElasticsearchConfiguration) AsyncRequestResultStorage {
+	/* some test config, maybe you'll find it easier to debug with it
+	realUrl, err := url.Parse("http://localhost:9201")
 	if err != nil {
 		fmt.Println("ERR", err)
 	}
@@ -30,6 +28,7 @@ func NewAsyncRequestResultStorageInElasticsearch() AsyncRequestResultStorage {
 		User:     "",
 		Password: "",
 	}
+	*/
 	i := rand.Int()
 	return AsyncRequestResultStorageInElasticsearch{
 		db: persistence.NewElasticDatabaseWithEviction(cfg, "quesma_async_storage-"+strconv.Itoa(i), 1_000_000_000),

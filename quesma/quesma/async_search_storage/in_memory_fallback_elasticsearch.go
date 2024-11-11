@@ -3,6 +3,7 @@
 package async_search_storage
 
 import (
+	"quesma/quesma/config"
 	"time"
 )
 
@@ -11,10 +12,10 @@ type AsyncRequestResultStorageInMemoryFallbackElastic struct {
 	inElasticsearch AsyncRequestResultStorageInElasticsearch
 }
 
-func NewAsyncSearchStorageInMemoryFallbackElastic() AsyncRequestResultStorageInMemoryFallbackElastic {
+func NewAsyncSearchStorageInMemoryFallbackElastic(cfg config.ElasticsearchConfiguration) AsyncRequestResultStorageInMemoryFallbackElastic {
 	return AsyncRequestResultStorageInMemoryFallbackElastic{
 		inMemory:        NewAsyncRequestResultStorageInMemory().(AsyncRequestResultStorageInMemory),
-		inElasticsearch: NewAsyncRequestResultStorageInElasticsearch().(AsyncRequestResultStorageInElasticsearch),
+		inElasticsearch: NewAsyncRequestResultStorageInElasticsearch(cfg).(AsyncRequestResultStorageInElasticsearch),
 	}
 }
 
