@@ -118,10 +118,10 @@ func (p *ElasticJSONDatabase) List() ([]string, error) {
 	}`
 
 	resp, err := p.httpClient.Request(context.Background(), "GET", elasticsearchURL, []byte(query))
-	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	jsonAsBytes, err := io.ReadAll(resp.Body)
 	if err != nil {

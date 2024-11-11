@@ -29,34 +29,22 @@ type AsyncQueryContextStorage interface {
 }
 
 type AsyncRequestResult struct {
-	responseBody []byte    `json:"responseBody"`
-	added        time.Time `json:"added"`
-	isCompressed bool      `json:"isCompressed"`
-	err          error     `json:"err"`
+	ResponseBody []byte    `json:"responseBody"`
+	Added        time.Time `json:"added"`
+	IsCompressed bool      `json:"isCompressed"`
+	Err          error     `json:"err"`
 }
 
 func NewAsyncRequestResult(responseBody []byte, err error, added time.Time, isCompressed bool) *AsyncRequestResult {
-	return &AsyncRequestResult{responseBody: responseBody, err: err, added: added, isCompressed: isCompressed}
-}
-
-func (r *AsyncRequestResult) GetResponseBody() []byte {
-	return r.responseBody
-}
-
-func (r *AsyncRequestResult) GetErr() error {
-	return r.err
-}
-
-func (r *AsyncRequestResult) IsCompressed() bool {
-	return r.isCompressed
+	return &AsyncRequestResult{ResponseBody: responseBody, Err: err, Added: added, IsCompressed: isCompressed}
 }
 
 func (r *AsyncRequestResult) toJSON(id string) *persistence.JSONWithSize {
 	json := types.JSON{}
 	json["id"] = id
-	json["data"] = string(r.responseBody)
-	json["sizeInBytes"] = int64(len(r.responseBody)) + int64(len(id)) + 100 // 100 is a rough upper bound estimate of the size of the rest of the fields
-	json["added"] = r.added
+	json["data"] = string(r.ResponseBody)
+	json["sizeInBytes"] = int64(len(r.ResponseBody)) + int64(len(id)) + 100 // 100 is a rough upper bound estimate of the size of the rest of the fields
+	json["added"] = r.Added
 	return persistence.NewJSONWithSize(json, id, json["sizeInBytes"].(int64))
 }
 

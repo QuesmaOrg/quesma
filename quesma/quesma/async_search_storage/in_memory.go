@@ -51,7 +51,7 @@ func (s AsyncRequestResultStorageInMemory) DocCount() int {
 func (s AsyncRequestResultStorageInMemory) SpaceInUse() int64 {
 	size := int64(0)
 	s.Range(func(key string, value *AsyncRequestResult) bool {
-		size += int64(len(value.GetResponseBody()))
+		size += int64(len(value.ResponseBody))
 		return true
 	})
 	return size
@@ -64,7 +64,7 @@ func (s AsyncRequestResultStorageInMemory) SpaceMaxAvailable() int64 {
 func (s AsyncRequestResultStorageInMemory) evict(evictOlderThan time.Duration) {
 	var ids []string
 	s.Range(func(key string, value *AsyncRequestResult) bool {
-		if time.Since(value.added) > evictOlderThan {
+		if time.Since(value.Added) > evictOlderThan {
 			ids = append(ids, key)
 		}
 		return true

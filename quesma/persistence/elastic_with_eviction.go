@@ -16,9 +16,6 @@ import (
 	"time"
 )
 
-const MAX_DOC_COUNT = 10000                                // TODO: fix/make configurable/idk/etc
-const defaultHugeSizeInBytesLimit = int64(500_000_000_000) // 500GB
-
 // so far I serialize entire struct and keep only 1 string in ES
 type ElasticDatabaseWithEviction struct {
 	ctx                  context.Context
@@ -268,10 +265,6 @@ func (db *ElasticDatabaseWithEviction) getAll() (documents []*JSONWithSize, err 
 
 	*/
 	return documents, nil
-}
-
-func (db *ElasticDatabaseWithEviction) evict(indexes []string) {
-	// todo
 }
 
 func (db *ElasticDatabaseWithEviction) fullIndexName() string {

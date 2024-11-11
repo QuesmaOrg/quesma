@@ -496,15 +496,15 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 	}
 	if result, err := q.AsyncRequestStorage.Load(id); err != nil {
-		if err := result.GetErr(); err != nil {
+		if result.Err != nil {
 			q.AsyncRequestStorage.Delete(id)
 			logger.ErrorWithCtx(ctx).Msgf("error processing async query: %v", err)
 			return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 		}
 		q.AsyncRequestStorage.Delete(id)
 		// We use zstd to conserve memory, as we have a lot of async queries
-		if result.IsCompressed() {
-			buf, err := util.Decompress(result.GetResponseBody())
+		if result.IsCompressed {
+			buf, err := util.Decompress(result.ResponseBody)
 			if err == nil {
 				// Mark trace end is called only when the async query is fully processed
 				// which means that isPartial is false
@@ -517,7 +517,7 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 		// Mark trace end is called only when the async query is fully processed
 		// which means that isPartial is false
 		logger.MarkTraceEndWithCtx(ctx).Msgf("Async query id : %s ended successfully", id)
-		return result.GetResponseBody(), nil
+		return result.ResponseBody, nil
 	} else {
 		const isPartial = true
 		logger.InfoWithCtx(ctx).Msgf("async query id : %s partial result", id)
