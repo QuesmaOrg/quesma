@@ -266,6 +266,8 @@ type abTestingReportRow struct {
 	panelName       string
 	aName           string
 	bName           string
+	aTime           *float64
+	bTime           *float64
 	successRate     *float64
 	performanceGain *float64
 	count           int
@@ -311,8 +313,10 @@ SELECT
   a_name,
   b_name,
   (sumIf(c,ok)/ sum(c)) * 100 as response_similarity,
-  ((avgIf(a_time,ok)- avgIf(b_time,ok))/avgIf(a_time,ok))*100.0  as performance_gain,
-  sum(c) as count
+ 
+  sum(c) as count,
+  avgIf(a_time,ok) as a_time,
+	avgIf(b_time,ok) as b_time
 FROM
   subresults 
 GROUP BY  
@@ -331,7 +335,7 @@ GROUP BY
 
 	for rows.Next() {
 		row := abTestingReportRow{}
-		err := rows.Scan(&row.dashboardId, &row.panelId, &row.aName, &row.bName, &row.successRate, &row.performanceGain, &row.count)
+		err := rows.Scan(&row.dashboardId, &row.panelId, &row.aName, &row.bName, &row.successRate, &row.count, &row.aTime, &row.bTime)
 		if err != nil {
 			return nil, err
 		}
@@ -340,6 +344,15 @@ GROUP BY
 		row.detailsUrl = fmt.Sprintf("%s/panel?dashboard_id=%s&panel_id=%s", abTestingPath, row.dashboardId, row.panelId)
 		row.dashboardName = kibanaDashboards.dashboardName(row.dashboardId)
 		row.panelName = kibanaDashboards.panelName(row.dashboardId, row.panelId)
+
+		if row.aTime != nil && row.bTime != nil {
+			if *row.aTime == 0 {
+				row.performanceGain = nil
+			} else {
+				gain := (*row.aTime - *row.bTime) / *row.aTime * 100
+				row.performanceGain = &gain
+			}
+		}
 
 		result = append(result, row)
 	}
@@ -405,8 +418,31 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl, orderBy s
 		buffer.Html(`</td>`)
 
 		buffer.Html(`<td>`)
+
+		const minTime = 0.05 // 50ms, we don't show performance gain for queries faster than this
+		const maxTime = 5.0  // if a query takes longer than this, we show the name of the slowest backend
+
 		if row.performanceGain != nil {
-			buffer.Text(fmt.Sprintf("%.01f%%", *row.performanceGain))
+
+			switch {
+
+			case *row.aTime < minTime && *row.bTime < minTime:
+				buffer.Text("both < 50ms")
+
+			case *row.aTime > maxTime && *row.bTime < maxTime:
+				buffer.Text(fmt.Sprintf("%s is over %0.02fs", row.aName, *row.aTime))
+
+			case *row.bTime > maxTime && *row.aTime < maxTime:
+				buffer.Text(fmt.Sprintf("%s is over %0.02fs", row.bName, *row.bTime))
+
+			default:
+				buffer.Html(`<span title="`)
+				buffer.Html(fmt.Sprintf("%s=%.03fs, %s=%.03fs", row.aName, *row.aTime, row.bName, *row.bTime))
+				buffer.Html(`">`)
+				buffer.Text(fmt.Sprintf("%.01f%%", *row.performanceGain))
+				buffer.Html(`</span>`)
+			}
+
 		} else {
 			buffer.Text("n/a")
 		}
