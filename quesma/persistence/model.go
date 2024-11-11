@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Elastic-2.0
 package persistence
 
-import "time"
+import (
+	"quesma/quesma/types"
+	"time"
+)
 
 // JSONDatabase is an interface for a database that stores JSON data.
 // Treat it as `etcd` equivalent rather than `MongoDB`.
@@ -19,8 +22,8 @@ type JSONDatabase interface {
 }
 
 type DatabaseWithEviction interface { // for sure JSON? maybe not only json? check
-	Put(doc document) error
-	Get(id string) (document, error)
+	Put(doc JSONWithSize) error
+	Get(id string) (types.JSON, error)
 	Delete(id string) error
 	DeleteOld(time.Duration) error
 	DocCount() (int, error)
@@ -28,25 +31,20 @@ type DatabaseWithEviction interface { // for sure JSON? maybe not only json? che
 	SizeInBytesLimit() int64
 }
 
-type document struct {
-	Id              string    `json:"id"`
-	Data            string    `json:"data"`
-	Index           string    `json:"index,omitempty"`
-	SizeInBytes     int64     `json:"sizeInBytes"`
-	Timestamp       time.Time `json:"timestamp"`
-	MarkedAsDeleted bool      `json:"markedAsDeleted"`
+type JSONWithSizeInterface interface {
+	SizeInBytes() int64
 }
 
-/*
-type basicDocumentInfo struct {
-	Id               string
-	SizeInBytes int64
-	Timestamp        time.Time
-	MarkedAsDeleted  bool
+type JSONWithSize struct {
+	types.JSON
+	id               string
+	SizeInBytesTotal int64
 }
 
-// mb remove or change impl
-func (d *basicDocumentInfo) SizeInBytes() int64 {
-	return d.SizeInBytesTotal
+func NewJSONWithSize(data types.JSON, id string, sizeInBytesTotal int64) *JSONWithSize {
+	return &JSONWithSize{
+		JSON:             data,
+		id:               id,
+		SizeInBytesTotal: sizeInBytesTotal,
+	}
 }
-*/

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"quesma/logger"
 	"quesma/quesma/config"
@@ -35,33 +36,32 @@ func NewElasticDatabaseWithEviction(cfg config.ElasticsearchConfiguration, index
 	}
 }
 
-func (db *ElasticDatabaseWithEviction) Put(data types.JSON) error {
+func (db *ElasticDatabaseWithEviction) Put(document *JSONWithSize) error {
 	dbSize, err := db.SizeInBytes()
 	if err != nil {
 		return err
 	}
 	fmt.Println("kk dbg Put() dbSize:", dbSize)
-	bytesNeeded := dbSize + data["sizeInBytes"].(int64) // improve
+	bytesNeeded := dbSize + document.SizeInBytesTotal // improve
 	if bytesNeeded > db.SizeInBytesLimit() {
 		logger.Info().Msgf("elastic database: is full, need %d bytes more. Evicting documents", bytesNeeded-db.SizeInBytesLimit())
 		allDocs, err := db.getAll()
 		if err != nil {
 			return err
 		}
-		indexesToEvict, bytesEvicted := db.SelectToEvict(allDocs, bytesNeeded-db.SizeInBytesLimit())
-		logger.Info().Msgf("elastic database: evicting %v indexes, %d bytes", indexesToEvict, bytesEvicted)
-		db.evict(indexesToEvict)
+		bytesEvicted := db.Evict(allDocs, bytesNeeded-db.SizeInBytesLimit())
+		logger.Info().Msgf("elastic database: evicted %d bytes", bytesEvicted)
 		bytesNeeded -= bytesEvicted
 	}
 	if bytesNeeded > db.SizeInBytesLimit() {
 		return errors.New("elastic database: is full, cannot put document")
 	}
 
-	elasticsearchURL := fmt.Sprintf("%s/_update/%s", db.indexName, data["id"].(string))
+	elasticsearchURL := fmt.Sprintf("%s/_update/%s", db.indexName, document.id)
 	fmt.Println("kk dbg Put() elasticsearchURL:", elasticsearchURL)
 
 	updateContent := types.JSON{}
-	updateContent["doc"] = data
+	updateContent["doc"] = document.JSON
 	updateContent["doc_as_upsert"] = true
 
 	jsonData, err := json.Marshal(updateContent)
@@ -88,26 +88,41 @@ func (db *ElasticDatabaseWithEviction) Delete(id string) error {
 	// (single document deletion is hard in ES, it's done by evictor for entire index)
 
 	// TODO: check if doc exists?
-	elasticsearchURL := fmt.Sprintf("%s/_update/%s", db.indexName, id)
-
-	updateContent := types.JSON{}
-	updateContent["doc"] = types.JSON{"markedAsDeleted": true}
-	updateContent["doc_as_upsert"] = true
-
-	jsonData, err := json.Marshal(updateContent)
-	if err != nil {
-		return err
-	}
-
-	resp, err := db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodPost, elasticsearchURL, jsonData)
-	if err != nil && resp.StatusCode != http.StatusCreated {
+	elasticsearchURL := fmt.Sprintf("%s/_doc/%s", db.indexName, id)
+	resp, err := db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodDelete, elasticsearchURL, nil)
+	if err != nil && (resp == nil || resp.StatusCode != http.StatusCreated) {
 		return err
 	}
 	return nil
 }
 
-func (db *ElasticDatabaseWithEviction) DeleteOld(deleteOlderThan time.Duration) error {
-	return nil
+func (db *ElasticDatabaseWithEviction) DeleteOld(deleteOlderThan time.Duration) (err error) {
+	if deleteOlderThan < 1*time.Second {
+		deleteOlderThan = 1 * time.Second
+	}
+
+	rangeStr := fmt.Sprintf("now-%dm", int(math.Floor(deleteOlderThan.Minutes())))
+	if deleteOlderThan < 5*time.Minute {
+		rangeStr = fmt.Sprintf("now-%ds", int(math.Floor(deleteOlderThan.Seconds())))
+	}
+
+	elasticsearchURL := fmt.Sprintf("%s/_delete_by_query", db.indexName)
+	query := fmt.Sprintf(`{
+		"query": {
+			"range": {
+				"added": {
+					"lte": "%s"
+				}
+			}
+		}
+	}`, rangeStr)
+
+	fmt.Println(query)
+
+	var resp *http.Response
+	resp, err = db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodPost, elasticsearchURL, []byte(query))
+	fmt.Println("kk dbg DocCount() resp:", resp, "err:", err, "elastic url:", elasticsearchURL)
+	return err
 }
 
 func (db *ElasticDatabaseWithEviction) DocCount() (docCount int, err error) {
@@ -115,14 +130,7 @@ func (db *ElasticDatabaseWithEviction) DocCount() (docCount int, err error) {
 	query := `{
 		"_source": false,
 		"size": 0,
-		"track_total_hits": true,
-		"query": {
-			"term": {
-				"markedAsDeleted": {
-					"value": false
-				}
-			}
-		}
+		"track_total_hits": true
 	}`
 
 	var resp *http.Response
@@ -199,7 +207,7 @@ func (db *ElasticDatabaseWithEviction) SizeInBytesLimit() int64 {
 	return db.sizeInBytesLimit
 }
 
-func (db *ElasticDatabaseWithEviction) getAll() (documents []*document, err error) {
+func (db *ElasticDatabaseWithEviction) getAll() (documents []*JSONWithSize, err error) {
 	_ = fmt.Sprintf("%s*/_search", db.indexName)
 	_ = `{
 		"_source": {

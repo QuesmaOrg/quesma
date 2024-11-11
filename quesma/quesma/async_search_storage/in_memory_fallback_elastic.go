@@ -49,5 +49,5 @@ func (s AsyncSearchStorageInMemoryFallbackElastic) SpaceMaxAvailable() int64 {
 
 func (s AsyncSearchStorageInMemoryFallbackElastic) evict(timeFun func(time.Time) time.Duration) {
 	s.inMemory.evict(timeFun)
-	go s.elastic.DeleteOld(timeFun(time.Now()))
+	go s.elastic.DeleteOld(EvictionInterval)
 }

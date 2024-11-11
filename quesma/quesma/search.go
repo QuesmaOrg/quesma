@@ -495,7 +495,7 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 		logger.ErrorWithCtx(ctx).Msgf("non quesma async id: %v", id)
 		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 	}
-	if result, ok := q.AsyncRequestStorage.Load(id); ok {
+	if result, err := q.AsyncRequestStorage.Load(id); err != nil {
 		if err := result.GetErr(); err != nil {
 			q.AsyncRequestStorage.Delete(id)
 			logger.ErrorWithCtx(ctx).Msgf("error processing async query: %v", err)
@@ -534,7 +534,7 @@ func (q *QueryRunner) deleteAsyncSearch(id string) ([]byte, error) {
 }
 
 func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncId string, doneCh chan<- asyncSearchWithError) bool {
-	if q.AsyncRequestStorage.DocCount() < asyncQueriesLimit && q.AsyncRequestStorage.SizeInBytes() < asyncQueriesLimitBytes {
+	if q.AsyncRequestStorage.DocCount() < asyncQueriesLimit && q.AsyncRequestStorage.SpaceInUse() < asyncQueriesLimitBytes {
 		return false
 	}
 	err := errors.New("too many async queries")

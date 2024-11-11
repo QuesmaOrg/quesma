@@ -82,10 +82,10 @@ func (s AsyncSearchStorageInElastic) SpaceMaxAvailable() int64 {
 	return s.db.SizeInBytesLimit()
 }
 
-func (s AsyncSearchStorageInElastic) evict(timeFun func(time.Time) time.Duration) {
-	err := s.db.DeleteOld(timeFun(time.Now()))
+func (s AsyncSearchStorageInElastic) evict() {
+	err := s.db.DeleteOld(EvictionInterval)
 	if err != nil {
-		logger.Warn().Err(err).Msg("failed to evict documents")
+		logger.Warn().Err(err).Msgf("failed to evict documents, err: %v", err)
 	}
 }
 

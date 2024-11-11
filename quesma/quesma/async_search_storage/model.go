@@ -4,6 +4,7 @@ package async_search_storage
 
 import (
 	"context"
+	"quesma/persistence"
 	"quesma/quesma/types"
 	"time"
 )
@@ -50,13 +51,13 @@ func (r *AsyncRequestResult) IsCompressed() bool {
 	return r.isCompressed
 }
 
-func (r *AsyncRequestResult) toJSON(id string) types.JSON {
+func (r *AsyncRequestResult) toJSON(id string) *persistence.JSONWithSize {
 	json := types.JSON{}
 	json["id"] = id
 	json["data"] = string(r.responseBody)
 	json["sizeInBytes"] = int64(len(r.responseBody)) + int64(len(id)) + 100 // 100 is a rough upper bound estimate of the size of the rest of the fields
 	json["added"] = r.added
-	return json
+	return persistence.NewJSONWithSize(json, id, json["sizeInBytes"].(int64))
 }
 
 type AsyncQueryContext struct {
