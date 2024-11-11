@@ -6,43 +6,56 @@ import (
 	"context"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
-	"quesma/concurrent"
+	"github.com/stretchr/testify/assert"
+	"quesma/logger"
 	"testing"
 	"time"
 )
 
 func TestAsyncQueriesEvictorTimePassed(t *testing.T) {
-	queryContextStorage := NewAsyncQueryContextStorageInMemory()
-	queryContextStorage.idToContext.Store("1", &AsyncQueryContext{})
-	evictor := NewAsyncQueriesEvictor(NewAsyncSearchStorageInMemory(), queryContextStorage)
-	evictor.AsyncRequestStorage.Store("1", &AsyncRequestResult{added: time.Now()})
-	evictor.AsyncRequestStorage.Store("2", &AsyncRequestResult{added: time.Now()})
-	evictor.AsyncRequestStorage.Store("3", &AsyncRequestResult{added: time.Now()})
-	evictor.tryEvictAsyncRequests(func(time.Time) time.Duration {
-		return 20 * time.Minute
-	})
+	// TODO: add also 3rd storage and nice test for it (remove from memory, but still in elastic)
+	logger.InitSimpleLoggerForTests()
+	for _, storage := range []AsyncRequestResultStorage{NewAsyncSearchStorageInMemory(), NewAsyncSearchStorageInElastic()} {
+		queryContextStorage := NewAsyncQueryContextStorageInMemory()
+		queryContextStorage.idToContext.Store("1", &AsyncQueryContext{})
+		evictor := NewAsyncQueriesEvictor(storage, queryContextStorage)
+		evictor.AsyncRequestStorage.Store("1", &AsyncRequestResult{added: time.Now()})
+		evictor.AsyncRequestStorage.Store("2", &AsyncRequestResult{added: time.Now()})
+		evictor.AsyncRequestStorage.Store("3", &AsyncRequestResult{added: time.Now()})
+		evictor.tryEvictAsyncRequests(func(time.Time) time.Duration {
+			return 20 * time.Minute
+		})
 
-	//assert.Equal(t, 0, evictor.AsyncRequestStorage.Size())
+		if _, ok := storage.(*AsyncSearchStorageInElastic); ok {
+			time.Sleep(1 * time.Second)
+		}
+		assert.Equal(t, 0, evictor.AsyncRequestStorage.DocCount())
+	}
 }
 
 func TestAsyncQueriesEvictorStillAlive(t *testing.T) {
-	queryContextStorage := NewAsyncQueryContextStorageInMemory()
-	queryContextStorage.idToContext.Store("1", &AsyncQueryContext{})
-	evictor := NewAsyncQueriesEvictor(NewAsyncSearchStorageInMemory(), queryContextStorage)
-	evictor.AsyncRequestStorage.idToResult = concurrent.NewMap[string, *AsyncRequestResult]()
-	evictor.AsyncRequestStorage.Store("1", &AsyncRequestResult{added: time.Now()})
-	evictor.AsyncRequestStorage.Store("2", &AsyncRequestResult{added: time.Now()})
-	evictor.AsyncRequestStorage.Store("3", &AsyncRequestResult{added: time.Now()})
-	evictor.tryEvictAsyncRequests(func(time.Time) time.Duration {
-		return time.Second
-	})
+	logger.InitSimpleLoggerForTests()
+	for _, storage := range []AsyncRequestResultStorage{NewAsyncSearchStorageInMemory(), NewAsyncSearchStorageInElastic()} {
+		t.Run(fmt.Sprintf("storage: %T", storage), func(t *testing.T) {
+			queryContextStorage := NewAsyncQueryContextStorageInMemory()
+			queryContextStorage.idToContext.Store("1", &AsyncQueryContext{})
+			evictor := NewAsyncQueriesEvictor(storage, queryContextStorage)
+			evictor.AsyncRequestStorage.Store("1", &AsyncRequestResult{added: time.Now()})
+			evictor.AsyncRequestStorage.Store("2", &AsyncRequestResult{added: time.Now()})
+			evictor.AsyncRequestStorage.Store("3", &AsyncRequestResult{added: time.Now()})
+			evictor.tryEvictAsyncRequests(func(time.Time) time.Duration {
+				return time.Second
+			})
 
-	//assert.Equal(t, 3, evictor.AsyncRequestStorage.Size())
+			assert.Equal(t, 3, evictor.AsyncRequestStorage.DocCount())
+		})
+	}
 }
 
 const qid = "abc"
 
 func TestKK(t *testing.T) {
+	t.Skip()
 	options := clickhouse.Options{Addr: []string{"localhost:9000"}}
 	a := clickhouse.OpenDB(&options)
 	ctx := clickhouse.Context(context.Background(), clickhouse.WithQueryID(qid))
@@ -58,6 +71,7 @@ func TestKK(t *testing.T) {
 }
 
 func TestCancel(t *testing.T) {
+	t.Skip()
 	options := clickhouse.Options{Addr: []string{"localhost:9000"}}
 	a := clickhouse.OpenDB(&options)
 

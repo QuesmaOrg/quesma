@@ -3,7 +3,6 @@
 package persistence
 
 import (
-	"context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"net/url"
@@ -87,7 +86,6 @@ func TestNewElasticPersistence(t *testing.T) {
 
 func TestJSONDatabaseWithEviction_noEviction(t *testing.T) {
 	const precise = true
-	t.Skip()
 	logger.InitSimpleLoggerForTests()
 	indexName := fmt.Sprintf("quesma_test_%d", time.Now().UnixMilli())
 	fmt.Println("indexName:", indexName)
@@ -177,7 +175,7 @@ func TestJSONDatabaseWithEviction_withEviction(t *testing.T) {
 	}
 
 	const smallSizeLimit = int64(1200)
-	db := NewElasticDatabaseWithEviction(context.Background(), cfg, indexName, smallSizeLimit)
+	db := NewElasticDatabaseWithEviction(cfg, indexName, smallSizeLimit)
 	fmt.Println("indexName:", indexName, "fullIndexName:", db.fullIndexName())
 
 	// check initial state

@@ -13,11 +13,11 @@ const GCInterval = 1 * time.Minute
 
 type AsyncRequestResultStorage interface {
 	Store(id string, result *AsyncRequestResult)
-	Load(id string) (*AsyncRequestResult, bool)
+	Load(id string) (*AsyncRequestResult, error)
 	Delete(id string)
 	DocCount() int
-	SizeInBytes() uint64
-	SizeInBytesLimit() uint64
+	SpaceInUse() int64
+	SpaceMaxAvailable() int64
 
 	evict(timeFun func(time.Time) time.Duration)
 }
@@ -54,7 +54,7 @@ func (r *AsyncRequestResult) toJSON(id string) types.JSON {
 	json := types.JSON{}
 	json["id"] = id
 	json["data"] = string(r.responseBody)
-	json["sizeInBytes"] = uint64(len(r.responseBody)) + uint64(len(id)) + 100 // 100 is a rough upper bound estimate of the size of the rest of the fields
+	json["sizeInBytes"] = int64(len(r.responseBody)) + int64(len(id)) + 100 // 100 is a rough upper bound estimate of the size of the rest of the fields
 	json["added"] = r.added
 	return json
 }
@@ -74,7 +74,6 @@ func (c *AsyncQueryContext) toJSON() types.JSON {
 	json := types.JSON{}
 	json["id"] = c.id
 	json["added"] = c.added
-	clickhouse.
 
 	return json
 }

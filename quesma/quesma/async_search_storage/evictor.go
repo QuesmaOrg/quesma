@@ -10,11 +10,11 @@ import (
 type AsyncQueriesEvictor struct {
 	ctx                  context.Context
 	cancel               context.CancelFunc
-	AsyncRequestStorage  AsyncSearchStorageInMemory
-	AsyncQueriesContexts AsyncQueryContextStorageInMemory
+	AsyncRequestStorage  AsyncRequestResultStorage
+	AsyncQueriesContexts AsyncQueryContextStorage
 }
 
-func NewAsyncQueriesEvictor(AsyncRequestStorage AsyncSearchStorageInMemory, AsyncQueriesContexts AsyncQueryContextStorageInMemory) *AsyncQueriesEvictor {
+func NewAsyncQueriesEvictor(AsyncRequestStorage AsyncRequestResultStorage, AsyncQueriesContexts AsyncQueryContextStorage) *AsyncQueriesEvictor {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &AsyncQueriesEvictor{ctx: ctx, cancel: cancel, AsyncRequestStorage: AsyncRequestStorage, AsyncQueriesContexts: AsyncQueriesContexts}
 }

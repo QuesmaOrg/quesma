@@ -41,11 +41,10 @@ func (es *SimpleClient) RequestWithHeaders(ctx context.Context, method, endpoint
 }
 
 func (es *SimpleClient) DoRequestCheckResponseStatus(ctx context.Context, method, endpoint string, body []byte) (resp *http.Response, err error) {
-	resp, err = es.doRequest(ctx, "GET", endpoint, body, nil)
+	resp, err = es.doRequest(ctx, method, endpoint, body, nil)
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return resp, fmt.Errorf("response code from Elastic is not 200 OK, but %s", resp.Status)
@@ -66,6 +65,7 @@ func (es *SimpleClient) Authenticate(ctx context.Context, authHeader string) boo
 
 // doRequest can override auth headers specified in the config, use with care!
 func (es *SimpleClient) doRequest(ctx context.Context, method, endpoint string, body []byte, headers http.Header) (*http.Response, error) {
+	fmt.Println("full url:", fmt.Sprintf("%s/%s", es.config.Url, endpoint))
 	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/%s", es.config.Url, endpoint), bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err

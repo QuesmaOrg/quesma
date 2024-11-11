@@ -20,8 +20,8 @@ func (s AsyncSearchStorageInMemoryFallbackElastic) Store(id string, result *Asyn
 }
 
 func (s AsyncSearchStorageInMemoryFallbackElastic) Load(id string) (*AsyncRequestResult, error) {
-	result, ok := s.inMemory.Load(id)
-	if ok {
+	result, err := s.inMemory.Load(id)
+	if err == nil {
 		return result, nil
 	}
 	return s.elastic.Load(id)
@@ -38,16 +38,16 @@ func (s AsyncSearchStorageInMemoryFallbackElastic) DocCount() int {
 }
 
 // SizeInBytes returns inMemory size in bytes
-func (s AsyncSearchStorageInMemoryFallbackElastic) SizeInBytes() int {
-	return s.inMemory.SizeInBytes()
+func (s AsyncSearchStorageInMemoryFallbackElastic) SpaceInUse() int64 {
+	return s.inMemory.SpaceInUse()
+}
+
+// SizeInBytesLimit returns inMemory size in bytes limit
+func (s AsyncSearchStorageInMemoryFallbackElastic) SpaceMaxAvailable() int64 {
+	return s.inMemory.SpaceMaxAvailable()
 }
 
 func (s AsyncSearchStorageInMemoryFallbackElastic) evict(timeFun func(time.Time) time.Duration) {
 	s.inMemory.evict(timeFun)
 	go s.elastic.DeleteOld(timeFun(time.Now()))
-}
-
-// SizeInBytesLimit returns inMemory size in bytes limit
-func (s AsyncSearchStorageInMemoryFallbackElastic) SizeInBytesLimit() uint64 {
-	return s.inMemory.SizeInBytesLimit()
 }

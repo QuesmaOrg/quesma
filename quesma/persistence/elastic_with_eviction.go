@@ -35,13 +35,13 @@ func NewElasticDatabaseWithEviction(cfg config.ElasticsearchConfiguration, index
 	}
 }
 
-func (db *ElasticDatabaseWithEviction) Put(doc *document) error {
+func (db *ElasticDatabaseWithEviction) Put(data types.JSON) error {
 	dbSize, err := db.SizeInBytes()
 	if err != nil {
 		return err
 	}
 	fmt.Println("kk dbg Put() dbSize:", dbSize)
-	bytesNeeded := dbSize + doc.SizeInBytes
+	bytesNeeded := dbSize + data["sizeInBytes"].(int64) // improve
 	if bytesNeeded > db.SizeInBytesLimit() {
 		logger.Info().Msgf("elastic database: is full, need %d bytes more. Evicting documents", bytesNeeded-db.SizeInBytesLimit())
 		allDocs, err := db.getAll()
@@ -57,11 +57,11 @@ func (db *ElasticDatabaseWithEviction) Put(doc *document) error {
 		return errors.New("elastic database: is full, cannot put document")
 	}
 
-	elasticsearchURL := fmt.Sprintf("%s/_update/%s", db.indexName, doc.Id)
+	elasticsearchURL := fmt.Sprintf("%s/_update/%s", db.indexName, data["id"].(string))
 	fmt.Println("kk dbg Put() elasticsearchURL:", elasticsearchURL)
 
 	updateContent := types.JSON{}
-	updateContent["doc"] = doc
+	updateContent["doc"] = data
 	updateContent["doc_as_upsert"] = true
 
 	jsonData, err := json.Marshal(updateContent)
@@ -70,7 +70,8 @@ func (db *ElasticDatabaseWithEviction) Put(doc *document) error {
 	}
 
 	resp, err := db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodPost, elasticsearchURL, jsonData)
-	if err != nil && resp.StatusCode != http.StatusCreated {
+	fmt.Println("kk dbg Put() resp:", resp, "err:", err)
+	if err != nil && (resp == nil || resp.StatusCode != http.StatusCreated) {
 		return err
 	}
 	return nil
@@ -126,8 +127,9 @@ func (db *ElasticDatabaseWithEviction) DocCount() (docCount int, err error) {
 
 	var resp *http.Response
 	resp, err = db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodGet, elasticsearchURL, []byte(query))
+	fmt.Println("kk dbg DocCount() resp:", resp, "err:", err, "elastic url:", elasticsearchURL)
 	if err != nil {
-		if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound {
+		if resp != nil && (resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound) {
 			return 0, nil
 		}
 		return -1, err
@@ -160,9 +162,14 @@ func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, err err
 
 	var resp *http.Response
 	resp, err = db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodGet, elasticsearchURL, []byte(query))
+	fmt.Println("kk dbg SizeInBytes() err:", err, "\nresp:", resp)
 	if err != nil {
+		if resp != nil && resp.StatusCode == 404 {
+			return 0, nil
+		}
 		return
 	}
+	defer resp.Body.Close() // add everywhere
 
 	var jsonAsBytes []byte
 	jsonAsBytes, err = io.ReadAll(resp.Body)

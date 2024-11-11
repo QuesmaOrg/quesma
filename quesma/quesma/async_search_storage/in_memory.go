@@ -4,6 +4,7 @@ package async_search_storage
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"quesma/concurrent"
 	"quesma/logger"
@@ -31,8 +32,11 @@ func (s AsyncSearchStorageInMemory) Range(f func(key string, value *AsyncRequest
 	s.idToResult.Range(f)
 }
 
-func (s AsyncSearchStorageInMemory) Load(id string) (*AsyncRequestResult, bool) {
-	return s.idToResult.Load(id)
+func (s AsyncSearchStorageInMemory) Load(id string) (*AsyncRequestResult, error) {
+	if val, ok := s.idToResult.Load(id); ok {
+		return val, nil
+	}
+	return nil, fmt.Errorf("key %s not found", id)
 }
 
 func (s AsyncSearchStorageInMemory) Delete(id string) {
@@ -43,17 +47,18 @@ func (s AsyncSearchStorageInMemory) DocCount() int {
 	return s.idToResult.Size()
 }
 
-func (s AsyncSearchStorageInMemory) SizeInBytes() int {
-	size := 0
+// in bytes
+func (s AsyncSearchStorageInMemory) SpaceInUse() int64 {
+	size := int64(0)
 	s.Range(func(key string, value *AsyncRequestResult) bool {
-		size += len(value.GetResponseBody())
+		size += int64(len(value.GetResponseBody()))
 		return true
 	})
 	return size
 }
 
-func (s AsyncSearchStorageInMemory) SizeInBytesLimit() uint64 {
-	return math.MaxUint64 / 16 // some huge number for now, can be changed if we want to limit in-memory storage
+func (s AsyncSearchStorageInMemory) SpaceMaxAvailable() int64 {
+	return math.MaxInt64 / 16 // some huge number for now, can be changed if we want to limit in-memory storage
 }
 
 func (s AsyncSearchStorageInMemory) evict(timeFun func(time.Time) time.Duration) {
