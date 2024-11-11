@@ -3,9 +3,10 @@
 package async_search_storage
 
 import (
-	"context"
+	"quesma/logger"
 	"quesma/persistence"
 	"quesma/quesma/config"
+	"time"
 )
 
 type AsyncSearchStorageInElastic struct {
@@ -19,30 +20,47 @@ func NewAsyncSearchStorageInElastic() AsyncSearchStorageInElastic {
 	}
 }
 
-func (s AsyncSearchStorageInElastic) Store(ctx context.Context, id string, result *AsyncRequestResult) {
-	s.db.Put(ctx, nil)
+func (s AsyncSearchStorageInElastic) Store(id string, result *AsyncRequestResult) {
+	err := s.db.Put(result.toJSON(id))
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to store document")
+	}
 }
 
-func (s AsyncSearchStorageInElastic) Load(ctx context.Context, id string) (*AsyncRequestResult, bool) {
-	_, ok := s.db.Get(ctx, id)
-	return nil, ok
+func (s AsyncSearchStorageInElastic) Load(id string) (*AsyncRequestResult, error) {
+	_, err := s.db.Get(id)
+	return nil, err
 }
 
 func (s AsyncSearchStorageInElastic) Delete(id string) {
-	s.db.Delete(id)
+	err := s.db.Delete(id)
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to delete document")
+	}
 }
 
+func (s AsyncSearchStorageInElastic) DeleteOld(t time.Duration) {
+	err := s.db.DeleteOld(t)
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to delete old documents")
+	}
+}
+
+// DocCount returns the number of documents in the database, or -1 if the count could not be retrieved.
 func (s AsyncSearchStorageInElastic) DocCount() int {
-	cnt, ok := s.db.DocCount()
-	if !ok {
+	cnt, err := s.db.DocCount()
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to get document count")
 		return -1
 	}
 	return cnt
 }
 
-func (s AsyncSearchStorageInElastic) SizeInBytes() int64 {
-	size, ok := s.db.SizeInBytes()
-	if !ok {
+// StorageSizeInBytes returns the total size of all documents in the database, or -1 if the size could not be retrieved.
+func (s AsyncSearchStorageInElastic) StorageSizeInBytes() int64 {
+	size, err := s.db.SizeInBytes()
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to get storage size")
 		return -1
 	}
 	return size
@@ -57,8 +75,4 @@ func NewAsyncQueryContextStorageInElastic() AsyncQueryContextStorageInElastic {
 		db: persistence.NewElasticDatabaseWithEviction(
 			config.ElasticsearchConfiguration{}, "async_search", 1_000_000_000),
 	}
-}
-
-func (s AsyncQueryContextStorageInElastic) Store(ctx context.Context, id string, context *AsyncQueryContext) {
-	s.db.Put(ctx, nil)
 }

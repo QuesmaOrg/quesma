@@ -4,6 +4,7 @@ package async_search_storage
 
 import (
 	"context"
+	"math"
 	"quesma/concurrent"
 	"quesma/logger"
 	"quesma/quesma/recovery"
@@ -51,16 +52,20 @@ func (s AsyncSearchStorageInMemory) SizeInBytes() int {
 	return size
 }
 
+func (s AsyncSearchStorageInMemory) SizeInBytesLimit() uint64 {
+	return math.MaxUint64 / 16 // some huge number for now, can be changed if we want to limit in-memory storage
+}
+
 func (s AsyncSearchStorageInMemory) evict(timeFun func(time.Time) time.Duration) {
-	var ids []asyncQueryIdWithTime
+	var ids []string
 	s.Range(func(key string, value *AsyncRequestResult) bool {
 		if timeFun(value.added) > EvictionInterval {
-			ids = append(ids, asyncQueryIdWithTime{id: key, time: value.added})
+			ids = append(ids, key)
 		}
 		return true
 	})
 	for _, id := range ids {
-		s.Delete(id.id)
+		s.Delete(id)
 	}
 }
 
@@ -103,11 +108,6 @@ func (s AsyncQueryContextStorageInMemory) evict(timeFun func(time.Time) time.Dur
 
 func elapsedTime(t time.Time) time.Duration {
 	return time.Since(t)
-}
-
-type asyncQueryIdWithTime struct {
-	id   string
-	time time.Time
 }
 
 type AsyncQueryTraceLoggerEvictor struct {

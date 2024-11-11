@@ -4,6 +4,7 @@ package async_search_storage
 
 import (
 	"context"
+	"quesma/quesma/types"
 	"time"
 )
 
@@ -49,6 +50,15 @@ func (r *AsyncRequestResult) IsCompressed() bool {
 	return r.isCompressed
 }
 
+func (r *AsyncRequestResult) toJSON(id string) types.JSON {
+	json := types.JSON{}
+	json["id"] = id
+	json["data"] = string(r.responseBody)
+	json["sizeInBytes"] = uint64(len(r.responseBody)) + uint64(len(id)) + 100 // 100 is a rough upper bound estimate of the size of the rest of the fields
+	json["added"] = r.added
+	return json
+}
+
 type AsyncQueryContext struct {
 	id     string
 	ctx    context.Context
@@ -58,4 +68,13 @@ type AsyncQueryContext struct {
 
 func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id string) *AsyncQueryContext {
 	return &AsyncQueryContext{ctx: ctx, cancel: cancel, added: time.Now(), id: id}
+}
+
+func (c *AsyncQueryContext) toJSON() types.JSON {
+	json := types.JSON{}
+	json["id"] = c.id
+	json["added"] = c.added
+	clickhouse.
+
+	return json
 }

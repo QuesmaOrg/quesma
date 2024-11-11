@@ -40,6 +40,19 @@ func (es *SimpleClient) RequestWithHeaders(ctx context.Context, method, endpoint
 	return es.doRequest(ctx, method, endpoint, body, headers)
 }
 
+func (es *SimpleClient) DoRequestCheckResponseStatus(ctx context.Context, method, endpoint string, body []byte) (resp *http.Response, err error) {
+	resp, err = es.doRequest(ctx, "GET", endpoint, body, nil)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return resp, fmt.Errorf("response code from Elastic is not 200 OK, but %s", resp.Status)
+	}
+	return resp, nil
+}
+
 func (es *SimpleClient) Authenticate(ctx context.Context, authHeader string) bool {
 	resp, err := es.doRequest(ctx, "GET", "_security/_authenticate", nil, http.Header{"Authorization": {authHeader}})
 	if err != nil {

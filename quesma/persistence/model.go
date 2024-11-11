@@ -18,12 +18,13 @@ type JSONDatabase interface {
 	Put(key string, data string) error
 }
 
-type JSONDatabaseWithEviction interface { // for sure JSON? maybe not only json? check
-	Put(doc document) bool
-	Get(id string) (document, bool)
-	Delete(id string)
-	DocCount() (int, bool)
-	SizeInBytes() (int64, bool)
+type DatabaseWithEviction interface { // for sure JSON? maybe not only json? check
+	Put(doc document) error
+	Get(id string) (document, error)
+	Delete(id string) error
+	DeleteOld(time.Duration) error
+	DocCount() (int, error)
+	SizeInBytes() (int64, error)
 	SizeInBytesLimit() int64
 }
 

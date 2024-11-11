@@ -5,6 +5,7 @@ package persistence
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,8 +15,8 @@ import (
 	"time"
 )
 
-const MAX_DOC_COUNT = 10000                          // TODO: fix/make configurable/idk/etc
-const defaultSizeInBytesLimit = int64(1_000_000_000) // 1GB
+const MAX_DOC_COUNT = 10000                                // TODO: fix/make configurable/idk/etc
+const defaultHugeSizeInBytesLimit = int64(500_000_000_000) // 500GB
 
 // so far I serialize entire struct and keep only 1 string in ES
 type ElasticDatabaseWithEviction struct {
@@ -34,32 +35,28 @@ func NewElasticDatabaseWithEviction(cfg config.ElasticsearchConfiguration, index
 	}
 }
 
-// mutexy? or what
-func (db *ElasticDatabaseWithEviction) Put(ctx context.Context, doc *document) bool {
-	dbSize, success := db.SizeInBytes()
-	if !success {
-		return false
+func (db *ElasticDatabaseWithEviction) Put(doc *document) error {
+	dbSize, err := db.SizeInBytes()
+	if err != nil {
+		return err
 	}
 	fmt.Println("kk dbg Put() dbSize:", dbSize)
 	bytesNeeded := dbSize + doc.SizeInBytes
 	if bytesNeeded > db.SizeInBytesLimit() {
-		logger.InfoWithCtx(ctx).Msgf("Database is full, need %d bytes more. Evicting documents", bytesNeeded-db.SizeInBytesLimit())
-		allDocs, ok := db.getAll()
-		if !ok {
-			logger.WarnWithCtx(ctx).Msg("Error getting all documents")
-			return false
+		logger.Info().Msgf("elastic database: is full, need %d bytes more. Evicting documents", bytesNeeded-db.SizeInBytesLimit())
+		allDocs, err := db.getAll()
+		if err != nil {
+			return err
 		}
 		indexesToEvict, bytesEvicted := db.SelectToEvict(allDocs, bytesNeeded-db.SizeInBytesLimit())
-		logger.InfoWithCtx(ctx).Msgf("Evicting %v indexes, %d bytes", indexesToEvict, bytesEvicted)
+		logger.Info().Msgf("elastic database: evicting %v indexes, %d bytes", indexesToEvict, bytesEvicted)
 		db.evict(indexesToEvict)
 		bytesNeeded -= bytesEvicted
 	}
 	if bytesNeeded > db.SizeInBytesLimit() {
-		// put document
-		return false
+		return errors.New("elastic database: is full, cannot put document")
 	}
 
-	//elasticsearchURL := fmt.Sprintf("%s/_update/%s", db.fullIndexName(), doc.Id)
 	elasticsearchURL := fmt.Sprintf("%s/_update/%s", db.indexName, doc.Id)
 	fmt.Println("kk dbg Put() elasticsearchURL:", elasticsearchURL)
 
@@ -69,40 +66,23 @@ func (db *ElasticDatabaseWithEviction) Put(ctx context.Context, doc *document) b
 
 	jsonData, err := json.Marshal(updateContent)
 	if err != nil {
-		logger.WarnWithCtx(ctx).Msgf("Error marshalling document: %v", err)
-		return false
+		return err
 	}
 
-	resp, err := db.httpClient.Request(context.Background(), "POST", elasticsearchURL, jsonData)
-	if err != nil {
-		logger.WarnWithCtx(ctx).Msgf("Error sending request to elastic: %v", err)
-		return false
+	resp, err := db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodPost, elasticsearchURL, jsonData)
+	if err != nil && resp.StatusCode != http.StatusCreated {
+		return err
 	}
-	defer resp.Body.Close()
-
-	switch resp.StatusCode {
-	case http.StatusCreated, http.StatusOK:
-		return true
-	default:
-		respBody, err := io.ReadAll(resp.Body)
-		if err != nil {
-			logger.WarnWithCtx(ctx).Msgf("Error reading response body: %v, respBody: %v", err, respBody)
-		}
-		return false
-	}
+	return nil
 }
 
 // co zwraca? zrobić switch na oba typy jakie teraz mamy?
-func (db *ElasticDatabaseWithEviction) Get(ctx context.Context, id string) (string, bool) { // probably change return type to *Sizeable
-	value, success, err := db.ElasticJSONDatabase.Get(id)
-	if err != nil {
-		logger.WarnWithCtx(ctx).Msgf("Error getting document, id: %s, error: %v", id, err)
-		return "", false
-	}
-	return value, success
+func (db *ElasticDatabaseWithEviction) Get(id string) (string, error) { // probably change return type to *Sizeable
+	value, _, err := db.ElasticJSONDatabase.Get(id)
+	return value, err
 }
 
-func (db *ElasticDatabaseWithEviction) Delete(id string) bool {
+func (db *ElasticDatabaseWithEviction) Delete(id string) error {
 	// mark as deleted, don't actually delete
 	// (single document deletion is hard in ES, it's done by evictor for entire index)
 
@@ -115,30 +95,21 @@ func (db *ElasticDatabaseWithEviction) Delete(id string) bool {
 
 	jsonData, err := json.Marshal(updateContent)
 	if err != nil {
-		logger.WarnWithCtx(db.ctx).Msgf("Error marshalling document: %v", err)
-		return false
+		return err
 	}
 
-	resp, err := db.httpClient.Request(context.Background(), "POST", elasticsearchURL, jsonData)
-	if err != nil {
-		logger.WarnWithCtx(db.ctx).Msgf("Error sending request to elastic: %v", err)
-		return false
+	resp, err := db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodPost, elasticsearchURL, jsonData)
+	if err != nil && resp.StatusCode != http.StatusCreated {
+		return err
 	}
-	defer resp.Body.Close()
-
-	switch resp.StatusCode {
-	case http.StatusCreated, http.StatusOK:
-		return true
-	default:
-		respBody, err := io.ReadAll(resp.Body)
-		if err != nil {
-			logger.WarnWithCtx(db.ctx).Msgf("Error reading response body: %v, respBody: %v", err, respBody)
-		}
-		return false
-	}
+	return nil
 }
 
-func (db *ElasticDatabaseWithEviction) DocCount() (count int, success bool) {
+func (db *ElasticDatabaseWithEviction) DeleteOld(deleteOlderThan time.Duration) error {
+	return nil
+}
+
+func (db *ElasticDatabaseWithEviction) DocCount() (docCount int, err error) {
 	elasticsearchURL := fmt.Sprintf("%s/_search", db.indexName)
 	query := `{
 		"_source": false,
@@ -153,43 +124,33 @@ func (db *ElasticDatabaseWithEviction) DocCount() (count int, success bool) {
 		}
 	}`
 
-	resp, err := db.httpClient.Request(context.Background(), "GET", elasticsearchURL, []byte(query))
+	var resp *http.Response
+	resp, err = db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodGet, elasticsearchURL, []byte(query))
 	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-
-	jsonAsBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return
+		if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound {
+			return 0, nil
+		}
+		return -1, err
 	}
 
-	fmt.Println("kk dbg DocCount() resp.StatusCode:", resp.StatusCode)
-
-	switch resp.StatusCode {
-	case http.StatusOK:
-		break
-	case http.StatusNoContent, http.StatusNotFound:
-		return 0, true
-	default:
-		logger.WarnWithCtx(db.ctx).Msgf("failed to get from elastic: %s, response status code: %v", string(jsonAsBytes), resp.StatusCode)
+	var jsonAsBytes []byte
+	jsonAsBytes, err = io.ReadAll(resp.Body)
+	if err != nil {
 		return
 	}
 
 	// Unmarshal the JSON response
 	var result map[string]interface{}
 	if err = json.Unmarshal(jsonAsBytes, &result); err != nil {
-		logger.WarnWithCtx(db.ctx).Msgf("Error parsing the response JSON: %s", err)
 		return
 	}
 
 	fmt.Println("kk dbg DocCount() result:", result)
 
-	count = int(result["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64)) // TODO: add some checks... to prevent panic
-	return count, true
+	return int(result["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64)), nil // TODO: add some checks... to prevent panic
 }
 
-func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, success bool) {
+func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, err error) {
 	elasticsearchURL := fmt.Sprintf("%s/_search", db.indexName)
 	query := `{
 		"_source": ["sizeInBytes"],
@@ -197,33 +158,23 @@ func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, success
 		"track_total_hits": true
 	}`
 
-	resp, err := db.httpClient.Request(context.Background(), "GET", elasticsearchURL, []byte(query))
+	var resp *http.Response
+	resp, err = db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodGet, elasticsearchURL, []byte(query))
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
 
-	jsonAsBytes, err := io.ReadAll(resp.Body)
+	var jsonAsBytes []byte
+	jsonAsBytes, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}
 
 	fmt.Println("kk dbg SizeInBytes() resp.StatusCode:", resp.StatusCode)
 
-	switch resp.StatusCode {
-	case http.StatusOK:
-		break
-	case http.StatusNoContent, http.StatusNotFound:
-		return 0, true
-	default:
-		logger.WarnWithCtx(db.ctx).Msgf("failed to get from elastic: %s, response status code: %v", string(jsonAsBytes), resp.StatusCode)
-		return
-	}
-
 	// Unmarshal the JSON response
 	var result map[string]interface{}
 	if err = json.Unmarshal(jsonAsBytes, &result); err != nil {
-		logger.WarnWithCtx(db.ctx).Msgf("Error parsing the response JSON: %s", err)
 		return
 	}
 
@@ -234,64 +185,68 @@ func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, success
 		a = append(a, sizeInBytes-b)
 	}
 	fmt.Println("kk dbg SizeInBytes() sizes in storage:", a)
-	return sizeInBytes, true
+	return sizeInBytes, nil
 }
 
 func (db *ElasticDatabaseWithEviction) SizeInBytesLimit() int64 {
 	return db.sizeInBytesLimit
 }
 
-func (db *ElasticDatabaseWithEviction) getAll() (documents []*document, success bool) {
-	elasticsearchURL := fmt.Sprintf("%s*/_search", db.indexName)
-	query := `{
+func (db *ElasticDatabaseWithEviction) getAll() (documents []*document, err error) {
+	_ = fmt.Sprintf("%s*/_search", db.indexName)
+	_ = `{
 		"_source": {
 			"excludes": "data"
 		},
 		"size": 10000,
 		"track_total_hits": true
 	}`
+	/*
+		db.httpClient.
 
-	resp, err := db.httpClient.Request(context.Background(), "GET", elasticsearchURL, []byte(query))
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-
-	jsonAsBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return
-	}
-
-	fmt.Println("kk dbg getAll() resp.StatusCode:", resp.StatusCode)
-
-	switch resp.StatusCode {
-	case http.StatusOK:
-		break
-	default:
-		logger.WarnWithCtx(db.ctx).Msgf("failed to get from elastic: %s, response status code: %v", string(jsonAsBytes), resp.StatusCode)
-		return
-	}
-
-	// Unmarshal the JSON response
-	var result map[string]interface{}
-	if err = json.Unmarshal(jsonAsBytes, &result); err != nil {
-		logger.WarnWithCtx(db.ctx).Msgf("Error parsing the response JSON: %s", err)
-		return
-	}
-
-	fmt.Println("kk dbg getAll() documents:")
-	for _, hit := range result["hits"].(map[string]interface{})["hits"].([]interface{}) {
-		doc := &document{
-			Id:          hit.(map[string]interface{})["_id"].(string),
-			Index:       hit.(map[string]interface{})["_index"].(string),
-			SizeInBytes: int64(hit.(map[string]interface{})["_source"].(map[string]interface{})["sizeInBytes"].(float64)), // TODO: add checks
-			//Timestamp:       hit.(map[string]interface{})["_source"].(map[string]interface{})["timestamp"].(time.Time),        // TODO: add checks
-			MarkedAsDeleted: hit.(map[string]interface{})["_source"].(map[string]interface{})["markedAsDeleted"].(bool), // TODO: add checks
+		resp, err := db.httpClient.Request(context.Background(), "GET", elasticsearchURL, []byte(query))
+		if err != nil {
+			return
 		}
-		fmt.Println(doc)
-		documents = append(documents, doc)
-	}
-	return documents, true
+		defer resp.Body.Close()
+
+		jsonAsBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return
+		}
+
+		fmt.Println("kk dbg getAll() resp.StatusCode:", resp.StatusCode)
+
+		switch resp.StatusCode {
+		case http.StatusOK:
+			break
+		default:
+			logger.WarnWithCtx(db.ctx).Msgf("failed to get from elastic: %s, response status code: %v", string(jsonAsBytes), resp.StatusCode)
+			return
+		}
+
+		// Unmarshal the JSON response
+		var result map[string]interface{}
+		if err = json.Unmarshal(jsonAsBytes, &result); err != nil {
+			logger.WarnWithCtx(db.ctx).Msgf("Error parsing the response JSON: %s", err)
+			return
+		}
+
+		fmt.Println("kk dbg getAll() documents:")
+		for _, hit := range result["hits"].(map[string]interface{})["hits"].([]interface{}) {
+			doc := &document{
+				Id:          hit.(map[string]interface{})["_id"].(string),
+				Index:       hit.(map[string]interface{})["_index"].(string),
+				SizeInBytes: int64(hit.(map[string]interface{})["_source"].(map[string]interface{})["sizeInBytes"].(float64)), // TODO: add checks
+				//Timestamp:       hit.(map[string]interface{})["_source"].(map[string]interface{})["timestamp"].(time.Time),        // TODO: add checks
+				MarkedAsDeleted: hit.(map[string]interface{})["_source"].(map[string]interface{})["markedAsDeleted"].(bool), // TODO: add checks
+			}
+			fmt.Println(doc)
+			documents = append(documents, doc)
+		}
+
+	*/
+	return documents, nil
 }
 
 func (db *ElasticDatabaseWithEviction) evict(indexes []string) {

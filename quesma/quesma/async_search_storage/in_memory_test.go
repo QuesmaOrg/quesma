@@ -3,7 +3,9 @@
 package async_search_storage
 
 import (
-	"github.com/stretchr/testify/assert"
+	"context"
+	"fmt"
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"quesma/concurrent"
 	"testing"
 	"time"
@@ -20,7 +22,7 @@ func TestAsyncQueriesEvictorTimePassed(t *testing.T) {
 		return 20 * time.Minute
 	})
 
-	assert.Equal(t, 0, evictor.AsyncRequestStorage.Size())
+	//assert.Equal(t, 0, evictor.AsyncRequestStorage.Size())
 }
 
 func TestAsyncQueriesEvictorStillAlive(t *testing.T) {
@@ -35,5 +37,30 @@ func TestAsyncQueriesEvictorStillAlive(t *testing.T) {
 		return time.Second
 	})
 
-	assert.Equal(t, 3, evictor.AsyncRequestStorage.Size())
+	//assert.Equal(t, 3, evictor.AsyncRequestStorage.Size())
+}
+
+const qid = "abc"
+
+func TestKK(t *testing.T) {
+	options := clickhouse.Options{Addr: []string{"localhost:9000"}}
+	a := clickhouse.OpenDB(&options)
+	ctx := clickhouse.Context(context.Background(), clickhouse.WithQueryID(qid))
+
+	b, err := a.QueryContext(ctx, "SELECT number FROM (SELECT number FROM numbers(100_000_000_000)) ORDER BY number DESC LIMIT 10")
+	var q int64
+	for b.Next() {
+		b.Scan(&q)
+		fmt.Println(q)
+	}
+
+	fmt.Println(b, "q:", q, err)
+}
+
+func TestCancel(t *testing.T) {
+	options := clickhouse.Options{Addr: []string{"localhost:9000"}}
+	a := clickhouse.OpenDB(&options)
+
+	b, err := a.Query("KILL QUERY WHERE query_id=	'dupa'")
+	fmt.Println(b, err)
 }

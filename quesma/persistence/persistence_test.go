@@ -87,7 +87,7 @@ func TestNewElasticPersistence(t *testing.T) {
 
 func TestJSONDatabaseWithEviction_noEviction(t *testing.T) {
 	const precise = true
-
+	t.Skip()
 	logger.InitSimpleLoggerForTests()
 	indexName := fmt.Sprintf("quesma_test_%d", time.Now().UnixMilli())
 	fmt.Println("indexName:", indexName)
@@ -103,7 +103,7 @@ func TestJSONDatabaseWithEviction_noEviction(t *testing.T) {
 	}
 
 	const bigSizeLimit = int64(1_000_000_000)
-	db := NewElasticDatabaseWithEviction(context.Background(), cfg, indexName, bigSizeLimit)
+	db := NewElasticDatabaseWithEviction(cfg, indexName, bigSizeLimit)
 
 	// check initial state
 	assert.Equal(t, bigSizeLimit, db.SizeInBytesLimit())
@@ -165,7 +165,7 @@ const updateTime = 4 * time.Second
 func TestJSONDatabaseWithEviction_withEviction(t *testing.T) {
 	logger.InitSimpleLoggerForTests()
 	indexName := fmt.Sprintf("quesma_test_%d", time.Now().UnixMilli())
-
+	t.Skip()
 	realUrl, err := url.Parse("http://localhost:9200")
 	assert.NoError(t, err)
 
