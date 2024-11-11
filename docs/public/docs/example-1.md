@@ -32,7 +32,7 @@ flowchart LR
       - name: backend-elasticsearch
         type: elasticsearch
         config:
-          url: #PLACE_YOUR_ELASTICSEARCH_URL_HERE
+          url: #PLACE_YOUR_ELASTICSEARCH_URL_HERE, for example: http://192.168.0.7:9200
           user: #PLACE_YOUR_ELASTICSEARCH_USERNAME_HERE
           password: #PLACE_YOUR_ELASTICSEARCH_PASSWORD_HERE
     processors:

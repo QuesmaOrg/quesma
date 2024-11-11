@@ -15,7 +15,7 @@
 <a href="https://www.linkedin.com/company/quesma">LinkedIn</a> | 
 <a href="https://twitter.com/QuesmaOrg">Twitter</a> | 
 <a href="https://www.youtube.com/@QuesmaOrg">YouTube</a> | 
-<a href="https://eap.quesma.com/eap-docs">Docs</a>
+<a href="https://docs.quesma.com/eap-docs">Docs</a>
 </p>
 
 Quesma is an actively developed database gateway currently in pre-alpha Early Access. Route your queries through a translation layer that seamlessly connects your apps with the modern database platforms of your choice. No more query refactoring during migrations.

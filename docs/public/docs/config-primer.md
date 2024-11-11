@@ -70,12 +70,17 @@ frontendConnectors:
       listenPort: 8080
 ```
 
+The supported configuration options for frontend connectors (under `config`):
+* `listenPort` - port number on which the frontend connector will listen for incoming requests
+* `disableAuth` - when set to `true`, disables authentication for incoming requests (optional, defaults to false). If you use Elasticsearch/Kibana without authentication, set it to `true`.
+
+
 #### Backend connectors
 
 Backend connector has to have a `name`, `type` and `config` fields.
 * `name` is a unique identifier for the connector
 * `type` specifies the type of the connector.\
-  At this moment, only three backend connector types are allowed: `elasticsearch`, `clickhouse` (used for ClickHouse Cloud SaaS service, `clickhouse-os` and `hydrolix`.
+  At this moment, only three backend connector types are allowed: `elasticsearch`, `clickhouse` (used for ClickHouse Cloud SaaS service), `clickhouse-os` (self-hosted ClickHouse) and `hydrolix`.
 * `config` is a set of configuration options for the connector.
 ```yaml
 backendConnectors:
@@ -84,16 +89,25 @@ backendConnectors:
     config:
       user: "elastic"
       password: "change-me"
-      url: "http://elasticsearch:9200"
+      url: "http://192.168.0.7:9200"
   - name: my-clickhouse-data-source
     type: clickhouse-os
     config:
       user: "username"
       password: "username-is-password"
       database: "dbname"
-      url: "clickhouse://clickhouse:9000"
+      url: "clickhouse://192.168.0.9:9000"
 ```
-**WARNING:** When connecting to ClickHouse or Hydrolix, only the native protocol connection (`clickhouse://`) is supported.
+
+The supported configuration options for backend connectors (under `config`):
+* `url` - connection string to the backend service in a URL format (`protocol://host:port`):
+  * for Elastic/OpenSearch the expected format is `http://host:port` (Elastic/OpenSearch default port is 9200)
+  * for ClickHouse/Hydrolix the expected format is `clickhouse://host:port` (ClickHouse default port is 9000, ClickHouse/Hydrolix default encrypted port is 9440). Note that Quesma supports only the ClickHouse native protocol  (`clickhouse://`) and does not support the HTTP protocol.
+* `user` - username for authentication
+* `password` - password for authentication 
+* `database` - name of the database to connect to. It is optional for ClickHouse, but strictly required for Hydrolix, where it is also referred as "project".
+* `adminUrl` - URL for administrative operations to render a handy link in Quesma management UI (optional)
+* `disableTLS` - when set to true, disables TLS for the connection (optional)
 
 ### Processors
 
@@ -178,14 +192,33 @@ The configuration for an index consists of the following configuration options:
    will dual write ingest requests to `my_index` to both ElasticSearch and ClickHouse.
    Note that ElasticSearch/OpenSearch is the only supported backend for the `*` entry.
    If no targets are provided (example: `target: []`) in the configuration of an index in the ingest processor, ingest for that index will be disabled and incoming data will be dropped.
-- `override` (optional): override the name of table in Hydrolix/ClickHouse (by default Quesma uses the same table name as the index name)
-- `useCommonTable` (optional): if enabled, Quesma will store data in a single Hydrolix/ClickHouse table named `quesma_common_table`. See [ingest documentation](/ingest.md) for more details.
+   
+   Some backend connectors have additional attributes which may be used. For example the following configuration sets `useCommonTable` for `backend-clickhouse` target:
+   ```yaml
+      my_index:
+        target:
+          - backend-clickhouse:
+              useCommonTable: true
+   ```
+   Currently only the ClickHouse backend connector supports the following attributes:
+     - `useCommonTable` (optional): if enabled, Quesma will store data in a single Hydrolix/ClickHouse table named `quesma_common_table`. See [ingest documentation](/ingest.md) for more details.
+     - `tableName` (optional): override the name of table in Hydrolix/ClickHouse (by default Quesma uses the same table name as the index name)
+- `schemaOverrides` (optional): manual overrides of schema information for an index. Quesma infers schema for an index based on the data ingested and the schema information fetched from ClickHouse. `schemaOverrides` allows you to override this inferred schema with for some fields. For example the following configuration:
+    ```yaml
+      my_index:
+        target: [ backend-clickhouse ]
+        schemaOverrides:
+          "product_name":
+            type: "text"
+    ```
+    changes the type of `product_name` field to `text`. Note: `schemaOverrides` are currently not supported in `*` configuration.
 
 ## Optional configuration options
 
 ### Quesma licensing configuration
 
-In order to be able to use `hydrolix` or `clickhouse` backend connectors, one needs to supply `licenseKey` in the configuration file. Contact us at suppor@quesma.com if you need one.
+In order to be able to use `hydrolix` or `clickhouse` backend connectors Quesma requires a commercial license key (supplied in the `licenseKey` field of the configuration file). 
+Contact us at support@quesma.com if you need one.
 ```yaml
 licenseKey: ZXlKcGJuTjBZV3hz...
 ```  

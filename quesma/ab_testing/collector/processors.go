@@ -68,25 +68,32 @@ func (t *extractKibanaIds) name() string {
 }
 
 var opaqueIdKibanaDashboardIdRegexp = regexp.MustCompile(`dashboards:([0-9a-f-]+)`)
+var opaqueIdKibanaPanelIdRegexp = regexp.MustCompile(`dashboard:dashboards:.*;.*:.*:([0-9a-f-]+)`)
 
 func (t *extractKibanaIds) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
 
 	opaqueId := in.OpaqueID
 
-	// TODO maybe we should extract panel id as well
+	in.KibanaDashboardId = "n/a"
+	in.KibanaDashboardPanelId = "n/a"
 
 	if opaqueId == "" {
-		in.KibanaDashboardId = "n/a"
 		return in, false, nil
 	}
 
 	matches := opaqueIdKibanaDashboardIdRegexp.FindStringSubmatch(opaqueId)
 
 	if len(matches) < 2 {
-		in.KibanaDashboardId = "n/a"
 		return in, false, nil
 	}
 
 	in.KibanaDashboardId = matches[1]
+
+	panelsMatches := opaqueIdKibanaPanelIdRegexp.FindStringSubmatch(opaqueId)
+	if len(panelsMatches) < 2 {
+		return in, false, nil
+	}
+	in.KibanaDashboardPanelId = panelsMatches[1]
+
 	return in, false, nil
 }

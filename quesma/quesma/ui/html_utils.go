@@ -77,6 +77,14 @@ func (qmc *QuesmaManagementConsole) generateTopNavigation(target string) []byte 
 	}
 	buffer.Html(`><a href="/data-sources">Data sources</a></li>`)
 
+	buffer.Html("<li")
+	if target == "ab-testing-dashboard" {
+		buffer.Html(` class="active"`)
+	}
+	buffer.Html(`><a href="`)
+	buffer.Html(abTestingPath)
+	buffer.Html(`">A/B</a></li>`)
+
 	if qmc.isAuthEnabled {
 		buffer.Html(`<li><a href="/logout">Logout</a></li>`)
 	}
@@ -84,7 +92,7 @@ func (qmc *QuesmaManagementConsole) generateTopNavigation(target string) []byte 
 	buffer.Html("\n</ul>\n")
 	buffer.Html("\n</div>\n")
 
-	if target != "tables" && target != "telemetry" && target != "table_resolver" {
+	if target != "tables" && target != "telemetry" && target != "table_resolver" && target != "ab-testing-dashboard" {
 		buffer.Html(`<div class="autorefresh-box">` + "\n")
 		buffer.Html(`<div class="autorefresh">`)
 		buffer.Html(fmt.Sprintf(
