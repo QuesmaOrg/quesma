@@ -52,9 +52,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
 			}
-			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:22)" {
-				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
-			}
 
 			if test.TestName == "Terms with order by top metrics(file:kibana-visualize/agg_req,nr:8)" {
 				t.Skip("Need to implement order by top metrics (talk with Jacek, he has an idea)")
@@ -67,10 +64,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if test.TestName == "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)(file:opensearch-visualize/pipeline_agg_req,nr:20)" ||
 				test.TestName == "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range(file:opensearch-visualize/pipeline_agg_req,nr:21)" {
 				t.Skip("Was skipped before. Wrong key in max_bucket, should be an easy fix")
-			}
-
-			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:24)" {
-				t.Skip("Was skipped before, no expected results")
 			}
 
 			// TODO: add test for filter(s) both at the beginning and end of aggregation tree
