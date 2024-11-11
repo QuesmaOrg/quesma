@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+const elasticUpdateTime = 2 * time.Second // time to wait for elastic to update
+
 func TestNewElasticPersistence(t *testing.T) {
 
 	var p JSONDatabase
@@ -81,11 +83,9 @@ func TestNewElasticPersistence(t *testing.T) {
 	if d2["foo"] != "bar" {
 		t.Fatal("expected bar")
 	}
-
 }
 
 func TestJSONDatabaseWithEviction_noEviction(t *testing.T) {
-	const precise = true
 	logger.InitSimpleLoggerForTests()
 	indexName := fmt.Sprintf("quesma_test_%d", time.Now().UnixMilli())
 	fmt.Println("indexName:", indexName)
@@ -121,41 +121,37 @@ func TestJSONDatabaseWithEviction_noEviction(t *testing.T) {
 		assert.NoError(t, db.Put(d))
 	}
 
-	if precise {
-		time.Sleep(updateTime)
-		docCount, err = db.DocCount()
-		assert.NoError(t, err)
-		assert.Equal(t, 5, docCount)
-	} else {
-		docCount, err = db.DocCount()
-		assert.NoError(t, err)
-		assert.True(t, docCount >= 0)
-	}
+	// check state after put (5 documents  + "get" OK)
+	time.Sleep(elasticUpdateTime)
+	docCount, err = db.DocCount()
+	assert.NoError(t, err)
+	assert.Equal(t, 5, docCount)
 
-	val, ok := db.Get(docs[0].id)
-	fmt.Println(val, ok)
-	// TODO: deserialize and check content
+	val, err := db.Get(docs[0].id)
+	assert.NoError(t, err)
+	assert.Contains(t, string(val), `"id":"doc1"`)
+	assert.Contains(t, string(val), `"sizeInBytes":100`)
 
+	// delete some documents
 	err = db.Delete(docs[1].id)
 	assert.NoError(t, err)
 	err = db.Delete(docs[3].id)
 	assert.NoError(t, err)
 
-	if precise {
-		time.Sleep(updateTime)
-		docCount, err = db.DocCount()
-		assert.NoError(t, err)
-		assert.Equal(t, 3, docCount)
-	} else {
-		docCount, err = db.DocCount()
-		assert.NoError(t, err)
-		assert.True(t, docCount >= 0)
-	}
+	// doc_count should be 3 and "get" should fail for deleted documents
+	time.Sleep(elasticUpdateTime)
+	docCount, err = db.DocCount()
+	assert.NoError(t, err)
+	assert.Equal(t, 3, docCount)
+	val, err = db.Get(docs[1].id)
+	assert.Error(t, err)
+	assert.Empty(t, val)
+	val, err = db.Get(docs[3].id)
+	assert.Error(t, err)
+	assert.Empty(t, val)
 
 	assert.Equal(t, bigSizeLimit, db.SizeInBytesLimit())
 }
-
-const updateTime = 2 * time.Second
 
 func TestJSONDatabaseWithEviction_withEviction(t *testing.T) {
 	logger.InitSimpleLoggerForTests()
@@ -167,7 +163,7 @@ func TestJSONDatabaseWithEviction_withEviction(t *testing.T) {
 	cfgUrl := config.Url(*realUrl)
 	cfg := config.ElasticsearchConfiguration{Url: &cfgUrl}
 
-	const smallSizeLimit = int64(1200)
+	const smallSizeLimit = int64(1100)
 	db := NewElasticDatabaseWithEviction(cfg, indexName, smallSizeLimit)
 	fmt.Println("indexName:", indexName, "fullIndexName:", db.fullIndexName())
 
@@ -187,24 +183,28 @@ func TestJSONDatabaseWithEviction_withEviction(t *testing.T) {
 		doc("doc1", 200),
 		doc("doc2", 300),
 		doc("doc3", 400),
-		doc("doc4", 500),
+		doc("doc4", 600),
 		doc("doc5", 500),
 	}
 	for _, d := range docs[:2] {
 		fmt.Println("put", d.SizeInBytesTotal, db.Put(d))
 	}
-	time.Sleep(updateTime)
+	time.Sleep(elasticUpdateTime)
 	fmt.Println("put", docs[2].SizeInBytesTotal, db.Put(docs[2]))
-	time.Sleep(updateTime)
+	time.Sleep(elasticUpdateTime)
 
 	docCount, err = db.DocCount()
 	assert.NoError(t, err)
 	assert.Equal(t, 3, docCount)
 
+	// storage should be full => error on put
+	err = db.Put(docs[3])
+	assert.Error(t, err)
+
 	err = db.Delete("doc2")
 	assert.NoError(t, err)
 
-	time.Sleep(updateTime)
+	time.Sleep(elasticUpdateTime)
 
 	docCount, err = db.DocCount()
 	assert.NoError(t, err)
@@ -214,33 +214,26 @@ func TestJSONDatabaseWithEviction_withEviction(t *testing.T) {
 	fmt.Println("put", docs[4].SizeInBytesTotal, err)
 	assert.NoError(t, err)
 
-	time.Sleep(3000 * time.Millisecond)
+	time.Sleep(elasticUpdateTime)
 
 	docCount, err = db.DocCount()
 	assert.NoError(t, err)
 	assert.Equal(t, 3, docCount)
 
-	//
-	/*
-		val, ok := db.Get(docs[0].Id)
-		fmt.Println(val, ok)
-		// TODO: deserialize and check content
+	val, ok := db.Get(docs[0].id)
+	fmt.Println(val, ok)
+	// TODO: deserialize and check content
 
-		db.Delete(docs[1].Id)
-		db.Delete(docs[3].Id)
+	err = db.Delete(docs[0].id)
+	assert.NoError(t, err)
+	err = db.Delete(docs[3].id)
+	assert.Error(t, err)
 
-			time.Sleep(1 * time.Second)
-			docCount, ok = db.DocCount()
-			assert.True(t, ok)
-			assert.Equal(t, 3, docCount)
-		} else {
-			docCount, ok = db.DocCount()
-			assert.True(t, ok)
-			assert.True(t, docCount >= 0)
-		}
+	time.Sleep(elasticUpdateTime)
+	docCount, err = db.DocCount()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, docCount)
 
-
-	*/
 	assert.Equal(t, smallSizeLimit, db.SizeInBytesLimit())
 }
 

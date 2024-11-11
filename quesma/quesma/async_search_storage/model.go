@@ -20,19 +20,19 @@ type AsyncRequestResultStorage interface {
 	SpaceInUse() int64
 	SpaceMaxAvailable() int64
 
-	evict(timeFun func(time.Time) time.Duration)
+	evict(olderThan time.Duration)
 }
 
 type AsyncQueryContextStorage interface {
 	Store(id string, context *AsyncQueryContext)
-	evict(timeFun func(time.Time) time.Duration)
+	evict(olderThan time.Duration)
 }
 
 type AsyncRequestResult struct {
-	responseBody []byte
-	added        time.Time
-	isCompressed bool
-	err          error
+	responseBody []byte    `json:"responseBody"`
+	added        time.Time `json:"added"`
+	isCompressed bool      `json:"isCompressed"`
+	err          error     `json:"err"`
 }
 
 func NewAsyncRequestResult(responseBody []byte, err error, added time.Time, isCompressed bool) *AsyncRequestResult {

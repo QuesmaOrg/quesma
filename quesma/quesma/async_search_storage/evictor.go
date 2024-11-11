@@ -19,9 +19,9 @@ func NewAsyncQueriesEvictor(AsyncRequestStorage AsyncRequestResultStorage, Async
 	return &AsyncQueriesEvictor{ctx: ctx, cancel: cancel, AsyncRequestStorage: AsyncRequestStorage, AsyncQueriesContexts: AsyncQueriesContexts}
 }
 
-func (e *AsyncQueriesEvictor) tryEvictAsyncRequests(timeFun func(time.Time) time.Duration) {
-	e.AsyncRequestStorage.evict(timeFun)
-	e.AsyncQueriesContexts.evict(timeFun)
+func (e *AsyncQueriesEvictor) tryEvictAsyncRequests(olderThan time.Duration) {
+	e.AsyncRequestStorage.evict(olderThan)
+	e.AsyncQueriesContexts.evict(olderThan)
 }
 
 func (e *AsyncQueriesEvictor) AsyncQueriesGC() {
@@ -32,7 +32,7 @@ func (e *AsyncQueriesEvictor) AsyncQueriesGC() {
 			logger.Debug().Msg("evictor stopped")
 			return
 		case <-time.After(GCInterval):
-			e.tryEvictAsyncRequests(elapsedTime)
+			e.tryEvictAsyncRequests(EvictionInterval)
 		}
 	}
 }

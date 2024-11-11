@@ -3,11 +3,14 @@
 package async_search_storage
 
 import (
+	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/url"
 	"quesma/logger"
 	"quesma/persistence"
 	"quesma/quesma/config"
+	"strconv"
 	"time"
 )
 
@@ -27,8 +30,9 @@ func NewAsyncSearchStorageInElastic() AsyncSearchStorageInElastic {
 		User:     "",
 		Password: "",
 	}
+	i := rand.Int()
 	return AsyncSearchStorageInElastic{
-		db: persistence.NewElasticDatabaseWithEviction(cfg, "quesma_async_storage", 1_000_000_000),
+		db: persistence.NewElasticDatabaseWithEviction(cfg, "quesma_async_storage-"+strconv.Itoa(i), 1_000_000_000),
 	}
 }
 
@@ -40,8 +44,18 @@ func (s AsyncSearchStorageInElastic) Store(id string, result *AsyncRequestResult
 }
 
 func (s AsyncSearchStorageInElastic) Load(id string) (*AsyncRequestResult, error) {
-	_, err := s.db.Get(id)
-	return nil, err
+	resultAsBytes, err := s.db.Get(id)
+	if err != nil {
+		return nil, err
+	}
+
+	result := AsyncRequestResult{}
+	err = json.Unmarshal(resultAsBytes, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }
 
 func (s AsyncSearchStorageInElastic) Delete(id string) {
@@ -82,8 +96,8 @@ func (s AsyncSearchStorageInElastic) SpaceMaxAvailable() int64 {
 	return s.db.SizeInBytesLimit()
 }
 
-func (s AsyncSearchStorageInElastic) evict() {
-	err := s.db.DeleteOld(EvictionInterval)
+func (s AsyncSearchStorageInElastic) evict(evictOlderThan time.Duration) {
+	err := s.db.DeleteOld(evictOlderThan)
 	if err != nil {
 		logger.Warn().Err(err).Msgf("failed to evict documents, err: %v", err)
 	}

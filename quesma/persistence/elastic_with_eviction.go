@@ -78,9 +78,15 @@ func (db *ElasticDatabaseWithEviction) Put(document *JSONWithSize) error {
 }
 
 // co zwraca? zrobić switch na oba typy jakie teraz mamy?
-func (db *ElasticDatabaseWithEviction) Get(id string) (string, error) { // probably change return type to *Sizeable
-	value, _, err := db.ElasticJSONDatabase.Get(id)
-	return value, err
+func (db *ElasticDatabaseWithEviction) Get(id string) ([]byte, error) { // probably change return type to *Sizeable
+	elasticsearchURL := fmt.Sprintf("%s/_source/%s", db.indexName, id)
+	resp, err := db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodGet, elasticsearchURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	return io.ReadAll(resp.Body)
 }
 
 func (db *ElasticDatabaseWithEviction) Delete(id string) error {

@@ -61,10 +61,10 @@ func (s AsyncSearchStorageInMemory) SpaceMaxAvailable() int64 {
 	return math.MaxInt64 / 16 // some huge number for now, can be changed if we want to limit in-memory storage
 }
 
-func (s AsyncSearchStorageInMemory) evict(timeFun func(time.Time) time.Duration) {
+func (s AsyncSearchStorageInMemory) evict(evictOlderThan time.Duration) {
 	var ids []string
 	s.Range(func(key string, value *AsyncRequestResult) bool {
-		if timeFun(value.added) > EvictionInterval {
+		if time.Since(value.added) > evictOlderThan {
 			ids = append(ids, key)
 		}
 		return true
@@ -88,10 +88,10 @@ func (s AsyncQueryContextStorageInMemory) Store(id string, context *AsyncQueryCo
 	s.idToContext.Store(id, context)
 }
 
-func (s AsyncQueryContextStorageInMemory) evict(timeFun func(time.Time) time.Duration) {
+func (s AsyncQueryContextStorageInMemory) evict(evictOlderThan time.Duration) {
 	var asyncQueriesContexts []*AsyncQueryContext
 	s.idToContext.Range(func(key string, value *AsyncQueryContext) bool {
-		if timeFun(value.added) > EvictionInterval {
+		if time.Since(value.added) > evictOlderThan {
 			if value != nil {
 				asyncQueriesContexts = append(asyncQueriesContexts, value)
 			}
