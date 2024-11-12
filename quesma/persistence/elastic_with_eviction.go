@@ -68,7 +68,7 @@ func (db *ElasticDatabaseWithEviction) Put(document *JSONWithSize) error {
 		return err
 	}
 
-	resp, err := db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodPost, elasticsearchURL, jsonData)
+	resp, err := db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodPost, elasticsearchURL, jsonData)
 	fmt.Println("kk dbg Put() resp:", resp, "err:", err)
 	if err != nil && (resp == nil || resp.StatusCode != http.StatusCreated) {
 		return err
@@ -79,7 +79,7 @@ func (db *ElasticDatabaseWithEviction) Put(document *JSONWithSize) error {
 // co zwraca? zrobić switch na oba typy jakie teraz mamy?
 func (db *ElasticDatabaseWithEviction) Get(id string) ([]byte, error) { // probably change return type to *Sizeable
 	elasticsearchURL := fmt.Sprintf("%s/_source/%s", db.indexName, id)
-	resp, err := db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodGet, elasticsearchURL, nil)
+	resp, err := db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodGet, elasticsearchURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (db *ElasticDatabaseWithEviction) Delete(id string) error {
 
 	// TODO: check if doc exists?
 	elasticsearchURL := fmt.Sprintf("%s/_doc/%s", db.indexName, id)
-	resp, err := db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodDelete, elasticsearchURL, nil)
+	resp, err := db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodDelete, elasticsearchURL, nil)
 	if err != nil && (resp == nil || resp.StatusCode != http.StatusCreated) {
 		return err
 	}
@@ -125,7 +125,7 @@ func (db *ElasticDatabaseWithEviction) DeleteOld(deleteOlderThan time.Duration) 
 	fmt.Println(query)
 
 	var resp *http.Response
-	resp, err = db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodPost, elasticsearchURL, []byte(query))
+	resp, err = db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodPost, elasticsearchURL, []byte(query))
 	fmt.Println("kk dbg DocCount() resp:", resp, "err:", err, "elastic url:", elasticsearchURL)
 	return err
 }
@@ -139,7 +139,7 @@ func (db *ElasticDatabaseWithEviction) DocCount() (docCount int, err error) {
 	}`
 
 	var resp *http.Response
-	resp, err = db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodGet, elasticsearchURL, []byte(query))
+	resp, err = db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodGet, elasticsearchURL, []byte(query))
 	fmt.Println("kk dbg DocCount() resp:", resp, "err:", err, "elastic url:", elasticsearchURL)
 	if err != nil {
 		if resp != nil && (resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound) {
@@ -174,7 +174,7 @@ func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, err err
 	}`
 
 	var resp *http.Response
-	resp, err = db.httpClient.DoRequestCheckResponseStatus(context.Background(), http.MethodGet, elasticsearchURL, []byte(query))
+	resp, err = db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodGet, elasticsearchURL, []byte(query))
 	fmt.Println("kk dbg SizeInBytes() err:", err, "\nresp:", resp)
 	if err != nil {
 		if resp != nil && resp.StatusCode == 404 {

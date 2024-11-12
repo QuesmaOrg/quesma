@@ -40,7 +40,7 @@ func (es *SimpleClient) RequestWithHeaders(ctx context.Context, method, endpoint
 	return es.doRequest(ctx, method, endpoint, body, headers)
 }
 
-func (es *SimpleClient) DoRequestCheckResponseStatus(ctx context.Context, method, endpoint string, body []byte) (resp *http.Response, err error) {
+func (es *SimpleClient) DoRequestCheckResponseStatusOK(ctx context.Context, method, endpoint string, body []byte) (resp *http.Response, err error) {
 	resp, err = es.doRequest(ctx, method, endpoint, body, nil)
 	if err != nil {
 		return
@@ -65,7 +65,6 @@ func (es *SimpleClient) Authenticate(ctx context.Context, authHeader string) boo
 
 // doRequest can override auth headers specified in the config, use with care!
 func (es *SimpleClient) doRequest(ctx context.Context, method, endpoint string, body []byte, headers http.Header) (*http.Response, error) {
-	fmt.Println("full url:", fmt.Sprintf("%s/%s", es.config.Url, endpoint))
 	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/%s", es.config.Url, endpoint), bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err

@@ -118,6 +118,7 @@ func (p *ElasticJSONDatabase) List() ([]string, error) {
 	}`
 
 	resp, err := p.httpClient.Request(context.Background(), "GET", elasticsearchURL, []byte(query))
+
 	if err != nil {
 		return nil, err
 	}
