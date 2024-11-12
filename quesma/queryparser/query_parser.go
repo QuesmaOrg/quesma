@@ -32,6 +32,11 @@ func NewEmptyHighlighter() model.Highlighter {
 	}
 }
 
+const (
+	defaultQueryResultSize = 10
+	defaultTrackTotalHits  = 10000
+)
+
 func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.ExecutionPlan, error) {
 
 	simpleQuery, hitsInfo, highlighter, err := cw.parseQueryInternal(body)
@@ -148,17 +153,8 @@ func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model
 	if sortPart, ok := queryAsMap["sort"]; ok {
 		parsedQuery.OrderBy = cw.parseSortFields(sortPart)
 	}
-	const defaultSize = 10
-	size := defaultSize
-	if sizeRaw, ok := queryAsMap["size"]; ok {
-		if sizeFloat, ok := sizeRaw.(float64); ok {
-			size = int(sizeFloat)
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("unknown size format, size value: %v type: %T. Using default (%d)", sizeRaw, sizeRaw, defaultSize)
-		}
-	}
+	size := cw.parseSize(queryAsMap, defaultQueryResultSize)
 
-	const defaultTrackTotalHits = 10000
 	trackTotalHits := defaultTrackTotalHits
 	if trackTotalHitsRaw, ok := queryAsMap["track_total_hits"]; ok {
 		switch trackTotalHitsTyped := trackTotalHitsRaw.(type) {

@@ -25,7 +25,7 @@ func NewElasticsearchAuthProvider() *ElasticsearchAuthProvider {
 type ElasticsearchSession struct{}
 
 func (e ElasticsearchSession) GetAuthURL() (string, error) {
-	return "http://localhost:9999/login-with-elasticsearch", nil
+	return loginWithElasticSearch, nil
 }
 
 func (e ElasticsearchSession) Marshal() string {

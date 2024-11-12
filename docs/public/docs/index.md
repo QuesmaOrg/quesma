@@ -6,9 +6,9 @@ hero:
   image:
     light: /logo/quesma-logo-black-full-svg.svg
     dark: /logo/quesma-logo-white-full-svg.svg
-  name: "Quesma Early Access Preview (EAP)"
+  name: "Quesma Documentation"
 #text: "Quesma EAP docs"
-  tagline: Welcome to the Quesma Early Access Preview! We're excited to have you on board and can't wait to hear your feedback! This website will help you get started.
+  tagline: Welcome to the Quesma Documentation! This website will help you get started.
   actions:
     - theme: brand
       text: Getting started

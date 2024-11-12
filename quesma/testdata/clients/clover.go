@@ -1007,41 +1007,69 @@ var CloverTests = []testdata.AggregationTestCase{
 					"total": 1
 				},
 				"aggregations": {
-					"sampler": {
-						"doc_count": 4675,
-						"eventRate": {
-							"buckets": [
-								{
-									"doc_count": 442,
-									"key": 1726351200000,
-									"key_as_string": "2024-09-14T22:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1726353000000,
-									"key_as_string": "2024-09-14T22:30:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1726354800000,
-									"key_as_string": "2024-09-14T23:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1726356600000,
-									"key_as_string": "2024-09-14T23:30:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1726356600000,
-									"key_as_string": "2024-09-15T00:00:00.000"
-								},
-								{
-									"doc_count": 1,
-									"key": 1728777600000,
-									"key_as_string": "2024-09-15T00:30:00.000"
+					"q": {
+						"meta": {
+							"type": "split"
+						},
+						"buckets": {
+							"!str_field:CRASH": {
+								"doc_count": 4675,
+								"time_buckets": {
+									"meta": {
+										"type": "time_buckets"
+									},
+									"buckets": [
+										{
+											"doc_count": 442,
+											"key": 1726351200000,
+											"key_as_string": "2024-09-14T22:00:00.000",
+											"sum(count)": {
+												"value": 442
+											}
+										},
+										{
+											"doc_count": 0,
+											"key": 1726353000000,
+											"key_as_string": "2024-09-14T22:30:00.000",
+											"sum(count)": {
+												"value": null
+											}
+										},
+										{
+											"doc_count": 0,
+											"key": 1726354800000,
+											"key_as_string": "2024-09-14T23:00:00.000",
+											"sum(count)": {
+												"value": null
+											}
+										},
+										{
+											"doc_count": 0,
+											"key": 1726356600000,
+											"key_as_string": "2024-09-14T23:30:00.000",
+											"sum(count)": {
+												"value": null
+											}
+										},
+										{
+											"doc_count": 0,
+											"key": 1726358400000,
+											"key_as_string": "2024-09-15T00:00:00.000",
+											"sum(count)": {
+												"value": null
+											}
+										},
+										{
+											"doc_count": 1,
+											"key": 1726360200000,
+											"key_as_string": "2024-09-15T00:30:00.000",
+											"sum(count)": {
+												"value": 1
+											}
+										}
+									]
 								}
-							]
+							}
 						}
 					}
 				},

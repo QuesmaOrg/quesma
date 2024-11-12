@@ -13,8 +13,8 @@ import (
 	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/queryparser"
 	"quesma/quesma/async_search_storage"
+	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
@@ -128,7 +128,7 @@ func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.Executio
 
 		case *table_resolver.ConnectorDecisionClickhouse:
 			planExecutor = func(ctx context.Context) ([]byte, error) {
-				plan.Name = "clickhouse"
+				plan.Name = config.ClickhouseTarget
 				return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh, isMainPlan)
 			}
 
@@ -139,7 +139,7 @@ func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.Executio
 					QueryRowsTransformers: []model.QueryRowsTransformer{},
 					Queries:               []*model.Query{},
 					StartTime:             plan.StartTime,
-					Name:                  "elastic",
+					Name:                  config.ElasticsearchTarget,
 				}
 				return q.executePlanElastic(ctx, elasticPlan, body, optAsync, optComparePlansCh, isMainPlan)
 			}
@@ -207,6 +207,8 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 			err = response.err
 			sendABResult(nil, err)
 			return nil, err
+		} else {
+			responseBody, err = response.response.Bytes()
 		}
 
 		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
@@ -327,7 +329,10 @@ func (q *QueryRunner) storeAsyncSearchWithRaw(qmc *ui.QuesmaManagementConsole, i
 		asyncResponse := WrapElasticResponseAsAsync(resultJSON, asyncId, false, &okStatus)
 		responseBody, err = json.MarshalIndent(asyncResponse, "", "  ")
 	} else {
-		responseBody, _ = queryparser.EmptyAsyncSearchResponse(asyncId, false, 503)
+		responseBody, err = resultJSON.Bytes()
+		if err == nil {
+			logger.Warn().Msgf("error while marshalling async search response: %v: ", err)
+		}
 		err = resultError
 	}
 

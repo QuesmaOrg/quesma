@@ -5,6 +5,7 @@ package jsondiff
 import (
 	"fmt"
 	"math"
+	"time"
 
 	"quesma/quesma/types"
 	"reflect"
@@ -324,10 +325,10 @@ func (d *JSONDiff) compareArray(expected []any, actual []any) {
 	}
 
 	if lenDiff > 1 {
-		d.addMismatch(invalidArrayLength, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
+		d.addMismatch(invalidArrayLength, fmt.Sprintf("%d", len(expected)), fmt.Sprintf("%d", len(actual)))
 		return
 	} else if lenDiff == 1 {
-		d.addMismatch(invalidArrayLengthOffByOne, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
+		d.addMismatch(invalidArrayLengthOffByOne, fmt.Sprintf("%d", len(expected)), fmt.Sprintf("%d", len(actual)))
 		return
 	}
 
@@ -344,7 +345,7 @@ func (d *JSONDiff) compareArray(expected []any, actual []any) {
 
 	for i := range len(actual) {
 		d.pushPath(fmt.Sprintf("[%d]", i))
-		d.compare(actual[i], expected[i])
+		d.compare(expected[i], actual[i])
 		d.popPath()
 	}
 }
@@ -357,7 +358,28 @@ func (d *JSONDiff) asType(a any) string {
 	return fmt.Sprintf("%T", a)
 }
 
-var dateRx = regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}`)
+var dateRx = regexp.MustCompile(`\d{4}-\d{2}-\d{2}.\d{2}:\d{2}:`)
+
+func (d *JSONDiff) uniformTimeFormat(date string) string {
+	returnFormat := time.RFC3339Nano
+
+	inputFormats := []string{
+		"2006-01-02T15:04:05.000-07:00",
+		"2006-01-02T15:04:05.000Z",
+		"2006-01-02T15:04:05.000",
+		"2006-01-02 15:04:05",
+	}
+
+	var parsedDate time.Time
+	var err error
+	for _, format := range inputFormats {
+		parsedDate, err = time.Parse(format, date)
+		if err == nil {
+			return parsedDate.UTC().Format(returnFormat)
+		}
+	}
+	return date
+}
 
 func (d *JSONDiff) compare(expected any, actual any) {
 
@@ -379,12 +401,12 @@ func (d *JSONDiff) compare(expected any, actual any) {
 		return
 	}
 
-	switch aVal := expected.(type) {
+	switch expectedVal := expected.(type) {
 	case map[string]any:
 
 		switch bVal := actual.(type) {
 		case map[string]any:
-			d.compareObject(aVal, bVal)
+			d.compareObject(expectedVal, bVal)
 		default:
 			d.addMismatch(invalidType, d.asType(expected), d.asType(actual))
 			return
@@ -428,20 +450,12 @@ func (d *JSONDiff) compare(expected any, actual any) {
 		switch actualString := actual.(type) {
 		case string:
 
-			if dateRx.MatchString(aVal) && dateRx.MatchString(actualString) {
+			if dateRx.MatchString(expectedVal) {
 
-				// TODO add better date comparison here
-				// parse both date and compare them with desired precision
+				aDate := d.uniformTimeFormat(expectedVal)
+				bDate := d.uniformTimeFormat(actualString)
 
-				// elastics returns date in formats
-				// "2024-10-24T00:00:00.000+02:00"
-				// "2024-10-24T00:00:00.000Z"
-
-				// quesma returns
-				// 2024-10-23T22:00:00.000
-				compareOnly := "2000-01-"
-
-				if aVal[:len(compareOnly)] != actualString[:len(compareOnly)] {
+				if aDate != bDate {
 					d.addMismatch(invalidDateValue, d.asValue(expected), d.asValue(actual))
 				}
 

@@ -1,6 +1,6 @@
-# Quesma EAP documentation
+# Quesma documentation
 
-This folder contains our EAP documentation available at https://eap.quesma.com.
+This folder contains our documentation available at https://docs.quesma.com (formerly https://eap.quesma.com).
 These docs are just static files generated with [Vitepress](https://vitepress.dev) and published via CloudFlare Pages.
 
 
