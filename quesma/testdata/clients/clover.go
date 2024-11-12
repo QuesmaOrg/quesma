@@ -1114,7 +1114,7 @@ var CloverTests = []testdata.AggregationTestCase{
 			ORDER BY "aggr__q__time_buckets__key_0" ASC`,
 	},
 	{
-		TestName: "todo",
+		TestName: "Weird aggregation and filter names",
 		QueryRequestJson: `
 		{
 		  "aggs": {
