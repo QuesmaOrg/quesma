@@ -7,7 +7,6 @@ hero:
     light: /logo/quesma-logo-black-full-svg.svg
     dark: /logo/quesma-logo-white-full-svg.svg
   name: "Quesma Documentation"
-#text: "Quesma EAP docs"
   tagline: Welcome to the Quesma Documentation! This website will help you get started.
   actions:
     - theme: brand
