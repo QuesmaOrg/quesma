@@ -47,7 +47,7 @@ export default defineConfig({
             items: [
               { text: 'Configuration primer', link: '/config-primer'},
               { text: 'Ingest', link: '/ingest' },
-              { text: 'A/B testing', link: '/ab-testing' },
+              { text: 'Compatiblity report', link: '/compatibility-report' },
             ],
           },
           { text: 'Known limitations or unsupported functionalities', link: '/limitations' },

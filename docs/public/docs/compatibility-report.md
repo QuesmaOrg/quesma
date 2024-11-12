@@ -1,14 +1,14 @@
-# A/B testing
+# Compatibility Report
 
 Quesma can help validate your migration by sending queries to both Elasticsearch and ClickHouse simultaneously and comparing the results. This allows you to verify that queries return equivalent results from both systems before fully switching over.
 
-You can enable A/B testing on an individual index level or for all (unconfigured) indexes via `*`. The configuration supports specifying which source (Elasticsearch or ClickHouse) should be the primary source to return results from and compare to.
+You can enable Compatibility Report on an individual index level or for all (unconfigured) indexes via `*`. The configuration supports specifying which source (Elasticsearch or ClickHouse) should be the primary source to return results from and compare to.
 
-Apart from validating correctness, A/B testing also measures the execution time difference (speedups or slowdowns) and generates a report per each dashboard and index.
+Apart from validating correctness, Compatibility Report also measures the execution time difference (speedups or slowdowns) and generates a report per each dashboard and index.
 
 ## Configuration
 
-Enabling A/B testing is as simple as adding two targets to an index:
+Enabling Compatibility Report is as simple as adding two targets to an index:
 
 ```yaml
 processors:
@@ -28,19 +28,19 @@ The order of targets matters in the configuration - the first target will be the
 4. Return the response from the Elastic to the client
 5. Log any discrepancies for analysis
 
-## A/B testing report
+## Accessing Compatibility Report
 
-In the Quesma managment UI (default port `9999`) the "A/B" tab shows a compatibility report based on the collected data:
+In the Quesma managment UI (default port `9999`) the "CR" tab shows a compatibility report based on the collected data:
 
-![Kibana dashboards compatibility report](./public/quesma-ab/ab-1.png)
+![Kibana dashboards compatibility report](./public/quesma-cr/cr-1.png)
 
 Upon clicking on the "Details" link, you can see a more detailed information about the discovered mismatch between sources.
 
-![A/B Testing - Panel Details](./public/quesma-ab/ab-2.png)
+![Compatibility Report - Panel Details](./public/quesma-cr/cr-2.png)
 
-### Analyzing A/B testing report
+### Analyzing Compatibility Report
 
-The compatibility report helps identify potential issues with performance and correctness between data sources.
+The Compatibility Report helps identify potential issues with performance and correctness between data sources.
 
 The "performance gain" column shows the relative difference in query execution time between the two data sources. A positive percentage indicates that the second source (e.g. ClickHouse) is faster than the primary source (e.g. Elasticsearch), while a negative percentage means it's slower. We recommend starting your analysis by focusing on the dashboard panels most important for you. 
 
