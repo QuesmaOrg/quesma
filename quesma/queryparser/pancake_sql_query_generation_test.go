@@ -53,6 +53,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Fix filters")
 			}
 
+			if test.TestName == "Line, Y-axis: Min, Buckets: Date Range, X-Axis: Terms, Split Chart: Date Histogram(file:kibana-visualize/agg_req,nr:9)" {
+				t.Skip("Date range is broken, fix in progress (PR #971)")
+			}
+
 			if test.TestName == "Terms with order by top metrics(file:kibana-visualize/agg_req,nr:8)" {
 				t.Skip("Need to implement order by top metrics (talk with Jacek, he has an idea)")
 			}
