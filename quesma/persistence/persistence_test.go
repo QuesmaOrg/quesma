@@ -86,7 +86,7 @@ func TestNewElasticPersistence(t *testing.T) {
 }
 
 func TestJSONDatabaseWithEviction_noEviction(t *testing.T) {
-	// reskip after merge t.Skip("passes locally, but requires elasticsearch to be running, so skipping")
+	t.Skip("passes locally, but requires elasticsearch to be running, so skipping")
 	logger.InitSimpleLoggerForTests()
 	indexName := fmt.Sprintf("quesma_test_%d", time.Now().UnixMilli())
 	fmt.Println("indexName:", indexName)
@@ -155,7 +155,7 @@ func TestJSONDatabaseWithEviction_noEviction(t *testing.T) {
 }
 
 func TestJSONDatabaseWithEviction_withEviction(t *testing.T) {
-	// reskip after merge t.Skip("passes locally, but requires elasticsearch to be running, so skipping")
+	t.Skip("passes locally, but requires elasticsearch to be running, so skipping")
 	logger.InitSimpleLoggerForTests()
 	indexName := fmt.Sprintf("quesma_test_%d", time.Now().UnixMilli())
 

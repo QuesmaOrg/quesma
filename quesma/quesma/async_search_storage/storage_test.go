@@ -16,13 +16,13 @@ import (
 
 func TestAsyncQueriesEvictorTimePassed(t *testing.T) {
 	// TODO: add also 3rd storage and nice test for it (remove from memory, but still in elastic)
-	realUrl, _ := url.Parse("http://localhost:9201")
-	cfgUrl := config.Url(*realUrl)
-	cfg := config.ElasticsearchConfiguration{Url: &cfgUrl}
+	//realUrl, _ := url.Parse("http://localhost:9201")
+	//cfgUrl := config.Url(*realUrl)
+	//cfg := config.ElasticsearchConfiguration{Url: &cfgUrl}
 	storageKinds := []AsyncRequestResultStorage{
 		NewAsyncRequestResultStorageInMemory(),
-		NewAsyncRequestResultStorageInElasticsearch(cfg),  // passes, reskip after merge
-		NewAsyncSearchStorageInMemoryFallbackElastic(cfg), // passes, reskip after merge
+		//NewAsyncRequestResultStorageInElasticsearch(cfg),  // passes, reskip after merge
+		//NewAsyncSearchStorageInMemoryFallbackElastic(cfg), // passes, reskip after merge
 	}
 	for _, storage := range storageKinds {
 		queryContextStorage := NewAsyncQueryContextStorageInMemory().(AsyncQueryContextStorageInMemory)
@@ -42,13 +42,13 @@ func TestAsyncQueriesEvictorTimePassed(t *testing.T) {
 
 func TestAsyncQueriesEvictorStillAlive(t *testing.T) {
 	// TODO: add also 3rd storage and nice test for it (remove from memory, but still in elastic)
-	realUrl, _ := url.Parse("http://localhost:9201")
-	cfgUrl := config.Url(*realUrl)
-	cfg := config.ElasticsearchConfiguration{Url: &cfgUrl}
+	//realUrl, _ := url.Parse("http://localhost:9201")
+	//cfgUrl := config.Url(*realUrl)
+	//cfg := config.ElasticsearchConfiguration{Url: &cfgUrl}
 	storageKinds := []AsyncRequestResultStorage{
 		NewAsyncRequestResultStorageInMemory(),
-		NewAsyncRequestResultStorageInElasticsearch(cfg),  // passes, reskip after merge
-		NewAsyncSearchStorageInMemoryFallbackElastic(cfg), // passes, reskip after merge
+		//NewAsyncRequestResultStorageInElasticsearch(cfg),  // passes, reskip after merge
+		//NewAsyncSearchStorageInMemoryFallbackElastic(cfg), // passes, reskip after merge
 	}
 	for _, storage := range storageKinds {
 		queryContextStorage := NewAsyncQueryContextStorageInMemory().(AsyncQueryContextStorageInMemory)
@@ -67,7 +67,7 @@ func TestAsyncQueriesEvictorStillAlive(t *testing.T) {
 }
 
 func TestInMemoryFallbackElasticStorage(t *testing.T) {
-	// reskip after merge t.Skip("passes locally, but requires elasticsearch to be running, so skipping")
+	t.Skip("passes locally, but requires elasticsearch to be running, so skipping")
 	storage := NewAsyncSearchStorageInMemoryFallbackElastic(testConfig())
 	storage.Store("1", &AsyncRequestResult{})
 	storage.Store("2", &AsyncRequestResult{})
@@ -115,7 +115,7 @@ func testConfig() config.ElasticsearchConfiguration {
 }
 
 func TestKK(t *testing.T) {
-	// TODO: remove this test
+	// TODO: remove this test after evicting from Clickhouse from UI works
 	t.Skip()
 	options := clickhouse.Options{Addr: []string{"localhost:9000"}}
 	a := clickhouse.OpenDB(&options)
@@ -132,7 +132,7 @@ func TestKK(t *testing.T) {
 }
 
 func TestCancel(t *testing.T) {
-	// TODO: remove this test
+	// TODO: remove this test after evicting from Clickhouse from UI works
 	t.Skip()
 	options := clickhouse.Options{Addr: []string{"localhost:9000"}}
 	a := clickhouse.OpenDB(&options)
