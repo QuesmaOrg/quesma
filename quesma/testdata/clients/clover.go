@@ -1113,4 +1113,103 @@ var CloverTests = []testdata.AggregationTestCase{
 			  "aggr__q__time_buckets__key_0"
 			ORDER BY "aggr__q__time_buckets__key_0" ASC`,
 	},
+	{
+		TestName: "Weird aggregation and filter names",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"q": {
+					"aggs": {
+						"time": {
+							"aggs": {
+								"cardinality(a.b.keyword)": {
+									"cardinality": {
+										"field": "a.b.keyword"
+									}
+								}
+							},
+							"date_histogram": {
+								"field": "@timestamp",
+								"fixed_interval": "12h",
+								"min_doc_count": 0,
+								"time_zone": "Europe/Warsaw"
+							}
+						}
+					},
+					"filters": {
+						"filters": {
+							"(a.b:*c* OR a.b:*d*)": {
+								"query_string": {
+									"query": "(a.b:*c* OR a.b:*d*)"
+								}
+							}
+						}
+					},
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"timeout": "30000ms",
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 0,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"failed": 0,
+				"skipped": 0
+			},
+			"hits": {
+				"total": {
+					"value": 14074,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"q": {
+					"buckets": {
+						"(a.b:*c* OR a.b:*d*)": {
+							"doc_count": 14074,
+							"time": {
+								"buckets": [
+									{
+										"key_as_string": "2024-10-13T10:00:00.000",
+										"key": 1728813600000,
+										"doc_count": 319,
+										"cardinality(a.b.keyword)": {
+											"value": 672
+										}
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__q__count", int64(14074)),
+				model.NewQueryResultCol("aggr__q__time__key_0", int64(1728856800000/43200000)),
+				model.NewQueryResultCol("aggr__q__time__count", int64(319)),
+				model.NewQueryResultCol("metric__q__time__cardinality(a.b.keyword)_col_0", int64(672)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__q__count",
+			  toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+			  "@timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__q__time__key_0",
+			  count(*) AS "aggr__q__time__count",
+			  uniq("a.b") AS "metric__q__time__cardinality(a.b.keyword)_col_0"
+			FROM __quesma_table_name
+			WHERE (("a.b" ILIKE '%c%') OR "a.b" ILIKE '%d%')
+			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
+			  ("@timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__q__time__key_0"
+			ORDER BY "aggr__q__time__key_0" ASC`,
+	},
 }
