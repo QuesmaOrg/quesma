@@ -35,3 +35,15 @@ In the Quesma managment UI (default port `9999`) the "A/B" tab shows a compatibi
 ![Kibana dashboards compatibility report](./public/quesma-ab/ab-1.png)
 
 Upon clicking on the "Details" link, you can see a more detailed information about the discovered mismatch between sources.
+
+### Analyzing A/B testing report
+
+The compatibility report allows you to find potential difficulties related to performance and correctness. 
+
+The "performance gain" column shows the relative difference in query execution time between the two data sources. A positive percentage indicates that the second source (e.g. ClickHouse) is faster than the primary source (e.g. Elasticsearch), while a negative percentage means it's slower. We recommend starting your analysis by focusing on the dashboard panels most important for you. 
+
+If you notice slower performance for certain panels, you can analyze the specific queries by clicking "Details" and consider manually optimizing the ClickHouse schema accordingly - for example by adjusting the table's `ORDER BY` clause or converting string columns to `LowCardinality(String)` type to improve query efficiency.
+
+The "response similarity" column indicates whether there are any discrepancies between query results from different sources. Similar to performance analysis, we recommend prioritizing the validation of your most critical dashboard panels.
+
+A response similarity value below 100.0% indicates that the sources returned different results. Before investigating these differences in detail, first verify that both sources contain identical data - ensure your ingest process is properly dual-writing and that neither source contains old records. Once data consistency is confirmed, examine the specific differences in the "Details" tab. While minor cosmetic variations may not impact Kibana's visualization, if you discover what appears to be a meaningful difference between sources, please report it by either opening an issue on [Quesma's GitHub repository](https://github.com/QuesmaOrg/quesma/issues/new) or contacting us directly at support@quesma.com.
