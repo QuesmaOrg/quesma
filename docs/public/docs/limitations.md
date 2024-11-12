@@ -19,7 +19,7 @@ Quesma has been tested with the following software versions:
 | Hydrolix                         | `v4.8.12`       |
 
 ::: danger
-Quesma does not support ElasticSearch/Kibana 7.x versions.
+Quesma supports only ElasticSearch/Kibana 8.0 or above.
 :::
 
 ### ClickHouse limitations

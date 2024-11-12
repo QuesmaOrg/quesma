@@ -36,6 +36,8 @@ In the Quesma managment UI (default port `9999`) the "A/B" tab shows a compatibi
 
 Upon clicking on the "Details" link, you can see a more detailed information about the discovered mismatch between sources.
 
+![A/B Testing - Panel Details](./public/quesma-ab/ab-2.png)
+
 ### Analyzing A/B testing report
 
 The compatibility report helps identify potential issues with performance and correctness between data sources.
