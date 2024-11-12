@@ -8,7 +8,7 @@ Apart from validating correctness, Compatibility Report also measures the execut
 
 ## Configuration
 
-Enabling Compatibility Report is as simple as adding two targets to an index:
+Any index that has two targets (one Elastic type and one ClickHouse/Hydrolix type) will have Compatibility Report enabled:
 
 ```yaml
 processors:
