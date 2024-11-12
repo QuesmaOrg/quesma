@@ -1117,40 +1117,40 @@ var CloverTests = []testdata.AggregationTestCase{
 		TestName: "Weird aggregation and filter names",
 		QueryRequestJson: `
 		{
-		  "aggs": {
-			"q": {
-			  "aggs": {
-				"time": {
-				  "aggs": {
-					"cardinality(a.b.keyword)": {
-					  "cardinality": {
-						"field": "a.b.keyword"
-					  }
-					}
-				  },
-				  "date_histogram": {
-					"field": "@timestamp",
-					"fixed_interval": "12h",
-					"min_doc_count": 0,
-					"time_zone": "Europe/Warsaw"
-				  }
+			"aggs": {
+				"q": {
+					"aggs": {
+						"time": {
+							"aggs": {
+								"cardinality(a.b.keyword)": {
+									"cardinality": {
+										"field": "a.b.keyword"
+									}
+								}
+							},
+							"date_histogram": {
+								"field": "@timestamp",
+								"fixed_interval": "12h",
+								"min_doc_count": 0,
+								"time_zone": "Europe/Warsaw"
+							}
+						}
+					},
+					"filters": {
+						"filters": {
+							"(a.b:*c* OR a.b:*d*)": {
+								"query_string": {
+									"query": "(a.b:*c* OR a.b:*d*)"
+								}
+							}
+						}
+					},
 				}
-			  },
-			  "filters": {
-				"filters": {
-				  "(a.b:*c* OR a.b:*d*)": {
-					"query_string": {
-					  "query": "(a.b:*c* OR a.b:*d*)"
-					}
-				  }
-				}
-			  },
-			}
-		  },
-		  "runtime_mappings": {},
-		  "size": 0,
-		  "timeout": "30000ms",
-		  "track_total_hits": true
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"timeout": "30000ms",
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -1174,13 +1174,13 @@ var CloverTests = []testdata.AggregationTestCase{
 				"q": {
 					"buckets": {
 						"(a.b:*c* OR a.b:*d*)": {
-							"doc_count":    14074,
+							"doc_count": 14074,
 							"time": {
 								"buckets": [
 									{
 										"key_as_string": "2024-10-13T10:00:00.000",
-										"key":                      1728813600000,
-										"doc_count":                319,
+										"key": 1728813600000,
+										"doc_count": 319,
 										"cardinality(a.b.keyword)": {
 											"value": 672
 										}
