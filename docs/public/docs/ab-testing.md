@@ -38,7 +38,7 @@ Upon clicking on the "Details" link, you can see a more detailed information abo
 
 ### Analyzing A/B testing report
 
-The compatibility report allows you to find potential difficulties related to performance and correctness. 
+The compatibility report helps identify potential issues with performance and correctness between data sources.
 
 The "performance gain" column shows the relative difference in query execution time between the two data sources. A positive percentage indicates that the second source (e.g. ClickHouse) is faster than the primary source (e.g. Elasticsearch), while a negative percentage means it's slower. We recommend starting your analysis by focusing on the dashboard panels most important for you. 
 
