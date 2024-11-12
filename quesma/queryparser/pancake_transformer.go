@@ -434,19 +434,22 @@ func (a *pancakeTransformer) createCombinatorPancakes(pancake *pancakeModel) (ne
 		return
 	}
 
-	noMoreBucket := len(pancake.layers) == 1 || (len(pancake.layers) == 2 && pancake.layers[1].nextBucketAggregation == nil)
+	noMoreBucket := len(pancake.layers) <= 1 || (len(pancake.layers) == 2 && pancake.layers[1].nextBucketAggregation == nil)
 	noMetricOnFirstLayer := len(firstLayer.currentMetricAggregations) == 0 && len(firstLayer.currentPipelineAggregations) == 0
 	canSimplyAddCombinatorToWhereClause := noMoreBucket && noMetricOnFirstLayer
-	areNewPancakesReallyNeeded := len(pancake.layers) > 1 // if there is only one layer above combinator, it easily can be done with 1 pancake, no need for more
+	if canSimplyAddCombinatorToWhereClause {
+		return
+	}
 
+	areNewPancakesReallyNeeded := len(pancake.layers) > 1 // if there is only one layer above combinator, it easily can be done with 1 pancake, no need for more
 	groups := combinator.CombinatorGroups()
-	if canSimplyAddCombinatorToWhereClause || !areNewPancakesReallyNeeded || len(groups) == 0 {
+	if !areNewPancakesReallyNeeded || len(groups) == 0 {
 		return
 	}
 
 	combinatorSplit := combinator.CombinatorSplit()
 	combinatorGroups := combinator.CombinatorGroups()
-	// First create N-1 new pancakes, each with different filter (we use 0th group to create new, we'll update it at the end)
+	// First create N-1 new pancakes [1..N), each with different filter (it's important to update the first (0th) pancake at the end)
 	for i := 1; i < len(groups); i++ {
 		newPancake := pancake.Clone()
 		bucketAggr := newPancake.layers[0].nextBucketAggregation.ShallowClone()
@@ -456,7 +459,7 @@ func (a *pancakeTransformer) createCombinatorPancakes(pancake *pancakeModel) (ne
 		newPancakes = append(newPancakes, newPancake)
 	}
 
-	// Then update original to have 1 filter as well
+	// Update original
 	pancake.layers[0].nextBucketAggregation.queryType = combinatorSplit[0]
 	pancake.whereClause = model.And([]model.Expr{pancake.whereClause, combinatorGroups[0].WhereClause})
 
