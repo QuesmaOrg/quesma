@@ -50,7 +50,6 @@ func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(
 
 func resultRowsAreFine(ctx context.Context, rows []model.QueryResultRow) bool {
 	if len(rows) == 0 {
-		logger.WarnWithCtx(ctx).Msg("no rows returned for metrics aggregation")
 		return false
 	}
 	if len(rows[0].Cols) == 0 {
