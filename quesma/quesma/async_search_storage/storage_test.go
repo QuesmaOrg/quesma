@@ -67,7 +67,7 @@ func TestAsyncQueriesEvictorStillAlive(t *testing.T) {
 }
 
 func TestInMemoryFallbackElasticStorage(t *testing.T) {
-	t.Skip("passes locally, but requires elasticsearch to be running, so skipping")
+	//t.Skip("passes locally, but requires elasticsearch to be running, so skipping")
 	storage := NewAsyncSearchStorageInMemoryFallbackElastic(testConfig())
 	storage.Store("1", &AsyncRequestResult{})
 	storage.Store("2", &AsyncRequestResult{})
@@ -97,6 +97,11 @@ func TestInMemoryFallbackElasticStorage(t *testing.T) {
 	pp.Println(err, doc)
 	assert.Nil(t, doc)
 	assert.NotNil(t, err)
+
+	doc, err = storage.Load("3")
+	pp.Println(err, doc)
+	assert.NotNil(t, doc)
+	assert.Nil(t, err)
 }
 
 const qid = "abc"
