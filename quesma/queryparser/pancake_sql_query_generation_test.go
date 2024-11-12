@@ -63,9 +63,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if test.TestName == "multiple buckets_path(file:clients/clover,nr:1)" {
 				t.Skip("This needs fixing ASAP, easy to fix")
 			}
-			if test.TestName == "Clover(file:clients/clover,nr:6)" {
-				t.Skip("answers are fine, need to update test")
-			}
 
 			if test.TestName == "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)(file:opensearch-visualize/pipeline_agg_req,nr:20)" ||
 				test.TestName == "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range(file:opensearch-visualize/pipeline_agg_req,nr:21)" {
