@@ -42,7 +42,7 @@ The compatibility report helps identify potential issues with performance and co
 
 The "performance gain" column shows the relative difference in query execution time between the two data sources. A positive percentage indicates that the second source (e.g. ClickHouse) is faster than the primary source (e.g. Elasticsearch), while a negative percentage means it's slower. We recommend starting your analysis by focusing on the dashboard panels most important for you. 
 
-If you notice slower performance for certain panels, you can analyze the specific queries by clicking "Details" and consider manually optimizing the ClickHouse schema accordingly - for example by adjusting the table's `ORDER BY` clause or converting string columns to `LowCardinality(String)` type to improve query efficiency.
+If you notice slower performance for certain panels, you can analyze the specific queries by clicking "Details". Based on that information, consider manually optimizing the ClickHouse schema accordingly - for example by adjusting the table's `ORDER BY` clause or converting string columns to `LowCardinality(String)` type to improve query efficiency.
 
 The "response similarity" column indicates whether there are any discrepancies between query results from different sources. Similar to performance analysis, we recommend prioritizing the validation of your most critical dashboard panels.
 
