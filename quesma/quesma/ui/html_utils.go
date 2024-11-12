@@ -81,9 +81,9 @@ func (qmc *QuesmaManagementConsole) generateTopNavigation(target string) []byte 
 	if target == "ab-testing-dashboard" {
 		buffer.Html(` class="active"`)
 	}
-	buffer.Html(`><a href="`)
+	buffer.Html(`><a title="Compatibility Report" href="`)
 	buffer.Html(abTestingPath)
-	buffer.Html(`">A/B</a></li>`)
+	buffer.Html(`">CR</a></li>`)
 
 	if qmc.isAuthEnabled {
 		buffer.Html(`<li><a href="/logout">Logout</a></li>`)

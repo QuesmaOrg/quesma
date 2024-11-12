@@ -10,6 +10,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/jsondiff"
 	"quesma/logger"
+	"quesma/quesma/config"
 	"quesma/quesma/ui/internal/builder"
 	"strings"
 	"time"
@@ -75,7 +76,6 @@ If the performance gain is positive, it means that the second backend connector 
 		buffer.Html(`<select id="order_by" name="order_by">`)
 		buffer.Html(`<option value="default">Default</option>`)
 		buffer.Html(`<option value="response_similarity">Response similarity</option>`)
-		buffer.Html(`<option value="performance_gain">Performance gain</option>`)
 		buffer.Html(`<option value="count">Count</option>`)
 		buffer.Html(`</select>`)
 		buffer.Html(`<br>`)
@@ -258,19 +258,19 @@ func formatJSON(in *string) string {
 }
 
 type abTestingReportRow struct {
-	dashboardId     string
-	panelId         string
-	dashboardUrl    string
-	detailsUrl      string
-	dashboardName   string
-	panelName       string
-	aName           string
-	bName           string
-	aTime           *float64
-	bTime           *float64
-	successRate     *float64
-	performanceGain *float64
-	count           int
+	dashboardId       string
+	panelId           string
+	dashboardUrl      string
+	detailsUrl        string
+	dashboardName     string
+	panelName         string
+	aName             string
+	bName             string
+	aTime             *float64
+	bTime             *float64
+	successRate       *float64
+	responseTimeDelta *float64
+	count             int
 }
 
 func (qmc *QuesmaManagementConsole) abTestingReadReport(kibanaUrl, orderBy string) ([]abTestingReportRow, error) {
@@ -283,7 +283,6 @@ func (qmc *QuesmaManagementConsole) abTestingReadReport(kibanaUrl, orderBy strin
 	orderByToSQL := map[string]string{
 		"default":             "dashboard_id, panel_id, a_name, b_name",
 		"response_similarity": "response_similarity DESC, dashboard_id, panel_id, a_name, b_name",
-		"performance_gain":    "performance_gain DESC,dashboard_id, panel_id, a_name, b_name",
 		"count":               "count DESC,dashboard_id, panel_id, a_name, b_name",
 	}
 
@@ -346,11 +345,22 @@ GROUP BY
 		row.panelName = kibanaDashboards.panelName(row.dashboardId, row.panelId)
 
 		if row.aTime != nil && row.bTime != nil {
-			if *row.aTime == 0 {
-				row.performanceGain = nil
+
+			var clickhouseTime, elasticTime float64
+
+			if row.aName == config.ElasticsearchTarget {
+				elasticTime = *row.aTime
+				clickhouseTime = *row.bTime
 			} else {
-				gain := (*row.aTime - *row.bTime) / *row.aTime * 100
-				row.performanceGain = &gain
+				elasticTime = *row.bTime
+				clickhouseTime = *row.aTime
+			}
+
+			if elasticTime == 0 {
+				row.responseTimeDelta = nil
+			} else {
+				delta := (elasticTime - clickhouseTime) / elasticTime * 100
+				row.responseTimeDelta = &delta
 			}
 		}
 
@@ -374,7 +384,7 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl, orderBy s
 	buffer.Html(`<th class="key">Panel</th>` + "\n")
 	buffer.Html(`<th class="key">Count <br> <small>(since start)</small></th>` + "\n")
 	buffer.Html(`<th class="key">Response similarity</th>` + "\n")
-	buffer.Html(`<th class="key">Performance gain</th>` + "\n")
+	buffer.Html(`<th class="key">Response time delta</th>` + "\n")
 	buffer.Html(`<th class="key"></th>` + "\n")
 	buffer.Html("</tr>\n")
 	buffer.Html("</thead>\n")
@@ -422,7 +432,10 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl, orderBy s
 		const minTime = 0.05 // 50ms, we don't show performance gain for queries faster than this
 		const maxTime = 5.0  // if a query takes longer than this, we show the name of the slowest backend
 
-		if row.performanceGain != nil {
+		if row.responseTimeDelta != nil {
+			buffer.Html(`<span title="`)
+			buffer.Html(fmt.Sprintf("%s=%.03fs, %s=%.03fs", row.aName, *row.aTime, row.bName, *row.bTime))
+			buffer.Html(`">`)
 
 			switch {
 
@@ -436,13 +449,11 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl, orderBy s
 				buffer.Text(fmt.Sprintf("%s is over %0.02fs", row.bName, *row.bTime))
 
 			default:
-				buffer.Html(`<span title="`)
-				buffer.Html(fmt.Sprintf("%s=%.03fs, %s=%.03fs", row.aName, *row.aTime, row.bName, *row.bTime))
-				buffer.Html(`">`)
-				buffer.Text(fmt.Sprintf("%.01f%%", *row.performanceGain))
-				buffer.Html(`</span>`)
-			}
 
+				buffer.Text(fmt.Sprintf("%.01f%%", *row.responseTimeDelta))
+
+			}
+			buffer.Html(`</span>`)
 		} else {
 			buffer.Text("n/a")
 		}
