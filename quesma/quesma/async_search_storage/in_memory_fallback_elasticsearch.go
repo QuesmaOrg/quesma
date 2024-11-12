@@ -62,10 +62,10 @@ type AsyncQueryContextStorageInMemoryFallbackElasticsearch struct {
 	inElasticsearch AsyncQueryContextStorageInElasticsearch
 }
 
-func NewAsyncQueryContextStorageInMemoryFallbackElasticsearch() AsyncQueryContextStorage {
+func NewAsyncQueryContextStorageInMemoryFallbackElasticsearch(cfg config.ElasticsearchConfiguration) AsyncQueryContextStorage {
 	return AsyncQueryContextStorageInMemoryFallbackElasticsearch{
 		inMemory:        NewAsyncQueryContextStorageInMemory().(AsyncQueryContextStorageInMemory),
-		inElasticsearch: NewAsyncQueryContextStorageInElasticsearch().(AsyncQueryContextStorageInElasticsearch),
+		inElasticsearch: NewAsyncQueryContextStorageInElasticsearch(cfg).(AsyncQueryContextStorageInElasticsearch),
 	}
 }
 

@@ -60,8 +60,10 @@ func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id str
 }
 
 func (c *AsyncQueryContext) toJSON() *persistence.JSONWithSize {
+	sizeInBytesUpperBoundEstimate := int64(100)
 	json := types.JSON{}
 	json["id"] = c.id
 	json["added"] = c.added
-	return persistence.NewJSONWithSize(json, c.id, 100) // 100 is a rough upper bound estimate of the size of the rest of the fields
+	json["sizeInBytes"] = sizeInBytesUpperBoundEstimate
+	return persistence.NewJSONWithSize(json, c.id, sizeInBytesUpperBoundEstimate)
 }

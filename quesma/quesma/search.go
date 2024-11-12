@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/common_table"
@@ -75,10 +76,12 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	pp.Println("cfg tuz przed", cfg)
+
 	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
 		executionCtx: ctx, cancel: cancel,
 		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemoryFallbackElastic(cfg.Elasticsearch),
-		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemoryFallbackElasticsearch(),
+		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemoryFallbackElasticsearch(cfg.Elasticsearch),
 		transformationPipeline: TransformationPipeline{
 			transformers: []model.QueryTransformer{
 				&SchemaCheckPass{cfg: cfg},
@@ -495,7 +498,7 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 		logger.ErrorWithCtx(ctx).Msgf("non quesma async id: %v", id)
 		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 	}
-	if result, err := q.AsyncRequestStorage.Load(id); err != nil {
+	if result, err := q.AsyncRequestStorage.Load(id); result != nil && err != nil {
 		if result.Err != nil {
 			q.AsyncRequestStorage.Delete(id)
 			logger.ErrorWithCtx(ctx).Msgf("error processing async query: %v", err)

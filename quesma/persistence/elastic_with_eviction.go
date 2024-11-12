@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"io"
 	"math"
 	"net/http"
@@ -34,6 +35,7 @@ func NewElasticDatabaseWithEviction(cfg config.ElasticsearchConfiguration, index
 }
 
 func (db *ElasticDatabaseWithEviction) Put(document *JSONWithSize) error {
+	pp.Println(db)
 	dbSize, err := db.SizeInBytes()
 	if err != nil {
 		return err
@@ -198,6 +200,7 @@ func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, err err
 
 	a := make([]int64, 0)
 	for _, hit := range result["hits"].(map[string]interface{})["hits"].([]interface{}) {
+		pp.Println("hit:", hit)
 		b := sizeInBytes
 		sizeInBytes += int64(hit.(map[string]interface{})["_source"].(map[string]interface{})["sizeInBytes"].(float64)) // TODO: add checks
 		a = append(a, sizeInBytes-b)

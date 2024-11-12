@@ -53,6 +53,8 @@ func main() {
 	var newConfiguration = config.LoadV2Config()
 	var cfg = newConfiguration.TranslateToLegacyConfig()
 
+	fmt.Printf("kk dbg cfg: %+v", cfg)
+
 	if err := cfg.Validate(); err != nil {
 		log.Fatalf("error validating configuration: %v", err)
 	}

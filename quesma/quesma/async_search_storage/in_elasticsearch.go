@@ -4,6 +4,7 @@ package async_search_storage
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"quesma/logger"
 	"quesma/persistence"
@@ -30,6 +31,7 @@ func NewAsyncRequestResultStorageInElasticsearch(cfg config.ElasticsearchConfigu
 	}
 	*/
 	i := rand.Int()
+	fmt.Println("kk dbg NewAsyncRequestResultStorageInElasticsearch() i:", cfg)
 	return AsyncRequestResultStorageInElasticsearch{
 		db: persistence.NewElasticDatabaseWithEviction(cfg, "quesma_async_storage-"+strconv.Itoa(i), 1_000_000_000),
 	}
@@ -106,10 +108,10 @@ type AsyncQueryContextStorageInElasticsearch struct {
 	db *persistence.ElasticDatabaseWithEviction
 }
 
-func NewAsyncQueryContextStorageInElasticsearch() AsyncQueryContextStorage {
+func NewAsyncQueryContextStorageInElasticsearch(cfg config.ElasticsearchConfiguration) AsyncQueryContextStorage {
+	fmt.Println("kk dbg NewAsyncQueryContextStorageInElasticsearch() i:", cfg)
 	return AsyncQueryContextStorageInElasticsearch{
-		db: persistence.NewElasticDatabaseWithEviction(
-			config.ElasticsearchConfiguration{}, "async_search", 1_000_000_000),
+		db: persistence.NewElasticDatabaseWithEviction(cfg, "async_search", 1_000_000_000),
 	}
 }
 
