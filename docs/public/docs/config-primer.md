@@ -192,6 +192,7 @@ The configuration for an index consists of the following configuration options:
    will dual write ingest requests to `my_index` to both ElasticSearch and ClickHouse.
    Note that ElasticSearch/OpenSearch is the only supported backend for the `*` entry.
    If no targets are provided (example: `target: []`) in the configuration of an index in the ingest processor, ingest for that index will be disabled and incoming data will be dropped.
+   For the query processor by specifing multiple targets, [A/B testing](/ab-testing.md) will be enabled. See [A/B testing documentation](/ab-testing.md) for more details.
    
    Some backend connectors have additional attributes which may be used. For example the following configuration sets `useCommonTable` for `backend-clickhouse` target:
    ```yaml
