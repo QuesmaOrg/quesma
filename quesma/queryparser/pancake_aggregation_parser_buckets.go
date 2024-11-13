@@ -5,7 +5,6 @@ package queryparser
 
 import (
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/kibana"
 	"quesma/logger"
@@ -84,8 +83,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		if missingRaw, exists := dateHistogram["missing"]; exists {
 			if missing, ok := missingRaw.(string); ok {
 				dateManager := kibana.NewDateManager(cw.Ctx)
-				pp.Println(field)
-				if missingExpr, parsingOk := dateManager.ParseMissingInDateHistogram(missing, dateTimeType); parsingOk {
+				if missingExpr, parsingOk := dateManager.ParseDateUsualFormat(missing, dateTimeType); parsingOk {
 					field = model.NewFunction("COALESCE", field, missingExpr)
 					weAddedMissing = true
 				} else {

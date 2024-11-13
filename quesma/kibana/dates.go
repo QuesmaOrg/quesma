@@ -62,12 +62,12 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (unixTi
 	return -1, false
 }
 
-// ParseMissingInDateHistogram parses date_histogram's missing field.
-// If missing is present, it's in [strict_date_optional_time || epoch_millis] format
+// ParseDateUsualFormat parses date expression, which is in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
-func (dm DateManager) ParseMissingInDateHistogram(missing any, datetimeType clickhouse.DateTimeType) (
+// It's most usual format for date in Kibana, used e.g. in Query DSL's range, or date_histogram.
+func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType clickhouse.DateTimeType) (
 	resultExpr model.Expr, parsingSucceeded bool) {
-	if unixTs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(missing); success {
+	if unixTs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
 		switch datetimeType {
 		case clickhouse.DateTime64:
 			return model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(unixTs)), true
@@ -76,24 +76,6 @@ func (dm DateManager) ParseMissingInDateHistogram(missing any, datetimeType clic
 		default:
 			logger.WarnWithCtx(dm.ctx).Msgf("Unknown datetimeType: %v", datetimeType)
 		}
-	}
-	return nil, false
-}
-
-// ParseRange parses range filter.
-// We assume it's in [strict_date_optional_time || epoch_millis] format (TODO: other formats)
-// (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
-func (dm DateManager) ParseRange(Range any, datetimeType clickhouse.DateTimeType) (timestampExpr model.Expr, parsingSucceeded bool) {
-	if timestamp, success := dm.parseStrictDateOptionalTimeOrEpochMillis(Range); success {
-		switch datetimeType {
-		case clickhouse.DateTime64:
-			return model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(timestamp)), true
-		case clickhouse.DateTime:
-			return model.NewFunction("fromUnixTimestamp", model.NewLiteral(timestamp/1000)), true
-		default:
-			logger.WarnWithCtx(dm.ctx).Msgf("Unknown datetimeType: %v", datetimeType)
-		}
-
 	}
 	return nil, false
 }

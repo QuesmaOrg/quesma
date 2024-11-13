@@ -3738,7 +3738,7 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
 	},
 	{ // [63]
-		TestName: "date_histogram with missing, different formats, and types (DateTime(64))",
+		TestName: "date_histogram with missing, different formats, and types (DateTime/DateTime64)",
 		QueryRequestJson: `
 		{
 			"aggs": {

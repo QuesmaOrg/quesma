@@ -447,7 +447,7 @@ func AssertSqlEqual(t *testing.T, expected, actual string) {
 
 				for j := range min(len(aLine), len(eLine)) {
 					if aLine[j] != eLine[j] {
-						fmt.Printf("First diff in line at index %d (actual: %c, expected: %c)\n", j, aLine[j], eLine[j])
+						fmt.Printf("First diff in line %d at index %d (actual: %c, expected: %c)\n", i, j, aLine[j], eLine[j])
 						break
 					}
 				}
