@@ -66,6 +66,16 @@ func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) (
 	return asyncSearchResp.Marshal() // error should never ever happen here
 }
 
+func EmptyAsyncSearchStatusResponse(id string, isPartial, isRunning bool, completionStatus int) ([]byte, error) {
+	var asyncSearchResp *model.AsyncSearchEntireResp
+	if completionStatus == 200 || completionStatus == 503 {
+		asyncSearchResp = AsyncSearchStatusResponse(id, isPartial, isRunning, completionStatus, true)
+	} else {
+		asyncSearchResp = AsyncSearchStatusResponse(id, isPartial, isRunning, 0, false)
+	}
+	return asyncSearchResp.Marshal()
+}
+
 func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, query *model.Query, asyncId string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
 	searchResponse := cw.MakeSearchResponse([]*model.Query{query}, [][]model.QueryResultRow{ResultSet})
 	id := new(string)
@@ -269,6 +279,18 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncId strin
 	}
 
 	response.CompletionStatus = completionStatus
+	return &response
+}
+
+func AsyncSearchStatusResponse(asyncId string, isPartial, isRunning bool, completionStatus int, renderCompletionStatus bool) *model.AsyncSearchEntireResp {
+	response := model.AsyncSearchEntireResp{
+		ID:        &asyncId,
+		IsPartial: isPartial,
+		IsRunning: isRunning,
+	}
+	if renderCompletionStatus {
+		response.CompletionStatus = &completionStatus
+	}
 	return &response
 }
 

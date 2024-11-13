@@ -229,6 +229,14 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return getIndexMappingResult(index, mappings)
 	})
 
+	router.Register(routes.AsyncSearchStatusPath, and(method("GET"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		responseBody, err := queryRunner.handleAsyncSearchStatus(ctx, req.Params["id"])
+		if err != nil {
+			return nil, err
+		}
+		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+	})
+
 	router.Register(routes.AsyncSearchIdPath, and(method("GET"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, req.Params["id"])
 		responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, req.Params["id"])
