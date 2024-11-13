@@ -449,7 +449,8 @@ func (a *pancakeTransformer) createCombinatorPancakes(pancake *pancakeModel) (ne
 
 	combinatorSplit := combinator.CombinatorSplit()
 	combinatorGroups := combinator.CombinatorGroups()
-	// First create N-1 new pancakes [1..N), each with different filter (it's important to update the first (0th) pancake at the end)
+	// First create N-1 new pancakes [1...N), each with different filter
+	// (important to update the first (0th) pancake at the end)
 	for i := 1; i < len(groups); i++ {
 		newPancake := pancake.Clone()
 		bucketAggr := newPancake.layers[0].nextBucketAggregation.ShallowClone()
