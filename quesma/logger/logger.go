@@ -14,11 +14,6 @@ import (
 	"time"
 )
 
-// Turn to true to enable log every SQL executed and transformed
-// This is useful for debugging purposes
-// This can be a runtime flag.
-const EnableSQLTracing = false
-
 const (
 	stdLogFileName = "quesma.log"
 	errLogFileName = "err.log"

@@ -695,7 +695,7 @@ func (q *QueryRunner) searchWorkerCommon(
 	for i, query := range queries {
 		sql := query.SelectCommand.String()
 
-		if logger.EnableSQLTracing {
+		if q.cfg.Logging.EnableSQLTracing {
 			logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
 		}
 
