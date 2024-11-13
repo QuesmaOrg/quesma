@@ -45,7 +45,6 @@ type TableDiscovery interface {
 type tableDiscovery struct {
 	cfg                               *config.QuesmaConfiguration
 	dbConnPool                        *sql.DB
-	tableVerifier                     tableVerifier
 	tableDefinitions                  *atomic.Pointer[TableMap]
 	tableDefinitionsAccessUnixSec     atomic.Int64
 	tableDefinitionsLastReloadUnixSec atomic.Int64
@@ -164,7 +163,6 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 	configuredTables = td.readVirtualTables(configuredTables)
 
 	td.ReloadTablesError = nil
-	td.verify(configuredTables)
 	td.populateTableDefinitions(configuredTables, databaseName, td.cfg)
 }
 
@@ -387,17 +385,6 @@ func (td *tableDiscovery) TableDefinitions() *TableMap {
 		<-doneCh
 	}
 	return td.tableDefinitions.Load()
-}
-
-func (td *tableDiscovery) verify(tables map[string]discoveredTable) {
-	for _, table := range tables {
-		logger.Info().Msgf("verifying table %s", table.name)
-		if correct, violations := td.tableVerifier.verify(table); correct {
-			logger.Debug().Msgf("table %s verified", table.name)
-		} else {
-			logger.Warn().Msgf("table %s verification failed: %s", table.name, violations)
-		}
-	}
 }
 
 func resolveColumn(colName, colType string) *Column {
