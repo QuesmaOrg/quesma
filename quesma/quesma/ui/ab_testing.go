@@ -86,7 +86,7 @@ If the performance gain is positive, it means that the second backend connector 
 		buffer.Html(`<div class="menu">`)
 		buffer.Html("\n</div>")
 	} else {
-		buffer.Html(`<p>A/B Testing results are not available.</p>`)
+		buffer.Html(`<p>CR results are not available.</p>`)
 	}
 
 	buffer.Html("\n</main>\n\n")
@@ -450,10 +450,10 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl, orderBy s
 
 			default:
 
-                                if *row.responseTimeDelta > 0 {
-				    buffer.Text(fmt.Sprintf("%.01f%% faster", *row.responseTimeDelta))
+				if *row.responseTimeDelta > 0 {
+					buffer.Text(fmt.Sprintf("%.01f%% faster", *row.responseTimeDelta))
 				} else {
-				    buffer.Text(fmt.Sprintf("%.01f%% slower", -(*row.responseTimeDelta)))
+					buffer.Text(fmt.Sprintf("%.01f%% slower", -(*row.responseTimeDelta)))
 				}
 
 			}
@@ -587,7 +587,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
-	buffer.Html(`<h2>A/B Testing - Panel Details</h2>`)
+	buffer.Html(`<h2>Compatibility report - Panel Details</h2>`)
 	buffer.Html(`<h3>`)
 	buffer.Text(fmt.Sprintf("Dashboard: %s", dashboardName))
 	buffer.Html(`</h3>`)
@@ -722,7 +722,7 @@ func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panel
 
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
-	buffer.Html(`<h2>A/B Testing - Panel requests</h2>`)
+	buffer.Html(`<h2>Compatibility report - Panel requests</h2>`)
 
 	buffer.Html(`<h3>`)
 	buffer.Text(fmt.Sprintf("Dashboard: %s", dashboardName))
@@ -847,7 +847,7 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 	buffer := newBufferWithHead()
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
-	buffer.Html(`<h2>A/B Testing - Request Results </h2>`)
+	buffer.Html(`<h2>Compatibility report - Request Results </h2>`)
 
 	fmtAny := func(value any) string {
 		if value == nil {
