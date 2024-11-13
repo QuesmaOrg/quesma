@@ -785,9 +785,14 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 		return model.NewSimpleQuery(nil, false)
 	}
 
+	// Maybe change to false if numeric fields exist.
+	// Even so, most likely >99% of ranges will be dates, as they come in (almost) every request.
+	const dateInSchemaExpected = true
+
 	for fieldName, v := range queryMap {
 		fieldName = cw.ResolveField(cw.Ctx, fieldName)
-		fieldType := cw.Table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName), true) // maybe change to false if numeric fields exist
+
+		fieldType := cw.Table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName), dateInSchemaExpected)
 		stmts := make([]model.Expr, 0)
 		if _, ok := v.(QueryMap); !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid range type: %T, value: %v", v, v)
@@ -1269,8 +1274,8 @@ func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap, defaultSize in
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) GetDateTimeTypeFromSelectClause(ctx context.Context, expr model.Expr) clickhouse.DateTimeType {
-	const dateInSchemaExpected = false
+func (cw *ClickhouseQueryTranslator) GetDateTimeTypeFromSelectClause(ctx context.Context, expr model.Expr,
+	dateInSchemaExpected bool) clickhouse.DateTimeType {
 	if ref, ok := expr.(model.ColumnRef); ok {
 		return cw.Table.GetDateTimeType(ctx, cw.ResolveField(ctx, ref.ColumnName), dateInSchemaExpected)
 	}

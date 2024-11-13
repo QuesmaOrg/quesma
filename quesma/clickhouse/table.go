@@ -85,7 +85,7 @@ func (t *Table) FullTableName() string {
 
 // GetDateTimeType returns type of a field (currently DateTime/DateTime64), if it's a DateTime type. Invalid otherwise.
 // Timestamp from config defaults to DateTime64.
-// We don't warn the log message e.g. in e.g. in sum/avg/etc. aggregations, where date is very unexpected.
+// We don't warn the log message e.g. in e.g. in sum/avg/etc. aggregations, where date is (very) unexpected or impossible.
 func (t *Table) GetDateTimeType(ctx context.Context, fieldName string, dateInSchemaExpected bool) DateTimeType {
 	if col, ok := t.Cols[fieldName]; ok {
 		typeName := col.Type.String()
