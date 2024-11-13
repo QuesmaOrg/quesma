@@ -5,6 +5,7 @@ package queryparser
 
 import (
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/kibana"
 	"quesma/logger"
@@ -77,15 +78,15 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			return false, fmt.Errorf("date_histogram is not a map, but %T, value: %v", dateHistogramRaw, dateHistogramRaw)
 		}
 		field := cw.parseFieldField(dateHistogram, "date_histogram")
+		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 
 		weAddedMissing := false
 		if missingRaw, exists := dateHistogram["missing"]; exists {
 			if missing, ok := missingRaw.(string); ok {
 				dateManager := kibana.NewDateManager(cw.Ctx)
-				fieldType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
-				if unixTimestamp, parsingOk := dateManager.ParseMissingInDateHistogram(missing, fieldType); parsingOk {
-					field = model.NewFunction("COALESCE", field,
-						model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(unixTimestamp)))
+				pp.Println(field)
+				if missingExpr, parsingOk := dateManager.ParseMissingInDateHistogram(missing, dateTimeType); parsingOk {
+					field = model.NewFunction("COALESCE", field, missingExpr)
 					weAddedMissing = true
 				} else {
 					logger.ErrorWithCtx(cw.Ctx).Msgf("unknown format of missing in date_histogram: %v. Skipping it.", missing)
@@ -109,7 +110,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		timezone := cw.parseStringField(dateHistogram, "time_zone", "")
 		interval, intervalType := cw.extractInterval(dateHistogram)
 		// TODO  GetDateTimeTypeFromExpr can be moved and it should take cw.Schema as an argument
-		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 
 		if dateTimeType == clickhouse.Invalid {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid date time type for field %s", field)

@@ -44,6 +44,15 @@ var rawRequestBody = []byte(`{
             }
           }
         },
+		{
+          "range": {
+            "epoch_time_datetime64": {
+              "format": "strict_date_optional_time",
+              "gte": "2024-02-27T12:25:00.000Z",
+              "lte": "2024-02-27T12:40:59.999Z"
+            }
+          }
+        },
         {
           "terms": {
             "_tier": [
@@ -69,6 +78,10 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 			"epoch_time": {
 				Name: "epoch_time",
 				Type: clickhouse.NewBaseType("DateTime"),
+			},
+			"epoch_time_datetime64": {
+				Name: "epoch_time_datetime64",
+				Type: clickhouse.NewBaseType("DateTime64"),
 			},
 			"message": {
 				Name: "message",
@@ -109,8 +122,8 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 	}
 	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.TableName(testTableName)]}
 	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
-	expectedQuery1 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE ("epoch_time">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time"<=fromUnixTimestamp64Milli(1709037659999)) LIMIT 13`
-	expectedQuery2 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE ("epoch_time">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time"<=fromUnixTimestamp64Milli(1709037659999)) LIMIT 13`
+	expectedQuery1 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`
+	expectedQuery2 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`
 
 	// Once in a while `AND` conditions could be swapped, so we match both cases
 	mock.ExpectQuery(fmt.Sprintf("%s|%s", regexp.QuoteMeta(expectedQuery1), regexp.QuoteMeta(expectedQuery2))).

@@ -3331,7 +3331,7 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
 	},
 	{ // [60]
-		TestName: "simple date_histogram with null values, no missing parameter",
+		TestName: "simple date_histogram with null values, no missing parameter (DateTime)",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -3418,13 +3418,13 @@ var AggregationTests2 = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__sample__count",
-			  toInt64(toUnixTimestamp64Milli("customer_birth_date") / 30000) AS
+			  toInt64(toUnixTimestamp("customer_birth_date") / 30) AS
 			  "aggr__sample__histo__key_0", count(*) AS "aggr__sample__histo__count"
 			FROM (
 			  SELECT "customer_birth_date"
 			  FROM __quesma_table_name
 			  LIMIT 20000)
-			GROUP BY toInt64(toUnixTimestamp64Milli("customer_birth_date") / 30000) AS
+			GROUP BY toInt64(toUnixTimestamp("customer_birth_date") / 30) AS
 			  "aggr__sample__histo__key_0"
 			ORDER BY "aggr__sample__histo__key_0" ASC`,
 	},
@@ -3435,7 +3435,7 @@ var AggregationTests2 = []AggregationTestCase{
 			"aggs": {
 				"histo": {
 					"date_histogram": {
-						"field": "customer_birth_date"
+						"field": "customer_birth_date_datetime64"
 					},
 					"aggs": {
 						"0": {
@@ -3559,7 +3559,7 @@ var AggregationTests2 = []AggregationTestCase{
 				"aggr__histo__0__count" DESC, "aggr__histo__0__key_0" ASC) AS
 				"aggr__histo__0__order_1_rank"
 			  FROM (
-				SELECT toInt64(toUnixTimestamp64Milli("customer_birth_date") / 30000) AS
+				SELECT toInt64(toUnixTimestamp64Milli("customer_birth_date_datetime64") / 30000) AS
 				  "aggr__histo__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
 				  "aggr__histo__count",
@@ -3567,13 +3567,13 @@ var AggregationTests2 = []AggregationTestCase{
 				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
 				  count(*) AS "aggr__histo__0__count"
 				FROM __quesma_table_name
-				GROUP BY toInt64(toUnixTimestamp64Milli("customer_birth_date") / 30000) AS
+				GROUP BY toInt64(toUnixTimestamp64Milli("customer_birth_date_datetime64") / 30000) AS
 				  "aggr__histo__key_0", "type" AS "aggr__histo__0__key_0"))
 			WHERE "aggr__histo__0__order_1_rank"<=11
 			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
 	},
 	{ // [62]
-		TestName: "date_histogram with null values, missing parameter, and some subaggregation",
+		TestName: "date_histogram with null values, missing parameter (DateTime, not DateTime64), and some subaggregation",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -3723,23 +3723,22 @@ var AggregationTests2 = []AggregationTestCase{
 				"aggr__histo__0__count" DESC, "aggr__histo__0__key_0" ASC) AS
 				"aggr__histo__0__order_1_rank"
 			  FROM (
-				SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-				  fromUnixTimestamp64Milli(1706021760000))) / 30000) AS "aggr__histo__key_0"
-				  ,
+				SELECT toInt64(toUnixTimestamp(COALESCE("customer_birth_date",
+				  fromUnixTimestamp(1706021760))) / 30) AS "aggr__histo__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
 				  "aggr__histo__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__histo__key_0") AS
 				  "aggr__histo__0__parent_count", "type" AS "aggr__histo__0__key_0",
 				  count(*) AS "aggr__histo__0__count"
 				FROM __quesma_table_name
-				GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-				  fromUnixTimestamp64Milli(1706021760000))) / 30000) AS "aggr__histo__key_0"
-				  , "type" AS "aggr__histo__0__key_0"))
+				GROUP BY toInt64(toUnixTimestamp(COALESCE("customer_birth_date",
+				  fromUnixTimestamp(1706021760))) / 30) AS "aggr__histo__key_0",
+				  "type" AS "aggr__histo__0__key_0"))
 			WHERE "aggr__histo__0__order_1_rank"<=11
 			ORDER BY "aggr__histo__order_1_rank" ASC, "aggr__histo__0__order_1_rank" ASC`,
 	},
 	{ // [63]
-		TestName: "date_histogram with missing, different formats",
+		TestName: "date_histogram with missing, different formats, and types (DateTime(64))",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -3759,14 +3758,14 @@ var AggregationTests2 = []AggregationTestCase{
 				},
 				"histo3": {
 					"date_histogram": {
-						"field": "customer_birth_date",
+						"field": "customer_birth_date_datetime64",
 						"fixed_interval": "90000ms",
 						"missing": "2024-02-02T13:00:00.000"
 					}
 				},
 				"histo4": {
 					"date_histogram": {
-						"field": "customer_birth_date",
+						"field": "customer_birth_date_datetime64",
 						"fixed_interval": "90000ms",
 						"missing": "2024-02-02T13:00:00+07:00"
 					}
@@ -3874,41 +3873,41 @@ var AggregationTests2 = []AggregationTestCase{
 			}}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-			  fromUnixTimestamp64Milli(1706878800000))) / 90000) AS "aggr__histo1__key_0",
+			SELECT toInt64(toUnixTimestamp(COALESCE("customer_birth_date",
+			  fromUnixTimestamp(1706878800))) / 90) AS "aggr__histo1__key_0",
 			  count(*) AS "aggr__histo1__count"
 			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-			  fromUnixTimestamp64Milli(1706878800000))) / 90000) AS "aggr__histo1__key_0"
+			GROUP BY toInt64(toUnixTimestamp(COALESCE("customer_birth_date",
+			  fromUnixTimestamp(1706878800))) / 90) AS "aggr__histo1__key_0"
 			ORDER BY "aggr__histo1__key_0" ASC`,
 		ExpectedAdditionalPancakeSQLs: []string{
-			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-			  fromUnixTimestamp64Milli(1706878800000))) / 90000) AS "aggr__histo2__key_0",
+			`SELECT toInt64(toUnixTimestamp(COALESCE("customer_birth_date",
+			  fromUnixTimestamp(1706878800))) / 90) AS "aggr__histo2__key_0",
 			  count(*) AS "aggr__histo2__count"
 			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-			  fromUnixTimestamp64Milli(1706878800000))) / 90000) AS "aggr__histo2__key_0"
+			GROUP BY toInt64(toUnixTimestamp(COALESCE("customer_birth_date",
+			  fromUnixTimestamp(1706878800))) / 90) AS "aggr__histo2__key_0"
 			ORDER BY "aggr__histo2__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date_datetime64",
               fromUnixTimestamp64Milli(1706878800000))) / 90000) AS "aggr__histo3__key_0",
 			  count(*) AS "aggr__histo3__count"
 			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date_datetime64",
               fromUnixTimestamp64Milli(1706878800000))) / 90000) AS "aggr__histo3__key_0"
 			ORDER BY "aggr__histo3__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date_datetime64",
 			  fromUnixTimestamp64Milli(1706853600000))) / 90000) AS "aggr__histo4__key_0",
 			  count(*) AS "aggr__histo4__count"
 			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
+			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date_datetime64",
 			  fromUnixTimestamp64Milli(1706853600000))) / 90000) AS "aggr__histo4__key_0"
 			ORDER BY "aggr__histo4__key_0" ASC`,
-			`SELECT toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-			  fromUnixTimestamp64Milli(1706853600000))) / 90000) AS "aggr__histo5__key_0",
+			`SELECT toInt64(toUnixTimestamp(COALESCE("customer_birth_date",
+			  fromUnixTimestamp(1706853600))) / 90) AS "aggr__histo5__key_0",
 			  count(*) AS "aggr__histo5__count"
 			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli(COALESCE("customer_birth_date",
-			  fromUnixTimestamp64Milli(1706853600000))) / 90000) AS "aggr__histo5__key_0"
+			GROUP BY toInt64(toUnixTimestamp(COALESCE("customer_birth_date",
+			  fromUnixTimestamp(1706853600))) / 90) AS "aggr__histo5__key_0"
 			ORDER BY "aggr__histo5__key_0" ASC`,
 		},
 	},

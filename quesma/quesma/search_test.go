@@ -475,10 +475,9 @@ func TestHandlingDateTimeFields(t *testing.T) {
 									FROM __quesma_table_name
 									WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
 									  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
-									  fromUnixTimestamp64Milli(1706542596491) AND "timestamp"<=
-									  fromUnixTimestamp64Milli(1706551896491))) AND NOT (("@timestamp">=
-									  fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=
-									  fromUnixTimestamp64Milli(1706551896491))))
+									  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
+									  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
+									  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))) 
 									GROUP BY toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0"
 									ORDER BY "aggr__0__key_0" ASC`,
 		dateTime64TimestampField: `SELECT toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
@@ -486,10 +485,9 @@ func TestHandlingDateTimeFields(t *testing.T) {
 									FROM __quesma_table_name
 									WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
 									  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
-									  fromUnixTimestamp64Milli(1706542596491) AND "timestamp"<=
-									  fromUnixTimestamp64Milli(1706551896491))) AND NOT (("@timestamp">=
-									  fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=
-									  fromUnixTimestamp64Milli(1706551896491))))
+									  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
+									  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
+									  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))))
 									GROUP BY toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
 									  "aggr__0__key_0"
 									ORDER BY "aggr__0__key_0" ASC`,
@@ -498,10 +496,9 @@ func TestHandlingDateTimeFields(t *testing.T) {
 									FROM __quesma_table_name
 									WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
 									  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
-									  fromUnixTimestamp64Milli(1706542596491) AND "timestamp"<=
-									  fromUnixTimestamp64Milli(1706551896491))) AND NOT (("@timestamp">=
-									  fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=
-									  fromUnixTimestamp64Milli(1706551896491))))
+									  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
+									  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
+									  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))))
 									GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 									  "aggr__0__key_0"
 									ORDER BY "aggr__0__key_0" ASC`,

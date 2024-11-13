@@ -65,8 +65,19 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (unixTi
 // ParseMissingInDateHistogram parses date_histogram's missing field.
 // If missing is present, it's in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
-func (dm DateManager) ParseMissingInDateHistogram(missing any) (unixTimestamp int64, parsingSucceeded bool) {
-	return dm.parseStrictDateOptionalTimeOrEpochMillis(missing)
+func (dm DateManager) ParseMissingInDateHistogram(missing any, datetimeType clickhouse.DateTimeType) (
+	resultExpr model.Expr, parsingSucceeded bool) {
+	if unixTs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(missing); success {
+		switch datetimeType {
+		case clickhouse.DateTime64:
+			return model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(unixTs)), true
+		case clickhouse.DateTime:
+			return model.NewFunction("fromUnixTimestamp", model.NewLiteral(unixTs/1000)), true
+		default:
+			logger.WarnWithCtx(dm.ctx).Msgf("Unknown datetimeType: %v", datetimeType)
+		}
+	}
+	return nil, false
 }
 
 // ParseRange parses range filter.
@@ -78,9 +89,9 @@ func (dm DateManager) ParseRange(Range any, datetimeType clickhouse.DateTimeType
 		case clickhouse.DateTime64:
 			return model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(timestamp)), true
 		case clickhouse.DateTime:
-			return model.NewFunction("fromUnixTimestamp", model.NewLiteral(timestamp)), true
+			return model.NewFunction("fromUnixTimestamp", model.NewLiteral(timestamp/1000)), true
 		default:
-			logger.WarnWithCtx().Msgf("Unknown datetimeType: %v", datetimeType)
+			logger.WarnWithCtx(dm.ctx).Msgf("Unknown datetimeType: %v", datetimeType)
 		}
 
 	}
