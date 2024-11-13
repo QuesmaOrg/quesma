@@ -3,7 +3,7 @@ import { withMermaid } from "vitepress-plugin-mermaid";
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: "Quesma EAP",
+  title: "Quesma",
   description: "Quesma Database Gateway Early Access Program",
   head: [['link', { rel: 'icon', href: 'favicon.ico' }]],
   themeConfig: {
@@ -12,7 +12,7 @@ export default defineConfig({
       light: '/logo/quesma-logo-black-full-svg.svg',
       dark: '/logo/quesma-logo-white-full-svg.svg'
     },
-    siteTitle: 'EAP',
+    siteTitle: 'Docs',
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Getting started', link: '/eap-docs' },
@@ -47,6 +47,7 @@ export default defineConfig({
             items: [
               { text: 'Configuration primer', link: '/config-primer'},
               { text: 'Ingest', link: '/ingest' },
+              { text: 'Compatiblity Report', link: '/compatibility-report' },
             ],
           },
           { text: 'Known limitations or unsupported functionalities', link: '/limitations' },
