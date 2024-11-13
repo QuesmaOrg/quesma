@@ -36,7 +36,6 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 		}
 		return []model.QueryResultRow{newRow}
 	}
-	logger.ErrorWithCtx(p.ctx).Msgf("no rows in selectMetricRows %s", metricName)
 	return
 }
 

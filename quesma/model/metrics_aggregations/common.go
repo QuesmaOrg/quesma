@@ -12,7 +12,7 @@ import (
 
 func metricsTranslateSqlResponseToJson(ctx context.Context, rows []model.QueryResultRow) model.JsonMap {
 	var value any = nil
-	if resultRowsAreFine(ctx, rows) {
+	if resultRowsAreNonEmpty(ctx, rows) {
 		value = rows[0].Cols[len(rows[0].Cols)-1].Value
 	}
 	return model.JsonMap{
@@ -30,7 +30,7 @@ func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(
 	}
 
 	var value, valueAsString any = nil, nil
-	if resultRowsAreFine(ctx, rows) {
+	if resultRowsAreNonEmpty(ctx, rows) {
 		valueAsAny := rows[0].Cols[len(rows[0].Cols)-1].Value
 		if valueAsTime, ok := valueAsAny.(time.Time); ok {
 			value = valueAsTime.UnixMilli()
@@ -48,9 +48,8 @@ func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(
 	return response
 }
 
-func resultRowsAreFine(ctx context.Context, rows []model.QueryResultRow) bool {
+func resultRowsAreNonEmpty(ctx context.Context, rows []model.QueryResultRow) bool {
 	if len(rows) == 0 {
-		logger.WarnWithCtx(ctx).Msg("no rows returned for metrics aggregation")
 		return false
 	}
 	if len(rows[0].Cols) == 0 {
