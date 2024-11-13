@@ -10,7 +10,6 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/quesma/config"
 	"quesma/schema"
-	"quesma/util"
 	"sort"
 	"strings"
 )
@@ -630,35 +629,6 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 }
 
-func (s *SchemaCheckPass) handleDottedTColumnNames(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
-
-	// TODO this is a workaround for now,
-	// if we set true dashboards are working but not tests
-	doCompensation := false
-
-	visitor := model.NewBaseVisitor()
-
-	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-
-		if strings.Contains(e.ColumnName, ".") {
-			logger.Warn().Msgf("Dotted column name found: %s", e.ColumnName)
-
-			if doCompensation {
-				return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
-			}
-
-		}
-		return e
-	}
-
-	expr := query.SelectCommand.Accept(visitor)
-
-	if _, ok := expr.(*model.SelectCommand); ok {
-		query.SelectCommand = *expr.(*model.SelectCommand)
-	}
-	return query, nil
-}
-
 func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	visitor := model.NewBaseVisitor()
@@ -784,7 +754,6 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
-		{TransformationName: "DottedColumnNames", Transformation: s.handleDottedTColumnNames},
 	}
 
 	for k, query := range queries {
