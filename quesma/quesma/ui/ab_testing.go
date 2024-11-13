@@ -450,7 +450,11 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl, orderBy s
 
 			default:
 
-				buffer.Text(fmt.Sprintf("%.01f%%", *row.responseTimeDelta))
+                                if *row.responseTimeDelta > 0 {
+				    buffer.Text(fmt.Sprintf("%.01f%% faster", *row.responseTimeDelta))
+				} else {
+				    buffer.Text(fmt.Sprintf("%.01f%% slower", -(*row.responseTimeDelta)))
+				}
 
 			}
 			buffer.Html(`</span>`)
