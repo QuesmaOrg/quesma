@@ -80,22 +80,20 @@ var OpensearchSearchTests = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		WantedSql: []string{
-			`("__timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND "__timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))`,
+			`("__timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "__timestamp"<=fromUnixTimestamp64Milli(1712237598149))`,
 		},
 		WantedQueryType: model.ListAllFields,
 		WantedQueries: []string{
 			`SELECT "__bytes", "__timestamp", "message_____"
 			FROM __quesma_table_name
-			WHERE ("__timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z')
-			           AND "__timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))
+			WHERE ("__timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "__timestamp"<=fromUnixTimestamp64Milli(1712237598149))
 			ORDER BY "__timestamp" DESC LIMIT 500`,
 			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
 			  toInt64((toUnixTimestamp64Milli("__timestamp")+timeZoneOffset(toTimezone(
 			  "__timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			WHERE ("__timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND
-			  "__timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))
+			WHERE ("__timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "__timestamp"<=fromUnixTimestamp64Milli(1712237598149))
 			GROUP BY toInt64((toUnixTimestamp64Milli("__timestamp")+timeZoneOffset(
 			  toTimezone("__timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
@@ -173,7 +171,7 @@ var OpensearchSearchTests = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		WantedSql: []string{
-			`("__timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND "__timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))`,
+			`("__timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "__timestamp"<=fromUnixTimestamp64Milli(1712237598149))`,
 		},
 		WantedQueryType: model.Normal,
 		WantedQueries: []string{
@@ -181,8 +179,7 @@ var OpensearchSearchTests = []SearchTestCase{
 			  toInt64(toUnixTimestamp64Milli("__timestamp") / 30000) AS "aggr__2__key_0",
        		  count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			WHERE ("__timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z')
-			           AND "__timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))
+			WHERE ("__timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "__timestamp"<=fromUnixTimestamp64Milli(1712237598149))
 			GROUP BY toInt64(toUnixTimestamp64Milli("__timestamp") / 30000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 		},

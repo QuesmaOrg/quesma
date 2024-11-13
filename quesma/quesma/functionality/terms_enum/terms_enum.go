@@ -5,6 +5,7 @@ package terms_enum
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"quesma/clickhouse"
 	"quesma/end_user_errors"
@@ -24,7 +25,7 @@ func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *cli
 	if indices, err := lm.ResolveIndexPattern(ctx, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
 		logger.Error().Msg(errorMsg)
-		return nil, fmt.Errorf(errorMsg)
+		return nil, errors.New(errorMsg)
 	} else {
 		resolvedTableName := indices[0]
 		resolvedSchema, ok := schemaRegistry.FindSchema(schema.TableName(resolvedTableName))

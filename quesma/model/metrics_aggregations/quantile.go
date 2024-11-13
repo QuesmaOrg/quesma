@@ -34,10 +34,10 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow) mo
 	valueAsStringMap := make(model.JsonMap)
 
 	if len(rows) == 0 {
-		return emptyPercentilesResult
+		return query.emptyPercentilesResult()
 	}
 	if len(rows[0].Cols) == 0 {
-		return emptyPercentilesResult
+		return query.emptyPercentilesResult()
 	}
 
 	percentileIdx := -1
@@ -151,8 +151,12 @@ func (query Quantile) processResult(colName string, percentileReturnedByClickhou
 	return percentile, percentileAsString, percentileIsNanOrInvalid
 }
 
-var emptyPercentilesResult = model.JsonMap{
-	"values": 0,
+func (query Quantile) emptyPercentilesResult() model.JsonMap {
+	result := make(model.JsonMap, len(query.percentileNames))
+	for _, percentileName := range query.percentileNames {
+		result[query.createPercentileNameToReturn(percentileName)] = nil
+	}
+	return model.JsonMap{"values": result}
 }
 
 // Kibana requires .0 at the end of the percentile name if it's an integer.
@@ -163,4 +167,15 @@ func (query Quantile) createPercentileNameToReturn(percentileName string) string
 		percentileName += ".0"
 	}
 	return percentileName
+}
+
+func (query Quantile) ColumnIdx(name string) int {
+	for i, percentileName := range query.percentileNames {
+		if percentileName == name {
+			return i
+		}
+	}
+
+	logger.ErrorWithCtx(query.ctx).Msgf("quantile column %s not found", name)
+	return -1
 }

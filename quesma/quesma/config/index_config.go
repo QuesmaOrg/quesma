@@ -16,14 +16,19 @@ const (
 type IndexConfiguration struct {
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
-	Override        string                            `koanf:"override"`
+	Override        string                            `koanf:"tableName"`
 	UseCommonTable  bool                              `koanf:"useCommonTable"`
-	Target          []string                          `koanf:"target"`
+	Target          any                               `koanf:"target"`
 
 	// Computed based on the overall configuration
 	Name         string
 	QueryTarget  []string
 	IngestTarget []string
+}
+
+type OptimizerConfiguration struct {
+	Disabled   bool              `koanf:"disabled"`
+	Properties map[string]string `koanf:"properties"`
 }
 
 func (c IndexConfiguration) String() string {

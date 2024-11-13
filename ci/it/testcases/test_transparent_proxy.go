@@ -1,9 +1,13 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
+
 package testcases
 
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"io"
+	"net/http"
 	"testing"
 )
 
@@ -29,14 +33,29 @@ func (a *TransparentProxyIntegrationTestcase) SetupContainers(ctx context.Contex
 }
 
 func (a *TransparentProxyIntegrationTestcase) RunTests(ctx context.Context, t *testing.T) error {
-	resp, err := a.RequestToQuesma(ctx, "GET", "/", nil)
-	if err != nil {
-		t.Fatalf("Failed to make GET request: %s", err)
-	}
-	defer resp.Body.Close()
-	assert.Equal(t, 200, resp.StatusCode)
-	/* --------------------------- */
-	resp, err = a.RequestToQuesma(ctx, "GET", "/_cat/health", nil)
+	t.Run("test basic request", func(t *testing.T) { a.testBasicRequest(ctx, t) })
+	t.Run("test if cat health request reaches elasticsearch", func(t *testing.T) { a.testIfCatHealthRequestReachesElasticsearch(ctx, t) })
+	t.Run("test if index creation works", func(t *testing.T) { a.testIfIndexCreationWorks(ctx, t) })
+	return nil
+}
+
+func (a *TransparentProxyIntegrationTestcase) testBasicRequest(ctx context.Context, t *testing.T) {
+	resp, _ := a.RequestToQuesma(ctx, t, "GET", "/", nil)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func (a *TransparentProxyIntegrationTestcase) testIfCatHealthRequestReachesElasticsearch(ctx context.Context, t *testing.T) {
+	resp, bodyBytes := a.RequestToQuesma(ctx, t, "GET", "/_cat/health", nil)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-elastic-product"))
+	assert.Contains(t, string(bodyBytes), "green")
+}
+
+func (a *TransparentProxyIntegrationTestcase) testIfIndexCreationWorks(ctx context.Context, t *testing.T) {
+	_, _ = a.RequestToQuesma(ctx, t, "PUT", "/index_1", nil)
+	_, _ = a.RequestToQuesma(ctx, t, "PUT", "/index_2", nil)
+
+	resp, err := a.RequestToElasticsearch(ctx, "GET", "/_cat/indices", nil)
 	if err != nil {
 		t.Fatalf("Failed to make GET request: %s", err)
 	}
@@ -45,23 +64,6 @@ func (a *TransparentProxyIntegrationTestcase) RunTests(ctx context.Context, t *t
 	if err != nil {
 		t.Fatalf("Failed to read response body: %s", err)
 	}
-	assert.Equal(t, 200, resp.StatusCode)
-	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-elastic-product"))
-	assert.Contains(t, string(bodyBytes), "green")
-	/* --------------------------- */
-	_, err = a.RequestToQuesma(ctx, "PUT", "/index_1", nil)
-	_, err = a.RequestToQuesma(ctx, "PUT", "/index_2", nil)
-
-	resp, err = a.RequestToElasticsearch(ctx, "GET", "/_cat/indices", nil)
-	if err != nil {
-		t.Fatalf("Failed to make GET request: %s", err)
-	}
-	defer resp.Body.Close()
-	bodyBytes, err = io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %s", err)
-	}
 	assert.Contains(t, string(bodyBytes), "index_1")
 	assert.Contains(t, string(bodyBytes), "index_2")
-	return nil
 }

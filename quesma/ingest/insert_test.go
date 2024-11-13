@@ -14,6 +14,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/util"
 	"slices"
 	"strconv"
@@ -152,14 +153,14 @@ func ingestProcessorsNonEmpty(cfg *clickhouse.ChTableConfig) []ingestProcessorHe
 			},
 			Created: created,
 		})
-		lms = append(lms, ingestProcessorHelper{NewIngestProcessor(full, &config.QuesmaConfiguration{}), created})
+		lms = append(lms, ingestProcessorHelper{newIngestProcessorWithEmptyTableMap(full, &config.QuesmaConfiguration{}), created})
 	}
 	return lms
 }
 
 func ingestProcessors(config *clickhouse.ChTableConfig) []ingestProcessorHelper {
-	ingestProcessor := NewIngestProcessorEmpty()
-	ingestProcessor.schemaRegistry = schema.StaticRegistry{}
+	ingestProcessor := newIngestProcessorEmpty()
+	ingestProcessor.schemaRegistry = &schema.StaticRegistry{}
 	return append([]ingestProcessorHelper{{ingestProcessor, false}}, ingestProcessorsNonEmpty(config)...)
 }
 
@@ -168,9 +169,12 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 		for index2, tableConfig := range configs {
 			for index3, ip := range ingestProcessors(tableConfig) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
-					ip.ip.schemaRegistry = schema.StaticRegistry{}
-					columnsFromJson, columnsFromSchema := ip.ip.buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), tableConfig, &columNameFormatter{separator: "::"})
-					encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
+					ip.ip.schemaRegistry = &schema.StaticRegistry{}
+					encodings := populateFieldEncodings([]types.JSON{types.MustJSON(tt.insertJson)}, tableName)
+					ignoredFields := ip.ip.getIgnoredFields(tableName)
+					columnsFromJson := JsonToColumns("", types.MustJSON(tt.insertJson), 1,
+						tableConfig, &columNameFormatter{separator: "::"}, ignoredFields)
+					columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.ip.schemaRegistry, tableName), &columNameFormatter{separator: "::"}, tableName, encodings)
 					columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(types.MustJSON(tt.insertJson)))
 					query := createTableQuery(tableName, columns, tableConfig)
 
@@ -237,6 +241,14 @@ func TestProcessInsertQuery(t *testing.T) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
 					db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 					ip.ip.chDb = db
+					resolver := table_resolver.NewEmptyTableResolver()
+					decision := &table_resolver.Decision{
+						UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+							ClickhouseTableName: "test_table",
+						}}}
+					resolver.Decisions["test_table"] = decision
+
+					ip.ip.tableResolver = resolver
 					defer db.Close()
 
 					// info: result values aren't important, this '.WillReturnResult[...]' just needs to be there
@@ -282,7 +294,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	for i, bigInt := range bigInts {
 		t.Run("big integer schema field: "+bigInt, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-			lm := NewIngestProcessorEmpty()
+			lm := newIngestProcessorEmpty()
 			lm.chDb = db
 			defer db.Close()
 
@@ -308,7 +320,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	for i, bigInt := range bigInts {
 		t.Run("big integer attribute field: "+bigInt, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-			lm := NewIngestProcessorEmpty()
+			lm := newIngestProcessorEmpty()
 			lm.chDb = db
 			lm.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
 			defer db.Close()
@@ -409,18 +421,29 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			}
 
 			virtualTableStorage := persistence.NewStaticJSONDatabase()
-			schemaRegistry := schema.StaticRegistry{
+			schemaRegistry := &schema.StaticRegistry{
 				Tables: make(map[schema.TableName]schema.Schema),
 			}
 			schemaRegistry.Tables[schema.TableName(indexName)] = indexSchema
 
-			ingest := NewIngestProcessor(tables, quesmaConfig)
+			resolver := table_resolver.NewEmptyTableResolver()
+			decision := &table_resolver.Decision{
+				UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+					ClickhouseTableName: "test_index",
+				}}}
+			resolver.Decisions["test_index"] = decision
+
+			schemaRegistry.FieldEncodings = make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
+			schemaRegistry.FieldEncodings[schema.FieldEncodingKey{TableName: indexName, FieldName: "schema_field"}] = "schema_field"
+
+			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db
 			ingest.virtualTableStorage = virtualTableStorage
 			ingest.schemaRegistry = schemaRegistry
+			ingest.tableResolver = resolver
 
 			ctx := context.Background()
-			formatter := clickhouse.DefaultColumnNameFormatter()
+			formatter := DefaultColumnNameFormatter()
 
 			transformer := jsonprocessor.IngestTransformerFor(indexName, quesmaConfig)
 

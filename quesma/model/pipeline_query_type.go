@@ -13,6 +13,10 @@ type PipelineQueryType interface {
 	// Should always return PipelineAggregation
 	AggregationType() AggregationType
 
+	// PipelineAggregationType returns the type of the pipeline aggregation (parent or sibling)
+	// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-pipeline.html
+	PipelineAggregationType() PipelineAggregationType
+
 	// CalculateResultWhenMissing calculates the result of this aggregation when it's a NoDBQuery
 	// (we don't query the DB for the results, but calculate them from the parent aggregation)
 	CalculateResultWhenMissing(parentRows []QueryResultRow) []QueryResultRow
@@ -22,5 +26,6 @@ type PipelineQueryType interface {
 	GetPathToParent() []string
 	IsCount() bool
 
+	GetParentBucketAggregation() QueryType
 	SetParentBucketAggregation(parentBucketAggregation QueryType)
 }

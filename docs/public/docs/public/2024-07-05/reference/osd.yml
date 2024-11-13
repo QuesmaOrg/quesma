@@ -1,0 +1,77 @@
+# Docker compose for reference OpenSearch Dashboards with Quesma: https://eap.quesma.com/eap-docs.html
+version: "3.7"
+services:
+  quesma:
+    image: ${QUESMA_DOCKER_IMAGE}
+    environment:
+      - QUESMA_elasticsearch_url=http://opensearch:9200
+      - QUESMA_CONFIG_FILE=/config/quesma.yml
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    ports:
+      - "9999:9999" # Debugging web UI
+      - "8080:8080" # OpenSearch API through Quesma
+    volumes:
+      - ./quesma.yml:/config/quesma.yml
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    restart: unless-stopped
+  opensearch:
+    image: opensearchproject/opensearch:2.12.0
+    container_name: opensearch
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true  # along with the memlock settings below, disables swapping
+      - OPENSEARCH_JAVA_OPTS=-Xms1024m -Xmx1024m  # minimum and maximum Java heap size, recommend setting both to 50% of     system RAM
+      - "DISABLE_INSTALL_DEMO_CONFIG=true" # Prevents execution of bundled demo script which installs demo certificates and security configurations to OpenSearch
+      - "DISABLE_SECURITY_PLUGIN=true" # Disables Security plugin
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9201:9200" # OpenSearch API bypassing Quesma
+    healthcheck:
+      test: curl -s http://opensearch:9200 >/dev/null || exit 1
+      start_period: 1m
+      interval: 5s
+      timeout: 1s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.12.0
+    environment:
+      - 'OPENSEARCH_HOSTS=["http://quesma:8080"]'
+      - "DISABLE_SECURITY_DASHBOARDS_PLUGIN=true"
+    depends_on:
+      quesma:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    ports:
+      - "5601:5601" # Web UI
+    restart: unless-stopped
+    healthcheck:
+      test: "curl -s http://localhost:5601/api/status >/dev/null || exit 1"
+      start_period: 2m
+      interval: 5s
+      timeout: 1s
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.12.2.59-alpine
+    ports:
+      - "8123:8123" # Web UI
+      - "9000:9000" # SQL port
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://clickhouse:8123/ping || exit 1
+      interval: 1s
+      timeout: 1s
+      start_period: 1m

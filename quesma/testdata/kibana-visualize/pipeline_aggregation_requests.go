@@ -198,8 +198,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				  "aggr__2__1-bucket__key_0", count(*) AS "aggr__2__1-bucket__count",
 				  maxOrNull("timestamp") AS "metric__2__1-bucket__1-metric_col_0"
 				FROM __quesma_table_name
-				WHERE ("timestamp">=parseDateTime64BestEffort('2024-09-20T16:16:03.807Z')
-				  AND "timestamp"<=parseDateTime64BestEffort('2024-10-05T16:16:03.807Z'))
+				WHERE ("timestamp">=fromUnixTimestamp64Milli(1726848963807) AND "timestamp"
+				  <=fromUnixTimestamp64Milli(1728144963807))
 				GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 				  toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
 				  "aggr__2__key_0",
@@ -554,5 +554,125 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
 				  "aggr__2__3-bucket__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3-bucket__order_1_rank" ASC`,
+	},
+	{ // [3]
+		TestName: "Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Count), Buckets: Histogram" +
+			"(need add empty rows, even though there's no min_doc_count=0)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"cumulative_sum": {
+								"buckets_path": "_count"
+							}
+						}
+					},
+					"histogram": {
+						"field": "DistanceMiles",
+						"interval": 10
+					}
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1728210862660,
+			"expiration_time_in_millis": 1728642862653,
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"2": {
+						"buckets": [
+							{
+								"1": {
+									"value": 1.0
+								},
+								"doc_count": 1,
+								"key": 0.0
+							},
+							{
+								"1": {
+									"value": 1.0
+								},
+								"doc_count": 0,
+								"key": 10.0
+							},
+							{
+								"1": {
+									"value": 2.0
+								},
+								"doc_count": 1,
+								"key": 20.0
+							},
+							{
+								"1": {
+									"value": 5.0
+								},
+								"doc_count": 3,
+								"key": 30.0
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 6
+					}
+				},
+				"timed_out": false,
+				"took": 7
+			},
+			"start_time_in_millis": 1728210862653
+		}
+`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 0.0),
+				model.NewQueryResultCol("aggr__2__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 20.0),
+				model.NewQueryResultCol("aggr__2__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 30.0),
+				model.NewQueryResultCol("aggr__2__count", int64(3)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT floor("DistanceMiles"/10)*10 AS "aggr__2__key_0",
+              count(*) AS "aggr__2__count"
+            FROM __quesma_table_name
+            GROUP BY floor("DistanceMiles"/10)*10 AS "aggr__2__key_0"
+            ORDER BY "aggr__2__key_0" ASC`,
 	},
 }

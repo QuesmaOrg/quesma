@@ -8,6 +8,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/quesma/types"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/util"
 
@@ -100,13 +101,16 @@ type (
 		phoneHomeAgent            telemetry.PhoneHomeAgent
 		schemasProvider           SchemasProvider
 		totalUnsupportedQueries   int
+		tableResolver             table_resolver.TableResolver
+
+		isAuthEnabled bool
 	}
 	SchemasProvider interface {
 		AllSchemas() map[schema.TableName]schema.Schema
 	}
 )
 
-func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan logger.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent, schemasProvider SchemasProvider) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan logger.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent, schemasProvider SchemasProvider, indexRegistry table_resolver.TableResolver) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 10),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 10),
@@ -124,6 +128,7 @@ func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *cli
 		indexManagement:           indexManager,
 		phoneHomeAgent:            phoneHomeAgent,
 		schemasProvider:           schemasProvider,
+		tableResolver:             indexRegistry,
 	}
 }
 

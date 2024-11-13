@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Elastic-2.0
 package config
 
-import "net/url"
+import (
+	"fmt"
+	"net/url"
+)
 
 type Url url.URL
 
@@ -14,6 +17,12 @@ func (u *Url) UnmarshalText(text []byte) error {
 	urlValue, err := url.Parse(string(text))
 	if err != nil {
 		return err
+	}
+	if len(urlValue.Scheme) == 0 || len(urlValue.Host) == 0 {
+		return fmt.Errorf("invalid URL (missing protocol and/or hostname). Expected URL in a format 'protocol://hostname:port' (e.g. 'clickhouse://localhost:9000'), but instead got: %s", urlValue)
+	}
+	if len(urlValue.Port()) == 0 {
+		return fmt.Errorf("URL port (e.g. 8123 in 'clickhouse://localhost:9000') is missing from the provided URL: %s", urlValue)
 	}
 	*u = Url(*urlValue)
 	return nil

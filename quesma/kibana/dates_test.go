@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestDateManager_MissingInDateHistogramToUnixTimestamp(t *testing.T) {
+func TestDateManager_parseStrictDateOptionalTimeOrEpochMillis(t *testing.T) {
 	tests := []struct {
 		missing              any
 		wantUnixTimestamp    int64
@@ -38,7 +38,7 @@ func TestDateManager_MissingInDateHistogramToUnixTimestamp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%v", tt.missing), func(t *testing.T) {
 			dm := NewDateManager()
-			gotUnixTs, gotParsingSucceeded := dm.MissingInDateHistogramToUnixTimestamp(tt.missing)
+			gotUnixTs, gotParsingSucceeded := dm.parseStrictDateOptionalTimeOrEpochMillis(tt.missing)
 			assert.Equalf(t, tt.wantUnixTimestamp, gotUnixTs, "MissingInDateHistogramToUnixTimestamp(%v)", tt.missing)
 			assert.Equalf(t, tt.wantParsingSucceeded, gotParsingSucceeded, "MissingInDateHistogramToUnixTimestamp(%v)", tt.missing)
 		})

@@ -1,9 +1,13 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
+
 package testcases
 
 import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
@@ -14,9 +18,14 @@ import (
 	"time"
 )
 
-// InternalDockerHost (`host.testcontainers.internal`) doesn't work for Docker Desktop for Mac.
-const InternalDockerHost = "host.docker.internal"
 const configTemplatesDir = "configs"
+
+func GetInternalDockerHost() string {
+	if check := os.Getenv("EXECUTING_ON_GITHUB_CI"); check != "" {
+		return "localhost-for-github-ci"
+	}
+	return "host.docker.internal" // `host.testcontainers.internal` doesn't work for Docker Desktop for Mac.
+}
 
 type Containers struct {
 	Elasticsearch *testcontainers.Container
@@ -52,8 +61,13 @@ func setupElasticsearch(ctx context.Context) (testcontainers.Container, error) {
 			"ELASTIC_PASSWORD":       "quesmaquesma",
 			"ES_JAVA_OPTS":           "-Xms1024m -Xmx1024m",
 		},
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = []string{"localhost-for-github-ci:host-gateway"}
+		},
 		HostAccessPorts: []int{9200, 9300},
-		WaitingFor:      wait.ForListeningPort("9200/tcp"),
+		WaitingFor: wait.ForHTTP("/").WithPort("9200").
+			WithBasicAuth("elastic", "quesmaquesma").
+			WithStartupTimeout(2 * time.Minute),
 	}
 	elasticsearch, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
@@ -64,8 +78,11 @@ func setupElasticsearch(ctx context.Context) (testcontainers.Container, error) {
 	}
 
 	// Set password to Kibana system user
-	if retCode, _, err := elasticsearch.Exec(ctx, []string{"curl", "-H", "Content-type: application/json", "-k", "-u", "elastic:quesmaquesma", "http://localhost:9200/_security/user/kibana_system/_password", "-d", "{\"password\": \"kibanana\"}"}); retCode != 0 || err != nil {
-		panic(fmt.Sprintf("Failed to set password for kibana_system: returned=[%d] err=[%s]", retCode, err))
+	if retCode, reader, errCmd := elasticsearch.Exec(ctx, []string{"curl", "-H", "Content-type: application/json", "-k", "-u", "elastic:quesmaquesma", "http://0.0.0.0:9200/_security/user/kibana_system/_password", "-d", "{\"password\": \"kibanana\"}"}); retCode != 0 || errCmd != nil {
+		output := new(bytes.Buffer)
+		output.ReadFrom(reader)
+		log.Printf("Command output: %s", output.String())
+		panic(fmt.Sprintf("Failed to set password for kibana_system: returned=[%d] err=[%v]", retCode, errCmd))
 	}
 
 	return elasticsearch, nil
@@ -81,12 +98,17 @@ func setupQuesma(ctx context.Context, quesmaConfig string) (testcontainers.Conta
 		return nil, err
 	}
 	quesmaReq := testcontainers.ContainerRequest{
-		Image:        "quesma/quesma:latest",
+		Image:        "quesma/quesma:nightly",
 		ExposedPorts: []string{"9999/tcp", "8080/tcp"},
 		Env: map[string]string{
 			"QUESMA_CONFIG_FILE": "/configuration/conf.yaml",
 		},
-		WaitingFor: wait.ForExposedPort().WithStartupTimeout(2 * time.Minute),
+		WaitingFor: wait.ForHTTP("/").WithPort("8080").
+			WithBasicAuth("elastic", "quesmaquesma").
+			WithStartupTimeout(2 * time.Minute),
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = []string{"localhost-for-github-ci:host-gateway"}
+		},
 		Files: []testcontainers.ContainerFile{
 			{
 				Reader:            r,
@@ -118,12 +140,15 @@ func setupKibana(ctx context.Context, quesmaContainer testcontainers.Container) 
 		Image:        "docker.elastic.co/kibana/kibana:8.11.1",
 		ExposedPorts: []string{"5601/tcp"},
 		Env: map[string]string{
-			"ELASTICSEARCH_HOSTS":                       fmt.Sprintf("[\"%s\"]", fmt.Sprintf("http://%s:%s", InternalDockerHost, port.Port())),
+			"ELASTICSEARCH_HOSTS":                       fmt.Sprintf("[\"%s\"]", fmt.Sprintf("http://%s:%s", GetInternalDockerHost(), port.Port())),
 			"XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY": "QUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMA",
 			"ELASTICSEARCH_SSL_VERIFICATIONMODE":        "none",
 			"ELASTICSEARCH_USERNAME":                    "kibana_system",
 			"ELASTICSEARCH_PASSWORD":                    "kibanana",
 			"XPACK_SECURITY_ENABLED":                    "true",
+		},
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = []string{"localhost-for-github-ci:host-gateway"}
 		},
 		WaitingFor: wait.ForLog("http server running at").WithStartupTimeout(4 * time.Minute),
 	}
@@ -141,7 +166,10 @@ func setupClickHouse(ctx context.Context) (testcontainers.Container, error) {
 	req := testcontainers.ContainerRequest{
 		Image:        "clickhouse/clickhouse-server:24.5.3.5-alpine",
 		ExposedPorts: []string{"8123/tcp", "9000/tcp"},
-		WaitingFor:   wait.ForExposedPort().WithStartupTimeout(2 * time.Minute),
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = []string{"localhost-for-github-ci:host-gateway"}
+		},
+		WaitingFor: wait.ForExposedPort().WithStartupTimeout(2 * time.Minute),
 	}
 	clickhouse, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
@@ -183,7 +211,7 @@ func setupContainersForTransparentProxy(ctx context.Context, quesmaConfigTemplat
 
 	esPort, _ := elasticsearch.MappedPort(ctx, "9200/tcp")
 	data := map[string]string{
-		"elasticsearch_host": InternalDockerHost,
+		"elasticsearch_host": GetInternalDockerHost(),
 		"elasticsearch_port": esPort.Port(),
 	}
 	if err := RenderQuesmaConfig(quesmaConfigTemplate, data); err != nil {
@@ -222,23 +250,23 @@ func setupAllContainersWithCh(ctx context.Context, quesmaConfigTemplate string) 
 	chPort, _ := clickhouse.MappedPort(ctx, "9000/tcp")
 
 	data := map[string]string{
-		"elasticsearch_host": InternalDockerHost,
+		"elasticsearch_host": GetInternalDockerHost(),
 		"elasticsearch_port": esPort.Port(),
-		"clickhouse_host":    InternalDockerHost,
+		"clickhouse_host":    GetInternalDockerHost(),
 		"clickhouse_port":    chPort.Port(),
 	}
 	if err := RenderQuesmaConfig(quesmaConfigTemplate, data); err != nil {
-		log.Fatalf("Failed to render Quesma config: %s", err)
+		log.Fatalf("Failed to render Quesma config: %v", err)
 	}
 
 	quesma, err := setupQuesma(ctx, quesmaConfigTemplate)
 	if err != nil {
-		println(err)
+		log.Fatalf("Failed to start Quesma, %v", err)
 	}
 
 	kibana, err := setupKibana(ctx, quesma)
 	if err != nil {
-		log.Fatalf("Failed to start Kibana container: %s", err)
+		log.Fatalf("Failed to start Kibana container: %v", err)
 	}
 
 	return &Containers{

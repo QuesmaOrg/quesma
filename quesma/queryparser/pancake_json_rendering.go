@@ -36,7 +36,6 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 		}
 		return []model.QueryResultRow{newRow}
 	}
-	logger.ErrorWithCtx(p.ctx).Msgf("no rows in selectMetricRows %s", metricName)
 	return
 }
 
@@ -236,7 +235,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		default:
 			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
 		}
-		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows)
+		if metric.name != PancakeTotalCountMetricName {
+			result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows)
+		}
 		// TODO: maybe add metadata also here? probably not needed
 	}
 
@@ -253,8 +254,34 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			if err != nil {
 				return nil, err
 			}
+			if layer.nextBucketAggregation.metadata != nil {
+				json["meta"] = layer.nextBucketAggregation.metadata
+			}
 			result[layer.nextBucketAggregation.name] = json
 			return result, nil
+		}
+
+		hasSubaggregations := len(remainingLayers) > 1
+		var nextLayer *pancakeModelLayer
+		if hasSubaggregations {
+			// If we have pipeline parent aggregation, we need to *always* set min_doc_count to 0 in the parent bucket aggregation
+			// Important to do that early, before processing it after this if.
+			nextLayer = remainingLayers[1]
+			anyPipelineParentAggregation := false
+			for _, pipeline := range nextLayer.childrenPipelineAggregations {
+				if pipeline.queryType.PipelineAggregationType() == model.PipelineParentAggregation {
+					anyPipelineParentAggregation = true
+					break
+				}
+			}
+			if anyPipelineParentAggregation {
+				switch parentBucketAggreagation := layer.nextBucketAggregation.queryType.(type) {
+				case *bucket_aggregations.DateHistogram:
+					parentBucketAggreagation.SetMinDocCountToZero()
+				case *bucket_aggregations.Histogram:
+					parentBucketAggreagation.SetMinDocCountToZero()
+				}
+			}
 		}
 
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
@@ -270,9 +297,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			return result, nil
 		}
 
-		hasSubaggregations := len(remainingLayers) > 1
 		if hasSubaggregations {
-			nextLayer := remainingLayers[1]
 			pipelineBucketsPerAggregation := p.pipeline.currentPipelineBucketAggregations(layer, nextLayer, bucketRows, subAggrRows)
 
 			// Add subAggregations (both normal and pipeline)
@@ -288,11 +313,6 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 				for i, bucket := range bucketArr {
 					for pipelineAggrName, pipelineAggrResult := range pipelineBucketsPerAggregation {
 						bucketArr[i][pipelineAggrName] = pipelineAggrResult[i]
-					}
-
-					if docCount, ok := bucket["doc_count"]; ok && fmt.Sprintf("%v", docCount) == "0" {
-						// Not sure, but it does the trick.
-						continue
 					}
 
 					subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[i])
@@ -311,11 +331,6 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						bucketArr[i][pipelineAggrName] = pipelineAggrResult[i]
 					}
 
-					if docCount, ok := bucket["doc_count"]; ok && fmt.Sprintf("%v", docCount) == "0" {
-						// Not sure, but it does the trick.
-						continue
-					}
-
 					// if our bucket aggregation is a date_histogram, we need original key, not processed one, which is "key"
 					key, exists := bucket[bucket_aggregations.OriginalKeyName]
 					if !exists {
@@ -324,20 +339,33 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 							return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
 						}
 					}
+					var (
+						columnNameWithKey        = layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
+						found                    bool
+						subAggrKey               any
+						currentBucketSubAggrRows []model.QueryResultRow
+					)
+					if subAggrIdx < len(subAggrRows) {
+						subAggrKey, found = p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
+					}
 
-					columnNameWithKey := layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
-					subAggrKey, found := p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
 					if found && subAggrKey == key {
-						subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[subAggrIdx])
-						if err != nil {
-							return nil, err
-						}
-						bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
+						currentBucketSubAggrRows = subAggrRows[subAggrIdx]
 						subAggrIdx++
 					} else {
-						bucketArr[i] = bucket
+						currentBucketSubAggrRows = []model.QueryResultRow{}
 					}
+
+					subAggr, err := p.layerToJSON(remainingLayers[1:], currentBucketSubAggrRows)
+					if err != nil {
+						return nil, err
+					}
+					bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
 				}
+			}
+
+			for i := 0; i < len(bucketArr); i++ {
+				delete(bucketArr[i], bucket_aggregations.OriginalKeyName)
 			}
 		}
 
@@ -346,6 +374,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		}
 		result[layer.nextBucketAggregation.name] = buckets
 	}
+
 	return result, nil
 }
 

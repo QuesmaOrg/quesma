@@ -88,3 +88,7 @@ func (query AverageBucket) calculateSingleAvgBucket(parentRows []model.QueryResu
 func (query AverageBucket) String() string {
 	return fmt.Sprintf("avg_bucket(%s)", query.Parent)
 }
+
+func (query AverageBucket) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineSiblingAggregation
+}

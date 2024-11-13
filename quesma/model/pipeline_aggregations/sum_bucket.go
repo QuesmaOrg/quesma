@@ -121,3 +121,7 @@ func (query SumBucket) calculateSingleSumBucket(parentRows []model.QueryResultRo
 func (query SumBucket) String() string {
 	return fmt.Sprintf("sum_bucket(%s)", query.Parent)
 }
+
+func (query SumBucket) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineSiblingAggregation
+}

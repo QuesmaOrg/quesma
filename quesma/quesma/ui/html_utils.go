@@ -18,7 +18,7 @@ func generateSimpleTop(title string) []byte {
 	return buffer.Bytes()
 }
 
-func generateTopNavigation(target string) []byte {
+func (qmc *QuesmaManagementConsole) generateTopNavigation(target string) []byte {
 	var buffer builder.HtmlBuffer
 	buffer.Html(`<div class="topnav">` + "\n")
 	buffer.Html(`<div class="topnav-menu">` + "\n")
@@ -35,6 +35,12 @@ func generateTopNavigation(target string) []byte {
 		buffer.Html(` class="active"`)
 	}
 	buffer.Html(`><a href="/live">Live tail</a></li>`)
+	buffer.Html("<li")
+
+	if target == "table_resolver" {
+		buffer.Html(` class="active"`)
+	}
+	buffer.Html(`><a href="/table_resolver">Resolver</a></li>`)
 	buffer.Html("<li")
 
 	if target == "statistics" {
@@ -71,10 +77,22 @@ func generateTopNavigation(target string) []byte {
 	}
 	buffer.Html(`><a href="/data-sources">Data sources</a></li>`)
 
+	buffer.Html("<li")
+	if target == "ab-testing-dashboard" {
+		buffer.Html(` class="active"`)
+	}
+	buffer.Html(`><a title="Compatibility Report" href="`)
+	buffer.Html(abTestingPath)
+	buffer.Html(`">CR</a></li>`)
+
+	if qmc.isAuthEnabled {
+		buffer.Html(`<li><a href="/logout">Logout</a></li>`)
+	}
+
 	buffer.Html("\n</ul>\n")
 	buffer.Html("\n</div>\n")
 
-	if target != "tables" && target != "telemetry" {
+	if target != "tables" && target != "telemetry" && target != "table_resolver" && target != "ab-testing-dashboard" {
 		buffer.Html(`<div class="autorefresh-box">` + "\n")
 		buffer.Html(`<div class="autorefresh">`)
 		buffer.Html(fmt.Sprintf(

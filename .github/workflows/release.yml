@@ -13,7 +13,7 @@ permissions:
   contents: write  # To be able to create a release via GitHub API
 
 jobs:
-  build-quesma-docker-image:
+  build-quesma-docker-image: # based on nightly-docker-build-and-push.yml, but heavily modified
     strategy:
       matrix:
         module: [ "quesma" ]
@@ -40,7 +40,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           cache-dependency-path: ${{ matrix.module }}/go.sum
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Login to GCR (only for build running on `main` branch)
         uses: docker/login-action@v3

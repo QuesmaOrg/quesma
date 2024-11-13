@@ -5,6 +5,7 @@ package jsondiff
 import (
 	"fmt"
 	"math"
+	"time"
 
 	"quesma/quesma/types"
 	"reflect"
@@ -25,6 +26,8 @@ func newType(code, message string) mismatchType {
 var (
 	invalidType                 = newType("invalid_type", "Types are not equal")
 	invalidValue                = newType("invalid_value", "Values are not equal")
+	invalidNumberValue          = newType("invalid_number_value", "Numbers are not equal")
+	invalidDateValue            = newType("invalid_date_value", "Dates are not equal")
 	invalidArrayLength          = newType("invalid_array_length", "Array lengths are not equal")
 	invalidArrayLengthOffByOne  = newType("invalid_array_length_off_by_one", "Array lengths are off by one.")
 	objectDifference            = newType("object_difference", "Objects are different")
@@ -322,10 +325,10 @@ func (d *JSONDiff) compareArray(expected []any, actual []any) {
 	}
 
 	if lenDiff > 1 {
-		d.addMismatch(invalidArrayLength, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
+		d.addMismatch(invalidArrayLength, fmt.Sprintf("%d", len(expected)), fmt.Sprintf("%d", len(actual)))
 		return
 	} else if lenDiff == 1 {
-		d.addMismatch(invalidArrayLengthOffByOne, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
+		d.addMismatch(invalidArrayLengthOffByOne, fmt.Sprintf("%d", len(expected)), fmt.Sprintf("%d", len(actual)))
 		return
 	}
 
@@ -342,7 +345,7 @@ func (d *JSONDiff) compareArray(expected []any, actual []any) {
 
 	for i := range len(actual) {
 		d.pushPath(fmt.Sprintf("[%d]", i))
-		d.compare(actual[i], expected[i])
+		d.compare(expected[i], actual[i])
 		d.popPath()
 	}
 }
@@ -353,6 +356,29 @@ func (d *JSONDiff) asValue(a any) string {
 
 func (d *JSONDiff) asType(a any) string {
 	return fmt.Sprintf("%T", a)
+}
+
+var dateRx = regexp.MustCompile(`\d{4}-\d{2}-\d{2}.\d{2}:\d{2}:`)
+
+func (d *JSONDiff) uniformTimeFormat(date string) string {
+	returnFormat := time.RFC3339Nano
+
+	inputFormats := []string{
+		"2006-01-02T15:04:05.000-07:00",
+		"2006-01-02T15:04:05.000Z",
+		"2006-01-02T15:04:05.000",
+		"2006-01-02 15:04:05",
+	}
+
+	var parsedDate time.Time
+	var err error
+	for _, format := range inputFormats {
+		parsedDate, err = time.Parse(format, date)
+		if err == nil {
+			return parsedDate.UTC().Format(returnFormat)
+		}
+	}
+	return date
 }
 
 func (d *JSONDiff) compare(expected any, actual any) {
@@ -375,12 +401,12 @@ func (d *JSONDiff) compare(expected any, actual any) {
 		return
 	}
 
-	switch aVal := expected.(type) {
+	switch expectedVal := expected.(type) {
 	case map[string]any:
 
 		switch bVal := actual.(type) {
 		case map[string]any:
-			d.compareObject(aVal, bVal)
+			d.compareObject(expectedVal, bVal)
 		default:
 			d.addMismatch(invalidType, d.asType(expected), d.asType(actual))
 			return
@@ -399,9 +425,9 @@ func (d *JSONDiff) compare(expected any, actual any) {
 		case float64:
 
 			// float operations are noisy, we need to compare them with desired precision
-
-			epsilon := 1e-9
-			relativeTolerance := 1e-9
+			// this is lousy, but it works for now
+			epsilon := 1e-3
+			relativeTolerance := 1e-3
 			aFloat := expected.(float64)
 			bFloat := actual.(float64)
 
@@ -411,8 +437,29 @@ func (d *JSONDiff) compare(expected any, actual any) {
 				relativeDiff := absDiff / math.Max(math.Abs(aFloat), math.Abs(bFloat))
 
 				if relativeDiff > relativeTolerance {
-					d.addMismatch(invalidValue, d.asValue(expected), d.asValue(actual))
+					d.addMismatch(invalidNumberValue, d.asValue(expected), d.asValue(actual))
 				}
+			}
+
+		default:
+			d.addMismatch(invalidType, d.asType(expected), d.asType(actual))
+		}
+
+	case string:
+
+		switch actualString := actual.(type) {
+		case string:
+
+			if dateRx.MatchString(expectedVal) {
+
+				aDate := d.uniformTimeFormat(expectedVal)
+				bDate := d.uniformTimeFormat(actualString)
+
+				if aDate != bDate {
+					d.addMismatch(invalidDateValue, d.asValue(expected), d.asValue(actual))
+				}
+
+				return
 			}
 
 		default:

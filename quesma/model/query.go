@@ -35,6 +35,13 @@ const (
 	UnknownAggregation
 )
 
+type PipelineAggregationType int
+
+const (
+	PipelineParentAggregation PipelineAggregationType = iota
+	PipelineSiblingAggregation
+)
+
 func (s AggregationType) String() string {
 	return [...]string{"BucketAggregation", "MetricsAggregation", "PipelineMetricsAggregation",
 		"PipelineBucketAggregation", "TypicalAggregation", "UnknownAggregation"}[s]

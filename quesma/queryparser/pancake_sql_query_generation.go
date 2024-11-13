@@ -3,6 +3,7 @@
 package queryparser
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/k0kubun/pp"
@@ -14,6 +15,11 @@ import (
 )
 
 type pancakeSqlQueryGenerator struct {
+	ctx context.Context
+}
+
+func newPancakeSqlQueryGeneratorr(ctx context.Context) *pancakeSqlQueryGenerator {
+	return &pancakeSqlQueryGenerator{ctx: ctx}
 }
 
 func (p *pancakeSqlQueryGenerator) aliasedExprArrayToExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
@@ -117,7 +123,7 @@ func (p *pancakeSqlQueryGenerator) addPotentialParentCount(bucketAggregation *pa
 	return []model.AliasedExpr{}
 }
 
-func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (
+func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(query *pancakeModel, bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (
 	addSelectColumns, addGroupBys, addRankColumns []model.AliasedExpr, addRankWheres []model.Expr, addRankOrderBys []model.OrderByExpr, err error) {
 
 	// For some group by such as terms, we need total count. We add it in this method.
@@ -142,7 +148,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 	countAliasedColumn := model.NewAliasedExpr(countColumn, bucketAggregation.InternalNameForCount())
 	addSelectColumns = append(addSelectColumns, countAliasedColumn)
 
-	if bucketAggregation.orderBy != nil && len(bucketAggregation.orderBy) > 0 {
+	if len(bucketAggregation.orderBy) > 0 {
 		rankOrderBy := make([]model.OrderByExpr, 0)
 
 		for i, orderBy := range bucketAggregation.orderBy {
@@ -156,19 +162,26 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 				if direction == model.DefaultOrder {
 					direction = model.AscOrder // primarily needed for tests
 				}
-			} else { // we need new columns for rank
-				orderByExpr := orderBy.Expr
-				if hasMoreBucketAggregations {
-					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderByExpr, nil)
-					if err != nil {
-						return nil, nil, nil, nil, nil, err
+			} else {
+				transformer := newPancakeOrderByTransformer(p.ctx)
+				rankColumn = transformer.transformSingleOrderBy(orderBy.Expr, bucketAggregation, query)
+
+				if rankColumn == nil {
+					// we need new columns for rank
+					orderByExpr := orderBy.Expr
+					_, orderByAlreadyDone := orderByExpr.(model.ColumnRef)
+					if !orderByAlreadyDone && hasMoreBucketAggregations {
+						partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderByExpr, nil)
+						if err != nil {
+							return nil, nil, nil, nil, nil, err
+						}
+						orderByExpr = model.NewWindowFunction(aggFunctionName, []model.Expr{partColumn},
+							p.generatePartitionBy(append(groupByColumns, addGroupBys...)), []model.OrderByExpr{})
 					}
-					orderByExpr = model.NewWindowFunction(aggFunctionName, []model.Expr{partColumn},
-						p.generatePartitionBy(append(groupByColumns, addGroupBys...)), []model.OrderByExpr{})
+					aliasedExpr := model.NewAliasedExpr(orderByExpr, bucketAggregation.InternalNameForOrderBy(columnId))
+					addSelectColumns = append(addSelectColumns, aliasedExpr)
+					rankColumn = &aliasedExpr
 				}
-				aliasedExpr := model.NewAliasedExpr(orderByExpr, bucketAggregation.InternalNameForOrderBy(columnId))
-				addSelectColumns = append(addSelectColumns, aliasedExpr)
-				rankColumn = &aliasedExpr
 			}
 			rankOrderBy = append(rankOrderBy, model.NewOrderByExpr(rankColumn.AliasRef(), direction))
 		}
@@ -280,7 +293,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	addIfCombinators := make([]addIfCombinator, 0)
 	var optTopHitsOrMetrics *pancakeModelMetricAggregation
 
-	for _, layer := range aggregation.layers {
+	for i, layer := range aggregation.layers {
 		for _, metric := range layer.currentMetricAggregations {
 			switch metric.queryType.(type) {
 			case *metrics_aggregations.TopMetrics, *metrics_aggregations.TopHits:
@@ -297,7 +310,15 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 
 		if layer.nextBucketAggregation != nil {
 			if combinator, isCombinator := layer.nextBucketAggregation.queryType.(bucket_aggregations.CombinatorAggregationInterface); isCombinator {
-				addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), combinator})
+				var isFilter bool
+				switch combinator.(type) {
+				case *bucket_aggregations.FilterAgg, bucket_aggregations.Filters:
+					isFilter = true
+				}
+				filterAlreadyInWhereClause := i == 0 && len(aggregation.layers) > 1 && len(layer.currentMetricAggregations) == 0 && len(layer.currentPipelineAggregations) == 0
+				if !isFilter || !filterAlreadyInWhereClause {
+					addIfCombinators = append(addIfCombinators, addIfCombinator{len(selectColumns), combinator})
+				}
 			}
 
 			if layer.nextBucketAggregation.DoesHaveGroupBy() {
@@ -305,7 +326,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			}
 			hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
 			addSelectColumns, addGroupBys, addRankColumns, addRankWheres, addRankOrderBys, err :=
-				p.generateBucketSqlParts(layer.nextBucketAggregation, groupBys, hasMoreBucketAggregations)
+				p.generateBucketSqlParts(aggregation, layer.nextBucketAggregation, groupBys, hasMoreBucketAggregations)
 			if err != nil {
 				return nil, "", err
 			}

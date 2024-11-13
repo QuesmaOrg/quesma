@@ -240,40 +240,23 @@ func (a *pancakeTransformer) aggregationChildrenToLayers(aggrNames []string, chi
 }
 
 func (a *pancakeTransformer) checkIfSupported(layers []*pancakeModelLayer) error {
-	// for now we support filter only as last bucket aggregation
-	for layerIdx, layer := range layers {
-		if layer.nextBucketAggregation != nil {
-			switch layer.nextBucketAggregation.queryType.(type) {
-			case bucket_aggregations.CombinatorAggregationInterface:
-				for _, followingLayer := range layers[layerIdx+1:] {
-					bucket := followingLayer.nextBucketAggregation
-					if bucket != nil {
-						switch bucket.queryType.(type) {
-						case *bucket_aggregations.DateHistogram:
-							continue // histogram are fine
-						case bucket_aggregations.CombinatorAggregationInterface:
-							continue // we also support nested filters/range/dataRange
-						default:
-							return fmt.Errorf("filter(s)/range/dataRange aggregation must be the last bucket aggregation")
-						}
-					}
-				}
-			}
-		}
-	}
+	// Let's say we support everything. That'll be true when I add support for filters/date_range/range in the middle of aggregation tree (@trzysiek)
+	// Erase this function by then.
 	return nil
 }
 
 func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelLayer) {
 	for i, layer := range layers {
 		for _, pipeline := range layer.currentPipelineAggregations {
-			parentBucketLayer, err := a.findParentBucketLayer(layers[i:], pipeline.queryType)
+			parentBucketLayer, layerIdx, err := a.findParentBucketLayer(layers[i:], pipeline.queryType)
 			if err != nil {
 				logger.WarnWithCtx(a.ctx).Err(err).Msg("could not find parent bucket layer")
 				continue
 			}
-			if parentBucketLayer.nextBucketAggregation != nil {
-				pipeline.queryType.SetParentBucketAggregation(parentBucketLayer.nextBucketAggregation.queryType)
+
+			parentBucketLayerIdx := i + layerIdx
+			if parentBucketLayerIdx > 0 {
+				pipeline.queryType.SetParentBucketAggregation(layers[parentBucketLayerIdx-1].nextBucketAggregation.queryType)
 			}
 			parentBucketLayer.childrenPipelineAggregations = append(parentBucketLayer.childrenPipelineAggregations, pipeline)
 		}
@@ -281,22 +264,24 @@ func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelL
 }
 
 // returns nil if no parent bucket layer found
+
 func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, queryType model.QueryType) (
-	parentBucketLayer *pancakeModelLayer, err error) {
+	parentBucketLayer *pancakeModelLayer, layerIdx int, err error) {
 
 	pipeline, ok := queryType.(model.PipelineQueryType)
 	if !ok {
-		return nil, fmt.Errorf("query type is not pipeline aggregation")
+		return nil, -1, fmt.Errorf("query type is not pipeline aggregation")
 	}
 
 	layer := layers[0]
 	for i, aggrName := range pipeline.GetPathToParent() {
 		layer = layers[i]
 		if layer.nextBucketAggregation == nil || layer.nextBucketAggregation.name != aggrName {
-			return nil, fmt.Errorf("could not find parent bucket layer")
+			return nil, -1, fmt.Errorf("could not find parent bucket layer")
 		}
 	}
-	return layer, nil
+
+	return layer, len(pipeline.GetPathToParent()), nil
 }
 
 func (a *pancakeTransformer) createTopHitAndTopMetricsPancakes(pancake *pancakeModel) (result []*pancakeModel, err error) {
@@ -370,8 +355,25 @@ func (a *pancakeTransformer) createTopHitAndTopMetricsPancakes(pancake *pancakeM
 	return
 }
 
+// Auto date histogram is a date histogram, that automatically creates buckets based on time range.
+// To do that we need parse WHERE clause which happens in this method.
+func (a *pancakeTransformer) transformAutoDateHistogram(layers []*pancakeModelLayer, whereClause model.Expr) {
+	for _, layer := range layers {
+		if layer.nextBucketAggregation != nil {
+			if autoDateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.AutoDateHistogram); ok {
+				if tsLowerBound, found := model.FindTimestampLowerBound(autoDateHistogram.GetField(), whereClause); found {
+					autoDateHistogram.SetKey(tsLowerBound)
+				} else {
+					logger.WarnWithCtx(a.ctx).Msgf("could not find timestamp lower bound (field: %v, where clause: %v)",
+						autoDateHistogram.GetField(), whereClause)
+				}
+			}
+		}
+	}
+}
+
 func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregationTree) (pancakeResults []*pancakeModel, err error) {
-	if topLevel.children == nil || len(topLevel.children) == 0 {
+	if len(topLevel.children) == 0 {
 		return nil, fmt.Errorf("no top level aggregations found")
 	}
 
@@ -394,22 +396,60 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		}
 
 		a.connectPipelineAggregations(layers)
+		a.transformAutoDateHistogram(layers, topLevel.whereClause)
 
 		newPancake := pancakeModel{
 			layers:      layers,
 			whereClause: topLevel.whereClause,
 			sampleLimit: sampleLimit,
 		}
-
 		pancakeResults = append(pancakeResults, &newPancake)
 
+		// TODO: if both top_hits/top_metrics, and filters, it probably won't work...
+		// Care: order of these two functions is unfortunately important.
+		// Should be fixed after this TODO
+		newFiltersPancakes := a.createFiltersPancakes(&newPancake)
 		additionalTopHitPancakes, err := a.createTopHitAndTopMetricsPancakes(&newPancake)
 		if err != nil {
 			return nil, err
 		}
 
 		pancakeResults = append(pancakeResults, additionalTopHitPancakes...)
+		pancakeResults = append(pancakeResults, newFiltersPancakes...)
 	}
+
+	return
+}
+
+// createFiltersPancakes only does something, if first layer aggregation is Filters.
+// It creates new pancakes for each filter in that aggregation, and updates `pancake` to have only first filter.
+func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (newPancakes []*pancakeModel) {
+	if len(pancake.layers) == 0 || pancake.layers[0].nextBucketAggregation == nil {
+		return
+	}
+
+	firstLayer := pancake.layers[0]
+	filters, isFilters := firstLayer.nextBucketAggregation.queryType.(bucket_aggregations.Filters)
+	canSimplyAddFilterToWhereClause := len(firstLayer.currentMetricAggregations) == 0 && len(firstLayer.currentPipelineAggregations) == 0
+	areNewPancakesReallyNeeded := len(pancake.layers) > 1 // if there is only one layer, it's better to get it done with combinators.
+
+	if !isFilters || !canSimplyAddFilterToWhereClause || !areNewPancakesReallyNeeded || len(filters.Filters) == 0 {
+		return
+	}
+
+	// First create N-1 new pancakes, each with different filter
+	for i := 1; i < len(filters.Filters); i++ {
+		newPancake := pancake.Clone()
+		bucketAggr := newPancake.layers[0].nextBucketAggregation.ShallowClone()
+		bucketAggr.queryType = filters.NewFiltersSingleFilter(i)
+		newPancake.layers[0] = newPancakeModelLayer(&bucketAggr)
+		newPancake.whereClause = model.And([]model.Expr{newPancake.whereClause, filters.Filters[i].Sql.WhereClause})
+		newPancakes = append(newPancakes, newPancake)
+	}
+
+	// Then update original to have 1 filter as well
+	pancake.layers[0].nextBucketAggregation.queryType = filters.NewFiltersSingleFilter(0)
+	pancake.whereClause = model.And([]model.Expr{pancake.whereClause, filters.Filters[0].Sql.WhereClause})
 
 	return
 }

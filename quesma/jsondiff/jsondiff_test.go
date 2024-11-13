@@ -4,6 +4,7 @@ package jsondiff
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/k0kubun/pp"
 
@@ -39,7 +40,7 @@ func TestJSONDiff(t *testing.T) {
 			name:     "Test 2",
 			expected: `{"a": 1, "b": 2, "c": 3}`,
 			actual:   `{"a": 1, "b": 3, "c": 3}`,
-			problems: []JSONMismatch{mismatch("b", invalidValue)},
+			problems: []JSONMismatch{mismatch("b", invalidNumberValue)},
 		},
 
 		{
@@ -67,7 +68,7 @@ func TestJSONDiff(t *testing.T) {
 			name:     "array element difference",
 			expected: `{"a": [1, 2, 3], "b": 2, "c": 3}`,
 			actual:   `{"a": [1, 2, 4], "b": 2, "c": 3}`,
-			problems: []JSONMismatch{mismatch("a.[2]", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.[2]", invalidNumberValue)},
 		},
 
 		{
@@ -81,28 +82,28 @@ func TestJSONDiff(t *testing.T) {
 			name:     "object difference",
 			expected: `{"a": {"b": 1}, "c": 3}`,
 			actual:   `{"a": {"b": 2}, "c": 3}`,
-			problems: []JSONMismatch{mismatch("a.b", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.b", invalidNumberValue)},
 		},
 
 		{
 			name:     "deep path difference",
 			expected: `{"a": {"d": {"b": 1}}, "c": 3}`,
 			actual:   `{"a": {"d": {"b": 2}}, "c": 3}`,
-			problems: []JSONMismatch{mismatch("a.d.b", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.d.b", invalidNumberValue)},
 		},
 
 		{
 			name:     "deep path difference",
 			expected: `{"a": {"d": {"b": 1}}, "c": 3, "_ignore": 1}`,
 			actual:   `{"a": {"d": {"b": 2}}, "c": 3}`,
-			problems: []JSONMismatch{mismatch("a.d.b", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.d.b", invalidNumberValue)},
 		},
 
 		{
 			name:     "array sort difference ",
 			expected: `{"a": [1, 2, 3], "b": 2, "c": 3}`,
 			actual:   `{"a": [1, 3, 2], "b": 2, "c": 3}`,
-			problems: []JSONMismatch{mismatch("a.[1]", invalidValue), mismatch("a.[2]", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.[1]", invalidNumberValue), mismatch("a.[2]", invalidNumberValue)},
 		},
 
 		{
@@ -118,10 +119,36 @@ func TestJSONDiff(t *testing.T) {
 			actual:   `{"bar": [5, 2, 4, 3, 1, -1], "b": 2, "c": 3}`,
 			problems: []JSONMismatch{mismatch("bar", arrayKeysDifferenceSlightly)},
 		},
+		{
+			name:     "dates",
+			expected: `{"a": "2021-01-01T00:00:00.000Z"}`,
+			actual:   `{"a": "2021-01-01T00:00:00.001Z"}`,
+			problems: []JSONMismatch{mismatch("a", invalidDateValue)},
+		},
+		{
+			name:     "dates 2",
+			expected: `{"a": "2021-01-01T00:00:00.000Z"}`,
+			actual:   `{"a": "2021-01-01T00:00:00.000"}`,
+			problems: []JSONMismatch{},
+		},
+		{
+			name:     "dates 3",
+			expected: `{"a": "2024-10-24T10:00:00.000"}`,
+			actual:   `{"a": "2024-10-24T12:00:00.000+02:00"}`,
+		},
+		{
+			name:     "dates 4",
+			expected: `{"a": "2024-10-31T11:00:00.000"}`,
+			actual:   `{"a": "2024-10-31T12:00:00.000+01:00"}`,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
+			if strings.HasPrefix(tt.name, "SKIP") {
+				return
+			}
 
 			diff, err := NewJSONDiff("_ignore")
 			if err != nil {

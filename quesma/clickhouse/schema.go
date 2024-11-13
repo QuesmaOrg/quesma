@@ -203,7 +203,7 @@ type UnknownType struct{}
 
 func ResolveType(clickHouseTypeName string) reflect.Type {
 	switch clickHouseTypeName {
-	case "String", "LowCardinality(String)", "UUID":
+	case "String", "LowCardinality(String)", "UUID", "FixedString":
 		return reflect.TypeOf("")
 	case "DateTime64", "DateTime", "Date", "DateTime64(3)":
 		return reflect.TypeOf(time.Time{})

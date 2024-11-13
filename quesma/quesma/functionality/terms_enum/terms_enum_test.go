@@ -18,6 +18,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/tracing"
 	"quesma/util"
@@ -80,8 +81,8 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 		},
 		Created: true,
 	}
-
-	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+	tableResolver := table_resolver.NewEmptyTableResolver()
+	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, tableResolver)
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(testTableName, table))
@@ -108,8 +109,8 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 	}
 	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.TableName(testTableName)]}
 	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
-	expectedQuery1 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE ("epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z') AND "epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z')) LIMIT 13`
-	expectedQuery2 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE ("epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z') AND "epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z')) LIMIT 13`
+	expectedQuery1 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE ("epoch_time">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time"<=fromUnixTimestamp64Milli(1709037659999)) LIMIT 13`
+	expectedQuery2 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE ("epoch_time">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time"<=fromUnixTimestamp64Milli(1709037659999)) LIMIT 13`
 
 	// Once in a while `AND` conditions could be swapped, so we match both cases
 	mock.ExpectQuery(fmt.Sprintf("%s|%s", regexp.QuoteMeta(expectedQuery1), regexp.QuoteMeta(expectedQuery2))).

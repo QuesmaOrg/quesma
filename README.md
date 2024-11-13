@@ -5,7 +5,7 @@
 <p align="center">
 <a href="https://github.com/QuesmaOrg/quesma/actions/workflows/pipeline.yml"><img src="https://github.com/QuesmaOrg/quesma/actions/workflows/pipeline.yml/badge.svg"></a>
 <a href="https://img.shields.io/github/v/release/QuesmaOrg/quesma"><img src="https://img.shields.io/github/v/release/QuesmaOrg/quesma"></a>
-<a href=""><img src="https://img.shields.io/badge/golang-1.22.5-blue" /></a>
+<a href=""><img src="https://img.shields.io/badge/golang-1.23.2-blue" /></a>
 <a href=""><img src="https://img.shields.io/badge/License-Elastic_License_2.0-lightgrey" /></a>
 <a href="https://goreportcard.com/report/github.com/QuesmaOrg/quesma"><img src="https://goreportcard.com/badge/github.com/QuesmaOrg/quesma" /></a>
 </p>
@@ -15,10 +15,10 @@
 <a href="https://www.linkedin.com/company/quesma">LinkedIn</a> | 
 <a href="https://twitter.com/QuesmaOrg">Twitter</a> | 
 <a href="https://www.youtube.com/@QuesmaOrg">YouTube</a> | 
-<a href="https://eap.quesma.com/eap-docs">Docs</a>
+<a href="https://docs.quesma.com/eap-docs">Docs</a>
 </p>
 
-Quesma is an actively developed database gateway currently in pre-alpha Early Access. Route your queries through a translation layer that seamlessly connects your apps with the modern database platforms of your choice. No more query refactoring during migrations.
+Quesma is an actively developed database gateway. Route your queries through a translation layer that seamlessly connects your apps with the modern database platforms of your choice. No more query refactoring during migrations.
 
 How? Isn't migrating to a new database hard? Quesma does it without touching your application/client stack - keeping backward compatibility and moving safely, step-by-step. We translate your queries so you don’t have to rewrite your database query code during migrations.
 
@@ -72,7 +72,7 @@ Once it's running, you can access:
 
 ### Development
 
-Developer documentation is available in the [docs](docs/DEVELOPMENT.MD) directory.
+Developer documentation is available in the [docs](docs/dev/DEVELOPMENT.MD) directory.
 
 ### License
 [Elastic License 2.0](https://github.com/QuesmaOrg/quesma/blob/main/LICENSE.MD)

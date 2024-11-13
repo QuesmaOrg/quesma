@@ -718,6 +718,13 @@ func ExtractNumeric64Maybe(value any) (asFloat64 float64, success bool) {
 	return 0.0, false
 }
 
+// ExtractNumeric64 returns float64 value behind `value`, if it's numeric (some kind of (*)int or (*)float).
+// Returns 0 if `value` is not numeric.
+func ExtractNumeric64(value any) float64 {
+	asFloat64, _ := ExtractNumeric64Maybe(value)
+	return asFloat64
+}
+
 type sqlMockMismatchSql struct {
 	expected string
 	actual   string

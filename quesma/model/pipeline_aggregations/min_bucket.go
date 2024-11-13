@@ -109,3 +109,7 @@ func (query MinBucket) calculateSingleMinBucket(parentRows []model.QueryResultRo
 func (query MinBucket) String() string {
 	return fmt.Sprintf("min_bucket(%s)", query.Parent)
 }
+
+func (query MinBucket) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineSiblingAggregation
+}

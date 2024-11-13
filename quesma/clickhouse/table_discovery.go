@@ -45,7 +45,6 @@ type TableDiscovery interface {
 type tableDiscovery struct {
 	cfg                               *config.QuesmaConfiguration
 	dbConnPool                        *sql.DB
-	tableVerifier                     tableVerifier
 	tableDefinitions                  *atomic.Pointer[TableMap]
 	tableDefinitionsAccessUnixSec     atomic.Int64
 	tableDefinitionsLastReloadUnixSec atomic.Int64
@@ -164,7 +163,6 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 	configuredTables = td.readVirtualTables(configuredTables)
 
 	td.ReloadTablesError = nil
-	td.verify(configuredTables)
 	td.populateTableDefinitions(configuredTables, databaseName, td.cfg)
 }
 
@@ -283,7 +281,8 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]colum
 		} else {
 			maybeTimestampField = td.tableTimestampField(databaseName, table, ClickHouse)
 		}
-		configuredTables[table] = discoveredTable{table, databaseName, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField, true}
+		const isVirtualTable = false
+		configuredTables[table] = discoveredTable{table, databaseName, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField, isVirtualTable}
 
 	}
 	for tableName, table := range configuredTables {
@@ -386,17 +385,6 @@ func (td *tableDiscovery) TableDefinitions() *TableMap {
 		<-doneCh
 	}
 	return td.tableDefinitions.Load()
-}
-
-func (td *tableDiscovery) verify(tables map[string]discoveredTable) {
-	for _, table := range tables {
-		logger.Info().Msgf("verifying table %s", table.name)
-		if correct, violations := td.tableVerifier.verify(table); correct {
-			logger.Debug().Msgf("table %s verified", table.name)
-		} else {
-			logger.Warn().Msgf("table %s verification failed: %s", table.name, violations)
-		}
-	}
 }
 
 func resolveColumn(colName, colType string) *Column {
@@ -536,6 +524,9 @@ func (td *tableDiscovery) readTables(database string) (map[string]map[string]col
 
 	logger.Debug().Msgf("describing tables: %s", database)
 
+	if td.dbConnPool == nil {
+		return map[string]map[string]columnMetadata{}, fmt.Errorf("database connection pool is nil, cannot describe tables")
+	}
 	rows, err := td.dbConnPool.Query("SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
 	if err != nil {
 		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
@@ -603,4 +594,43 @@ func (td *tableDiscovery) createTableQuery(database, table string) (ddl string) 
 		logger.Error().Msgf("could not get table comment: %v", err)
 	}
 	return ddl
+}
+
+type EmptyTableDiscovery struct {
+	TableMap      *TableMap
+	Err           error
+	Autodiscovery bool
+}
+
+func NewEmptyTableDiscovery() *EmptyTableDiscovery {
+	return &EmptyTableDiscovery{
+		TableMap: NewTableMap(),
+	}
+}
+
+func (td *EmptyTableDiscovery) ReloadTableDefinitions() {
+}
+
+func (td *EmptyTableDiscovery) TableDefinitions() *TableMap {
+	return td.TableMap
+}
+
+func (td *EmptyTableDiscovery) TableDefinitionsFetchError() error {
+	return td.Err
+}
+
+func (td *EmptyTableDiscovery) LastAccessTime() time.Time {
+	return time.Now()
+}
+
+func (td *EmptyTableDiscovery) LastReloadTime() time.Time {
+	return time.Now()
+}
+
+func (td *EmptyTableDiscovery) ForceReloadCh() <-chan chan<- struct{} {
+	return make(chan chan<- struct{})
+}
+
+func (td *EmptyTableDiscovery) AutodiscoveryEnabled() bool {
+	return td.Autodiscovery
 }

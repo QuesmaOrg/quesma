@@ -7,7 +7,6 @@ import (
 	"quesma/model"
 	"quesma/quesma/types"
 	"quesma/schema"
-	"quesma/util"
 	"strings"
 )
 
@@ -47,16 +46,19 @@ func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScop
 		scope = scopeWholeMap
 	}
 
-	tableColumnName := util.FieldToColumnEncoder(fieldName)
-	col, ok := v.indexSchema.Fields[schema.FieldName(tableColumnName)]
+	tableColumnName, ok := v.indexSchema.ResolveField(fieldName)
+	if !ok {
+		return false, scope, fieldName
+	}
+	col, ok := v.indexSchema.Fields[schema.FieldName(tableColumnName.InternalPropertyName.AsString())]
 
 	if ok {
 		if strings.HasPrefix(col.InternalPropertyType, "Map") {
-			return true, scope, tableColumnName
+			return true, scope, tableColumnName.InternalPropertyName.AsString()
 		}
 	}
 
-	return false, scope, tableColumnName
+	return false, scope, fieldName
 }
 
 func existsInMap(left model.Expr, op string, mapToArrayFunction string, right model.Expr) model.Expr {

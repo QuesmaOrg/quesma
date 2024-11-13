@@ -49,6 +49,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 			dbType := resolver.dbColumnType(column.ColumnName)
 			if strings.HasPrefix(dbType, "Array") {
 				op := strings.ToUpper(e.Op)
+				op = strings.TrimSpace(op)
 				switch {
 				case (op == "ILIKE" || op == "LIKE") && dbType == "Array(String)":
 
@@ -56,11 +57,11 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 					lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, e.Right.Accept(b).(model.Expr)))
 					return model.NewFunction("arrayExists", lambda, e.Left)
 
-				case e.Op == "=":
+				case op == "=":
 					return model.NewFunction("has", e.Left, e.Right.Accept(b).(model.Expr))
 
 				default:
-					logger.Error().Msgf("Unhandled array infix operation  %s, column %v (%v)", e.Op, column.ColumnName, dbType)
+					logger.Error().Msgf("Unhandled array infix operation '%s', column '%v' ('%v')", e.Op, column.ColumnName, dbType)
 				}
 			}
 		}
@@ -144,7 +145,7 @@ func checkIfGroupingByArrayColumn(selectCommand model.SelectCommand, resolver ar
 			cte.Accept(b)
 		}
 
-		return e
+		return &e
 	}
 
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {

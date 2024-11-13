@@ -11,6 +11,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/network"
+	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
 	"quesma/quesma/recovery"
@@ -58,7 +59,7 @@ type dualWriteHttpProxy struct {
 	indexManagement     elasticsearch.IndexManagement
 	logManager          *clickhouse.LogManager
 	publicPort          network.Port
-	asyncQueriesEvictor *AsyncQueriesEvictor
+	asyncQueriesEvictor *async_search_storage.AsyncQueriesEvictor
 	queryRunner         *QueryRunner
 	schemaRegistry      schema.Registry
 	schemaLoader        clickhouse.TableDiscovery
@@ -113,11 +114,14 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 			Addr:    ":" + strconv.Itoa(int(config.PublicTcpPort)),
 			Handler: limitedHandler,
 		},
-		indexManagement:     indexManager,
-		logManager:          logManager,
-		publicPort:          config.PublicTcpPort,
-		asyncQueriesEvictor: NewAsyncQueriesEvictor(queryRunner.AsyncRequestStorage, queryRunner.AsyncQueriesContexts),
-		queryRunner:         queryRunner,
+		indexManagement: indexManager,
+		logManager:      logManager,
+		publicPort:      config.PublicTcpPort,
+		asyncQueriesEvictor: async_search_storage.NewAsyncQueriesEvictor(
+			queryRunner.AsyncRequestStorage.(async_search_storage.AsyncSearchStorageInMemory),
+			queryRunner.AsyncQueriesContexts.(async_search_storage.AsyncQueryContextStorageInMemory),
+		),
+		queryRunner: queryRunner,
 	}
 }
 
@@ -140,7 +144,7 @@ func (q *dualWriteHttpProxy) Ingest() {
 	q.schemaLoader.ReloadTableDefinitions()
 	q.logManager.Start()
 	q.indexManagement.Start()
-	go q.asyncQueriesEvictor.asyncQueriesGC()
+	go q.asyncQueriesEvictor.AsyncQueriesGC()
 	go func() {
 		if err := q.routingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Fatal().Msgf("Error starting http server: %v", err)

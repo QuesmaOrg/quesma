@@ -1,0 +1,56 @@
+# The recommended way to start Quesma in transparent proxy
+# is to use the noop processor. However, the user can achieve
+# the same thing by specifying query/ingest processors without
+# routing anything to ClickHouse/Hydrolix - that should be supported,
+# even if not recommended.
+
+logging:
+  level: info
+frontendConnectors:
+  - name: elastic-ingest
+    type: elasticsearch-fe-ingest
+    config:
+      listenPort: 8080
+  - name: elastic-query
+    type: elasticsearch-fe-query
+    config:
+      listenPort: 8080
+backendConnectors:
+  - name: my-minimal-elasticsearch
+    type: elasticsearch
+    config:
+      url: "http://elasticsearch:9200"
+      user: elastic
+      password: quesmaquesma
+  # No ClickHouse, Hydrolix connector needed!
+ingestStatistics: true
+processors:
+  - name: my-query-processor
+    type: quesma-v1-processor-query
+    config:
+      indexes:
+        siem:
+          target: [ my-minimal-elasticsearch ]
+        logs:
+          target: [ my-minimal-elasticsearch ]
+        "*":
+          target: [ my-minimal-elasticsearch ]
+  - name: my-ingest-processor
+    type: quesma-v1-processor-ingest
+    config:
+      indexes:
+        siem:
+          target: [ my-minimal-elasticsearch ]
+        logs:
+          target: [ my-minimal-elasticsearch ]
+        "*":
+          target: [ my-minimal-elasticsearch ]
+pipelines:
+  - name: my-elasticsearch-transparent-proxy-read
+    frontendConnectors: [ elastic-query ]
+    processors: [ my-query-processor ]
+    backendConnectors: [ my-minimal-elasticsearch ]
+  - name: my-elasticsearch-transparent-proxy-write
+    frontendConnectors: [ elastic-ingest ]
+    processors: [ my-ingest-processor ]
+    backendConnectors: [ my-minimal-elasticsearch ]

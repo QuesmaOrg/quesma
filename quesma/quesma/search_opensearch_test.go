@@ -15,6 +15,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/testdata"
 	"quesma/util"
@@ -35,7 +36,7 @@ func TestSearchOpensearch(t *testing.T) {
 		Created: true,
 	}
 
-	s := schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
+	s := &schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
@@ -50,7 +51,17 @@ func TestSearchOpensearch(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+			resolver := table_resolver.NewEmptyTableResolver()
+			resolver.Decisions[tableName] = &table_resolver.Decision{
+				UseConnectors: []table_resolver.ConnectorDecision{
+					&table_resolver.ConnectorDecisionClickhouse{
+						ClickhouseTableName: tableName,
+						ClickhouseTables:    []string{tableName},
+					},
+				},
+			}
+
+			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
 			cw := queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: s.Tables[tableName], Config: &DefaultConfig}
 
 			body, parseErr := types.ParseJSON(tt.QueryJson)
@@ -65,7 +76,7 @@ func TestSearchOpensearch(t *testing.T) {
 			for _, wantedQuery := range tt.WantedQueries {
 				mock.ExpectQuery(wantedQuery).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), resolver)
 			_, err2 := queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 			assert.NoError(t, err2)
 
@@ -185,7 +196,7 @@ func TestHighlighter(t *testing.T) {
 		"host.name":     {PropertyName: "host.name", InternalPropertyName: "host_name", Type: schema.QuesmaTypeObject},
 		"@timestamp":    {PropertyName: "@timestamp", InternalPropertyName: "_timestamp", Type: schema.QuesmaTypeDate},
 	}
-	s := schema.StaticRegistry{
+	s := &schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			tableName: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
@@ -193,7 +204,18 @@ func TestHighlighter(t *testing.T) {
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+
+	resolver := table_resolver.NewEmptyTableResolver()
+	resolver.Decisions[tableName] = &table_resolver.Decision{
+		UseConnectors: []table_resolver.ConnectorDecision{
+			&table_resolver.ConnectorDecisionClickhouse{
+				ClickhouseTableName: tableName,
+				ClickhouseTables:    []string{tableName},
+			},
+		},
+	}
+
+	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
 
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"message$*%:;", "host.name", "@timestamp"}). // careful, it's not always in this order, order is nondeterministic
 															AddRow("abcd", "abcd", "abcd").
@@ -202,7 +224,7 @@ func TestHighlighter(t *testing.T) {
 															AddRow("text-to-highlight", "text-to-highlight", "text-to-highlight").
 															AddRow("text", "text", "text"))
 
-	queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender())
+	queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), resolver)
 	response, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(query))
 	assert.NoError(t, err)
 	if err != nil {

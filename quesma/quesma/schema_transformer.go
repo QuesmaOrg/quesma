@@ -10,13 +10,12 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/quesma/config"
 	"quesma/schema"
-	"quesma/util"
 	"sort"
 	"strings"
 )
 
 type SchemaCheckPass struct {
-	cfg map[string]config.IndexConfiguration
+	cfg *config.QuesmaConfiguration
 }
 
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
@@ -354,8 +353,10 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 	var useCommonTable bool
 	if len(query.Indexes) == 1 {
-		if indexConf, ok := s.cfg[query.Indexes[0]]; ok {
+		if indexConf, ok := s.cfg.IndexConfig[query.Indexes[0]]; ok {
 			useCommonTable = indexConf.UseCommonTable
+		} else if s.cfg.UseCommonTableForWildcard {
+			useCommonTable = true
 		}
 	} else { // we can handle querying multiple indexes from common table only
 		useCommonTable = true
@@ -463,8 +464,20 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 
 		cols := make([]string, 0, len(indexSchema.Fields))
 		for _, col := range indexSchema.Fields {
-			cols = append(cols, col.InternalPropertyName.AsString())
+			// Take only fields that are ingested
+			if col.Origin == schema.FieldSourceIngest {
+				cols = append(cols, col.InternalPropertyName.AsString())
+			}
 		}
+
+		if query.RuntimeMappings != nil {
+			// add columns that are not in the schema but are in the runtime mappings
+			// these columns  will be transformed later
+			for name := range query.RuntimeMappings {
+				cols = append(cols, name)
+			}
+		}
+
 		sort.Strings(cols)
 
 		for _, col := range cols {
@@ -491,7 +504,10 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 
 	for _, field := range indexSchema.Fields {
 		if field.Type.IsFullText() {
-			fullTextFields = append(fullTextFields, field.InternalPropertyName.AsString())
+			// Take only fields that are ingested
+			if field.Origin == schema.FieldSourceIngest {
+				fullTextFields = append(fullTextFields, field.InternalPropertyName.AsString())
+			}
 		}
 	}
 
@@ -613,35 +629,6 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 }
 
-func (s *SchemaCheckPass) handleDottedTColumnNames(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
-
-	// TODO this is a workaround for now,
-	// if we set true dashboards are working but not tests
-	doCompensation := false
-
-	visitor := model.NewBaseVisitor()
-
-	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-
-		if strings.Contains(e.ColumnName, ".") {
-			logger.Warn().Msgf("Dotted column name found: %s", e.ColumnName)
-
-			if doCompensation {
-				return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
-			}
-
-		}
-		return e
-	}
-
-	expr := query.SelectCommand.Accept(visitor)
-
-	if _, ok := expr.(*model.SelectCommand); ok {
-		query.SelectCommand = *expr.(*model.SelectCommand)
-	}
-	return query, nil
-}
-
 func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	visitor := model.NewBaseVisitor()
@@ -675,10 +662,22 @@ func (s *SchemaCheckPass) applyRuntimeMappings(indexSchema schema.Schema, query 
 		return query, nil
 	}
 
+	cols := query.SelectCommand.Columns
+
+	// replace column refs with runtime mappings with proper name
+	for i, col := range cols {
+		switch c := col.(type) {
+		case model.ColumnRef:
+			if mapping, ok := query.RuntimeMappings[c.ColumnName]; ok {
+				cols[i] = model.NewAliasedExpr(mapping.Expr, c.ColumnName)
+			}
+		}
+	}
+	query.SelectCommand.Columns = cols
+
+	// replace other places where column refs are used
 	visitor := model.NewBaseVisitor()
-
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-
 		if mapping, ok := query.RuntimeMappings[e.ColumnName]; ok {
 			return mapping.Expr
 		}
@@ -755,7 +754,6 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
-		{TransformationName: "DottedColumnNames", Transformation: s.handleDottedTColumnNames},
 	}
 
 	for k, query := range queries {
@@ -780,29 +778,4 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		queries[k] = query
 	}
 	return queries, nil
-}
-
-// ArrayResultTransformer is a transformer that transforms array columns into string representation
-type ArrayResultTransformer struct {
-}
-
-func (g *ArrayResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
-
-	for i, rows := range result {
-
-		for j, row := range rows {
-			for k, col := range row.Cols {
-
-				if ary, ok := col.Value.([]string); ok {
-					aryStr := make([]string, 0, len(ary))
-					for _, el := range ary {
-						aryStr = append(aryStr, fmt.Sprintf("%v", el))
-					}
-					result[i][j].Cols[k].Value = fmt.Sprintf("[%s]", strings.Join(aryStr, ","))
-				}
-			}
-		}
-
-	}
-	return result, nil
 }

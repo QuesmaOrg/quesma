@@ -1,0 +1,74 @@
+frontendConnectors:
+  - name: elastic-ingest
+    type: elasticsearch-fe-ingest
+    config:
+      listenPort: 8080
+  - name: elastic-query
+    type: elasticsearch-fe-query
+    config:
+      listenPort: 8080
+backendConnectors:
+  - name: e
+    type: elasticsearch
+    config:
+      url: "http://{{ .elasticsearch_host }}:{{ .elasticsearch_port }}"
+      user: elastic
+      password: quesmaquesma
+  - name: c
+    type: clickhouse-os
+    config:
+      url: clickhouse://{{ .clickhouse_host }}:{{ .clickhouse_port }}
+ingestStatistics: true
+processors:
+  - name: QP
+    type: quesma-v1-processor-query
+    config:
+      indexes:
+        logs-1:
+          target: [ e ]
+        logs-2:
+          target: [ c ]
+        logs-3:
+          target: [ c, e ]
+        logs-dual-query:
+          target: [ c, e ]
+        logs-4:
+          target:
+            - c:
+                useCommonTable: true
+        logs-5:
+          target:
+            - c:
+                useCommonTable: true
+        "*":
+          target: [ e ]
+  - name: IP
+    type: quesma-v1-processor-ingest
+    config:
+      indexes:
+        logs-1:
+          target: [ e ]
+        logs-2:
+          target: [ c ]
+        logs-3:
+          target: [ c, e ]
+        logs-dual-query:
+          target: [ c, e ]
+        logs-4:
+          target:
+            - c:
+                useCommonTable: true
+        logs-5:
+          target:
+        "*":
+          target: [ e ]
+
+pipelines:
+  - name: my-elasticsearch-proxy-read
+    frontendConnectors: [ elastic-query ]
+    processors: [ QP ]
+    backendConnectors: [ e, c ]
+  - name: my-elasticsearch-proxy-write
+    frontendConnectors: [ elastic-ingest ]
+    processors: [ IP ]
+    backendConnectors: [ e, c ]

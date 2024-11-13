@@ -130,3 +130,7 @@ func (query MaxBucket) calculateSingleMaxBucket(parentRows []model.QueryResultRo
 func (query MaxBucket) String() string {
 	return fmt.Sprintf("max_bucket(%s)", query.Parent)
 }
+
+func (query MaxBucket) PipelineAggregationType() model.PipelineAggregationType {
+	return model.PipelineSiblingAggregation
+}

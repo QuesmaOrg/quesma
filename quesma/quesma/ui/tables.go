@@ -15,7 +15,7 @@ import (
 
 func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("tables"))
+	buffer.Write(qmc.generateTopNavigation("tables"))
 	buffer.Html(`<main id="quesma_all_logs">`)
 
 	var schema clickhouse.TableMap
@@ -182,7 +182,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 	}
 
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("tables"))
+	buffer.Write(qmc.generateTopNavigation("tables"))
 	buffer.Html(`<main id="tables">`)
 
 	var schema clickhouse.TableMap

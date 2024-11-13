@@ -19,6 +19,10 @@ func (p pancakePipelinesProcessor) selectPipelineRows(pipeline model.PipelineQue
 	bucketAggregation *pancakeModelBucketAggregation) (
 	result []model.QueryResultRow) {
 
+	if bucketAggregation == nil {
+		return rows
+	}
+
 	isCount := pipeline.IsCount()
 	for _, row := range rows {
 		newRow := model.QueryResultRow{Index: row.Index}
@@ -94,7 +98,7 @@ func (p pancakePipelinesProcessor) currentPipelineBucketAggregations(layer, next
 		bucketRowsTransformedIfNeeded := bucketRowsWithRightLastColumn
 		switch queryType := layer.nextBucketAggregation.queryType.(type) {
 		// Current logic is not perfect, but we need extra buckets in some cases
-		case bucket_aggregations.Histogram:
+		case *bucket_aggregations.Histogram:
 			bucketRowsTransformedIfNeeded = queryType.NewRowsTransformer().Transform(p.ctx, bucketRowsWithRightLastColumn)
 		case *bucket_aggregations.DateHistogram:
 			bucketRowsTransformedIfNeeded = queryType.NewRowsTransformer().Transform(p.ctx, bucketRowsWithRightLastColumn)

@@ -8,11 +8,13 @@ import (
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/common_table"
+	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma/table_resolver"
 	"quesma/telemetry"
 	"testing"
 )
@@ -246,6 +248,55 @@ func TestSearchCommonTable(t *testing.T) {
 		},
 	})
 
+	resolver := table_resolver.NewEmptyTableResolver()
+
+	resolver.Decisions["logs-1"] = &table_resolver.Decision{
+		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+			ClickhouseTableName: common_table.TableName,
+			ClickhouseTables:    []string{"logs-1"},
+			IsCommonTable:       true,
+		}},
+	}
+
+	resolver.Decisions["logs-2"] = &table_resolver.Decision{
+		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+			ClickhouseTableName: common_table.TableName,
+			ClickhouseTables:    []string{"logs-2"},
+			IsCommonTable:       true,
+		}},
+	}
+
+	resolver.Decisions["logs-3"] = &table_resolver.Decision{
+		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+			ClickhouseTableName: "logs-3",
+			ClickhouseTables:    []string{"logs-3"},
+			IsCommonTable:       false,
+		}},
+	}
+
+	resolver.Decisions["logs-1,logs-2"] = &table_resolver.Decision{
+		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+			ClickhouseTableName: common_table.TableName,
+			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			IsCommonTable:       true,
+		}},
+	}
+
+	resolver.Decisions["logs-*"] = &table_resolver.Decision{
+		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+			ClickhouseTableName: common_table.TableName,
+			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			IsCommonTable:       true,
+		}},
+	}
+	resolver.Decisions["*"] = &table_resolver.Decision{
+		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+			ClickhouseTableName: common_table.TableName,
+			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			IsCommonTable:       true,
+		}},
+	}
+
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
 
@@ -256,9 +307,10 @@ func TestSearchCommonTable(t *testing.T) {
 
 			defer db.Close()
 
-			indexManagement := NewFixedIndexManagement()
+			indexManagement := elasticsearch.NewFixedIndexManagement()
 			lm := clickhouse.NewLogManagerWithConnection(db, tableMap)
-			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+
+			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
 
 			for i, query := range tt.WantedSql {
 
@@ -269,7 +321,7 @@ func TestSearchCommonTable(t *testing.T) {
 
 				mock.ExpectQuery(query).WillReturnRows(rows)
 			}
-			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, schemaRegistry, ab_testing.NewEmptySender())
+			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver)
 			queryRunner.maxParallelQueries = 0
 
 			_, err = queryRunner.handleSearch(ctx, tt.IndexPattern, types.MustJSON(tt.QueryJson))
