@@ -53,7 +53,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Fix filters")
 			}
 
-			if test.TestName == "Terms with order by top metrics(file:kibana-visualize/agg_req,nr:9)" {
+			if test.TestName == "Kibana 8.15 TSVB -> Metric, Aggregation: Top hit(file:kibana-visualize/agg_req,nr:9)" {
 				t.Skip("Fails in real life because of transformations, passes here. Fix it by adding query transformations here.")
 			}
 
