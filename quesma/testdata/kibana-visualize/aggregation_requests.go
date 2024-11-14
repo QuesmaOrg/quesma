@@ -2147,4 +2147,82 @@ var AggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 	},
+	{ // [10]
+		TestName: "Line, Y-Axis: Count, Buckets: Date Range",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"date_range": {
+						"field": "timestamp",
+						"ranges": [
+							{
+								"from": "now-1w/w",
+								"to": "now"
+							},
+							{
+								"from": "now-1d"
+							}
+						],
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 8,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 2688,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "2024-11-04T00:00:00.000+01:00-2024-11-12T10:33:54.610+01:00",
+							"from": 1730674800000,
+							"from_as_string": "2024-11-04T00:00:00.000+01:00",
+							"to": 1731404034610,
+							"to_as_string": "2024-11-12T10:33:54.610+01:00",
+							"doc_count": 2688
+						},
+						{
+							"key": "2024-11-11T10:33:54.610+01:00-*",
+							"from": 1731317634610,
+							"from_as_string": "2024-11-11T10:33:54.610+01:00",
+							"doc_count": 353
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("range_0__aggr__2__count", int64(2688)),
+				model.NewQueryResultCol("range_1__aggr__2__count", int64(353)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfWeek(subDate(now(),
+			  INTERVAL 1 week)))) AND "timestamp"<toInt64(toUnixTimestamp(now())))) AS
+			  "range_0__aggr__2__count",
+			  countIf("timestamp">=toInt64(toUnixTimestamp(subDate(now(), INTERVAL 1 day))))
+			  AS "range_1__aggr__2__count"
+			FROM __quesma_table_name`,
+	},
 }
