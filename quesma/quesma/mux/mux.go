@@ -87,7 +87,7 @@ func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler 
 }
 
 func (p *PathRouter) Matches(req *Request) (Handler, bool, *table_resolver.Decision) {
-	handler, found, decision := p.findHandler(req)
+	handler, found, decision := p.findHandler(req) // TODO: routes.IndexMappingPath and routes.AsyncSearchIdPath are affected
 	if found {
 		routerStatistics.addMatched(req.Path)
 		logger.Debug().Msgf("Matched path: %s", req.Path)
@@ -124,7 +124,7 @@ type httpMethodPredicate struct {
 
 func (p *httpMethodPredicate) Matches(req *Request) MatchResult {
 
-	for _, method := range p.methods {
+	for _, method := range p.methods { // okay heere's no delete method
 		if method == req.Method {
 			return MatchResult{true, nil}
 		}
