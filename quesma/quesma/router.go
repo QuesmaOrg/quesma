@@ -34,7 +34,7 @@ import (
 	"time"
 )
 
-func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) *mux.PathRouter {
+func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) *mux.PathRouter {
 
 	// some syntactic sugar
 	method := mux.IsHTTPMethod
@@ -238,30 +238,22 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
 
-	router.Register(routes.AsyncSearchIdPath, and(method("GET", "DELETE"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.AsyncSearchIdPath, and(method("GET"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, req.Params["id"])
-		var responseBody []byte
-		var err error
-		if req.Method == "DELETE" {
-			responseBody, err = queryRunner.deleteAsyncSearch(req.Params["id"])
-		} else if req.Method == "GET" {
-			responseBody, err = queryRunner.handlePartialAsyncSearch(ctx, req.Params["id"])
-		} else {
-			return nil, errors.New("KILL ME NOW")
-		}
+		responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, req.Params["id"])
 		if err != nil {
 			return nil, err
 		}
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
 
-	//router.Register(routes.AsyncSearchIdPath, and(method("DELETE"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-	//	responseBody, err := queryRunner.deleteAsyncSearch(req.Params["id"])
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
-	//})
+	router.Register(routes.AsyncSearchIdPath, and(method("DELETE"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		responseBody, err := queryRunner.deleteAsyncSearch(req.Params["id"])
+		if err != nil {
+			return nil, err
+		}
+		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+	})
 
 	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 

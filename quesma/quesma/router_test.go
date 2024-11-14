@@ -4,10 +4,16 @@ package quesma
 
 import (
 	"github.com/stretchr/testify/assert"
+	"quesma/clickhouse"
+	"quesma/ingest"
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
+	"quesma/quesma/routes"
+	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
+	"quesma/telemetry"
+	"strings"
 	"testing"
 )
 
@@ -262,4 +268,99 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 			assert.Equalf(t, tt.want, matchedAgainstBulkBody(&tt.config, resolver).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
 		})
 	}
+}
+
+func TestConfigureRouter(t *testing.T) {
+	testIndexName := "indexName"
+	cfg := &config.QuesmaConfiguration{
+		IndexConfig: map[string]config.IndexConfiguration{
+			testIndexName: {
+				Name: testIndexName,
+			},
+		},
+	}
+	tr := TestTableResolver{}
+	testRouter := ConfigureRouter(cfg, schema.NewSchemaRegistry(fixedTableProvider{}, cfg, clickhouse.SchemaTypeAdapter{}), &clickhouse.LogManager{}, &ingest.IngestProcessor{}, &ui.QuesmaManagementConsole{}, telemetry.NewPhoneHomeAgent(cfg, nil, ""), &QueryRunner{}, tr)
+
+	tests := []struct {
+		path     string
+		method   string
+		expected bool
+	}{
+		{routes.ClusterHealthPath, "GET", true},
+		// {routes.BulkPath, "POST", true}, // TODO later on, it requires body parsing
+		{routes.IndexRefreshPath, "POST", true},
+		{routes.IndexDocPath, "POST", true},
+		{routes.IndexBulkPath, "POST", true},
+		{routes.IndexBulkPath, "PUT", true},
+		{routes.ResolveIndexPath, "GET", true},
+		{routes.IndexCountPath, "GET", true},
+		{routes.IndexSearchPath, "GET", true},
+		{routes.IndexSearchPath, "POST", true},
+		{routes.IndexAsyncSearchPath, "POST", true},
+		{routes.IndexMappingPath, "PUT", true},
+		{routes.IndexMappingPath, "GET", true},
+		{routes.AsyncSearchStatusPath, "GET", true},
+		{routes.AsyncSearchIdPath, "GET", true},
+		{routes.AsyncSearchIdPath, "DELETE", true},
+		{routes.FieldCapsPath, "GET", true},
+		{routes.FieldCapsPath, "POST", true},
+		{routes.TermsEnumPath, "POST", true},
+		{routes.EQLSearch, "GET", true},
+		{routes.EQLSearch, "POST", true},
+		{routes.IndexPath, "PUT", true},
+		{routes.IndexPath, "GET", true},
+		{routes.QuesmaTableResolverPath, "GET", true},
+		// Cases where matched should be false
+		{"/invalid/path", "GET", false},
+		{routes.ClusterHealthPath, "POST", false},
+		{routes.BulkPath, "GET", false},
+		{routes.IndexRefreshPath, "GET", false},
+		{routes.IndexDocPath, "GET", false},
+		{routes.IndexBulkPath, "DELETE", false},
+		{routes.ResolveIndexPath, "POST", false},
+		{routes.IndexCountPath, "POST", false},
+		{routes.IndexSearchPath, "DELETE", false},
+		{routes.IndexAsyncSearchPath, "GET", false},
+		{routes.IndexMappingPath, "POST", false},
+		{routes.AsyncSearchStatusPath, "POST", false},
+		{routes.AsyncSearchIdPath, "PUT", false},
+		{routes.FieldCapsPath, "DELETE", false},
+		{routes.TermsEnumPath, "GET", false},
+		{routes.EQLSearch, "DELETE", false},
+		{routes.IndexPath, "POST", false},
+		{routes.QuesmaTableResolverPath, "POST", false},
+	}
+
+	// Run test cases
+	for _, tt := range tests {
+		tt.path = strings.Replace(tt.path, ":id", "quesma_async_absurd_test_id", -1)
+		tt.path = strings.Replace(tt.path, ":index", testIndexName, -1)
+		t.Run(tt.method+"-at-"+tt.path, func(t *testing.T) {
+			req := &mux.Request{Path: tt.path, Method: tt.method}
+			_, matched, _ := testRouter.Matches(req)
+			assert.Equal(t, tt.expected, matched, "Expected route match result for path: %s and method: %s", tt.path, tt.method)
+		})
+	}
+}
+
+// TestTableResolver should be used only within tests
+type TestTableResolver struct{}
+
+func (t TestTableResolver) Start() {}
+
+func (t TestTableResolver) Stop() {}
+
+func (t TestTableResolver) Resolve(_ string, _ string) *table_resolver.Decision {
+	return &table_resolver.Decision{
+		UseConnectors: []table_resolver.ConnectorDecision{
+			&table_resolver.ConnectorDecisionClickhouse{},
+		},
+	}
+}
+
+func (t TestTableResolver) Pipelines() []string { return []string{} }
+
+func (t TestTableResolver) RecentDecisions() []table_resolver.PatternDecisions {
+	return []table_resolver.PatternDecisions{}
 }
