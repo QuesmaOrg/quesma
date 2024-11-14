@@ -55,6 +55,7 @@ type LoggingConfiguration struct {
 	Level             *zerolog.Level `koanf:"level"`
 	FileLogging       bool           `koanf:"fileLogging"`
 	RemoteLogDrainUrl *Url
+	EnableSQLTracing  bool `koanf:"enableSQLTracing"`
 }
 
 type Pipeline struct {

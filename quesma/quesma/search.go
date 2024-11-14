@@ -718,7 +718,11 @@ func (q *QueryRunner) searchWorkerCommon(
 
 	for i, query := range queries {
 		sql := query.SelectCommand.String()
-		logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
+
+		if q.cfg.Logging.EnableSQLTracing {
+			logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
+		}
+
 		translatedQueryBody[i].Query = []byte(sql)
 		if query.OptimizeHints != nil {
 			translatedQueryBody[i].PerformedOptimizations = query.OptimizeHints.OptimizationsPerformed
