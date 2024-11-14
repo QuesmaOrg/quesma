@@ -18,6 +18,10 @@ Quesma has been tested with the following software versions:
 | OpenSearch/OpenSearch Dashboards | `2.12.0`        |
 | Hydrolix                         | `v4.8.12`       |
 
+::: danger
+Quesma supports only ElasticSearch/Kibana 8.0 or above.
+:::
+
 ### ClickHouse limitations
 * When using a cluster deployment of ClickHouse, the tables automatically created by Quesma (during [Ingest](/ingest.md)) will use the `MergeTree` engine. If you wish to use the `ReplicatedMergeTree` engine instead, you will have to create the tables manually with  `ReplicatedMergeTree` engine before ingesting data to Quesma.
   * *Note: On ClickHouse Cloud, the tables automatically created by Quesma will use the `ReplicatedMergeTree` engine (ClickHouse Cloud default engine).* 
@@ -63,6 +67,11 @@ Currently not supported future roadmap items:
 * No partial results for long-running queries. All results are returned in one response once full query is finished
 * No efficient support for metrics.
 
+## Known bugs
+
+- Some schema-related endpoints (such as `PUT /:index`) don't support dual-writes: the request is only handled by the ClickHouse/Hydrolix connector and not forwarded to Elastic. A workaround for this problem is to send the request manually directly to Elastic. The status of the bug is tracked on [Quesma's GitHub Issues page](https://github.com/QuesmaOrg/quesma/issues/986).
+- The `_count` endpoint does not support tables in non-default [databases](https://clickhouse.com/docs/en/sql-reference/statements/create/database). The status of the bug is tracked on [Quesma's GitHub Issues page](https://github.com/QuesmaOrg/quesma/issues/985).
+- `@timestamp` column supports only `DateTime64(3)` type (e.g. `DateTime` type is not supported for that column). The status of the bug is tracked on [Quesma's GitHub Issues page](https://github.com/QuesmaOrg/quesma/issues/988).
 
 ## List of supported endpoints
 
@@ -78,6 +87,7 @@ The following endpoints are supported:
 * Schema:
   * `GET  /:index`
   * `GET  /:index/_mapping`
+  * `PUT /:index`
   * `POST /:index/_field_caps`
   * `POST /:index/_terms_enum`
   * `POST /:index`
