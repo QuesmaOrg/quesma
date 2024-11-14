@@ -1,8 +1,8 @@
 # What is Quesma?
 
-Quesma is an actively developed database gateway currently in Early Access Preview. Route your queries through a translation layer that seamlessly connects your apps with the modern database platforms of your choice. No more query refactoring during migrations.
+Quesma is an actively developed database gateway. Route your queries through a translation layer that seamlessly connects your apps with the modern database platforms of your choice. No more query refactoring during migrations.
 
-In its current (Early Access Preview) form, Quesma is a lightweight database proxy that enables database interoperability between Elasticsearch/OpenSearch and ClickHouse/Hydrolix.
+In its current form, Quesma is a lightweight database proxy that enables database interoperability between Elasticsearch/OpenSearch and ClickHouse/Hydrolix.
 
 
 The high-level architecture is as follows:
