@@ -118,8 +118,8 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 		logManager:      logManager,
 		publicPort:      config.PublicTcpPort,
 		asyncQueriesEvictor: async_search_storage.NewAsyncQueriesEvictor(
-			queryRunner.AsyncRequestStorage.(async_search_storage.AsyncSearchStorageInMemory),
-			queryRunner.AsyncQueriesContexts.(async_search_storage.AsyncQueryContextStorageInMemory),
+			queryRunner.AsyncRequestStorage,
+			queryRunner.AsyncQueriesContexts,
 		),
 		queryRunner: queryRunner,
 	}

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/common_table"
@@ -75,10 +76,12 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	pp.Println("cfg tuz przed", cfg)
+
 	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
 		executionCtx: ctx, cancel: cancel,
-		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemory(),
-		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
+		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemoryFallbackElastic(cfg.Elasticsearch),
+		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemoryFallbackElasticsearch(cfg.Elasticsearch),
 		transformationPipeline: TransformationPipeline{
 			transformers: []model.QueryTransformer{
 				&SchemaCheckPass{cfg: cfg},
@@ -490,30 +493,21 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 	return
 }
 
-func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
-	size := 0
-	q.AsyncRequestStorage.Range(func(key string, value *async_search_storage.AsyncRequestResult) bool {
-		size += len(value.GetResponseBody())
-		return true
-	})
-	return size
-}
-
 func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
 	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		logger.ErrorWithCtx(ctx).Msgf("non quesma async id: %v", id)
 		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 	}
-	if result, ok := q.AsyncRequestStorage.Load(id); ok {
-		if err := result.GetErr(); err != nil {
+	if result, err := q.AsyncRequestStorage.Load(id); result != nil && err != nil {
+		if result.Err != nil {
 			q.AsyncRequestStorage.Delete(id)
 			logger.ErrorWithCtx(ctx).Msgf("error processing async query: %v", err)
 			return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 		}
 		q.AsyncRequestStorage.Delete(id)
 		// We use zstd to conserve memory, as we have a lot of async queries
-		if result.IsCompressed() {
-			buf, err := util.Decompress(result.GetResponseBody())
+		if result.IsCompressed {
+			buf, err := util.Decompress(result.ResponseBody)
 			if err == nil {
 				// Mark trace end is called only when the async query is fully processed
 				// which means that isPartial is false
@@ -526,7 +520,7 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 		// Mark trace end is called only when the async query is fully processed
 		// which means that isPartial is false
 		logger.MarkTraceEndWithCtx(ctx).Msgf("Async query id : %s ended successfully", id)
-		return result.GetResponseBody(), nil
+		return result.ResponseBody, nil
 	} else {
 		const isPartial = true
 		logger.InfoWithCtx(ctx).Msgf("async query id : %s partial result", id)
@@ -543,7 +537,7 @@ func (q *QueryRunner) deleteAsyncSearch(id string) ([]byte, error) {
 }
 
 func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncId string, doneCh chan<- asyncSearchWithError) bool {
-	if q.AsyncRequestStorage.Size() < asyncQueriesLimit && q.asyncQueriesCumulatedBodySize() < asyncQueriesLimitBytes {
+	if q.AsyncRequestStorage.DocCount() < asyncQueriesLimit && q.AsyncRequestStorage.SpaceInUse() < asyncQueriesLimitBytes {
 		return false
 	}
 	err := errors.New("too many async queries")
@@ -553,7 +547,7 @@ func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncId string, d
 }
 
 func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, asyncRequestIdStr string) {
-	q.AsyncQueriesContexts.Store(asyncRequestIdStr, async_search_storage.NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
+	q.AsyncQueriesContexts.Store(async_search_storage.NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
 }
 
 // This is a HACK
