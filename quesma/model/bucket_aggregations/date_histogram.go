@@ -212,6 +212,15 @@ func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
 }
 
+func (query *DateHistogram) IntervalInMilliseconds() (int64, bool) {
+	if duration, err := kibana.ParseInterval(query.interval); err == nil {
+		return duration.Milliseconds(), true
+	} else {
+		logger.WarnWithCtx(query.ctx).Msg(err.Error())
+	}
+	return 0, false
+}
+
 func (query *DateHistogram) calculateResponseKeyInUTC(originalKey int64) int64 {
 	if query.intervalType == DateHistogramCalendarInterval {
 		return originalKey

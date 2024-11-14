@@ -1784,8 +1784,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			WHERE "aggr__0__order_1_rank"<=13
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
-	{ // [8]
-		TestName: "Terms with order by top metrics",
+	{ // [9]
+		TestName: "Rate aggregation with date_histogram fixed_interval",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -1897,7 +1897,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 									"value": 234976.40625
 								},
 								"key": 1731584220000,
-								"key_as_string": "2024-11-14T12:37:00.000+01:00",
+								"key_as_string": "2024-11-14T11:37:00.000",
 								"minute": {
 									"value": 3916.2734375
 								},
@@ -1906,66 +1906,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 								},
 								"week": {
 									"value": 39476036.25
-								}
-							},
-							{
-								"day": {
-									"value": 1034195.185546875
-								},
-								"doc_count": 1,
-								"hour": {
-									"value": 43091.466064453125
-								},
-								"key": 1731584430000,
-								"key_as_string": "2024-11-14T12:40:30.000+01:00",
-								"minute": {
-									"value": 718.1911010742188
-								},
-								"second": {
-									"value": 11.969851684570312
-								},
-								"week": {
-									"value": 7239366.298828125
-								}
-							},
-							{
-								"day": {
-									"value": 44892416.25
-								},
-								"doc_count": 1,
-								"hour": {
-									"value": 1870517.34375
-								},
-								"key": 1731584520000,
-								"key_as_string": "2024-11-14T12:42:00.000+01:00",
-								"minute": {
-									"value": 31175.2890625
-								},
-								"second": {
-									"value": 519.5881510416667
-								},
-								"week": {
-									"value": 314246913.75
-								}
-							},
-							{
-								"day": {
-									"value": 1725914.53125
-								},
-								"doc_count": 1,
-								"hour": {
-									"value": 71913.10546875
-								},
-								"key": 1731584760000,
-								"key_as_string": "2024-11-14T12:46:00.000+01:00",
-								"minute": {
-									"value": 1198.5517578125
-								},
-								"second": {
-									"value": 19.975862630208333
-								},
-								"week": {
-									"value": 12081401.71875
 								}
 							}
 						]
@@ -1986,76 +1926,32 @@ var AggregationTests = []testdata.AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{ // incorrect
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0__key_0", int64(1716834210000/30000)),
-				model.NewQueryResultCol("aggr__0__count", 4),
-				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(4)),
-				model.NewQueryResultCol("aggr__0__1__key_0", "artemis"),
-				model.NewQueryResultCol("aggr__0__1__key_1", "error"),
-				model.NewQueryResultCol("aggr__0__1__count", 1),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0__key_0", int64(1716834210000/30000)),
-				model.NewQueryResultCol("aggr__0__count", 4),
-				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(4)),
-				model.NewQueryResultCol("aggr__0__1__key_0", "artemis"),
-				model.NewQueryResultCol("aggr__0__1__key_1", "info"),
-				model.NewQueryResultCol("aggr__0__1__count", 1),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0__key_0", int64(1716834210000/30000)),
-				model.NewQueryResultCol("aggr__0__count", 4),
-				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(4)),
-				model.NewQueryResultCol("aggr__0__1__key_0", "jupiter"),
-				model.NewQueryResultCol("aggr__0__1__key_1", "info"),
-				model.NewQueryResultCol("aggr__0__1__count", 1),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0__key_0", int64(1716834270000/30000)),
-				model.NewQueryResultCol("aggr__0__count", 16),
-				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(15)),
-				model.NewQueryResultCol("aggr__0__1__key_0", "apollo"),
-				model.NewQueryResultCol("aggr__0__1__key_1", "info"),
-				model.NewQueryResultCol("aggr__0__1__count", 2),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0__key_0", int64(1716834270000/30000)),
-				model.NewQueryResultCol("aggr__0__count", 16),
-				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(15)),
-				model.NewQueryResultCol("aggr__0__1__key_0", "cassandra"),
-				model.NewQueryResultCol("aggr__0__1__key_1", "debug"),
-				model.NewQueryResultCol("aggr__0__1__count", 1),
+				model.NewQueryResultCol("aggr__2__key_0", int64(1731587820000/30000)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+				model.NewQueryResultCol("metric__2__day_col_0", 1958.13671875),
+				model.NewQueryResultCol("metric__2__hour_col_0", 1958.13671875),
+				model.NewQueryResultCol("metric__2__minute_col_0", 1958.13671875),
+				model.NewQueryResultCol("metric__2__second_col_0", 1958.13671875),
+				model.NewQueryResultCol("metric__2__week_col_0", 1958.13671875),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-			  "aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
-			  "aggr__0__1__2-bucket__count"
-			FROM (
-			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-				"aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
-				"aggr__0__1__2-bucket__count",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
-				AS "aggr__0__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
-				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-				  "AvgTicketPrice" AS "aggr__0__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  "top_metrics__0__2-bucket__2-metric_col_0" AS "aggr__0__order_1",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count",
-				  countIf("bytes_gauge" IS NOT NULL) AS "aggr__0__1__2-bucket__count"
-				FROM __quesma_table_name
-				GROUP BY "AvgTicketPrice" AS "aggr__0__key_0",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__1__key_0"))
-			WHERE "aggr__0__order_1_rank"<=13
-			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+			  "timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count", "DistanceKilometers" AS "metric__2__day_col_0",
+			  "DistanceKilometers" AS "metric__2__hour_col_0",
+			  "DistanceKilometers" AS "metric__2__minute_col_0",
+			  "DistanceKilometers" AS "metric__2__second_col_0",
+			  "DistanceKilometers" AS "metric__2__week_col_0"
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1731584141864) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1731585041864))
+			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+			  "timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
 	},
-	{ // [8]
-		TestName: "Terms with order by top metrics",
+	{ // [10]
+		TestName: "Rate aggregation with date_histogram calendar_interval",
 		QueryRequestJson: `
 		{
 			"_source": {

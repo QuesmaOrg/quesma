@@ -67,6 +67,8 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 			innerFieldsAsSelect = append(innerFieldsAsSelect, model.NewColumnRef(metricsAggr.SortBy))
 		}
 		return innerFieldsAsSelect, nil
+	case "rate":
+		result = append(result, metricsAggr.Fields...)
 	case "percentile_ranks":
 		result = make([]model.Expr, 0, len(metricsAggr.CutValues))
 		for _, cutValueAsString := range metricsAggr.CutValues {
@@ -153,6 +155,8 @@ func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) mo
 		return metrics_aggregations.NewPercentileRanks(ctx, metricsAggr.CutValues, metricsAggr.Keyed)
 	case "geo_centroid":
 		return metrics_aggregations.NewGeoCentroid(ctx)
+	case "rate":
+		return metrics_aggregations.NewRate(ctx, metricsAggr.unit)
 	}
 	return nil
 }

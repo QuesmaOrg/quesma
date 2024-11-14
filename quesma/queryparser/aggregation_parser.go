@@ -3,10 +3,12 @@
 package queryparser
 
 import (
+	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"quesma/model/metrics_aggregations"
 	"regexp"
 	"slices"
 	"strconv"
@@ -27,6 +29,7 @@ type metricsAggregation struct {
 	Order               string                  // Only for top_metrics
 	IsFieldNameCompound bool                    // Only for a few aggregations, where we have only 1 field. It's a compound, so e.g. toHour(timestamp), not just "timestamp"
 	sigma               float64                 // only for standard deviation
+	unit                string                  // only for rate
 }
 
 const metricsAggregationDefaultFieldType = clickhouse.Invalid
@@ -152,6 +155,36 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			AggrType: "extended_stats",
 			Fields:   []model.Expr{cw.parseFieldField(extendedStats, "extended_stats")},
 			sigma:    sigma,
+		}, true
+	}
+
+	if rateRaw, exists := queryMap["rate"]; exists {
+		rate, ok := rateRaw.(QueryMap)
+		pp.Println(rate)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("rate is not a map, but %T, value: %v. Skipping.", rate, rate)
+			return metricsAggregation{}, false
+		}
+
+		unit := cw.parseStringField(rate, "unit", "")
+		if metrics_aggregations.NewRateUnit(unit) == metrics_aggregations.Invalid {
+			logger.WarnWithCtx(cw.Ctx).Msgf("unit in rate aggregation is not a valid unit: %s. Skipping.", unit)
+			return metricsAggregation{}, false
+		}
+
+		var fields []model.Expr
+		if fieldRaw, ok := rate["field"]; ok {
+			if field, ok := fieldRaw.(string); ok {
+				fields = append(fields, model.NewColumnRef(cw.ResolveField(cw.Ctx, field)))
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
+			}
+		}
+
+		return metricsAggregation{
+			AggrType: "rate",
+			Fields:   fields,
+			unit:     unit,
 		}, true
 	}
 
