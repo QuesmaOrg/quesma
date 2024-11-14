@@ -4,6 +4,7 @@ package quesma
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"quesma/ab_testing"
@@ -24,6 +25,7 @@ import (
 	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
+	"quesma/telemetry"
 	"quesma/tracing"
 	"quesma/util"
 	"strings"
@@ -90,6 +92,28 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 
 		maxParallelQueries: maxParallelQueries,
 	}
+}
+
+func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
+	tableName string, tables *clickhouse.TableMap, staticRegistry *schema.StaticRegistry) *QueryRunner {
+
+	lm := clickhouse.NewLogManagerWithConnection(db, tables)
+	logChan := logger.InitOnlyChannelLoggerForTests()
+
+	resolver := table_resolver.NewEmptyTableResolver()
+	resolver.Decisions[tableName] = &table_resolver.Decision{
+		UseConnectors: []table_resolver.ConnectorDecision{
+			&table_resolver.ConnectorDecisionClickhouse{
+				ClickhouseTableName: tableName,
+				ClickhouseTables:    []string{tableName},
+			},
+		},
+	}
+
+	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
+	go managementConsole.RunOnlyChannelProcessor()
+
+	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver)
 }
 
 // returns -1 when table name could not be resolved
