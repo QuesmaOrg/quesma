@@ -283,10 +283,8 @@ func AsyncSearchStatusResponse(asyncId string, isPartial, isRunning bool, comple
 		IsPartial: isPartial,
 		IsRunning: isRunning,
 	}
-	if response.CompletionStatus != nil {
-		if *response.CompletionStatus == 200 || *response.CompletionStatus == 503 {
-			response.CompletionStatus = &completionStatus
-		}
+	if completionStatus == 200 || completionStatus == 503 {
+		response.CompletionStatus = &completionStatus
 	}
 	return &response
 }
