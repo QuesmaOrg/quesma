@@ -259,11 +259,11 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/DataDog/go-sqllexer
-Version : v0.0.16
-Time    : 2024-10-08T13:04:06Z
+Version : v0.0.17
+Time    : 2024-11-12T11:59:15Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/!data!dog/go-sqllexer@v0.0.16/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!data!dog/go-sqllexer@v0.0.17/LICENSE:
 
 MIT License
 
@@ -2061,11 +2061,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/oauth2
-Version : v0.23.0
-Time    : 2024-08-21T18:21:24Z
+Version : v0.24.0
+Time    : 2024-11-01T18:29:12Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/oauth2@v0.23.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/oauth2@v0.24.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
