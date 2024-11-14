@@ -26,7 +26,7 @@ require (
 	github.com/tidwall/sjson v1.2.5
 	github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
-	golang.org/x/oauth2 v0.23.0
+	golang.org/x/oauth2 v0.24.0
 )
 
 require (
