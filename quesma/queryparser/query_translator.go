@@ -67,12 +67,7 @@ func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) (
 }
 
 func EmptyAsyncSearchStatusResponse(id string, isPartial, isRunning bool, completionStatus int) ([]byte, error) {
-	var asyncSearchResp *model.AsyncSearchEntireResp
-	if completionStatus == 200 || completionStatus == 503 {
-		asyncSearchResp = AsyncSearchStatusResponse(id, isPartial, isRunning, completionStatus, true)
-	} else {
-		asyncSearchResp = AsyncSearchStatusResponse(id, isPartial, isRunning, 0, false)
-	}
+	asyncSearchResp := AsyncSearchStatusResponse(id, isPartial, isRunning, completionStatus)
 	return asyncSearchResp.Marshal()
 }
 
@@ -282,14 +277,16 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncId strin
 	return &response
 }
 
-func AsyncSearchStatusResponse(asyncId string, isPartial, isRunning bool, completionStatus int, renderCompletionStatus bool) *model.AsyncSearchEntireResp {
+func AsyncSearchStatusResponse(asyncId string, isPartial, isRunning bool, completionStatus int) *model.AsyncSearchEntireResp {
 	response := model.AsyncSearchEntireResp{
 		ID:        &asyncId,
 		IsPartial: isPartial,
 		IsRunning: isRunning,
 	}
-	if renderCompletionStatus {
-		response.CompletionStatus = &completionStatus
+	if response.CompletionStatus != nil {
+		if *response.CompletionStatus == 200 || *response.CompletionStatus == 503 {
+			response.CompletionStatus = &completionStatus
+		}
 	}
 	return &response
 }
