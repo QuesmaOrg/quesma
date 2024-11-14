@@ -500,13 +500,13 @@ func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
 }
 
 func (q *QueryRunner) handleAsyncSearchStatus(_ context.Context, id string) ([]byte, error) {
-	if _, ok := q.AsyncRequestStorage.Load(id); ok { // there IS a result so query is no longer running
+	if _, ok := q.AsyncRequestStorage.Load(id); ok { // there IS a result in storage, so query is completed/no longer running,
 		return queryparser.EmptyAsyncSearchStatusResponse(id, false, false, 200)
-	} else { // there is no result so query is still running
+	} else { // there is no result so query is might be(*) running
 		return queryparser.EmptyAsyncSearchStatusResponse(id, true, true, 0) // 0 is a placeholder for missing completion status
 	}
-	// above is oversimplification as we're throwing still running even for queries that might not exist.
-	// BUT since you're referring to async ID given from Quesma, we naively assume it *does* exist
+	// (*) - it is an oversimplification as we're responding with "still running" status even for queries that might not exist.
+	// However since you're referring to async ID given from Quesma, we naively assume it *does* exist.
 }
 
 func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
