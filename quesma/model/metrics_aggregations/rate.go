@@ -58,13 +58,24 @@ func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 }
 
 func (query *Rate) CalcAndSetMultiplier(parentIntervalInMs int64) {
-	fmt.Println("parentIntervalInMs:", parentIntervalInMs, "query.unit:", query.unit)
+	fmt.Println("parentIntervalInMs:", parentIntervalInMs, "query.unit:", query.unit.ToMilliseconds(query.ctx))
 	if parentIntervalInMs == 0 {
 		logger.ErrorWithCtx(query.ctx).Msgf("parent interval is 0, cannot calculate rate multiplier")
 		return
 	}
 
 	rateInMs := query.unit.ToMilliseconds(query.ctx)
+	// unit month/quarter/year is special, only compatible with month/quarter/year calendar intervals
+	if query.unit == Month || query.unit == Quarter || query.unit == Year {
+		if parentIntervalInMs < 30*24*60*60*1000 { // 1 month
+			logger.WarnWithCtx(query.ctx).Msgf("parent interval (%d ms) is not compatible with rate unit %s", parentIntervalInMs, query.unit)
+			return
+		}
+		if query.unit == Year {
+			rateInMs = 360 * 24 * 60 * 60 * 1000 // round to 360 days, so year/month = 12, year/quarter = 3, as should be
+		}
+	}
+
 	if rateInMs%parentIntervalInMs == 0 {
 		query.multiplier = float64(rateInMs / parentIntervalInMs)
 	} else {
