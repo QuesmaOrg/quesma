@@ -340,7 +340,6 @@ func TestConfigureRouter(t *testing.T) {
 		{routes.QuesmaTableResolverPath, "DELETE", false},
 	}
 
-	// Run test cases
 	for _, tt := range tests {
 		tt.path = strings.Replace(tt.path, ":id", "quesma_async_absurd_test_id", -1)
 		tt.path = strings.Replace(tt.path, ":index", testIndexName, -1)
