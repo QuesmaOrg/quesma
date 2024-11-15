@@ -125,7 +125,7 @@ type httpMethodPredicate struct {
 
 func (p *httpMethodPredicate) Matches(req *Request) MatchResult {
 
-	for _, method := range p.methods { // okay heere's no delete method
+	for _, method := range p.methods {
 		if method == req.Method {
 			return MatchResult{true, nil}
 		}
