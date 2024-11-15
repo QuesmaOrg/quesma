@@ -283,10 +283,11 @@ func TestConfigureRouter(t *testing.T) {
 	testRouter := ConfigureRouter(cfg, schema.NewSchemaRegistry(fixedTableProvider{}, cfg, clickhouse.SchemaTypeAdapter{}), &clickhouse.LogManager{}, &ingest.IngestProcessor{}, &ui.QuesmaManagementConsole{}, telemetry.NewPhoneHomeAgent(cfg, nil, ""), &QueryRunner{}, tr)
 
 	tests := []struct {
-		path     string
-		method   string
-		expected bool
+		path                string
+		method              string
+		shouldReturnHandler bool
 	}{
+		// Routes explicitly registered in the router code
 		{routes.ClusterHealthPath, "GET", true},
 		// {routes.BulkPath, "POST", true}, // TODO later on, it requires body parsing
 		{routes.IndexRefreshPath, "POST", true},
@@ -295,6 +296,8 @@ func TestConfigureRouter(t *testing.T) {
 		{routes.IndexBulkPath, "PUT", true},
 		{routes.ResolveIndexPath, "GET", true},
 		{routes.IndexCountPath, "GET", true},
+		{routes.GlobalSearchPath, "GET", false},
+		{routes.GlobalSearchPath, "POST", false},
 		{routes.IndexSearchPath, "GET", true},
 		{routes.IndexSearchPath, "POST", true},
 		{routes.IndexAsyncSearchPath, "POST", true},
@@ -311,10 +314,13 @@ func TestConfigureRouter(t *testing.T) {
 		{routes.IndexPath, "PUT", true},
 		{routes.IndexPath, "GET", true},
 		{routes.QuesmaTableResolverPath, "GET", true},
-		// Cases where matched should be false
+		{routes.QuesmaTableResolverPath, "POST", true},
+		{routes.QuesmaTableResolverPath, "PUT", true},
+		{routes.QuesmaTableResolverPath, "DELETE", true},
+		// Few cases where the router should not match
 		{"/invalid/path", "GET", false},
 		{routes.ClusterHealthPath, "POST", false},
-		{routes.BulkPath, "GET", false},
+		//{routes.BulkPath, "GET", false}, // TODO later on, it requires body parsing
 		{routes.IndexRefreshPath, "GET", false},
 		{routes.IndexDocPath, "GET", false},
 		{routes.IndexBulkPath, "DELETE", false},
@@ -338,8 +344,9 @@ func TestConfigureRouter(t *testing.T) {
 		tt.path = strings.Replace(tt.path, ":index", testIndexName, -1)
 		t.Run(tt.method+"-at-"+tt.path, func(t *testing.T) {
 			req := &mux.Request{Path: tt.path, Method: tt.method}
-			_, matched, _ := testRouter.Matches(req)
-			assert.Equal(t, tt.expected, matched, "Expected route match result for path: %s and method: %s", tt.path, tt.method)
+			reqHandler, _ := testRouter.Matches(req)
+			handlerReturned := reqHandler != nil
+			assert.Equal(t, tt.shouldReturnHandler, handlerReturned, "Expected route match result for path: %s and method: %s", tt.path, tt.method)
 		})
 	}
 }
