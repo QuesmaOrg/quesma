@@ -105,9 +105,9 @@ func (p *PathRouter) findHandler(req *Request) (handler Handler, decision *table
 		if pathData, pathMatches := m.compiledPath.Match(path); pathMatches {
 			req.Params = pathData.Params
 			predicateResult := m.predicate.Matches(req)
+			decision = predicateResult.Decision
 			if predicateResult.Matched {
 				handler = m.handler
-				decision = predicateResult.Decision
 			}
 		}
 	}
