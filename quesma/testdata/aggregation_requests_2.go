@@ -4090,4 +4090,209 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__interval-2__key_0" ASC`,
 		},
 	},
+	{ // [65]
+		TestName: "simplest composite: 1 terms",
+		QueryRequestJson: `
+		{
+			"size": 0,
+			"aggs": {
+				"my_buckets": {
+					"composite": {
+						"sources": [
+							{
+								"product": {
+									"terms": {
+										"field": "product"
+									}
+								}
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedResponse: `
+		{
+		
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021640000/30000)),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			`,
+	},
+	{ // [66]
+		TestName: "simplest composite: 1 histogram",
+		QueryRequestJson: `
+		{
+			"size": 0,
+			"aggs": {
+				"my_buckets": {
+					"composite": {
+						"sources": [
+							{
+								"histo": {
+									"histogram": {
+										"field": "price",
+										"interval": 5
+									}
+								}
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedResponse: `
+		{
+		
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021640000/30000)),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			`,
+	},
+	{ // [67]
+		TestName: "simplest composite: 1 date_histogram",
+		QueryRequestJson: `
+		{
+			"size": 0,
+			"aggs": {
+				"my_buckets": {
+					"composite": {
+						"sources": [
+							{
+								"date": {
+									"date_histogram": {
+										"field": "timestamp",
+										"calendar_interval": "1d"
+									}
+								}
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedResponse: `
+		{
+		
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021640000/30000)),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			`,
+	},
+	{ // [68]
+		TestName: "simplest composite: 1 geotile_grid",
+		QueryRequestJson: `
+		{
+			"size": 0,
+			"aggs": {
+				"my_buckets": {
+					"composite": {
+						"sources": [
+							{
+								"tile": {
+									"geotile_grid": {
+										"field": "location",
+										"precision": 8
+									}
+								}
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedResponse: `
+		{
+		
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021640000/30000)),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			`,
+	},
+	{ // [69]
+		TestName: "composite: 2 sources + 1 subaggregation + size parameter",
+		QueryRequestJson: `
+		{
+			"size": 0,
+			"aggs": {
+				"my_buckets": {
+					"composite": {
+						"size": 3,
+						"sources": [
+							{
+								"date": {
+									"date_histogram": {
+										"field": "timestamp",
+										"calendar_interval": "1d",
+										"order": "desc"
+									}
+								}
+							},
+          					{
+								"product": {
+									"terms": {
+										"field": "product"
+									}
+								}
+							}
+						]
+					},
+					"aggregations": {
+        				"the_avg": {
+          					"avg": {
+								"field": "price"
+							}
+        				}
+      				}
+				}
+			}
+		}`,
+		ExpectedResponse: `
+		{
+		
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021640000/30000)),
+				model.NewQueryResultCol("aggr__histo__count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
+				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
+				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			`,
+	},
 }
