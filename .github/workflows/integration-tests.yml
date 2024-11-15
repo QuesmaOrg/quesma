@@ -72,7 +72,7 @@ jobs:
 
       - name: Send Slack notification on failure
         if: ${{ failure() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v2.0.0
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           slack-message: |
@@ -84,7 +84,7 @@ jobs:
 
       - name: Send Slack notification on success
         if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v2.0.0
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           slack-message: |
