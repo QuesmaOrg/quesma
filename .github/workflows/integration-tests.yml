@@ -78,7 +78,7 @@ jobs:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
             channel: ${{ secrets.SLACK_CHANNEL_ID }}
-            text: ":exclamation: *Integration tests failed.* :exclamation: <@channel>\n*Last commit by:* ${{ steps.get_author.outputs.author }}\n*Workflow run URL:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            text: ":exclamation: *Integration tests failed.* :exclamation: <!channel>\n*Last commit by:* ${{ steps.get_author.outputs.author }}\n*Workflow run URL:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Send Slack notification on success
         if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
