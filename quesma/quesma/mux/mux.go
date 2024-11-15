@@ -99,10 +99,8 @@ func (p *PathRouter) Matches(req *Request) (Handler, *table_resolver.Decision) {
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (Handler, *table_resolver.Decision) {
+func (p *PathRouter) findHandler(req *Request) (handler Handler, decision *table_resolver.Decision) {
 	path := strings.TrimSuffix(req.Path, "/")
-	var handler Handler
-	var decision *table_resolver.Decision
 	for _, m := range p.mappings {
 		if pathData, pathMatches := m.compiledPath.Match(path); pathMatches {
 			req.Params = pathData.Params
@@ -113,10 +111,7 @@ func (p *PathRouter) findHandler(req *Request) (Handler, *table_resolver.Decisio
 			}
 		}
 	}
-	if handler != nil {
-		return handler, decision
-	}
-	return nil, nil
+	return handler, decision
 }
 
 type httpMethodPredicate struct {
