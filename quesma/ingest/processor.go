@@ -820,8 +820,10 @@ func (ip *IngestProcessor) execute(ctx context.Context, query string) error {
 	span := ip.phoneHomeAgent.ClickHouseInsertDuration().Begin()
 
 	// We log every DDL query
-	if strings.HasPrefix(query, "ALTER") || strings.HasPrefix(query, "CREATE") {
-		logger.InfoWithCtx(ctx).Msgf("DDL query execution: %s", query)
+	if ip.cfg.Logging.EnableSQLTracing {
+		if strings.HasPrefix(query, "ALTER") || strings.HasPrefix(query, "CREATE") {
+			logger.InfoWithCtx(ctx).Msgf("DDL query execution: %s", query)
+		}
 	}
 
 	_, err := ip.chDb.ExecContext(ctx, query)
@@ -831,9 +833,7 @@ func (ip *IngestProcessor) execute(ctx context.Context, query string) error {
 
 func (ip *IngestProcessor) executeStatements(ctx context.Context, queries []string) error {
 	for _, q := range queries {
-		if strings.HasPrefix("ALTER", q) || strings.HasPrefix("CREATE", q) {
-			logger.InfoWithCtx(ctx).Msgf("DDL query execution: %s", q)
-		}
+
 		err := ip.execute(ctx, q)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error executing query: %v", err)

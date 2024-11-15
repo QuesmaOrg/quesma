@@ -770,8 +770,10 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 
 				query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, transformation.TransformationName)
 
-				logger.Info().Msgf(transformation.TransformationName+" triggered, input query: %s", inputQuery)
-				logger.Info().Msgf(transformation.TransformationName+" triggered, output query: %s", query.SelectCommand.String())
+				if s.cfg.Logging.EnableSQLTracing {
+					logger.Info().Msgf(transformation.TransformationName+" triggered, input query: %s", inputQuery)
+					logger.Info().Msgf(transformation.TransformationName+" triggered, output query: %s", query.SelectCommand.String())
+				}
 			}
 
 		}
