@@ -104,10 +104,8 @@ func (p *PathRouter) findHandler(req *Request) (Handler, *table_resolver.Decisio
 	var handler Handler
 	var decision *table_resolver.Decision
 	for _, m := range p.mappings {
-		pathData, pathMatches := m.compiledPath.Match(path)
-		req.Params = pathData.Params
-
-		if pathMatches {
+		if pathData, pathMatches := m.compiledPath.Match(path); pathMatches {
+			req.Params = pathData.Params
 			predicateResult := m.predicate.Matches(req)
 			if predicateResult.Matched {
 				handler = m.handler
