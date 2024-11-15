@@ -4113,19 +4113,145 @@ var AggregationTests2 = []AggregationTestCase{
 		}`,
 		ExpectedResponse: `
 		{
-		
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"my_buckets": {
+					"after_key": {
+						"product": 45.118141174316406
+					},
+					"buckets": [
+						{
+							"doc_count": 601,
+							"key": {
+								"product": 0.0
+							}
+						},
+						{
+							"doc_count": 12,
+							"key": {
+								"product": 20.101646423339844
+							}
+						},
+						{
+							"doc_count": 1,
+							"key": {
+								"product": 29.588184356689453
+							}
+						},
+						{
+							"doc_count": 2,
+							"key": {
+								"product": 31.64774513244629
+							}
+						},
+						{
+							"doc_count": 2,
+							"key": {
+								"product": 36.98516845703125
+							}
+						},
+						{
+							"doc_count": 1,
+							"key": {
+								"product": 40.57283401489258
+							}
+						},
+						{
+							"doc_count": 2,
+							"key": {
+								"product": 41.956443786621094
+							}
+						},
+						{
+							"doc_count": 1,
+							"key": {
+								"product": 43.53862762451172
+							}
+						},
+						{
+							"doc_count": 3,
+							"key": {
+								"product": 44.48069763183594
+							}
+						},
+						{
+							"doc_count": 8,
+							"key": {
+								"product": 45.118141174316406
+							}
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "gte",
+					"value": 10000
+				}
+			},
+			"timed_out": false,
+			"took": 6
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021640000/30000)),
-				model.NewQueryResultCol("aggr__histo__count", 1960),
-				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
-				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
-				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 0.0),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(601)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 20.101646423339844),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(12)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 29.588184356689453),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 31.64774513244629),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 36.98516845703125),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 40.57283401489258),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 41.956443786621094),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 43.53862762451172),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 44.48069763183594),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(3)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 45.118141174316406),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(8)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 1234),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(8)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			`,
+			SELECT "product" AS "aggr__my_buckets__key_0",
+              count(*) AS "aggr__my_buckets__count"
+            FROM __quesma_table_name
+            GROUP BY "product" AS "aggr__my_buckets__key_0"
+            ORDER BY "aggr__my_buckets__count" DESC, "aggr__my_buckets__key_0" ASC
+            LIMIT 11`,
 	},
 	{ // [66]
 		TestName: "simplest composite: 1 histogram",
@@ -4287,7 +4413,6 @@ var AggregationTests2 = []AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021640000/30000)),
 				model.NewQueryResultCol("aggr__histo__count", 1960),
-				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
 				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
 				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
 			}},

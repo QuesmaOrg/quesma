@@ -5,6 +5,7 @@ package queryparser
 
 import (
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/kibana"
 	"quesma/logger"
@@ -317,6 +318,12 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		delete(queryMap, "filters")
 		return
 	}
+	if composite, ok := queryMap["composite"]; ok {
+		aggregation.queryType, err = cw.parseComposite(aggregation, composite)
+		fmt.Println("LOL", err)
+		delete(queryMap, "composite")
+		return err == nil, err
+	}
 	success = false
 	return
 }
@@ -362,6 +369,47 @@ func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(paramsRaw any) *buck
 	}
 	bucketsNr := cw.parseIntField(params, "buckets", 10)
 	return bucket_aggregations.NewAutoDateHistogram(cw.Ctx, field, bucketsNr)
+}
+
+// compositeRaw - in a proper request should be of QueryMap type.
+func (cw *ClickhouseQueryTranslator) parseComposite(currentAggrNode *pancakeAggregationTreeNode, compositeRaw any) (*bucket_aggregations.Composite, error) {
+	const defaultSize = 10
+	composite, ok := compositeRaw.(QueryMap)
+	if !ok {
+		return nil, fmt.Errorf("composite is not a map, but %T, value: %v", compositeRaw, compositeRaw)
+	}
+
+	var baseAggrs []*bucket_aggregations.BaseAggregation
+	sourcesRaw, exists := composite["sources"]
+	if !exists {
+		return nil, fmt.Errorf("composite has no sources")
+	}
+	sources, ok := sourcesRaw.([]any)
+	if !ok {
+		return nil, fmt.Errorf("sources is not an array, but %T, value: %v", sourcesRaw, sourcesRaw)
+	}
+	for _, sourceRaw := range sources {
+		if source, ok := sourceRaw.(QueryMap); ok {
+			if len(source) != 1 {
+				return nil, fmt.Errorf("source has unexpected length: %v", source)
+			}
+			for aggrName, aggrRaw := range source {
+				if aggr, ok := aggrRaw.(QueryMap); ok {
+					if success, err := cw.pancakeTryBucketAggregation(currentAggrNode, aggr); success {
+						pp.Println(currentAggrNode.queryType)
+						baseAggrs = append(baseAggrs, bucket_aggregations.NewBaseAggregation(aggrName, currentAggrNode.queryType))
+					} else {
+						return nil, err
+					}
+				} else {
+					return nil, fmt.Errorf("source value is not a map, but %T, value: %v", aggrRaw, aggrRaw)
+				}
+			}
+		}
+	}
+
+	size := cw.parseIntField(composite, "size", defaultSize)
+	return bucket_aggregations.NewComposite(cw.Ctx, size, baseAggrs), nil
 }
 
 func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldExpressions []model.Expr) []model.OrderByExpr {
