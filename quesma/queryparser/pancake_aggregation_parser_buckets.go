@@ -428,6 +428,7 @@ func (cw *ClickhouseQueryTranslator) parseComposite(currentAggrNode *pancakeAggr
 	}
 
 	size := cw.parseIntField(composite, "size", defaultSize)
+	currentAggrNode.limit = size
 	return bucket_aggregations.NewComposite(cw.Ctx, size, baseAggrs), nil
 }
 

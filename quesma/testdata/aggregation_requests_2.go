@@ -4335,13 +4335,18 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__my_buckets__key_0", 40),
 				model.NewQueryResultCol("aggr__my_buckets__count", 4),
 			}},
-		}, // ZLE bo musze tylko 3 (dodac limit)
+			{Cols: []model.QueryResultCol{ // should be erased by us
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 60),
+				model.NewQueryResultCol("aggr__my_buckets__count", 100000000),
+			}},
+		},
 		ExpectedPancakeSQL: `
 			SELECT floor("price"/5)*5 AS "aggr__my_buckets__key_0",
 			  count(*) AS "aggr__my_buckets__count"
 			FROM __quesma_table_name
 			GROUP BY floor("price"/5)*5 AS "aggr__my_buckets__key_0"
-			ORDER BY "aggr__my_buckets__key_0" ASC`,
+			ORDER BY "aggr__my_buckets__key_0" ASC
+			LIMIT 4`,
 	},
 	{ // [67]
 		TestName: "simplest composite: 1 date_histogram",
