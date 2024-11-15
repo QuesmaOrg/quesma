@@ -70,6 +70,10 @@ func (query Terms) String() string {
 	return "significant_terms"
 }
 
+func (query Terms) IsSignificant() bool {
+	return query.significant
+}
+
 func (query Terms) sumDocCounts(rows []model.QueryResultRow) int {
 	sum := 0
 	if len(rows) > 0 {

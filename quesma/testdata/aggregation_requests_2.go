@@ -4254,13 +4254,14 @@ var AggregationTests2 = []AggregationTestCase{
             LIMIT 11`,
 	},
 	{ // [66]
-		TestName: "simplest composite: 1 histogram",
+		TestName: "simplest composite: 1 histogram (with size)",
 		QueryRequestJson: `
 		{
 			"size": 0,
 			"aggs": {
 				"my_buckets": {
 					"composite": {
+						"size": 3,
 						"sources": [
 							{
 								"histo": {
@@ -4277,19 +4278,70 @@ var AggregationTests2 = []AggregationTestCase{
 		}`,
 		ExpectedResponse: `
 		{
-		
+			"took": 6,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 2727,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"my_buckets": {
+					"after_key": {
+						"histo": 40
+					},
+					"buckets": [
+						{
+							"key": {
+								"histo": 0
+							},
+							"doc_count": 121
+						},
+						{
+							"key": {
+								"histo": 20
+							},
+							"doc_count": 3
+						},
+						{
+							"key": {
+								"histo": 40
+							},
+							"doc_count": 4
+						}
+					]
+				}
+			}
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__histo__key_0", int64(1706021640000/30000)),
-				model.NewQueryResultCol("aggr__histo__count", 1960),
-				model.NewQueryResultCol("aggr__histo__0__parent_count", 1960),
-				model.NewQueryResultCol("aggr__histo__0__key_0", "order"),
-				model.NewQueryResultCol("aggr__histo__0__count", int64(42)),
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 0),
+				model.NewQueryResultCol("aggr__my_buckets__count", 121),
 			}},
-		},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 20),
+				model.NewQueryResultCol("aggr__my_buckets__count", 3),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 40),
+				model.NewQueryResultCol("aggr__my_buckets__count", 4),
+			}},
+		}, // ZLE bo musze tylko 3 (dodac limit)
 		ExpectedPancakeSQL: `
-			`,
+			SELECT floor("price"/5)*5 AS "aggr__my_buckets__key_0",
+			  count(*) AS "aggr__my_buckets__count"
+			FROM __quesma_table_name
+			GROUP BY floor("price"/5)*5 AS "aggr__my_buckets__key_0"
+			ORDER BY "aggr__my_buckets__key_0" ASC`,
 	},
 	{ // [67]
 		TestName: "simplest composite: 1 date_histogram",

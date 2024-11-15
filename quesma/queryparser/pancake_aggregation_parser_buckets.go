@@ -379,6 +379,20 @@ func (cw *ClickhouseQueryTranslator) parseComposite(currentAggrNode *pancakeAggr
 		return nil, fmt.Errorf("composite is not a map, but %T, value: %v", compositeRaw, compositeRaw)
 	}
 
+	// The sources parameter can be any of the following types:
+	// 1) Terms (but NOT Significant Terms) 2) Histogram 3) Date histogram 4) GeoTile grid
+	// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-composite-aggregation.html
+	acceptableBaseAggr := func(queryType model.QueryType) bool {
+		switch typed := queryType.(type) {
+		case *bucket_aggregations.Histogram, *bucket_aggregations.DateHistogram, bucket_aggregations.GeoTileGrid:
+			return true
+		case bucket_aggregations.Terms:
+			return !typed.IsSignificant()
+		default:
+			return false
+		}
+	}
+
 	var baseAggrs []*bucket_aggregations.BaseAggregation
 	sourcesRaw, exists := composite["sources"]
 	if !exists {
@@ -396,6 +410,9 @@ func (cw *ClickhouseQueryTranslator) parseComposite(currentAggrNode *pancakeAggr
 			for aggrName, aggrRaw := range source {
 				if aggr, ok := aggrRaw.(QueryMap); ok {
 					if success, err := cw.pancakeTryBucketAggregation(currentAggrNode, aggr); success {
+						if !acceptableBaseAggr(currentAggrNode.queryType) {
+							return nil, fmt.Errorf("unsupported base aggregation type: %v", currentAggrNode.queryType)
+						}
 						pp.Println(currentAggrNode.queryType)
 						baseAggrs = append(baseAggrs, bucket_aggregations.NewBaseAggregation(aggrName, currentAggrNode.queryType))
 					} else {
@@ -405,6 +422,8 @@ func (cw *ClickhouseQueryTranslator) parseComposite(currentAggrNode *pancakeAggr
 					return nil, fmt.Errorf("source value is not a map, but %T, value: %v", aggrRaw, aggrRaw)
 				}
 			}
+		} else {
+			return nil, fmt.Errorf("source is not a map, but %T, value: %v", sourceRaw, sourceRaw)
 		}
 	}
 

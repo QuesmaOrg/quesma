@@ -52,7 +52,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if i == 66 || i == 67 || i == 68 || i == 69 {
+			if i == 67 || i == 68 || i == 69 {
 				t.Skip("TODO in this PR")
 			}
 			if filters(test.TestName) {
