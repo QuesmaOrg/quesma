@@ -345,8 +345,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return getIndexResult(index, mappings)
 	})
 
-	router.Register(routes.QuesmaTableResolverPath, mux.Always(), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-		// TODO: we should probably ditch the mux.Always() and have a proper matcher for this
+	router.Register(routes.QuesmaTableResolverPath, method("GET"), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		indexPattern := req.Params["index"]
 
 		decisions := make(map[string]*table_resolver.Decision)

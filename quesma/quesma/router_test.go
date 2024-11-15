@@ -3,6 +3,7 @@
 package quesma
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/ingest"
@@ -270,8 +271,9 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 	}
 }
 
+const testIndexName = "indexName"
+
 func TestConfigureRouter(t *testing.T) {
-	testIndexName := "indexName"
 	cfg := &config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
 			testIndexName: {
@@ -298,6 +300,7 @@ func TestConfigureRouter(t *testing.T) {
 		{routes.IndexCountPath, "GET", true},
 		{routes.GlobalSearchPath, "GET", false},
 		{routes.GlobalSearchPath, "POST", false},
+		{routes.GlobalSearchPath, "PUT", false},
 		{routes.IndexSearchPath, "GET", true},
 		{routes.IndexSearchPath, "POST", true},
 		{routes.IndexAsyncSearchPath, "POST", true},
@@ -314,9 +317,6 @@ func TestConfigureRouter(t *testing.T) {
 		{routes.IndexPath, "PUT", true},
 		{routes.IndexPath, "GET", true},
 		{routes.QuesmaTableResolverPath, "GET", true},
-		{routes.QuesmaTableResolverPath, "POST", true},
-		{routes.QuesmaTableResolverPath, "PUT", true},
-		{routes.QuesmaTableResolverPath, "DELETE", true},
 		// Few cases where the router should not match
 		{"/invalid/path", "GET", false},
 		{routes.ClusterHealthPath, "POST", false},
@@ -336,6 +336,8 @@ func TestConfigureRouter(t *testing.T) {
 		{routes.EQLSearch, "DELETE", false},
 		{routes.IndexPath, "POST", false},
 		{routes.QuesmaTableResolverPath, "POST", false},
+		{routes.QuesmaTableResolverPath, "PUT", false},
+		{routes.QuesmaTableResolverPath, "DELETE", false},
 	}
 
 	// Run test cases
@@ -358,11 +360,19 @@ func (t TestTableResolver) Start() {}
 
 func (t TestTableResolver) Stop() {}
 
-func (t TestTableResolver) Resolve(_ string, _ string) *table_resolver.Decision {
-	return &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{
-			&table_resolver.ConnectorDecisionClickhouse{},
-		},
+func (t TestTableResolver) Resolve(_ string, indexPattern string) *table_resolver.Decision {
+	if indexPattern == testIndexName {
+		return &table_resolver.Decision{
+			UseConnectors: []table_resolver.ConnectorDecision{
+				&table_resolver.ConnectorDecisionClickhouse{},
+			},
+		}
+	} else {
+		return &table_resolver.Decision{
+			Err:          fmt.Errorf("TestTableResolver err"),
+			Reason:       "TestTableResolver reason",
+			ResolverName: "TestTableResolver",
+		}
 	}
 }
 
