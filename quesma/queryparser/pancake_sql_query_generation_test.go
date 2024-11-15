@@ -27,11 +27,13 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
-			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"order_date":  {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
-			"message":     {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"bytes_gauge": {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
+			"@timestamp":                     {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"timestamp":                      {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"order_date":                     {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
+			"message":                        {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"bytes_gauge":                    {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
+			"customer_birth_date":            {Name: "customer_birth_date", Type: clickhouse.NewBaseType("DateTime")},
+			"customer_birth_date_datetime64": {Name: "customer_birth_date_datetime64", Type: clickhouse.NewBaseType("DateTime64")},
 		},
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),

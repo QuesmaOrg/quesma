@@ -3,6 +3,7 @@
 package kibana
 
 import (
+	"context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -37,7 +38,7 @@ func TestDateManager_parseStrictDateOptionalTimeOrEpochMillis(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%v", tt.missing), func(t *testing.T) {
-			dm := NewDateManager()
+			dm := NewDateManager(context.Background())
 			gotUnixTs, gotParsingSucceeded := dm.parseStrictDateOptionalTimeOrEpochMillis(tt.missing)
 			assert.Equalf(t, tt.wantUnixTimestamp, gotUnixTs, "MissingInDateHistogramToUnixTimestamp(%v)", tt.missing)
 			assert.Equalf(t, tt.wantParsingSucceeded, gotParsingSucceeded, "MissingInDateHistogramToUnixTimestamp(%v)", tt.missing)

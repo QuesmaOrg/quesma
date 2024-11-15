@@ -71,7 +71,6 @@ Currently not supported future roadmap items:
 
 - Some schema-related endpoints (such as `PUT /:index`) don't support dual-writes: the request is only handled by the ClickHouse/Hydrolix connector and not forwarded to Elastic. A workaround for this problem is to send the request manually directly to Elastic. The status of the bug is tracked on [Quesma's GitHub Issues page](https://github.com/QuesmaOrg/quesma/issues/986).
 - The `_count` endpoint does not support tables in non-default [databases](https://clickhouse.com/docs/en/sql-reference/statements/create/database). The status of the bug is tracked on [Quesma's GitHub Issues page](https://github.com/QuesmaOrg/quesma/issues/985).
-- `@timestamp` column supports only `DateTime64(3)` type (e.g. `DateTime` type is not supported for that column). The status of the bug is tracked on [Quesma's GitHub Issues page](https://github.com/QuesmaOrg/quesma/issues/988).
 
 ## List of supported endpoints
 
