@@ -8,7 +8,7 @@ import (
 	"quesma/model/bucket_aggregations"
 )
 
-func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (success bool, filtersAggr bucket_aggregations.Filters) {
+func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (filtersAggr bucket_aggregations.Filters, success bool) {
 	filtersAggr = bucket_aggregations.NewFiltersEmpty(cw.Ctx)
 
 	filtersRaw, exists := queryMap["filters"]
@@ -46,5 +46,5 @@ func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (success bo
 		}
 		filters = append(filters, bucket_aggregations.NewFilter(name, filter))
 	}
-	return true, bucket_aggregations.NewFilters(cw.Ctx, filters)
+	return bucket_aggregations.NewFilters(cw.Ctx, filters), true
 }

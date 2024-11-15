@@ -15,26 +15,24 @@ import (
 	"strings"
 )
 
-func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pancakeAggregationTreeNode, queryMap QueryMap) (success bool, err error) {
-
-	success = true // returned in most cases
+func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pancakeAggregationTreeNode, queryMap QueryMap) error {
 	if histogramRaw, ok := queryMap["histogram"]; ok {
 		histogram, ok := histogramRaw.(QueryMap)
 		if !ok {
-			return false, fmt.Errorf("histogram is not a map, but %T, value: %v", histogramRaw, histogramRaw)
+			return fmt.Errorf("histogram is not a map, but %T, value: %v", histogramRaw, histogramRaw)
 		}
 
 		var interval float64
 		intervalRaw, ok := histogram["interval"]
 		if !ok {
-			return false, fmt.Errorf("interval not found in histogram: %v", histogram)
+			return fmt.Errorf("interval not found in histogram: %v", histogram)
 		}
 		switch intervalTyped := intervalRaw.(type) {
 		case string:
 			var err error
 			interval, err = strconv.ParseFloat(intervalTyped, 64)
 			if err != nil {
-				return false, fmt.Errorf("failed to parse interval: %v", intervalRaw)
+				return fmt.Errorf("failed to parse interval: %v", intervalRaw)
 			}
 		case int:
 			interval = float64(intervalTyped)
@@ -69,12 +67,12 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(col))
 
 		delete(queryMap, "histogram")
-		return success, nil
+		return nil
 	}
 	if dateHistogramRaw, ok := queryMap["date_histogram"]; ok {
 		dateHistogram, ok := dateHistogramRaw.(QueryMap)
 		if !ok {
-			return false, fmt.Errorf("date_histogram is not a map, but %T, value: %v", dateHistogramRaw, dateHistogramRaw)
+			return fmt.Errorf("date_histogram is not a map, but %T, value: %v", dateHistogramRaw, dateHistogramRaw)
 		}
 		field := cw.parseFieldField(dateHistogram, "date_histogram")
 		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
@@ -122,12 +120,12 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(sqlQuery))
 
 		delete(queryMap, "date_histogram")
-		return success, nil
+		return nil
 	}
 	if autoDateHistogram := cw.parseAutoDateHistogram(queryMap["auto_date_histogram"]); autoDateHistogram != nil {
 		aggregation.queryType = autoDateHistogram
 		delete(queryMap, "auto_date_histogram")
-		return
+		return nil
 	}
 	for _, termsType := range []string{"terms", "significant_terms"} {
 		termsRaw, ok := queryMap[termsType]
@@ -136,7 +134,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 		terms, ok := termsRaw.(QueryMap)
 		if !ok {
-			return false, fmt.Errorf("%s is not a map, but %T, value: %v", termsType, termsRaw, termsRaw)
+			return fmt.Errorf("%s is not a map, but %T, value: %v", termsType, termsRaw, termsRaw)
 		}
 
 		fieldExpression := cw.parseFieldField(terms, termsType)
@@ -154,12 +152,12 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.orderBy = orderBy
 
 		delete(queryMap, termsType)
-		return success, nil
+		return nil
 	}
 	if multiTermsRaw, exists := queryMap["multi_terms"]; exists {
 		multiTerms, ok := multiTermsRaw.(QueryMap)
 		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("multi_terms is not a map, but %T, value: %v", multiTermsRaw, multiTermsRaw)
+			return fmt.Errorf("multi_terms is not a map, but %T, value: %v", multiTermsRaw, multiTermsRaw)
 		}
 
 		const defaultSize = 10
@@ -171,7 +169,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		if termsRaw, exists := multiTerms["terms"]; exists {
 			terms, ok := termsRaw.([]any)
 			if !ok {
-				logger.WarnWithCtx(cw.Ctx).Msgf("terms is not an array, but %T, value: %v. Using empty array", termsRaw, termsRaw)
+				return fmt.Errorf("terms is not an array, but %T, value: %v. Using empty array", termsRaw, termsRaw)
 			}
 			fieldsNr = len(terms)
 			columns := make([]model.Expr, 0, fieldsNr)
@@ -181,39 +179,39 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			aggregation.selectedColumns = append(aggregation.selectedColumns, columns...)
 			aggregation.orderBy = append(aggregation.orderBy, cw.parseOrder(multiTerms, queryMap, columns)...)
 		} else {
-			logger.WarnWithCtx(cw.Ctx).Msg("no terms in multi_terms")
+			return fmt.Errorf("no terms in multi_terms")
 		}
 
 		aggregation.queryType = bucket_aggregations.NewMultiTerms(cw.Ctx, fieldsNr)
 		aggregation.limit = size
 
 		delete(queryMap, "multi_terms")
-		return success, nil
+		return nil
 	}
 	if rangeRaw, ok := queryMap["range"]; ok {
 		rangeMap, ok := rangeRaw.(QueryMap)
 		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("range is not a map, but %T, value: %v. Using empty map", rangeRaw, rangeRaw)
+			return fmt.Errorf("range is not a map, but %T, value: %v. Using empty map", rangeRaw, rangeRaw)
 		}
+
 		Range := cw.parseRangeAggregation(rangeMap)
 		aggregation.queryType = Range
 		if Range.Keyed {
 			aggregation.isKeyed = true
 		}
 		delete(queryMap, "range")
-		return success, nil
+		return nil
 	}
 	if dateRangeRaw, ok := queryMap["date_range"]; ok {
 		dateRange, ok := dateRangeRaw.(QueryMap)
 		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("date_range is not a map, but %T, value: %v. Using empty map", dateRangeRaw, dateRangeRaw)
+			return fmt.Errorf("date_range is not a map, but %T, value: %v. Using empty map", dateRangeRaw, dateRangeRaw)
 		}
-		dateRangeParsed, err := cw.parseDateRangeAggregation(dateRange)
-		if err != nil {
-			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("failed to parse date_range aggregation")
-			return false, err
+		if dateRangeParsed, err := cw.parseDateRangeAggregation(dateRange); err == nil {
+			aggregation.queryType = dateRangeParsed
+		} else {
+			return err
 		}
-		aggregation.queryType = dateRangeParsed
 		// TODO: keep for reference as relative time, but no longer needed
 		/*
 			for _, interval := range dateRangeParsed.Intervals {
@@ -229,18 +227,17 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			}*/
 
 		delete(queryMap, "date_range")
-		return success, nil
+		return nil
 	}
 	if geoTileGridRaw, ok := queryMap["geotile_grid"]; ok {
 		geoTileGrid, ok := geoTileGridRaw.(QueryMap)
 		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("geotile_grid is not a map, but %T, value: %v", geoTileGridRaw, geoTileGridRaw)
+			return fmt.Errorf("geotile_grid is not a map, but %T, value: %v", geoTileGridRaw, geoTileGridRaw)
 		}
 		var precisionZoom float64
 		precisionRaw, ok := geoTileGrid["precision"]
 		if ok {
-			switch cutValueTyped := precisionRaw.(type) {
-			case float64:
+			if cutValueTyped, ok := precisionRaw.(float64); ok {
 				precisionZoom = cutValueTyped
 			}
 		}
@@ -263,7 +260,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 
 		fieldName, err := strconv.Unquote(model.AsString(field))
 		if err != nil {
-			return false, err
+			return err
 		}
 		lon := model.NewGeoLon(fieldName)
 		lat := model.NewGeoLat(fieldName)
@@ -296,19 +293,19 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.selectedColumns = append(aggregation.selectedColumns, yTile)
 
 		delete(queryMap, "geotile_grid")
-		return success, err
+		return nil
 	}
 	if sampler, ok := queryMap["sampler"]; ok {
 		aggregation.queryType = cw.parseSampler(sampler)
 		delete(queryMap, "sampler")
-		return
+		return nil
 	}
 	if randomSampler, ok := queryMap["random_sampler"]; ok {
 		aggregation.queryType = cw.parseRandomSampler(randomSampler)
 		delete(queryMap, "random_sampler")
 		return
 	}
-	if isFilters, filterAggregation := cw.parseFilters(queryMap); isFilters {
+	if filterAggregation, ok := cw.parseFilters(queryMap); ok {
 		sort.Slice(filterAggregation.Filters, func(i, j int) bool { // stable order is required for tests and caching
 			return filterAggregation.Filters[i].Name < filterAggregation.Filters[j].Name
 		})
@@ -317,51 +314,52 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		delete(queryMap, "filters")
 		return
 	}
+	if composite, ok := queryMap["composite"]; ok {
+		aggregation.queryType = cw.parseComposite(composite)
+		delete(queryMap, "composite")
+		return
+	}
 	success = false
 	return
 }
 
 // samplerRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseSampler(samplerRaw any) bucket_aggregations.Sampler {
+func (cw *ClickhouseQueryTranslator) parseSampler(samplerRaw any) (bucket_aggregations.Sampler, error) {
 	const defaultSize = 100
-	sampler, ok := samplerRaw.(QueryMap)
-	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("sampler is not a map, but %T, value: %v", samplerRaw, samplerRaw)
-		return bucket_aggregations.NewSampler(cw.Ctx, defaultSize)
+	if sampler, ok := samplerRaw.(QueryMap); ok {
+		return bucket_aggregations.NewSampler(cw.Ctx, cw.parseIntField(sampler, "shard_size", defaultSize)), nil
 	}
-	return bucket_aggregations.NewSampler(cw.Ctx, cw.parseIntField(sampler, "shard_size", defaultSize))
+
+	return bucket_aggregations.NewSampler(cw.Ctx, defaultSize), fmt.Errorf("sampler is not a map, but %T, value: %v", samplerRaw, samplerRaw)
 }
 
 // randomSamplerRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseRandomSampler(randomSamplerRaw any) bucket_aggregations.RandomSampler {
+func (cw *ClickhouseQueryTranslator) parseRandomSampler(randomSamplerRaw any) (bucket_aggregations.RandomSampler, error) {
 	const defaultProbability = 0.0 // theoretically it's required
 	const defaultSeed = 0
-	randomSampler, ok := randomSamplerRaw.(QueryMap)
-	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("sampler is not a map, but %T, value: %v", randomSamplerRaw, randomSamplerRaw)
-		return bucket_aggregations.NewRandomSampler(cw.Ctx, defaultProbability, defaultSeed)
+	if randomSampler, ok := randomSamplerRaw.(QueryMap); ok {
+		return bucket_aggregations.NewRandomSampler(cw.Ctx,
+			cw.parseFloatField(randomSampler, "probability", defaultProbability),
+			cw.parseIntField(randomSampler, "seed", defaultSeed),
+		), nil
 	}
-	return bucket_aggregations.NewRandomSampler(
-		cw.Ctx,
-		cw.parseFloatField(randomSampler, "probability", defaultProbability),
-		cw.parseIntField(randomSampler, "seed", defaultSeed),
-	)
+
+	return bucket_aggregations.NewRandomSampler(cw.Ctx, defaultProbability, defaultSeed), fmt.Errorf("sampler is not a map, but %T, value: %v", randomSamplerRaw, randomSamplerRaw)
 }
 
-func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(paramsRaw any) *bucket_aggregations.AutoDateHistogram {
+func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(paramsRaw any) (*bucket_aggregations.AutoDateHistogram, error) {
 	params, ok := paramsRaw.(QueryMap)
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("auto_date_histogram is not a map, but %T, value: %v", paramsRaw, paramsRaw)
 	}
 
 	fieldRaw := cw.parseFieldField(params, "auto_date_histogram")
-	var field model.ColumnRef
-	if field, ok = fieldRaw.(model.ColumnRef); !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v. Skipping auto_date_histogram", fieldRaw, fieldRaw)
-		return nil
+	if field, ok := fieldRaw.(model.ColumnRef); ok {
+		bucketsNr := cw.parseIntField(params, "buckets", 10)
+		return bucket_aggregations.NewAutoDateHistogram(cw.Ctx, field, bucketsNr), nil
 	}
-	bucketsNr := cw.parseIntField(params, "buckets", 10)
-	return bucket_aggregations.NewAutoDateHistogram(cw.Ctx, field, bucketsNr)
+
+	return nil, fmt.Errorf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 }
 
 func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldExpressions []model.Expr) []model.OrderByExpr {
