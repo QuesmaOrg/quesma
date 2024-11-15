@@ -799,10 +799,10 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			valueRaw := v.(QueryMap)[op]
 			value := sprint(valueRaw)
 			defaultValue := model.NewLiteral(value)
-			dateManager := kibana.NewDateManager()
+			dateManager := kibana.NewDateManager(cw.Ctx)
 
 			// Three stages:
-			// 1. dateManager.ParseRange
+			// 1. dateManager.ParseDateUsualFormat
 			// 2. cw.parseDateMathExpression
 			// 3. just a number
 			// Dates use 1-3 and finish as soon as any succeeds
@@ -812,9 +812,8 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			doneParsing, isQuoted := false, len(value) > 2 && value[0] == '\'' && value[len(value)-1] == '\''
 			switch fieldType {
 			case clickhouse.DateTime, clickhouse.DateTime64:
-				// TODO add support for "time_zone" parameter in ParseRange
-				finalValue, doneParsing = dateManager.ParseRange(value) // stage 1
-
+				// TODO add support for "time_zone" parameter in ParseDateUsualFormat
+				finalValue, doneParsing = dateManager.ParseDateUsualFormat(value, fieldType)  // stage 1
 				if !doneParsing && (op == "gte" || op == "lte" || op == "gt" || op == "lt") { // stage 2
 					parsed, err := cw.parseDateMathExpression(value)
 					if err == nil {
@@ -822,9 +821,8 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 						finalValue = model.NewLiteral(parsed)
 					}
 				}
-
 				if !doneParsing && isQuoted { // stage 3
-					finalValue, doneParsing = dateManager.ParseRange(value[1 : len(value)-1])
+					finalValue, doneParsing = dateManager.ParseDateUsualFormat(value[1:len(value)-1], fieldType)
 				}
 			case clickhouse.Invalid:
 				if isQuoted {

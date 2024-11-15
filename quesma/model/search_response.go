@@ -81,7 +81,7 @@ type AsyncSearchEntireResp struct {
 	// For example, 200 indicates that the async search was successfully completed.
 	// 503 indicates that the async search was completed with an error.
 	CompletionStatus *int       `json:"completion_status,omitempty"`
-	Response         SearchResp `json:"response"`
+	Response         SearchResp `json:"response,omitempty"`
 }
 
 func (response *AsyncSearchEntireResp) Marshal() ([]byte, error) {
