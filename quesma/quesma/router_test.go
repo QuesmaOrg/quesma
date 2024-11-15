@@ -347,8 +347,7 @@ func TestConfigureRouter(t *testing.T) {
 		t.Run(tt.method+"-at-"+tt.path, func(t *testing.T) {
 			req := &mux.Request{Path: tt.path, Method: tt.method}
 			reqHandler, _ := testRouter.Matches(req)
-			handlerReturned := reqHandler != nil
-			assert.Equal(t, tt.shouldReturnHandler, handlerReturned, "Expected route match result for path: %s and method: %s", tt.path, tt.method)
+			assert.Equal(t, tt.shouldReturnHandler, reqHandler != nil, "Expected route match result for path: %s and method: %s", tt.path, tt.method)
 		})
 	}
 }
