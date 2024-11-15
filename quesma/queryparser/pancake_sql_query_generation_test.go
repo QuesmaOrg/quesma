@@ -52,6 +52,11 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
 			}
+
+			if test.TestName == "Kibana 8.15 TSVB -> Metric, Aggregation: Top hit(file:kibana-visualize/agg_req,nr:9)" {
+				t.Skip("Fails in real life because of transformations, passes here. Fix it by adding query transformations here.")
+			}
+
 			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:22)" {
 				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
 			}

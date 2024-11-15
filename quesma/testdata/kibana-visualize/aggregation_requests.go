@@ -1784,4 +1784,239 @@ var AggregationTests = []testdata.AggregationTestCase{
 			WHERE "aggr__0__order_1_rank"<=13
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
+	{ // [9]
+		TestName: "Kibana 8.15 TSVB -> Metric, Aggregation: Top hit",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"timeseries": {
+					"aggs": {
+						"badccb5b-5077-4bc9-9cbb-8a13abb0e33f": {
+							"aggs": {
+								"docs": {
+									"top_hits": {
+										"fields": [
+											"message"
+										],
+										"size": 1
+									}
+								}
+							},
+							"filter": {
+								"exists": {
+									"field": "message"
+								}
+							}
+						}
+					},
+					"date_histogram": {
+						"extended_bounds": {
+							"max": 1731580657318,
+							"min": 1731526657318
+						},
+						"field": "timestamp",
+						"fixed_interval": "600s",
+						"min_doc_count": 0,
+						"time_zone": "Europe/Warsaw"
+					},
+					"meta": {
+						"dataViewId": "d3d7af60-4c81-11e8-b3d7-01146121b73d",
+						"indexPatternString": "kibana_sample_data_flights",
+						"intervalString": "600s",
+						"normalized": true,
+						"panelId": "a7039566-0e44-48bb-8677-ff54cc3d8d20",
+						"seriesId": "4dd4251c-43c2-4e53-b07a-e7562564c70e",
+						"timeField": "timestamp"
+					}
+				}
+			},
+			"size": 0,
+			"timeout": "30000ms",
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1726937127128,
+			"expiration_time_in_millis": 1726937187124,
+			"id": "Fm9QLU5BRXFoVEwyQk1WWC1XalJ1R2cccjdQX1ljN3hSYktWdjNya1RCY3BSdzoxMjM5Mg==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"other-filter": {
+						"buckets": {
+							"": {
+								"1": {
+									"buckets": [
+										{
+											"2-bucket": {
+												"2-metric": {
+													"top": [
+														{
+															"metrics": {
+																"DistanceKilometers": 8619.34375
+															},
+															"sort": [
+																"2024-09-09T09:56:35.000Z"
+															]
+														}
+													]
+												},
+												"doc_count": 140
+											},
+											"doc_count": 140,
+											"key": 1725832800000,
+											"key_as_string": "2024-09-09T00:00:00.000+02:00"
+										},
+										{
+											"2-bucket": {
+												"2-metric": {
+													"top": [
+														{
+															"metrics": {
+																"DistanceKilometers": 11549.353515625
+															},
+															"sort": [
+																"2024-09-09T21:58:01.000Z"
+															]
+														}
+													]
+												},
+												"doc_count": 178
+											},
+											"doc_count": 178,
+											"key": 1725876000000,
+											"key_as_string": "2024-09-09T12:00:00.000+02:00"
+										},
+										{
+											"2-bucket": {
+												"2-metric": {
+													"top": [
+														{
+															"metrics": {
+																"DistanceKilometers": 10641.537109375
+															},
+															"sort": [
+																"2024-09-10T09:59:52.000Z"
+															]
+														}
+													]
+												},
+												"doc_count": 146
+											},
+											"doc_count": 146,
+											"key": 1725919200000,
+											"key_as_string": "2024-09-10T00:00:00.000+02:00"
+										}
+									]
+								},
+								"2-bucket": {
+									"2-metric": {
+										"top": [
+											{
+												"metrics": {
+													"DistanceKilometers": 11077.248046875
+												},
+												"sort": [
+													"2024-09-21T16:42:22.000Z"
+												]
+											}
+										]
+									},
+									"doc_count": 4032
+								},
+								"doc_count": 4032
+							}
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 4044
+					}
+				},
+				"timed_out": false,
+				"took": 4
+			},
+			"start_time_in_millis": 1726937127124
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{ // incorrect
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1716834210000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 4),
+				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(4)),
+				model.NewQueryResultCol("aggr__0__1__key_0", "artemis"),
+				model.NewQueryResultCol("aggr__0__1__key_1", "error"),
+				model.NewQueryResultCol("aggr__0__1__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1716834210000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 4),
+				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(4)),
+				model.NewQueryResultCol("aggr__0__1__key_0", "artemis"),
+				model.NewQueryResultCol("aggr__0__1__key_1", "info"),
+				model.NewQueryResultCol("aggr__0__1__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1716834210000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 4),
+				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(4)),
+				model.NewQueryResultCol("aggr__0__1__key_0", "jupiter"),
+				model.NewQueryResultCol("aggr__0__1__key_1", "info"),
+				model.NewQueryResultCol("aggr__0__1__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1716834270000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 16),
+				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(15)),
+				model.NewQueryResultCol("aggr__0__1__key_0", "apollo"),
+				model.NewQueryResultCol("aggr__0__1__key_1", "info"),
+				model.NewQueryResultCol("aggr__0__1__count", 2),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1716834270000/30000)),
+				model.NewQueryResultCol("aggr__0__count", 16),
+				model.NewQueryResultCol("aggr__0__1__parent_count", uint64(15)),
+				model.NewQueryResultCol("aggr__0__1__key_0", "cassandra"),
+				model.NewQueryResultCol("aggr__0__1__key_1", "debug"),
+				model.NewQueryResultCol("aggr__0__1__count", 1),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+			  "aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
+			  "aggr__0__1__2-bucket__count"
+			FROM (
+			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+				"aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
+				"aggr__0__1__2-bucket__count",
+				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
+				AS "aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
+			  FROM (
+				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+				  "AvgTicketPrice" AS "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  "top_metrics__0__2-bucket__2-metric_col_0" AS "aggr__0__order_1",
+				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__1__key_0",
+				  count(*) AS "aggr__0__1__count",
+				  countIf("bytes_gauge" IS NOT NULL) AS "aggr__0__1__2-bucket__count"
+				FROM __quesma_table_name
+				GROUP BY "AvgTicketPrice" AS "aggr__0__key_0",
+				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__1__key_0"))
+			WHERE "aggr__0__order_1_rank"<=13
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+	},
 }
