@@ -86,36 +86,32 @@ func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler 
 
 }
 
-func (p *PathRouter) Matches(req *Request) (Handler, bool, *table_resolver.Decision) {
-	handler, found, decision := p.findHandler(req)
-	if found {
+func (p *PathRouter) Matches(req *Request) (Handler, *table_resolver.Decision) {
+	handler, decision := p.findHandler(req)
+	if handler != nil {
 		routerStatistics.addMatched(req.Path)
 		logger.Debug().Msgf("Matched path: %s", req.Path)
-		return handler, true, decision
+		return handler, decision
 	} else {
 		routerStatistics.addUnmatched(req.Path)
 		logger.Debug().Msgf("Non-matched path: %s", req.Path)
-		return handler, false, decision
+		return handler, decision
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (Handler, bool, *table_resolver.Decision) {
+func (p *PathRouter) findHandler(req *Request) (handler Handler, decision *table_resolver.Decision) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
-		meta, match := m.compiledPath.Match(path)
-
-		if match {
-			req.Params = meta.Params
+		if pathData, pathMatches := m.compiledPath.Match(path); pathMatches {
+			req.Params = pathData.Params
 			predicateResult := m.predicate.Matches(req)
-
 			if predicateResult.Matched {
-				return m.handler, true, predicateResult.Decision
-			} else {
-				return nil, false, predicateResult.Decision
+				handler = m.handler
+				decision = predicateResult.Decision
 			}
 		}
 	}
-	return nil, false, nil
+	return handler, decision
 }
 
 type httpMethodPredicate struct {
