@@ -658,7 +658,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 	}
 }
 
-func TestDupa(t *testing.T) {
+func TestSun(t *testing.T) {
 
 	s := &schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
 

@@ -3,41 +3,31 @@
 package queryparser
 
 import (
-	"quesma/logger"
+	"fmt"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"sort"
 )
 
-func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (filtersAggr bucket_aggregations.Filters, success bool) {
-	filtersAggr = bucket_aggregations.NewFiltersEmpty(cw.Ctx)
-
-	filtersRaw, exists := queryMap["filters"]
-	if !exists {
-		return
-	}
-
-	filtersMap, ok := filtersRaw.(QueryMap)
+func (cw *ClickhouseQueryTranslator) parseFilters(aggregation *pancakeAggregationTreeNode, paramsRaw any) error {
+	params, ok := paramsRaw.(QueryMap)
 	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("filters is not a map, but %T, value: %v. Using empty.", filtersRaw, filtersRaw)
-		return
+		return fmt.Errorf("filters is not a map, but %T, value: %v", paramsRaw, paramsRaw)
 	}
-	nested, exists := filtersMap["filters"]
+	nestedRaw, exists := params["filters"]
 	if !exists {
-		logger.WarnWithCtx(cw.Ctx).Msgf("filters is not a map, but %T, value: %v. Skipping filters.", filtersRaw, filtersRaw)
-		return
+		return fmt.Errorf("filters is not a map, but %T, value: %v", params, params)
 	}
-	nestedMap, ok := nested.(QueryMap)
+	nested, ok := nestedRaw.(QueryMap)
 	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("filters is not a map, but %T, value: %v. Skipping filters.", nested, nested)
-		return
+		return fmt.Errorf("filters is not a map, but %T, value: %v", nestedRaw, nestedRaw)
 	}
 
-	filters := make([]bucket_aggregations.Filter, 0, len(nestedMap))
-	for name, filterRaw := range nestedMap {
+	filters := make([]bucket_aggregations.Filter, 0, len(nested))
+	for name, filterRaw := range nested {
 		filterMap, ok := filterRaw.(QueryMap)
 		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping.", filterRaw, filterRaw)
-			continue
+			return fmt.Errorf("filter is not a map, but %T, value: %v", filterRaw, filterRaw)
 		}
 		filter := cw.parseQueryMap(filterMap)
 		if filter.WhereClause == nil {
@@ -46,5 +36,11 @@ func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (filtersAgg
 		}
 		filters = append(filters, bucket_aggregations.NewFilter(name, filter))
 	}
-	return bucket_aggregations.NewFilters(cw.Ctx, filters), true
+
+	sort.Slice(filters, func(i, j int) bool {
+		return filters[i].Name < filters[j].Name
+	})
+	aggregation.queryType = bucket_aggregations.NewFilters(cw.Ctx, filters)
+	aggregation.isKeyed = true
+	return nil
 }

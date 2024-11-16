@@ -11,37 +11,34 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
-	"sort"
 	"strconv"
 	"strings"
 )
 
 func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pancakeAggregationTreeNode, queryMap QueryMap) error {
-	aggregations := []struct {
-		name string
-		fn   func(any) error
+	aggregationHandlers := []struct {
+		name    string
+		handler func(*pancakeAggregationTreeNode, any) error
 	}{
 		{"histogram", cw.parseHistogram},
 		{"date_histogram", cw.parseDateHistogram},
-	}
-	if histogramRaw, ok := queryMap["histogram"]; ok {
-		histogram, col, orderBy, filterOutEmptyKeyBucket, err := cw.parseHistogram(histogramRaw)
-		aggregation.queryType = histogram
-		aggregation.selectedColumns = append(aggregation.selectedColumns, col)
-		aggregation.orderBy = append(aggregation.orderBy, orderBy)
-		aggregation.filterOutEmptyKeyBucket = filterOutEmptyKeyBucket
-		delete(queryMap, "histogram")
-		return err
+		{"terms", func(node *pancakeAggregationTreeNode, params any) error {
+			return cw.parseTermsAggregation(node, params, "terms", queryMap)
+		}},
+		{"filters", cw.parseFilters},
+		{"sampler", cw.parseSampler},
+		{"random_sampler", cw.parseRandomSampler},
+		{"geotile_grid", cw.parseGeotileGrid},
+		{"significant_terms", func(node *pancakeAggregationTreeNode, params any) error {
+			return cw.parseTermsAggregation(node, params, "significant_terms", queryMap)
+		}},
 	}
 
-	if dateHistogramRaw, ok := queryMap["date_histogram"]; ok {
-		dateHistogram, col, orderBy, filterOutEmptyKeyBucket, err := cw.parseDateHistogram(dateHistogramRaw)
-		aggregation.queryType = dateHistogram
-		aggregation.selectedColumns = append(aggregation.selectedColumns, col)
-		aggregation.orderBy = append(aggregation.orderBy, orderBy)
-		aggregation.filterOutEmptyKeyBucket = filterOutEmptyKeyBucket
-		delete(queryMap, "date_histogram")
-		return err
+	for _, aggr := range aggregationHandlers {
+		if params, ok := queryMap[aggr.name]; ok {
+			delete(queryMap, aggr.name)
+			return aggr.handler(aggregation, params)
+		}
 	}
 
 	if autoDateHistogram, err := cw.parseAutoDateHistogram(queryMap["auto_date_histogram"]); autoDateHistogram != nil {
@@ -49,33 +46,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		delete(queryMap, "auto_date_histogram")
 		return err // FIXME
 	}
-	for _, termsType := range []string{"terms", "significant_terms"} {
-		termsRaw, ok := queryMap[termsType]
-		if !ok {
-			continue
-		}
-		terms, ok := termsRaw.(QueryMap)
-		if !ok {
-			return fmt.Errorf("%s is not a map, but %T, value: %v", termsType, termsRaw, termsRaw)
-		}
 
-		fieldExpression := cw.parseFieldField(terms, termsType)
-		fieldExpression, didWeAddMissing := cw.addMissingParameterIfPresent(fieldExpression, terms)
-		if !didWeAddMissing {
-			aggregation.filterOutEmptyKeyBucket = true
-		}
-
-		const defaultSize = 10
-		size := cw.parseSize(terms, defaultSize)
-		orderBy := cw.parseOrder(terms, queryMap, []model.Expr{fieldExpression})
-		aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", orderBy[0]) // TODO probably full, not [0]
-		aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)
-		aggregation.limit = size
-		aggregation.orderBy = orderBy
-
-		delete(queryMap, termsType)
-		return nil
-	}
 	if multiTermsRaw, exists := queryMap["multi_terms"]; exists {
 		multiTerms, ok := multiTermsRaw.(QueryMap)
 		if !ok {
@@ -151,115 +122,27 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		delete(queryMap, "date_range")
 		return nil
 	}
-	if geoTileGridRaw, ok := queryMap["geotile_grid"]; ok {
-		geoTileGrid, ok := geoTileGridRaw.(QueryMap)
-		if !ok {
-			return fmt.Errorf("geotile_grid is not a map, but %T, value: %v", geoTileGridRaw, geoTileGridRaw)
-		}
-		var precisionZoom float64
-		precisionRaw, ok := geoTileGrid["precision"]
-		if ok {
-			if cutValueTyped, ok := precisionRaw.(float64); ok {
-				precisionZoom = cutValueTyped
-			}
-		}
-		field := cw.parseFieldField(geoTileGrid, "geotile_grid")
-		aggregation.queryType = bucket_aggregations.NewGeoTileGrid(cw.Ctx)
 
-		// That's bucket (group by) formula for geotile_grid
-		// zoom/x/y
-		//	SELECT precisionZoom as zoom,
-		//	    FLOOR(((toFloat64("Location::lon") + 180.0) / 360.0) * POWER(2, zoom)) AS x_tile,
-		//	    FLOOR(
-		//	        (
-		//	            1 - LOG(TAN(RADIANS(toFloat64("Location::lat"))) + (1 / COS(RADIANS(toFloat64("Location::lat"))))) / PI()
-		//	        ) / 2.0 * POWER(2, zoom)
-		//	    ) AS y_tile, count()
-		//	FROM
-		//	     kibana_sample_data_flights Group by zoom, x_tile, y_tile
-
-		zoomLiteral := model.NewLiteral(precisionZoom)
-
-		fieldName, err := strconv.Unquote(model.AsString(field))
-		if err != nil {
-			return err
-		}
-		lon := model.NewGeoLon(fieldName)
-		lat := model.NewGeoLat(fieldName)
-
-		toFloatFunLon := model.NewFunction("toFloat64", lon)
-		var infixX model.Expr
-		infixX = model.NewParenExpr(model.NewInfixExpr(toFloatFunLon, "+", model.NewLiteral(180.0)))
-		infixX = model.NewParenExpr(model.NewInfixExpr(infixX, "/", model.NewLiteral(360.0)))
-		infixX = model.NewInfixExpr(infixX, "*",
-			model.NewFunction("POWER", model.NewLiteral(2), zoomLiteral))
-		xTile := model.NewFunction("FLOOR", infixX)
-		toFloatFunLat := model.NewFunction("toFloat64", lat)
-		radians := model.NewFunction("RADIANS", toFloatFunLat)
-		tan := model.NewFunction("TAN", radians)
-		cos := model.NewFunction("COS", radians)
-		Log := model.NewFunction("LOG", model.NewInfixExpr(tan, "+",
-			model.NewParenExpr(model.NewInfixExpr(model.NewLiteral(1), "/", cos))))
-
-		FloorContent := model.NewInfixExpr(
-			model.NewInfixExpr(
-				model.NewParenExpr(
-					model.NewInfixExpr(model.NewInfixExpr(model.NewLiteral(1), "-", Log), "/",
-						model.NewLiteral("PI()"))), "/",
-				model.NewLiteral(2.0)), "*",
-			model.NewFunction("POWER", model.NewLiteral(2), zoomLiteral))
-		yTile := model.NewFunction("FLOOR", FloorContent)
-
-		aggregation.selectedColumns = append(aggregation.selectedColumns, model.NewLiteral(fmt.Sprintf("CAST(%f AS Float32)", precisionZoom)))
-		aggregation.selectedColumns = append(aggregation.selectedColumns, xTile)
-		aggregation.selectedColumns = append(aggregation.selectedColumns, yTile)
-
-		delete(queryMap, "geotile_grid")
-		return nil
-	}
-	if sampler, ok := queryMap["sampler"]; ok {
-		aggregation.queryType, err = cw.parseSampler(sampler)
-		delete(queryMap, "sampler")
-		return nil
-	}
-	if randomSampler, ok := queryMap["random_sampler"]; ok {
-		aggregation.queryType, err = cw.parseRandomSampler(randomSampler)
-		delete(queryMap, "random_sampler")
-		return err
-	}
-	if filterAggregation, ok := cw.parseFilters(queryMap); ok {
-		sort.Slice(filterAggregation.Filters, func(i, j int) bool { // stable order is required for tests and caching
-			return filterAggregation.Filters[i].Name < filterAggregation.Filters[j].Name
-		})
-		aggregation.isKeyed = true
-		aggregation.queryType = filterAggregation
-		delete(queryMap, "filters")
-	}
 	return nil
 }
 
 // paramsRaw - in a proper request should be of QueryMap type.
-// column - expr to be added to SQL query
-func (cw *ClickhouseQueryTranslator) parseHistogram(paramsRaw any) (histogram *bucket_aggregations.Histogram,
-	column model.Expr, orderBy model.OrderByExpr, filterOutEmptyKeyBucket bool, err error) {
+func (cw *ClickhouseQueryTranslator) parseHistogram(aggregation *pancakeAggregationTreeNode, paramsRaw any) (err error) {
 	params, ok := paramsRaw.(QueryMap)
 	if !ok {
-		err = fmt.Errorf("histogram is not a map, but %T, value: %v", paramsRaw, paramsRaw)
-		return
+		return fmt.Errorf("histogram is not a map, but %T, value: %v", paramsRaw, paramsRaw)
 	}
 
 	var interval float64
 	intervalRaw, ok := params["interval"]
 	if !ok {
-		err = fmt.Errorf("interval not found in histogram: %v", params)
-		return
+		return fmt.Errorf("interval not found in histogram: %v", params)
 	}
 	switch intervalTyped := intervalRaw.(type) {
 	case string:
 		interval, err = strconv.ParseFloat(intervalTyped, 64)
 		if err != nil {
-			err = errors.Wrap(err, fmt.Sprintf("failed to parse interval: %v", intervalRaw))
-			return
+			return errors.Wrap(err, fmt.Sprintf("failed to parse interval: %v", intervalRaw))
 		}
 	case int:
 		interval = float64(intervalTyped)
@@ -271,35 +154,32 @@ func (cw *ClickhouseQueryTranslator) parseHistogram(paramsRaw any) (histogram *b
 	}
 
 	minDocCount := cw.parseMinDocCount(params)
-	histogram = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
-
 	field, _ := cw.parseFieldFieldMaybeScript(params, "histogram")
 	field, didWeAddMissing := cw.addMissingParameterIfPresent(field, params)
 	if !didWeAddMissing {
-		filterOutEmptyKeyBucket = true
+		aggregation.filterOutEmptyKeyBucket = true
 	}
 
 	if interval != 1.0 {
 		// column as string is: fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
-		column = model.NewInfixExpr(
+		field = model.NewInfixExpr(
 			model.NewFunction("floor", model.NewInfixExpr(field, "/", model.NewLiteral(interval))),
 			"*",
 			model.NewLiteral(interval),
 		)
-	} else {
-		column = field
 	}
 
-	orderBy = model.NewOrderByExprWithoutOrder(column)
-	return
+	aggregation.queryType = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
+	aggregation.selectedColumns = append(aggregation.selectedColumns, field)
+	aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(field))
+	return nil
 }
 
-func (cw *ClickhouseQueryTranslator) parseDateHistogram(paramsRaw any) (dateHistogram *bucket_aggregations.DateHistogram,
-	column model.Expr, orderBy model.OrderByExpr, filterOutEmptyKeyBucket bool, err error) {
+// paramsRaw - in a proper request should be of QueryMap type.
+func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggregationTreeNode, paramsRaw any) (err error) {
 	params, ok := paramsRaw.(QueryMap)
 	if !ok {
-		err = fmt.Errorf("date_histogram is not a map, but %T, value: %v", paramsRaw, paramsRaw)
-		return
+		return fmt.Errorf("date_histogram is not a map, but %T, value: %v", paramsRaw, paramsRaw)
 	}
 
 	field := cw.parseFieldField(params, "date_histogram")
@@ -321,7 +201,7 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(paramsRaw any) (dateHist
 	}
 	if !weAddedMissing {
 		// if we don't add missing, we need to filter out nulls later
-		filterOutEmptyKeyBucket = true
+		aggregation.filterOutEmptyKeyBucket = true
 	}
 
 	ebMin, ebMax := bucket_aggregations.NoExtendedBound, bucket_aggregations.NoExtendedBound
@@ -339,36 +219,67 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(paramsRaw any) (dateHist
 		logger.WarnWithCtx(cw.Ctx).Msgf("invalid date time type for field %s", field)
 	}
 
-	dateHistogram = bucket_aggregations.NewDateHistogram(cw.Ctx, field, interval, timezone, minDocCount, ebMin, ebMax, intervalType, dateTimeType)
-	column = dateHistogram.GenerateSQL()
-	orderBy = model.NewOrderByExprWithoutOrder(column)
-	return
+	dateHistogram := bucket_aggregations.NewDateHistogram(cw.Ctx,
+		field, interval, timezone, minDocCount, ebMin, ebMax, intervalType, dateTimeType)
+	aggregation.queryType = dateHistogram
+
+	columnSql := dateHistogram.GenerateSQL()
+	aggregation.selectedColumns = append(aggregation.selectedColumns, columnSql)
+	aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(columnSql))
+	return nil
 }
 
-// samplerRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseSampler(samplerRaw any) (bucket_aggregations.Sampler, error) {
-	const defaultSize = 100
-	if sampler, ok := samplerRaw.(QueryMap); ok {
-		return bucket_aggregations.NewSampler(cw.Ctx, cw.parseIntField(sampler, "shard_size", defaultSize)), nil
+// paramsRaw - in a proper request should be of QueryMap type.
+// aggrName - "terms" or "significant_terms"
+func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeAggregationTreeNode, paramsRaw any, aggrName string, queryMap QueryMap) error {
+	params, ok := paramsRaw.(QueryMap)
+	if !ok {
+		return fmt.Errorf("%s is not a map, but %T, value: %v", aggrName, paramsRaw, paramsRaw)
 	}
 
-	return bucket_aggregations.NewSampler(cw.Ctx, defaultSize), fmt.Errorf("sampler is not a map, but %T, value: %v", samplerRaw, samplerRaw)
+	fieldExpression := cw.parseFieldField(params, aggrName)
+	fieldExpression, didWeAddMissing := cw.addMissingParameterIfPresent(fieldExpression, params)
+	if !didWeAddMissing {
+		aggregation.filterOutEmptyKeyBucket = true
+	}
+
+	const defaultSize = 10
+	size := cw.parseSize(params, defaultSize)
+	orderBy := cw.parseOrder(params, queryMap, []model.Expr{fieldExpression})
+
+	aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, aggrName == "significant_terms", orderBy[0]) // TODO probably full, not [0]
+	aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)
+	aggregation.limit = size
+	aggregation.orderBy = orderBy
+	return nil
 }
 
-// randomSamplerRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseRandomSampler(randomSamplerRaw any) (bucket_aggregations.RandomSampler, error) {
+// paramsRaw - in a proper request should be of QueryMap type.
+func (cw *ClickhouseQueryTranslator) parseSampler(aggregation *pancakeAggregationTreeNode, paramsRaw any) error {
+	const defaultSize = 100
+	if params, ok := paramsRaw.(QueryMap); ok {
+		aggregation.queryType = bucket_aggregations.NewSampler(cw.Ctx, cw.parseIntField(params, "shard_size", defaultSize))
+		return nil
+	}
+	return fmt.Errorf("sampler is not a map, but %T, value: %v", paramsRaw, paramsRaw)
+}
+
+// paramsRaw - in a proper request should be of QueryMap type.
+func (cw *ClickhouseQueryTranslator) parseRandomSampler(aggregation *pancakeAggregationTreeNode, paramsRaw any) error {
 	const defaultProbability = 0.0 // theoretically it's required
 	const defaultSeed = 0
-	if randomSampler, ok := randomSamplerRaw.(QueryMap); ok {
-		return bucket_aggregations.NewRandomSampler(cw.Ctx,
-			cw.parseFloatField(randomSampler, "probability", defaultProbability),
-			cw.parseIntField(randomSampler, "seed", defaultSeed),
-		), nil
+	if params, ok := paramsRaw.(QueryMap); ok {
+		aggregation.queryType = bucket_aggregations.NewRandomSampler(cw.Ctx,
+			cw.parseFloatField(params, "probability", defaultProbability),
+			cw.parseIntField(params, "seed", defaultSeed),
+		)
+		return nil
 	}
 
-	return bucket_aggregations.NewRandomSampler(cw.Ctx, defaultProbability, defaultSeed), fmt.Errorf("sampler is not a map, but %T, value: %v", randomSamplerRaw, randomSamplerRaw)
+	return fmt.Errorf("random_sampler is not a map, but %T, value: %v", paramsRaw, paramsRaw)
 }
 
+// paramsRaw - in a proper request should be of QueryMap type.
 func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(paramsRaw any) (*bucket_aggregations.AutoDateHistogram, error) {
 	params, ok := paramsRaw.(QueryMap)
 	if !ok {
@@ -382,6 +293,72 @@ func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(paramsRaw any) (*buc
 	}
 
 	return nil, fmt.Errorf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
+}
+
+// paramsRaw - in a proper request should be of QueryMap type.
+func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggregationTreeNode, paramsRaw any) error {
+	params, ok := paramsRaw.(QueryMap)
+	if !ok {
+		return fmt.Errorf("geotile_grid is not a map, but %T, value: %v", paramsRaw, paramsRaw)
+	}
+	var precisionZoom float64
+	precisionRaw, ok := params["precision"]
+	if ok {
+		if cutValueTyped, ok := precisionRaw.(float64); ok {
+			precisionZoom = cutValueTyped
+		}
+	}
+	field := cw.parseFieldField(params, "geotile_grid")
+
+	// That's bucket (group by) formula for geotile_grid
+	// zoom/x/y
+	//	SELECT precisionZoom as zoom,
+	//	    FLOOR(((toFloat64("Location::lon") + 180.0) / 360.0) * POWER(2, zoom)) AS x_tile,
+	//	    FLOOR(
+	//	        (
+	//	            1 - LOG(TAN(RADIANS(toFloat64("Location::lat"))) + (1 / COS(RADIANS(toFloat64("Location::lat"))))) / PI()
+	//	        ) / 2.0 * POWER(2, zoom)
+	//	    ) AS y_tile, count()
+	//	FROM
+	//	     kibana_sample_data_flights Group by zoom, x_tile, y_tile
+
+	zoomLiteral := model.NewLiteral(precisionZoom)
+
+	fieldName, err := strconv.Unquote(model.AsString(field))
+	if err != nil {
+		return err
+	}
+	lon := model.NewGeoLon(fieldName)
+	lat := model.NewGeoLat(fieldName)
+
+	toFloatFunLon := model.NewFunction("toFloat64", lon)
+	var infixX model.Expr
+	infixX = model.NewParenExpr(model.NewInfixExpr(toFloatFunLon, "+", model.NewLiteral(180.0)))
+	infixX = model.NewParenExpr(model.NewInfixExpr(infixX, "/", model.NewLiteral(360.0)))
+	infixX = model.NewInfixExpr(infixX, "*",
+		model.NewFunction("POWER", model.NewLiteral(2), zoomLiteral))
+	xTile := model.NewFunction("FLOOR", infixX)
+	toFloatFunLat := model.NewFunction("toFloat64", lat)
+	radians := model.NewFunction("RADIANS", toFloatFunLat)
+	tan := model.NewFunction("TAN", radians)
+	cos := model.NewFunction("COS", radians)
+	Log := model.NewFunction("LOG", model.NewInfixExpr(tan, "+",
+		model.NewParenExpr(model.NewInfixExpr(model.NewLiteral(1), "/", cos))))
+
+	FloorContent := model.NewInfixExpr(
+		model.NewInfixExpr(
+			model.NewParenExpr(
+				model.NewInfixExpr(model.NewInfixExpr(model.NewLiteral(1), "-", Log), "/",
+					model.NewLiteral("PI()"))), "/",
+			model.NewLiteral(2.0)), "*",
+		model.NewFunction("POWER", model.NewLiteral(2), zoomLiteral))
+	yTile := model.NewFunction("FLOOR", FloorContent)
+
+	aggregation.queryType = bucket_aggregations.NewGeoTileGrid(cw.Ctx)
+	aggregation.selectedColumns = append(aggregation.selectedColumns, model.NewLiteral(fmt.Sprintf("CAST(%f AS Float32)", precisionZoom)))
+	aggregation.selectedColumns = append(aggregation.selectedColumns, xTile)
+	aggregation.selectedColumns = append(aggregation.selectedColumns, yTile)
+	return nil
 }
 
 func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldExpressions []model.Expr) []model.OrderByExpr {
