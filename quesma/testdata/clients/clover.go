@@ -231,12 +231,13 @@ var CloverTests = []testdata.AggregationTestCase{
 						"field": "@timestamp"
 					},
 					"meta": {
-						"indexPatternString": "ab*",
-						"intervalString": "900000ms",
+						"dataViewId": "d3d7af60-4c81-11e8-b3d7-01146121b73d",
+						"indexPatternString": "kibana_sample_data_flights",
+						"intervalString": "54000000ms",
 						"normalized": true,
-						"panelId": "0",
-						"seriesId": "1",
-						"timeField": "@timestamp"
+						"panelId": "1a1d745d-0c21-4103-a2ae-df41d4fbd366",
+						"seriesId": "866fb08f-b9a4-43eb-a400-38ebb6c13aed",
+						"timeField": "timestamp"
 					}
 				}
 			},
@@ -298,14 +299,20 @@ var CloverTests = []testdata.AggregationTestCase{
 						"buckets": [
 							{
 								"a2": {
-									"value": 202.0
+									"value": 1
+								},
+								"a2-denominator": {
+									"doc_count": 202
+								},
+								"a2-numerator": {
+									"doc_count": 202
 								},
 								"doc_count": 202,
-								"key": 1728518400000,
-								"key_as_string": "2024-10-10T00:00:00.000Z"
+								"key": 1728640683723,
+								"key_as_string": "2024-10-11T09:58:03.723"
 							}
 						],
-						"interval": "7d",
+						"interval": "100y",
 						"meta": {
 							"dataViewId": "d3d7af60-4c81-11e8-b3d7-01146121b73d",
 							"indexPatternString": "kibana_sample_data_flights",
