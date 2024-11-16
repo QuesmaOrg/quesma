@@ -14,27 +14,24 @@ import (
 // CAUTION: maybe "return" everywhere isn't corrent, as maybe there can be multiple pipeline aggregations at one level.
 // But I've tested some complex queries and it seems to not be the case. So let's keep it this way for now.
 func (cw *ClickhouseQueryTranslator) parsePipelineAggregations(queryMap QueryMap) (aggregationType model.QueryType, err error) {
-	parserPerAggregation := []struct {
-		aggrName string
-		parse    func(QueryMap) (model.QueryType, error)
-	}{
-		{"bucket_script", cw.parseBucketScriptBasic},
-		{"cumulative_sum", cw.parseCumulativeSum},
-		{"derivative", cw.parseDerivative},
-		{"serial_diff", cw.parseSerialDiff},
-		{"avg_bucket", cw.parseAverageBucket},
-		{"min_bucket", cw.parseMinBucket},
-		{"max_bucket", cw.parseMaxBucket},
-		{"sum_bucket", cw.parseSumBucket},
+	parsers := map[string]aggregationParser{
+		"bucket_script":  cw.parseBucketScriptBasic,
+		"cumulative_sum": cw.parseCumulativeSum,
+		"derivative":     cw.parseDerivative,
+		"serial_diff":    cw.parseSerialDiff,
+		"avg_bucket":     cw.parseAverageBucket,
+		"min_bucket":     cw.parseMinBucket,
+		"max_bucket":     cw.parseMaxBucket,
+		"sum_bucket":     cw.parseSumBucket,
 	}
 
-	for _, parser := range parserPerAggregation {
-		if paramsRaw, ok := queryMap[parser.aggrName]; ok {
+	for aggrName, aggrParser := range parsers {
+		if paramsRaw, exists := queryMap[aggrName]; exists {
 			if params, ok := paramsRaw.(QueryMap); ok {
-				delete(queryMap, parser.aggrName)
-				return parser.parse(params)
+				delete(queryMap, aggrName)
+				return aggrParser(params)
 			}
-			return nil, fmt.Errorf("%s is not a map, but %T, value: %v", parser.aggrName, paramsRaw, paramsRaw)
+			return nil, fmt.Errorf("%s is not a map, but %T, value: %v", aggrName, paramsRaw, paramsRaw)
 		}
 	}
 
