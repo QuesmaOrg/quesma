@@ -11,11 +11,12 @@ import (
 )
 
 type GeoTileGrid struct {
-	ctx context.Context
+	ctx           context.Context
+	precisionZoom int
 }
 
-func NewGeoTileGrid(ctx context.Context) GeoTileGrid {
-	return GeoTileGrid{ctx: ctx}
+func NewGeoTileGrid(ctx context.Context, precisionZoom int) GeoTileGrid {
+	return GeoTileGrid{ctx: ctx, precisionZoom: precisionZoom}
 }
 
 func (query GeoTileGrid) AggregationType() model.AggregationType {
@@ -31,10 +32,9 @@ func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow)
 	}
 	var response []model.JsonMap
 	for _, row := range rows {
-		zoom := int64(util.ExtractFloat64(row.Cols[0].Value))
-		x := int64(util.ExtractFloat64(row.Cols[1].Value))
-		y := int64(util.ExtractFloat64(row.Cols[2].Value))
-		key := strconv.FormatInt(zoom, 10) + "/" + strconv.FormatInt(x, 10) + "/" + strconv.FormatInt(y, 10)
+		x := int64(util.ExtractFloat64(row.Cols[0].Value))
+		y := int64(util.ExtractFloat64(row.Cols[1].Value))
+		key := strconv.Itoa(query.precisionZoom) + "/" + strconv.FormatInt(x, 10) + "/" + strconv.FormatInt(y, 10)
 		response = append(response, model.JsonMap{
 			"key":       key,
 			"doc_count": row.LastColValue(),

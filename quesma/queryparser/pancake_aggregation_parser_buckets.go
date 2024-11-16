@@ -236,16 +236,14 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("geotile_grid is not a map, but %T, value: %v", geoTileGridRaw, geoTileGridRaw)
 		}
-		var precisionZoom float64
-		precisionRaw, ok := geoTileGrid["precision"]
-		if ok {
-			switch cutValueTyped := precisionRaw.(type) {
-			case float64:
-				precisionZoom = cutValueTyped
-			}
+
+		const defaultPrecision = 7
+		precisionZoom := int(cw.parseFloatField(geoTileGrid, "precision", defaultPrecision))
+		if precisionZoom < 0 || precisionZoom > 29 {
+			// TODO: after some unmerged PRs, just return error here
 		}
 		field := cw.parseFieldField(geoTileGrid, "geotile_grid")
-		aggregation.queryType = bucket_aggregations.NewGeoTileGrid(cw.Ctx)
+		aggregation.queryType = bucket_aggregations.NewGeoTileGrid(cw.Ctx, precisionZoom)
 
 		// That's bucket (group by) formula for geotile_grid
 		// zoom/x/y
@@ -291,7 +289,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			model.NewFunction("POWER", model.NewLiteral(2), zoomLiteral))
 		yTile := model.NewFunction("FLOOR", FloorContent)
 
-		aggregation.selectedColumns = append(aggregation.selectedColumns, model.NewLiteral(fmt.Sprintf("CAST(%f AS Float32)", precisionZoom)))
 		aggregation.selectedColumns = append(aggregation.selectedColumns, xTile)
 		aggregation.selectedColumns = append(aggregation.selectedColumns, yTile)
 
