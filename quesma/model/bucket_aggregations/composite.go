@@ -34,11 +34,9 @@ func (query *Composite) AggregationType() model.AggregationType {
 }
 
 func (query *Composite) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	fmt.Println(rows)
-	minimumExpectedColNr := len(query.baseAggregations) + 1 // +1 for doc_count. Can be more, if this Composite has parent aggregations, but never fewer.
+	minimumExpectedColNr := query.expectedBaseAggrColumnsNr() + 1 // +1 for doc_count. Can be more, if this Composite has parent aggregations, but never fewer.
 	if len(rows) > 0 && len(rows[0].Cols) < minimumExpectedColNr {
-		logger.ErrorWithCtx(query.ctx).Msgf(
-			"unexpected number of columns in terms aggregation response, len: %d, expected (at least): %d, rows[0]: %v", len(rows[0].Cols), minimumExpectedColNr, rows[0])
+		logger.ErrorWithCtx(query.ctx).Msgf("too few columns in composite aggregation response, len: %d, expected (at least): %d, rows[0]: %v", len(rows[0].Cols), minimumExpectedColNr, rows[0])
 	}
 
 	buckets := make([]model.JsonMap, 0, len(rows))
@@ -80,9 +78,20 @@ func (query *Composite) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 }
 
 func (query *Composite) String() string {
-	return fmt.Sprintf("composite(size: %d)", query.size)
+	return fmt.Sprintf("composite(size: %d, base aggregations: %v)", query.size, query.baseAggregations)
 }
 
 func (query *Composite) docCount(row *model.QueryResultRow) any {
 	return row.Cols[len(row.Cols)-1].Value
+}
+
+func (query *Composite) expectedBaseAggrColumnsNr() (columnsNr int) {
+	for _, baseAggr := range query.baseAggregations {
+		if _, ok := baseAggr.aggregation.(GeoTileGrid); ok {
+			columnsNr += 3
+		} else {
+			columnsNr += 1
+		}
+	}
+	return
 }

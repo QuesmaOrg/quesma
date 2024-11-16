@@ -5,7 +5,6 @@ package queryparser
 
 import (
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/kibana"
 	"quesma/logger"
@@ -320,7 +319,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 	}
 	if composite, ok := queryMap["composite"]; ok {
 		aggregation.queryType, err = cw.parseComposite(aggregation, composite)
-		fmt.Println("LOL", err)
 		delete(queryMap, "composite")
 		return err == nil, err
 	}
@@ -413,7 +411,6 @@ func (cw *ClickhouseQueryTranslator) parseComposite(currentAggrNode *pancakeAggr
 						if !acceptableBaseAggr(currentAggrNode.queryType) {
 							return nil, fmt.Errorf("unsupported base aggregation type: %v", currentAggrNode.queryType)
 						}
-						pp.Println(currentAggrNode.queryType)
 						baseAggrs = append(baseAggrs, bucket_aggregations.NewBaseAggregation(aggrName, currentAggrNode.queryType))
 					} else {
 						return nil, err

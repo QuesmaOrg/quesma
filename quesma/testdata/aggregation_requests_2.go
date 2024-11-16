@@ -4240,7 +4240,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__my_buckets__key_0", 45.118141174316406),
 				model.NewQueryResultCol("aggr__my_buckets__count", int64(8)),
 			}},
-			{Cols: []model.QueryResultCol{
+			{Cols: []model.QueryResultCol{ // should be erased by us because of size=10
 				model.NewQueryResultCol("aggr__my_buckets__key_0", 1234),
 				model.NewQueryResultCol("aggr__my_buckets__count", int64(8)),
 			}},
@@ -4335,7 +4335,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__my_buckets__key_0", 40),
 				model.NewQueryResultCol("aggr__my_buckets__count", 4),
 			}},
-			{Cols: []model.QueryResultCol{ // should be erased by us
+			{Cols: []model.QueryResultCol{ // should be erased by us because of size=3
 				model.NewQueryResultCol("aggr__my_buckets__key_0", 60),
 				model.NewQueryResultCol("aggr__my_buckets__count", 100000000),
 			}},
@@ -4419,6 +4419,10 @@ var AggregationTests2 = []AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1730764800000/86400000)),
 				model.NewQueryResultCol("aggr__my_buckets__count", int64(297)),
+			}},
+			{Cols: []model.QueryResultCol{ // should be erased by us because of size=2
+				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1830764800000/86400000)),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(567)),
 			}},
 		},
 		ExpectedPancakeSQL: `
@@ -4523,7 +4527,7 @@ var AggregationTests2 = []AggregationTestCase{
 			LIMIT 10`,
 	},
 	{ // [69]
-		TestName: "composite: 2 sources + 1 subaggregation + size parameter",
+		TestName: "composite: 2 sources + 1 subaggregation",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -4638,15 +4642,13 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__my_buckets__count", int64(295)),
 				model.NewQueryResultCol("metric__my_buckets__the_avg_col_0", 793.5536717301708),
 			}},
-			{Cols: []model.QueryResultCol{ // shouldn't get displayed because of size=3
+			{Cols: []model.QueryResultCol{ // should be erased by us because of size=3
 				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1934134400000/86400000)),
 				model.NewQueryResultCol("aggr__my_buckets__key_1", false),
 				model.NewQueryResultCol("aggr__my_buckets__count", int64(888)),
 				model.NewQueryResultCol("metric__my_buckets__the_avg_col_0", 100000000),
 			}},
 		},
-
-		// ORDER is wrong! why by cound?
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 86400000) AS
 			  "aggr__my_buckets__key_0", "product" AS "aggr__my_buckets__key_1",
