@@ -34,22 +34,33 @@ func (query *Composite) AggregationType() model.AggregationType {
 }
 
 func (query *Composite) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+	fmt.Println(rows)
 	minimumExpectedColNr := len(query.baseAggregations) + 1 // +1 for doc_count. Can be more, if this Composite has parent aggregations, but never fewer.
 	if len(rows) > 0 && len(rows[0].Cols) < minimumExpectedColNr {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in terms aggregation response, len: %d, expected (at least): %d, rows[0]: %v", len(rows[0].Cols), minimumExpectedColNr, rows[0])
 	}
-	var buckets []model.JsonMap
+
+	buckets := make([]model.JsonMap, 0, len(rows))
 	for _, row := range rows {
-		startIndex := len(row.Cols) - len(query.baseAggregations) - 1
-		if startIndex < 0 {
-			logger.WarnWithCtx(query.ctx).Msgf("startIndex < 0 - too few columns. row: %+v", row)
-			startIndex = 0
-		}
-		keyColumns := row.Cols[startIndex : len(row.Cols)-1] // last col isn't a key, it's doc_count
-		key := make(model.JsonMap, len(keyColumns))
-		for i, col := range keyColumns {
-			key[query.baseAggregations[i].name] = col.Value
+		colIdx := 0
+		key := make(model.JsonMap, len(query.baseAggregations))
+		for _, baseAggr := range query.baseAggregations {
+			col := row.Cols[colIdx]
+			if dateHistogram, ok := baseAggr.aggregation.(*DateHistogram); ok {
+				if originalKey, ok := col.Value.(int64); ok {
+					key[baseAggr.name] = dateHistogram.calculateResponseKey(originalKey)
+				} else {
+					logger.ErrorWithCtx(query.ctx).Msgf("unexpected value in date_histogram key column: %v", col.Value)
+				}
+				colIdx += 1
+			} else if geotileGrid, ok := baseAggr.aggregation.(GeoTileGrid); ok {
+				key[baseAggr.name] = geotileGrid.calcKey(row.Cols[colIdx:])
+				colIdx += 3
+			} else {
+				key[baseAggr.name] = col.Value
+				colIdx += 1
+			}
 		}
 
 		bucket := model.JsonMap{
@@ -62,7 +73,7 @@ func (query *Composite) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 	response := model.JsonMap{
 		"buckets": buckets,
 	}
-	if len(rows) > 0 {
+	if len(buckets) > 0 {
 		response["after_key"] = buckets[len(buckets)-1]["key"]
 	}
 	return response

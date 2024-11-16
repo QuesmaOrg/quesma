@@ -52,8 +52,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if i == 67 || i == 68 || i == 69 {
-				t.Skip("TODO in this PR")
+			if i == 68 {
+				t.Skip("We have ZERO tests for geotile_grid, can't get it working very easily, let me improve that in some another PR")
 			}
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
