@@ -14,9 +14,9 @@ import (
 // CAUTION: maybe "return" everywhere isn't corrent, as maybe there can be multiple pipeline aggregations at one level.
 // But I've tested some complex queries and it seems to not be the case. So let's keep it this way for now.
 func (cw *ClickhouseQueryTranslator) parsePipelineAggregations(queryMap QueryMap) (aggregationType model.QueryType, err error) {
-	aggregationHandlers := []struct {
-		name    string
-		handler func(QueryMap) (model.QueryType, error)
+	parserPerAggregation := []struct {
+		aggrName string
+		parse    func(QueryMap) (model.QueryType, error)
 	}{
 		{"bucket_script", cw.parseBucketScriptBasic},
 		{"cumulative_sum", cw.parseCumulativeSum},
@@ -28,13 +28,13 @@ func (cw *ClickhouseQueryTranslator) parsePipelineAggregations(queryMap QueryMap
 		{"sum_bucket", cw.parseSumBucket},
 	}
 
-	for _, aggr := range aggregationHandlers {
-		if paramsRaw, ok := queryMap[aggr.name]; ok {
+	for _, parser := range parserPerAggregation {
+		if paramsRaw, ok := queryMap[parser.aggrName]; ok {
 			if params, ok := paramsRaw.(QueryMap); ok {
-				delete(queryMap, aggr.name)
-				return aggr.handler(params)
+				delete(queryMap, parser.aggrName)
+				return parser.parse(params)
 			}
-			return nil, fmt.Errorf("%s is not a map, but %T, value: %v", aggr.name, paramsRaw, paramsRaw)
+			return nil, fmt.Errorf("%s is not a map, but %T, value: %v", parser.aggrName, paramsRaw, paramsRaw)
 		}
 	}
 
