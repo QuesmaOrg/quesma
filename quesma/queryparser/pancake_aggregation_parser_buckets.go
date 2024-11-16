@@ -370,6 +370,8 @@ func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(paramsRaw any) *buck
 }
 
 // compositeRaw - in a proper request should be of QueryMap type.
+// TODO: In geotile_grid, without order specidfied, Elastic returns sort by key (a/b/c earlier than x/y/z if a<x or (a=x && b<y), etc.)
+// Maybe add some ordering, but doesn't seem to be very important.
 func (cw *ClickhouseQueryTranslator) parseComposite(currentAggrNode *pancakeAggregationTreeNode, compositeRaw any) (*bucket_aggregations.Composite, error) {
 	const defaultSize = 10
 	composite, ok := compositeRaw.(QueryMap)

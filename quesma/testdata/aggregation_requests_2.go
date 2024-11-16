@@ -4477,24 +4477,24 @@ var AggregationTests2 = []AggregationTestCase{
 			"aggregations": {
 				"my_buckets": {
 					"after_key": {
-						"histo": "7/20/49"
+						"tile": "8/21/49"
 					},
 					"buckets": [
 						{
 							"key": {
-								"histo": "7/20/44"
+								"tile": "8/20/44"
 							},
 							"doc_count": 12
 						},
 						{
 							"key": {
-								"histo": "7/20/45"
+								"tile": "8/20/45"
 							},
-							"doc_count": 2
+							"doc_count": 22
 						},
 						{
 							"key": {
-								"histo": "7/20/49"
+								"tile": "8/21/49"
 							},
 							"doc_count": 1
 						}
@@ -4508,6 +4508,18 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__my_buckets__key_1", 20.0),
 				model.NewQueryResultCol("aggr__my_buckets__key_2", 44.0),
 				model.NewQueryResultCol("aggr__my_buckets__count", int64(12)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 8.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", 20.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_2", 45.0),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(22)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 8.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", 21.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_2", 49.0),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(1)),
 			}},
 		},
 		ExpectedPancakeSQL: `

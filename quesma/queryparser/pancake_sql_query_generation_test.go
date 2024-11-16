@@ -55,10 +55,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Fix filters")
 			}
 
-			if test.TestName == "simplest composite: 1 geotile_grid(file:agg_req_2,nr:26)" {
-				t.Skip("We have ZERO tests for geotile_grid, can't get it working very easily, let me improve that in some another PR")
-			}
-
 			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:22)" {
 				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
 			}
