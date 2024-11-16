@@ -28,9 +28,15 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		{"filters", cw.parseFilters},
 		{"sampler", cw.parseSampler},
 		{"random_sampler", cw.parseRandomSampler},
+		{"date_range", cw.parseDateRangeAggregation},
+		{"range", cw.parseRangeAggregation},
+		{"auto_date_histogram", cw.parseAutoDateHistogram},
 		{"geotile_grid", cw.parseGeotileGrid},
 		{"significant_terms", func(node *pancakeAggregationTreeNode, params any) error {
 			return cw.parseTermsAggregation(node, params, "significant_terms", queryMap)
+		}},
+		{"multi_terms", func(node *pancakeAggregationTreeNode, params any) error {
+			return cw.parseMultiTerms(node, params, queryMap)
 		}},
 	}
 
@@ -39,88 +45,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			delete(queryMap, aggr.name)
 			return aggr.handler(aggregation, params)
 		}
-	}
-
-	if autoDateHistogram, err := cw.parseAutoDateHistogram(queryMap["auto_date_histogram"]); autoDateHistogram != nil {
-		aggregation.queryType = autoDateHistogram
-		delete(queryMap, "auto_date_histogram")
-		return err // FIXME
-	}
-
-	if multiTermsRaw, exists := queryMap["multi_terms"]; exists {
-		multiTerms, ok := multiTermsRaw.(QueryMap)
-		if !ok {
-			return fmt.Errorf("multi_terms is not a map, but %T, value: %v", multiTermsRaw, multiTermsRaw)
-		}
-
-		const defaultSize = 10
-		size := cw.parseIntField(multiTerms, "size", defaultSize)
-
-		aggregation.limit = size
-
-		var fieldsNr int
-		if termsRaw, exists := multiTerms["terms"]; exists {
-			terms, ok := termsRaw.([]any)
-			if !ok {
-				return fmt.Errorf("terms is not an array, but %T, value: %v. Using empty array", termsRaw, termsRaw)
-			}
-			fieldsNr = len(terms)
-			columns := make([]model.Expr, 0, fieldsNr)
-			for _, term := range terms {
-				columns = append(columns, cw.parseFieldField(term, "multi_terms"))
-			}
-			aggregation.selectedColumns = append(aggregation.selectedColumns, columns...)
-			aggregation.orderBy = append(aggregation.orderBy, cw.parseOrder(multiTerms, queryMap, columns)...)
-		} else {
-			return fmt.Errorf("no terms in multi_terms")
-		}
-
-		aggregation.queryType = bucket_aggregations.NewMultiTerms(cw.Ctx, fieldsNr)
-		aggregation.limit = size
-
-		delete(queryMap, "multi_terms")
-		return nil
-	}
-	if rangeRaw, ok := queryMap["range"]; ok {
-		rangeMap, ok := rangeRaw.(QueryMap)
-		if !ok {
-			return fmt.Errorf("range is not a map, but %T, value: %v. Using empty map", rangeRaw, rangeRaw)
-		}
-
-		Range := cw.parseRangeAggregation(rangeMap)
-		aggregation.queryType = Range
-		if Range.Keyed {
-			aggregation.isKeyed = true
-		}
-		delete(queryMap, "range")
-		return nil
-	}
-	if dateRangeRaw, ok := queryMap["date_range"]; ok {
-		dateRange, ok := dateRangeRaw.(QueryMap)
-		if !ok {
-			return fmt.Errorf("date_range is not a map, but %T, value: %v. Using empty map", dateRangeRaw, dateRangeRaw)
-		}
-		if dateRangeParsed, err := cw.parseDateRangeAggregation(dateRange); err == nil {
-			aggregation.queryType = dateRangeParsed
-		} else {
-			return err
-		}
-		// TODO: keep for reference as relative time, but no longer needed
-		/*
-			for _, interval := range dateRangeParsed.Intervals {
-
-				aggregation.selectedColumns = append(aggregation.selectedColumns, interval.ToSQLSelectQuery(dateRangeParsed.FieldName))
-
-				if sqlSelect, selectNeeded := interval.BeginTimestampToSQL(); selectNeeded {
-					aggregation.selectedColumns = append(aggregation.selectedColumns, sqlSelect)
-				}
-				if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
-					aggregation.selectedColumns = append(aggregation.selectedColumns, sqlSelect)
-				}
-			}*/
-
-		delete(queryMap, "date_range")
-		return nil
 	}
 
 	return nil
@@ -280,19 +204,106 @@ func (cw *ClickhouseQueryTranslator) parseRandomSampler(aggregation *pancakeAggr
 }
 
 // paramsRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(paramsRaw any) (*bucket_aggregations.AutoDateHistogram, error) {
+func (cw *ClickhouseQueryTranslator) parseRangeAggregation(aggregation *pancakeAggregationTreeNode, paramsRaw any) error {
+	const keyedDefault = false
 	params, ok := paramsRaw.(QueryMap)
 	if !ok {
-		return nil, fmt.Errorf("auto_date_histogram is not a map, but %T, value: %v", paramsRaw, paramsRaw)
+		return fmt.Errorf("range is not a map, but %T, value: %v", paramsRaw, paramsRaw)
+	}
+
+	field := cw.parseFieldField(params, "range")
+	var ranges []any
+	if rangesRaw, ok := params["ranges"]; ok {
+		ranges, ok = rangesRaw.([]any)
+		if !ok {
+			return fmt.Errorf("ranges is not an array, but %T, value: %v", rangesRaw, rangesRaw)
+		}
+	} else {
+		return fmt.Errorf("ranges is not found in range aggregation: %v", params)
+	}
+
+	intervals := make([]bucket_aggregations.Interval, 0, len(ranges))
+	for _, Range := range ranges {
+		rangePartMap := Range.(QueryMap)
+		var from, to float64
+		if fromRaw, ok := rangePartMap["from"]; ok {
+			from, ok = fromRaw.(float64)
+			if !ok {
+				logger.WarnWithCtx(cw.Ctx).Msgf("from is not a float64: %v, type: %T", fromRaw, fromRaw)
+				from = bucket_aggregations.IntervalInfiniteRange
+			}
+		} else {
+			from = bucket_aggregations.IntervalInfiniteRange
+		}
+		if toRaw, ok := rangePartMap["to"]; ok {
+			to, ok = toRaw.(float64)
+			if !ok {
+				logger.WarnWithCtx(cw.Ctx).Msgf("to is not a float64: %v, type: %T", toRaw, toRaw)
+				to = bucket_aggregations.IntervalInfiniteRange
+			}
+		} else {
+			to = bucket_aggregations.IntervalInfiniteRange
+		}
+		intervals = append(intervals, bucket_aggregations.NewInterval(from, to))
+	}
+
+	keyed := keyedDefault
+	if keyedRaw, exists := params["keyed"]; exists {
+		if keyed, ok = keyedRaw.(bool); !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("keyed is not a bool, but %T, value: %v", keyedRaw, keyedRaw)
+		}
+	}
+
+	aggregation.queryType = bucket_aggregations.NewRange(cw.Ctx, field, intervals, keyed)
+	aggregation.isKeyed = keyed
+	return nil
+}
+
+// paramsRaw - in a proper request should be of QueryMap type.
+func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(aggregation *pancakeAggregationTreeNode, paramsRaw any) error {
+	params, ok := paramsRaw.(QueryMap)
+	if !ok {
+		return fmt.Errorf("auto_date_histogram is not a map, but %T, value: %v", paramsRaw, paramsRaw)
 	}
 
 	fieldRaw := cw.parseFieldField(params, "auto_date_histogram")
 	if field, ok := fieldRaw.(model.ColumnRef); ok {
 		bucketsNr := cw.parseIntField(params, "buckets", 10)
-		return bucket_aggregations.NewAutoDateHistogram(cw.Ctx, field, bucketsNr), nil
+		aggregation.queryType = bucket_aggregations.NewAutoDateHistogram(cw.Ctx, field, bucketsNr)
+		return nil
 	}
 
-	return nil, fmt.Errorf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
+	return fmt.Errorf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
+}
+
+// paramsRaw - in a proper request should be of QueryMap type.
+func (cw *ClickhouseQueryTranslator) parseMultiTerms(aggregation *pancakeAggregationTreeNode, paramsRaw any, queryMap QueryMap) error {
+	params, ok := paramsRaw.(QueryMap)
+	if !ok {
+		return fmt.Errorf("multi_terms is not a map, but %T, value: %v", paramsRaw, paramsRaw)
+	}
+
+	var fieldsNr int
+	if termsRaw, exists := params["terms"]; exists {
+		terms, ok := termsRaw.([]any)
+		if !ok {
+			return fmt.Errorf("terms is not an array, but %T, value: %v. Using empty array", termsRaw, termsRaw)
+		}
+		fieldsNr = len(terms)
+		columns := make([]model.Expr, 0, fieldsNr)
+		for _, term := range terms {
+			columns = append(columns, cw.parseFieldField(term, "multi_terms"))
+		}
+		aggregation.selectedColumns = append(aggregation.selectedColumns, columns...)
+		aggregation.orderBy = append(aggregation.orderBy, cw.parseOrder(params, queryMap, columns)...)
+	} else {
+		return fmt.Errorf("no terms in multi_terms")
+	}
+
+	const defaultSize = 10
+	aggregation.limit = cw.parseSize(params, defaultSize)
+	aggregation.queryType = bucket_aggregations.NewMultiTerms(cw.Ctx, fieldsNr)
+	return nil
 }
 
 // paramsRaw - in a proper request should be of QueryMap type.
