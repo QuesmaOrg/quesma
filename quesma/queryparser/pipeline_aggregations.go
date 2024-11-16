@@ -115,6 +115,7 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(params QueryMap) (mo
 		return nil, err
 	}
 	if !strings.HasSuffix(bucketsPath, pipeline_aggregations.BucketsPathCount) {
+		//lint:ignore ST1005 I want Quesma capitalized
 		return nil, fmt.Errorf("Quesma limitation, contact us if you need it fixed: buckets_path is not '_count', but %s", bucketsPath)
 	}
 
@@ -133,6 +134,7 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(params QueryMap) (mo
 	if sourceRaw, exists := script["source"]; exists {
 		if source, ok := sourceRaw.(string); ok {
 			if source != "_value" && source != "count * 1" {
+				//lint:ignore ST1005 I want Quesma capitalized
 				return nil, fmt.Errorf("Quesma limitation, contact us if you need it fixed: source is not '_value'/'count * 1', but %s", source)
 			}
 		} else {
