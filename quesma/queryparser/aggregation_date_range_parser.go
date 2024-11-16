@@ -9,25 +9,8 @@ import (
 	"unicode"
 )
 
-// paramsRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(aggregation *pancakeAggregationTreeNode, paramsRaw any) (err error) {
-	params, ok := paramsRaw.(QueryMap)
-	if !ok {
-		return fmt.Errorf("date_range is not a map, but %T, value: %v", paramsRaw, paramsRaw)
-	}
-
-	var fieldName, format string
-
-	if field, exists := params["field"]; exists {
-		if fieldNameRaw, ok := field.(string); ok {
-			fieldName = cw.ResolveField(cw.Ctx, fieldNameRaw)
-		} else {
-			return fmt.Errorf("field specified for date range aggregation is not a string. Params: %v", params)
-		}
-	} else {
-		return fmt.Errorf("no field specified for date range aggregation. Params: %v", params)
-	}
-
+func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(aggregation *pancakeAggregationTreeNode, params QueryMap) (err error) {
+	var format string
 	if formatRaw, exists := params["format"]; exists {
 		if formatParsed, ok := formatRaw.(string); ok {
 			format = formatParsed
@@ -37,6 +20,7 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(aggregation *panc
 	}
 
 	var ranges []any
+	var ok bool
 	if rangesRaw, exists := params["ranges"]; exists {
 		if ranges, ok = rangesRaw.([]any); !ok {
 			return fmt.Errorf("ranges specified for date range aggregation is not an array, params: %v", params)
@@ -99,7 +83,11 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(aggregation *panc
 			}
 		}*/
 
-	aggregation.queryType = bucket_aggregations.NewDateRange(cw.Ctx, fieldName, format, intervals, selectColumnsNr)
+	field := cw.parseFieldField(params, "date_range")
+	if field == nil {
+		return fmt.Errorf("no field specified for date range aggregation, params: %v", params)
+	}
+	aggregation.queryType = bucket_aggregations.NewDateRange(cw.Ctx, field, format, intervals, selectColumnsNr)
 	return nil
 }
 

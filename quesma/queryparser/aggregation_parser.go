@@ -172,7 +172,7 @@ func (cw *ClickhouseQueryTranslator) parseTopHits(queryMap QueryMap) (parsedTopH
 	const defaultSize = 1
 	size := cw.parseSize(params, defaultSize)
 
-	orderBy := cw.parseOrder(params, queryMap, []model.Expr{})
+	orderBy := cw.parseOrder(params, []model.Expr{})
 	if len(orderBy) == 1 && orderBy[0].IsCountDesc() { // we don't need count DESC
 		orderBy = []model.OrderByExpr{}
 	}

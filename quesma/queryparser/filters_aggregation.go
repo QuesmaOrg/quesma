@@ -9,11 +9,7 @@ import (
 	"sort"
 )
 
-func (cw *ClickhouseQueryTranslator) parseFilters(aggregation *pancakeAggregationTreeNode, paramsRaw any) error {
-	params, ok := paramsRaw.(QueryMap)
-	if !ok {
-		return fmt.Errorf("filters is not a map, but %T, value: %v", paramsRaw, paramsRaw)
-	}
+func (cw *ClickhouseQueryTranslator) parseFilters(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
 	nestedRaw, exists := params["filters"]
 	if !exists {
 		return fmt.Errorf("filters is not a map, but %T, value: %v", params, params)

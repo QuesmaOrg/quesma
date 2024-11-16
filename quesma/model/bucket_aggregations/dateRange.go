@@ -47,15 +47,15 @@ func (interval DateTimeInterval) EndTimestampToSQL() (sqlSelect model.Expr, sele
 	return nil, false
 }
 
-func (interval DateTimeInterval) ToWhereClause(fieldName string) model.Expr {
+func (interval DateTimeInterval) ToWhereClause(field model.Expr) model.Expr {
 	begin, isBegin := interval.BeginTimestampToSQL()
 	end, isEnd := interval.EndTimestampToSQL()
 
 	if isBegin {
-		begin = model.NewInfixExpr(model.NewColumnRef(fieldName), ">=", begin)
+		begin = model.NewInfixExpr(field, ">=", begin)
 	}
 	if isEnd {
-		end = model.NewInfixExpr(model.NewColumnRef(fieldName), "<", end)
+		end = model.NewInfixExpr(field, "<", end)
 	}
 
 	if isBegin && isEnd {
@@ -65,20 +65,20 @@ func (interval DateTimeInterval) ToWhereClause(fieldName string) model.Expr {
 	} else if isEnd {
 		return end
 	} else {
-		return model.NewLiteral("TRUE")
+		return model.TrueExpr
 	}
 }
 
 type DateRange struct {
 	ctx             context.Context
-	FieldName       string
+	Field           model.Expr
 	Format          string
 	Intervals       []DateTimeInterval
 	SelectColumnsNr int // how many columns we add to the query because of date_range aggregation, e.g. SELECT x,y,z -> 3
 }
 
-func NewDateRange(ctx context.Context, fieldName string, format string, intervals []DateTimeInterval, selectColumnsNr int) DateRange {
-	return DateRange{ctx: ctx, FieldName: fieldName, Format: format, Intervals: intervals, SelectColumnsNr: selectColumnsNr}
+func NewDateRange(ctx context.Context, field model.Expr, format string, intervals []DateTimeInterval, selectColumnsNr int) DateRange {
+	return DateRange{ctx: ctx, Field: field, Format: format, Intervals: intervals, SelectColumnsNr: selectColumnsNr}
 }
 
 func (query DateRange) AggregationType() model.AggregationType {
@@ -182,7 +182,7 @@ func (query DateRange) CombinatorGroups() (result []CombinatorGroup) {
 			idx:         intervalIdx,
 			Prefix:      prefix,
 			Key:         prefix, // TODO: we need translate date to real time
-			WhereClause: interval.ToWhereClause(query.FieldName),
+			WhereClause: interval.ToWhereClause(query.Field),
 		})
 	}
 	return
@@ -215,7 +215,7 @@ func (query DateRange) CombinatorTranslateSqlResponseToJson(subGroup CombinatorG
 func (query DateRange) CombinatorSplit() []model.QueryType {
 	result := make([]model.QueryType, 0, len(query.Intervals))
 	for _, interval := range query.Intervals {
-		result = append(result, NewDateRange(query.ctx, query.FieldName, query.Format, []DateTimeInterval{interval}, query.SelectColumnsNr))
+		result = append(result, NewDateRange(query.ctx, query.Field, query.Format, []DateTimeInterval{interval}, query.SelectColumnsNr))
 	}
 	return result
 }

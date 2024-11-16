@@ -18,12 +18,12 @@ import (
 func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pancakeAggregationTreeNode, queryMap QueryMap) error {
 	aggregationHandlers := []struct {
 		name    string
-		handler func(*pancakeAggregationTreeNode, any) error
+		handler func(*pancakeAggregationTreeNode, QueryMap) error
 	}{
 		{"histogram", cw.parseHistogram},
 		{"date_histogram", cw.parseDateHistogram},
-		{"terms", func(node *pancakeAggregationTreeNode, params any) error {
-			return cw.parseTermsAggregation(node, params, "terms", queryMap)
+		{"terms", func(node *pancakeAggregationTreeNode, params QueryMap) error {
+			return cw.parseTermsAggregation(node, params, "terms")
 		}},
 		{"filters", cw.parseFilters},
 		{"sampler", cw.parseSampler},
@@ -32,18 +32,19 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		{"range", cw.parseRangeAggregation},
 		{"auto_date_histogram", cw.parseAutoDateHistogram},
 		{"geotile_grid", cw.parseGeotileGrid},
-		{"significant_terms", func(node *pancakeAggregationTreeNode, params any) error {
-			return cw.parseTermsAggregation(node, params, "significant_terms", queryMap)
+		{"significant_terms", func(node *pancakeAggregationTreeNode, params QueryMap) error {
+			return cw.parseTermsAggregation(node, params, "significant_terms")
 		}},
-		{"multi_terms", func(node *pancakeAggregationTreeNode, params any) error {
-			return cw.parseMultiTerms(node, params, queryMap)
-		}},
+		{"multi_terms", cw.parseMultiTerms},
 	}
 
 	for _, aggr := range aggregationHandlers {
-		if params, ok := queryMap[aggr.name]; ok {
-			delete(queryMap, aggr.name)
-			return aggr.handler(aggregation, params)
+		if paramsRaw, ok := queryMap[aggr.name]; ok {
+			if params, ok := paramsRaw.(QueryMap); ok {
+				delete(queryMap, aggr.name)
+				return aggr.handler(aggregation, params)
+			}
+			return fmt.Errorf("%s is not a map, but %T, value: %v", aggr.name, paramsRaw, paramsRaw)
 		}
 	}
 
@@ -51,12 +52,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 }
 
 // paramsRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseHistogram(aggregation *pancakeAggregationTreeNode, paramsRaw any) (err error) {
-	params, ok := paramsRaw.(QueryMap)
-	if !ok {
-		return fmt.Errorf("histogram is not a map, but %T, value: %v", paramsRaw, paramsRaw)
-	}
-
+func (cw *ClickhouseQueryTranslator) parseHistogram(aggregation *pancakeAggregationTreeNode, params QueryMap) (err error) {
 	var interval float64
 	intervalRaw, ok := params["interval"]
 	if !ok {
@@ -100,12 +96,7 @@ func (cw *ClickhouseQueryTranslator) parseHistogram(aggregation *pancakeAggregat
 }
 
 // paramsRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggregationTreeNode, paramsRaw any) (err error) {
-	params, ok := paramsRaw.(QueryMap)
-	if !ok {
-		return fmt.Errorf("date_histogram is not a map, but %T, value: %v", paramsRaw, paramsRaw)
-	}
-
+func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggregationTreeNode, params QueryMap) (err error) {
 	field := cw.parseFieldField(params, "date_histogram")
 	dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 
@@ -155,12 +146,7 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 
 // paramsRaw - in a proper request should be of QueryMap type.
 // aggrName - "terms" or "significant_terms"
-func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeAggregationTreeNode, paramsRaw any, aggrName string, queryMap QueryMap) error {
-	params, ok := paramsRaw.(QueryMap)
-	if !ok {
-		return fmt.Errorf("%s is not a map, but %T, value: %v", aggrName, paramsRaw, paramsRaw)
-	}
-
+func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeAggregationTreeNode, params QueryMap, aggrName string) error {
 	fieldExpression := cw.parseFieldField(params, aggrName)
 	fieldExpression, didWeAddMissing := cw.addMissingParameterIfPresent(fieldExpression, params)
 	if !didWeAddMissing {
@@ -169,7 +155,7 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 
 	const defaultSize = 10
 	size := cw.parseSize(params, defaultSize)
-	orderBy := cw.parseOrder(params, queryMap, []model.Expr{fieldExpression})
+	orderBy := cw.parseOrder(params, []model.Expr{fieldExpression})
 
 	aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, aggrName == "significant_terms", orderBy[0]) // TODO probably full, not [0]
 	aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)
@@ -178,40 +164,25 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 	return nil
 }
 
-// paramsRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseSampler(aggregation *pancakeAggregationTreeNode, paramsRaw any) error {
+func (cw *ClickhouseQueryTranslator) parseSampler(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
 	const defaultSize = 100
-	if params, ok := paramsRaw.(QueryMap); ok {
-		aggregation.queryType = bucket_aggregations.NewSampler(cw.Ctx, cw.parseIntField(params, "shard_size", defaultSize))
-		return nil
-	}
-	return fmt.Errorf("sampler is not a map, but %T, value: %v", paramsRaw, paramsRaw)
+	aggregation.queryType = bucket_aggregations.NewSampler(cw.Ctx, cw.parseIntField(params, "shard_size", defaultSize))
+	return nil
 }
 
-// paramsRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseRandomSampler(aggregation *pancakeAggregationTreeNode, paramsRaw any) error {
+func (cw *ClickhouseQueryTranslator) parseRandomSampler(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
 	const defaultProbability = 0.0 // theoretically it's required
 	const defaultSeed = 0
-	if params, ok := paramsRaw.(QueryMap); ok {
-		aggregation.queryType = bucket_aggregations.NewRandomSampler(cw.Ctx,
-			cw.parseFloatField(params, "probability", defaultProbability),
-			cw.parseIntField(params, "seed", defaultSeed),
-		)
-		return nil
-	}
-
-	return fmt.Errorf("random_sampler is not a map, but %T, value: %v", paramsRaw, paramsRaw)
+	aggregation.queryType = bucket_aggregations.NewRandomSampler(cw.Ctx,
+		cw.parseFloatField(params, "probability", defaultProbability),
+		cw.parseIntField(params, "seed", defaultSeed),
+	)
+	return nil
 }
 
-// paramsRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseRangeAggregation(aggregation *pancakeAggregationTreeNode, paramsRaw any) error {
+func (cw *ClickhouseQueryTranslator) parseRangeAggregation(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
 	const keyedDefault = false
-	params, ok := paramsRaw.(QueryMap)
-	if !ok {
-		return fmt.Errorf("range is not a map, but %T, value: %v", paramsRaw, paramsRaw)
-	}
 
-	field := cw.parseFieldField(params, "range")
 	var ranges []any
 	if rangesRaw, ok := params["ranges"]; ok {
 		ranges, ok = rangesRaw.([]any)
@@ -249,23 +220,19 @@ func (cw *ClickhouseQueryTranslator) parseRangeAggregation(aggregation *pancakeA
 
 	keyed := keyedDefault
 	if keyedRaw, exists := params["keyed"]; exists {
+		var ok bool
 		if keyed, ok = keyedRaw.(bool); !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("keyed is not a bool, but %T, value: %v", keyedRaw, keyedRaw)
 		}
 	}
 
+	field := cw.parseFieldField(params, "range")
 	aggregation.queryType = bucket_aggregations.NewRange(cw.Ctx, field, intervals, keyed)
 	aggregation.isKeyed = keyed
 	return nil
 }
 
-// paramsRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(aggregation *pancakeAggregationTreeNode, paramsRaw any) error {
-	params, ok := paramsRaw.(QueryMap)
-	if !ok {
-		return fmt.Errorf("auto_date_histogram is not a map, but %T, value: %v", paramsRaw, paramsRaw)
-	}
-
+func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
 	fieldRaw := cw.parseFieldField(params, "auto_date_histogram")
 	if field, ok := fieldRaw.(model.ColumnRef); ok {
 		bucketsNr := cw.parseIntField(params, "buckets", 10)
@@ -276,29 +243,23 @@ func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(aggregation *pancake
 	return fmt.Errorf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 }
 
-// paramsRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseMultiTerms(aggregation *pancakeAggregationTreeNode, paramsRaw any, queryMap QueryMap) error {
-	params, ok := paramsRaw.(QueryMap)
-	if !ok {
-		return fmt.Errorf("multi_terms is not a map, but %T, value: %v", paramsRaw, paramsRaw)
-	}
-
-	var fieldsNr int
-	if termsRaw, exists := params["terms"]; exists {
-		terms, ok := termsRaw.([]any)
-		if !ok {
-			return fmt.Errorf("terms is not an array, but %T, value: %v. Using empty array", termsRaw, termsRaw)
-		}
-		fieldsNr = len(terms)
-		columns := make([]model.Expr, 0, fieldsNr)
-		for _, term := range terms {
-			columns = append(columns, cw.parseFieldField(term, "multi_terms"))
-		}
-		aggregation.selectedColumns = append(aggregation.selectedColumns, columns...)
-		aggregation.orderBy = append(aggregation.orderBy, cw.parseOrder(params, queryMap, columns)...)
-	} else {
+func (cw *ClickhouseQueryTranslator) parseMultiTerms(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
+	termsRaw, exists := params["terms"]
+	if !exists {
 		return fmt.Errorf("no terms in multi_terms")
 	}
+	terms, ok := termsRaw.([]any)
+	if !ok {
+		return fmt.Errorf("terms is not an array, but %T, value: %v. Using empty array", termsRaw, termsRaw)
+	}
+
+	fieldsNr := len(terms)
+	columns := make([]model.Expr, 0, fieldsNr)
+	for _, term := range terms {
+		columns = append(columns, cw.parseFieldField(term, "multi_terms"))
+	}
+	aggregation.selectedColumns = append(aggregation.selectedColumns, columns...)
+	aggregation.orderBy = append(aggregation.orderBy, cw.parseOrder(params, columns)...)
 
 	const defaultSize = 10
 	aggregation.limit = cw.parseSize(params, defaultSize)
@@ -306,12 +267,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiTerms(aggregation *pancakeAggrega
 	return nil
 }
 
-// paramsRaw - in a proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggregationTreeNode, paramsRaw any) error {
-	params, ok := paramsRaw.(QueryMap)
-	if !ok {
-		return fmt.Errorf("geotile_grid is not a map, but %T, value: %v", paramsRaw, paramsRaw)
-	}
+func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
 	var precisionZoom float64
 	precisionRaw, ok := params["precision"]
 	if ok {
@@ -372,11 +328,11 @@ func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggreg
 	return nil
 }
 
-func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldExpressions []model.Expr) []model.OrderByExpr {
+func (cw *ClickhouseQueryTranslator) parseOrder(params QueryMap, fieldExpressions []model.Expr) []model.OrderByExpr {
 	defaultDirection := model.DescOrder
 	defaultOrderBy := model.NewOrderByExpr(model.NewCountFunc(), defaultDirection)
 
-	ordersRaw, exists := terms["order"]
+	ordersRaw, exists := params["order"]
 	if !exists {
 		return []model.OrderByExpr{defaultOrderBy}
 	}
