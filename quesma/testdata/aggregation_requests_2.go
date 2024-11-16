@@ -4090,4 +4090,85 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__interval-2__key_0" ASC`,
 		},
 	},
+	{ // [65]
+		TestName: "simplest geotile_grid",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"large-grid": {
+					"geotile_grid": {
+						"field": "OriginLocation",
+						"precision": 8
+					}
+				}
+			},
+			"size": 0
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 70,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 10000,
+					"relation": "gte"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"large-grid": {
+					"buckets": [
+						{
+							"key": "8/136/95",
+							"doc_count": 416
+						},
+						{
+							"key": "8/134/91",
+							"doc_count": 360
+						},
+						{
+							"key": "8/72/128",
+							"doc_count": 283
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__large-grid__key_0", 136.),
+				model.NewQueryResultCol("aggr__large-grid__key_1", 95.),
+				model.NewQueryResultCol("aggr__large-grid__count", 416),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__large-grid__key_0", 134.),
+				model.NewQueryResultCol("aggr__large-grid__key_1", 91.),
+				model.NewQueryResultCol("aggr__large-grid__count", 360),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__large-grid__key_0", 72.),
+				model.NewQueryResultCol("aggr__large-grid__key_1", 128.),
+				model.NewQueryResultCol("aggr__large-grid__count", 283),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2,
+			  8)) AS "aggr__large-grid__key_0",
+			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))+(1/
+			  COS(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))))/PI())/2*POWER(2,
+			  8)) AS "aggr__large-grid__key_1", count(*) AS "aggr__large-grid__count"
+			FROM __quesma_table_name
+			GROUP BY FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2
+			  , 8)) AS "aggr__large-grid__key_0",
+			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))+(1/
+			  COS(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))))/PI())/2*POWER(2,
+			  8)) AS "aggr__large-grid__key_1"`,
+	},
 }
