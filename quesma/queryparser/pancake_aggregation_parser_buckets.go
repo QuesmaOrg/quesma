@@ -5,6 +5,7 @@ package queryparser
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"quesma/clickhouse"
 	"quesma/kibana"
 	"quesma/logger"
@@ -16,116 +17,37 @@ import (
 )
 
 func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pancakeAggregationTreeNode, queryMap QueryMap) error {
+	aggregations := []struct {
+		name string
+		fn   func(any) error
+	}{
+		{"histogram", cw.parseHistogram},
+		{"date_histogram", cw.parseDateHistogram},
+	}
 	if histogramRaw, ok := queryMap["histogram"]; ok {
-		histogram, ok := histogramRaw.(QueryMap)
-		if !ok {
-			return fmt.Errorf("histogram is not a map, but %T, value: %v", histogramRaw, histogramRaw)
-		}
-
-		var interval float64
-		intervalRaw, ok := histogram["interval"]
-		if !ok {
-			return fmt.Errorf("interval not found in histogram: %v", histogram)
-		}
-		switch intervalTyped := intervalRaw.(type) {
-		case string:
-			var err error
-			interval, err = strconv.ParseFloat(intervalTyped, 64)
-			if err != nil {
-				return fmt.Errorf("failed to parse interval: %v", intervalRaw)
-			}
-		case int:
-			interval = float64(intervalTyped)
-		case float64:
-			interval = intervalTyped
-		default:
-			interval = 1.0
-			logger.WarnWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v. Will use 1.0.", intervalTyped, intervalTyped)
-		}
-		minDocCount := cw.parseMinDocCount(histogram)
-		aggregation.queryType = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
-
-		field, _ := cw.parseFieldFieldMaybeScript(histogram, "histogram")
-		field, didWeAddMissing := cw.addMissingParameterIfPresent(field, histogram)
-		if !didWeAddMissing {
-			aggregation.filterOutEmptyKeyBucket = true
-		}
-
-		var col model.Expr
-		if interval != 1.0 {
-			// col as string is: fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
-			col = model.NewInfixExpr(
-				model.NewFunction("floor", model.NewInfixExpr(field, "/", model.NewLiteral(interval))),
-				"*",
-				model.NewLiteral(interval),
-			)
-		} else {
-			col = field
-		}
-
+		histogram, col, orderBy, filterOutEmptyKeyBucket, err := cw.parseHistogram(histogramRaw)
+		aggregation.queryType = histogram
 		aggregation.selectedColumns = append(aggregation.selectedColumns, col)
-		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(col))
-
+		aggregation.orderBy = append(aggregation.orderBy, orderBy)
+		aggregation.filterOutEmptyKeyBucket = filterOutEmptyKeyBucket
 		delete(queryMap, "histogram")
-		return nil
+		return err
 	}
+
 	if dateHistogramRaw, ok := queryMap["date_histogram"]; ok {
-		dateHistogram, ok := dateHistogramRaw.(QueryMap)
-		if !ok {
-			return fmt.Errorf("date_histogram is not a map, but %T, value: %v", dateHistogramRaw, dateHistogramRaw)
-		}
-		field := cw.parseFieldField(dateHistogram, "date_histogram")
-		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
-
-		weAddedMissing := false
-		if missingRaw, exists := dateHistogram["missing"]; exists {
-			if missing, ok := missingRaw.(string); ok {
-				dateManager := kibana.NewDateManager(cw.Ctx)
-				if missingExpr, parsingOk := dateManager.ParseDateUsualFormat(missing, dateTimeType); parsingOk {
-					field = model.NewFunction("COALESCE", field, missingExpr)
-					weAddedMissing = true
-				} else {
-					logger.ErrorWithCtx(cw.Ctx).Msgf("unknown format of missing in date_histogram: %v. Skipping it.", missing)
-				}
-			} else {
-				logger.ErrorWithCtx(cw.Ctx).Msgf("missing %v is not a string, but: %T. Skipping it.", missingRaw, missingRaw)
-			}
-		}
-		if !weAddedMissing {
-			// if we don't add missing, we need to filter out nulls later
-			aggregation.filterOutEmptyKeyBucket = true
-		}
-
-		ebMin, ebMax := bucket_aggregations.NoExtendedBound, bucket_aggregations.NoExtendedBound
-		if extendedBounds, exists := dateHistogram["extended_bounds"].(QueryMap); exists {
-			ebMin = cw.parseInt64Field(extendedBounds, "min", bucket_aggregations.NoExtendedBound)
-			ebMax = cw.parseInt64Field(extendedBounds, "max", bucket_aggregations.NoExtendedBound)
-		}
-
-		minDocCount := cw.parseMinDocCount(dateHistogram)
-		timezone := cw.parseStringField(dateHistogram, "time_zone", "")
-		interval, intervalType := cw.extractInterval(dateHistogram)
-		// TODO  GetDateTimeTypeFromExpr can be moved and it should take cw.Schema as an argument
-
-		if dateTimeType == clickhouse.Invalid {
-			logger.WarnWithCtx(cw.Ctx).Msgf("invalid date time type for field %s", field)
-		}
-
-		dateHistogramAggr := bucket_aggregations.NewDateHistogram(
-			cw.Ctx, field, interval, timezone, minDocCount, ebMin, ebMax, intervalType, dateTimeType)
-		aggregation.queryType = dateHistogramAggr
-
-		sqlQuery := dateHistogramAggr.GenerateSQL()
-		aggregation.selectedColumns = append(aggregation.selectedColumns, sqlQuery)
-		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(sqlQuery))
-
+		dateHistogram, col, orderBy, filterOutEmptyKeyBucket, err := cw.parseDateHistogram(dateHistogramRaw)
+		aggregation.queryType = dateHistogram
+		aggregation.selectedColumns = append(aggregation.selectedColumns, col)
+		aggregation.orderBy = append(aggregation.orderBy, orderBy)
+		aggregation.filterOutEmptyKeyBucket = filterOutEmptyKeyBucket
 		delete(queryMap, "date_histogram")
-		return nil
+		return err
 	}
-	if autoDateHistogram := cw.parseAutoDateHistogram(queryMap["auto_date_histogram"]); autoDateHistogram != nil {
+
+	if autoDateHistogram, err := cw.parseAutoDateHistogram(queryMap["auto_date_histogram"]); autoDateHistogram != nil {
 		aggregation.queryType = autoDateHistogram
 		delete(queryMap, "auto_date_histogram")
-		return nil
+		return err // FIXME
 	}
 	for _, termsType := range []string{"terms", "significant_terms"} {
 		termsRaw, ok := queryMap[termsType]
@@ -296,14 +218,14 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		return nil
 	}
 	if sampler, ok := queryMap["sampler"]; ok {
-		aggregation.queryType = cw.parseSampler(sampler)
+		aggregation.queryType, err = cw.parseSampler(sampler)
 		delete(queryMap, "sampler")
 		return nil
 	}
 	if randomSampler, ok := queryMap["random_sampler"]; ok {
-		aggregation.queryType = cw.parseRandomSampler(randomSampler)
+		aggregation.queryType, err = cw.parseRandomSampler(randomSampler)
 		delete(queryMap, "random_sampler")
-		return
+		return err
 	}
 	if filterAggregation, ok := cw.parseFilters(queryMap); ok {
 		sort.Slice(filterAggregation.Filters, func(i, j int) bool { // stable order is required for tests and caching
@@ -312,14 +234,114 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.isKeyed = true
 		aggregation.queryType = filterAggregation
 		delete(queryMap, "filters")
+	}
+	return nil
+}
+
+// paramsRaw - in a proper request should be of QueryMap type.
+// column - expr to be added to SQL query
+func (cw *ClickhouseQueryTranslator) parseHistogram(paramsRaw any) (histogram *bucket_aggregations.Histogram,
+	column model.Expr, orderBy model.OrderByExpr, filterOutEmptyKeyBucket bool, err error) {
+	params, ok := paramsRaw.(QueryMap)
+	if !ok {
+		err = fmt.Errorf("histogram is not a map, but %T, value: %v", paramsRaw, paramsRaw)
 		return
 	}
-	if composite, ok := queryMap["composite"]; ok {
-		aggregation.queryType = cw.parseComposite(composite)
-		delete(queryMap, "composite")
+
+	var interval float64
+	intervalRaw, ok := params["interval"]
+	if !ok {
+		err = fmt.Errorf("interval not found in histogram: %v", params)
 		return
 	}
-	success = false
+	switch intervalTyped := intervalRaw.(type) {
+	case string:
+		interval, err = strconv.ParseFloat(intervalTyped, 64)
+		if err != nil {
+			err = errors.Wrap(err, fmt.Sprintf("failed to parse interval: %v", intervalRaw))
+			return
+		}
+	case int:
+		interval = float64(intervalTyped)
+	case float64:
+		interval = intervalTyped
+	default:
+		interval = 1.0
+		logger.WarnWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v. Will use 1.0.", intervalTyped, intervalTyped)
+	}
+
+	minDocCount := cw.parseMinDocCount(params)
+	histogram = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
+
+	field, _ := cw.parseFieldFieldMaybeScript(params, "histogram")
+	field, didWeAddMissing := cw.addMissingParameterIfPresent(field, params)
+	if !didWeAddMissing {
+		filterOutEmptyKeyBucket = true
+	}
+
+	if interval != 1.0 {
+		// column as string is: fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
+		column = model.NewInfixExpr(
+			model.NewFunction("floor", model.NewInfixExpr(field, "/", model.NewLiteral(interval))),
+			"*",
+			model.NewLiteral(interval),
+		)
+	} else {
+		column = field
+	}
+
+	orderBy = model.NewOrderByExprWithoutOrder(column)
+	return
+}
+
+func (cw *ClickhouseQueryTranslator) parseDateHistogram(paramsRaw any) (dateHistogram *bucket_aggregations.DateHistogram,
+	column model.Expr, orderBy model.OrderByExpr, filterOutEmptyKeyBucket bool, err error) {
+	params, ok := paramsRaw.(QueryMap)
+	if !ok {
+		err = fmt.Errorf("date_histogram is not a map, but %T, value: %v", paramsRaw, paramsRaw)
+		return
+	}
+
+	field := cw.parseFieldField(params, "date_histogram")
+	dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
+
+	weAddedMissing := false
+	if missingRaw, exists := params["missing"]; exists {
+		if missing, ok := missingRaw.(string); ok {
+			dateManager := kibana.NewDateManager(cw.Ctx)
+			if missingExpr, parsingOk := dateManager.ParseDateUsualFormat(missing, dateTimeType); parsingOk {
+				field = model.NewFunction("COALESCE", field, missingExpr)
+				weAddedMissing = true
+			} else {
+				logger.ErrorWithCtx(cw.Ctx).Msgf("unknown format of missing in date_histogram: %v. Skipping it.", missing)
+			}
+		} else {
+			logger.ErrorWithCtx(cw.Ctx).Msgf("missing %v is not a string, but: %T. Skipping it.", missingRaw, missingRaw)
+		}
+	}
+	if !weAddedMissing {
+		// if we don't add missing, we need to filter out nulls later
+		filterOutEmptyKeyBucket = true
+	}
+
+	ebMin, ebMax := bucket_aggregations.NoExtendedBound, bucket_aggregations.NoExtendedBound
+	if extendedBounds, exists := params["extended_bounds"].(QueryMap); exists {
+		ebMin = cw.parseInt64Field(extendedBounds, "min", bucket_aggregations.NoExtendedBound)
+		ebMax = cw.parseInt64Field(extendedBounds, "max", bucket_aggregations.NoExtendedBound)
+	}
+
+	minDocCount := cw.parseMinDocCount(params)
+	timezone := cw.parseStringField(params, "time_zone", "")
+	interval, intervalType := cw.extractInterval(params)
+	// TODO  GetDateTimeTypeFromExpr can be moved and it should take cw.Schema as an argument
+
+	if dateTimeType == clickhouse.Invalid {
+		logger.WarnWithCtx(cw.Ctx).Msgf("invalid date time type for field %s", field)
+	}
+
+	dateHistogram = bucket_aggregations.NewDateHistogram(cw.Ctx, field, interval, timezone, minDocCount, ebMin, ebMax, intervalType, dateTimeType)
+	column = dateHistogram.GenerateSQL()
+	orderBy = model.NewOrderByExprWithoutOrder(column)
 	return
 }
 
