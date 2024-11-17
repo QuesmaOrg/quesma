@@ -16,10 +16,10 @@ func TestGetDateTimeType(t *testing.T) {
 		"timestamp64_1" DateTime64,
 		"timestamp64_2" DateTime64(3, 'UTC') ) ENGINE = Memory`, NewChTableConfigTimestampStringAttr())
 	assert.NoError(t, err)
-	assert.Equal(t, DateTime, table.GetDateTimeType(ctx, "timestamp1"))
-	assert.Equal(t, DateTime, table.GetDateTimeType(ctx, "timestamp2"))
-	assert.Equal(t, DateTime64, table.GetDateTimeType(ctx, "timestamp64_1"))
-	assert.Equal(t, DateTime64, table.GetDateTimeType(ctx, "timestamp64_2"))
-	assert.Equal(t, DateTime64, table.GetDateTimeType(ctx, timestampFieldName)) // default, created by us
-	assert.Equal(t, Invalid, table.GetDateTimeType(ctx, "non-existent"))
+	assert.Equal(t, DateTime, table.GetDateTimeType(ctx, "timestamp1", true))
+	assert.Equal(t, DateTime, table.GetDateTimeType(ctx, "timestamp2", true))
+	assert.Equal(t, DateTime64, table.GetDateTimeType(ctx, "timestamp64_1", true))
+	assert.Equal(t, DateTime64, table.GetDateTimeType(ctx, "timestamp64_2", true))
+	assert.Equal(t, DateTime64, table.GetDateTimeType(ctx, timestampFieldName, true)) // default, created by us
+	assert.Equal(t, Invalid, table.GetDateTimeType(ctx, "non-existent", false))
 }

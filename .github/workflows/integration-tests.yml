@@ -74,23 +74,21 @@ jobs:
         if: ${{ failure() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         uses: slackapi/slack-github-action@v2.0.0
         with:
-          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
-          slack-message: |
-            :exclamation: *Integration tests failed.* :exclamation: <!channel>
-            *Last commit by:* ${{ steps.get_author.outputs.author }}
-            *Workflow run URL:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: ":exclamation: *Integration tests failed.* :exclamation: <!channel>\n*Last commit by:* ${{ steps.get_author.outputs.author }}\n*Workflow run URL:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Send Slack notification on success
         if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         uses: slackapi/slack-github-action@v2.0.0
         with:
-          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
-          slack-message: |
-            :white_check_mark: *Integration tests passed.* Good job team!
-            *Last commit by:* ${{ steps.get_author.outputs.author }}
-            *Workflow run URL:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: ":white_check_mark: *Integration tests passed.* Good job team!\n*Last commit by:* ${{ steps.get_author.outputs.author }}\n*Workflow run URL:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 

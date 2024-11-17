@@ -121,6 +121,22 @@ func InitSimpleLoggerForTests() {
 		Logger()
 }
 
+// InitSimpleLoggerForTestsWarnLevel initializes our global logger (level >= Warn) to the console output.
+// Useful e.g. in debugging failing tests: you can call this function at the beginning
+// of the test, and calls to the global logger will start appearing in the console.
+// Without it, they don't.
+func InitSimpleLoggerForTestsWarnLevel() {
+	logger = zerolog.New(
+		zerolog.ConsoleWriter{
+			Out:        os.Stderr,
+			TimeFormat: time.StampMilli,
+		}).
+		Level(zerolog.WarnLevel).
+		With().
+		Timestamp().
+		Logger()
+}
+
 func InitOnlyChannelLoggerForTests() <-chan LogWithLevel {
 	zerolog.TimeFieldFormat = time.RFC3339Nano   // without this we don't have milliseconds timestamp precision
 	logChannel := make(chan LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
