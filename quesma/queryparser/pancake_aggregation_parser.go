@@ -114,7 +114,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 		return nil, nil
 	}
 
-	// check if metadata's present
+	// check if metadata is present
 	var metadata model.JsonMap
 	if metaRaw, exists := queryMap["meta"]; exists {
 		metadata = metaRaw.(model.JsonMap)
@@ -143,7 +143,10 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 	}
 
 	// 2. Pipeline aggregation => always leaf (for now)
-	if pipelineAggr, isPipeline := cw.parsePipelineAggregations(queryMap); isPipeline {
+	if pipelineAggr, err := cw.parsePipelineAggregations(queryMap); err != nil || pipelineAggr != nil {
+		if err != nil {
+			return nil, err
+		}
 		aggregation.queryType = pipelineAggr
 		return aggregation, nil
 	}
