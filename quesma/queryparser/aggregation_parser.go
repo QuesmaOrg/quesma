@@ -38,6 +38,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	if len(queryMap) != 1 {
 		return metricsAggregation{}, false
 	}
+	const dateInSchemaExpected = false
 
 	// full list: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-Aggregations-metrics.html
 	// shouldn't be hard to handle others, if necessary
@@ -50,7 +51,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			return metricsAggregation{
 				AggrType:            k,
 				Fields:              []model.Expr{field},
-				FieldType:           cw.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
+				FieldType:           cw.GetDateTimeTypeFromSelectClause(cw.Ctx, field, dateInSchemaExpected),
 				IsFieldNameCompound: isFromScript,
 			}, true
 		}
@@ -66,7 +67,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		return metricsAggregation{
 			AggrType:    "quantile",
 			Fields:      []model.Expr{field},
-			FieldType:   cw.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
+			FieldType:   cw.GetDateTimeTypeFromSelectClause(cw.Ctx, field, dateInSchemaExpected),
 			Percentiles: percentiles,
 			Keyed:       keyed,
 		}, true
