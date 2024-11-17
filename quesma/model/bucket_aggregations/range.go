@@ -12,8 +12,6 @@ import (
 	"strings"
 )
 
-const keyedDefaultValue = false
-
 var IntervalInfiniteRange = math.NaN()
 
 type Interval struct {
@@ -89,10 +87,6 @@ type Range struct {
 
 func NewRange(ctx context.Context, expr model.Expr, intervals []Interval, keyed bool) Range {
 	return Range{ctx, expr, intervals, keyed}
-}
-
-func NewRangeWithDefaultKeyed(ctx context.Context, expr model.Expr, intervals []Interval) Range {
-	return Range{ctx, expr, intervals, keyedDefaultValue}
 }
 
 func (query Range) AggregationType() model.AggregationType {
