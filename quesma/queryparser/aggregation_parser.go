@@ -29,6 +29,8 @@ type metricsAggregation struct {
 	sigma               float64                 // only for standard deviation
 }
 
+type aggregationParser = func(queryMap QueryMap) (model.QueryType, error)
+
 const metricsAggregationDefaultFieldType = clickhouse.Invalid
 
 // Tries to parse metrics aggregation from queryMap. If it's not a metrics aggregation, returns false.
