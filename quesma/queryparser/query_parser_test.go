@@ -17,6 +17,7 @@ import (
 	"quesma/testdata"
 	"quesma/util"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -489,6 +490,47 @@ func Test_parseSortFields(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.sortColumns, cw.parseSortFields(tt.sortMap))
+		})
+	}
+}
+
+func TestInvalidQueryRequests(t *testing.T) {
+	table := clickhouse.Table{
+		Cols: map[string]*clickhouse.Column{
+			"@timestamp":                     {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"timestamp":                      {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"order_date":                     {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
+			"message":                        {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"bytes_gauge":                    {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
+			"customer_birth_date":            {Name: "customer_birth_date", Type: clickhouse.NewBaseType("DateTime")},
+			"customer_birth_date_datetime64": {Name: "customer_birth_date_datetime64", Type: clickhouse.NewBaseType("DateTime64")},
+		},
+		Name:   tableName,
+		Config: clickhouse.NewDefaultCHConfig(),
+	}
+
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), &config.QuesmaConfiguration{})
+	currentSchema := schema.Schema{
+		Fields:             nil,
+		Aliases:            nil,
+		ExistsInDataSource: false,
+		DatabaseName:       "",
+	}
+
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: currentSchema}
+
+	for i, test := range testdata.InvalidAggregationTests {
+		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
+			if strings.Contains(strings.ToLower(test.TestName), "rate") {
+				t.Skip("Unskip after merge of rate aggregation")
+			}
+			fmt.Println("i:", i, "test:", test.TestName)
+
+			jsonp, err := types.ParseJSON(test.QueryRequestJson)
+			assert.NoError(t, err)
+
+			_, err = cw.PancakeParseAggregationJson(jsonp, false)
+			assert.Error(t, err)
 		})
 	}
 }
