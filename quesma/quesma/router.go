@@ -41,6 +41,23 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	and := mux.And
 
 	router := mux.NewPathRouter()
+
+	// These are the endpoints that are not supported by Quesma
+	// These will redirect to the elastic cluster.
+	for _, path := range elasticsearch.InternalPaths {
+		router.Register(path, mux.Never(), func(ctx context.Context, req *mux.Request) (*mux.Result, error) { return nil, nil })
+	}
+
+	// These are the endpoints that are supported by Quesma
+
+	// Warning:
+	// The first handler that matches the path will be considered to use.
+	// If the predicate returns false it will be redirected to the elastic cluster.
+	// If the predicate returns true, the handler will be used.
+	//
+	// So, if you add multiple handlers with the same path, the first one will be used, the rest will be redirected to the elastic cluster.
+	// This is current limitation of the router.
+
 	router.Register(routes.ClusterHealthPath, method("GET"), func(_ context.Context, req *mux.Request) (*mux.Result, error) {
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, http.StatusOK), nil
 	})

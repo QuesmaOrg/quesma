@@ -213,7 +213,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
 
-	handler, found, decision := router.Matches(quesmaRequest)
+	handler, decision := router.Matches(quesmaRequest)
 
 	if decision != nil {
 		w.Header().Set(quesmaTableResolverHeader, decision.String())
@@ -221,7 +221,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		w.Header().Set(quesmaTableResolverHeader, "n/a")
 	}
 
-	if found {
+	if handler != nil {
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
 			return handler(ctx, quesmaRequest)
 		})

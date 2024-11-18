@@ -345,7 +345,7 @@ func TestConfigureRouter(t *testing.T) {
 		tt.path = strings.Replace(tt.path, ":index", testIndexName, -1)
 		t.Run(tt.method+"-at-"+tt.path, func(t *testing.T) {
 			req := &mux.Request{Path: tt.path, Method: tt.method}
-			reqHandler, _, _ := testRouter.Matches(req)
+			reqHandler, _ := testRouter.Matches(req)
 			assert.Equal(t, tt.shouldReturnHandler, reqHandler != nil, "Expected route match result for path: %s and method: %s", tt.path, tt.method)
 		})
 	}

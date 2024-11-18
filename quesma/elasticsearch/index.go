@@ -15,5 +15,8 @@ func IsIndexPattern(index string) bool {
 }
 
 func IsInternalIndex(index string) bool {
-	return strings.HasPrefix(index, internalIndexPrefix) || index == "_nodes" || index == "_xpack"
+	return strings.HasPrefix(index, internalIndexPrefix)
 }
+
+// InternalPaths is a list of paths that are considered internal and should not handled by Quesma
+var InternalPaths = []string{"/_nodes", "/_xpack"}
