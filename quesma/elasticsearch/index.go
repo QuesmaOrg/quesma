@@ -15,5 +15,5 @@ func IsIndexPattern(index string) bool {
 }
 
 func IsInternalIndex(index string) bool {
-	return strings.HasPrefix(index, internalIndexPrefix)
+	return strings.HasPrefix(index, internalIndexPrefix) || index == "_nodes" || index == "_xpack"
 }
