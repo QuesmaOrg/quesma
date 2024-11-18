@@ -25,7 +25,7 @@ func Test_EsHeaders(t *testing.T) {
 	response = make(http.Header)
 	addProductAndContentHeaders(request, response)
 	assert.Equal(t, elasticSearchResponseHeaderValue, response.Get(elasticSearchResponseHeaderKey), "X-Elastic-Product set correctly")
-	assert.Equalf(t, "application/vnd.elasticsearch+json;compatible-with=8", response.Get(contentTypeHeaderKey), "Content-Type set correctly")
+	assert.Equalf(t, "application/json; charset=UTF-8", response.Get(contentTypeHeaderKey), "Content-Type set correctly")
 }
 
 func TestFindMissingElasticsearchHeaders(t *testing.T) {
