@@ -101,10 +101,10 @@ func (a *DualWriteAndCommonTableTestcase) testIngestToCommonTableWorks(ctx conte
 }
 
 func (a *DualWriteAndCommonTableTestcase) testDualQueryReturnsDataFromClickHouse(ctx context.Context, t *testing.T) {
-	resp, _ := a.RequestToQuesma(ctx, t, "POST", "/logs-dual-query/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
+	resp, _ := a.RequestToQuesma(ctx, t, "POST", "/logs-dual_query/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	chQuery := "SELECT * FROM 'logs-dual-query'"
+	chQuery := "SELECT * FROM 'logs-dual_query'"
 	rows, err := a.ExecuteClickHouseQuery(ctx, chQuery)
 	if err != nil {
 		t.Fatalf("Failed to execute query: %s", err)
@@ -141,12 +141,12 @@ func (a *DualWriteAndCommonTableTestcase) testDualQueryReturnsDataFromClickHouse
 	assert.Equal(t, 31337, age)
 
 	// In the meantime let's delete the index from Elasticsearch
-	_, _ = a.RequestToElasticsearch(ctx, "DELETE", "/logs-dual-query", nil)
+	resp, _ = a.RequestToElasticsearch(ctx, "DELETE", "/logs-dual_query", nil)
 	if err != nil {
 		t.Fatalf("Failed to make DELETE request: %s", err)
 	}
 	// FINAL TEST - WHETHER QUESMA RETURNS DATA FROM CLICKHOUSE
-	resp, bodyBytes := a.RequestToQuesma(ctx, t, "GET", "/logs-dual-query/_search", []byte(`{"query": {"match_all": {}}}`))
+	resp, bodyBytes := a.RequestToQuesma(ctx, t, "GET", "/logs-dual_query/_search", []byte(`{"query": {"match_all": {}}}`))
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Contains(t, string(bodyBytes), "Przemyslaw")
 	assert.Contains(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
@@ -307,6 +307,10 @@ func (a *DualWriteAndCommonTableTestcase) testResolveEndpointInQuesma(ctx contex
 	expectedResponse := map[string]interface{}{
 		"indices": []interface{}{
 			map[string]interface{}{
+				"name":       "logs-3",
+				"attributes": []interface{}{"open"},
+			},
+			map[string]interface{}{
 				"name":       "quesma_virtual_tables",
 				"attributes": []interface{}{"open"},
 			},
@@ -333,8 +337,8 @@ func (a *DualWriteAndCommonTableTestcase) testResolveEndpointInQuesma(ctx contex
 				"timestamp_field": "@timestamp",
 			},
 			map[string]interface{}{
-				"name":            "logs-dual-query",
-				"backing_indices": []interface{}{"logs-dual-query"},
+				"name":            "logs-dual_query",
+				"backing_indices": []interface{}{"logs-dual_query"},
 				"timestamp_field": "@timestamp",
 			},
 		},
