@@ -30,7 +30,8 @@ processors:
           target: [ c ]
         logs-3:
           target: [ c, e ]
-        logs-dual-query:
+        ## WARNING `logs-dual-query` (with two dashes) falls under default index pattern for logs in Elasticsearch and results in not index, but datastream creation
+        logs-dual_query:
           target: [ c, e ]
         logs-4:
           target:
@@ -52,7 +53,7 @@ processors:
           target: [ c ]
         logs-3:
           target: [ c, e ]
-        logs-dual-query:
+        logs-dual_query:
           target: [ c, e ]
         logs-4:
           target:
