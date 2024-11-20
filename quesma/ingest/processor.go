@@ -13,7 +13,6 @@ import (
 	"quesma/common_table"
 	"quesma/concurrent"
 	"quesma/end_user_errors"
-	"quesma/index"
 	"quesma/jsonprocessor"
 	"quesma/logger"
 	"quesma/model"
@@ -870,7 +869,7 @@ func (ip *IngestProcessor) preprocessJsons(ctx context.Context,
 }
 
 func (ip *IngestProcessor) FindTable(tableName string) (result *chLib.Table) {
-	tableNamePattern := index.TableNamePatternRegexp(tableName)
+	tableNamePattern := util.TableNamePatternRegexp(tableName)
 	ip.tableDiscovery.TableDefinitions().
 		Range(func(name string, table *chLib.Table) bool {
 			if tableNamePattern.MatchString(name) {

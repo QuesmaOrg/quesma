@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"quesma/logger"
 	"reflect"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -907,4 +908,22 @@ func ExtractUsernameFromBasicAuthHeader(authHeader string) (string, error) {
 		return "", fmt.Errorf("invalid decoded authorization format")
 	}
 	return pair[0], nil
+}
+
+func TableNamePatternRegexp(indexPattern string) *regexp.Regexp {
+	var builder strings.Builder
+
+	for _, char := range indexPattern {
+		switch char {
+		case '*':
+			builder.WriteString(".*")
+		case '[', ']', '\\', '^', '$', '.', '|', '?', '+', '(', ')':
+			builder.WriteRune('\\')
+			builder.WriteRune(char)
+		default:
+			builder.WriteRune(char)
+		}
+	}
+
+	return regexp.MustCompile(fmt.Sprintf("^%s$", builder.String()))
 }
