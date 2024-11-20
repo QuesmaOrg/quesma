@@ -148,8 +148,12 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameF
 			logger.Warn().Msgf("Unsupported field type '%s' for field '%s' when trying to create a table. Ignoring that field.", field.Type.Name, field.PropertyName.AsString())
 			continue
 		case schema.QuesmaTypePoint.Name:
-			lat := nameFormatter.Format(internalPropertyName, "lat")
-			lon := nameFormatter.Format(internalPropertyName, "lon")
+			lat := string(fieldEncodings[schema.FieldEncodingKey{TableName: tableName, FieldName: field.PropertyName.AsString() + ".lat"}])
+			lon := string(fieldEncodings[schema.FieldEncodingKey{TableName: tableName, FieldName: field.PropertyName.AsString() + ".lon"}])
+			if len(lat) == 0 || len(lon) == 0 {
+				logger.Error().Msgf("Empty internal property names for geo_point field '%s' (lat: '%s'/lon: '%s'). This might result in incorrect table schema.", field.PropertyName.AsString(), lat, lon)
+			}
+
 			resultColumns[schema.FieldName(lat)] = CreateTableEntry{ClickHouseColumnName: lat, ClickHouseType: "Nullable(String)"}
 			resultColumns[schema.FieldName(lon)] = CreateTableEntry{ClickHouseColumnName: lon, ClickHouseType: "Nullable(String)"}
 			continue
@@ -175,6 +179,9 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameF
 			fType = "Nullable(Float64)"
 		case schema.QuesmaTypeBoolean.Name:
 			fType = "Nullable(Bool)"
+		}
+		if len(internalPropertyName) == 0 {
+			logger.Error().Msgf("Empty internal property name for field '%s'. This might result in incorrect table schema.", field.PropertyName.AsString())
 		}
 		resultColumns[schema.FieldName(internalPropertyName)] = CreateTableEntry{ClickHouseColumnName: internalPropertyName, ClickHouseType: fType}
 	}
