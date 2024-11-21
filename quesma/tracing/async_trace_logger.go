@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/rs/zerolog"
-	"quesma/concurrent"
+	"quesma/util"
 	"strings"
 	"time"
 )
@@ -19,7 +19,7 @@ const (
 // buffers async query log messages and flush them
 // only in case of error or successful end of async query
 type AsyncTraceLogger struct {
-	AsyncQueryTrace *concurrent.Map[string, TraceCtx]
+	AsyncQueryTrace *util.SyncMap[string, TraceCtx]
 }
 
 type TraceCtx struct {

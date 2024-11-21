@@ -9,7 +9,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
-	"quesma/concurrent"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/table_resolver"
@@ -124,7 +123,7 @@ func TestIngestValidation(t *testing.T) {
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"uint8_field":255}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"uint8_field":"1000"},"attributes_metadata":{"uint8_field":"v1;Int64"}}`, tableName),
 	}
-	tableMap := concurrent.NewMapWith(tableName, &clickhouse.Table{
+	tableMap := util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: NewChTableConfigFourAttrs(),
 		Cols: map[string]*clickhouse.Column{
