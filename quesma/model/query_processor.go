@@ -1,10 +1,9 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package queryprocessor
+package model
 
 import (
 	"context"
-	"quesma/model"
 	"reflect"
 )
 
@@ -17,7 +16,7 @@ func NewQueryProcessor(ctx context.Context) QueryProcessor {
 }
 
 // Returns if row1 and row2 have the same values for the first level fields
-func (qp *QueryProcessor) sameGroupByFields(row1, row2 model.QueryResultRow, level int) bool {
+func (qp *QueryProcessor) sameGroupByFields(row1, row2 QueryResultRow, level int) bool {
 
 	isArray := func(val interface{}) bool {
 		if val == nil {
@@ -49,18 +48,18 @@ func (qp *QueryProcessor) sameGroupByFields(row1, row2 model.QueryResultRow, lev
 // Splits ResultSet into buckets, based on the first level fields
 // E.g. if level == 0, we split into buckets based on the first field,
 // e.g. [row(1, ...), row(1, ...), row(2, ...), row(2, ...), row(3, ...)] -> [[row(1, ...), row(1, ...)], [row(2, ...), row(2, ...)], [row(3, ...)]]
-func (qp *QueryProcessor) SplitResultSetIntoBuckets(ResultSet []model.QueryResultRow, level int) [][]model.QueryResultRow {
+func (qp *QueryProcessor) SplitResultSetIntoBuckets(ResultSet []QueryResultRow, level int) [][]QueryResultRow {
 	if len(ResultSet) == 0 {
-		return [][]model.QueryResultRow{{}}
+		return [][]QueryResultRow{{}}
 	}
 
 	lastRow := ResultSet[0]
-	buckets := [][]model.QueryResultRow{{lastRow}}
+	buckets := [][]QueryResultRow{{lastRow}}
 	for _, row := range ResultSet[1:] {
 		if qp.sameGroupByFields(row, lastRow, level) {
 			buckets[len(buckets)-1] = append(buckets[len(buckets)-1], row)
 		} else {
-			buckets = append(buckets, []model.QueryResultRow{row})
+			buckets = append(buckets, []QueryResultRow{row})
 		}
 		lastRow = row
 	}
