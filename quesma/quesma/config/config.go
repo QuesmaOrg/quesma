@@ -11,8 +11,7 @@ import (
 	"log"
 	"os"
 	"quesma/elasticsearch/elasticsearch_field_types"
-	"quesma/index"
-	"quesma/network"
+	"quesma/util"
 	"strings"
 )
 
@@ -38,7 +37,7 @@ type QuesmaConfiguration struct {
 	Elasticsearch              ElasticsearchConfiguration
 	IndexConfig                map[string]IndexConfiguration
 	Logging                    LoggingConfiguration
-	PublicTcpPort              network.Port
+	PublicTcpPort              util.Port
 	IngestStatistics           bool
 	QuesmaInternalTelemetryUrl *Url
 	DisableAuth                bool
@@ -64,7 +63,7 @@ func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
 }
 
 func MatchName(pattern, name string) bool {
-	return index.TableNamePatternRegexp(pattern).MatchString(name)
+	return util.TableNamePatternRegexp(pattern).MatchString(name)
 }
 
 var k = koanf.New(".")

@@ -16,7 +16,6 @@ import (
 	"quesma/feature"
 	"quesma/ingest"
 	"quesma/logger"
-	"quesma/network"
 	"quesma/proxy"
 	"quesma/queryparser"
 	"quesma/quesma/config"
@@ -39,7 +38,7 @@ import (
 type (
 	Quesma struct {
 		processor               engine
-		publicTcpPort           network.Port
+		publicTcpPort           util.Port
 		quesmaManagementConsole *ui.QuesmaManagementConsole
 		config                  *config.QuesmaConfiguration
 		telemetryAgent          telemetry.PhoneHomeAgent

@@ -30,24 +30,31 @@ processors:
     config:
       indexes:
         example-elastic-index:
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
         example-index:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         kibana_sample_data_ecommerce:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         kibana_sample_data_flights:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         kibana_sample_data_logs:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               timestamp:
                 type: alias
                 targetColumnName: "@timestamp"
         kafka-example-topic:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         logs-generic-default:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               message:
@@ -55,50 +62,62 @@ processors:
               "host.name":
                 type: text
         device-logs:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               message:
                 type: text
         phone_home_logs:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               message:
                 type: text
         windows_logs:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         phone_home_data:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               message:
                 type: text
         "*":
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
       indexes:
         example-elastic-index:
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
         example-index:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         kibana_sample_data_ecommerce:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         kibana_sample_data_flights:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         kibana_sample_data_logs:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               timestamp:
                 type: alias
                 targetColumnName: "@timestamp"
         kafka-example-topic:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         logs-generic-default:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               message:
@@ -106,27 +125,32 @@ processors:
               "host.name":
                 type: text
         device-logs:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               message:
                 type: text
         phone_home_logs:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               message:
                 type: text
         windows_logs:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         phone_home_data:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               message:
                 type: text
         "*":
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
 pipelines:
   - name: my-pipeline-elasticsearch-query-clickhouse
     frontendConnectors: [ elastic-query ]

@@ -1,5 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
+
 package queryparser
 
 import (
@@ -9,7 +10,6 @@ import (
 	"fmt"
 	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
-	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -804,7 +804,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			valueRaw := v.(QueryMap)[op]
 			value := sprint(valueRaw)
 			defaultValue := model.NewLiteral(value)
-			dateManager := kibana.NewDateManager(cw.Ctx)
+			dateManager := NewDateManager(cw.Ctx)
 
 			// Three stages:
 			// 1. dateManager.ParseDateUsualFormat

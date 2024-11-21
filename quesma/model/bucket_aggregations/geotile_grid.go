@@ -34,7 +34,7 @@ func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow)
 	for _, row := range rows {
 		buckets = append(buckets, model.JsonMap{
 			"key":       query.calcKey(row.Cols),
-			"doc_count": row.Cols[len(row.Cols)-1].Value,
+			"doc_count": row.LastColValue(),
 		})
 	}
 	return model.JsonMap{
@@ -43,10 +43,10 @@ func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow)
 }
 
 func (query GeoTileGrid) calcKey(cols []model.QueryResultCol) string {
-	zoom := int64(util.ExtractFloat64(cols[0].Value))
-	x := int64(util.ExtractFloat64(cols[1].Value))
-	y := int64(util.ExtractFloat64(cols[2].Value))
-	return strconv.FormatInt(zoom, 10) + "/" + strconv.FormatInt(x, 10) + "/" + strconv.FormatInt(y, 10)
+	zoom, _ := util.ExtractFloat64(cols[0].Value)
+	x, _ := util.ExtractFloat64(cols[1].Value)
+	y, _ := util.ExtractFloat64(cols[2].Value)
+	return strconv.FormatInt(int64(zoom), 10) + "/" + strconv.FormatInt(int64(x), 10) + "/" + strconv.FormatInt(int64(y), 10)
 }
 
 func (query GeoTileGrid) String() string {

@@ -12,7 +12,6 @@ import (
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/logger"
-	"quesma/network"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/stats"
@@ -27,7 +26,7 @@ const (
 )
 
 type TcpProxy struct {
-	From                 network.Port
+	From                 util.Port
 	To                   string
 	inspect              bool
 	inspectHttpServer    *http.Server
@@ -35,7 +34,7 @@ type TcpProxy struct {
 	acceptingConnections atomic.Bool
 }
 
-func NewTcpProxy(From network.Port, To string, inspect bool) *TcpProxy {
+func NewTcpProxy(From util.Port, To string, inspect bool) *TcpProxy {
 	return &TcpProxy{
 		From:              From,
 		To:                To,
