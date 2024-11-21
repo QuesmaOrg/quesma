@@ -48,7 +48,7 @@ func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asy
 		output = os.Stderr
 	}
 	logChannel := make(chan LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
-	chanWriter := channelWriter{ch: logChannel}
+	chanWriter := &channelWriter{ch: logChannel}
 
 	var logWriters []io.Writer
 	if cfg.FileLogging {
@@ -137,10 +137,30 @@ func InitSimpleLoggerForTestsWarnLevel() {
 		Logger()
 }
 
+var testChanWriter *channelWriter
+
 func InitOnlyChannelLoggerForTests() <-chan LogWithLevel {
+
+	// We can't reassign global logger, it will lead to "race condition" in tests. It's known issue with zerolog.
+	// https://github.com/rs/zerolog/issues/242
+
+	// So we replace the channel instead.
+
+	// Our tests rely on a global logger. If we run them in parallel, they will interfere with each other.
+	// So we don't care about locking here.
+
+	if testChanWriter != nil {
+		old := testChanWriter.ch
+		logChannel := make(chan LogWithLevel, 50000)
+		testChanWriter.ch = logChannel
+		close(old) // close old channel, just a cleanup
+		return logChannel
+	}
+
 	zerolog.TimeFieldFormat = time.RFC3339Nano   // without this we don't have milliseconds timestamp precision
 	logChannel := make(chan LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
-	chanWriter := channelWriter{ch: logChannel}
+	chanWriter := &channelWriter{ch: logChannel}
+	testChanWriter = chanWriter
 
 	logger = zerolog.New(chanWriter).
 		Level(zerolog.DebugLevel).
