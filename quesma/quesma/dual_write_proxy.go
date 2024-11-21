@@ -10,7 +10,6 @@ import (
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/logger"
-	"quesma/network"
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
@@ -18,6 +17,7 @@ import (
 	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/telemetry"
+	"quesma/util"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -58,7 +58,7 @@ type dualWriteHttpProxy struct {
 	elasticRouter       *mux.PathRouter
 	indexManagement     elasticsearch.IndexManagement
 	logManager          *clickhouse.LogManager
-	publicPort          network.Port
+	publicPort          util.Port
 	asyncQueriesEvictor *async_search_storage.AsyncQueriesEvictor
 	queryRunner         *QueryRunner
 	schemaRegistry      schema.Registry
