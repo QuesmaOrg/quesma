@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"quesma/clickhouse"
-	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
@@ -154,7 +153,7 @@ func (query *DateHistogram) GenerateSQL() model.Expr {
 }
 
 func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
-	interval, err := kibana.ParseInterval(query.interval)
+	interval, err := util.ParseInterval(query.interval)
 	if err != nil {
 		logger.ErrorWithCtx(query.ctx).Msg(err.Error())
 	}
@@ -257,7 +256,7 @@ func (query *DateHistogram) SetMinDocCountToZero() {
 }
 
 func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
-	duration, err := kibana.ParseInterval(query.interval)
+	duration, err := util.ParseInterval(query.interval)
 	var differenceBetweenTwoNextKeys int64
 	if err == nil {
 		differenceBetweenTwoNextKeys = duration.Milliseconds()
