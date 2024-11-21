@@ -11,7 +11,6 @@ import (
 	chLib "quesma/clickhouse"
 	"quesma/comment_metadata"
 	"quesma/common_table"
-	"quesma/concurrent"
 	"quesma/end_user_errors"
 	"quesma/jsonprocessor"
 	"quesma/logger"
@@ -69,7 +68,7 @@ type (
 		virtualTableStorage       persistence.JSONDatabase
 		tableResolver             table_resolver.TableResolver
 	}
-	TableMap  = concurrent.Map[string, *chLib.Table]
+	TableMap  = util.SyncMap[string, *chLib.Table]
 	SchemaMap = map[string]interface{} // TODO remove
 	Attribute struct {
 		KeysArrayName   string
@@ -82,7 +81,7 @@ type (
 )
 
 func NewTableMap() *TableMap {
-	return concurrent.NewMap[string, *chLib.Table]()
+	return util.NewSyncMap[string, *chLib.Table]()
 }
 
 func (ip *IngestProcessor) Start() {

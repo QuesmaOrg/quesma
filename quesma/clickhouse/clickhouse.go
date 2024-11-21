@@ -6,7 +6,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"quesma/concurrent"
 	"quesma/end_user_errors"
 	"quesma/logger"
 	"quesma/persistence"
@@ -34,7 +33,7 @@ type (
 		cfg            *config.QuesmaConfiguration
 		phoneHomeAgent telemetry.PhoneHomeAgent
 	}
-	TableMap  = concurrent.Map[string, *Table]
+	TableMap  = util.SyncMap[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
 	Attribute struct {
 		KeysArrayName   string
@@ -68,7 +67,7 @@ type (
 )
 
 func NewTableMap() *TableMap {
-	return concurrent.NewMap[string, *Table]()
+	return util.NewSyncMap[string, *Table]()
 }
 
 func (lm *LogManager) Start() {

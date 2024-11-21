@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"quesma/clickhouse"
-	"quesma/concurrent"
 	"quesma/model"
 	"quesma/model/typical_queries"
 	"quesma/persistence"
@@ -194,7 +193,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			},
 		},
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), &config.QuesmaConfiguration{})
+	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, table), &config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables["logs-generic-default"]}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -399,7 +398,7 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), &config.QuesmaConfiguration{})
+	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, table), &config.QuesmaConfiguration{})
 	s := schema.StaticRegistry{
 		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
@@ -484,7 +483,7 @@ func Test_parseSortFields(t *testing.T) {
 		ENGINE = Memory`,
 		clickhouse.NewChTableConfigNoAttrs(),
 	)
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), &config.QuesmaConfiguration{})
+	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, table), &config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

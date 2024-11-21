@@ -7,7 +7,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
-	"quesma/concurrent"
 	"quesma/model"
 	"quesma/queryparser"
 	"quesma/quesma/types"
@@ -46,7 +45,7 @@ func TestSearchOpensearch(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer db.Close()
 
-			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, concurrent.NewMapWith(tableName, &table), s)
+			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
 			cw := queryparser.ClickhouseQueryTranslator{ClickhouseLM: queryRunner.logManager, Table: &table, Ctx: context.Background(), Schema: s.Tables[tableName], Config: &DefaultConfig}
 
 			body, parseErr := types.ParseJSON(tt.QueryJson)
@@ -197,7 +196,7 @@ func TestHighlighter(t *testing.T) {
 		AddRow("text-to-highlight", "text-to-highlight", "text-to-highlight").
 		AddRow("text", "text", "text"))
 
-	queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, concurrent.NewMapWith(tableName, &table), s)
+	queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
 	response, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(query))
 	assert.NoError(t, err)
 	if err != nil {

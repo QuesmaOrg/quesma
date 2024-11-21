@@ -5,12 +5,12 @@ package ingest
 import (
 	"encoding/json"
 	"quesma/clickhouse"
-	"quesma/concurrent"
 	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/telemetry"
+	"quesma/util"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -55,7 +55,7 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	rowToInsert := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","non-schema2":"2","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z","non-schema1":{"a":"b"}}`
 	var emptyMap TableMap
 	// TODO fix clickhouse.Columns
-	fieldsMap := concurrent.NewMapWith("tableName", &clickhouse.Table{
+	fieldsMap := util.NewSyncMapWith("tableName", &clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"host::name":    nil,
 			"message":       nil,
@@ -787,49 +787,49 @@ func TestLogManager_GetTable(t *testing.T) {
 	}{
 		{
 			name:             "empty",
-			predefinedTables: *concurrent.NewMap[string, *clickhouse.Table](),
+			predefinedTables: *util.NewSyncMap[string, *clickhouse.Table](),
 			tableNamePattern: "table",
 			found:            false,
 		},
 		{
 			name:             "should find by name",
-			predefinedTables: *concurrent.NewMapWith("table1", &clickhouse.Table{Name: "table1"}),
+			predefinedTables: *util.NewSyncMapWith("table1", &clickhouse.Table{Name: "table1"}),
 			tableNamePattern: "table1",
 			found:            true,
 		},
 		{
 			name:             "should not find by name",
-			predefinedTables: *concurrent.NewMapWith("table1", &clickhouse.Table{Name: "table1"}),
+			predefinedTables: *util.NewSyncMapWith("table1", &clickhouse.Table{Name: "table1"}),
 			tableNamePattern: "foo",
 			found:            false,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-generic-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*-*-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-*-default",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*",
 			found:            true,
 		},
 		{
 			name:             "should not find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "foo-*",
 			found:            false,
 		},

@@ -7,7 +7,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"os"
-	"quesma/concurrent"
+	"quesma/util"
 	"testing"
 	"time"
 )
@@ -23,7 +23,7 @@ func initializeLogger(asyncQueryHook *AsyncTraceLogger) zerolog.Logger {
 }
 
 func TestAsyncTraceLogger_OneTransactionWithError(t *testing.T) {
-	asyncQueryHook := AsyncTraceLogger{AsyncQueryTrace: concurrent.NewMap[string, TraceCtx]()}
+	asyncQueryHook := AsyncTraceLogger{AsyncQueryTrace: util.NewSyncMap[string, TraceCtx]()}
 	logger := initializeLogger(&asyncQueryHook)
 	ctx := context.WithValue(context.Background(), AsyncIdCtxKey, "quesma_async_1")
 	logger.Info().Ctx(ctx).Msg("Start async search")
@@ -37,7 +37,7 @@ func TestAsyncTraceLogger_OneTransactionWithError(t *testing.T) {
 }
 
 func TestAsyncTraceLogger_OneTransactionOk(t *testing.T) {
-	asyncQueryHook := AsyncTraceLogger{AsyncQueryTrace: concurrent.NewMap[string, TraceCtx]()}
+	asyncQueryHook := AsyncTraceLogger{AsyncQueryTrace: util.NewSyncMap[string, TraceCtx]()}
 	logger := initializeLogger(&asyncQueryHook)
 	ctx := context.WithValue(context.Background(), AsyncIdCtxKey, "quesma_async_1")
 	logger.Info().Ctx(ctx).Msg("Start async search")

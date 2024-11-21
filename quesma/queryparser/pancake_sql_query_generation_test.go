@@ -8,7 +8,6 @@ import (
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
-	"quesma/concurrent"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/quesma/config"
@@ -39,7 +38,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), &config.QuesmaConfiguration{})
+	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, &table), &config.QuesmaConfiguration{})
 	currentSchema := schema.Schema{
 		Fields:             nil,
 		Aliases:            nil,
@@ -215,7 +214,7 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), &config.QuesmaConfiguration{})
+	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, &table), &config.QuesmaConfiguration{})
 
 	currentSchema := schema.Schema{}
 
