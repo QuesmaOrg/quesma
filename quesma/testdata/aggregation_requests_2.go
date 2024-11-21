@@ -4090,4 +4090,588 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__interval-2__key_0" ASC`,
 		},
 	},
+	{ // [65]
+		TestName: "simplest composite: 1 terms",
+		QueryRequestJson: `
+		{
+			"size": 0,
+			"aggs": {
+				"my_buckets": {
+					"composite": {
+						"sources": [
+							{
+								"product": {
+									"terms": {
+										"field": "product"
+									}
+								}
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"my_buckets": {
+					"after_key": {
+						"product": 45.118141174316406
+					},
+					"buckets": [
+						{
+							"doc_count": 601,
+							"key": {
+								"product": 0.0
+							}
+						},
+						{
+							"doc_count": 12,
+							"key": {
+								"product": 20.101646423339844
+							}
+						},
+						{
+							"doc_count": 1,
+							"key": {
+								"product": 29.588184356689453
+							}
+						},
+						{
+							"doc_count": 2,
+							"key": {
+								"product": 31.64774513244629
+							}
+						},
+						{
+							"doc_count": 2,
+							"key": {
+								"product": 36.98516845703125
+							}
+						},
+						{
+							"doc_count": 1,
+							"key": {
+								"product": 40.57283401489258
+							}
+						},
+						{
+							"doc_count": 2,
+							"key": {
+								"product": 41.956443786621094
+							}
+						},
+						{
+							"doc_count": 1,
+							"key": {
+								"product": 43.53862762451172
+							}
+						},
+						{
+							"doc_count": 3,
+							"key": {
+								"product": 44.48069763183594
+							}
+						},
+						{
+							"doc_count": 8,
+							"key": {
+								"product": 45.118141174316406
+							}
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "gte",
+					"value": 10000
+				}
+			},
+			"timed_out": false,
+			"took": 6
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 0.0),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(601)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 20.101646423339844),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(12)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 29.588184356689453),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 31.64774513244629),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 36.98516845703125),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 40.57283401489258),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 41.956443786621094),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 43.53862762451172),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 44.48069763183594),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(3)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 45.118141174316406),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(8)),
+			}},
+			{Cols: []model.QueryResultCol{ // should be erased by us because of size=10
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 1234),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(8)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "product" AS "aggr__my_buckets__key_0",
+              count(*) AS "aggr__my_buckets__count"
+            FROM __quesma_table_name
+            GROUP BY "product" AS "aggr__my_buckets__key_0"
+            ORDER BY "aggr__my_buckets__count" DESC, "aggr__my_buckets__key_0" ASC
+            LIMIT 11`,
+	},
+	{ // [66]
+		TestName: "simplest composite: 1 histogram (with size)",
+		QueryRequestJson: `
+		{
+			"size": 0,
+			"aggs": {
+				"my_buckets": {
+					"composite": {
+						"size": 3,
+						"sources": [
+							{
+								"histo": {
+									"histogram": {
+										"field": "price",
+										"interval": 5
+									}
+								}
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 6,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 2727,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"my_buckets": {
+					"after_key": {
+						"histo": 40
+					},
+					"buckets": [
+						{
+							"key": {
+								"histo": 0
+							},
+							"doc_count": 121
+						},
+						{
+							"key": {
+								"histo": 20
+							},
+							"doc_count": 3
+						},
+						{
+							"key": {
+								"histo": 40
+							},
+							"doc_count": 4
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 0),
+				model.NewQueryResultCol("aggr__my_buckets__count", 121),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 20),
+				model.NewQueryResultCol("aggr__my_buckets__count", 3),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 40),
+				model.NewQueryResultCol("aggr__my_buckets__count", 4),
+			}},
+			{Cols: []model.QueryResultCol{ // should be erased by us because of size=3
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 60),
+				model.NewQueryResultCol("aggr__my_buckets__count", 100000000),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT floor("price"/5)*5 AS "aggr__my_buckets__key_0",
+			  count(*) AS "aggr__my_buckets__count"
+			FROM __quesma_table_name
+			GROUP BY floor("price"/5)*5 AS "aggr__my_buckets__key_0"
+			ORDER BY "aggr__my_buckets__key_0" ASC
+			LIMIT 4`,
+	},
+	{ // [67]
+		TestName: "simplest composite: 1 date_histogram",
+		QueryRequestJson: `
+		{
+			"size": 0,
+			"aggs": {
+				"my_buckets": {
+					"composite": {
+						"size": 2,
+						"sources": [
+							{
+								"date": {
+									"date_histogram": {
+										"field": "timestamp",
+										"calendar_interval": "1d"
+									}
+								}
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 9,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 2727,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"my_buckets": {
+					"after_key": {
+						"date": 1730764800000
+					},
+					"buckets": [
+						{
+							"key": {
+								"date": 1730678400000
+							},
+							"doc_count": 339
+						},
+						{
+							"key": {
+								"date": 1730764800000
+							},
+							"doc_count": 297
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1730678400000/86400000)),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(339)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1730764800000/86400000)),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(297)),
+			}},
+			{Cols: []model.QueryResultCol{ // should be erased by us because of size=2
+				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1830764800000/86400000)),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(567)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 86400000) AS
+			  "aggr__my_buckets__key_0", count(*) AS "aggr__my_buckets__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 86400000) AS
+			  "aggr__my_buckets__key_0"
+			ORDER BY "aggr__my_buckets__key_0" ASC
+			LIMIT 3`,
+	},
+	{ // [68]
+		TestName: "simplest composite: 1 geotile_grid",
+		QueryRequestJson: `
+		{
+			"size": 0,
+			"aggs": {
+				"my_buckets": {
+					"composite": {
+						"sources": [
+							{
+								"tile": {
+									"geotile_grid": {
+										"field": "OriginLocation",
+										"precision": 8
+									}
+								}
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 147,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 2727,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"my_buckets": {
+					"after_key": {
+						"tile": "8/21/49"
+					},
+					"buckets": [
+						{
+							"key": {
+								"tile": "8/20/44"
+							},
+							"doc_count": 12
+						},
+						{
+							"key": {
+								"tile": "8/20/45"
+							},
+							"doc_count": 22
+						},
+						{
+							"key": {
+								"tile": "8/21/49"
+							},
+							"doc_count": 1
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 8.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", 20.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_2", 44.0),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(12)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 8.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", 20.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_2", 45.0),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(22)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 8.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", 21.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_2", 49.0),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(1)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT CAST(8.000000 AS Float32) AS "aggr__my_buckets__key_0",
+			  FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2, 8))
+			  AS "aggr__my_buckets__key_1",
+			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))+(1/
+			  COS(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))))/PI())/2*POWER(2,
+			  8)) AS "aggr__my_buckets__key_2", count(*) AS "aggr__my_buckets__count"
+			FROM __quesma_table_name
+			GROUP BY CAST(8.000000 AS Float32) AS "aggr__my_buckets__key_0",
+			  FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2, 8))
+			  AS "aggr__my_buckets__key_1",
+			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))+(1/
+			  COS(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))))/PI())/2*POWER(2,
+			  8)) AS "aggr__my_buckets__key_2"
+			LIMIT 10`,
+	},
+	{ // [69]
+		TestName: "composite: 2 sources + 1 subaggregation",
+		QueryRequestJson: `
+		{
+			"size": 0,
+			"aggs": {
+				"my_buckets": {
+					"composite": {
+						"size": 3,
+						"sources": [
+							{
+								"date": {
+									"date_histogram": {
+										"field": "timestamp",
+										"calendar_interval": "1d",
+										"order": "desc"
+									}
+								}
+							},
+          					{
+								"product": {
+									"terms": {
+										"field": "product"
+									}
+								}
+							}
+						]
+					},
+					"aggs": {
+        				"the_avg": {
+          					"avg": {
+								"field": "price"
+							}
+        				}
+      				}
+				}
+			}
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 11,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 10000,
+					"relation": "gte"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"my_buckets": {
+					"after_key": {
+						"date": 1734134400000,
+						"product": false
+					},
+					"buckets": [
+						{
+							"key": {
+								"date": 1734220800000,
+								"product": false
+							},
+							"doc_count": 177,
+							"the_avg": {
+								"value": 780.980444956634
+							}
+						},
+						{
+							"key": {
+								"date": 1734220800000,
+								"product": true
+							},
+							"doc_count": 27,
+							"the_avg": {
+								"value": 824.6892135054977
+							}
+						},
+						{
+							"key": {
+								"date": 1734134400000,
+								"product": false
+							},
+							"doc_count": 295,
+							"the_avg": {
+								"value": 793.5536717301708
+							}
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1734220800000/86400000)),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", false),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(177)),
+				model.NewQueryResultCol("metric__my_buckets__the_avg_col_0", 780.980444956634),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1734220800000/86400000)),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", true),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(27)),
+				model.NewQueryResultCol("metric__my_buckets__the_avg_col_0", 824.6892135054977),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1734134400000/86400000)),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", false),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(295)),
+				model.NewQueryResultCol("metric__my_buckets__the_avg_col_0", 793.5536717301708),
+			}},
+			{Cols: []model.QueryResultCol{ // should be erased by us because of size=3
+				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1934134400000/86400000)),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", false),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(888)),
+				model.NewQueryResultCol("metric__my_buckets__the_avg_col_0", 100000000),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 86400000) AS
+			  "aggr__my_buckets__key_0", "product" AS "aggr__my_buckets__key_1",
+			  count(*) AS "aggr__my_buckets__count",
+			  avgOrNull("price") AS "metric__my_buckets__the_avg_col_0"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 86400000) AS
+			  "aggr__my_buckets__key_0",
+			  "product" AS "aggr__my_buckets__key_1"
+			ORDER BY "aggr__my_buckets__count" DESC, "aggr__my_buckets__key_0" ASC,
+			  "aggr__my_buckets__key_1" ASC
+			LIMIT 4`,
+	},
 }
