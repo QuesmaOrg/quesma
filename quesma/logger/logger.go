@@ -150,10 +150,10 @@ func InitOnlyChannelLoggerForTests() <-chan LogWithLevel {
 	// So we don't care about locking here.
 
 	if testChanWriter != nil {
-		old := testChanWriter.ch
+		close(testChanWriter.ch)
+
 		logChannel := make(chan LogWithLevel, 50000)
 		testChanWriter.ch = logChannel
-		close(old) // close old channel, just a cleanup
 		return logChannel
 	}
 
