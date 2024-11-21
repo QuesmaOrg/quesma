@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package queryparser
+package painless
 
 import (
 	"quesma/model"
@@ -27,7 +27,7 @@ func ParseRuntimeMappings(body types.JSON) map[string]model.RuntimeMapping {
 						if scriptAsMap, ok := script.(map[string]interface{}); ok {
 							if source, ok := scriptAsMap["source"]; ok {
 								if sourceAsString, ok := source.(string); ok {
-									mapping.Expr = ParseScript(sourceAsString)
+									mapping.Expr = ParsePainlessScriptToExpr(sourceAsString)
 								}
 							}
 						}
@@ -40,15 +40,4 @@ func ParseRuntimeMappings(body types.JSON) map[string]model.RuntimeMapping {
 		}
 	}
 	return result
-}
-
-func ParseScript(s string) model.Expr {
-
-	// TODO: add a real parser here
-	if s == "emit(doc['timestamp'].value.getHour());" {
-		return model.NewFunction(model.DateHourFunction, model.NewColumnRef(model.TimestampFieldName))
-	}
-
-	// harmless default
-	return model.NewLiteral("NULL")
 }
