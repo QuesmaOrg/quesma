@@ -1,10 +1,8 @@
-#licenseKey: {your-quesma-license-key-if-needed} # license key is required for paid features such as `hydrolix` backend conector
 frontendConnectors:
   - name: elastic-ingest
     type: elasticsearch-fe-ingest
     config:
       listenPort: 8080
-      disableAuth: true
   - name: elastic-query
     type: elasticsearch-fe-query
     config:
@@ -13,18 +11,14 @@ backendConnectors:
   - name: my-minimal-elasticsearch
     type: elasticsearch
     config:
-      url: "http://elasticsearch:9200"
-      adminUrl: "http://localhost:5601"
-  - name: my-clickhouse-data-source
+      url: "http://{{ .elasticsearch_host }}:{{ .elasticsearch_port }}"
+      user: elastic
+      password: quesmaquesma
+  - name: my-clickhouse-instance
     type: clickhouse-os
     config:
-      url: "clickhouse://clickhouse:9000"
-      adminUrl: "http://localhost:8123/play"
+      url: clickhouse://{{ .clickhouse_host }}:{{ .clickhouse_port }}
 ingestStatistics: true
-logging:
-  path: "logs"
-  level: "info"
-  disableFileLogging: false
 processors:
   - name: my-query-processor
     type: quesma-v1-processor-query
@@ -32,7 +26,22 @@ processors:
       indexes:
         kibana_sample_data_ecommerce:
           target:
-            - my-clickhouse-data-source
+            - my-clickhouse-instance
+          schemaOverrides:
+            fields:
+              "geoip.location":
+                type: geo_point
+              "products.manufacturer":
+                type: text
+              "products.product_name":
+                type: text
+              category:
+                type: text
+              manufacturer:
+                type: text
+        kibana_sample_data_ecommerce_with_mappings:
+          target:
+            - my-clickhouse-instance
           schemaOverrides:
             fields:
               "geoip.location":
@@ -47,32 +56,23 @@ processors:
                 type: text
         kibana_sample_data_flights:
           target:
-            - my-clickhouse-data-source
+            - my-clickhouse-instance
           schemaOverrides:
             fields:
               "DestLocation":
                 type: geo_point
               "OriginLocation":
                 type: geo_point
-        logs-generic-default:
+        kibana_sample_data_flights_with_mappings:
           target:
-            - my-clickhouse-data-source
+            - my-clickhouse-instance
           schemaOverrides:
             fields:
-              timestamp:
-                type: alias
-                targetColumnName: "@timestamp"
-              message:
-                type: text
-              "host.name":
-                type: text
-              "service.name":
-                type: "keyword"
-              source:
-                type: "keyword"
-              severity:
-                type: "keyword"
-        "*":       # DO NOT remove, always required
+              "DestLocation":
+                type: geo_point
+              "OriginLocation":
+                type: geo_point
+        "*":
           target:
             - my-minimal-elasticsearch
   - name: my-ingest-processor
@@ -81,7 +81,22 @@ processors:
       indexes:
         kibana_sample_data_ecommerce:
           target:
-            - my-clickhouse-data-source
+            - my-clickhouse-instance
+          schemaOverrides:
+            fields:
+              "geoip.location":
+                type: geo_point
+              "products.manufacturer":
+                type: text
+              "products.product_name":
+                type: text
+              category:
+                type: text
+              manufacturer:
+                type: text
+        kibana_sample_data_ecommerce_with_mappings:
+          target:
+            - my-clickhouse-instance
           schemaOverrides:
             fields:
               "geoip.location":
@@ -96,40 +111,32 @@ processors:
                 type: text
         kibana_sample_data_flights:
           target:
-            - my-clickhouse-data-source
+            - my-clickhouse-instance
           schemaOverrides:
             fields:
               "DestLocation":
                 type: geo_point
               "OriginLocation":
                 type: geo_point
-        logs-generic-default:
+        kibana_sample_data_flights_with_mappings:
           target:
-            - my-clickhouse-data-source
+            - my-clickhouse-instance
           schemaOverrides:
             fields:
-              timestamp:
-                type: alias
-                targetColumnName: "@timestamp"
-              message:
-                type: text
-              "host.name":
-                type: text
-              "service.name":
-                type: "keyword"
-              source:
-                type: "keyword"
-              severity:
-                type: "keyword"
+              "DestLocation":
+                type: geo_point
+              "OriginLocation":
+                type: geo_point
         "*":
           target:
             - my-minimal-elasticsearch
 pipelines:
-  - name: my-pipeline-elasticsearch-query-clickhouse
+  - name: my-elasticsearch-proxy-read
     frontendConnectors: [ elastic-query ]
     processors: [ my-query-processor ]
-    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]
-  - name: my-pipeline-elasticsearch-ingest-to-clickhouse
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-instance ]
+  - name: my-elasticsearch-proxy-write
     frontendConnectors: [ elastic-ingest ]
     processors: [ my-ingest-processor ]
-    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-instance ]
+

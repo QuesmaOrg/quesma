@@ -25,14 +25,20 @@ processors:
     config:
       indexes:
         logs-1:
-          target: [ e ]
+          target:
+            - e
         logs-2:
-          target: [ c ]
+          target:
+            - c
         logs-3:
-          target: [ c, e ]
+          target:
+            - c
+            - e
         ## WARNING `logs-dual-query` (with two dashes) falls under default index pattern for logs in Elasticsearch and results in not index, but datastream creation
         logs-dual_query:
-          target: [ c, e ]
+          target:
+            - c
+            - e
         logs-4:
           target:
             - c:
@@ -42,19 +48,26 @@ processors:
             - c:
                 useCommonTable: true
         "*":
-          target: [ e ]
+          target:
+            - e
   - name: IP
     type: quesma-v1-processor-ingest
     config:
       indexes:
         logs-1:
-          target: [ e ]
+          target:
+            - e
         logs-2:
-          target: [ c ]
+          target:
+            - c
         logs-3:
-          target: [ c, e ]
+          target:
+            - c
+            - e
         logs-dual_query:
-          target: [ c, e ]
+          target:
+            - c
+            - e
         logs-4:
           target:
             - c:
@@ -62,7 +75,8 @@ processors:
         logs-5:
           target:
         "*":
-          target: [ e ]
+          target:
+            - e
 
 pipelines:
   - name: my-elasticsearch-proxy-read

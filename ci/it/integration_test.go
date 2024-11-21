@@ -49,3 +49,8 @@ func TestWildcardClickhouseTestcase(t *testing.T) {
 	testCase := testcases.NewWildcardClickhouseTestcase()
 	runIntegrationTest(t, testCase)
 }
+
+func TestIngestTestcase(t *testing.T) {
+	testCase := testcases.NewIngestTestcase()
+	runIntegrationTest(t, testCase)
+}

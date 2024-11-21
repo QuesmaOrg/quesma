@@ -147,8 +147,10 @@ func (s stubIndexManagement) GetSourceNames() map[string]bool {
 func (s stubIndexManagement) GetSourceNamesMatching(indexPattern string) map[string]bool {
 	var result = make(map[string]bool)
 	for _, index := range s.indexes {
-		if util.IndexPatternMatches(indexPattern, index) {
+		if matches, err := util.IndexPatternMatches(indexPattern, index); err == nil && matches {
 			result[index] = true
+		} else {
+			logger.Error().Err(err)
 		}
 	}
 	return result

@@ -28,34 +28,28 @@ processors:
   - name: my-query-processor
     type: quesma-v1-processor-query
     config:
-      useCommonTable: true
       indexes:
         kibana_sample_data_ecommerce:
-          target:
-            - my-clickhouse-data-source:
-                useCommonTable: false
+          target: [my-clickhouse-data-source]
         kibana_sample_data_flights:
-          target:
-            - my-clickhouse-data-source
+          target: [my-clickhouse-data-source]
+        kibana_sample_data_logs:
+          target: [my-minimal-elasticsearch, my-clickhouse-data-source]
         "*":
-          target:
-            - my-minimal-elasticsearch
+          target: [my-minimal-elasticsearch]
 
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
-      useCommonTable: true
       indexes:
         kibana_sample_data_ecommerce:
-          target:
-            - my-clickhouse-data-source:
-                useCommonTable: false
+          target: [my-clickhouse-data-source, my-minimal-elasticsearch]
         kibana_sample_data_flights:
-          target:
-            - my-clickhouse-data-source
+          target: [my-clickhouse-data-source]
+        kibana_sample_data_logs:
+          target: [my-clickhouse-data-source, my-minimal-elasticsearch]
         "*":
-          target:
-            - my-minimal-elasticsearch
+          target: [my-minimal-elasticsearch]
 pipelines:
   - name: my-pipeline-elasticsearch-query-clickhouse
     frontendConnectors: [ elastic-query ]
