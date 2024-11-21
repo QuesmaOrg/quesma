@@ -48,7 +48,7 @@ func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asy
 		output = os.Stderr
 	}
 	logChannel := make(chan LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
-	chanWriter := &channelWriter{ch: logChannel}
+	chanWriter := channelWriter{ch: logChannel}
 
 	var logWriters []io.Writer
 	if cfg.FileLogging {
@@ -154,7 +154,7 @@ func InitOnlyChannelLoggerForTests() <-chan LogWithLevel {
 
 	zerolog.TimeFieldFormat = time.RFC3339Nano   // without this we don't have milliseconds timestamp precision
 	logChannel := make(chan LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
-	chanWriter := &channelWriter{ch: logChannel}
+	chanWriter := channelWriter{ch: logChannel}
 
 	logger = zerolog.New(chanWriter).
 		Level(zerolog.DebugLevel).
