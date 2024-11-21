@@ -42,7 +42,7 @@ func MapKeysSortedByValue[K comparable, V cmp.Ordered](m map[K]V) []K {
 }
 
 // Merge function mutates the first map - use with caution!
-func Merge[V any](m1, m2 map[string]V, errorContext string) (map[string]V, *multierror.Error) {
+func Merge[V any](m1, m2 map[string]V, errorContext string) (map[string]V, error) {
 	var err *multierror.Error
 	for k, v := range m2 {
 		if _, exists := m1[k]; exists {
@@ -50,5 +50,5 @@ func Merge[V any](m1, m2 map[string]V, errorContext string) (map[string]V, *mult
 		}
 		m1[k] = v
 	}
-	return m1, err
+	return m1, err.ErrorOrNil()
 }
