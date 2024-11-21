@@ -381,7 +381,7 @@ func (cw *ClickhouseQueryTranslator) parseComposite(currentAggrNode *pancakeAggr
 	// The sources parameter can be any of the following types:
 	// 1) Terms (but NOT Significant Terms) 2) Histogram 3) Date histogram 4) GeoTile grid
 	// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-composite-aggregation.html
-	acceptableBaseAggr := func(queryType model.QueryType) bool {
+	isValidSourceType := func(queryType model.QueryType) bool {
 		switch typed := queryType.(type) {
 		case *bucket_aggregations.Histogram, *bucket_aggregations.DateHistogram, bucket_aggregations.GeoTileGrid:
 			return true
@@ -402,26 +402,27 @@ func (cw *ClickhouseQueryTranslator) parseComposite(currentAggrNode *pancakeAggr
 		return nil, fmt.Errorf("sources is not an array, but %T, value: %v", sourcesRaw, sourcesRaw)
 	}
 	for _, sourceRaw := range sources {
-		if source, ok := sourceRaw.(QueryMap); ok {
-			if len(source) != 1 {
-				return nil, fmt.Errorf("source has unexpected length: %v", source)
-			}
-			for aggrName, aggrRaw := range source {
-				if aggr, ok := aggrRaw.(QueryMap); ok {
-					if success, err := cw.pancakeTryBucketAggregation(currentAggrNode, aggr); success {
-						if !acceptableBaseAggr(currentAggrNode.queryType) {
-							return nil, fmt.Errorf("unsupported base aggregation type: %v", currentAggrNode.queryType)
-						}
-						baseAggrs = append(baseAggrs, bucket_aggregations.NewBaseAggregation(aggrName, currentAggrNode.queryType))
-					} else {
-						return nil, err
-					}
-				} else {
-					return nil, fmt.Errorf("source value is not a map, but %T, value: %v", aggrRaw, aggrRaw)
-				}
-			}
-		} else {
+		source, ok := sourceRaw.(QueryMap)
+		if !ok {
 			return nil, fmt.Errorf("source is not a map, but %T, value: %v", sourceRaw, sourceRaw)
+		}
+		if len(source) != 1 {
+			return nil, fmt.Errorf("source has unexpected length: %v", source)
+		}
+		for aggrName, aggrRaw := range source {
+			aggr, ok := aggrRaw.(QueryMap)
+			if !ok {
+				return nil, fmt.Errorf("source value is not a map, but %T, value: %v", aggrRaw, aggrRaw)
+
+			}
+			if success, err := cw.pancakeTryBucketAggregation(currentAggrNode, aggr); success {
+				if !isValidSourceType(currentAggrNode.queryType) {
+					return nil, fmt.Errorf("unsupported base aggregation type: %v", currentAggrNode.queryType)
+				}
+				baseAggrs = append(baseAggrs, bucket_aggregations.NewBaseAggregation(aggrName, currentAggrNode.queryType))
+			} else {
+				return nil, err
+			}
 		}
 	}
 
