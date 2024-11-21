@@ -810,7 +810,12 @@ func TestExtractInt64(t *testing.T) {
 		{1.0, int64(-1)},
 	}
 	for _, tt := range tests {
-		got := ExtractInt64(tt.v)
+		got, err := ExtractInt64(tt.v)
+		if got != -1 {
+			assert.NoError(t, err)
+		} else {
+			assert.Error(t, err)
+		}
 		assert.Equal(t, tt.want, got)
 	}
 	for _, tt := range tests[:len(tests)-3] {
