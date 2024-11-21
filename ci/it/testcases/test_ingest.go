@@ -41,6 +41,8 @@ func (a *IngestTestcase) RunTests(ctx context.Context, t *testing.T) error {
 	t.Run("test kibana_sample_data_flights ingest to ClickHouse (with PUT mapping)", func(t *testing.T) { a.testKibanaSampleFlightsIngestWithMappingToClickHouse(ctx, t) })
 	t.Run("test kibana_sample_data_ecommerce ingest to ClickHouse", func(t *testing.T) { a.testKibanaSampleEcommerceIngestToClickHouse(ctx, t) })
 	t.Run("test kibana_sample_data_ecommerce ingest to ClickHouse (with PUT mapping)", func(t *testing.T) { a.testKibanaSampleEcommerceIngestWithMappingToClickHouse(ctx, t) })
+	t.Run("test ignored fields", func(t *testing.T) { a.testIgnoredFields(ctx, t) })
+	t.Run("test nested fields", func(t *testing.T) { a.testNestedFields(ctx, t) })
 	return nil
 }
 
@@ -502,4 +504,107 @@ func (a *IngestTestcase) testKibanaSampleEcommerceIngestWithMappingToClickHouse(
 	expectedCols["order_id"] = "Nullable(String)"
 
 	assert.Equal(t, expectedCols, cols)
+}
+
+func (a *IngestTestcase) testIgnoredFields(ctx context.Context, t *testing.T) {
+	resp, _ := a.RequestToQuesma(ctx, t, "POST", "/ignored_test/_doc", []byte(`
+{
+	"a": 1,
+	"b": "first",
+	"ignored_field1": 5,
+	"nested.ignored_field3": 7,
+	"nested2": {
+		"ignored_field5": 6
+	}
+}`))
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	resp, _ = a.RequestToQuesma(ctx, t, "POST", "/ignored_test/_doc", []byte(`
+{
+	"a": 2,
+	"b": "second",
+	"ignored_field2": 11,
+	"nested.ignored_field4": 8,
+	"nested2": {
+		"ignored_field6": 3
+	}
+}`))
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	cols, err := a.FetchClickHouseColumns(ctx, "ignored_test")
+	assert.NoError(t, err, "error fetching clickhouse columns")
+
+	expectedCols := map[string]string{
+		"@timestamp":          "DateTime64(3)",
+		"attributes_metadata": "Map(String, String)",
+		"attributes_values":   "Map(String, String)",
+		"a":                   "Nullable(Int64)",
+		"b":                   "Nullable(String)",
+	}
+	assert.Equal(t, expectedCols, cols)
+}
+
+func (it *IngestTestcase) testNestedFields(ctx context.Context, t *testing.T) {
+	resp, _ := it.RequestToQuesma(ctx, t, "POST", "/nested_test/_doc", []byte(`
+{
+	"a": "alpha",
+	"b": "beta", 
+	"c": "charlie",
+	"nested.d": "delta",
+	"nested2": {
+		"e": "echo"
+	}
+}`))
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	resp, _ = it.RequestToQuesma(ctx, t, "POST", "/nested_test/_doc", []byte(`
+{
+	"a": "foxtrot", 
+	"b": "golf",
+	"c": "hotel",
+	"nested.d": "india",
+	"nested.f": "juliet",
+	"nested2": {
+		"e": "kilo",
+		"g": "lima"
+	}
+}`))
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// Verify the data
+	values := make([]interface{}, 7)
+	valuePtrs := make([]interface{}, 7)
+	for i := range values {
+		valuePtrs[i] = &values[i]
+	}
+
+	rows, err := it.ExecuteClickHouseQuery(ctx, "SELECT a, b, c, nested_d, nested_f, nested2_e, nested2_g FROM nested_test ORDER BY a")
+	assert.NoError(t, err)
+	defer rows.Close()
+
+	// First row
+	assert.True(t, rows.Next())
+	err = rows.Scan(valuePtrs...)
+	assert.NoError(t, err)
+	assert.Equal(t, "alpha", *values[0].(*string))
+	assert.Equal(t, "beta", *values[1].(*string))
+	assert.Equal(t, "charlie", *values[2].(*string))
+	assert.Equal(t, "delta", *values[3].(*string))
+	assert.Empty(t, values[4])
+	assert.Equal(t, "echo", *values[5].(*string))
+	assert.Empty(t, values[6])
+
+	// Second row
+	assert.True(t, rows.Next())
+	err = rows.Scan(valuePtrs...)
+	assert.NoError(t, err)
+	assert.Equal(t, "foxtrot", *values[0].(*string))
+	assert.Equal(t, "golf", *values[1].(*string))
+	assert.Equal(t, "hotel", *values[2].(*string))
+	assert.Equal(t, "india", *values[3].(*string))
+	assert.Equal(t, "juliet", *values[4].(*string))
+	assert.Equal(t, "kilo", *values[5].(*string))
+	assert.Equal(t, "lima", *values[6].(*string))
+
+	assert.False(t, rows.Next())
 }

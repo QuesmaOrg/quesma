@@ -7,7 +7,6 @@ import (
 	"quesma/clickhouse"
 	"quesma/comment_metadata"
 	"quesma/logger"
-	"quesma/quesma/config"
 	"quesma/schema"
 	"quesma/util"
 	"slices"
@@ -85,50 +84,34 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 	return result.String()
 }
 
-func JsonToColumns(namespace string, m SchemaMap, indentLvl int, chConfig *clickhouse.ChTableConfig, nameFormatter TableColumNameFormatter, ignoredFields []config.FieldName) []CreateTableEntry {
+func JsonToColumns(m SchemaMap, chConfig *clickhouse.ChTableConfig) []CreateTableEntry {
 	var resultColumns []CreateTableEntry
 
 	for name, value := range m {
-		listValue, isListValue := value.([]interface{})
-		if isListValue {
-			value = listValue
-		}
-		nestedValue, ok := value.(SchemaMap)
-		if (ok && nestedValue != nil && len(nestedValue) > 0) && !isListValue {
-			nested := JsonToColumns(nameFormatter.Format(namespace, name), nestedValue, indentLvl, chConfig, nameFormatter, ignoredFields)
-			resultColumns = append(resultColumns, nested...)
+		var fTypeString string
+		if value == nil { // HACK ALERT -> We're treating null values as strings for now, so that we don't completely discard documents with empty values
+			fTypeString = "Nullable(String)"
 		} else {
-			var fTypeString string
-			if value == nil { // HACK ALERT -> We're treating null values as strings for now, so that we don't completely discard documents with empty values
-				fTypeString = "Nullable(String)"
-			} else {
-				fType := clickhouse.NewType(value)
+			fType := clickhouse.NewType(value)
 
-				// handle "field":{} case (Elastic Agent sends such JSON fields) by ignoring them
-				if multiValueType, ok := fType.(clickhouse.MultiValueType); ok && len(multiValueType.Cols) == 0 {
-					logger.Warn().Msgf("Ignoring empty JSON object: \"%s\":%v (in %s)", name, value, namespace)
-					continue
-				}
-
-				fTypeString = fType.String()
-				if !strings.Contains(fTypeString, "Array") && !strings.Contains(fTypeString, "DateTime") {
-					fTypeString = "Nullable(" + fTypeString + ")"
-				}
+			// handle "field":{} case (Elastic Agent sends such JSON fields) by ignoring them
+			if multiValueType, ok := fType.(clickhouse.MultiValueType); ok && len(multiValueType.Cols) == 0 {
+				logger.Warn().Msgf("Ignoring empty JSON object: \"%s\":%v", name, value)
+				continue
 			}
-			// hack for now
-			if indentLvl == 1 && name == timestampFieldName && chConfig.TimestampDefaultsNow {
-				fTypeString += " DEFAULT now64()"
-			}
-			// We still may have name like:
-			// "service.name": { "very.name": "value" }
-			// Before that code it would be transformed to:
-			// "service.name::very.name"
-			// So I convert it to:
-			// "service::name::very::name"
 
-			internalName := nameFormatter.Format(namespace, name)
-			resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: internalName, ClickHouseType: fTypeString})
+			fTypeString = fType.String()
+			if !strings.Contains(fTypeString, "Array") && !strings.Contains(fTypeString, "DateTime") {
+				fTypeString = "Nullable(" + fTypeString + ")"
+			}
 		}
+		// hack for now
+		if name == timestampFieldName && chConfig.TimestampDefaultsNow {
+			fTypeString += " DEFAULT now64()"
+		}
+
+		resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: name, ClickHouseType: fTypeString})
+
 	}
 	return resultColumns
 }
