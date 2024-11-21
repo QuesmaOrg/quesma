@@ -11,7 +11,6 @@ import (
 	"log"
 	"os"
 	"quesma/elasticsearch/elasticsearch_field_types"
-	"quesma/network"
 	"quesma/util"
 	"strings"
 )
@@ -38,7 +37,7 @@ type QuesmaConfiguration struct {
 	Elasticsearch              ElasticsearchConfiguration
 	IndexConfig                map[string]IndexConfiguration
 	Logging                    LoggingConfiguration
-	PublicTcpPort              network.Port
+	PublicTcpPort              util.Port
 	IngestStatistics           bool
 	QuesmaInternalTelemetryUrl *Url
 	DisableAuth                bool

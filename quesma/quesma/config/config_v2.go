@@ -10,7 +10,7 @@ import (
 	"github.com/knadh/koanf/v2"
 	"github.com/rs/zerolog"
 	"log"
-	"quesma/network"
+	"quesma/util"
 	"reflect"
 	"slices"
 	"strings"
@@ -72,8 +72,8 @@ type FrontendConnector struct {
 }
 
 type FrontendConnectorConfiguration struct {
-	ListenPort  network.Port `koanf:"listenPort"`
-	DisableAuth bool         `koanf:"disableAuth"`
+	ListenPort  util.Port `koanf:"listenPort"`
+	DisableAuth bool      `koanf:"disableAuth"`
 }
 
 type BackendConnector struct {
@@ -849,7 +849,7 @@ END:
 	return conf
 }
 
-func (c *QuesmaNewConfiguration) getPublicTcpPort() (network.Port, error) {
+func (c *QuesmaNewConfiguration) getPublicTcpPort() (util.Port, error) {
 	// per validation, there's always at least one frontend connector,
 	// even if there's a second one, it has to listen on the same port
 	return c.FrontendConnectors[0].Config.ListenPort, nil
