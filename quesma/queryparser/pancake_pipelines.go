@@ -54,7 +54,8 @@ func (p pancakePipelinesProcessor) currentPipelineMetricAggregations(layer *panc
 
 		errorMsg := fmt.Sprintf("calculateThisLayerMetricPipelines, pipeline: %s", pipeline.internalName)
 		var err error
-		if resultPerPipeline, err = util.Merge(resultPerPipeline, thisPipelineResults, errorMsg); err != nil {
+		resultPerPipeline, err = util.Merge(resultPerPipeline, thisPipelineResults, errorMsg)
+		if err != nil {
 			logger.ErrorWithCtx(p.ctx).Msgf("error merging results: %v", err)
 		}
 	}
@@ -76,7 +77,8 @@ func (p pancakePipelinesProcessor) calcSingleMetricPipeline(layer *pancakeModelL
 
 		errorMsg := fmt.Sprintf("processSingleMetricPipeline, pipeline: %s, pipelineChild: %s", pipeline.internalName, pipelineChild.internalName)
 		var err error
-		if resultPerPipeline, err = util.Merge(resultPerPipeline, childResults, errorMsg); err != nil {
+		resultPerPipeline, err = util.Merge(resultPerPipeline, childResults, errorMsg)
+		if err != nil {
 			logger.ErrorWithCtx(p.ctx).Msgf("error merging results: %v", err)
 		}
 	}
