@@ -7,7 +7,7 @@ import (
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
-	"regexp"
+	"quesma/util"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -147,18 +147,11 @@ func (s stubIndexManagement) GetSourceNames() map[string]bool {
 func (s stubIndexManagement) GetSourceNamesMatching(indexPattern string) map[string]bool {
 	var result = make(map[string]bool)
 	for _, index := range s.indexes {
-		if indexPatternMatches(indexPattern, index) {
+		if matches, err := util.IndexPatternMatches(indexPattern, index); err == nil && matches {
 			result[index] = true
+		} else {
+			logger.Error().Err(err)
 		}
 	}
 	return result
-}
-
-func indexPatternMatches(indexNamePattern, indexName string) bool {
-	r, err := regexp.Compile("^" + strings.Replace(indexNamePattern, "*", ".*", -1) + "$")
-	if err != nil {
-		logger.Error().Msgf("invalid index name pattern [%s]: %s", indexNamePattern, err)
-		return false
-	}
-	return r.MatchString(indexName)
 }

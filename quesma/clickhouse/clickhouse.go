@@ -13,8 +13,6 @@ import (
 	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
-	"regexp"
-
 	"quesma/telemetry"
 	"quesma/util"
 	"slices"
@@ -166,7 +164,11 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (
 		} else {
 			lm.tableDiscovery.TableDefinitions().
 				Range(func(tableName string, v *Table) bool {
-					if indexPatternMatches(pattern, tableName) {
+					matches, err := util.IndexPatternMatches(pattern, tableName)
+					if err != nil {
+						logger.Error().Msgf("error matching index pattern: %v", err)
+					}
+					if matches {
 						results = append(results, tableName)
 					}
 					return true
@@ -175,15 +177,6 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (
 	}
 
 	return util.Distinct(results), nil
-}
-
-func indexPatternMatches(indexNamePattern, indexName string) bool {
-	r, err := regexp.Compile("^" + strings.Replace(indexNamePattern, "*", ".*", -1) + "$")
-	if err != nil {
-		logger.Error().Msgf("invalid index name pattern [%s]: %s", indexNamePattern, err)
-		return false
-	}
-	return r.MatchString(indexName)
 }
 
 func (lm *LogManager) CountMultiple(ctx context.Context, tables ...string) (int64, error) {
