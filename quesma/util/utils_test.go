@@ -3,7 +3,6 @@
 package util
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"net/http"
@@ -665,7 +664,9 @@ func TestMergeMaps(t *testing.T) {
 	for i, tt := range cases {
 		t.Run("TestMergeMaps_"+strconv.Itoa(i), func(t *testing.T) {
 			// simple == or Equal doesn't work on nested maps => need DeepEqual
-			assert.True(t, reflect.DeepEqual(tt.wanted, MergeMaps(context.Background(), tt.m1, tt.m2)))
+			mergeRes, err := MergeMaps(tt.m1, tt.m2)
+			assert.NoError(t, err)
+			assert.True(t, reflect.DeepEqual(tt.wanted, mergeRes))
 		})
 	}
 }
@@ -809,7 +810,12 @@ func TestExtractInt64(t *testing.T) {
 		{1.0, int64(-1)},
 	}
 	for _, tt := range tests {
-		got := ExtractInt64(tt.v)
+		got, err := ExtractInt64(tt.v)
+		if got != -1 {
+			assert.NoError(t, err)
+		} else {
+			assert.Error(t, err)
+		}
 		assert.Equal(t, tt.want, got)
 	}
 	for _, tt := range tests[:len(tests)-3] {

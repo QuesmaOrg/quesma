@@ -32,20 +32,20 @@ func (r *tableRegistryImpl) wildcardPatternSplitter(pattern string) (parsedPatte
 		}
 
 		for indexName := range r.conf.IndexConfig {
-			if util.IndexPatternMatches(pattern, indexName) {
+			if matches, _ := util.IndexPatternMatches(pattern, indexName); matches {
 				matchingSingleNames = append(matchingSingleNames, indexName)
 			}
 		}
 
 		// but maybe we should also check against the actual indexes ??
 		for indexName := range r.elasticIndexes {
-			if util.IndexPatternMatches(pattern, indexName) {
+			if matches, _ := util.IndexPatternMatches(pattern, indexName); matches {
 				matchingSingleNames = append(matchingSingleNames, indexName)
 			}
 		}
 		if r.conf.AutodiscoveryEnabled {
 			for tableName := range r.clickhouseIndexes {
-				if util.IndexPatternMatches(pattern, tableName) {
+				if matches, _ := util.IndexPatternMatches(pattern, tableName); matches {
 					matchingSingleNames = append(matchingSingleNames, tableName)
 				}
 			}

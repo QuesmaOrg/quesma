@@ -13,7 +13,6 @@ import (
 	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
-
 	"quesma/telemetry"
 	"quesma/util"
 	"slices"
@@ -165,7 +164,11 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (
 		} else {
 			lm.tableDiscovery.TableDefinitions().
 				Range(func(tableName string, v *Table) bool {
-					if util.IndexPatternMatches(pattern, tableName) {
+					matches, err := util.IndexPatternMatches(pattern, tableName)
+					if err != nil {
+						logger.Error().Msgf("error matching index pattern: %v", err)
+					}
+					if matches {
 						results = append(results, tableName)
 					}
 					return true

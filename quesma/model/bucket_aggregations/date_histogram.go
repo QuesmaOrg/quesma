@@ -94,7 +94,11 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 	var response []model.JsonMap
 	for _, row := range rows {
 		docCount := row.LastColValue()
-		if util.ExtractInt64(docCount) < int64(query.minDocCount) {
+		docCountAsInt, err := util.ExtractInt64(docCount)
+		if err != nil {
+			logger.ErrorWithCtx(query.ctx).Msgf("error parsing doc_count: %v", docCount)
+		}
+		if docCountAsInt < int64(query.minDocCount) {
 			continue
 		}
 		originalKey := query.getKey(row)

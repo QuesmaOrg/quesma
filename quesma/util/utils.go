@@ -4,17 +4,16 @@ package util
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/hashicorp/go-multierror"
 	"github.com/k0kubun/pp"
 	"io"
 	"log"
 	"net/http"
-	"quesma/logger"
 	"reflect"
 	"slices"
 	"strconv"
@@ -255,21 +254,24 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 	return actualMinusExpected, expectedMinusActual, nil
 }
 
+// MergeMaps
 // If there's type conflict, e.g. one map has {"a": map}, and second has {"a": array}, we log an error.
 // Tried https://stackoverflow.com/a/71545414 and https://stackoverflow.com/a/71652767
 // but none of them works for nested maps, so needed to write our own.
 // * mActual - uses JsonMap fully: values are []JsonMap, or JsonMap, or base types
 // * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
-func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
-	var mergeMapsRec func(m1, m2 JsonMap) JsonMap
+func MergeMaps(mActual, mExpected JsonMap) (JsonMap, error) {
+	var mergeMapsRec func(m1, m2 JsonMap) (JsonMap, error)
+
 	// merges 'i1' and 'i2' in 3 cases: both are JsonMap, both are []JsonMap, or both are some base type
-	mergeAny := func(i1, i2 any) any {
+	mergeAny := func(i1, i2 any) (any, error) {
+		var err *multierror.Error
 		switch i1Typed := i1.(type) {
 		case JsonMap:
 			i2Typed, ok := i2.(JsonMap)
 			if !ok {
-				logger.ErrorWithCtx(ctx).Msgf("mergeAny: i1 is map, i2 is not. i1: %v, i2: %v", i1, i2)
-				return i1
+				err = multierror.Append(err, fmt.Errorf("mergeAny: i1 is map, i2 is not. i1: %v, i2: %v", i1, i2))
+				return i1, err
 			}
 			return mergeMapsRec(i1Typed, i2Typed)
 		case []JsonMap:
@@ -282,7 +284,7 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 						i2Typed = append(i2Typed, val)
 					}
 				} else {
-					logger.ErrorWithCtx(ctx).Msgf("mergeAny: i1 is []JsonMap, i2 is not an array. i1: %v, i2: %v", i1Typed, i2)
+					err = multierror.Append(err, fmt.Errorf("mergeAny: i1 is []JsonMap, i2 is not an array. i1: %v, i2: %v", i1Typed, i2))
 				}
 			}
 
@@ -293,9 +295,11 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 			// until one `sample_flights` dashboard. It's not perfect. TODO improve it.
 			if i1Len == i2Len {
 				for i := 0; i < i1Len; i++ {
-					mergedArray = append(mergedArray, mergeMapsRec(i1Typed[i], i2Typed[i].(JsonMap)))
+					mergeRes, errMerge := mergeMapsRec(i1Typed[i], i2Typed[i].(JsonMap))
+					err = multierror.Append(err, errMerge)
+					mergedArray = append(mergedArray, mergeRes)
 				}
-				return mergedArray
+				return mergedArray, err.ErrorOrNil()
 			}
 
 			i, j := 0, 0
@@ -311,7 +315,7 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 						key1 = strconv.FormatFloat(key1Float, 'f', -1, 64)
 					} else {
 						// TODO keys probably can be other types, e.g. bools
-						logger.ErrorWithCtx(ctx).Msgf("mergeAny: key not found in i1: %v", i1Typed[i])
+						err = multierror.Append(err, fmt.Errorf("mergeAny: key not found in i1: %v", i1Typed[i]))
 						i += 1
 						continue
 					}
@@ -326,13 +330,15 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 						key2 = strconv.FormatFloat(key2Float, 'f', -1, 64)
 					} else {
 						// TODO keys probably can be other types, e.g. bools
-						logger.ErrorWithCtx(ctx).Msgf("mergeAny: key not found in i2: %v", i2Typed[j])
+						err = multierror.Append(err, fmt.Errorf("mergeAny: key not found in i2: %v", i2Typed[j]))
 						j += 1
 						continue
 					}
 				}
 				if key1 == key2 {
-					mergedArray = append(mergedArray, mergeMapsRec(i1Typed[i], i2Typed[j].(JsonMap)))
+					mergeResult, errMerge := mergeMapsRec(i1Typed[i], i2Typed[j].(JsonMap))
+					err = multierror.Append(err, errMerge)
+					mergedArray = append(mergedArray, mergeResult)
 					i += 1
 					j += 1
 				} else if key1 < key2 {
@@ -352,23 +358,23 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 				j += 1
 			}
 
-			return mergedArray
+			return mergedArray, err.ErrorOrNil()
 
 		default:
 			if !reflect.DeepEqual(i1, i2) {
-				logger.WarnWithCtx(ctx).Msgf(
-					"mergeAny: i1 isn't neither JsonMap nor []JsonMap, i1 type: %T, i2 type: %T, i1: %v, i2: %v", i1, i2, i1, i2)
+				err = multierror.Append(err, fmt.Errorf("mergeAny: i1 isn't neither JsonMap nor []JsonMap, i1 type: %T, i2 type: %T, i1: %v, i2: %v", i1, i2, i1, i2))
 			}
-			return i1
+			return i1, err.ErrorOrNil()
 		}
 	}
 
-	mergeMapsRec = func(m1, m2 JsonMap) JsonMap {
+	mergeMapsRec = func(m1, m2 JsonMap) (JsonMap, error) {
+		var err error
 		mergedMap := make(JsonMap)
 		for k, v1 := range m1 {
 			v2, ok := m2[k]
 			if ok {
-				mergedMap[k] = mergeAny(v1, v2)
+				mergedMap[k], err = mergeAny(v1, v2)
 			} else {
 				mergedMap[k] = v1
 			}
@@ -379,7 +385,7 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 				mergedMap[k] = v2
 			}
 		}
-		return mergedMap
+		return mergedMap, err
 	}
 	return mergeMapsRec(mActual, mExpected)
 }
@@ -537,7 +543,7 @@ func AlmostEmpty(jsonMap JsonMap, acceptableKeys []string) bool {
 	return true
 }
 
-// Returns a string of 'indentLvl' number of tabs
+// Indent returns a string of 'indentLvl' number of tabs
 func Indent(indentLvl int) string {
 	return strings.Repeat("\t", indentLvl)
 }
@@ -585,47 +591,46 @@ func equal(a, b any) bool {
 // * *value, if it's *(u)int[8|16|32|64]
 // * -1,     otherwise
 // Cases in order from probably most likely to happen to least.
-func ExtractInt64(value any) int64 {
+func ExtractInt64(value any) (int64, error) {
 	switch valueTyped := value.(type) {
 	case int64:
-		return valueTyped
+		return valueTyped, nil
 	case uint64:
-		return int64(valueTyped)
+		return int64(valueTyped), nil
 	case int:
-		return int64(valueTyped)
+		return int64(valueTyped), nil
 	case *int:
-		return int64(*valueTyped)
+		return int64(*valueTyped), nil
 	case *int64:
-		return *valueTyped
+		return *valueTyped, nil
 	case *uint64:
-		return int64(*valueTyped)
+		return int64(*valueTyped), nil
 	case int8:
-		return int64(valueTyped)
+		return int64(valueTyped), nil
 	case uint8:
-		return int64(valueTyped)
+		return int64(valueTyped), nil
 	case *int8:
-		return int64(*valueTyped)
+		return int64(*valueTyped), nil
 	case *uint8:
-		return int64(*valueTyped)
+		return int64(*valueTyped), nil
 	case int16:
-		return int64(valueTyped)
+		return int64(valueTyped), nil
 	case uint16:
-		return int64(valueTyped)
+		return int64(valueTyped), nil
 	case *int16:
-		return int64(*valueTyped)
+		return int64(*valueTyped), nil
 	case *uint16:
-		return int64(*valueTyped)
+		return int64(*valueTyped), nil
 	case int32:
-		return int64(valueTyped)
+		return int64(valueTyped), nil
 	case uint32:
-		return int64(valueTyped)
+		return int64(valueTyped), nil
 	case *int32:
-		return int64(*valueTyped)
+		return int64(*valueTyped), nil
 	case *uint32:
-		return int64(*valueTyped)
+		return int64(*valueTyped), nil
 	}
-	logger.Error().Msgf("ExtractInt64, value of incorrect type. Expected (*)(u)int64, received: %v; type: %T", value, value)
-	return -1
+	return -1, fmt.Errorf("ExtractInt64, value of incorrect type. Expected (*)(u)int64, received: %v; type: %T", value, value)
 }
 
 // ExtractInt64Maybe returns int64 value behind `value`:
@@ -679,19 +684,18 @@ func ExtractInt64Maybe(value any) (asInt64 int64, success bool) {
 // * value,  if it's float64/32
 // * *value, if it's *float64/32
 // * -1,     otherwise
-func ExtractFloat64(value any) float64 {
+func ExtractFloat64(value any) (float64, error) {
 	switch valueTyped := value.(type) {
 	case float64:
-		return valueTyped
+		return valueTyped, nil
 	case *float64:
-		return *valueTyped
+		return *valueTyped, nil
 	case float32:
-		return float64(valueTyped)
+		return float64(valueTyped), nil
 	case *float32:
-		return float64(*valueTyped)
+		return float64(*valueTyped), nil
 	}
-	logger.Error().Msgf("ExtractFloat64, value of incorrect type. Expected (*)float64, received: %v; type: %T", value, value)
-	return -1
+	return -1, fmt.Errorf("ExtractFloat64, value of incorrect type. Expected (*)float64, received: %v; type: %T", value, value)
 }
 
 // ExtractFloat64Maybe returns float64 value behind `value`:

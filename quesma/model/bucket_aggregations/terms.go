@@ -47,14 +47,15 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 	}
 
 	if !query.significant {
-		sumOtherDocCount := int(util.ExtractInt64(query.parentCount(rows[0]))) - query.sumDocCounts(rows)
+		parentCountAsInt, _ := util.ExtractInt64(query.parentCount(rows[0]))
+		sumOtherDocCount := int(parentCountAsInt) - query.sumDocCounts(rows)
 		return model.JsonMap{
 			"sum_other_doc_count":         sumOtherDocCount,
 			"doc_count_error_upper_bound": 0,
 			"buckets":                     response,
 		}
 	} else {
-		parentDocCount := util.ExtractInt64(query.parentCount(rows[0]))
+		parentDocCount, _ := util.ExtractInt64(query.parentCount(rows[0]))
 		return model.JsonMap{
 			"buckets":   response,
 			"doc_count": parentDocCount,
