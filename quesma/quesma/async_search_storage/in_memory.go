@@ -4,10 +4,10 @@ package async_search_storage
 
 import (
 	"context"
-	"quesma/concurrent"
 	"quesma/logger"
 	"quesma/quesma/recovery"
 	"quesma/tracing"
+	"quesma/util"
 	"strings"
 	"time"
 )
@@ -16,12 +16,12 @@ const EvictionInterval = 15 * time.Minute
 const GCInterval = 1 * time.Minute
 
 type AsyncSearchStorageInMemory struct {
-	idToResult *concurrent.Map[string, *AsyncRequestResult]
+	idToResult *util.SyncMap[string, *AsyncRequestResult]
 }
 
 func NewAsyncSearchStorageInMemory() AsyncSearchStorageInMemory {
 	return AsyncSearchStorageInMemory{
-		idToResult: concurrent.NewMap[string, *AsyncRequestResult](),
+		idToResult: util.NewSyncMap[string, *AsyncRequestResult](),
 	}
 }
 
@@ -46,12 +46,12 @@ func (s AsyncSearchStorageInMemory) Size() int {
 }
 
 type AsyncQueryContextStorageInMemory struct {
-	idToContext *concurrent.Map[string, *AsyncQueryContext]
+	idToContext *util.SyncMap[string, *AsyncQueryContext]
 }
 
 func NewAsyncQueryContextStorageInMemory() AsyncQueryContextStorageInMemory {
 	return AsyncQueryContextStorageInMemory{
-		idToContext: concurrent.NewMap[string, *AsyncQueryContext](),
+		idToContext: util.NewSyncMap[string, *AsyncQueryContext](),
 	}
 }
 
@@ -132,7 +132,7 @@ func (e *AsyncQueriesEvictor) Close() {
 }
 
 type AsyncQueryTraceLoggerEvictor struct {
-	AsyncQueryTrace *concurrent.Map[string, tracing.TraceCtx]
+	AsyncQueryTrace *util.SyncMap[string, tracing.TraceCtx]
 	ctx             context.Context
 	cancel          context.CancelFunc
 }

@@ -5,10 +5,10 @@ package ingest
 import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
-	"quesma/concurrent"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
+	"quesma/util"
 	"strconv"
 	"testing"
 )
@@ -45,7 +45,7 @@ func TestAlterTable(t *testing.T) {
 		Name: "tableName",
 		Cols: map[string]*clickhouse.Column{},
 	}
-	fieldsMap := concurrent.NewMapWith("tableName", table)
+	fieldsMap := util.NewSyncMapWith("tableName", table)
 
 	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
 
@@ -108,7 +108,7 @@ func TestAlterTableHeuristic(t *testing.T) {
 			Name: tableName,
 			Cols: map[string]*clickhouse.Column{},
 		}
-		fieldsMap := concurrent.NewMapWith(tableName, table)
+		fieldsMap := util.NewSyncMapWith(tableName, table)
 		ip := newIngestProcessorWithEmptyTableMap(fieldsMap, &config.QuesmaConfiguration{})
 
 		rowsToInsert := make([]string, 0)

@@ -4,7 +4,7 @@ package async_search_storage
 
 import (
 	"github.com/stretchr/testify/assert"
-	"quesma/concurrent"
+	"quesma/util"
 	"testing"
 	"time"
 )
@@ -27,7 +27,7 @@ func TestAsyncQueriesEvictorStillAlive(t *testing.T) {
 	queryContextStorage := NewAsyncQueryContextStorageInMemory()
 	queryContextStorage.idToContext.Store("1", &AsyncQueryContext{})
 	evictor := NewAsyncQueriesEvictor(NewAsyncSearchStorageInMemory(), queryContextStorage)
-	evictor.AsyncRequestStorage.idToResult = concurrent.NewMap[string, *AsyncRequestResult]()
+	evictor.AsyncRequestStorage.idToResult = util.NewSyncMap[string, *AsyncRequestResult]()
 	evictor.AsyncRequestStorage.Store("1", &AsyncRequestResult{added: time.Now()})
 	evictor.AsyncRequestStorage.Store("2", &AsyncRequestResult{added: time.Now()})
 	evictor.AsyncRequestStorage.Store("3", &AsyncRequestResult{added: time.Now()})

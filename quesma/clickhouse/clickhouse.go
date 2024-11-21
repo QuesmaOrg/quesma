@@ -6,9 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"quesma/concurrent"
 	"quesma/end_user_errors"
-	"quesma/index"
 	"quesma/logger"
 	"quesma/persistence"
 	"quesma/quesma/config"
@@ -35,7 +33,7 @@ type (
 		cfg            *config.QuesmaConfiguration
 		phoneHomeAgent telemetry.PhoneHomeAgent
 	}
-	TableMap  = concurrent.Map[string, *Table]
+	TableMap  = util.SyncMap[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
 	Attribute struct {
 		KeysArrayName   string
@@ -69,7 +67,7 @@ type (
 )
 
 func NewTableMap() *TableMap {
-	return concurrent.NewMap[string, *Table]()
+	return util.NewSyncMap[string, *Table]()
 }
 
 func (lm *LogManager) Start() {
@@ -275,7 +273,7 @@ func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (retu
 }
 
 func (lm *LogManager) FindTable(tableName string) (result *Table) {
-	tableNamePattern := index.TableNamePatternRegexp(tableName)
+	tableNamePattern := util.TableNamePatternRegexp(tableName)
 	lm.tableDiscovery.TableDefinitions().
 		Range(func(name string, table *Table) bool {
 			if tableNamePattern.MatchString(name) {

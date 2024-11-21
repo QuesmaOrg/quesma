@@ -7,13 +7,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
-	"quesma/concurrent"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/stats"
 	"quesma/table_resolver"
 	"quesma/telemetry"
+	"quesma/util"
 	"testing"
 )
 
@@ -98,7 +98,7 @@ func TestHtmlSchemaPage(t *testing.T) {
 
 	cfg.IndexConfig = map[string]config.IndexConfiguration{xss: {Name: xss}}
 
-	tables := concurrent.NewMap[string, *clickhouse.Table]()
+	tables := util.NewSyncMap[string, *clickhouse.Table]()
 	tables.Store(table.Name, table)
 
 	logManager := clickhouse.NewLogManager(tables, &cfg)

@@ -11,9 +11,7 @@ import (
 	chLib "quesma/clickhouse"
 	"quesma/comment_metadata"
 	"quesma/common_table"
-	"quesma/concurrent"
 	"quesma/end_user_errors"
-	"quesma/index"
 	"quesma/jsonprocessor"
 	"quesma/logger"
 	"quesma/model"
@@ -70,7 +68,7 @@ type (
 		virtualTableStorage       persistence.JSONDatabase
 		tableResolver             table_resolver.TableResolver
 	}
-	TableMap  = concurrent.Map[string, *chLib.Table]
+	TableMap  = util.SyncMap[string, *chLib.Table]
 	SchemaMap = map[string]interface{} // TODO remove
 	Attribute struct {
 		KeysArrayName   string
@@ -83,7 +81,7 @@ type (
 )
 
 func NewTableMap() *TableMap {
-	return concurrent.NewMap[string, *chLib.Table]()
+	return util.NewSyncMap[string, *chLib.Table]()
 }
 
 func (ip *IngestProcessor) Start() {
@@ -870,7 +868,7 @@ func (ip *IngestProcessor) preprocessJsons(ctx context.Context,
 }
 
 func (ip *IngestProcessor) FindTable(tableName string) (result *chLib.Table) {
-	tableNamePattern := index.TableNamePatternRegexp(tableName)
+	tableNamePattern := util.TableNamePatternRegexp(tableName)
 	ip.tableDiscovery.TableDefinitions().
 		Range(func(name string, table *chLib.Table) bool {
 			if tableNamePattern.MatchString(name) {

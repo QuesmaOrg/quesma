@@ -87,6 +87,9 @@ func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler 
 }
 
 func (p *PathRouter) Matches(req *Request) (Handler, *table_resolver.Decision) {
+	if strings.Contains(req.Path, "fligh") {
+		logger.Debug().Msgf("Matched path: %s", req.Path)
+	}
 	handler, decision := p.findHandler(req)
 	if handler != nil {
 		routerStatistics.addMatched(req.Path)

@@ -11,7 +11,6 @@ import (
 	"log"
 	"os"
 	"quesma/elasticsearch/elasticsearch_field_types"
-	"quesma/index"
 	"quesma/util"
 	"strings"
 )
@@ -64,7 +63,7 @@ func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
 }
 
 func MatchName(pattern, name string) bool {
-	return index.TableNamePatternRegexp(pattern).MatchString(name)
+	return util.TableNamePatternRegexp(pattern).MatchString(name)
 }
 
 var k = koanf.New(".")

@@ -8,7 +8,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
-	"quesma/concurrent"
 	"quesma/jsonprocessor"
 	"quesma/persistence"
 	"quesma/quesma/config"
@@ -142,7 +141,7 @@ func (*IngestTransformer) Transform(document types.JSON) (types.JSON, error) {
 func ingestProcessorsNonEmpty(cfg *clickhouse.ChTableConfig) []ingestProcessorHelper {
 	lms := make([]ingestProcessorHelper, 0, 4)
 	for _, created := range []bool{true, false} {
-		full := concurrent.NewMapWith(tableName, &clickhouse.Table{
+		full := util.NewSyncMapWith(tableName, &clickhouse.Table{
 			Name:   tableName,
 			Config: cfg,
 			Cols: map[string]*clickhouse.Column{
@@ -310,7 +309,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	}
 
 	// big integer as an attribute field
-	tableMapNoSchemaFields := concurrent.NewMapWith(tableName, &clickhouse.Table{
+	tableMapNoSchemaFields := util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:    tableName,
 		Config:  NewChTableConfigFourAttrs(),
 		Cols:    map[string]*clickhouse.Column{},
