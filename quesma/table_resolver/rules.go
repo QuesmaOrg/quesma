@@ -7,9 +7,11 @@ import (
 	"quesma/common_table"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
+	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/util"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -32,20 +34,20 @@ func (r *tableRegistryImpl) wildcardPatternSplitter(pattern string) (parsedPatte
 		}
 
 		for indexName := range r.conf.IndexConfig {
-			if util.IndexPatternMatches(pattern, indexName) {
+			if indexPatternMatches(pattern, indexName) {
 				matchingSingleNames = append(matchingSingleNames, indexName)
 			}
 		}
 
 		// but maybe we should also check against the actual indexes ??
 		for indexName := range r.elasticIndexes {
-			if util.IndexPatternMatches(pattern, indexName) {
+			if indexPatternMatches(pattern, indexName) {
 				matchingSingleNames = append(matchingSingleNames, indexName)
 			}
 		}
 		if r.conf.AutodiscoveryEnabled {
 			for tableName := range r.clickhouseIndexes {
-				if util.IndexPatternMatches(pattern, tableName) {
+				if indexPatternMatches(pattern, tableName) {
 					matchingSingleNames = append(matchingSingleNames, tableName)
 				}
 			}
@@ -417,4 +419,13 @@ func basicDecisionMerger(decisions []*Decision) *Decision {
 		EnableABTesting: decisions[0].EnableABTesting,
 		Reason:          "Merged decisions",
 	}
+}
+
+func indexPatternMatches(indexNamePattern, indexName string) bool {
+	r, err := regexp.Compile("^" + strings.Replace(indexNamePattern, "*", ".*", -1) + "$")
+	if err != nil {
+		logger.Error().Msgf("invalid index name pattern [%s]: %s", indexNamePattern, err)
+		return false
+	}
+	return r.MatchString(indexName)
 }
