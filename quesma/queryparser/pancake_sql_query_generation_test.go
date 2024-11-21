@@ -54,12 +54,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Fix filters")
 			}
 
-			// Maybe remove
-			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:22)" {
-				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
-			}
-
-			// Maybe remove
 			if test.TestName == "Line, Y-axis: Min, Buckets: Date Range, X-Axis: Terms, Split Chart: Date Histogram(file:kibana-visualize/agg_req,nr:9)" {
 				t.Skip("Date range is broken, fix in progress (PR #971)")
 			}
