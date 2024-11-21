@@ -137,7 +137,21 @@ func InitSimpleLoggerForTestsWarnLevel() {
 		Logger()
 }
 
+var testLoggerInitialized bool
+
+const TestConsoleStatsBasedOnLogs = false
+
 func InitOnlyChannelLoggerForTests() <-chan LogWithLevel {
+
+	// We can't reassign global logger, it will lead to "race condition" in tests. It's known issue with zerolog.
+	// https://github.com/rs/zerolog/issues/242
+
+	if testLoggerInitialized {
+		// we do return a fresh channel here, it will break the stats gathering in the console
+		// see TestConsoleStatsBasedOnLogs usage in the tests
+		return make(chan LogWithLevel, 50000)
+	}
+
 	zerolog.TimeFieldFormat = time.RFC3339Nano   // without this we don't have milliseconds timestamp precision
 	logChannel := make(chan LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
 	chanWriter := channelWriter{ch: logChannel}
@@ -151,6 +165,8 @@ func InitOnlyChannelLoggerForTests() <-chan LogWithLevel {
 
 	globalError := errorstats.GlobalErrorHook{}
 	logger = logger.Hook(&globalError)
+
+	testLoggerInitialized = true
 	return logChannel
 }
 
