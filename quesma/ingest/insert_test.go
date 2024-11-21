@@ -171,9 +171,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
 					ip.ip.schemaRegistry = &schema.StaticRegistry{}
 					encodings := populateFieldEncodings([]types.JSON{types.MustJSON(tt.insertJson)}, tableName)
-					ignoredFields := ip.ip.getIgnoredFields(tableName)
-					columnsFromJson := JsonToColumns("", types.MustJSON(tt.insertJson), 1,
-						tableConfig, &columNameFormatter{separator: "::"}, ignoredFields)
+					columnsFromJson := JsonToColumns(types.MustJSON(tt.insertJson), tableConfig)
 					columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.ip.schemaRegistry, tableName), &columNameFormatter{separator: "::"}, tableName, encodings)
 					columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(types.MustJSON(tt.insertJson)))
 					query := createTableQuery(tableName, columns, tableConfig)

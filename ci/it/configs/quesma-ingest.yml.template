@@ -72,6 +72,26 @@ processors:
                 type: geo_point
               "OriginLocation":
                 type: geo_point
+        ignored_test:
+          target:
+            - my-clickhouse-instance
+          schemaOverrides:
+            fields:
+              "ignored_field1":
+                ignored: true
+              "ignored_field2":
+                ignored: true
+              "nested.ignored_field3":
+                ignored: true
+              "nested.ignored_field4":
+                ignored: true
+              "nested2.ignored_field5":
+                ignored: true
+              "nested2.ignored_field6":
+                ignored: true
+        nested_test:
+          target:
+            - my-clickhouse-instance
         "*":
           target:
             - my-minimal-elasticsearch
@@ -127,6 +147,26 @@ processors:
                 type: geo_point
               "OriginLocation":
                 type: geo_point
+        ignored_test:
+          target:
+            - my-clickhouse-instance
+          schemaOverrides:
+            fields:
+              "ignored_field1":
+                ignored: true
+              "ignored_field2":
+                ignored: true
+              "nested.ignored_field3":
+                ignored: true
+              "nested.ignored_field4":
+                ignored: true
+              "nested2.ignored_field5":
+                ignored: true
+              "nested2.ignored_field6":
+                ignored: true
+        nested_test:
+          target:
+            - my-clickhouse-instance
         "*":
           target:
             - my-minimal-elasticsearch

@@ -211,16 +211,6 @@ func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema
 	return nil
 }
 
-func (ip *IngestProcessor) getIgnoredFields(tableName string) []config.FieldName {
-	if indexConfig, found := ip.cfg.IndexConfig[tableName]; found && indexConfig.SchemaOverrides != nil {
-		// FIXME: don't get ignored fields from schema config, but store
-		// them in the schema registry - that way we don't have to manually replace '.' with '::'
-		// in removeFieldsTransformer's Transform method
-		return indexConfig.SchemaOverrides.IgnoredFields()
-	}
-	return nil
-}
-
 func Indexes(m SchemaMap) string {
 	var result strings.Builder
 	for col := range m {
@@ -637,14 +627,22 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 			return util.FieldToColumnEncoder(field)
 		})
 	}
+
+	var transformedJsons []types.JSON
+	for _, jsonValue := range jsonData {
+		transformedJson, err := transformer.Transform(jsonValue)
+		if err != nil {
+			return nil, fmt.Errorf("error while transforming json: %v", err)
+		}
+		transformedJsons = append(transformedJsons, transformedJson)
+	}
+
 	table := ip.FindTable(tableName)
 	var tableConfig *chLib.ChTableConfig
 	var createTableCmd string
 	if table == nil {
 		tableConfig = NewOnlySchemaFieldsCHConfig()
-		ignoredFields := ip.getIgnoredFields(tableName)
-		columnsFromJson := JsonToColumns("", jsonData[0], 1,
-			tableConfig, tableFormatter, ignoredFields)
+		columnsFromJson := JsonToColumns(transformedJsons[0], tableConfig)
 
 		fieldOrigins := make(map[schema.FieldName]schema.FieldSource)
 
@@ -657,9 +655,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		// This comes externally from (configuration)
 		// So we need to convert that separately
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter, tableName, ip.schemaRegistry.GetFieldEncodings())
-		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName), Indexes(jsonData[0]))
-		// TODO createTableCmd should contain information about field encodings
-		// in column comments
+		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName), Indexes(transformedJsons[0]))
 		createTableCmd = createTableQuery(tableName, columnsAsString, tableConfig)
 		var err error
 		createTableCmd, err = ip.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig, tableName, tableDefinitionChangeOnly)
@@ -678,13 +674,13 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	tableConfig = table.Config
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
-	var preprocessedJsons []types.JSON
+	var validatedJsons []types.JSON
 	var invalidJsons []types.JSON
-	preprocessedJsons, invalidJsons, err := ip.preprocessJsons(ctx, table.Name, jsonData, transformer)
+	validatedJsons, invalidJsons, err := ip.preprocessJsons(ctx, table.Name, transformedJsons)
 	if err != nil {
 		return nil, fmt.Errorf("error preprocessJsons: %v", err)
 	}
-	for i, preprocessedJson := range preprocessedJsons {
+	for i, preprocessedJson := range validatedJsons {
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], tableConfig, encodings)
 
@@ -844,18 +840,13 @@ func (ip *IngestProcessor) executeStatements(ctx context.Context, queries []stri
 }
 
 func (ip *IngestProcessor) preprocessJsons(ctx context.Context,
-	tableName string, jsons []types.JSON, transformer jsonprocessor.IngestTransformer,
-) ([]types.JSON, []types.JSON, error) {
-	var preprocessedJsons []types.JSON
+	tableName string, jsons []types.JSON) ([]types.JSON, []types.JSON, error) {
+	var validatedJsons []types.JSON
 	var invalidJsons []types.JSON
 	for _, jsonValue := range jsons {
-		preprocessedJson, err := transformer.Transform(jsonValue)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error IngestTransformer: %v", err)
-		}
 		// Validate the input JSON
 		// against the schema
-		inValidJson, err := ip.validateIngest(tableName, preprocessedJson)
+		inValidJson, err := ip.validateIngest(tableName, jsonValue)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error validation: %v", err)
 		}
@@ -863,10 +854,10 @@ func (ip *IngestProcessor) preprocessJsons(ctx context.Context,
 		stats.GlobalStatistics.UpdateNonSchemaValues(ip.cfg, tableName,
 			inValidJson, NestedSeparator)
 		// Remove invalid fields from the input JSON
-		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
-		preprocessedJsons = append(preprocessedJsons, preprocessedJson)
+		jsonValue = subtractInputJson(jsonValue, inValidJson)
+		validatedJsons = append(validatedJsons, jsonValue)
 	}
-	return preprocessedJsons, invalidJsons, nil
+	return validatedJsons, invalidJsons, nil
 }
 
 func (ip *IngestProcessor) FindTable(tableName string) (result *chLib.Table) {

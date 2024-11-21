@@ -145,9 +145,7 @@ func TestAddTimestamp(t *testing.T) {
 	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
 	encodings := populateFieldEncodings([]types.JSON{jsonData}, tableName)
 
-	ignoredFields := ip.getIgnoredFields(tableName)
-	columnsFromJson := JsonToColumns("", jsonData, 1,
-		tableConfig, nameFormatter, ignoredFields)
+	columnsFromJson := JsonToColumns(jsonData, tableConfig)
 
 	columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), nameFormatter, tableName, encodings)
 	columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(jsonData))
