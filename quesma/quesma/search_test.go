@@ -6,7 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/k0kubun/pp"

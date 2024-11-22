@@ -4,7 +4,7 @@ package ui
 
 import (
 	"encoding/base64"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"quesma/quesma/types"

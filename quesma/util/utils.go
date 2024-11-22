@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/base64"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/hashicorp/go-multierror"

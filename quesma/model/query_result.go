@@ -4,7 +4,7 @@ package model
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"quesma/common_table"
 	"quesma/logger"

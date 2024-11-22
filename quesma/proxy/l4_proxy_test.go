@@ -4,7 +4,7 @@ package proxy
 
 import (
 	"bytes"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"log"

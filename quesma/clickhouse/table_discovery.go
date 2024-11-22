@@ -5,7 +5,7 @@ package clickhouse
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"errors"
 	"fmt"
 	"quesma/common_table"

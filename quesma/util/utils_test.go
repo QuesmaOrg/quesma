@@ -3,7 +3,7 @@
 package util
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"net/http"

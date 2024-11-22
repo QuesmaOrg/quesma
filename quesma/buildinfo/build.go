@@ -3,7 +3,7 @@
 package buildinfo
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"github.com/coreos/go-semver/semver"
 	"net/http"

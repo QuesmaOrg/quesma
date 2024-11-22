@@ -3,7 +3,7 @@
 package ingest
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"quesma/clickhouse"
 	"quesma/persistence"
 	"quesma/quesma/config"

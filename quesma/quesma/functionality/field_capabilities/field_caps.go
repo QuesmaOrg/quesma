@@ -4,7 +4,7 @@ package field_capabilities
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"

@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v3/mem"

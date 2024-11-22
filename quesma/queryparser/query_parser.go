@@ -6,7 +6,7 @@ package queryparser
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"github.com/k0kubun/pp"
 	"quesma/clickhouse"

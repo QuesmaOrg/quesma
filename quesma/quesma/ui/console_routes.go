@@ -5,7 +5,7 @@ package ui
 
 import (
 	"embed"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"errors"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"

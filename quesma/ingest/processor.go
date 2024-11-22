@@ -5,7 +5,7 @@ package ingest
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	chLib "quesma/clickhouse"

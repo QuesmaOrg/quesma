@@ -4,7 +4,7 @@ package ui
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"io"
 	"quesma/elasticsearch"

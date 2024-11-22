@@ -4,7 +4,7 @@ package clickhouse
 
 import (
 	"bytes"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"quesma/logger"
 	"quesma/model"

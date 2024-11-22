@@ -3,7 +3,7 @@
 package collector
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"quesma/quesma/types"
 	"regexp"
