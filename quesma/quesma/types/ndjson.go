@@ -69,9 +69,7 @@ func (n NDJSON) BulkForEach(f func(entryNumber int, operationParsed BulkOperatio
 		operation := n[i]  // {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}
 		document := n[i+1] // {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
 
-		var operationParsed BulkOperation // operationName (create, index, update, delete) -> DocumentTarget
-
-		operationParsed = make(map[string]DocumentTarget)
+		operationParsed := make(map[string]DocumentTarget)
 
 		for k, v := range operation {
 			d := DocumentTarget{}
