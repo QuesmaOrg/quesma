@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"quesma/logger"
 	"quesma/quesma/config"
-	"quesma/util"
 	"time"
 )
 
@@ -56,7 +55,7 @@ func (es *SimpleClient) Authenticate(ctx context.Context, authHeader string) boo
 	}
 	defer r.Body.Close()
 
-	if util.IsResponseFromElasticsearch(r) {
+	if isResponseFromElasticsearch(r) {
 		authEndpoint = elasticsearchSecurityEndpoint
 	} else {
 		authEndpoint = openSearchSecurityEndpoint
@@ -85,4 +84,8 @@ func (es *SimpleClient) doRequest(ctx context.Context, method, endpoint string, 
 		}
 	}
 	return es.client.Do(req)
+}
+
+func isResponseFromElasticsearch(resp *http.Response) bool {
+	return resp.Header.Get("X-Elastic-Product") != ""
 }
