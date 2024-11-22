@@ -5,6 +5,7 @@ package telemetry
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -202,7 +203,12 @@ func NewPhoneHomeAgent(configuration *config.QuesmaConfiguration, clickHouseDb *
 		ingestCounters:    NewMultiCounter(ctx, nil),
 		userAgentCounters: NewMultiCounter(ctx, processUserAgent),
 		telemetryEndpoint: configuration.QuesmaInternalTelemetryUrl,
-		httpClient:        &http.Client{Timeout: time.Minute},
+		httpClient: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+			Timeout: time.Minute,
+		},
 	}
 }
 
