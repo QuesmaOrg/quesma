@@ -191,7 +191,6 @@ func (r *tableRegistryImpl) updateIndexes() {
 	defer r.m.Unlock()
 
 	// this is a critical section
-	
 	r.elasticIndexes = elasticIndexes
 	r.clickhouseIndexes = clickhouseIndexes
 	for _, res := range r.pipelineResolvers {
