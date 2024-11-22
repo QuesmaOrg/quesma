@@ -146,14 +146,6 @@ func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decis
 }
 
 func (r *tableRegistryImpl) updateIndexes() {
-	r.m.Lock()
-	defer r.m.Unlock()
-
-	defer func() {
-		for _, res := range r.pipelineResolvers {
-			res.recentDecisions = make(map[string]*Decision)
-		}
-	}()
 
 	logger.Info().Msgf("Index registry updating state.")
 
@@ -174,7 +166,6 @@ func (r *tableRegistryImpl) updateIndexes() {
 		return true
 	})
 
-	r.clickhouseIndexes = clickhouseIndexes
 	logger.Info().Msgf("Clickhouse tables updated: %v", clickhouseIndexes)
 
 	elasticIndexes := make(map[string]table)
@@ -193,7 +184,18 @@ func (r *tableRegistryImpl) updateIndexes() {
 	}
 
 	logger.Info().Msgf("Elastic tables updated: %v", elasticIndexes)
+
+	// Let's update the state
+
+	r.m.Lock()
+	defer r.m.Unlock()
+
+	// this is a critical section
 	r.elasticIndexes = elasticIndexes
+	r.clickhouseIndexes = clickhouseIndexes
+	for _, res := range r.pipelineResolvers {
+		res.recentDecisions = make(map[string]*Decision)
+	}
 }
 
 func (r *tableRegistryImpl) updateState() {
