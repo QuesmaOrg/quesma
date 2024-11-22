@@ -3,9 +3,9 @@
 package types
 
 import (
-	"github.com/goccy/go-json"
 	"fmt"
 	"github.com/barkimedes/go-deepcopy"
+	"github.com/goccy/go-json"
 	"github.com/tailscale/hujson"
 )
 
@@ -37,14 +37,6 @@ func MustJSON(s string) JSON {
 
 func (j JSON) Bytes() ([]byte, error) {
 	return json.Marshal(j)
-}
-
-func (j JSON) Remarshal(v interface{}) error {
-	b, err := json.Marshal(j)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(b, v)
 }
 
 func (j JSON) ShortString() string {
