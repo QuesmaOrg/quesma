@@ -3,8 +3,8 @@
 package collector
 
 import (
-	"github.com/goccy/go-json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"quesma/quesma/types"
 	"regexp"
 )

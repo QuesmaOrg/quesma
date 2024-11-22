@@ -5,8 +5,8 @@ package collector
 import (
 	"bytes"
 	"context"
-	"github.com/goccy/go-json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"net/http"
 	"quesma/ingest"
 	"quesma/logger"

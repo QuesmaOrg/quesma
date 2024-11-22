@@ -4,9 +4,9 @@ package terms_enum
 
 import (
 	"context"
-	"github.com/goccy/go-json"
 	"errors"
 	"fmt"
+	"github.com/goccy/go-json"
 	"quesma/clickhouse"
 	"quesma/end_user_errors"
 	"quesma/logger"

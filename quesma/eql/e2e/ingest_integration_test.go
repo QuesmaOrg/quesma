@@ -6,8 +6,8 @@ package e2e
 
 import (
 	"bytes"
-	"github.com/goccy/go-json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"log"
 	"net/http"
 	"time"

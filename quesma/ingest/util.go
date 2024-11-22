@@ -4,8 +4,8 @@ package ingest
 
 import (
 	"bytes"
-	"github.com/goccy/go-json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"quesma/clickhouse"
 	"strings"
 )

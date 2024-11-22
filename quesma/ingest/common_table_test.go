@@ -4,8 +4,8 @@ package ingest
 
 import (
 	"context"
-	"github.com/goccy/go-json"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/common_table"

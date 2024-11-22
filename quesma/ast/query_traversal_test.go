@@ -3,8 +3,8 @@
 package ast
 
 import (
-	"github.com/goccy/go-json"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"

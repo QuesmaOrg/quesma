@@ -4,8 +4,8 @@ package licensing
 
 import (
 	"bytes"
-	"github.com/goccy/go-json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"io"
 	"net/http"
 	"time"

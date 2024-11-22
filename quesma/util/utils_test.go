@@ -3,8 +3,8 @@
 package util
 
 import (
-	"github.com/goccy/go-json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"reflect"
