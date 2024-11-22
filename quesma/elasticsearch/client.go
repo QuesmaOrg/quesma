@@ -46,8 +46,8 @@ func (es *SimpleClient) RequestWithHeaders(ctx context.Context, method, endpoint
 
 func (es *SimpleClient) Authenticate(ctx context.Context, authHeader string) bool {
 	var authEndpoint string
-	// This is really sub-optimal and we should find a better way to set this systematically (config perhaps?)
-	// OTOH, since we have auth cache in place, this is not a big deal for how.
+	// This is really suboptimal, and we should find a better way to set this systematically (config perhaps?)
+	// OTOH, since we have auth cache in place, I am not concerned about this additional backend call - at least for the time being.
 	r, err := es.doRequest(ctx, "GET", "/", nil, http.Header{"Authorization": {authHeader}})
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("error sending request: %v", err)
