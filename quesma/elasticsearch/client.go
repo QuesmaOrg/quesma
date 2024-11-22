@@ -10,10 +10,15 @@ import (
 	"net/http"
 	"quesma/logger"
 	"quesma/quesma/config"
+	"quesma/util"
 	"time"
 )
 
-const esRequestTimeout = 5 * time.Second
+const (
+	esRequestTimeout              = 5 * time.Second
+	elasticsearchSecurityEndpoint = "_security/_authenticate"
+	openSearchSecurityEndpoint    = "_plugins/_security/api/account"
+)
 
 type SimpleClient struct {
 	client *http.Client
@@ -41,7 +46,22 @@ func (es *SimpleClient) RequestWithHeaders(ctx context.Context, method, endpoint
 }
 
 func (es *SimpleClient) Authenticate(ctx context.Context, authHeader string) bool {
-	resp, err := es.doRequest(ctx, "GET", "_security/_authenticate", nil, http.Header{"Authorization": {authHeader}})
+	var authEndpoint string
+	// This is really sub-optimal and we should find a better way to set this systematically (config perhaps?)
+	// OTOH, since we have auth cache in place, this is not a big deal for how.
+	r, err := es.doRequest(ctx, "GET", "/", nil, http.Header{"Authorization": {authHeader}})
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("error sending request: %v", err)
+		return false
+	}
+	defer r.Body.Close()
+
+	if util.IsResponseFromElasticsearch(r) {
+		authEndpoint = elasticsearchSecurityEndpoint
+	} else {
+		authEndpoint = openSearchSecurityEndpoint
+	}
+	resp, err := es.doRequest(ctx, "GET", authEndpoint, nil, http.Header{"Authorization": {authHeader}})
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("error sending request: %v", err)
 		return false

@@ -931,3 +931,7 @@ func TableNamePatternRegexp(indexPattern string) *regexp.Regexp {
 
 	return regexp.MustCompile(fmt.Sprintf("^%s$", builder.String()))
 }
+
+func IsResponseFromElasticsearch(resp *http.Response) bool {
+	return resp.Header.Get("X-Elastic-Product") != ""
+}
