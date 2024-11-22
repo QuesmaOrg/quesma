@@ -784,7 +784,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 				}
 			}
 		}
-		
+
 		queries[k] = query
 	}
 	return queries, nil
