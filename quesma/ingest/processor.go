@@ -5,9 +5,9 @@ package ingest
 import (
 	"context"
 	"database/sql"
-	"github.com/goccy/go-json"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/goccy/go-json"
 	chLib "quesma/clickhouse"
 	"quesma/comment_metadata"
 	"quesma/common_table"
@@ -490,32 +490,14 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	config *chLib.ChTableConfig,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]string, types.JSON, []NonSchemaField, error) {
 
-	jsonAsBytesSlice, err := json.Marshal(data)
-
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	// we find all non-schema fields
-	jsonMap, err := types.ParseJSON(string(jsonAsBytesSlice))
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
 	if len(config.Attributes) == 0 {
-		return nil, jsonMap, nil, nil
+		return nil, data, nil, nil
 	}
 
-	schemaFieldsJson, err := json.Marshal(jsonMap)
+	mDiff := DifferenceMap(data, table) // TODO change to DifferenceMap(m, t)
 
-	if err != nil {
-		return nil, jsonMap, nil, err
-	}
-
-	mDiff := DifferenceMap(jsonMap, table) // TODO change to DifferenceMap(m, t)
-
-	if len(mDiff) == 0 && string(schemaFieldsJson) == string(jsonAsBytesSlice) && len(inValidJson) == 0 { // no need to modify, just insert 'js'
-		return nil, jsonMap, nil, nil
+	if len(mDiff) == 0 && len(inValidJson) == 0 { // no need to modify, just insert 'js'
+		return nil, data, nil, nil
 	}
 
 	// check attributes precondition
@@ -546,7 +528,7 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 		return nil, nil, nil, err
 	}
 
-	onlySchemaFields := RemoveNonSchemaFields(jsonMap, table)
+	onlySchemaFields := RemoveNonSchemaFields(data, table)
 
 	return alterCmd, onlySchemaFields, nonSchemaFields, nil
 }
