@@ -303,7 +303,6 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 }
 
 func (qmc *QuesmaManagementConsole) initPprof(router *mux.Router) {
-
 	router.HandleFunc("/debug/pprof/", pprof.Index)
 	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
