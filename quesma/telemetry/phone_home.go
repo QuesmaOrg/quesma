@@ -32,7 +32,7 @@ import (
 
 const (
 	warmupInterval    = 30 * time.Second
-	phoneHomeInterval = 3600 * time.Second
+	phoneHomeInterval = 60 * time.Second
 
 	clickhouseTimeout = 10 * time.Second
 	elasticTimeout    = 10 * time.Second
@@ -296,6 +296,41 @@ where active
 	return nil
 }
 
+func (a *agent) getTableSizes(ctx context.Context) (map[string]int64, error) {
+	tableSizes := make(map[string]int64)
+	dbName := "default"
+	allTablesSize := int64(0)
+	if a.config.ClickHouse.Database != "" {
+		dbName = a.config.ClickHouse.Database
+	}
+	query := `SELECT table, sum(bytes_on_disk) AS total_size
+FROM system.parts
+WHERE active = 1 AND database = ?
+GROUP BY table
+ORDER BY total_size DESC;`
+
+	rows, err := a.clickHouseDb.QueryContext(ctx, query, dbName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var tableName string
+		var totalSize int64
+		if err := rows.Scan(&tableName, &totalSize); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		tableSizes[tableName] = totalSize
+		allTablesSize += totalSize
+	}
+	tableSizes["QUESMA_all_tables_in_bytes"] = allTablesSize
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	logger.Info().Msgf("Table sizes: %v", tableSizes)
+	return tableSizes, nil
+}
+
 func (a *agent) collectClickHouseVersion(ctx context.Context, stats *ClickHouseStats) error {
 
 	// https://clickhouse.com/docs/en/sql-reference/functions/other-functions#version
@@ -343,6 +378,9 @@ func (a *agent) CollectClickHouse(ctx context.Context) (stats ClickHouseStats) {
 	}
 	if err := a.collectClickHouseVersion(ctx, &stats); err != nil {
 		return stats
+	}
+	if yab, err := a.getTableSizes(ctx); err != nil {
+		println(yab)
 	}
 
 	stats.Status = statusOk
