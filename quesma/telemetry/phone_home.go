@@ -296,6 +296,15 @@ where active
 	return nil
 }
 
+func (a *agent) collectClickHouseTableSizes(ctx context.Context) (map[string]int64, error) {
+	tablesWithSizes, err := a.getTableSizes(a.ctx)
+	if err != nil {
+		logger.WarnWithCtx(ctx).Msgf("Error getting table sizes from clickhouse: %v", err)
+		return nil, err
+	}
+	return tablesWithSizes, nil
+}
+
 func (a *agent) getTableSizes(ctx context.Context) (map[string]int64, error) {
 	tableSizes := make(map[string]int64)
 	dbName := "default"
@@ -327,7 +336,6 @@ ORDER BY total_size DESC;`
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating over rows: %w", err)
 	}
-	logger.Info().Msgf("Table sizes: %v", tableSizes)
 	return tableSizes, nil
 }
 
@@ -379,8 +387,11 @@ func (a *agent) CollectClickHouse(ctx context.Context) (stats ClickHouseStats) {
 	if err := a.collectClickHouseVersion(ctx, &stats); err != nil {
 		return stats
 	}
-	if yab, err := a.getTableSizes(ctx); err != nil {
-		println(yab)
+
+	if !strings.HasPrefix(a.config.ClickHouse.ConnectorType, "hydrolix") { // we only check table sizes for ClickHouse
+		if tables, err := a.collectClickHouseTableSizes(ctx); err == nil {
+			logger.Info().Msgf("ClickHouse table sizes %v", tables)
+		}
 	}
 
 	stats.Status = statusOk
