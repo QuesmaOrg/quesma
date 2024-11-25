@@ -751,6 +751,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 		{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
+		{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
@@ -788,4 +789,43 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		queries[k] = query
 	}
 	return queries, nil
+}
+
+func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	visitor := model.NewBaseVisitor()
+
+	var err error
+
+	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
+		lhs, ok := e.Left.(model.ColumnRef)
+		rhs, ok2 := e.Right.(model.LiteralExpr)
+
+		if ok && ok2 && e.Op == model.MatchOperator {
+			field, found := indexSchema.ResolveFieldByInternalName(lhs.ColumnName)
+			if !found {
+				logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhs.ColumnName, query.TableName)
+			}
+			switch field.Type.String() {
+			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name:
+				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhs.Value.(string)))
+			default:
+				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteral("'%"+rhs.Value.(string)+"%'"))
+			}
+		}
+
+		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
 }
