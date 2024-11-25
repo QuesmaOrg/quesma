@@ -806,11 +806,16 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			if !found {
 				logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhs.ColumnName, query.TableName)
 			}
+
+			rhsValue := rhs.Value.(string)
+			rhsValue = strings.TrimPrefix(rhsValue, "'")
+			rhsValue = strings.TrimSuffix(rhsValue, "'")
+
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name:
-				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhs.Value.(string)))
+				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
 			default:
-				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteral("'%"+rhs.Value.(string)+"%'"))
+				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteral("'%"+rhsValue+"%'"))
 			}
 		}
 
