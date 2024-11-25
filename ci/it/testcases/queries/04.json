@@ -1,0 +1,56 @@
+{
+  "_source": {
+    "excludes": []
+  },
+  "aggs": {
+    "0": {
+      "aggs": {
+        "1": {
+          "sum": {
+            "field": "body_bytes_sent"
+          }
+        }
+      },
+      "date_histogram": {
+        "calendar_interval": "1h",
+        "extended_bounds": {
+          "max": 1548658074360,
+          "min": 1547836801746
+        },
+        "field": "@timestamp",
+        "time_zone": "Europe/Warsaw"
+      }
+    }
+  },
+  "fields": [
+    {
+      "field": "@timestamp",
+      "format": "date_time"
+    }
+  ],
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "range": {
+            "@timestamp": {
+              "format": "strict_date_optional_time",
+              "gte": "2019-01-18T18:40:01.746Z",
+              "lte": "2019-01-28T06:47:54.360Z"
+            }
+          }
+        }
+      ],
+      "must": [],
+      "must_not": [],
+      "should": []
+    }
+  },
+  "runtime_mappings": {},
+  "script_fields": {},
+  "size": 0,
+  "stored_fields": [
+    "*"
+  ],
+  "track_total_hits": true
+}
