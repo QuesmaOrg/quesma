@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 )
@@ -87,9 +88,10 @@ func (a *ABTestcase) testIngest(ctx context.Context, t *testing.T) {
 		resp, body := a.RequestToQuesma(ctx, t, "POST", "/test_index/_doc", doc)
 
 		if resp.StatusCode != http.StatusOK {
-			fmt.Println("XXX", string(body))
+			fmt.Println("Failed POST request: ", string(body))
+			t.Fatalf("Failed to make POST request: %s", resp.Status)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	}
@@ -137,47 +139,46 @@ func (a *ABTestcase) testIngest(ctx context.Context, t *testing.T) {
 
 }
 
-func (a *ABTestcase) testQueries(ctx context.Context, t *testing.T) {
+func (a ABTestcase) waitForAbResults(ctx context.Context, t *testing.T) {
 
-	_, _ = a.RequestToElasticsearch(ctx, "GET", "/test_index/_refresh", nil)
+	timeout := 10
 
-	files, err := queries.ReadDir("queries")
-	if err != nil {
-		t.Fatalf("Failed to read queries: %s", err)
-	}
+	for i := 0; i <= timeout; i++ {
+		time.Sleep(1 * time.Second)
 
-	skip := map[string]bool{}
-
-	// here we skip some queries that are known to fail
-	// TODO fix them
-	skip["01.json"] = true
-	skip["02.json"] = false
-	skip["03.json"] = true
-	skip["04.json"] = true
-	skip["05.json"] = true
-	skip["06.json"] = true
-	skip["07.json"] = false
-	skip["08.json"] = false
-
-	for _, file := range files {
-
-		if skip[file.Name()] {
-			fmt.Println("Skipping", file.Name())
-			continue
+		if i == timeout {
+			t.Fatalf("Didn't find any results in ab_testing_logs table. Failing the test.")
 		}
 
-		query, err := queries.ReadFile("queries/" + file.Name())
+		count := "SELECT count(*) FROM ab_testing_logs"
+		rows, err := a.ExecuteClickHouseQuery(ctx, count)
+
 		if err != nil {
-			t.Fatalf("Failed to read file: %s", err)
+			if strings.Contains(err.Error(), "code: 60") { // 60 is the code for table not found
+				continue
+			}
+
+			t.Fatalf("Failed to execute query: %s", err)
+		}
+		for rows.Next() {
+			var c int
+			if err := rows.Scan(&c); err != nil {
+				t.Fatalf("Failed to scan row: %s", err)
+			}
+			if c > 0 { // we have some results,
+				return
+			}
 		}
 
-		resp, _ := a.RequestToQuesma(ctx, t, "POST", "/test_index/_search", query)
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		if rows.Err() != nil {
+			t.Fatalf("Failed to scan row: %s", rows.Err())
+		}
+		_ = rows.Close()
 	}
+}
 
-	time.Sleep(10 * time.Second)
-
-	mismatches := []map[string]any{}
+func (a *ABTestcase) readABResults(ctx context.Context, t *testing.T) ([]map[string]any, []string) {
+	var mismatches []map[string]any
 
 	chQuery := "SELECT * FROM ab_testing_logs where  response_mismatch_is_ok = false"
 	rows, err := a.ExecuteClickHouseQuery(ctx, chQuery)
@@ -228,14 +229,58 @@ func (a *ABTestcase) testQueries(ctx context.Context, t *testing.T) {
 
 	sort.Strings(cols)
 
-	if len(mismatches) > 0 {
-		for n, m := range mismatches {
-			fmt.Printf("Mismatch: %d\n", n+1)
-			for _, name := range cols {
-				fmt.Printf("   %s=%v\n", name, m[name])
-			}
-		}
+	return mismatches, cols
+}
 
-		t.Fatalf("Found %d mismatches", len(mismatches))
+func (a *ABTestcase) testQueries(ctx context.Context, t *testing.T) {
+
+	_, _ = a.RequestToElasticsearch(ctx, "GET", "/test_index/_refresh", nil)
+
+	files, err := queries.ReadDir("queries")
+	if err != nil {
+		t.Fatalf("Failed to read queries: %s", err)
+	}
+
+	skip := map[string]bool{}
+
+	// here we skip some queries that are known to fail
+	// TODO fix them
+	//
+	skip["01.json"] = true // empty query, quesma returns their internal fields (attributes), quesma returns "fields" list
+	skip["04.json"] = true // date_histogram aggregation is used here, quesma output differs from ES
+	skip["06.json"] = true // it contains histogram aggregation, quesma returns different results than ES
+
+	for _, file := range files {
+		t.Run(file.Name(), func(t *testing.T) {
+			_, _ = a.ExecuteClickHouseStatement(ctx, "delete from ab_testing_logs where true")
+
+			if skip[file.Name()] {
+				fmt.Println("Skipping", file.Name())
+				return
+			}
+
+			query, err := queries.ReadFile("queries/" + file.Name())
+			if err != nil {
+				t.Fatalf("Failed to read file: %s", err)
+			}
+
+			resp, _ := a.RequestToQuesma(ctx, t, "POST", "/test_index/_search", query)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+			a.waitForAbResults(ctx, t)
+
+			mismatches, cols := a.readABResults(ctx, t)
+
+			if len(mismatches) > 0 {
+				for n, m := range mismatches {
+					fmt.Printf("Mismatch: %d\n", n+1)
+					for _, name := range cols {
+						fmt.Printf("   %s=%v\n", name, m[name])
+					}
+				}
+
+				t.Fatalf("Found %d mismatches", len(mismatches))
+			}
+		})
 	}
 }

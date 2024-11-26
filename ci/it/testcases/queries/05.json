@@ -7,7 +7,7 @@
       "aggs": {
         "1": {
           "terms": {
-            "field": "http_user_agent",
+            "field": "http_user_agent.keyword",
             "order": {
               "_count": "desc"
             },

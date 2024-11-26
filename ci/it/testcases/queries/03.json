@@ -5,7 +5,7 @@
   "aggs": {
     "0": {
       "terms": {
-        "field": "remote_addr",
+        "field": "remote_addr.keyword",
         "order": {
           "_count": "desc"
         },
