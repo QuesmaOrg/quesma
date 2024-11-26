@@ -402,12 +402,6 @@ func (a *agent) CollectClickHouse(ctx context.Context) (stats ClickHouseStats) {
 		return stats
 	}
 
-	if !strings.HasPrefix(a.config.ClickHouse.ConnectorType, "hydrolix") { // we only check table sizes for ClickHouse
-		if tables, err := a.collectClickHouseTableSizes(ctx); err == nil {
-			logger.Info().Msgf("Usage report dababase=[%s] table sizes=%v", a.getDbInfo(), tables)
-		}
-	}
-
 	stats.Status = statusOk
 
 	return stats
@@ -601,6 +595,11 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 		stats.ClickHouse = a.CollectClickHouse(ctx)
 	} else {
 		stats.ClickHouse = ClickHouseStats{Status: "paused"}
+	}
+	if !strings.HasPrefix(a.config.ClickHouse.ConnectorType, "hydrolix") { // we only check table sizes for ClickHouse
+		if tables, err := a.collectClickHouseTableSizes(ctx); err == nil {
+			logger.Info().Msgf("Usage report dababase=[%s] table sizes=%v", a.getDbInfo(), tables)
+		}
 	}
 
 	stats.IngestCounters = a.ingestCounters.AggregateAndReset()
