@@ -305,6 +305,20 @@ func (a *agent) collectClickHouseTableSizes(ctx context.Context) (map[string]int
 	return tablesWithSizes, nil
 }
 
+func (a *agent) getDbInfo() string {
+	dbUrl, dbName, dbUser := "", "default", "<no-user>"
+	if a.config.ClickHouse.User != "" {
+		dbUser = a.config.ClickHouse.User
+	}
+	if a.config.ClickHouse.Database != "" {
+		dbName = a.config.ClickHouse.Database
+	}
+	if a.config.ClickHouse.Url != nil {
+		dbUrl = a.config.ClickHouse.Url.String()
+	}
+	return fmt.Sprintf("%s@%s/%s", dbUser, dbUrl, dbName)
+}
+
 func (a *agent) getTableSizes(ctx context.Context) (map[string]int64, error) {
 	tableSizes := make(map[string]int64)
 	dbName := "default"
@@ -390,7 +404,7 @@ func (a *agent) CollectClickHouse(ctx context.Context) (stats ClickHouseStats) {
 
 	if !strings.HasPrefix(a.config.ClickHouse.ConnectorType, "hydrolix") { // we only check table sizes for ClickHouse
 		if tables, err := a.collectClickHouseTableSizes(ctx); err == nil {
-			logger.Info().Msgf("ClickHouse table sizes %v", tables)
+			logger.Info().Msgf("Usage report dababase=[%s] table sizes=%v", a.getDbInfo(), tables)
 		}
 	}
 
