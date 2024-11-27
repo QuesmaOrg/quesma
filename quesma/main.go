@@ -28,6 +28,7 @@ import (
 	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/tracing"
+	"runtime"
 	"syscall"
 	"time"
 )
@@ -41,7 +42,15 @@ const banner = `
                       \__>           \/     \/      \/     \/ 
 `
 
+const EnableConcurrencyProfiling = false
+
 func main() {
+
+	if EnableConcurrencyProfiling {
+		runtime.SetBlockProfileRate(1)
+		runtime.SetMutexProfileFraction(1)
+	}
+
 	println(banner)
 	fmt.Printf("Quesma build info: version=[%s], build hash=[%s], build date=[%s]\n",
 		buildinfo.Version, buildinfo.BuildHash, buildinfo.BuildDate)

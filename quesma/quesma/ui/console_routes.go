@@ -306,6 +306,10 @@ func (qmc *QuesmaManagementConsole) initPprof(router *mux.Router) {
 	router.HandleFunc("/debug/pprof/", pprof.Index)
 	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	router.HandleFunc("/debug/pprof/heap", pprof.Handler("heap").ServeHTTP)
+	router.HandleFunc("/debug/pprof/block", pprof.Handler("block").ServeHTTP)
+	router.HandleFunc("/debug/pprof/mutex", pprof.Handler("mutex").ServeHTTP)
+	router.HandleFunc("/debug/pprof/allocs", pprof.Handler("allocs").ServeHTTP)
 	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	router.HandleFunc("/debug/pprof/trace", pprof.Trace)
 }
