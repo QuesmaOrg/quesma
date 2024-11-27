@@ -116,7 +116,7 @@ func (a *ABTestcase) testIngest(ctx context.Context, t *testing.T) {
 
 	_, _ = a.RequestToElasticsearch(ctx, "GET", "/test_index/_refresh", nil)
 
-	// Also make sure no such index got created in Elasticsearch
+	// Also make sure the index got created in Elasticsearch
 	resp, err := a.RequestToElasticsearch(ctx, "GET", "/test_index/_count", nil)
 	if err != nil {
 		t.Fatalf("Failed to make GET request: %s", err)
