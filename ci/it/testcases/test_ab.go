@@ -245,8 +245,10 @@ func (a *ABTestcase) testQueries(ctx context.Context, t *testing.T) {
 
 	// here we skip some queries that are known to fail
 	//
-	// TODO add them to the unit tests
 	//
+	// These are the queries that are known to fail
+	//
+	// https://github.com/QuesmaOrg/quesma/issues/1044
 	skip["04.json"] = true // date_histogram aggregation is used here, quesma output differs from ES
 	skip["06.json"] = true // it contains histogram aggregation, quesma returns different results than ES
 
