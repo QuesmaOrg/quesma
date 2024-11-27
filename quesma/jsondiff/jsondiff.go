@@ -479,6 +479,35 @@ func (d *JSONDiff) compare(expected any, actual any) {
 	}
 }
 
+func (d *JSONDiff) compensateFields(keys []string, expected map[string]any, actual map[string]any) []string {
+
+	// Quesma returns the "fields" list in the response, but Elastic does not.
+	// This is not a bug. We need to compensate for this difference, and ignore the "fields" list in the comparison.
+
+	const sourceField = "_source"
+	const fieldsField = "fields"
+
+	_, expectedHasSource := expected[sourceField]
+	_, actualHasSource := actual[sourceField]
+	_, expectedHasFields := expected[fieldsField]
+	_, actualHasFields := actual[fieldsField]
+
+	if expectedHasSource && actualHasSource {
+		if expectedHasFields && !actualHasFields ||
+			!expectedHasFields && actualHasFields {
+
+			var res []string
+			for _, k := range keys {
+				if k != fieldsField {
+					res = append(res, k)
+				}
+			}
+			return res
+		}
+	}
+	return keys
+}
+
 func (d *JSONDiff) compareObject(expected map[string]any, actual map[string]any) {
 
 	expectedKeys := d.keySet(expected)
@@ -492,6 +521,9 @@ func (d *JSONDiff) compareObject(expected map[string]any, actual map[string]any)
 	}
 
 	allKeys := d.sum(expectedKeys, actualKeys)
+
+	allKeys = d.compensateFields(allKeys, expected, actual)
+
 	sort.Strings(allKeys)
 
 	for _, k := range allKeys {
