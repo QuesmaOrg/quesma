@@ -141,6 +141,12 @@ func TestJSONDiff(t *testing.T) {
 			expected: `{"a": "2024-10-31T11:00:00.000"}`,
 			actual:   `{"a": "2024-10-31T12:00:00.000+01:00"}`,
 		},
+
+		{
+			name:     "compensate for quesma `fields` emitions",
+			expected: `{"_source": {"a": 1, "b": 2, "c": 3}, "fields": {"a": 1, "b": 2, "c": 3}}`,
+			actual:   `{"_source": {"a": 1, "b": 2, "c": 3}}`,
+		},
 	}
 
 	for _, tt := range tests {

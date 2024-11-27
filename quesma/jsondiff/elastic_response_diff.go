@@ -13,7 +13,7 @@ func NewElasticResponseJSONDiff() (*JSONDiff, error) {
 	ignorePaths = append(ignorePaths, ".*Quesma_key_.*", ".*__quesma_total_count", ".*\\.__quesma_originalKey")
 
 	// well known fields that we want to ignore
-	ignorePaths = append(ignorePaths, "^id$", "^took$", ".*\\._id", "^_shards.*", ".*\\._score", ".*\\._source", ".*\\._version$")
+	ignorePaths = append(ignorePaths, "^id$", "^took$", ".*\\._id", "^_shards.*", ".*\\._score", ".*\\._source", ".*\\._version$", ".*\\.max_score$")
 
 	// elastic has some fields that are suffixed with ".keyword" that we want to ignore
 	ignorePaths = append(ignorePaths, ".*\\.keyword$")
