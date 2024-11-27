@@ -1,0 +1,64 @@
+{
+  "_source": {
+    "excludes": []
+  },
+  "aggs": {
+    "0": {
+      "aggs": {
+        "1": {
+          "terms": {
+            "field": "http_user_agent.keyword",
+            "order": {
+              "_count": "desc"
+            },
+            "shard_size": 25,
+            "size": 5
+          }
+        }
+      },
+      "filters": {
+        "filters": {
+          "*": {
+            "bool": {
+              "filter": [],
+              "must": [],
+              "must_not": [],
+              "should": []
+            }
+          }
+        }
+      }
+    }
+  },
+  "fields": [
+    {
+      "field": "@timestamp",
+      "format": "date_time"
+    }
+  ],
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "range": {
+            "@timestamp": {
+              "format": "strict_date_optional_time",
+              "gte": "2019-01-18T18:40:01.746Z",
+              "lte": "2019-01-28T06:47:54.360Z"
+            }
+          }
+        }
+      ],
+      "must": [],
+      "must_not": [],
+      "should": []
+    }
+  },
+  "runtime_mappings": {},
+  "script_fields": {},
+  "size": 0,
+  "stored_fields": [
+    "*"
+  ],
+  "track_total_hits": true
+}
