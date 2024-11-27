@@ -91,7 +91,6 @@ func (a *ABTestcase) testIngest(ctx context.Context, t *testing.T) {
 			fmt.Println("Failed POST request: ", string(body))
 			t.Fatalf("Failed to make POST request: %s", resp.Status)
 		}
-		_ = resp.Body.Close()
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	}
