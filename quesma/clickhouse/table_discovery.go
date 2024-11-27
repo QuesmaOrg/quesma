@@ -5,9 +5,9 @@ package clickhouse
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/goccy/go-json"
 	"quesma/common_table"
 	"quesma/end_user_errors"
 	"quesma/logger"

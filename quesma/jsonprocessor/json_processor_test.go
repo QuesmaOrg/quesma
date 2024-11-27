@@ -3,7 +3,7 @@
 package jsonprocessor
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"quesma/quesma/types"
 	"reflect"

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package queryparser
 
-import "encoding/json"
+import "github.com/goccy/go-json"
 
 func BadRequestParseError(err error) []byte {
 	serialized, _ := json.Marshal(DashboardErrorResponse{

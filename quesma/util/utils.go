@@ -6,9 +6,9 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
 	"github.com/k0kubun/pp"
 	"io"
@@ -914,7 +914,29 @@ func ExtractUsernameFromBasicAuthHeader(authHeader string) (string, error) {
 	return pair[0], nil
 }
 
+var patternCache = make(map[string]*regexp.Regexp)
+var patternCacheLock = sync.RWMutex{}
+
 func TableNamePatternRegexp(indexPattern string) *regexp.Regexp {
+
+	patternCacheLock.RLock()
+
+	pattern, ok := patternCache[indexPattern]
+	if ok {
+		patternCacheLock.RUnlock()
+		return pattern
+	}
+
+	patternCacheLock.RUnlock()
+	patternCacheLock.Lock()
+	defer patternCacheLock.Unlock()
+
+	// Clear cache if it's too big
+	const maxPatternCacheSize = 1000
+	if len(patternCache) > maxPatternCacheSize {
+		patternCache = make(map[string]*regexp.Regexp)
+	}
+
 	var builder strings.Builder
 
 	for _, char := range indexPattern {
@@ -929,5 +951,7 @@ func TableNamePatternRegexp(indexPattern string) *regexp.Regexp {
 		}
 	}
 
-	return regexp.MustCompile(fmt.Sprintf("^%s$", builder.String()))
+	result := regexp.MustCompile(fmt.Sprintf("^%s$", builder.String()))
+	patternCache[indexPattern] = result
+	return result
 }

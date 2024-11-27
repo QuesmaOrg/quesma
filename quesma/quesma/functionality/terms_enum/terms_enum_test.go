@@ -5,9 +5,9 @@ package terms_enum
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/logger"

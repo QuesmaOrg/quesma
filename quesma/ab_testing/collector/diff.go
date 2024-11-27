@@ -4,8 +4,8 @@ package collector
 
 import (
 	"crypto/sha1"
-	"encoding/json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"quesma/jsondiff"
 	"quesma/quesma/types"
 )
