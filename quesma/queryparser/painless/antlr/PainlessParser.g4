@@ -41,8 +41,9 @@ statement
 // Note we use a predicate on the if/else case here to prevent the
 // "dangling-else" ambiguity by forcing the 'else' token to be consumed
 // as soon as one is found.  See (https://en.wikipedia.org/wiki/Dangling_else).
+// NOTE(2024-11-29, Jacek): Removed that as this is Java specifc and doesn't compile in Go lang.
 rstatement
-    : IF LP expression RP trailer ( ELSE trailer | { _input.LA(1) != ELSE }? )                 # if
+    : IF LP expression RP trailer ( ELSE trailer )                                             # if
     | WHILE LP expression RP ( trailer | empty )                                               # while
     | FOR LP initializer? SEMICOLON expression? SEMICOLON afterthought? RP ( trailer | empty ) # for
     | FOR LP decltype ID COLON expression RP trailer                                           # each
