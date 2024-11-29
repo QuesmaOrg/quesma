@@ -31,7 +31,7 @@ import (
 	"time"
 )
 
-func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) *mux.PathRouter {
+func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, ip *ingest.IngestProcessor, phoneHomeAgent telemetry.PhoneHomeAgent, tableResolver table_resolver.TableResolver) *mux.PathRouter {
 	// some syntactic sugar
 	method := mux.IsHTTPMethod
 	and := mux.And
@@ -89,7 +89,7 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 	return router
 }
 
-func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) *mux.PathRouter {
+func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) *mux.PathRouter {
 
 	// some syntactic sugar
 	method := mux.IsHTTPMethod

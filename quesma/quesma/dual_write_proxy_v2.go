@@ -92,8 +92,8 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 	// tests should not be run with optimization enabled by default
 	queryRunner.EnableQueryOptimization(config)
 
-	ingestRouter := ConfigureIngestRouterV2(config, registry, logManager, processor, quesmaManagementConsole, agent, queryRunner, resolver)
-	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, processor, quesmaManagementConsole, agent, queryRunner, resolver)
+	ingestRouter := ConfigureIngestRouterV2(config, processor, agent, resolver)
+	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, quesmaManagementConsole, queryRunner, resolver)
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
