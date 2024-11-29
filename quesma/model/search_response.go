@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package model
 
-import "encoding/json"
+import "github.com/goccy/go-json"
 
 type JsonMap = map[string]interface{}
 

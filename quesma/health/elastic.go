@@ -3,8 +3,9 @@
 package health
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
+	"github.com/goccy/go-json"
 	"io"
 	"net/http"
 	"quesma/elasticsearch"
@@ -14,26 +15,21 @@ import (
 )
 
 type ElasticHealthChecker struct {
-	cfg        *config.QuesmaConfiguration
-	httpClient *http.Client
+	cfg    *config.QuesmaConfiguration
+	client *elasticsearch.SimpleClient
 }
 
 func NewElasticHealthChecker(cfg *config.QuesmaConfiguration) Checker {
-	return &ElasticHealthChecker{cfg: cfg, httpClient: &http.Client{}}
+	return &ElasticHealthChecker{cfg: cfg, client: elasticsearch.NewSimpleClient(&cfg.Elasticsearch)}
 }
 
 func (c *ElasticHealthChecker) checkIfElasticsearchDiskIsFull() (isFull bool, reason string) {
-	const catAllocationPath = "/_cat/allocation?format=json"
+	const catAllocationPath = "_cat/allocation?format=json"
 	const maxDiskPercent = 90
 
-	req, err := http.NewRequest(http.MethodGet, c.cfg.Elasticsearch.Url.String()+catAllocationPath, nil)
+	resp, err := c.client.Request(context.Background(), http.MethodGet, catAllocationPath, nil)
 	if err != nil {
-		logger.Error().Err(err).Msgf("Can't create '%s' request", catAllocationPath)
-	}
-	req = elasticsearch.AddBasicAuthIfNeeded(req, c.cfg.Elasticsearch.User, c.cfg.Elasticsearch.Password)
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return
+		logger.Error().Err(err).Msgf("Failed calling %s", catAllocationPath)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
@@ -67,16 +63,10 @@ func (c *ElasticHealthChecker) checkIfElasticsearchDiskIsFull() (isFull bool, re
 }
 
 func (c *ElasticHealthChecker) CheckHealth() Status {
-	const elasticsearchHealthPath = "/_cluster/health/*"
-
-	req, err := http.NewRequest(http.MethodGet, c.cfg.Elasticsearch.Url.String()+elasticsearchHealthPath, nil)
+	const elasticsearchHealthPath = "_cluster/health/*"
+	resp, err := c.client.Request(context.Background(), http.MethodGet, elasticsearchHealthPath, nil)
 	if err != nil {
-		return NewStatus("red", fmt.Sprintf("Can't create '%s' request", elasticsearchHealthPath), err.Error())
-	}
-	req = elasticsearch.AddBasicAuthIfNeeded(req, c.cfg.Elasticsearch.User, c.cfg.Elasticsearch.Password)
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return NewStatus("red", "Ping failed", err.Error())
+		return NewStatus("red", fmt.Sprintf("Failed calling %s", elasticsearchHealthPath), err.Error())
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
