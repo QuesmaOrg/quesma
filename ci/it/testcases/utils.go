@@ -11,6 +11,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,7 +68,8 @@ func setupElasticsearch(ctx context.Context) (testcontainers.Container, error) {
 		HostAccessPorts: []int{9200, 9300},
 		WaitingFor: wait.ForHTTP("/").WithPort("9200").
 			WithBasicAuth("elastic", "quesmaquesma").
-			WithStartupTimeout(2 * time.Minute),
+			WithStartupTimeout(2 * time.Minute).
+			WithStatusCodeMatcher(func(status int) bool { return status == http.StatusOK }),
 	}
 	elasticsearch, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
@@ -105,7 +107,8 @@ func setupQuesma(ctx context.Context, quesmaConfig string) (testcontainers.Conta
 		},
 		WaitingFor: wait.ForHTTP("/").WithPort("8080").
 			WithBasicAuth("elastic", "quesmaquesma").
-			WithStartupTimeout(2 * time.Minute),
+			WithStartupTimeout(2 * time.Minute).
+			WithStatusCodeMatcher(func(status int) bool { return status == http.StatusOK }),
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.ExtraHosts = []string{"localhost-for-github-ci:host-gateway"}
 		},
