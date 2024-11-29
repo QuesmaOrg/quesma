@@ -2,7 +2,7 @@ module quesma
 
 go 1.23.2
 
-replace quesma_v2 => ../v2
+replace quesma_v2 => ./v2
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.30.0
