@@ -6,12 +6,14 @@ package v2
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"net/http"
 	"os"
 	"os/signal"
 	"quesma_v2/backend_connectors"
 	quesma_api "quesma_v2/core"
 	"quesma_v2/frontend_connectors"
 	"quesma_v2/processors"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -43,6 +45,15 @@ func Test_backendConnectorValidation(t *testing.T) {
 	quesmaBuilder.AddPipeline(postgressPipeline)
 	_, err := quesmaBuilder.Build()
 	assert.NoError(t, err)
+}
+
+var fallbackCalled int32 = 0
+
+func fallback(request *http.Request) (map[string]interface{}, any, error) {
+	metadata := quesma_api.MakeNewMetadata()
+	atomic.AddInt32(&fallbackCalled, 1)
+	resp := []byte("unknown\n")
+	return metadata, resp, nil
 }
 
 func ab_testing_scenario() quesma_api.QuesmaBuilder {
@@ -86,6 +97,33 @@ func ab_testing_scenario() quesma_api.QuesmaBuilder {
 
 	quesma, _ := quesmaBuilder.Build()
 	return quesma
+}
+
+func fallbackScenario() quesma_api.QuesmaBuilder {
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+
+	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
+	ingestHTTPRouter := frontend_connectors.NewHTTPRouter()
+	var fallback quesma_api.HTTPFrontendHandler = fallback
+	ingestHTTPRouter.AddFallbackHandler(fallback)
+	ingestFrontendConnector.AddRouter(ingestHTTPRouter)
+	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
+	quesmaBuilder.AddPipeline(ingestPipeline)
+	quesma, _ := quesmaBuilder.Build()
+	quesma.Start()
+	return quesma
+}
+
+func Test_fallbackScenario(t *testing.T) {
+	q1 := fallbackScenario()
+	q1.Start()
+	stop := make(chan os.Signal, 1)
+	emitRequests(stop)
+	<-stop
+	q1.Stop(context.Background())
+	atomic.LoadInt32(&fallbackCalled)
+	assert.Equal(t, int32(4), fallbackCalled)
 }
 
 func Test_scenario1(t *testing.T) {

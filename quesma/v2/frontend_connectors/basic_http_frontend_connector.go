@@ -14,9 +14,10 @@ import (
 )
 
 type HTTPRouter struct {
-	mux      *http.ServeMux                     // Default HTTP multiplexer
-	handlers map[string]quesma_api.HandlersPipe // Map to store custom route handlers
-	mutex    sync.RWMutex                       // Mutex for concurrent access to handlers
+	mux             *http.ServeMux                     // Default HTTP multiplexer
+	handlers        map[string]quesma_api.HandlersPipe // Map to store custom route handlers
+	fallbackHandler quesma_api.HTTPFrontendHandler
+	mutex           sync.RWMutex // Mutex for concurrent access to handlers
 }
 
 func NewHTTPRouter() *HTTPRouter {
@@ -34,6 +35,18 @@ func (router *HTTPRouter) AddRoute(path string, handler quesma_api.HTTPFrontendH
 	fmt.Printf("Added route: %s\n", path)
 }
 
+func (router *HTTPRouter) AddFallbackHandler(handler quesma_api.HTTPFrontendHandler) {
+	router.mutex.Lock()
+	defer router.mutex.Unlock()
+	router.fallbackHandler = handler
+}
+
+func (router *HTTPRouter) GetFallbackHandler() quesma_api.HTTPFrontendHandler {
+	router.mutex.RLock()
+	defer router.mutex.RUnlock()
+	return router.fallbackHandler
+}
+
 func (router *HTTPRouter) Clone() quesma_api.Cloner {
 	newRouter := NewHTTPRouter()
 	router.mutex.Lock()
@@ -41,6 +54,7 @@ func (router *HTTPRouter) Clone() quesma_api.Cloner {
 	for path, handler := range router.handlers {
 		newRouter.handlers[path] = handler
 	}
+	newRouter.fallbackHandler = router.fallbackHandler
 	return newRouter
 }
 
@@ -97,11 +111,21 @@ func (h *BasicHTTPFrontendConnector) GetRouter() quesma_api.Router {
 
 func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	handlerWrapper, exists := h.router.GetHandlers()[req.URL.Path]
+	dispatcher := &quesma_api.Dispatcher{}
 	if !exists {
-		h.router.Multiplexer().ServeHTTP(w, req)
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if h.router.GetFallbackHandler() != nil {
+				fmt.Printf("No handler found for path: %s\n", req.URL.Path)
+				handler := h.router.GetFallbackHandler()
+				_, message, _ := handler(req)
+				_, err := w.Write(message.([]byte))
+				if err != nil {
+					fmt.Printf("Error writing response: %s\n", err)
+				}
+			}
+		}).ServeHTTP(w, req)
 		return
 	}
-	dispatcher := &quesma_api.Dispatcher{}
 	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		metadata, message, _ := handlerWrapper.Handler(req)
 
