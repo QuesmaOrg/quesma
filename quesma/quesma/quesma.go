@@ -60,15 +60,28 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent,
 	indexManager elasticsearch.IndexManagement,
 	schemaRegistry schema.Registry, config *config.QuesmaConfiguration,
 	quesmaManagementConsole *ui.QuesmaManagementConsole,
-	abResultsRepository ab_testing.Sender, resolver table_resolver.TableResolver) *Quesma {
+	abResultsRepository ab_testing.Sender, resolver table_resolver.TableResolver,
+	v2 bool) *Quesma {
 
-	return &Quesma{
-		telemetryAgent: phoneHomeAgent,
-		processor: newDualWriteProxy(schemaLoader, logManager, indexManager,
-			schemaRegistry, config, quesmaManagementConsole, phoneHomeAgent,
-			ingestProcessor, resolver, abResultsRepository),
-		publicTcpPort:           config.PublicTcpPort,
-		quesmaManagementConsole: quesmaManagementConsole,
-		config:                  config,
+	if v2 {
+		return &Quesma{
+			telemetryAgent: phoneHomeAgent,
+			processor: newDualWriteProxyV2(schemaLoader, logManager, indexManager,
+				schemaRegistry, config, quesmaManagementConsole, phoneHomeAgent,
+				ingestProcessor, resolver, abResultsRepository),
+			publicTcpPort:           config.PublicTcpPort,
+			quesmaManagementConsole: quesmaManagementConsole,
+			config:                  config,
+		}
+	} else {
+		return &Quesma{
+			telemetryAgent: phoneHomeAgent,
+			processor: newDualWriteProxy(schemaLoader, logManager, indexManager,
+				schemaRegistry, config, quesmaManagementConsole, phoneHomeAgent,
+				ingestProcessor, resolver, abResultsRepository),
+			publicTcpPort:           config.PublicTcpPort,
+			quesmaManagementConsole: quesmaManagementConsole,
+			config:                  config,
+		}
 	}
 }
