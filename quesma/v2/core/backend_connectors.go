@@ -10,6 +10,7 @@ const (
 	NoopBackend = iota
 	MySQLBackend
 	PgSQLBackend
+	ClickHouseSQLBackend
 )
 
 func GetBackendConnectorNameFromType(connectorType BackendConnectorType) string {
@@ -18,6 +19,8 @@ func GetBackendConnectorNameFromType(connectorType BackendConnectorType) string 
 		return "mysql"
 	case PgSQLBackend:
 		return "pgsql"
+	case ClickHouseSQLBackend:
+		return "clickhouse"
 	default:
 		return "noop"
 	}

@@ -23,12 +23,12 @@ func (u *Unknown) String() string {
 }
 
 type RequestBody interface {
-	isParsedRequestBody() // this is a marker method
+	//isParsedRequestBody() // this is a marker method
 }
 
-func (j JSON) isParsedRequestBody()     {}
-func (n NDJSON) isParsedRequestBody()   {}
-func (u *Unknown) isParsedRequestBody() {}
+//func (j JSON) isParsedRequestBody()     {}
+//func (n NDJSON) isParsedRequestBody()   {}
+//func (u *Unknown) isParsedRequestBody() {}
 
 func ParseRequestBody(body string) RequestBody {
 

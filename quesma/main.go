@@ -16,10 +16,12 @@ import (
 	"quesma/connectors"
 	"quesma/elasticsearch"
 	"quesma/feature"
+	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/licensing"
 	"quesma/logger"
 	"quesma/persistence"
+	"quesma/processors"
 	"quesma/quesma"
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
@@ -28,8 +30,8 @@ import (
 	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/tracing"
+	"quesma_v2/backend_connectors"
 	"quesma_v2/core"
-	"quesma_v2/frontend_connectors"
 	"runtime"
 	"syscall"
 	"time"
@@ -49,13 +51,34 @@ const EnableConcurrencyProfiling = false
 // buildIngestOnlyQuesma is for now a helper function to help establishing the way of v2 module api import
 func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
-	_ = frontend_connectors.NewBasicHTTPFrontendConnector(":8080")
-	_ = frontend_connectors.NewHTTPRouter()
-	quesmaInstance, _ := quesmaBuilder.Build()
+	ingestFrontendConnector := frontend_connectors.NewElasticsearchIngestFrontendConnector(":8080")
+
+	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
+
+	ingestProcessor := processors.NewElasticsearchToClickHouseIngestProcessor()
+	ingestPipeline.AddProcessor(ingestProcessor)
+	quesmaBuilder.AddPipeline(ingestPipeline)
+
+	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector("clickhouse://localhost:9000")
+	ingestPipeline.AddBackendConnector(clickHouseBackendConnector)
+
+	quesmaInstance, err := quesmaBuilder.Build()
+	if err != nil {
+		log.Fatalf("error building quesma instance: %v", err)
+	}
 	return quesmaInstance
 }
 
 func main() {
+	q1 := buildIngestOnlyQuesma()
+	q1.Start()
+	stop := make(chan os.Signal, 1)
+	<-stop
+	q1.Stop(context.Background())
+}
+
+func main2() {
 	if EnableConcurrencyProfiling {
 		runtime.SetBlockProfileRate(1)
 		runtime.SetMutexProfileFraction(1)

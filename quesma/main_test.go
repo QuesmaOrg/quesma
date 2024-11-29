@@ -3,9 +3,24 @@
 
 package main
 
-import "testing"
+import (
+	"context"
+	"testing"
+	"time"
+)
 
-// just to make sure that the buildIngestOnlyQuesma is used
+// TestMain - just to make sure that the new func is used, this test will be removed
 func TestMain(m *testing.M) {
-	_ = buildIngestOnlyQuesma()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		main2()
+		close(done)
+	}()
+
+	select {
+	case <-ctx.Done():
+	case <-done:
+	}
 }

@@ -96,7 +96,7 @@ func (h *BasicHTTPFrontendConnector) GetRouter() quesma_api.Router {
 }
 
 func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	handlerWrapper, exists := h.router.GetHandlers()[req.URL.Path]
+	handlerWrapper, exists := h.router.GetHandlers()[req.URL.Path] // consider adding basic path pattern e.g. `:index/_bulk` support instead of exact match
 	if !exists {
 		h.router.Multiplexer().ServeHTTP(w, req)
 		return
