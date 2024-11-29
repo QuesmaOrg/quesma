@@ -4,6 +4,7 @@ package painless
 
 import (
 	"errors"
+	"fmt"
 	"github.com/antlr4-go/antlr/v4"
 	"quesma/logger"
 	"quesma/model"
@@ -20,7 +21,7 @@ func ParsePainlessScriptToExpr(s string) model.Expr {
 	return model.NewLiteral("NULL")
 }
 
-func NewParsePainlessScriptToExpr(s string) (model.Expr, error) {
+func ParsePainlessV2ScriptToExpr(s string) (model.Expr, error) {
 	ast, err := parse(s)
 
 	if err != nil { // pass NULL if we can't parse it
@@ -30,16 +31,20 @@ func NewParsePainlessScriptToExpr(s string) (model.Expr, error) {
 
 	visitor := NewPainlessTransformer()
 
-	resultExpr := ast.Accept(visitor).(model.Expr)
+	result := ast.Accept(visitor)
 
 	if len(visitor.Errors) > 0 {
 		return model.NewLiteral("NULL"), errors.Join(visitor.Errors...)
 	}
 
-	return resultExpr, nil
+	if resultExpr, ok := result.(model.Expr); ok {
+		return resultExpr, nil
+	} else {
+		return model.NewLiteral("NULL"), fmt.Errorf("unexpected result type '%v'", result)
+	}
 }
 
-func parse(painlessScript string) (painless_antlr.IDeclarationContext, error) {
+func parse(painlessScript string) (painless_antlr.IStatementContext, error) {
 
 	errorListener := &PainlessErrorListener{}
 
@@ -53,7 +58,10 @@ func parse(painlessScript string) (painless_antlr.IDeclarationContext, error) {
 	parser.RemoveErrorListeners()
 	parser.AddErrorListener(errorListener)
 
-	ast := parser.Declaration()
+	ast := parser.Statement()
+
+	fmt.Println("JM", ast.ToStringTree(nil, parser))
+
 	if len(errorListener.Errors) > 0 {
 		return nil, errors.Join(errorListener.Errors...)
 	}
