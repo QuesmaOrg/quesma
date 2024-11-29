@@ -49,6 +49,18 @@ type (
 	}
 )
 
+func (q *Quesma) Close(ctx context.Context) {
+	q.processor.Stop(ctx)
+}
+
+func (q *Quesma) Start() {
+	defer recovery.LogPanic()
+	logger.Info().Msgf("starting quesma, transparent proxy mode: %t", q.config.TransparentProxy)
+
+	go q.processor.Ingest()
+	go q.quesmaManagementConsole.Run()
+}
+
 func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
@@ -437,18 +449,6 @@ func copyHeaders(w http.ResponseWriter, elkResponse *http.Response) {
 			}
 		}
 	}
-}
-
-func (q *Quesma) Close(ctx context.Context) {
-	q.processor.Stop(ctx)
-}
-
-func (q *Quesma) Start() {
-	defer recovery.LogPanic()
-	logger.Info().Msgf("starting quesma, transparent proxy mode: %t", q.config.TransparentProxy)
-
-	go q.processor.Ingest()
-	go q.quesmaManagementConsole.Run()
 }
 
 func (r *router) sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) (*http.Response, error) {
