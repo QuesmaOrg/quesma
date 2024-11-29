@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Elastic-2.0
 package painless
 
-import "quesma/model"
+import (
+	"github.com/antlr4-go/antlr/v4"
+	"quesma/model"
+	painless_antlr "quesma/queryparser/painless/antlr"
+)
 
 func ParsePainlessScriptToExpr(s string) model.Expr {
 
@@ -13,4 +17,16 @@ func ParsePainlessScriptToExpr(s string) model.Expr {
 
 	// harmless default
 	return model.NewLiteral("NULL")
+}
+
+func parse(painlessScript string) (painless_antlr.IExpressionContext, error) {
+
+	input := antlr.NewInputStream(painlessScript)
+	lexer := painless_antlr.NewPainlessLexer(input)
+	stream := antlr.NewCommonTokenStream(lexer, 0)
+
+	parser := painless_antlr.NewPainlessParser(stream)
+	ast := parser.Expression()
+
+	return ast, nil
 }

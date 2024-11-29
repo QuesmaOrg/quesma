@@ -14,6 +14,7 @@
 # clean up
 rm -f quesma/queryparser/painless/antlr/*.go
 rm -f quesma/queryparser/painless/antlr/*.interp
-rm -f quesma/eql/parser/PainlessParser.tokens
+rm -f quesma/eql/parser/*.tokens
 
-antlr -Dlanguage=Go -visitor -listener -package parser quesma/queryparser/painless/antlr/PainlessParser.g4
+antlr -Dlanguage=Go -visitor -listener -package lexer quesma/queryparser/painless/antlr/PainlessLexer.g4 \
+  -package parser quesma/queryparser/painless/antlr/PainlessParser.g4
