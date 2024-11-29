@@ -97,22 +97,19 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config *config.Q
 	}
 }
 
-func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, ingestProcessor *ingest.IngestProcessor, schemaLoader clickhouse.TableDiscovery,
-	indexManager elasticsearch.IndexManagement, schemaRegistry schema.Registry, config *config.QuesmaConfiguration,
-	quesmaManagementConsole *ui.QuesmaManagementConsole, abResultsRepository ab_testing.Sender, resolver table_resolver.TableResolver) *Quesma {
-	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, schemaRegistry, abResultsRepository, resolver)
-
-	// not sure how we should configure our query translator ???
-	// is this a config option??
-
-	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
-
-	// tests should not be run with optimization enabled by default
-	queryRunner.EnableQueryOptimization(config)
+func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent,
+	logManager *clickhouse.LogManager, ingestProcessor *ingest.IngestProcessor,
+	schemaLoader clickhouse.TableDiscovery,
+	indexManager elasticsearch.IndexManagement,
+	schemaRegistry schema.Registry, config *config.QuesmaConfiguration,
+	quesmaManagementConsole *ui.QuesmaManagementConsole,
+	abResultsRepository ab_testing.Sender, resolver table_resolver.TableResolver) *Quesma {
 
 	return &Quesma{
-		telemetryAgent:          phoneHomeAgent,
-		processor:               newDualWriteProxy(schemaLoader, logManager, indexManager, schemaRegistry, config, quesmaManagementConsole, phoneHomeAgent, queryRunner, ingestProcessor, resolver),
+		telemetryAgent: phoneHomeAgent,
+		processor: newDualWriteProxy(schemaLoader, logManager, indexManager,
+			schemaRegistry, config, quesmaManagementConsole, phoneHomeAgent,
+			ingestProcessor, resolver, abResultsRepository),
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,

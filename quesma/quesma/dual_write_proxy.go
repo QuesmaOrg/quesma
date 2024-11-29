@@ -7,10 +7,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"net/http"
+	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/ingest"
 	"quesma/logger"
+	"quesma/queryparser"
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
@@ -71,7 +73,16 @@ func (q *dualWriteHttpProxy) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, processor *ingest.IngestProcessor, resolver table_resolver.TableResolver) *dualWriteHttpProxy {
+func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, processor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxy {
+	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, registry, abResultsRepository, resolver)
+	// not sure how we should configure our query translator ???
+	// is this a config option??
+
+	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
+
+	// tests should not be run with optimization enabled by default
+	queryRunner.EnableQueryOptimization(config)
+
 	pathRouter := ConfigureRouter(config, registry, logManager, processor, quesmaManagementConsole, agent, queryRunner, resolver)
 
 	tr := &http.Transport{
