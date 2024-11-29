@@ -31,8 +31,7 @@ import (
 	"time"
 )
 
-func ConfigureRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) *mux.PathRouter {
-
+func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) *mux.PathRouter {
 	// some syntactic sugar
 	method := mux.IsHTTPMethod
 	and := mux.And
@@ -44,21 +43,6 @@ func ConfigureRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *
 	for _, path := range elasticsearch.InternalPaths {
 		router.Register(path, mux.Never(), func(ctx context.Context, req *mux.Request) (*mux.Result, error) { return nil, nil })
 	}
-
-	// These are the endpoints that are supported by Quesma
-
-	// Warning:
-	// The first handler that matches the path will be considered to use.
-	// If the predicate returns false it will be redirected to the elastic cluster.
-	// If the predicate returns true, the handler will be used.
-	//
-	// So, if you add multiple handlers with the same path, the first one will be used, the rest will be redirected to the elastic cluster.
-	// This is current limitation of the router.
-
-	router.Register(routes.ClusterHealthPath, method("GET"), func(_ context.Context, req *mux.Request) (*mux.Result, error) {
-		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, http.StatusOK), nil
-	})
-
 	router.Register(routes.BulkPath, and(method("POST", "PUT"), matchedAgainstBulkBody(cfg, tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
 		body, err := types.ExpectNDJSON(req.ParsedBody)
@@ -69,11 +53,6 @@ func ConfigureRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *
 		results, err := bulk.Write(ctx, nil, body, ip, cfg, phoneHomeAgent, tableResolver)
 		return bulkInsertResult(ctx, results, err)
 	})
-
-	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExactQueryPath(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-		return elasticsearchInsertResult(`{"_shards":{"total":1,"successful":1,"failed":0}}`, http.StatusOK), nil
-	})
-
 	router.Register(routes.IndexDocPath, and(method("POST"), matchedExactIngestPath(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
 
@@ -106,6 +85,40 @@ func ConfigureRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *
 
 		results, err := bulk.Write(ctx, &index, body, ip, cfg, phoneHomeAgent, tableResolver)
 		return bulkInsertResult(ctx, results, err)
+	})
+	return router
+}
+
+func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) *mux.PathRouter {
+
+	// some syntactic sugar
+	method := mux.IsHTTPMethod
+	and := mux.And
+
+	router := mux.NewPathRouter()
+
+	// These are the endpoints that are not supported by Quesma
+	// These will redirect to the elastic cluster.
+	for _, path := range elasticsearch.InternalPaths {
+		router.Register(path, mux.Never(), func(ctx context.Context, req *mux.Request) (*mux.Result, error) { return nil, nil })
+	}
+
+	// These are the endpoints that are supported by Quesma
+
+	// Warning:
+	// The first handler that matches the path will be considered to use.
+	// If the predicate returns false it will be redirected to the elastic cluster.
+	// If the predicate returns true, the handler will be used.
+	//
+	// So, if you add multiple handlers with the same path, the first one will be used, the rest will be redirected to the elastic cluster.
+	// This is current limitation of the router.
+
+	router.Register(routes.ClusterHealthPath, method("GET"), func(_ context.Context, req *mux.Request) (*mux.Result, error) {
+		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, http.StatusOK), nil
+	})
+
+	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExactQueryPath(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		return elasticsearchInsertResult(`{"_shards":{"total":1,"successful":1,"failed":0}}`, http.StatusOK), nil
 	})
 
 	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {

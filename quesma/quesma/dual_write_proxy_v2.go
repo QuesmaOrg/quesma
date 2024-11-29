@@ -69,7 +69,6 @@ func (c *simultaneousClientsLimiterV2) ServeHTTP(w http.ResponseWriter, r *http.
 
 type dualWriteHttpProxyV2 struct {
 	routingHttpServer   *http.Server
-	elasticRouter       *mux.PathRouter
 	indexManagement     elasticsearch.IndexManagement
 	logManager          *clickhouse.LogManager
 	publicPort          util.Port
@@ -93,7 +92,8 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 	// tests should not be run with optimization enabled by default
 	queryRunner.EnableQueryOptimization(config)
 
-	pathRouter := ConfigureRouterV2(config, registry, logManager, processor, quesmaManagementConsole, agent, queryRunner, resolver)
+	ingestRouter := ConfigureIngestRouterV2(config, registry, logManager, processor, quesmaManagementConsole, agent, queryRunner, resolver)
+	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, processor, quesmaManagementConsole, agent, queryRunner, resolver)
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -121,7 +121,7 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 		ua := req.Header.Get("User-Agent")
 		agent.UserAgentCounters().Add(ua, 1)
 
-		routerInstance.reroute(req.Context(), w, req, reqBody, pathRouter, logManager)
+		routerInstance.reroute(req.Context(), w, req, reqBody, searchRouter, ingestRouter, logManager)
 	})
 	var limitedHandler http.Handler
 	if config.DisableAuth {
@@ -131,7 +131,6 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 	}
 
 	return &dualWriteHttpProxyV2{
-		elasticRouter:  pathRouter,
 		schemaRegistry: registry,
 		schemaLoader:   schemaLoader,
 		routingHttpServer: &http.Server{
@@ -287,7 +286,7 @@ func (*routerV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter,
 
 }
 
-func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, pathRouter *mux.PathRouter, logManager *clickhouse.LogManager) {
+func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, pathRouter *mux.PathRouter, ingestRouter *mux.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
@@ -307,8 +306,19 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
+	var handler mux.Handler
+	var decision *table_resolver.Decision
 
-	handler, decision := pathRouter.Matches(quesmaRequest)
+	searchHandler, searchDecision := pathRouter.Matches(quesmaRequest)
+	ingestHandler, ingestDecision := ingestRouter.Matches(quesmaRequest)
+
+	if searchHandler == nil {
+		handler = ingestHandler
+		decision = ingestDecision
+	} else {
+		handler = searchHandler
+		decision = searchDecision
+	}
 
 	if decision != nil {
 		w.Header().Set(quesmaTableResolverHeader, decision.String())
