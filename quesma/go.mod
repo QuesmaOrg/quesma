@@ -2,7 +2,6 @@ module quesma
 
 go 1.23.2
 
-//replace github.com/przemyslaw/quesma_api => ../v2
 replace quesma_v2 => ../v2
 
 require (
