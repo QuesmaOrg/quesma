@@ -382,7 +382,7 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 				{"new_field": "bar"},
 			},
 			expectedStatements: []string{
-				`CREATE TABLE IF NOT EXISTS "test_index" ( "@timestamp" DateTime64(3) DEFAULT now64(), "attributes_values" Map(String,String), "attributes_metadata" Map(String,String), "new_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=new_field', "schema_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=schema_field', ) ENGINE = MergeTree ORDER BY ("@timestamp") COMMENT 'created by Quesma'`,
+				`CREATE TABLE IF NOT EXISTS "test_index" ( "@timestamp" DateTime64(3) DEFAULT now64(), "attributes_values" Map(String,String), "attributes_metadata" Map(String,String), "new_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=new_field', "nested_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=nested.field', ) ENGINE = MergeTree ORDER BY ("@timestamp") COMMENT 'created by Quesma'`,
 				`INSERT INTO "test_index" FORMAT JSONEachRow {"new_field":"bar"}`,
 			},
 		},
@@ -402,9 +402,9 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			indexSchema := schema.Schema{
 				ExistsInDataSource: false,
 				Fields: map[schema.FieldName]schema.Field{
-					"schema_field": {
-						PropertyName:         "schema_field",
-						InternalPropertyName: "schema_field",
+					"nested.field": {
+						PropertyName:         "nested.field",
+						InternalPropertyName: "nested_field",
 						InternalPropertyType: "String",
 						Type:                 schema.QuesmaTypeKeyword},
 				},
@@ -431,7 +431,7 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			resolver.Decisions["test_index"] = decision
 
 			schemaRegistry.FieldEncodings = make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
-			schemaRegistry.FieldEncodings[schema.FieldEncodingKey{TableName: indexName, FieldName: "schema_field"}] = "schema_field"
+			schemaRegistry.FieldEncodings[schema.FieldEncodingKey{TableName: indexName, FieldName: "nested.field"}] = "nested_field"
 
 			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db

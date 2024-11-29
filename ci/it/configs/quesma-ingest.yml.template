@@ -92,6 +92,9 @@ processors:
         nested_test:
           target:
             - my-clickhouse-instance
+        encodings_test:
+          target:
+            - my-clickhouse-instance
         "*":
           target:
             - my-minimal-elasticsearch
@@ -165,6 +168,9 @@ processors:
               "nested2.ignored_field6":
                 ignored: true
         nested_test:
+          target:
+            - my-clickhouse-instance
+        encodings_test:
           target:
             - my-clickhouse-instance
         "*":
