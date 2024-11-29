@@ -56,8 +56,6 @@ func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 }
 
 func main() {
-	_ = buildIngestOnlyQuesma() // just to make sure that the function is used
-
 	if EnableConcurrencyProfiling {
 		runtime.SetBlockProfileRate(1)
 		runtime.SetMutexProfileFraction(1)
