@@ -21,7 +21,8 @@ lexer grammar PainlessLexer;
 
 @members {
 /** Is the preceding {@code /} a the beginning of a regex (true) or a division (false). */
-protected abstract boolean isSlashRegex();
+// TODO(jacek): Implement
+func isSlashRegex() bool { return false; }
 }
 
 WS: [ \t\n\r]+ -> skip;
