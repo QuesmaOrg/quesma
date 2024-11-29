@@ -28,6 +28,8 @@ import (
 	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/tracing"
+	"quesma_v2/core"
+	"quesma_v2/frontend_connectors"
 	"runtime"
 	"syscall"
 	"time"
@@ -43,6 +45,15 @@ const banner = `
 `
 
 const EnableConcurrencyProfiling = false
+
+// buildIngestOnlyQuesma is for now a helper function to help establishing the way of v2 module api import
+func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+	_ = frontend_connectors.NewBasicHTTPFrontendConnector(":8080")
+	_ = frontend_connectors.NewHTTPRouter()
+	quesmaInstance, _ := quesmaBuilder.Build()
+	return quesmaInstance
+}
 
 func main() {
 
