@@ -1785,6 +1785,369 @@ var AggregationTests = []testdata.AggregationTestCase{
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [9]
+		TestName: "Line, Y-axis: Min, Buckets: Date Range, X-Axis: Terms, Split Chart: Date Histogram",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"3": {
+							"aggs": {
+								"1": {
+									"min": {
+										"field": "FlightDelayMin"
+									}
+								},
+								"4": {
+									"aggs": {
+										"1": {
+											"min": {
+												"field": "FlightDelayMin"
+											}
+										}
+									},
+									"date_histogram": {
+										"field": "timestamp",
+										"fixed_interval": "30d",
+										"min_doc_count": 1,
+										"time_zone": "Europe/Warsaw"
+									}
+								}
+							},
+							"terms": {
+								"field": "DistanceKilometers",
+								"order": {
+									"1": "desc"
+								},
+								"shard_size": 25,
+								"size": 5
+							}
+						}
+					},
+					"date_range": {
+						"field": "timestamp",
+						"ranges": [
+							{
+								"from": "now-1w/w",
+								"to": "now"
+							},
+							{
+								"from": "now-1d"
+							}
+						],
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2009-11-12T08:31:26.584Z",
+									"lte": "2024-11-12T08:31:26.584Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"3": {
+								"buckets": [
+									{
+										"1": {
+											"value": 360.0
+										},
+										"4": {
+											"buckets": [
+												{
+													"1": {
+														"value": 360.0
+													},
+													"doc_count": 1,
+													"key": 1728856800000,
+													"key_as_string": "2024-10-13T22:00:00.000"
+												}
+											]
+										},
+										"doc_count": 1,
+										"key": 1502.8392333984375
+									},
+									{
+										"1": {
+											"value": 360.0
+										},
+										"4": {
+											"buckets": [
+												{
+													"1": {
+														"value": 360.0
+													},
+													"doc_count": 1,
+													"key": 1728856800000,
+													"key_as_string": "2024-10-13T22:00:00.000"
+												}
+											]
+										},
+										"doc_count": 1,
+										"key": 2649.456787109375
+									},
+									{
+										"1": {
+											"value": 360.0
+										},
+										"4": {
+											"buckets": [
+												{
+													"1": {
+														"value": 360.0
+													},
+													"doc_count": 1,
+													"key": 1728856800000,
+													"key_as_string": "2024-10-13T22:00:00.000"
+												}
+											]
+										},
+										"doc_count": 1,
+										"key": 6280.2021484375
+									}
+								],
+								"doc_count_error_upper_bound": -1,
+								"sum_other_doc_count": 2666
+							},
+							"doc_count": 2671,
+							"from": 1730674800000.0,
+							"from_as_string": "2024-11-04T00:00:00.000+01:00",
+							"key": "2024-11-04T00:00:00.000+01:00-2024-11-12T10:15:15.067+01:00",
+							"to": 1731402915067.0,
+							"to_as_string": "2024-11-12T10:15:15.067+01:00"
+						},
+						{
+							"3": {
+								"buckets": [
+									{
+										"1": {
+											"value": 360.0
+										},
+										"4": {
+											"buckets": [
+												{
+													"1": {
+														"value": 360.0
+													},
+													"doc_count": 1,
+													"key": 1728856800000,
+													"key_as_string": "2024-10-13T22:00:00.000"
+												}
+											]
+										},
+										"doc_count": 1,
+										"key": 6287.01806640625
+									}
+								],
+								"doc_count_error_upper_bound": -1,
+								"sum_other_doc_count": 333
+							},
+							"doc_count": 338,
+							"from": 1731316515067.0,
+							"from_as_string": "2024-11-11T10:15:15.067+01:00",
+							"key": "2024-11-11T10:15:15.067+01:00-*"
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2671
+				}
+			},
+			"timed_out": false,
+			"took": 129
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__count", int64(2671)),
+				model.NewQueryResultCol("aggr__2__3__parent_count", int64(2671)),
+				model.NewQueryResultCol("aggr__2__3__key_0", 1502.8392333984375),
+				model.NewQueryResultCol("aggr__2__3__count", int64(1)),
+				model.NewQueryResultCol("metric__2__3__1_col_0", 360.0),
+				model.NewQueryResultCol("aggr__2__3__4__key_0", int64(1728864000000/2592000000)),
+				model.NewQueryResultCol("aggr__2__3__4__count", int64(1)),
+				model.NewQueryResultCol("metric__2__3__4__1_col_0", 360.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__count", int64(2671)),
+				model.NewQueryResultCol("aggr__2__3__parent_count", int64(2671)),
+				model.NewQueryResultCol("aggr__2__3__key_0", 2649.456787109375),
+				model.NewQueryResultCol("aggr__2__3__count", int64(1)),
+				model.NewQueryResultCol("metric__2__3__1_col_0", 360.0),
+				model.NewQueryResultCol("aggr__2__3__4__key_0", int64(1728864000000/2592000000)),
+				model.NewQueryResultCol("aggr__2__3__4__count", int64(1)),
+				model.NewQueryResultCol("metric__2__3__4__1_col_0", 360.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__count", int64(2671)),
+				model.NewQueryResultCol("aggr__2__3__parent_count", int64(2671)),
+				model.NewQueryResultCol("aggr__2__3__key_0", 6280.2021484375),
+				model.NewQueryResultCol("aggr__2__3__count", int64(1)),
+				model.NewQueryResultCol("metric__2__3__1_col_0", 360.0),
+				model.NewQueryResultCol("aggr__2__3__4__key_0", int64(1728864000000/2592000000)),
+				model.NewQueryResultCol("aggr__2__3__4__count", int64(1)),
+				model.NewQueryResultCol("metric__2__3__4__1_col_0", 360.0),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0",
+			  "aggr__2__3__count", "metric__2__3__1_col_0", "aggr__2__3__4__key_0",
+			  "aggr__2__3__4__count", "metric__2__3__4__1_col_0"
+			FROM (
+			  SELECT "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0",
+				"aggr__2__3__count", "metric__2__3__1_col_0", "aggr__2__3__4__key_0",
+				"aggr__2__3__4__count", "metric__2__3__4__1_col_0",
+				dense_rank() OVER (ORDER BY "metric__2__3__1_col_0" DESC,
+				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__3__key_0" ORDER BY
+				"aggr__2__3__4__key_0" ASC) AS "aggr__2__3__4__order_1_rank"
+			  FROM (
+				SELECT sum(countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfWeek(
+				  subDate(now(), INTERVAL 1 week)))) AND "timestamp"<toInt64(toUnixTimestamp
+				  (now()))))) OVER () AS "aggr__2__count",
+				  sum(countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfWeek(subDate(
+				  now(), INTERVAL 1 week)))) AND "timestamp"<toInt64(toUnixTimestamp(now()))
+				  ))) OVER () AS "aggr__2__3__parent_count",
+				  "DistanceKilometers" AS "aggr__2__3__key_0",
+				  sum(countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfWeek(subDate(
+				  now(), INTERVAL 1 week)))) AND "timestamp"<toInt64(toUnixTimestamp(now()))
+				  ))) OVER (PARTITION BY "aggr__2__3__key_0") AS "aggr__2__3__count",
+				  minOrNull(minOrNullIf("FlightDelayMin", ("timestamp">=toInt64(
+				  toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND
+				  "timestamp"<toInt64(toUnixTimestamp(now()))))) OVER (PARTITION BY
+				  "aggr__2__3__key_0") AS "metric__2__3__1_col_0",
+				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				  "timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
+				  "aggr__2__3__4__key_0",
+				  countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfWeek(subDate(now(),
+				  INTERVAL 1 week)))) AND "timestamp"<toInt64(toUnixTimestamp(now())))) AS
+				  "aggr__2__3__4__count",
+				  minOrNullIf("FlightDelayMin", ("timestamp">=toInt64(toUnixTimestamp(
+				  toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND "timestamp"<toInt64(
+				  toUnixTimestamp(now())))) AS "metric__2__3__4__1_col_0"
+				FROM __quesma_table_name
+				WHERE (("timestamp">=fromUnixTimestamp64Milli(1258014686584) AND "timestamp"
+				  <=fromUnixTimestamp64Milli(1731400286584)) AND ("timestamp">=toInt64(
+				  toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND
+				  "timestamp"<toInt64(toUnixTimestamp(now()))))
+				GROUP BY "DistanceKilometers" AS "aggr__2__3__key_0",
+				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				  "timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
+				  "aggr__2__3__4__key_0"))
+			WHERE "aggr__2__3__order_1_rank"<=6
+			ORDER BY "aggr__2__3__order_1_rank" ASC, "aggr__2__3__4__order_1_rank" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{`
+			SELECT "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0",
+			  "aggr__2__3__count", "metric__2__3__1_col_0", "aggr__2__3__4__key_0",
+			  "aggr__2__3__4__count", "metric__2__3__4__1_col_0"
+			FROM (
+			  SELECT "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0",
+				"aggr__2__3__count", "metric__2__3__1_col_0", "aggr__2__3__4__key_0",
+				"aggr__2__3__4__count", "metric__2__3__4__1_col_0",
+				dense_rank() OVER (ORDER BY "metric__2__3__1_col_0" DESC,
+				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__3__key_0" ORDER BY
+				"aggr__2__3__4__key_0" ASC) AS "aggr__2__3__4__order_1_rank"
+			  FROM (
+				SELECT sum(countIf("timestamp">=toInt64(toUnixTimestamp(subDate(now(),
+				  INTERVAL 1 day))))) OVER () AS "aggr__2__count",
+				  sum(countIf("timestamp">=toInt64(toUnixTimestamp(subDate(now(), INTERVAL 1
+				  day))))) OVER () AS "aggr__2__3__parent_count",
+				  "DistanceKilometers" AS "aggr__2__3__key_0",
+				  sum(countIf("timestamp">=toInt64(toUnixTimestamp(subDate(now(), INTERVAL 1
+				  day))))) OVER (PARTITION BY "aggr__2__3__key_0") AS "aggr__2__3__count",
+				  minOrNull(minOrNullIf("FlightDelayMin", "timestamp">=toInt64(
+				  toUnixTimestamp(subDate(now(), INTERVAL 1 day))))) OVER (PARTITION BY
+				  "aggr__2__3__key_0") AS "metric__2__3__1_col_0",
+				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				  "timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
+				  "aggr__2__3__4__key_0",
+				  countIf("timestamp">=toInt64(toUnixTimestamp(subDate(now(), INTERVAL 1 day
+				  )))) AS "aggr__2__3__4__count",
+				  minOrNullIf("FlightDelayMin", "timestamp">=toInt64(toUnixTimestamp(subDate
+				  (now(), INTERVAL 1 day)))) AS "metric__2__3__4__1_col_0"
+				FROM __quesma_table_name
+				WHERE (("timestamp">=fromUnixTimestamp64Milli(1258014686584) AND "timestamp"
+				  <=fromUnixTimestamp64Milli(1731400286584)) AND "timestamp">=toInt64(
+				  toUnixTimestamp(subDate(now(), INTERVAL 1 day))))
+				GROUP BY "DistanceKilometers" AS "aggr__2__3__key_0",
+				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				  "timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
+				  "aggr__2__3__4__key_0"))
+			WHERE "aggr__2__3__order_1_rank"<=6
+			ORDER BY "aggr__2__3__order_1_rank" ASC, "aggr__2__3__4__order_1_rank" ASC`,
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__2__count", int64(2671)),
+					model.NewQueryResultCol("aggr__2__3__parent_count", int64(338)),
+					model.NewQueryResultCol("aggr__2__3__key_0", 6287.01806640625),
+					model.NewQueryResultCol("aggr__2__3__count", int64(1)),
+					model.NewQueryResultCol("metric__2__3__1_col_0", 360.0),
+					model.NewQueryResultCol("aggr__2__3__4__key_0", int64(1728864000000/2592000000)),
+					model.NewQueryResultCol("aggr__2__3__4__count", int64(1)),
+					model.NewQueryResultCol("metric__2__3__4__1_col_0", 360.0),
+				}},
+			},
+		},
+	},
+	{ // [10]
 		TestName: "Rate aggregation with date_histogram fixed_interval",
 		QueryRequestJson: `
 		{

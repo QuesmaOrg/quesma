@@ -759,24 +759,32 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 	for k, query := range queries {
 		var err error
 
+		if !s.cfg.Logging.EnableSQLTracing {
+			query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, "n/a")
+		}
+
 		for _, transformation := range transformationChain {
 
-			inputQuery := query.SelectCommand.String()
+			var inputQuery string
+
+			if s.cfg.Logging.EnableSQLTracing {
+				inputQuery = query.SelectCommand.String()
+			}
+
 			query, err = transformation.Transformation(query.Schema, query)
 			if err != nil {
 				return nil, err
 			}
-			if query.SelectCommand.String() != inputQuery {
 
-				query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, transformation.TransformationName)
-
-				if s.cfg.Logging.EnableSQLTracing {
+			if s.cfg.Logging.EnableSQLTracing {
+				if query.SelectCommand.String() != inputQuery {
+					query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, transformation.TransformationName)
 					logger.Info().Msgf(transformation.TransformationName+" triggered, input query: %s", inputQuery)
 					logger.Info().Msgf(transformation.TransformationName+" triggered, output query: %s", query.SelectCommand.String())
 				}
 			}
-
 		}
+
 		queries[k] = query
 	}
 	return queries, nil

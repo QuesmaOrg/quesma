@@ -23,9 +23,11 @@ processors:
     config:
       indexes:
         my_index:
-          target: [ backend-clickhouse ]
+          target:
+            - backend-clickhouse
         "*": # Always required
-          target: [ backend-elasticsearch ]
+          target:
+            - backend-elasticsearch
 ```
 
 This way, Quesma will know that the data of that index should be ingested to ClickHouse.
@@ -71,7 +73,8 @@ You can also specify the explicit mappings in the Quesma configuration file with
 
 ```yaml
 my_index:
-  target: [ backend-clickhouse ]
+  target:
+    - backend-clickhouse
   schemaOverrides:
     fields:
       "products.manufacturer":
@@ -108,7 +111,8 @@ indexes:
       - backend-clickhouse:
           useCommonTable: true
   "*":
-    target: [ backend-elastic ]
+    target:
+      - backend-elastic
   ...        
 ```
 

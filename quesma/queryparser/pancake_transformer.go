@@ -431,14 +431,14 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		// TODO: if both top_hits/top_metrics, and filters, it probably won't work...
 		// Care: order of these two functions is unfortunately important.
 		// Should be fixed after this TODO
-		newFiltersPancakes := a.createFiltersPancakes(&newPancake)
+		newCombinatorPancakes := a.createCombinatorPancakes(&newPancake)
 		additionalTopHitPancakes, err := a.createTopHitAndTopMetricsPancakes(&newPancake)
 		if err != nil {
 			return nil, err
 		}
 
 		pancakeResults = append(pancakeResults, additionalTopHitPancakes...)
-		pancakeResults = append(pancakeResults, newFiltersPancakes...)
+		pancakeResults = append(pancakeResults, newCombinatorPancakes...)
 	}
 
 	return
@@ -446,33 +446,46 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 
 // createFiltersPancakes only does something, if first layer aggregation is Filters.
 // It creates new pancakes for each filter in that aggregation, and updates `pancake` to have only first filter.
-func (a *pancakeTransformer) createFiltersPancakes(pancake *pancakeModel) (newPancakes []*pancakeModel) {
+func (a *pancakeTransformer) createCombinatorPancakes(pancake *pancakeModel) (newPancakes []*pancakeModel) {
 	if len(pancake.layers) == 0 || pancake.layers[0].nextBucketAggregation == nil {
 		return
 	}
 
 	firstLayer := pancake.layers[0]
-	filters, isFilters := firstLayer.nextBucketAggregation.queryType.(bucket_aggregations.Filters)
-	canSimplyAddFilterToWhereClause := len(firstLayer.currentMetricAggregations) == 0 && len(firstLayer.currentPipelineAggregations) == 0
-	areNewPancakesReallyNeeded := len(pancake.layers) > 1 // if there is only one layer, it's better to get it done with combinators.
-
-	if !isFilters || !canSimplyAddFilterToWhereClause || !areNewPancakesReallyNeeded || len(filters.Filters) == 0 {
+	combinator, isCombinator := firstLayer.nextBucketAggregation.queryType.(bucket_aggregations.CombinatorAggregationInterface)
+	if !isCombinator {
 		return
 	}
 
-	// First create N-1 new pancakes, each with different filter
-	for i := 1; i < len(filters.Filters); i++ {
+	noMoreBucket := len(pancake.layers) <= 1 || (len(pancake.layers) == 2 && pancake.layers[1].nextBucketAggregation == nil)
+	noMetricOnFirstLayer := len(firstLayer.currentMetricAggregations) == 0 && len(firstLayer.currentPipelineAggregations) == 0
+	canSimplyAddCombinatorToWhereClause := noMoreBucket && noMetricOnFirstLayer
+	if canSimplyAddCombinatorToWhereClause {
+		return
+	}
+
+	areNewPancakesReallyNeeded := len(pancake.layers) > 1 // if there is only one layer above combinator, it easily can be done with 1 pancake, no need for more
+	groups := combinator.CombinatorGroups()
+	if !areNewPancakesReallyNeeded || len(groups) == 0 {
+		return
+	}
+
+	combinatorSplit := combinator.CombinatorSplit()
+	combinatorGroups := combinator.CombinatorGroups()
+	// First create N-1 new pancakes [1...N), each with different filter
+	// (important to update the first (0th) pancake at the end)
+	for i := 1; i < len(groups); i++ {
 		newPancake := pancake.Clone()
 		bucketAggr := newPancake.layers[0].nextBucketAggregation.ShallowClone()
-		bucketAggr.queryType = filters.NewFiltersSingleFilter(i)
+		bucketAggr.queryType = combinatorSplit[i]
 		newPancake.layers[0] = newPancakeModelLayer(&bucketAggr)
-		newPancake.whereClause = model.And([]model.Expr{newPancake.whereClause, filters.Filters[i].Sql.WhereClause})
+		newPancake.whereClause = model.And([]model.Expr{newPancake.whereClause, combinatorGroups[i].WhereClause})
 		newPancakes = append(newPancakes, newPancake)
 	}
 
-	// Then update original to have 1 filter as well
-	pancake.layers[0].nextBucketAggregation.queryType = filters.NewFiltersSingleFilter(0)
-	pancake.whereClause = model.And([]model.Expr{pancake.whereClause, filters.Filters[0].Sql.WhereClause})
+	// Update original
+	pancake.layers[0].nextBucketAggregation.queryType = combinatorSplit[0]
+	pancake.whereClause = model.And([]model.Expr{pancake.whereClause, combinatorGroups[0].WhereClause})
 
 	return
 }

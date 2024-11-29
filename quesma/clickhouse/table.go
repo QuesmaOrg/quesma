@@ -85,7 +85,8 @@ func (t *Table) FullTableName() string {
 
 // GetDateTimeType returns type of a field (currently DateTime/DateTime64), if it's a DateTime type. Invalid otherwise.
 // Timestamp from config defaults to DateTime64.
-func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeType {
+// We don't warn the log message e.g. in e.g. in sum/avg/etc. aggregations, where date is (very) unexpected or impossible.
+func (t *Table) GetDateTimeType(ctx context.Context, fieldName string, dateInSchemaExpected bool) DateTimeType {
 	if col, ok := t.Cols[fieldName]; ok {
 		typeName := col.Type.String()
 		// hasPrefix, not equal, because we can have DateTime64(3) and we want to catch it
@@ -99,13 +100,16 @@ func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeT
 	if t.Config.HasTimestamp && fieldName == timestampFieldName {
 		return DateTime64
 	}
-	logger.WarnWithCtx(ctx).Msgf("datetime field '%s' not found in table '%s'", fieldName, t.Name)
+	if dateInSchemaExpected {
+		logger.WarnWithCtx(ctx).Msgf("datetime field '%s' not found in table '%s'", fieldName, t.Name)
+	}
 	return Invalid
 }
 
 func (t *Table) GetDateTimeTypeFromExpr(ctx context.Context, expr model.Expr) DateTimeType {
+	const dateInSchemaExpected = true
 	if ref, ok := expr.(model.ColumnRef); ok {
-		return t.GetDateTimeType(ctx, ref.ColumnName)
+		return t.GetDateTimeType(ctx, ref.ColumnName, dateInSchemaExpected)
 	}
 	logger.WarnWithCtx(ctx).Msgf("datetime field '%v' not found in table '%s'", expr, t.Name)
 	return Invalid

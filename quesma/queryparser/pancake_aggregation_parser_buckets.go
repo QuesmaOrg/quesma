@@ -6,7 +6,6 @@ package queryparser
 import (
 	"fmt"
 	"quesma/clickhouse"
-	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -82,7 +81,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		weAddedMissing := false
 		if missingRaw, exists := dateHistogram["missing"]; exists {
 			if missing, ok := missingRaw.(string); ok {
-				dateManager := kibana.NewDateManager(cw.Ctx)
+				dateManager := NewDateManager(cw.Ctx)
 				if missingExpr, parsingOk := dateManager.ParseDateUsualFormat(missing, dateTimeType); parsingOk {
 					field = model.NewFunction("COALESCE", field, missingExpr)
 					weAddedMissing = true
@@ -317,6 +316,11 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		delete(queryMap, "filters")
 		return
 	}
+	if composite, ok := queryMap["composite"]; ok {
+		aggregation.queryType, err = cw.parseComposite(aggregation, composite)
+		delete(queryMap, "composite")
+		return err == nil, err
+	}
 	success = false
 	return
 }
@@ -362,6 +366,69 @@ func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(paramsRaw any) *buck
 	}
 	bucketsNr := cw.parseIntField(params, "buckets", 10)
 	return bucket_aggregations.NewAutoDateHistogram(cw.Ctx, field, bucketsNr)
+}
+
+// compositeRaw - in a proper request should be of QueryMap type.
+// TODO: In geotile_grid, without order specidfied, Elastic returns sort by key (a/b/c earlier than x/y/z if a<x or (a=x && b<y), etc.)
+// Maybe add some ordering, but doesn't seem to be very important.
+func (cw *ClickhouseQueryTranslator) parseComposite(currentAggrNode *pancakeAggregationTreeNode, compositeRaw any) (*bucket_aggregations.Composite, error) {
+	const defaultSize = 10
+	composite, ok := compositeRaw.(QueryMap)
+	if !ok {
+		return nil, fmt.Errorf("composite is not a map, but %T, value: %v", compositeRaw, compositeRaw)
+	}
+
+	// The sources parameter can be any of the following types:
+	// 1) Terms (but NOT Significant Terms) 2) Histogram 3) Date histogram 4) GeoTile grid
+	// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-composite-aggregation.html
+	isValidSourceType := func(queryType model.QueryType) bool {
+		switch typed := queryType.(type) {
+		case *bucket_aggregations.Histogram, *bucket_aggregations.DateHistogram, bucket_aggregations.GeoTileGrid:
+			return true
+		case bucket_aggregations.Terms:
+			return !typed.IsSignificant()
+		default:
+			return false
+		}
+	}
+
+	var baseAggrs []*bucket_aggregations.BaseAggregation
+	sourcesRaw, exists := composite["sources"]
+	if !exists {
+		return nil, fmt.Errorf("composite has no sources")
+	}
+	sources, ok := sourcesRaw.([]any)
+	if !ok {
+		return nil, fmt.Errorf("sources is not an array, but %T, value: %v", sourcesRaw, sourcesRaw)
+	}
+	for _, sourceRaw := range sources {
+		source, ok := sourceRaw.(QueryMap)
+		if !ok {
+			return nil, fmt.Errorf("source is not a map, but %T, value: %v", sourceRaw, sourceRaw)
+		}
+		if len(source) != 1 {
+			return nil, fmt.Errorf("source has unexpected length: %v", source)
+		}
+		for aggrName, aggrRaw := range source {
+			aggr, ok := aggrRaw.(QueryMap)
+			if !ok {
+				return nil, fmt.Errorf("source value is not a map, but %T, value: %v", aggrRaw, aggrRaw)
+
+			}
+			if success, err := cw.pancakeTryBucketAggregation(currentAggrNode, aggr); success {
+				if !isValidSourceType(currentAggrNode.queryType) {
+					return nil, fmt.Errorf("unsupported base aggregation type: %v", currentAggrNode.queryType)
+				}
+				baseAggrs = append(baseAggrs, bucket_aggregations.NewBaseAggregation(aggrName, currentAggrNode.queryType))
+			} else {
+				return nil, err
+			}
+		}
+	}
+
+	size := cw.parseIntField(composite, "size", defaultSize)
+	currentAggrNode.limit = size
+	return bucket_aggregations.NewComposite(cw.Ctx, size, baseAggrs), nil
 }
 
 func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldExpressions []model.Expr) []model.OrderByExpr {

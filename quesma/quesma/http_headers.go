@@ -4,7 +4,6 @@ package quesma
 
 import (
 	"net/http"
-	"quesma/logger"
 	"slices"
 )
 
@@ -36,16 +35,16 @@ func addProductAndContentHeaders(request http.Header, response http.Header) {
 		response.Set(contentTypeHeaderKey, "application/json; charset=UTF-8")
 	} else {
 		response.Set(elasticSearchResponseHeaderKey, elasticSearchResponseHeaderValue)
-		response.Set(contentTypeHeaderKey, "application/vnd.elasticsearch+json;compatible-with=8")
+		//response.Set(contentTypeHeaderKey, "application/vnd.elasticsearch+json;compatible-with=8")
 	}
+	// WARNING:
+	// Elasticsearch 8.x responds with `Content-Type: application/vnd.elasticsearch+json;compatible-with=8`
+	// Elasticsearch 7.x responds with `Content-Type: application/json; charset=UTF-8`
+	//     We decided to always use the 7.x response for now, but we might need to change it in the future.
+	//     Specifically, we might need to change this behaviour by introducing Elasticsearch 8 and Elasticsearch 7-specific frontend connectors.
+	// 	   More in: https://github.com/QuesmaOrg/quesma/issues/994
+	response.Set(contentTypeHeaderKey, "application/json; charset=UTF-8")
 	response.Set(opaqueIdHeaderKey, "unknownId")
-}
-
-func LogMissingEsHeaders(elasticsearchHeaders, quesmaHeaders http.Header, reqId string) {
-	missingHeaders := findMissingElasticsearchHeaders(elasticsearchHeaders, quesmaHeaders)
-	for _, headerName := range missingHeaders {
-		logger.Warn().Str(logger.RID, reqId).Msgf("Header %s is missing in Quesma's response", headerName)
-	}
 }
 
 func findMissingElasticsearchHeaders(elasticsearchHeaders, quesmaHeaders http.Header) []string {

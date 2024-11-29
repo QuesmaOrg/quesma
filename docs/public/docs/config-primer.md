@@ -120,7 +120,8 @@ processors:
     config:
       indexes:
         kibana_sample_data_ecommerce:
-          target: [ backend-clickhouse ]
+          target:
+            - backend-clickhouse
           schemaOverrides:
             fields:
               "geoip.location":
@@ -128,7 +129,8 @@ processors:
               "products.product_name":
                 type: text
         "*":
-          target: [ backend-elastic ]
+          target:
+            - backend-elastic
 ```
 
 To get more specific information on processor configuration, please refer to [Processor configuration](#processor-configuration) section. 
@@ -168,15 +170,18 @@ processors:
     config:
       indexes:
         kibana_sample_data_logs:
-          target: [ backend-elasticsearch ]
+          target:
+            - backend-elasticsearch
         kibana_sample_data_ecommerce:
-          target: [ backend-clickhouse ]
+          target:
+            - backend-clickhouse
           schemaOverrides:
             fields:
               "geoip.location":
                 type: geo_point
         "*": # Always required
-          target: [ backend-elasticsearch ]
+          target:
+            - backend-elasticsearch
 ```
 
 ### Index configuration
@@ -187,11 +192,13 @@ The configuration for an index consists of the following configuration options:
 - `target` (required): a list of backend connectors that will handle the request. For example the following configuration in the ingest processor:
    ```yaml
      my_index:
-       target: [ backend-elasticsearch, backend-clickhouse ]
+       target:
+         - backend-elasticsearch
+         - backend-clickhouse
    ```
    will dual write ingest requests to `my_index` to both ElasticSearch and ClickHouse.
    Note that ElasticSearch/OpenSearch is the only supported backend for the `*` entry.
-   If no targets are provided (example: `target: []`) in the configuration of an index in the ingest processor, ingest for that index will be disabled and incoming data will be dropped.
+   If no targets are provided (empty `target` list) in the configuration of an index in the ingest processor, ingest for that index will be disabled and incoming data will be dropped.
    For the query processor by specifing multiple targets, [Compatibility report](/compatibility-report.md) will be enabled. See [Compatibility report documentation](/compatibility-report.md) for more details.
    
    Some backend connectors have additional attributes which may be used. For example the following configuration sets `useCommonTable` for `backend-clickhouse` target:
@@ -207,7 +214,8 @@ The configuration for an index consists of the following configuration options:
 - `schemaOverrides` (optional): manual overrides of schema information for an index. Quesma infers schema for an index based on the data ingested and the schema information fetched from ClickHouse. `schemaOverrides` allows you to override this inferred schema with for some fields. For example the following configuration:
     ```yaml
       my_index:
-        target: [ backend-clickhouse ]
+        target:
+          - backend-clickhouse
         schemaOverrides:
           "product_name":
             type: "text"

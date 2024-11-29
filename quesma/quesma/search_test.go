@@ -6,13 +6,12 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
-	"quesma/concurrent"
 	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -36,7 +35,7 @@ var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.Get
 func TestAsyncSearchHandler(t *testing.T) {
 	// logger.InitSimpleLoggerForTests()
 
-	table := concurrent.NewMapWith(tableName, &clickhouse.Table{
+	table := util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
@@ -131,7 +130,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 
 			mock.ExpectQuery(tt.ExpectedPancakeSQL).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 
-			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, concurrent.NewMapWith(tableName, &table), s)
+			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
 			_, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryRequestJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
@@ -142,7 +141,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 	}
 }
 
-var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
+var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
 	Name:   tableName,
 	Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 	Cols: map[string]*clickhouse.Column{
@@ -213,7 +212,7 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword},
 	}
 
-	var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
+	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
@@ -445,7 +444,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
 
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
-		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, concurrent.NewMapWith(tableName, &table), s)
+		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
 		response, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(query(fieldName)), defaultAsyncSearchTimeout, true)
 		assert.NoError(t, err)
 
@@ -480,7 +479,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 			},
 		},
 	}
-	table := concurrent.NewMapWith(tableName, &clickhouse.Table{
+	table := util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
@@ -576,7 +575,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		},
 	}
 
-	var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
+	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{

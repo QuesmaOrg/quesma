@@ -52,8 +52,8 @@ Currently not supported future roadmap items:
   refer to the `List of supported endpoints` section for more details.
 * JSON are not pretty printed in the response.
 * The schema support is limited.
-  * Elasticsearch types: date, text, keyword, boolean, byte, short, integer, long, unsigned_long, float, double
-  * Clickhouse types: DateTime, DateTime64, String, Boolean, UInt8, UInt16, UInt32, UInt64, Int8, Int16, Int32, Int64, Float32, Float64
+  * Elasticsearch types: `date`, `text`, `keyword`, `boolean`, `byte`, `short`, `integer`, `long`, `unsigned_long`, `float`, `half_float`, `double`, `ip`, `geo_point`, `point`
+  * Clickhouse types: `Date`, `DateTime`, `DateTime64`, `String`, `FixedString`, `LowCardinality(String)`, `Bool`, `UInt8`, `UInt16`, `UInt32`, `UInt64`, `Int8`, `Int16`, `Int32`, `Int64`, `Float32`, `Float64`, `Array` (of types listed in this list).
 * Some advanced query parameters are ignored.
 * No support for SQL, EQL (Event Query Language), PPL, or ES/QL.
 * Better secret support.
@@ -79,24 +79,29 @@ Upon a query, Quesma will forward the request to the appropriate data source (El
 The following endpoints are supported:
 
 * Search:
-  * `POST /_search`
   * `POST /:index/_search`
   * `POST /:index/_async_search`
+  * `GET /_async_search/status/:id`
+  * `GET /_async_search/:id`, `DELETE /_async_search/:id`
   * `GET  /:index/_count`
+  * `POST /:index/_terms_enum`
+  * `GET /:index/_eql/search`, `POST /:index/_eql/search`
 * Schema:
   * `GET  /:index`
-  * `GET  /:index/_mapping`
+  * `GET  /:index/_mapping`, `PUT /:index/_mapping`
   * `PUT /:index`
   * `POST /:index/_field_caps`
   * `POST /:index/_terms_enum`
   * `POST /:index`
-  * `POST /:index/_mapping`
+  * `GET /:index/_field_caps`, `POST /:index/_field_caps`
+  * `GET /_resolve/index/:index`
 * Ingest:
-  * `POST /_bulk`
+  * `POST /_bulk`, `PUT /_bulk`
   * `POST /:index/_bulk`
   * `POST /:index/_doc`
 * Administrative:
   * `GET  /_cluster/health`
+  * `POST /:index/_refresh`
 
 
 **Warning:** Quesma does not support path parameters in URLs listed above.

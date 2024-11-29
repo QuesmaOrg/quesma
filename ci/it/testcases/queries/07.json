@@ -1,0 +1,84 @@
+{
+  "_source": {
+    "excludes": []
+  },
+  "aggs": {
+    "other-filter": {
+      "filters": {
+        "filters": {
+          "": {
+            "bool": {
+              "filter": [
+                {
+                  "exists": {
+                    "field": "remote_addr"
+                  }
+                }
+              ],
+              "must": [],
+              "must_not": [
+                {
+                  "match_phrase": {
+                    "remote_addr": "66.249.66.194"
+                  }
+                },
+                {
+                  "match_phrase": {
+                    "remote_addr": "66.249.66.91"
+                  }
+                },
+                {
+                  "match_phrase": {
+                    "remote_addr": "151.239.241.163"
+                  }
+                },
+                {
+                  "match_phrase": {
+                    "remote_addr": "66.249.66.92"
+                  }
+                },
+                {
+                  "match_phrase": {
+                    "remote_addr": "91.99.30.32"
+                  }
+                }
+              ],
+              "should": []
+            }
+          }
+        }
+      }
+    }
+  },
+  "fields": [
+    {
+      "field": "@timestamp",
+      "format": "date_time"
+    }
+  ],
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "range": {
+            "@timestamp": {
+              "format": "strict_date_optional_time",
+              "gte": "2019-01-18T18:40:01.746Z",
+              "lte": "2019-01-28T06:47:54.360Z"
+            }
+          }
+        }
+      ],
+      "must": [],
+      "must_not": [],
+      "should": []
+    }
+  },
+  "runtime_mappings": {},
+  "script_fields": {},
+  "size": 0,
+  "stored_fields": [
+    "*"
+  ],
+  "track_total_hits": true
+}
