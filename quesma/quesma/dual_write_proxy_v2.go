@@ -287,7 +287,7 @@ func (*routerV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter,
 
 }
 
-func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
+func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, pathRouter *mux.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
@@ -308,7 +308,7 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
 
-	handler, decision := router.Matches(quesmaRequest)
+	handler, decision := pathRouter.Matches(quesmaRequest)
 
 	if decision != nil {
 		w.Header().Set(quesmaTableResolverHeader, decision.String())
