@@ -129,7 +129,7 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		metadata, message, _ := handlerWrapper.Handler(req)
 
-		metadata, message = dispatcher.Dispatch(handlerWrapper.Processors, metadata, message)
+		_, message = dispatcher.Dispatch(handlerWrapper.Processors, metadata, message)
 		_, err := w.Write(message.([]byte))
 		if err != nil {
 			fmt.Printf("Error writing response: %s\n", err)
