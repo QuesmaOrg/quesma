@@ -286,7 +286,7 @@ func (*routerV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter,
 
 }
 
-func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, pathRouter *mux.PathRouter, ingestRouter *mux.PathRouter, logManager *clickhouse.LogManager) {
+func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, searchRouter *mux.PathRouter, ingestRouter *mux.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
@@ -308,18 +308,20 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
 	var handler mux.Handler
 	var decision *table_resolver.Decision
-
-	searchHandler, searchDecision := pathRouter.Matches(quesmaRequest)
-	ingestHandler, ingestDecision := ingestRouter.Matches(quesmaRequest)
-
-	if searchHandler == nil {
-		handler = ingestHandler
-		decision = ingestDecision
-	} else {
-		handler = searchHandler
+	searchHandler, searchDecision := searchRouter.Matches(quesmaRequest)
+	if searchDecision != nil {
 		decision = searchDecision
 	}
-
+	if searchHandler != nil {
+		handler = searchHandler
+	}
+	ingestHandler, ingestDecision := ingestRouter.Matches(quesmaRequest)
+	if searchDecision == nil {
+		decision = ingestDecision
+	}
+	if searchHandler == nil {
+		handler = ingestHandler
+	}
 	if decision != nil {
 		w.Header().Set(quesmaTableResolverHeader, decision.String())
 	} else {
