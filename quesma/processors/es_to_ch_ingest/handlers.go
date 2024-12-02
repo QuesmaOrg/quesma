@@ -1,7 +1,7 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
 
-package processors
+package es_to_ch_ingest
 
 import (
 	"context"
@@ -11,34 +11,19 @@ import (
 	"quesma/queryparser"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
-	quesma_api "quesma_v2/core"
 )
 
 // handleDocIndex assembles the payload into bulk format to reusing existing logic of bulk ingest
-func handleDocIndex(payload types.JSON, targetTableName string, backendConn quesma_api.BackendConnector) {
+func handleDocIndex(payload types.JSON, targetTableName string, temporaryIngestProcessor *ingest.IngestProcessor) {
 	newPayload := []types.JSON{
 		map[string]interface{}{"index": map[string]interface{}{"_index": targetTableName}},
 		payload,
 	}
-	//virtualTableStorage := persistence.NewElasticJSONDatabase(cfg.Elasticsearch, common_table.VirtualTableElasticIndexName)
-	//tableDisco := clickhouse.NewTableDiscovery(&cfg, connectionPool, virtualTableStorage)
-	//schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.SchemaTypeAdapter{})
-	//
-	//im := elasticsearch.NewIndexManagement(cfg.Elasticsearch)
-	//
-	//connManager := connectors.NewConnectorManager(&cfg, connectionPool, phoneHomeAgent, tableDisco)
-	//lm := connManager.GetConnector()
-	//
-	//// TODO index configuration for ingest and query is the same for now
-	//tableResolver := table_resolver.NewTableResolver(cfg, tableDisco, im)
-	//tableResolver.Start()
-
-	temporaryIngestProcessor := nil //ingest.NewIngestProcessor(nil, backendConn, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage, tableResolver)
 
 	_, _ = Write(context.Background(), &targetTableName, newPayload, temporaryIngestProcessor)
 }
 
-func handleBulkIndex(payload types.NDJSON, targetTableName string, backendConn quesma_api.BackendConnector) {
+func handleBulkIndex(payload types.NDJSON, targetTableName string) {
 	_, _ = Write(context.Background(), &targetTableName, payload, nil)
 }
 

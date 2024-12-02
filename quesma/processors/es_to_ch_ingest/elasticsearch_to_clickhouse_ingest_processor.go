@@ -1,12 +1,20 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
 
-package processors
+package es_to_ch_ingest
 
 import (
 	"fmt"
 	"github.com/rs/zerolog/log"
+	"net/url"
+	"quesma/clickhouse"
+	"quesma/common_table"
+	"quesma/ingest"
+	"quesma/persistence"
+	"quesma/processors"
+	"quesma/quesma/config"
 	"quesma/quesma/types"
+	"quesma/schema"
 	"quesma_v2/core"
 )
 
@@ -17,12 +25,12 @@ const (
 )
 
 type ElasticsearchToClickHouseIngestProcessor struct {
-	BaseProcessor
+	processors.BaseProcessor
 }
 
 func NewElasticsearchToClickHouseIngestProcessor() *ElasticsearchToClickHouseIngestProcessor {
 	return &ElasticsearchToClickHouseIngestProcessor{
-		BaseProcessor: NewBaseProcessor(),
+		BaseProcessor: processors.NewBaseProcessor(),
 	}
 }
 
@@ -30,10 +38,39 @@ func (p *ElasticsearchToClickHouseIngestProcessor) GetId() string {
 	return "elasticsearch_to_clickhouse_ingest"
 }
 
+func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(connector quesma_api.BackendConnector) *ingest.IngestProcessor {
+	u, _ := url.Parse("http://localhost:9200")
+
+	elasticsearchConfig := config.ElasticsearchConfiguration{
+		Url: (*config.Url)(u),
+	}
+
+	virtualTableStorage := persistence.NewElasticJSONDatabase(elasticsearchConfig, common_table.VirtualTableElasticIndexName)
+	tableDisco := clickhouse.NewTableDiscovery(nil, connector, virtualTableStorage)
+	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, nil, clickhouse.SchemaTypeAdapter{})
+
+	ip := NewIngestProcessor(nil, connector, nil, tableDisco, schemaRegistry, virtualTableStorage, nil)
+	ip.Start()
+	return ip
+}
+
 func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
 	var data []byte
 	// TODO this processor should NOT take multiple messages? :|
 	// side-effecting for now - just store in ClickHouse it's fine for now
+
+	backendConn := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
+	if backendConn == nil {
+		fmt.Println("Backend connector not found")
+		return metadata, data, nil
+	}
+	err := backendConn.Open()
+	if err != nil {
+		fmt.Printf("Error opening connection: %v", err)
+		return nil, nil, err
+	}
+
+	tempIngestProcessor := p.prepareTemporaryIngestProcessor(backendConn)
 
 	for _, m := range message {
 		bodyAsBytes, err := quesma_api.CheckedCast[[]byte](m)
@@ -41,17 +78,6 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			panic("ElasticsearchToClickHouseIngestProcessor: invalid message type")
 		}
 		targetIndex := "my_index" // TODO: remove this ASAP
-		backendConn := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
-		if backendConn == nil {
-			fmt.Println("Backend connector not found")
-			return metadata, data, nil
-		}
-
-		err = backendConn.Open()
-		if err != nil {
-			fmt.Printf("Error opening connection: %v", err)
-			return nil, nil, err
-		}
 
 		switch metadata[IngestAction] {
 		case DocIndexAction:
@@ -59,14 +85,14 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			handleDocIndex(payloadJson, targetIndex, backendConn)
+			handleDocIndex(payloadJson, targetIndex, tempIngestProcessor)
 			println("DocIndexAction")
 		case BulkIndexAction:
 			payloadNDJson, err := types.ExpectNDJSON(types.ParseRequestBody(string(bodyAsBytes)))
 			if err != nil {
 				println(err)
 			}
-			handleBulkIndex(payloadNDJson, targetIndex, backendConn)
+			handleBulkIndex(payloadNDJson, targetIndex)
 			println("BulkIndexAction")
 		default:
 			log.Info().Msg("Rethink you whole life and start over again")

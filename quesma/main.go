@@ -22,7 +22,7 @@ import (
 	"quesma/licensing"
 	"quesma/logger"
 	"quesma/persistence"
-	"quesma/processors"
+	"quesma/processors/es_to_ch_ingest"
 	"quesma/quesma"
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
@@ -56,7 +56,7 @@ func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
 
-	ingestProcessor := processors.NewElasticsearchToClickHouseIngestProcessor()
+	ingestProcessor := es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor()
 	ingestPipeline.AddProcessor(ingestProcessor)
 	quesmaBuilder.AddPipeline(ingestPipeline)
 
