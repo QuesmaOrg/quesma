@@ -39,6 +39,8 @@ func (p *ElasticsearchToClickHouseIngestProcessor) GetId() string {
 	return "elasticsearch_to_clickhouse_ingest"
 }
 
+// prepareTemporaryIngestProcessor creates a temporary ingest processor which is a new version of the ingest processor,
+// which uses `quesma_api.BackendConnector` instead of `*sql.DB` for the database connection.
 func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(connector quesma_api.BackendConnector) *ingest.IngestProcessor2 {
 	u, _ := url.Parse("http://localhost:9200")
 
@@ -74,11 +76,6 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 		fmt.Println("Backend connector not found")
 		return metadata, data, nil
 	}
-	err := backendConn.Open()
-	if err != nil {
-		fmt.Printf("Error opening connection: %v", err)
-		return nil, nil, err
-	}
 
 	tempIngestProcessor := p.prepareTemporaryIngestProcessor(backendConn)
 
@@ -94,7 +91,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			handleDocIndex(payloadJson, HARDCODED_INDEX_NAME, tempIngestProcessor)
+			_, _ = handleDocIndex(payloadJson, HARDCODED_INDEX_NAME, tempIngestProcessor)
 			println("DocIndexAction")
 		case BulkIndexAction:
 			payloadNDJson, err := types.ExpectNDJSON(types.ParseRequestBody(string(bodyAsBytes)))
@@ -107,40 +104,6 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			log.Info().Msg("Rethink you whole life and start over again")
 		}
 
-		//		createTableSQL := `
-		//CREATE TABLE IF NOT EXISTS users (
-		//    id UInt32,                              -- ClickHouse doesn't have SERIAL, use UInt32 or UInt64 for auto-increment.
-		//    username String,                        -- ClickHouse uses String for variable-length text.
-		//    email String,                           -- No UNIQUE constraint, but String type works for emails.
-		//    created_at DateTime DEFAULT now()       --
-		//)
-		//ENGINE = MergeTree()                        -- MergeTree is the common engine in ClickHouse.
-		//ORDER BY (id);                              -- ClickHouse requires an ORDER BY clause for the MergeTree engine.
-		//    `
-		//
-		//		err = backendConn.Exec(context.Background(), createTableSQL)
-		//		if err != nil {
-		//			log.Fatalf("Failed to create table: %v\n", err)
-		//		}
-		//
-		//		id := uuid.New()
-		//		username := "user" + id.String()
-		//		email := username + "@quesma.com"
-		//
-		//		// Insert data into the users table
-		//		insertSQL := `INSERT INTO users (username, email) VALUES ($1, $2)`
-		//
-		//		err = backendConn.Exec(context.Background(), insertSQL, username, email)
-		//		if err != nil {
-		//			fmt.Printf("Error inserting data: %v", err)
-		//			return nil, nil, err
-		//		}
-		//		data = append(data, []byte(fmt.Sprintf("\tUser: ID=%s, Username=%s, Email=%s, CreatedAt=\n", id, username, email))...)
-		//		err = backendConn.Close()
-		//		if err != nil {
-		//			fmt.Printf("Error closing connection: %v", err)
-		//			return nil, nil, err
-		//		}
 	}
 	return metadata, data, nil
 }

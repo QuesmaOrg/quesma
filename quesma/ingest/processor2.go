@@ -34,6 +34,7 @@ import (
 )
 
 type (
+	//IngestProcessor2 is essentially an Ingest Processor we know and like but `chDb` is `quesma_api.BackendConnector` not `*sql.DB`
 	IngestProcessor2 struct {
 		ctx                       context.Context
 		cancel                    context.CancelFunc
