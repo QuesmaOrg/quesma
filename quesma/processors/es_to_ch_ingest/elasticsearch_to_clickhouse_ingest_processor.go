@@ -49,7 +49,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcess
 	tableDisco := clickhouse.NewTableDiscovery(nil, connector, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, nil, clickhouse.SchemaTypeAdapter{})
 
-	ip := NewIngestProcessor(nil, connector, nil, tableDisco, schemaRegistry, virtualTableStorage, nil)
+	ip := ingest.NewIngestProcessor2(nil, connector, nil, tableDisco, schemaRegistry, virtualTableStorage, nil)
 	ip.Start()
 	return ip
 }
