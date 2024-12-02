@@ -14,7 +14,7 @@ import (
 )
 
 // handleDocIndex assembles the payload into bulk format to reusing existing logic of bulk ingest
-func handleDocIndex(payload types.JSON, targetTableName string, temporaryIngestProcessor *ingest.IngestProcessor) {
+func handleDocIndex(payload types.JSON, targetTableName string, temporaryIngestProcessor *ingest.IngestProcessor2) {
 	newPayload := []types.JSON{
 		map[string]interface{}{"index": map[string]interface{}{"_index": targetTableName}},
 		payload,
@@ -69,7 +69,7 @@ type (
 	}
 )
 
-func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor) (results []BulkItem, err error) {
+func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor2) (results []BulkItem, err error) {
 	defer recovery.LogPanic()
 
 	bulkSize := len(bulk) / 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html

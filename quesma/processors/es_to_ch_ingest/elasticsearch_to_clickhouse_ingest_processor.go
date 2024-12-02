@@ -38,7 +38,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) GetId() string {
 	return "elasticsearch_to_clickhouse_ingest"
 }
 
-func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(connector quesma_api.BackendConnector) *ingest.IngestProcessor {
+func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(connector quesma_api.BackendConnector) *ingest.IngestProcessor2 {
 	u, _ := url.Parse("http://localhost:9200")
 
 	elasticsearchConfig := config.ElasticsearchConfiguration{
