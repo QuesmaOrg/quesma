@@ -82,6 +82,23 @@ func (q *dualWriteHttpProxyV2) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
+func handlerV2(w http.ResponseWriter, req *http.Request,
+	routerInstance *routerV2,
+	searchRouter *mux.PathRouter, ingestRouter *mux.PathRouter,
+	logManager *clickhouse.LogManager, agent telemetry.PhoneHomeAgent) {
+	defer recovery.LogPanic()
+	reqBody, err := peekBodyV2(req)
+	if err != nil {
+		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		return
+	}
+
+	ua := req.Header.Get("User-Agent")
+	agent.UserAgentCounters().Add(ua, 1)
+
+	routerInstance.reroute(req.Context(), w, req, reqBody, searchRouter, ingestRouter, logManager)
+}
+
 func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, processor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
 	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, registry, abResultsRepository, resolver)
 	// not sure how we should configure our query translator ???
@@ -110,24 +127,14 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 		return routerInstance.failedRequests.Load()
 	})
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		defer recovery.LogPanic()
-		reqBody, err := peekBodyV2(req)
-		if err != nil {
-			http.Error(w, "Error reading request body", http.StatusInternalServerError)
-			return
-		}
+	elasticHttpFrontentConnector := NewElasticHttpFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
+		&routerInstance, searchRouter, ingestRouter, logManager, agent)
 
-		ua := req.Header.Get("User-Agent")
-		agent.UserAgentCounters().Add(ua, 1)
-
-		routerInstance.reroute(req.Context(), w, req, reqBody, searchRouter, ingestRouter, logManager)
-	})
 	var limitedHandler http.Handler
 	if config.DisableAuth {
-		limitedHandler = newSimultaneousClientsLimiterV2(handler, concurrentClientsLimitV2)
+		limitedHandler = newSimultaneousClientsLimiterV2(elasticHttpFrontentConnector, concurrentClientsLimitV2)
 	} else {
-		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(handler, config.Elasticsearch), concurrentClientsLimitV2)
+		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(elasticHttpFrontentConnector, config.Elasticsearch), concurrentClientsLimitV2)
 	}
 
 	return &dualWriteHttpProxyV2{
