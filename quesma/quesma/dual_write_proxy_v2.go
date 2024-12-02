@@ -94,7 +94,6 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 
 	ingestRouter := ConfigureIngestRouterV2(config, processor, agent, resolver)
 	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, quesmaManagementConsole, queryRunner, resolver)
-	pathRouter := ConfigureRouter(config, registry, logManager, processor, quesmaManagementConsole, agent, queryRunner, resolver)
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -122,7 +121,7 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 		ua := req.Header.Get("User-Agent")
 		agent.UserAgentCounters().Add(ua, 1)
 
-		routerInstance.reroute(req.Context(), w, req, reqBody, searchRouter, ingestRouter, pathRouter, logManager)
+		routerInstance.reroute(req.Context(), w, req, reqBody, searchRouter, ingestRouter, logManager)
 	})
 	var limitedHandler http.Handler
 	if config.DisableAuth {
@@ -287,7 +286,7 @@ func (*routerV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter,
 
 }
 
-func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, searchRouter *mux.PathRouter, ingestRouter *mux.PathRouter, pathRouter *mux.PathRouter, logManager *clickhouse.LogManager) {
+func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, searchRouter *mux.PathRouter, ingestRouter *mux.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
@@ -309,20 +308,20 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
 	var handler mux.Handler
 	var decision *table_resolver.Decision
-	/*
-		searchHandler, searchDecision := searchRouter.Matches(quesmaRequest)
-		ingestHandler, ingestDecision := ingestRouter.Matches(quesmaRequest)
-
-		if searchHandler == nil {
-			handler = ingestHandler
-			decision = ingestDecision
-		} else {
-			handler = searchHandler
-			decision = searchDecision
-		}
-	*/
-	handler, decision = pathRouter.Matches(quesmaRequest)
-
+	searchHandler, searchDecision := searchRouter.Matches(quesmaRequest)
+	if searchDecision != nil {
+		decision = searchDecision
+	}
+	if searchHandler != nil {
+		handler = searchHandler
+	}
+	ingestHandler, ingestDecision := ingestRouter.Matches(quesmaRequest)
+	if searchDecision == nil {
+		decision = ingestDecision
+	}
+	if searchHandler == nil {
+		handler = ingestHandler
+	}
 	if decision != nil {
 		w.Header().Set(quesmaTableResolverHeader, decision.String())
 	} else {
