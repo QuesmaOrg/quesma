@@ -4,6 +4,7 @@
 package processors
 
 import (
+	"fmt"
 	"github.com/rs/zerolog/log"
 	"quesma/quesma/types"
 	"quesma_v2/core"
@@ -32,6 +33,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) GetId() string {
 func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
 	var data []byte
 	// TODO this processor should NOT take multiple messages? :|
+	// side-effecting for now - just store in ClickHouse it's fine for now
 
 	for _, m := range message {
 		bodyAsBytes, err := quesma_api.CheckedCast[[]byte](m)
@@ -39,37 +41,37 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			panic("ElasticsearchToClickHouseIngestProcessor: invalid message type")
 		}
 		targetIndex := "my_index" // TODO: remove this ASAP
-		// side-effecting for now - just store in ClickHouse it's fine for now
+		backendConn := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
+		if backendConn == nil {
+			fmt.Println("Backend connector not found")
+			return metadata, data, nil
+		}
+
+		err = backendConn.Open()
+		if err != nil {
+			fmt.Printf("Error opening connection: %v", err)
+			return nil, nil, err
+		}
+
 		switch metadata[IngestAction] {
 		case DocIndexAction:
-			payloadJson, _ := types.ExpectJSON(bodyAsBytes)
-			handleDocIndex(payloadJson, targetIndex)
+			payloadJson, err := types.ExpectJSON(types.ParseRequestBody(string(bodyAsBytes)))
+			if err != nil {
+				println(err)
+			}
+			handleDocIndex(payloadJson, targetIndex, backendConn)
 			println("DocIndexAction")
 		case BulkIndexAction:
-			payloadNDJson, _ := types.ExpectNDJSON(bodyAsBytes)
-			handleBulkIndex(payloadNDJson, targetIndex)
+			payloadNDJson, err := types.ExpectNDJSON(types.ParseRequestBody(string(bodyAsBytes)))
+			if err != nil {
+				println(err)
+			}
+			handleBulkIndex(payloadNDJson, targetIndex, backendConn)
 			println("BulkIndexAction")
 		default:
 			log.Info().Msg("Rethink you whole life and start over again")
 		}
-		//		if err != nil {
-		//			panic("ElasticsearchToClickHouseQueryProcessor: invalid message type")
-		//		}
-		//		data = mCasted
-		//		fmt.Println("ElasticsearchToClickHouseIngest processor ")
-		//		data = append(data, []byte("\nProcessed by ElasticsearchToClickHouseIngest processor\n")...)
-		//		data = append(data, []byte("\t|\n")...)
-		//		backendConn := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
-		//		if backendConn == nil {
-		//			fmt.Println("Backend connector not found")
-		//			return metadata, data, nil
-		//		}
-		//
-		//		err = backendConn.Open()
-		//		if err != nil {
-		//			fmt.Printf("Error opening connection: %v", err)
-		//			return nil, nil, err
-		//		}
+
 		//		createTableSQL := `
 		//CREATE TABLE IF NOT EXISTS users (
 		//    id UInt32,                              -- ClickHouse doesn't have SERIAL, use UInt32 or UInt64 for auto-increment.
