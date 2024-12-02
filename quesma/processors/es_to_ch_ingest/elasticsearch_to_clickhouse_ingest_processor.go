@@ -19,9 +19,10 @@ import (
 )
 
 const (
-	IngestAction    = "ingest_action"
-	DocIndexAction  = "_doc"
-	BulkIndexAction = "_bulk"
+	IngestAction         = "ingest_action"
+	DocIndexAction       = "_doc"
+	BulkIndexAction      = "_bulk"
+	HARDCODED_INDEX_NAME = "a_test_index"
 )
 
 type ElasticsearchToClickHouseIngestProcessor struct {
@@ -44,12 +45,21 @@ func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcess
 	elasticsearchConfig := config.ElasticsearchConfiguration{
 		Url: (*config.Url)(u),
 	}
+	emptyConfig := &config.QuesmaConfiguration{
+		IndexConfig: map[string]config.IndexConfiguration{
+			HARDCODED_INDEX_NAME: {
+				Name: HARDCODED_INDEX_NAME,
+			},
+		},
+	}
 
 	virtualTableStorage := persistence.NewElasticJSONDatabase(elasticsearchConfig, common_table.VirtualTableElasticIndexName)
-	tableDisco := clickhouse.NewTableDiscovery(nil, connector, virtualTableStorage)
-	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, nil, clickhouse.SchemaTypeAdapter{})
+	tableDisco := clickhouse.NewTableDiscovery2(emptyConfig, connector, virtualTableStorage)
+	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, emptyConfig, clickhouse.SchemaTypeAdapter{})
 
-	ip := ingest.NewIngestProcessor2(nil, connector, nil, tableDisco, schemaRegistry, virtualTableStorage, nil)
+	v2TableResolver := &NextGenTableResolver{}
+
+	ip := ingest.NewIngestProcessor2(emptyConfig, connector, nil, tableDisco, schemaRegistry, virtualTableStorage, v2TableResolver)
 	ip.Start()
 	return ip
 }
@@ -77,7 +87,6 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 		if err != nil {
 			panic("ElasticsearchToClickHouseIngestProcessor: invalid message type")
 		}
-		targetIndex := "my_index" // TODO: remove this ASAP
 
 		switch metadata[IngestAction] {
 		case DocIndexAction:
@@ -85,14 +94,14 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			handleDocIndex(payloadJson, targetIndex, tempIngestProcessor)
+			handleDocIndex(payloadJson, HARDCODED_INDEX_NAME, tempIngestProcessor)
 			println("DocIndexAction")
 		case BulkIndexAction:
 			payloadNDJson, err := types.ExpectNDJSON(types.ParseRequestBody(string(bodyAsBytes)))
 			if err != nil {
 				println(err)
 			}
-			handleBulkIndex(payloadNDJson, targetIndex)
+			handleBulkIndex(payloadNDJson, HARDCODED_INDEX_NAME)
 			println("BulkIndexAction")
 		default:
 			log.Info().Msg("Rethink you whole life and start over again")

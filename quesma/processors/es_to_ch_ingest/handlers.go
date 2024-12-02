@@ -112,7 +112,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 	return results, nil
 }
 
-func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, ip *ingest.IngestProcessor) {
+func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, ip *ingest.IngestProcessor2) {
 	for indexName, documents := range clickhouseDocumentsToInsert {
 		//phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 

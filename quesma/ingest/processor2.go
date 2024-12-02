@@ -524,7 +524,7 @@ func (ip *IngestProcessor2) processInsertQueryInternal(ctx context.Context, tabl
 // This function executes query with context
 // and creates span for it
 func (ip *IngestProcessor2) execute(ctx context.Context, query string) error {
-	span := ip.phoneHomeAgent.ClickHouseInsertDuration().Begin()
+	//span := ip.phoneHomeAgent.ClickHouseInsertDuration().Begin()
 
 	// We log every DDL query
 	if ip.cfg.Logging.EnableSQLTracing {
@@ -534,7 +534,7 @@ func (ip *IngestProcessor2) execute(ctx context.Context, query string) error {
 	}
 
 	err := ip.chDb.Exec(ctx, query)
-	span.End(err)
+	//span.End(err)
 	return err
 }
 
