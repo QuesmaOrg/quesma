@@ -11,6 +11,8 @@ import (
 type Router interface {
 	Cloner
 	AddRoute(path string, handler HTTPFrontendHandler)
+	AddFallbackHandler(handler HTTPFrontendHandler)
+	GetFallbackHandler() HTTPFrontendHandler
 	GetHandlers() map[string]HandlersPipe
 	SetHandlers(handlers map[string]HandlersPipe)
 	Multiplexer() *http.ServeMux

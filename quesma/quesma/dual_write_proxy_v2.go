@@ -37,22 +37,22 @@ import (
 	"time"
 )
 
-const concurrentClientsLimit = 100 // FIXME this should be configurable
+const concurrentClientsLimitV2 = 100 // FIXME this should be configurable
 
-type simultaneousClientsLimiter struct {
+type simultaneousClientsLimiterV2 struct {
 	counter atomic.Int64
 	handler http.Handler
 	limit   int64
 }
 
-func newSimultaneousClientsLimiter(handler http.Handler, limit int64) *simultaneousClientsLimiter {
-	return &simultaneousClientsLimiter{
+func newSimultaneousClientsLimiterV2(handler http.Handler, limit int64) *simultaneousClientsLimiterV2 {
+	return &simultaneousClientsLimiterV2{
 		handler: handler,
 		limit:   limit,
 	}
 }
 
-func (c *simultaneousClientsLimiter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (c *simultaneousClientsLimiterV2) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	current := c.counter.Load()
 	// this is hard limit, we should not allow to go over it
@@ -67,9 +67,8 @@ func (c *simultaneousClientsLimiter) ServeHTTP(w http.ResponseWriter, r *http.Re
 	c.handler.ServeHTTP(w, r)
 }
 
-type dualWriteHttpProxy struct {
+type dualWriteHttpProxyV2 struct {
 	routingHttpServer   *http.Server
-	elasticRouter       *mux.PathRouter
 	indexManagement     elasticsearch.IndexManagement
 	logManager          *clickhouse.LogManager
 	publicPort          util.Port
@@ -79,11 +78,11 @@ type dualWriteHttpProxy struct {
 	schemaLoader        clickhouse.TableDiscovery
 }
 
-func (q *dualWriteHttpProxy) Stop(ctx context.Context) {
+func (q *dualWriteHttpProxyV2) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, processor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxy {
+func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, processor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
 	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, registry, abResultsRepository, resolver)
 	// not sure how we should configure our query translator ???
 	// is this a config option??
@@ -93,7 +92,8 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 	// tests should not be run with optimization enabled by default
 	queryRunner.EnableQueryOptimization(config)
 
-	pathRouter := ConfigureRouter(config, registry, logManager, processor, quesmaManagementConsole, agent, queryRunner, resolver)
+	ingestRouter := ConfigureIngestRouterV2(config, processor, agent, resolver)
+	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, quesmaManagementConsole, queryRunner, resolver)
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -102,7 +102,7 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 		Transport: tr,
 		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
 	}
-	routerInstance := router{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client, requestPreprocessors: processorChain{}}
+	routerInstance := routerV2{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client, requestPreprocessors: processorChain{}}
 	routerInstance.
 		registerPreprocessor(NewTraceIdPreprocessor())
 
@@ -112,7 +112,7 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer recovery.LogPanic()
-		reqBody, err := peekBody(req)
+		reqBody, err := peekBodyV2(req)
 		if err != nil {
 			http.Error(w, "Error reading request body", http.StatusInternalServerError)
 			return
@@ -121,17 +121,16 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 		ua := req.Header.Get("User-Agent")
 		agent.UserAgentCounters().Add(ua, 1)
 
-		routerInstance.reroute(req.Context(), w, req, reqBody, pathRouter, logManager)
+		routerInstance.reroute(req.Context(), w, req, reqBody, searchRouter, ingestRouter, logManager)
 	})
 	var limitedHandler http.Handler
 	if config.DisableAuth {
-		limitedHandler = newSimultaneousClientsLimiter(handler, concurrentClientsLimit)
+		limitedHandler = newSimultaneousClientsLimiterV2(handler, concurrentClientsLimitV2)
 	} else {
-		limitedHandler = newSimultaneousClientsLimiter(NewAuthMiddleware(handler, config.Elasticsearch), concurrentClientsLimit)
+		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(handler, config.Elasticsearch), concurrentClientsLimitV2)
 	}
 
-	return &dualWriteHttpProxy{
-		elasticRouter:  pathRouter,
+	return &dualWriteHttpProxyV2{
 		schemaRegistry: registry,
 		schemaLoader:   schemaLoader,
 		routingHttpServer: &http.Server{
@@ -149,7 +148,7 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 	}
 }
 
-func (q *dualWriteHttpProxy) Close(ctx context.Context) {
+func (q *dualWriteHttpProxyV2) Close(ctx context.Context) {
 	if q.logManager != nil {
 		defer q.logManager.Close()
 	}
@@ -164,7 +163,7 @@ func (q *dualWriteHttpProxy) Close(ctx context.Context) {
 	}
 }
 
-func (q *dualWriteHttpProxy) Ingest() {
+func (q *dualWriteHttpProxyV2) Ingest() {
 	q.schemaLoader.ReloadTableDefinitions()
 	q.logManager.Start()
 	q.indexManagement.Start()
@@ -177,11 +176,11 @@ func (q *dualWriteHttpProxy) Ingest() {
 	}()
 }
 
-func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter) {
+func responseFromElasticV2(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
 
-	copyHeaders(w, elkResponse)
+	copyHeadersV2(w, elkResponse)
 	w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 	// io.Copy calls WriteHeader implicitly
 	w.WriteHeader(elkResponse.StatusCode)
@@ -193,7 +192,7 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	elkResponse.Body.Close()
 }
 
-func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, quesmaResponse *mux.Result, zip bool) {
+func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseWriter, quesmaResponse *mux.Result, zip bool) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 
@@ -216,7 +215,7 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 	}
 }
 
-type router struct {
+type routerV2 struct {
 	config                  *config.QuesmaConfiguration
 	requestPreprocessors    processorChain
 	quesmaManagementConsole *ui.QuesmaManagementConsole
@@ -225,11 +224,11 @@ type router struct {
 	failedRequests          atomic.Int64
 }
 
-func (r *router) registerPreprocessor(preprocessor RequestPreprocessor) {
+func (r *routerV2) registerPreprocessor(preprocessor RequestPreprocessor) {
 	r.requestPreprocessors = append(r.requestPreprocessors, preprocessor)
 }
 
-func (r *router) errorResponse(ctx context.Context, err error, w http.ResponseWriter) {
+func (r *routerV2) errorResponseV2(ctx context.Context, err error, w http.ResponseWriter) {
 	r.failedRequests.Add(1)
 
 	msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
@@ -257,10 +256,10 @@ func (r *router) errorResponse(ctx context.Context, err error, w http.ResponseWr
 
 	// We should not send our error message to the client. There can be sensitive information in it.
 	// We will send ID of failed request instead
-	responseFromQuesma(ctx, []byte(fmt.Sprintf("%s\nRequest ID: %s\n", msg, requestId)), w, result, false)
+	responseFromQuesmaV2(ctx, []byte(fmt.Sprintf("%s\nRequest ID: %s\n", msg, requestId)), w, result, false)
 }
 
-func (*router) closedIndexResponse(ctx context.Context, w http.ResponseWriter, pattern string) {
+func (*routerV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter, pattern string) {
 	// TODO we should return a proper status code here (400?)
 	w.WriteHeader(http.StatusOK)
 
@@ -287,7 +286,7 @@ func (*router) closedIndexResponse(ctx context.Context, w http.ResponseWriter, p
 
 }
 
-func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
+func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, pathRouter *mux.PathRouter, ingestRouter *mux.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
@@ -307,8 +306,19 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 	}
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
+	var handler mux.Handler
+	var decision *table_resolver.Decision
 
-	handler, decision := router.Matches(quesmaRequest)
+	searchHandler, searchDecision := pathRouter.Matches(quesmaRequest)
+	ingestHandler, ingestDecision := ingestRouter.Matches(quesmaRequest)
+
+	if searchHandler == nil {
+		handler = ingestHandler
+		decision = ingestDecision
+	} else {
+		handler = searchHandler
+		decision = searchDecision
+	}
 
 	if decision != nil {
 		w.Header().Set(quesmaTableResolverHeader, decision.String())
@@ -317,7 +327,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 	}
 
 	if handler != nil {
-		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
+		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
 			return handler(ctx, quesmaRequest)
 		})
 
@@ -337,7 +347,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			responseFromQuesma(ctx, unzipped, w, quesmaResponse, zip)
 
 		} else {
-			r.errorResponse(ctx, err, w)
+			r.errorResponseV2(ctx, err, w)
 		}
 	} else {
 
@@ -348,7 +358,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			if decision.Err != nil {
 				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
 				addProductAndContentHeaders(req.Header, w.Header())
-				r.errorResponse(ctx, decision.Err, w)
+				r.errorResponseV2(ctx, decision.Err, w)
 				return
 			}
 
@@ -387,7 +397,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 			response := rawResponse.response
 			if response != nil {
-				responseFromElastic(ctx, response, w)
+				responseFromElasticV2(ctx, response, w)
 			} else {
 				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 				w.WriteHeader(500)
@@ -396,12 +406,12 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 				}
 			}
 		} else {
-			r.errorResponse(ctx, end_user_errors.ErrNoConnector.New(fmt.Errorf("no connector found")), w)
+			r.errorResponseV2(ctx, end_user_errors.ErrNoConnector.New(fmt.Errorf("no connector found")), w)
 		}
 	}
 }
 
-func (r *router) preprocessRequest(ctx context.Context, quesmaRequest *mux.Request) (*mux.Request, context.Context, error) {
+func (r *routerV2) preprocessRequest(ctx context.Context, quesmaRequest *mux.Request) (*mux.Request, context.Context, error) {
 	var err error
 	var processedRequest = quesmaRequest
 	for _, preprocessor := range r.requestPreprocessors {
@@ -413,15 +423,15 @@ func (r *router) preprocessRequest(ctx context.Context, quesmaRequest *mux.Reque
 	return processedRequest, ctx, nil
 }
 
-type elasticResult struct {
+type elasticResultV2 struct {
 	response *http.Response
 	error    error
 	took     time.Duration
 }
 
-func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request,
-	reqBody []byte, isManagement bool) chan elasticResult {
-	elkResponseChan := make(chan elasticResult)
+func (r *routerV2) sendHttpRequestToElastic(ctx context.Context, req *http.Request,
+	reqBody []byte, isManagement bool) chan elasticResultV2 {
+	elkResponseChan := make(chan elasticResultV2)
 
 	// If Quesma is exposing unauthenticated API but underlying Elasticsearch requires authentication, we should add the
 	if r.config.DisableAuth && req.Header.Get("Authorization") == "" && r.config.Elasticsearch.User != "" {
@@ -440,7 +450,7 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 	}
 
 	go func() {
-		elkResponseChan <- recordRequestToElastic(req.URL.Path, r.quesmaManagementConsole, func() elasticResult {
+		elkResponseChan <- recordRequestToElasticV2(req.URL.Path, r.quesmaManagementConsole, func() elasticResultV2 {
 
 			isWrite := elasticsearch.IsWriteRequest(req)
 
@@ -461,23 +471,23 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 
 			resp, err := r.sendHttpRequest(ctx, r.config.Elasticsearch.Url.String(), req, reqBody)
 			took := span.End(err)
-			return elasticResult{resp, err, took}
+			return elasticResultV2{resp, err, took}
 		})
 	}()
 	return elkResponseChan
 }
 
-func isResponseOk(resp *http.Response) bool {
+func isResponseOkV2(resp *http.Response) bool {
 	return resp != nil && resp.StatusCode >= 200 && resp.StatusCode < 500
 }
 
-func isIngest(path string) bool {
+func isIngestV2(path string) bool {
 	return strings.HasSuffix(path, routes.BulkPath) // We may add more methods in future such as `_put` or `_create`
 }
 
-func recordRequestToClickhouse(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() (*mux.Result, error)) (*mux.Result, error) {
+func recordRequestToClickhouseV2(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() (*mux.Result, error)) (*mux.Result, error) {
 	statName := ui.RequestStatisticKibana2Clickhouse
-	if isIngest(path) {
+	if isIngestV2(path) {
 		statName = ui.RequestStatisticIngest2Clickhouse
 	}
 	now := time.Now()
@@ -486,18 +496,18 @@ func recordRequestToClickhouse(path string, qmc *ui.QuesmaManagementConsole, req
 	return response, err
 }
 
-func recordRequestToElastic(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() elasticResult) elasticResult {
+func recordRequestToElasticV2(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() elasticResultV2) elasticResultV2 {
 	statName := ui.RequestStatisticKibana2Elasticsearch
 	if isIngest(path) {
 		statName = ui.RequestStatisticIngest2Elasticsearch
 	}
 	now := time.Now()
 	response := requestFunc()
-	qmc.RecordRequest(statName, time.Since(now), !isResponseOk(response.response))
+	qmc.RecordRequest(statName, time.Since(now), !isResponseOkV2(response.response))
 	return response
 }
 
-func peekBody(r *http.Request) ([]byte, error) {
+func peekBodyV2(r *http.Request) ([]byte, error) {
 	reqBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		logger.ErrorWithCtxAndReason(r.Context(), "incomplete request").
@@ -527,7 +537,7 @@ func peekBody(r *http.Request) ([]byte, error) {
 	return reqBody, nil
 }
 
-func copyHeaders(w http.ResponseWriter, elkResponse *http.Response) {
+func copyHeadersV2(w http.ResponseWriter, elkResponse *http.Response) {
 	for key, values := range elkResponse.Header {
 		for _, value := range values {
 			if key != httpHeaderContentLength {
@@ -539,7 +549,7 @@ func copyHeaders(w http.ResponseWriter, elkResponse *http.Response) {
 	}
 }
 
-func (r *router) sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) (*http.Response, error) {
+func (r *routerV2) sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, originalReq.Method, address+originalReq.URL.String(), bytes.NewBuffer(originalReqBody))
 
 	if err != nil {

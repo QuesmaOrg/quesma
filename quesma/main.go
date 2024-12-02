@@ -16,6 +16,7 @@ import (
 	"quesma/connectors"
 	"quesma/elasticsearch"
 	"quesma/feature"
+	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/licensing"
 	"quesma/logger"
@@ -29,7 +30,6 @@ import (
 	"quesma/telemetry"
 	"quesma/tracing"
 	"quesma_v2/core"
-	"quesma_v2/frontend_connectors"
 	"runtime"
 	"syscall"
 	"time"
@@ -160,6 +160,7 @@ func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscove
 	if cfg.TransparentProxy {
 		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, false)
 	} else {
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry)
+		const quesma_v2 = false
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry, quesma_v2)
 	}
 }

@@ -32,9 +32,12 @@ func (p *TcpPostgresConnectionHandler) HandleConnection(conn net.Conn) error {
 		}
 		var resp any = msg
 		metadata := make(map[string]interface{})
-		metadata, resp = dispatcher.Dispatch(p.processors, metadata, resp)
+		_, resp = dispatcher.Dispatch(p.processors, metadata, resp)
 		if resp != nil {
 			_, err = conn.Write(resp.([]byte))
+			if err != nil {
+				return fmt.Errorf("error sending response: %w", err)
+			}
 		}
 	}
 }
