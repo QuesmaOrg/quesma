@@ -293,6 +293,69 @@ func (*routerV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter,
 
 }
 
+func (r *routerV2) elasticFallback(decision *table_resolver.Decision,
+	ctx context.Context, w http.ResponseWriter,
+	req *http.Request, reqBody []byte, logManager *clickhouse.LogManager) {
+
+	var sendToElastic bool
+
+	if decision != nil {
+
+		if decision.Err != nil {
+			w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+			addProductAndContentHeaders(req.Header, w.Header())
+			r.errorResponseV2(ctx, decision.Err, w)
+			return
+		}
+
+		if decision.IsClosed {
+			w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+			addProductAndContentHeaders(req.Header, w.Header())
+			r.closedIndexResponse(ctx, w, decision.IndexPattern)
+			return
+		}
+
+		if decision.IsEmpty {
+			w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+			addProductAndContentHeaders(req.Header, w.Header())
+			w.WriteHeader(http.StatusNoContent)
+			w.Write(queryparser.EmptySearchResponse(ctx))
+			return
+		}
+
+		for _, connector := range decision.UseConnectors {
+			if _, ok := connector.(*table_resolver.ConnectorDecisionElastic); ok {
+				// this is desired elastic call
+				sendToElastic = true
+				break
+			}
+		}
+
+	} else {
+		// this is fallback case
+		// in case we don't support sth, we should send it to Elastic
+		sendToElastic = true
+	}
+
+	if sendToElastic {
+		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(opaqueIdHeaderKey), logManager.ResolveIndexPattern)
+
+		rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
+		response := rawResponse.response
+		if response != nil {
+			responseFromElasticV2(ctx, response, w)
+		} else {
+			w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
+			w.WriteHeader(500)
+			if rawResponse.error != nil {
+				_, _ = w.Write([]byte(rawResponse.error.Error()))
+			}
+		}
+	} else {
+		r.errorResponseV2(ctx, end_user_errors.ErrNoConnector.New(fmt.Errorf("no connector found")), w)
+	}
+}
+
 func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, searchRouter *mux.PathRouter, ingestRouter *mux.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
@@ -359,64 +422,7 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 			r.errorResponseV2(ctx, err, w)
 		}
 	} else {
-
-		var sendToElastic bool
-
-		if decision != nil {
-
-			if decision.Err != nil {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				addProductAndContentHeaders(req.Header, w.Header())
-				r.errorResponseV2(ctx, decision.Err, w)
-				return
-			}
-
-			if decision.IsClosed {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				addProductAndContentHeaders(req.Header, w.Header())
-				r.closedIndexResponse(ctx, w, decision.IndexPattern)
-				return
-			}
-
-			if decision.IsEmpty {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				addProductAndContentHeaders(req.Header, w.Header())
-				w.WriteHeader(http.StatusNoContent)
-				w.Write(queryparser.EmptySearchResponse(ctx))
-				return
-			}
-
-			for _, connector := range decision.UseConnectors {
-				if _, ok := connector.(*table_resolver.ConnectorDecisionElastic); ok {
-					// this is desired elastic call
-					sendToElastic = true
-					break
-				}
-			}
-
-		} else {
-			// this is fallback case
-			// in case we don't support sth, we should send it to Elastic
-			sendToElastic = true
-		}
-
-		if sendToElastic {
-			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(opaqueIdHeaderKey), logManager.ResolveIndexPattern)
-
-			rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
-			response := rawResponse.response
-			if response != nil {
-				responseFromElasticV2(ctx, response, w)
-			} else {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
-				w.WriteHeader(500)
-				if rawResponse.error != nil {
-					_, _ = w.Write([]byte(rawResponse.error.Error()))
-				}
-			}
-		} else {
-			r.errorResponseV2(ctx, end_user_errors.ErrNoConnector.New(fmt.Errorf("no connector found")), w)
-		}
+		r.elasticFallback(decision, ctx, w, req, reqBody, logManager)
 	}
 }
 
