@@ -82,23 +82,6 @@ func (q *dualWriteHttpProxyV2) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func handlerV2(w http.ResponseWriter, req *http.Request,
-	routerInstance *routerV2,
-	searchRouter *mux.PathRouter, ingestRouter *mux.PathRouter,
-	logManager *clickhouse.LogManager, agent telemetry.PhoneHomeAgent) {
-	defer recovery.LogPanic()
-	reqBody, err := peekBodyV2(req)
-	if err != nil {
-		http.Error(w, "Error reading request body", http.StatusInternalServerError)
-		return
-	}
-
-	ua := req.Header.Get("User-Agent")
-	agent.UserAgentCounters().Add(ua, 1)
-
-	routerInstance.reroute(req.Context(), w, req, reqBody, searchRouter, ingestRouter, logManager)
-}
-
 func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, processor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
 	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, registry, abResultsRepository, resolver)
 	// not sure how we should configure our query translator ???

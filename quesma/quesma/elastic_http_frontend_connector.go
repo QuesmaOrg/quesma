@@ -8,6 +8,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/frontend_connectors"
 	"quesma/quesma/mux"
+	"quesma/quesma/recovery"
 	"quesma/telemetry"
 )
 
@@ -37,5 +38,15 @@ func NewElasticHttpFrontendConnector(endpoint string,
 }
 
 func (h *ElasticHttpFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	handlerV2(w, req, h.routerInstance, h.searchRouter, h.ingestRouter, h.logManager, h.agent)
+	defer recovery.LogPanic()
+	reqBody, err := peekBodyV2(req)
+	if err != nil {
+		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		return
+	}
+
+	ua := req.Header.Get("User-Agent")
+	h.agent.UserAgentCounters().Add(ua, 1)
+
+	h.routerInstance.reroute(req.Context(), w, req, reqBody, h.searchRouter, h.ingestRouter, h.logManager)
 }
