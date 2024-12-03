@@ -363,8 +363,8 @@ func TestGetTopNValues(t *testing.T) {
 		{
 			name: "LessThanN",
 			input: map[string]int64{
-				"table1": 500,
 				"table2": 300,
+				"table1": 500,
 			},
 			n: 5,
 			expected: map[string]int64{
@@ -376,14 +376,14 @@ func TestGetTopNValues(t *testing.T) {
 			name: "EqualToN",
 			input: map[string]int64{
 				"table1": 200,
-				"table2": 300,
 				"table3": 500,
+				"table2": 300,
 			},
 			n: 3,
 			expected: map[string]int64{
-				"table1": 500,
+				"table3": 500,
 				"table2": 300,
-				"table3": 200,
+				"table1": 200,
 			},
 		},
 		{
