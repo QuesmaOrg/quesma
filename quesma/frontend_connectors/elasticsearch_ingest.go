@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/ucarion/urlpath"
 	"net/http"
-	"quesma_v2/core"
+	quesma_api "quesma_v2/core"
 )
 
 type ElasticsearchIngestFrontendConnector struct {
