@@ -404,19 +404,21 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 	if searchHandler != nil {
 		handler = searchHandler
 	}
-	respFromQuesma := r.executeHandlerWithoutFallback(decision, ctx, w, req, reqBody, handler, quesmaRequest, logManager)
-	if !respFromQuesma {
-		ingestHandler, ingestDecision := ingestRouter.Matches(quesmaRequest)
-		if searchDecision == nil {
-			decision = ingestDecision
-		}
-		if searchHandler == nil {
-			handler = ingestHandler
-		}
-		respFromQuesma = r.executeHandlerWithoutFallback(decision, ctx, w, req, reqBody, handler, quesmaRequest, logManager)
-		if !respFromQuesma {
-			r.elasticFallback(decision, ctx, w, req, reqBody, logManager)
-		}
+	ingestHandler, ingestDecision := ingestRouter.Matches(quesmaRequest)
+	if searchDecision == nil {
+		decision = ingestDecision
+	}
+	if searchHandler == nil {
+		handler = ingestHandler
+	}
+	var respFromQuesma1 bool
+	var respFromQuesma2 bool
+	respFromQuesma1 = r.executeHandlerWithoutFallback(decision, ctx, w, req, reqBody, handler, quesmaRequest, logManager)
+	if !respFromQuesma1 {
+		respFromQuesma2 = r.executeHandlerWithoutFallback(decision, ctx, w, req, reqBody, handler, quesmaRequest, logManager)
+	}
+	if !respFromQuesma1 && !respFromQuesma2 {
+		r.elasticFallback(decision, ctx, w, req, reqBody, logManager)
 	}
 }
 
