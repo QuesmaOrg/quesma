@@ -5,6 +5,7 @@ package telemetry
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
@@ -19,6 +20,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/health"
 	telemetry_headers "quesma/telemetry/headers"
+	"sort"
 
 	"quesma/logger"
 	"quesma/quesma/config"
@@ -32,7 +34,7 @@ import (
 
 const (
 	warmupInterval    = 30 * time.Second
-	phoneHomeInterval = 3600 * time.Second
+	phoneHomeInterval = 10 * time.Second
 
 	clickhouseTimeout = 10 * time.Second
 	elasticTimeout    = 10 * time.Second
@@ -305,7 +307,7 @@ func (a *agent) collectClickHouseTableSizes(ctx context.Context) (map[string]int
 	return tablesWithSizes, nil
 }
 
-func (a *agent) getDbInfo() string {
+func (a *agent) getDbInfoHash() string {
 	dbUrl, dbName, dbUser := "", "default", "<no-user>"
 	if a.config.ClickHouse.User != "" {
 		dbUser = a.config.ClickHouse.User
@@ -316,7 +318,9 @@ func (a *agent) getDbInfo() string {
 	if a.config.ClickHouse.Url != nil {
 		dbUrl = a.config.ClickHouse.Url.String()
 	}
-	return fmt.Sprintf("%s@%s/%s", dbUser, dbUrl, dbName)
+	// we hash it to avoid leaking sensitive info
+	dbInfoHash := sha256.Sum256([]byte(fmt.Sprintf("%s@%s/%s", dbUser, dbUrl, dbName)))
+	return fmt.Sprintf("%x", dbInfoHash[:8])
 }
 
 func (a *agent) getTableSizes(ctx context.Context) (map[string]int64, error) {
@@ -343,14 +347,52 @@ ORDER BY total_size DESC;`
 		if err := rows.Scan(&tableName, &totalSize); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
-		tableSizes[tableName] = totalSize
-		allTablesSize += totalSize
+		tableSize := totalSize / 1000000 // convert bytes to megabytes
+		if tableSize >= 1 {              // we're not interested in tables smaller than 1MB
+			tableSizes[tableName] = tableSize
+		}
+		allTablesSize += tableSize
 	}
-	tableSizes["QUESMA_all_tables_in_bytes"] = allTablesSize
+	tableSizes = getTopNValues(tableSizes, 10)
+
+	tableSizes["QUESMA_all_tables_in_megabytes"] = allTablesSize
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating over rows: %w", err)
 	}
 	return tableSizes, nil
+}
+
+func getTopNValues(in map[string]int64, n int) map[string]int64 {
+	sortedMap := sortMapByValue(in)
+	result := make(map[string]int64)
+	count := 0
+	for k, v := range sortedMap {
+		if count >= n {
+			break
+		}
+		result[k] = v
+		count++
+	}
+	return result
+}
+
+func sortMapByValue(in map[string]int64) map[string]int64 {
+	type kv struct {
+		Key   string
+		Value int64
+	}
+	var sortedSlice []kv
+	for k, v := range in {
+		sortedSlice = append(sortedSlice, kv{k, v})
+	}
+	sort.Slice(sortedSlice, func(i, j int) bool {
+		return sortedSlice[i].Value > sortedSlice[j].Value
+	})
+	out := make(map[string]int64, len(in))
+	for _, kv := range sortedSlice {
+		out[kv.Key] = kv.Value
+	}
+	return out
 }
 
 func (a *agent) collectClickHouseVersion(ctx context.Context, stats *ClickHouseStats) error {
@@ -598,7 +640,7 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 	}
 	if !strings.HasPrefix(a.config.ClickHouse.ConnectorType, "hydrolix") { // we only check table sizes for ClickHouse
 		if tables, err := a.collectClickHouseTableSizes(ctx); err == nil {
-			logger.Info().Msgf("Usage report dababase=[%s] table sizes=%v", a.getDbInfo(), tables)
+			logger.Info().Msgf("[USAGE REPORT] dababase=[%s] table sizes=%v", a.getDbInfoHash(), tables)
 		}
 	}
 
