@@ -15,6 +15,7 @@ import (
 	"quesma/model/bucket_aggregations"
 	"quesma/model/typical_queries"
 	"quesma/queryparser/lucene"
+	"quesma/queryparser/painless"
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/util"
@@ -71,7 +72,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		queries = append(queries, listQuery)
 	}
 
-	runtimeMappings := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
+	runtimeMappings := painless.ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
 
 	// we apply post query transformer for certain aggregation types
 	// this should be a part of the query parsing process
