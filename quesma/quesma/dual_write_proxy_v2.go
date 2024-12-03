@@ -339,6 +339,42 @@ func (r *routerV2) elasticFallback(decision *table_resolver.Decision,
 	}
 }
 
+func (r *routerV2) executeHandlerWithoutFallback(decision *table_resolver.Decision, ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, handler mux.Handler, quesmaRequest *mux.Request, logManager *clickhouse.LogManager) bool {
+	if decision != nil {
+		w.Header().Set(quesmaTableResolverHeader, decision.String())
+	} else {
+		w.Header().Set(quesmaTableResolverHeader, "n/a")
+	}
+
+	if handler == nil {
+		return false
+	}
+
+	quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
+		return handler(ctx, quesmaRequest)
+	})
+
+	zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
+
+	if err == nil {
+		logger.Debug().Ctx(ctx).Msg("responding from quesma")
+		unzipped := []byte{}
+		if quesmaResponse != nil {
+			unzipped = []byte(quesmaResponse.Body)
+		}
+		if len(unzipped) == 0 {
+			logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
+		}
+		addProductAndContentHeaders(req.Header, w.Header())
+
+		responseFromQuesma(ctx, unzipped, w, quesmaResponse, zip)
+
+	} else {
+		r.errorResponseV2(ctx, err, w)
+	}
+	return true
+}
+
 func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, searchRouter *mux.PathRouter, ingestRouter *mux.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
@@ -368,44 +404,19 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 	if searchHandler != nil {
 		handler = searchHandler
 	}
-	ingestHandler, ingestDecision := ingestRouter.Matches(quesmaRequest)
-	if searchDecision == nil {
-		decision = ingestDecision
-	}
-	if searchHandler == nil {
-		handler = ingestHandler
-	}
-	if decision != nil {
-		w.Header().Set(quesmaTableResolverHeader, decision.String())
-	} else {
-		w.Header().Set(quesmaTableResolverHeader, "n/a")
-	}
-
-	if handler != nil {
-		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
-			return handler(ctx, quesmaRequest)
-		})
-
-		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
-
-		if err == nil {
-			logger.Debug().Ctx(ctx).Msg("responding from quesma")
-			unzipped := []byte{}
-			if quesmaResponse != nil {
-				unzipped = []byte(quesmaResponse.Body)
-			}
-			if len(unzipped) == 0 {
-				logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
-			}
-			addProductAndContentHeaders(req.Header, w.Header())
-
-			responseFromQuesma(ctx, unzipped, w, quesmaResponse, zip)
-
-		} else {
-			r.errorResponseV2(ctx, err, w)
+	respFromQuesma := r.executeHandlerWithoutFallback(decision, ctx, w, req, reqBody, handler, quesmaRequest, logManager)
+	if !respFromQuesma {
+		ingestHandler, ingestDecision := ingestRouter.Matches(quesmaRequest)
+		if searchDecision == nil {
+			decision = ingestDecision
 		}
-	} else {
-		r.elasticFallback(decision, ctx, w, req, reqBody, logManager)
+		if searchHandler == nil {
+			handler = ingestHandler
+		}
+		respFromQuesma = r.executeHandlerWithoutFallback(decision, ctx, w, req, reqBody, handler, quesmaRequest, logManager)
+		if !respFromQuesma {
+			r.elasticFallback(decision, ctx, w, req, reqBody, logManager)
+		}
 	}
 }
 
