@@ -5,6 +5,7 @@ package es_to_ch_ingest
 
 import (
 	"fmt"
+	"github.com/goccy/go-json"
 	"github.com/rs/zerolog/log"
 	"net/url"
 	"quesma/clickhouse"
@@ -91,14 +92,25 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			_, _ = handleDocIndex(payloadJson, HARDCODED_INDEX_NAME, tempIngestProcessor)
-			println("DocIndexAction")
+			result, err := handleDocIndex(payloadJson, HARDCODED_INDEX_NAME, tempIngestProcessor)
+			if err != nil {
+				println(err)
+			}
+			if respBody, err := json.Marshal(result.Index); err == nil {
+				return metadata, respBody, nil
+			}
 		case BulkIndexAction:
 			payloadNDJson, err := types.ExpectNDJSON(types.ParseRequestBody(string(bodyAsBytes)))
 			if err != nil {
 				println(err)
 			}
-			handleBulkIndex(payloadNDJson, HARDCODED_INDEX_NAME)
+			results, err := handleBulkIndex(payloadNDJson, HARDCODED_INDEX_NAME, tempIngestProcessor)
+			if err != nil {
+				println(err)
+			}
+			if respBody, err := json.Marshal(results); err == nil {
+				return metadata, respBody, nil
+			}
 			println("BulkIndexAction")
 		default:
 			log.Info().Msg("Rethink you whole life and start over again")

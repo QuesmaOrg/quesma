@@ -9,26 +9,35 @@ import (
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
+	bulkmodel "quesma/quesma/functionality/bulk"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 )
 
 // handleDocIndex assembles the payload into bulk format to reusing existing logic of bulk ingest
-func handleDocIndex(payload types.JSON, targetTableName string, temporaryIngestProcessor *ingest.IngestProcessor2) (results []BulkItem, err error) {
+func handleDocIndex(payload types.JSON, targetTableName string, temporaryIngestProcessor *ingest.IngestProcessor2) (bulkmodel.BulkItem, error) {
 	newPayload := []types.JSON{
 		map[string]interface{}{"index": map[string]interface{}{"_index": targetTableName}},
 		payload,
 	}
 
-	results, err = Write(context.Background(), &targetTableName, newPayload, temporaryIngestProcessor)
-	return
+	if results, err := Write(context.Background(), &targetTableName, newPayload, temporaryIngestProcessor); err != nil {
+		return bulkmodel.BulkItem{}, err
+	} else {
+		return results[0], nil
+	}
 }
 
-func handleBulkIndex(payload types.NDJSON, targetTableName string) {
-	_, _ = Write(context.Background(), &targetTableName, payload, nil)
+func handleBulkIndex(payload types.NDJSON, targetTableName string, temporaryIngestProcessor *ingest.IngestProcessor2) ([]bulkmodel.BulkItem, error) {
+	results, err := Write(context.Background(), &targetTableName, payload, temporaryIngestProcessor)
+	if err != nil {
+		fmt.Printf("failed writing: %v", err)
+		return []bulkmodel.BulkItem{}, err
+	}
+	return results, nil
 }
 
-func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor2) (results []BulkItem, err error) {
+func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor2) (results []bulkmodel.BulkItem, err error) {
 	defer recovery.LogPanic()
 
 	bulkSize := len(bulk) / 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
@@ -37,7 +46,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 	// Therefore, each BulkRequestEntry has a corresponding pointer to the result entry, allowing us to freely split and reshuffle the bulk.
 	results, clickhouseDocumentsToInsert, _, _, err := splitBulk(ctx, defaultIndex, bulk, bulkSize)
 	if err != nil {
-		return []BulkItem{}, err
+		return []bulkmodel.BulkItem{}, err
 	}
 
 	// we fail if there are some documents to insert into Clickhouse but ingest processor is not available
@@ -92,12 +101,12 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 		err := ip.Ingest(ctx, indexName, inserts)
 
 		for _, document := range documents {
-			bulkSingleResponse := BulkSingleResponse{
+			bulkSingleResponse := bulkmodel.BulkSingleResponse{
 				ID:          "fakeId",
 				Index:       document.index,
 				PrimaryTerm: 1,
 				SeqNo:       0,
-				Shards: BulkShardsResponse{
+				Shards: bulkmodel.BulkShardsResponse{
 					Failed:     0,
 					Successful: 1,
 					Total:      1,
@@ -111,7 +120,7 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 			if err != nil {
 				bulkSingleResponse.Result = ""
 				bulkSingleResponse.Status = 400
-				bulkSingleResponse.Shards = BulkShardsResponse{
+				bulkSingleResponse.Shards = bulkmodel.BulkShardsResponse{
 					Failed:     1,
 					Successful: 0,
 					Total:      1,
@@ -143,8 +152,8 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 	}
 }
 
-func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bulkSize int) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
-	results := make([]BulkItem, bulkSize)
+func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bulkSize int) ([]bulkmodel.BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
+	results := make([]bulkmodel.BulkItem, bulkSize)
 
 	clickhouseDocumentsToInsert := make(map[string][]BulkRequestEntry, bulkSize)
 	//var elasticRequestBody []byte
