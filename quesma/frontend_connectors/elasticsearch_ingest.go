@@ -116,7 +116,7 @@ func bulk(request *http.Request) (map[string]interface{}, any, error) {
 	}
 	metadata := quesma_api.MakeNewMetadata()
 	metadata[IngestAction] = BulkIndexAction
-	metadata[IngestTargetKey] = "..."
+	metadata[IngestTargetKey] = getIndexFromRequest(request)
 	return metadata, body, nil
 }
 
@@ -127,6 +127,12 @@ func doc(request *http.Request) (map[string]interface{}, any, error) {
 	}
 	metadata := quesma_api.MakeNewMetadata()
 	metadata[IngestAction] = DocIndexAction
-	metadata[IngestTargetKey] = "..."
+	metadata[IngestTargetKey] = getIndexFromRequest(request)
 	return metadata, body, nil
+}
+
+func getIndexFromRequest(request *http.Request) string {
+	expectedUrl := urlpath.New("/:index/*")
+	match, _ := expectedUrl.Match(request.URL.Path) // safe to call at this level
+	return match.Params["index"]
 }

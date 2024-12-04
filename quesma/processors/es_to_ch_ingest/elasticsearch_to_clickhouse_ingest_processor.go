@@ -20,10 +20,10 @@ import (
 )
 
 const (
-	IngestAction         = "ingest_action"
-	DocIndexAction       = "_doc"
-	BulkIndexAction      = "_bulk"
-	HARDCODED_INDEX_NAME = "a_test_index"
+	IngestAction    = "ingest_action"
+	DocIndexAction  = "_doc"
+	BulkIndexAction = "_bulk"
+	IngestTargetKey = "ingest_target"
 )
 
 type ElasticsearchToClickHouseIngestProcessor struct {
@@ -42,7 +42,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) GetId() string {
 
 // prepareTemporaryIngestProcessor creates a temporary ingest processor which is a new version of the ingest processor,
 // which uses `quesma_api.BackendConnector` instead of `*sql.DB` for the database connection.
-func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(connector quesma_api.BackendConnector) *ingest.IngestProcessor2 {
+func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(connector quesma_api.BackendConnector, indexName string) *ingest.IngestProcessor2 {
 	u, _ := url.Parse("http://localhost:9200")
 
 	elasticsearchConfig := config.ElasticsearchConfiguration{
@@ -50,8 +50,8 @@ func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcess
 	}
 	emptyConfig := &config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
-			HARDCODED_INDEX_NAME: {
-				Name: HARDCODED_INDEX_NAME,
+			indexName: {
+				Name: indexName,
 			},
 		},
 	}
@@ -60,7 +60,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcess
 	tableDisco := clickhouse.NewTableDiscovery2(emptyConfig, connector, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, emptyConfig, clickhouse.SchemaTypeAdapter{})
 
-	v2TableResolver := &NextGenTableResolver{}
+	v2TableResolver := NewNextGenTableResolver(indexName)
 
 	ip := ingest.NewIngestProcessor2(emptyConfig, connector, nil, tableDisco, schemaRegistry, virtualTableStorage, v2TableResolver)
 	ip.Start()
@@ -72,13 +72,17 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 	// TODO this processor should NOT take multiple messages? :|
 	// side-effecting for now - just store in ClickHouse it's fine for now
 
+	indexName := metadata[IngestTargetKey].(string)
+	if indexName == "" {
+		panic("NO INDEX NAME?!?!?")
+	}
 	backendConn := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
 	if backendConn == nil {
 		fmt.Println("Backend connector not found")
 		return metadata, data, nil
 	}
 
-	tempIngestProcessor := p.prepareTemporaryIngestProcessor(backendConn)
+	tempIngestProcessor := p.prepareTemporaryIngestProcessor(backendConn, indexName)
 
 	for _, m := range message {
 		bodyAsBytes, err := quesma_api.CheckedCast[[]byte](m)
@@ -92,7 +96,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			result, err := handleDocIndex(payloadJson, HARDCODED_INDEX_NAME, tempIngestProcessor)
+			result, err := handleDocIndex(payloadJson, indexName, tempIngestProcessor)
 			if err != nil {
 				println(err)
 			}
@@ -104,7 +108,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			results, err := handleBulkIndex(payloadNDJson, HARDCODED_INDEX_NAME, tempIngestProcessor)
+			results, err := handleBulkIndex(payloadNDJson, indexName, tempIngestProcessor)
 			if err != nil {
 				println(err)
 			}
