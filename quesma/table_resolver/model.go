@@ -4,7 +4,6 @@ package table_resolver
 
 import (
 	"fmt"
-	"quesma/logger"
 	"strings"
 )
 
@@ -113,15 +112,6 @@ type TableResolver interface {
 
 	Pipelines() []string
 	RecentDecisions() []PatternDecisions
-}
-
-// TODO will be removed in the next PR,
-// right now it is used to mark places where we must refactor the code
-func TODO(place string, decision *Decision) {
-	var trace bool
-	if trace {
-		logger.Debug().Msgf("TODO: use table_resolver decision here  %s : %v", place, decision.String())
-	}
 }
 
 // TODO hardcoded pipeline names

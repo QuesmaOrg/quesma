@@ -1,13 +1,13 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
 
-package v2
+package main
 
 import (
 	"net/http"
+	"quesma/frontend_connectors"
+	"quesma/processors"
 	quesma_api "quesma_v2/core"
-	"quesma_v2/frontend_connectors"
-	"quesma_v2/processors"
 	"strconv"
 	"sync/atomic"
 )
@@ -130,7 +130,8 @@ func (p *IngestProcessor) GetId() string {
 func (p *IngestProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
 	var data []byte
 	for _, m := range message {
-		data, err := quesma_api.CheckedCast[[]byte](m)
+		var err error
+		data, err = quesma_api.CheckedCast[[]byte](m)
 		if err != nil {
 			panic("IngestProcessor: invalid message type")
 		}
@@ -231,7 +232,8 @@ func (p *InnerIngestProcessor2) GetId() string {
 func (p *InnerIngestProcessor2) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
 	var data []byte
 	for _, m := range message {
-		data, err := quesma_api.CheckedCast[[]byte](m)
+		var err error
+		data, err = quesma_api.CheckedCast[[]byte](m)
 		if err != nil {
 			panic("InnerIngestProcessor2: invalid message type")
 		}
@@ -260,7 +262,8 @@ func (p *InnerIngestProcessor1) GetId() string {
 func (p *InnerIngestProcessor1) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
 	var data []byte
 	for _, m := range message {
-		data, err := quesma_api.CheckedCast[[]byte](m)
+		var err error
+		data, err = quesma_api.CheckedCast[[]byte](m)
 		if err != nil {
 			panic("InnerIngestProcessor1: invalid message type")
 		}
