@@ -16,6 +16,7 @@ import (
 	"quesma/end_user_errors"
 	"quesma/feature"
 	"quesma/frontend_connectors"
+	"quesma/frontend_connectors/mux"
 	"quesma/frontend_connectors/routes"
 	"quesma/ingest"
 	"quesma/logger"
@@ -23,7 +24,6 @@ import (
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/gzip"
-	"quesma/quesma/mux"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
@@ -106,7 +106,6 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 	routerInstance := routerV2{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client, requestPreprocessors: processorChain{}}
 	routerInstance.
 		registerPreprocessor(NewTraceIdPreprocessor())
-
 	agent.FailedRequestsCollector(func() int64 {
 		return routerInstance.failedRequests.Load()
 	})

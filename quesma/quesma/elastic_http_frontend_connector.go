@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/frontend_connectors"
-	"quesma/quesma/mux"
+	"quesma/frontend_connectors/mux"
 	"quesma/quesma/recovery"
 	"quesma/telemetry"
 )
