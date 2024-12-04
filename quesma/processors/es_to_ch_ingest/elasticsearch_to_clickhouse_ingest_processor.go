@@ -60,7 +60,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcess
 	tableDisco := clickhouse.NewTableDiscovery2(emptyConfig, connector, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, emptyConfig, clickhouse.SchemaTypeAdapter{})
 
-	v2TableResolver := NewNextGenTableResolver(indexName)
+	v2TableResolver := NewNextGenTableResolver()
 
 	ip := ingest.NewIngestProcessor2(emptyConfig, connector, nil, tableDisco, schemaRegistry, virtualTableStorage, v2TableResolver)
 	ip.Start()
@@ -85,6 +85,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 	tempIngestProcessor := p.prepareTemporaryIngestProcessor(backendConn, indexName)
 
 	for _, m := range message {
+
 		bodyAsBytes, err := quesma_api.CheckedCast[[]byte](m)
 		if err != nil {
 			panic("ElasticsearchToClickHouseIngestProcessor: invalid message type")

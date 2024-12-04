@@ -427,7 +427,7 @@ func (ip *IngestProcessor2) processInsertQuery(ctx context.Context,
 func (lm *IngestProcessor2) Ingest(ctx context.Context, tableName string, jsonData []types.JSON) error {
 
 	nameFormatter := DefaultColumnNameFormatter()
-	transformer := jsonprocessor.IngestTransformerFor(tableName, lm.cfg)
+	transformer := jsonprocessor.IngestTransformerFor(tableName, lm.cfg) // here?
 	return lm.ProcessInsertQuery(ctx, tableName, jsonData, transformer, nameFormatter)
 }
 
@@ -458,8 +458,7 @@ func (lm *IngestProcessor2) ProcessInsertQuery(ctx context.Context, tableName st
 			continue
 		}
 
-		if clickhouseDecision.IsCommonTable {
-
+		if clickhouseDecision.IsCommonTable { // TODO: TABLE_RESOLVER DECIDES WHETHER WE'RE DEALING WITH COMMON TABLE
 			// we have clone the data, because we want to process it twice
 			var clonedJsonData []types.JSON
 			for _, jsonValue := range jsonData {

@@ -5,22 +5,18 @@ package es_to_ch_ingest
 
 import "quesma/table_resolver"
 
-func NewNextGenTableResolver(indexName string) table_resolver.TableResolver {
-	return &NextGenTableResolver{
-		indexName: indexName,
-	}
+func NewNextGenTableResolver() table_resolver.TableResolver {
+	return &NextGenTableResolver{}
 }
 
-type NextGenTableResolver struct {
-	indexName string
-}
+type NextGenTableResolver struct{}
 
 func (n *NextGenTableResolver) Start() {}
 func (n *NextGenTableResolver) Stop()  {}
-func (n *NextGenTableResolver) Resolve(_ string, _ string) *table_resolver.Decision {
+func (n *NextGenTableResolver) Resolve(_ string, tableName string) *table_resolver.Decision {
 	decision := &table_resolver.Decision{
 		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
-			ClickhouseTableName: n.indexName,
+			ClickhouseTableName: tableName,
 		}}}
 	return decision
 }
