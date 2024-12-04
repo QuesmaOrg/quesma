@@ -112,7 +112,6 @@ type PhoneHomeStats struct {
 	ReportType string `json:"report_type"`
 	TakenAt    int64  `json:"taken_at"`
 	ConfigMode string `json:"config_mode"`
-	Usage      string `json:"usage"`
 }
 
 type PhoneHomeAgent interface {
