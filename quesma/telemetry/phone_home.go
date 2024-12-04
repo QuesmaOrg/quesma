@@ -34,7 +34,7 @@ import (
 
 const (
 	warmupInterval    = 30 * time.Second
-	phoneHomeInterval = 10 * time.Second
+	phoneHomeInterval = 3600 * time.Second
 
 	clickhouseTimeout = 10 * time.Second
 	elasticTimeout    = 10 * time.Second
