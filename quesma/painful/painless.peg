@@ -1,0 +1,120 @@
+{
+package painful
+}
+
+Expr = expr:OpExpr / expr:MethodCall / expr:Accessor / expr:Doc / expr:Emit   {
+    return expr,nil
+}
+
+Emit = "emit" "(" expr:Expr ")" {
+
+    exprVal ,err := ExpectExpr(expr)
+    if err != nil {
+        return nil, err
+    }
+
+    return &EmitExpr{Expr: exprVal}, nil
+}
+
+
+Doc = "doc" "[" '\'' key:Identifier '\'' "]" {
+
+    keyVal,err := ExpectString(key)
+    if err != nil {
+        return nil, err
+    }
+    return &DocExpr{FieldName: keyVal}, nil
+}
+
+Accessor = expr:Expr "." field:Identifier {
+
+    exprVal,err := ExpectExpr(expr)
+    if err != nil {
+        return nil, err
+    }
+
+    strVal,err := ExpectString(field)
+    if err != nil {
+        return nil, err
+    }
+
+    return &AccessorExpr{Expr: exprVal, PropertyName: strVal}, nil
+}
+
+MethodCall = expr:Expr "." method:Identifier "(" args:Expr* ")" {
+
+    exprVal,err := ExpectExpr(expr)
+    if err != nil {
+        return nil, err
+    }
+
+    strVal,err := ExpectString(method)
+    if err != nil {
+        return nil, err
+    }
+
+
+    var argsVal []Expr
+
+    switch argsVals := args.(type) {
+
+    case nil:
+        argsVal = []Expr{}
+    case []any:
+
+        for _, arg := range argsVals {
+            argVal,err := ExpectExpr(arg)
+            if err != nil {
+                return nil, err
+            }
+            argsVal = append(argsVal, argVal)
+        }
+
+
+    default:
+        return nil, fmt.Errorf("Invalid type %T", args)
+    }
+
+
+    for _, arg := range argsVal {
+        argVal,err := ExpectExpr(arg)
+        if err != nil {
+            return nil, err
+        }
+        argsVal = append(argsVal, argVal)
+    }
+
+    return &MethodCallExpr{Expr: exprVal, MethodName: strVal, Args: argsVal}, nil
+}
+
+OpExpr = left:Expr op:Op right:Expr {
+    leftVal,err := ExpectExpr(left)
+    if err != nil {
+        return nil, err
+    }
+
+    rightVal,err := ExpectExpr(right)
+    if err != nil {
+        return nil, err
+    }
+
+    fmt.Println("OP", op)
+    opVal,err := ExpectString(op)
+    if err != nil {
+        return nil, err
+    }
+
+    return &InfixOpExpr{Left: leftVal, Op: opVal, Right: rightVal}, nil
+}
+
+Op = op:"+"  {
+    return string(c.text), nil
+}
+
+Identifier = id:[a-zA-Z0-9_]+ {
+   return string( c.text), nil
+}
+  
+EOF 
+  = !.
+
