@@ -366,20 +366,6 @@ ORDER BY total_size DESC;`
 }
 
 func getTopNValues(in map[string]int64, n int) map[string]int64 {
-	sortedMap := sortMapByValue(in)
-	result := make(map[string]int64)
-	count := 0
-	for k, v := range sortedMap {
-		if count >= n {
-			break
-		}
-		result[k] = v
-		count++
-	}
-	return result
-}
-
-func sortMapByValue(in map[string]int64) map[string]int64 {
 	type kv struct {
 		Key   string
 		Value int64
@@ -391,11 +377,11 @@ func sortMapByValue(in map[string]int64) map[string]int64 {
 	sort.Slice(sortedSlice, func(i, j int) bool {
 		return sortedSlice[i].Value > sortedSlice[j].Value
 	})
-	out := make(map[string]int64, len(in))
-	for _, kv := range sortedSlice {
-		out[kv.Key] = kv.Value
+	result := make(map[string]int64) // get the top `n` values
+	for i := 0; i < n && i < len(sortedSlice); i++ {
+		result[sortedSlice[i].Key] = sortedSlice[i].Value
 	}
-	return out
+	return result
 }
 
 func (a *agent) collectClickHouseVersion(ctx context.Context, stats *ClickHouseStats) error {
