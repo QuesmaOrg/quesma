@@ -135,6 +135,27 @@ func (tc *IntegrationTestcaseBase) FetchClickHouseColumns(ctx context.Context, t
 	return result, nil
 }
 
+func (tc *IntegrationTestcaseBase) FetchClickHouseComments(ctx context.Context, tableName string) (map[string]string, error) {
+	rows, err := tc.ExecuteClickHouseQuery(ctx, fmt.Sprintf("SELECT name, comment FROM system.columns WHERE table = '%s'", tableName))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]string)
+	for rows.Next() {
+		var name, comment string
+		if err := rows.Scan(&name, &comment); err != nil {
+			return nil, err
+		}
+		result[name] = comment
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 func (tc *IntegrationTestcaseBase) RequestToQuesma(ctx context.Context, t *testing.T, method, uri string, requestBody []byte) (*http.Response, []byte) {
 	endpoint := tc.getQuesmaEndpoint()
 	resp, err := tc.doRequest(ctx, method, endpoint+uri, requestBody, nil)

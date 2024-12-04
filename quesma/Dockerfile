@@ -2,6 +2,9 @@ FROM golang:alpine AS builder
 
 
 WORKDIR /quesma
+## v2 is a seprate module, not package
+COPY v2/go.mod v2/go.mod
+COPY v2/go.sum v2/go.sum
 
 COPY go.mod go.sum ./
 

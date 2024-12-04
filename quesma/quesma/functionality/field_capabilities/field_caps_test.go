@@ -3,7 +3,7 @@
 package field_capabilities
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/model"

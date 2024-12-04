@@ -4,8 +4,8 @@ package quesma
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"github.com/goccy/go-json"
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"

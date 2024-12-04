@@ -16,6 +16,7 @@ import (
 	"quesma/connectors"
 	"quesma/elasticsearch"
 	"quesma/feature"
+	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/licensing"
 	"quesma/logger"
@@ -28,6 +29,7 @@ import (
 	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/tracing"
+	"quesma_v2/core"
 	"runtime"
 	"syscall"
 	"time"
@@ -44,8 +46,16 @@ const banner = `
 
 const EnableConcurrencyProfiling = false
 
-func main() {
+// buildIngestOnlyQuesma is for now a helper function to help establishing the way of v2 module api import
+func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+	_ = frontend_connectors.NewBasicHTTPFrontendConnector(":8080")
+	_ = frontend_connectors.NewHTTPRouter()
+	quesmaInstance, _ := quesmaBuilder.Build()
+	return quesmaInstance
+}
 
+func main() {
 	if EnableConcurrencyProfiling {
 		runtime.SetBlockProfileRate(1)
 		runtime.SetMutexProfileFraction(1)
@@ -150,6 +160,7 @@ func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscove
 	if cfg.TransparentProxy {
 		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, false)
 	} else {
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry)
+		const quesma_v2 = false
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry, quesma_v2)
 	}
 }

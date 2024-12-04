@@ -3,7 +3,7 @@
 package ui
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"quesma/logger"
 )
 
