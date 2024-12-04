@@ -216,7 +216,7 @@ func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
 }
 
 func (query *DateHistogram) IntervalInMilliseconds() (int64, bool) {
-	if duration, err := kibana.ParseInterval(query.interval); err == nil {
+	if duration, err := util.ParseInterval(query.interval); err == nil {
 		return duration.Milliseconds(), true
 	} else {
 		logger.WarnWithCtx(query.ctx).Msg(err.Error())
