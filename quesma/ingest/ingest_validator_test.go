@@ -9,6 +9,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
+	"quesma/frontend_connectors"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/table_resolver"
@@ -171,8 +172,8 @@ func TestIngestValidation(t *testing.T) {
 		ip.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
 
 		resolver := table_resolver.NewEmptyTableResolver()
-		decision := &table_resolver.Decision{
-			UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+		decision := &frontend_connectors.Decision{
+			UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 				ClickhouseTableName: "test_table",
 			}}}
 		resolver.Decisions["test_table"] = decision

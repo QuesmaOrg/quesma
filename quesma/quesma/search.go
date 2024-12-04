@@ -12,6 +12,7 @@ import (
 	"quesma/common_table"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
+	"quesma/frontend_connectors"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/optimize"
@@ -101,9 +102,9 @@ func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
 	logChan := logger.InitOnlyChannelLoggerForTests()
 
 	resolver := table_resolver.NewEmptyTableResolver()
-	resolver.Decisions[tableName] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{
-			&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions[tableName] = &frontend_connectors.Decision{
+		UseConnectors: []frontend_connectors.ConnectorDecision{
+			&frontend_connectors.ConnectorDecisionClickhouse{
 				ClickhouseTableName: tableName,
 				ClickhouseTables:    []string{tableName},
 			},
@@ -295,7 +296,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 
-	decision := q.tableResolver.Resolve(table_resolver.QueryPipeline, indexPattern)
+	decision := q.tableResolver.Resolve(frontend_connectors.QueryPipeline, indexPattern)
 
 	if decision.Err != nil {
 
@@ -324,15 +325,15 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("no connectors to use"))
 	}
 
-	var clickhouseConnector *table_resolver.ConnectorDecisionClickhouse
+	var clickhouseConnector *frontend_connectors.ConnectorDecisionClickhouse
 
 	for _, connector := range decision.UseConnectors {
 		switch c := connector.(type) {
 
-		case *table_resolver.ConnectorDecisionClickhouse:
+		case *frontend_connectors.ConnectorDecisionClickhouse:
 			clickhouseConnector = c
 
-		case *table_resolver.ConnectorDecisionElastic:
+		case *frontend_connectors.ConnectorDecisionElastic:
 			// NOP
 
 		default:

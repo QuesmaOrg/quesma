@@ -11,6 +11,7 @@ import (
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
+	"quesma/frontend_connectors"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/async_search_storage"
@@ -18,7 +19,6 @@ import (
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
-	"quesma/table_resolver"
 	"quesma/tracing"
 	"quesma/util"
 	"time"
@@ -112,7 +112,7 @@ func (q *QueryRunner) runABTestingResultsCollector(ctx context.Context, indexPat
 	return optComparePlansCh, backgroundContext
 }
 
-func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, decision *table_resolver.Decision, indexPattern string) ([]byte, error) {
+func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, decision *frontend_connectors.Decision, indexPattern string) ([]byte, error) {
 
 	optComparePlansCh, backgroundContext := q.runABTestingResultsCollector(ctx, indexPattern, body)
 
@@ -126,13 +126,13 @@ func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.Executio
 
 		switch connector.(type) {
 
-		case *table_resolver.ConnectorDecisionClickhouse:
+		case *frontend_connectors.ConnectorDecisionClickhouse:
 			planExecutor = func(ctx context.Context) ([]byte, error) {
 				plan.Name = config.ClickhouseTarget
 				return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh, isMainPlan)
 			}
 
-		case *table_resolver.ConnectorDecisionElastic:
+		case *frontend_connectors.ConnectorDecisionElastic:
 			planExecutor = func(ctx context.Context) ([]byte, error) {
 				elasticPlan := &model.ExecutionPlan{
 					IndexPattern:          plan.IndexPattern,

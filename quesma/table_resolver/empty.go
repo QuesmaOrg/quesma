@@ -2,34 +2,37 @@
 // SPDX-License-Identifier: Elastic-2.0
 package table_resolver
 
-import "fmt"
+import (
+	"fmt"
+	"quesma/frontend_connectors"
+)
 
 type EmptyTableResolver struct {
-	Decisions          map[string]*Decision
-	RecentDecisionList []PatternDecisions
+	Decisions          map[string]*frontend_connectors.Decision
+	RecentDecisionList []frontend_connectors.PatternDecisions
 	PipelinesList      []string
 }
 
 func NewEmptyTableResolver() *EmptyTableResolver {
 	return &EmptyTableResolver{
-		Decisions: make(map[string]*Decision),
+		Decisions: make(map[string]*frontend_connectors.Decision),
 	}
 }
 
-func (r *EmptyTableResolver) Resolve(pipeline string, indexPattern string) *Decision {
+func (r *EmptyTableResolver) Resolve(pipeline string, indexPattern string) *frontend_connectors.Decision {
 	d, ok := r.Decisions[indexPattern]
 	if ok {
 		return d
 	}
 	msg := fmt.Sprintf("Could not resolve pattern %v. Fix you test setup first.", indexPattern)
-	return &Decision{
+	return &frontend_connectors.Decision{
 		Err:          fmt.Errorf("%s", msg),
 		Reason:       msg,
 		ResolverName: "EmptyTableResolver.Resolve",
 	}
 }
 
-func (r *EmptyTableResolver) RecentDecisions() []PatternDecisions {
+func (r *EmptyTableResolver) RecentDecisions() []frontend_connectors.PatternDecisions {
 	return r.RecentDecisionList
 }
 

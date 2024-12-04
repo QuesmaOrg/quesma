@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/common_table"
+	"quesma/frontend_connectors"
 	"quesma/jsonprocessor"
 	"quesma/persistence"
 	"quesma/quesma/config"
@@ -191,9 +192,9 @@ func TestIngestToCommonTable(t *testing.T) {
 
 			resolver := table_resolver.NewEmptyTableResolver()
 
-			decision := &table_resolver.Decision{
-				UseConnectors: []table_resolver.ConnectorDecision{
-					&table_resolver.ConnectorDecisionClickhouse{
+			decision := &frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{
+					&frontend_connectors.ConnectorDecisionClickhouse{
 						ClickhouseTableName: common_table.TableName,
 						ClickhouseTables:    []string{indexName},
 						IsCommonTable:       true,
