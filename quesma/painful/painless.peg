@@ -87,7 +87,7 @@ MethodCall = expr:Expr "." method:Identifier "(" args:Expr* ")" {
     return &MethodCallExpr{Expr: exprVal, MethodName: strVal, Args: argsVal}, nil
 }
 
-OpExpr = left:Expr op:Op right:Expr {
+OpExpr = left:Expr _  op:Op _  right:Expr {
     leftVal,err := ExpectExpr(left)
     if err != nil {
         return nil, err
@@ -98,7 +98,6 @@ OpExpr = left:Expr op:Op right:Expr {
         return nil, err
     }
 
-    fmt.Println("OP", op)
     opVal,err := ExpectString(op)
     if err != nil {
         return nil, err
@@ -114,7 +113,9 @@ Op = op:"+"  {
 Identifier = id:[a-zA-Z0-9_]+ {
    return string( c.text), nil
 }
-  
+
+_ "whitespace" <- [ \n\t\r]*
+
 EOF 
   = !.
 

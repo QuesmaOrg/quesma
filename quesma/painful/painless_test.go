@@ -33,7 +33,7 @@ func TestPainless(t *testing.T) {
 				"foo": "a",
 				"bar": "b",
 			},
-			script: "emit(doc['foo'].value+doc['bar'].value)",
+			script: "emit(doc['foo'].value + doc['bar'].value)",
 			output: map[string]any{
 				"foo":       "a",
 				"bar":       "b",
