@@ -9,6 +9,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/common_table"
 	"quesma/elasticsearch"
+	"quesma/frontend_connectors"
 	"quesma/quesma/config"
 	"reflect"
 	"strings"
@@ -64,105 +65,105 @@ func TestTableResolver(t *testing.T) {
 		clickhouseIndexes []string
 		virtualTables     []string
 		indexConf         map[string]config.IndexConfiguration
-		expected          Decision
+		expected          frontend_connectors.Decision
 	}{
 		{
 			name:     "elastic fallback",
-			pipeline: IngestPipeline,
+			pipeline: frontend_connectors.IngestPipeline,
 			pattern:  "some-index",
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			expected: frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionElastic{}},
 			},
 			indexConf: make(map[string]config.IndexConfiguration),
 		},
 		{
 			name:     "all",
-			pipeline: QueryPipeline,
+			pipeline: frontend_connectors.QueryPipeline,
 			pattern:  "*",
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				Err: fmt.Errorf("inconsistent A/B testing configuration"),
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "empty *",
-			pipeline:          QueryPipeline,
+			pipeline:          frontend_connectors.QueryPipeline,
 			pattern:           "*",
 			clickhouseIndexes: []string{"index1", "index2"},
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				Err: fmt.Errorf(""),
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "query all, indices in both connectors",
-			pipeline:          QueryPipeline,
+			pipeline:          frontend_connectors.QueryPipeline,
 			pattern:           "*",
 			clickhouseIndexes: []string{"index1", "index2"},
 			elasticIndexes:    []string{"index3"},
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				Err: fmt.Errorf(""),
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "ingest with a pattern",
-			pipeline:          IngestPipeline,
+			pipeline:          frontend_connectors.IngestPipeline,
 			pattern:           "*",
 			clickhouseIndexes: []string{"index1", "index2"},
 			elasticIndexes:    []string{"index3"},
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				Err: fmt.Errorf("pattern is not allowed"),
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "query closed index",
-			pipeline:          QueryPipeline,
+			pipeline:          frontend_connectors.QueryPipeline,
 			pattern:           "closed",
 			clickhouseIndexes: []string{"closed"},
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				IsClosed: true,
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "ingest closed index",
-			pipeline:          QueryPipeline,
+			pipeline:          frontend_connectors.QueryPipeline,
 			pattern:           "closed",
 			clickhouseIndexes: []string{"closed"},
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				IsClosed: true,
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "ingest closed index",
-			pipeline:          QueryPipeline,
+			pipeline:          frontend_connectors.QueryPipeline,
 			pattern:           "closed-common-table",
 			clickhouseIndexes: []string{"closed"},
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				IsClosed: true,
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "ingest closed index",
-			pipeline:          QueryPipeline,
+			pipeline:          frontend_connectors.QueryPipeline,
 			pattern:           "unknown-target",
 			clickhouseIndexes: []string{"closed"},
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				Err: fmt.Errorf("unsupported target"),
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "ingest to index1",
-			pipeline:          IngestPipeline,
+			pipeline:          frontend_connectors.IngestPipeline,
 			pattern:           "index1",
 			clickhouseIndexes: []string{"index1"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+			expected: frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "index1",
 					ClickhouseTables:    []string{"index1"}},
 				},
@@ -171,11 +172,11 @@ func TestTableResolver(t *testing.T) {
 		},
 		{
 			name:              "query from index1",
-			pipeline:          QueryPipeline,
+			pipeline:          frontend_connectors.QueryPipeline,
 			pattern:           "index1",
 			clickhouseIndexes: []string{"index1"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+			expected: frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "index1",
 					ClickhouseTables:    []string{"index1"}},
 				},
@@ -184,11 +185,11 @@ func TestTableResolver(t *testing.T) {
 		},
 		{
 			name:              "ingest to index2",
-			pipeline:          IngestPipeline,
+			pipeline:          frontend_connectors.IngestPipeline,
 			pattern:           "index2",
 			clickhouseIndexes: []string{"index2"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+			expected: frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
 					ClickhouseTables:    []string{"index2"},
 					IsCommonTable:       true,
@@ -198,11 +199,11 @@ func TestTableResolver(t *testing.T) {
 		},
 		{
 			name:              "query from index2",
-			pipeline:          QueryPipeline,
+			pipeline:          frontend_connectors.QueryPipeline,
 			pattern:           "index2",
 			clickhouseIndexes: []string{"index2"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+			expected: frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
 					ClickhouseTables:    []string{"index2"},
 					IsCommonTable:       true,
@@ -212,52 +213,52 @@ func TestTableResolver(t *testing.T) {
 		},
 		{
 			name:           "query from index1,index2",
-			pipeline:       QueryPipeline,
+			pipeline:       frontend_connectors.QueryPipeline,
 			pattern:        "index1,index2",
 			elasticIndexes: []string{"index3"},
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				Err: fmt.Errorf(""),
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:           "query from index1,index-not-existing",
-			pipeline:       QueryPipeline,
+			pipeline:       frontend_connectors.QueryPipeline,
 			pattern:        "index1,index-not-existing",
 			elasticIndexes: []string{"index1,index-not-existing"},
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				Err: fmt.Errorf(""), // index1 in Clickhouse, index-not-existing in Elastic ('*')
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:           "ingest to index3",
-			pipeline:       IngestPipeline,
+			pipeline:       frontend_connectors.IngestPipeline,
 			pattern:        "index3",
 			elasticIndexes: []string{"index3"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			expected: frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionElastic{}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:           "query from index3",
-			pipeline:       QueryPipeline,
+			pipeline:       frontend_connectors.QueryPipeline,
 			pattern:        "index3",
 			elasticIndexes: []string{"index3"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			expected: frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionElastic{}},
 			},
 			indexConf: indexConf,
 		},
 
 		{
 			name:          "query pattern",
-			pipeline:      QueryPipeline,
+			pipeline:      frontend_connectors.QueryPipeline,
 			pattern:       "index2,foo*",
 			virtualTables: []string{"index2"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+			expected: frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
 					ClickhouseTables:    []string{"index2"},
 					IsCommonTable:       true,
@@ -267,108 +268,108 @@ func TestTableResolver(t *testing.T) {
 		},
 		{
 			name:     "query kibana internals",
-			pipeline: QueryPipeline,
+			pipeline: frontend_connectors.QueryPipeline,
 			pattern:  ".kibana",
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{ManagementCall: true}},
+			expected: frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionElastic{ManagementCall: true}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:     "ingest kibana internals",
-			pipeline: IngestPipeline,
+			pipeline: frontend_connectors.IngestPipeline,
 			pattern:  ".kibana",
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{ManagementCall: true}},
+			expected: frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionElastic{ManagementCall: true}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:     "ingest not configured index",
-			pipeline: IngestPipeline,
+			pipeline: frontend_connectors.IngestPipeline,
 			pattern:  "not-configured",
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			expected: frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionElastic{}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:     "double write",
-			pipeline: IngestPipeline,
+			pipeline: frontend_connectors.IngestPipeline,
 			pattern:  "logs",
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+			expected: frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "logs",
 					ClickhouseTables:    []string{"logs"},
 				},
-					&ConnectorDecisionElastic{}},
+					&frontend_connectors.ConnectorDecisionElastic{}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:     "A/B testing",
-			pipeline: QueryPipeline,
+			pipeline: frontend_connectors.QueryPipeline,
 			pattern:  "logs",
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				EnableABTesting: true,
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "logs",
 					ClickhouseTables:    []string{"logs"},
 				},
-					&ConnectorDecisionElastic{}},
+					&frontend_connectors.ConnectorDecisionElastic{}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:     "A/B testing (pattern)",
-			pipeline: QueryPipeline,
+			pipeline: frontend_connectors.QueryPipeline,
 			pattern:  "logs*",
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				EnableABTesting: true,
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "logs",
 					ClickhouseTables:    []string{"logs"},
 				},
-					&ConnectorDecisionElastic{}},
+					&frontend_connectors.ConnectorDecisionElastic{}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "query both connectors",
-			pipeline:          QueryPipeline,
+			pipeline:          frontend_connectors.QueryPipeline,
 			pattern:           "logs,index1",
 			indexConf:         indexConf,
 			clickhouseIndexes: []string{"index1"},
 			elasticIndexes:    []string{"logs"},
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				Err: fmt.Errorf(""),
 			},
 		},
 		{
 			name:           "query elastic with pattern",
-			pipeline:       QueryPipeline,
+			pipeline:       frontend_connectors.QueryPipeline,
 			pattern:        "some-elastic-logs*",
 			elasticIndexes: []string{"logs"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{
+			expected: frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionElastic{
 					ManagementCall: false,
 				}},
 			},
 		},
 		{
 			name:           "non matching pattern",
-			pipeline:       QueryPipeline,
+			pipeline:       frontend_connectors.QueryPipeline,
 			pattern:        "some-non-matching-pattern*",
 			elasticIndexes: []string{"logs"},
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				IsEmpty: true,
 			},
 		},
 		{
 			name:     "query internal index",
-			pipeline: QueryPipeline,
+			pipeline: frontend_connectors.QueryPipeline,
 			pattern:  "quesma_common_table",
-			expected: Decision{
+			expected: frontend_connectors.Decision{
 				Err: fmt.Errorf("common table"),
 			},
 		},

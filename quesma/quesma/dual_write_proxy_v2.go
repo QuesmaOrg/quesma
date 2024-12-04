@@ -15,6 +15,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/feature"
+	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
@@ -276,7 +277,7 @@ func (*routerV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter,
 
 }
 
-func (r *routerV2) elasticFallback(decision *table_resolver.Decision,
+func (r *routerV2) elasticFallback(decision *frontend_connectors.Decision,
 	ctx context.Context, w http.ResponseWriter,
 	req *http.Request, reqBody []byte, logManager *clickhouse.LogManager) {
 
@@ -307,7 +308,7 @@ func (r *routerV2) elasticFallback(decision *table_resolver.Decision,
 		}
 
 		for _, connector := range decision.UseConnectors {
-			if _, ok := connector.(*table_resolver.ConnectorDecisionElastic); ok {
+			if _, ok := connector.(*frontend_connectors.ConnectorDecisionElastic); ok {
 				// this is desired elastic call
 				sendToElastic = true
 				break
@@ -360,7 +361,7 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
 	var handler mux.Handler
-	var decision *table_resolver.Decision
+	var decision *frontend_connectors.Decision
 	searchHandler, searchDecision := searchRouter.Matches(quesmaRequest)
 	if searchDecision != nil {
 		decision = searchDecision

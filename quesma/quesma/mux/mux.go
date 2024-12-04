@@ -7,9 +7,9 @@ import (
 	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
+	"quesma/frontend_connectors"
 	"quesma/logger"
 	"quesma/quesma/types"
-	"quesma/table_resolver"
 	"strings"
 )
 
@@ -45,7 +45,7 @@ type (
 
 	MatchResult struct {
 		Matched  bool
-		Decision *table_resolver.Decision
+		Decision *frontend_connectors.Decision
 	}
 	RequestMatcher interface {
 		Matches(req *Request) MatchResult
@@ -86,7 +86,7 @@ func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler 
 
 }
 
-func (p *PathRouter) Matches(req *Request) (Handler, *table_resolver.Decision) {
+func (p *PathRouter) Matches(req *Request) (Handler, *frontend_connectors.Decision) {
 	if strings.Contains(req.Path, "fligh") {
 		logger.Debug().Msgf("Matched path: %s", req.Path)
 	}
@@ -102,7 +102,7 @@ func (p *PathRouter) Matches(req *Request) (Handler, *table_resolver.Decision) {
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (Handler, *table_resolver.Decision) {
+func (p *PathRouter) findHandler(req *Request) (Handler, *frontend_connectors.Decision) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)
@@ -142,7 +142,7 @@ type predicateAnd struct {
 }
 
 func (p *predicateAnd) Matches(req *Request) MatchResult {
-	var lastDecision *table_resolver.Decision
+	var lastDecision *frontend_connectors.Decision
 
 	for _, predicate := range p.predicates {
 		res := predicate.Matches(req)

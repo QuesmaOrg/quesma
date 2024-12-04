@@ -8,6 +8,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
+	"quesma/frontend_connectors"
 	"quesma/jsonprocessor"
 	"quesma/persistence"
 	"quesma/quesma/config"
@@ -239,8 +240,8 @@ func TestProcessInsertQuery(t *testing.T) {
 					db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 					ip.ip.chDb = db
 					resolver := table_resolver.NewEmptyTableResolver()
-					decision := &table_resolver.Decision{
-						UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+					decision := &frontend_connectors.Decision{
+						UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 							ClickhouseTableName: "test_table",
 						}}}
 					resolver.Decisions["test_table"] = decision
@@ -424,8 +425,8 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			schemaRegistry.Tables[schema.TableName(indexName)] = indexSchema
 
 			resolver := table_resolver.NewEmptyTableResolver()
-			decision := &table_resolver.Decision{
-				UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+			decision := &frontend_connectors.Decision{
+				UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "test_index",
 				}}}
 			resolver.Decisions["test_index"] = decision

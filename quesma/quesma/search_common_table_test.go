@@ -9,6 +9,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/common_table"
 	"quesma/elasticsearch"
+	"quesma/frontend_connectors"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -250,47 +251,47 @@ func TestSearchCommonTable(t *testing.T) {
 
 	resolver := table_resolver.NewEmptyTableResolver()
 
-	resolver.Decisions["logs-1"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-1"] = &frontend_connectors.Decision{
+		UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
 			ClickhouseTables:    []string{"logs-1"},
 			IsCommonTable:       true,
 		}},
 	}
 
-	resolver.Decisions["logs-2"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-2"] = &frontend_connectors.Decision{
+		UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
 			ClickhouseTables:    []string{"logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
 
-	resolver.Decisions["logs-3"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-3"] = &frontend_connectors.Decision{
+		UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 			ClickhouseTableName: "logs-3",
 			ClickhouseTables:    []string{"logs-3"},
 			IsCommonTable:       false,
 		}},
 	}
 
-	resolver.Decisions["logs-1,logs-2"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-1,logs-2"] = &frontend_connectors.Decision{
+		UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
 			ClickhouseTables:    []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
 
-	resolver.Decisions["logs-*"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-*"] = &frontend_connectors.Decision{
+		UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
 			ClickhouseTables:    []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
-	resolver.Decisions["*"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["*"] = &frontend_connectors.Decision{
+		UseConnectors: []frontend_connectors.ConnectorDecision{&frontend_connectors.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
 			ClickhouseTables:    []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,

@@ -3,6 +3,7 @@
 package quesma
 
 import (
+	"quesma/frontend_connectors"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
@@ -33,7 +34,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 			if idx%2 == 0 {
 				name := extractIndexName(s)
 
-				decision := tableResolver.Resolve(table_resolver.IngestPipeline, name)
+				decision := tableResolver.Resolve(frontend_connectors.IngestPipeline, name)
 
 				if decision.IsClosed {
 					return mux.MatchResult{Matched: true, Decision: decision}
@@ -41,7 +42,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 
 				// if have any enabled Clickhouse connector, then return true
 				for _, connector := range decision.UseConnectors {
-					if _, ok := connector.(*table_resolver.ConnectorDecisionClickhouse); ok {
+					if _, ok := connector.(*frontend_connectors.ConnectorDecisionClickhouse); ok {
 						return mux.MatchResult{Matched: true, Decision: decision}
 					}
 				}
@@ -56,7 +57,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 
 // Query path only (looks at QueryTarget)
 func matchedAgainstPattern(indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
-	return matchAgainstTableResolver(indexRegistry, table_resolver.QueryPipeline)
+	return matchAgainstTableResolver(indexRegistry, frontend_connectors.QueryPipeline)
 }
 
 // check whether exact index name is enabled
@@ -70,7 +71,7 @@ func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipel
 			return mux.MatchResult{Matched: false, Decision: decision}
 		}
 		for _, connector := range decision.UseConnectors {
-			if _, ok := connector.(*table_resolver.ConnectorDecisionClickhouse); ok {
+			if _, ok := connector.(*frontend_connectors.ConnectorDecisionClickhouse); ok {
 				return mux.MatchResult{Matched: true, Decision: decision}
 			}
 		}
@@ -79,11 +80,11 @@ func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipel
 }
 
 func matchedExactQueryPath(indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
-	return matchAgainstTableResolver(indexRegistry, table_resolver.QueryPipeline)
+	return matchAgainstTableResolver(indexRegistry, frontend_connectors.QueryPipeline)
 }
 
 func matchedExactIngestPath(indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
-	return matchAgainstTableResolver(indexRegistry, table_resolver.IngestPipeline)
+	return matchAgainstTableResolver(indexRegistry, frontend_connectors.IngestPipeline)
 }
 
 // Returns false if the body contains a Kibana internal search.

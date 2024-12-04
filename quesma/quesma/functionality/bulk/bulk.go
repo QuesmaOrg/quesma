@@ -11,6 +11,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
+	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
@@ -138,7 +139,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 			}
 		}
 
-		decision := tableResolver.Resolve(table_resolver.IngestPipeline, index)
+		decision := tableResolver.Resolve(frontend_connectors.IngestPipeline, index)
 
 		if decision.Err != nil {
 			return decision.Err
@@ -180,7 +181,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 
 			switch connector.(type) {
 
-			case *table_resolver.ConnectorDecisionElastic:
+			case *frontend_connectors.ConnectorDecisionElastic:
 				// Bulk entry for Elastic - forward the request as-is
 				opBytes, err := rawOp.Bytes()
 				if err != nil {
@@ -198,7 +199,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 
 				elasticBulkEntries = append(elasticBulkEntries, entryWithResponse)
 
-			case *table_resolver.ConnectorDecisionClickhouse:
+			case *frontend_connectors.ConnectorDecisionClickhouse:
 
 				// Bulk entry for Clickhouse
 				if operation != "create" && operation != "index" {

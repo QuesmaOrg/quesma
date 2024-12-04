@@ -15,6 +15,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/feature"
+	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
@@ -368,7 +369,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			}
 
 			for _, connector := range decision.UseConnectors {
-				if _, ok := connector.(*table_resolver.ConnectorDecisionElastic); ok {
+				if _, ok := connector.(*frontend_connectors.ConnectorDecisionElastic); ok {
 					// this is desired elastic call
 					sendToElastic = true
 					break
