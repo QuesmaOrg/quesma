@@ -17,6 +17,7 @@ type ElasticHttpFrontendConnector struct {
 	routerInstance *routerV2
 	searchRouter   *mux.PathRouter
 	ingestRouter   *mux.PathRouter
+	router         *mux.PathRouter
 	logManager     *clickhouse.LogManager
 	agent          telemetry.PhoneHomeAgent
 }
@@ -35,6 +36,14 @@ func NewElasticHttpFrontendConnector(endpoint string,
 		logManager:                 logManager,
 		agent:                      agent,
 	}
+}
+
+func (h *ElasticHttpFrontendConnector) GetRouter() *mux.PathRouter {
+	return h.router
+}
+
+func (h *ElasticHttpFrontendConnector) AddRouter(router *mux.PathRouter) {
+	h.router = router
 }
 
 func (h *ElasticHttpFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {

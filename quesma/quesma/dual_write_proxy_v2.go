@@ -31,6 +31,7 @@ import (
 	"quesma/telemetry"
 	"quesma/tracing"
 	"quesma/util"
+	quesma_api "quesma_v2/core"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -110,15 +111,24 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 		return routerInstance.failedRequests.Load()
 	})
 
-	elasticHttpFrontentConnector := NewElasticHttpFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
+	elasticHttpIngestFrontentConnector := NewElasticHttpFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
 		&routerInstance, searchRouter, ingestRouter, logManager, agent)
+
+	elasticHttpIngestFrontentConnector.AddRouter(ingestRouter)
 
 	var limitedHandler http.Handler
 	if config.DisableAuth {
-		limitedHandler = newSimultaneousClientsLimiterV2(elasticHttpFrontentConnector, concurrentClientsLimitV2)
+		limitedHandler = newSimultaneousClientsLimiterV2(elasticHttpIngestFrontentConnector, concurrentClientsLimitV2)
 	} else {
-		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(elasticHttpFrontentConnector, config.Elasticsearch), concurrentClientsLimitV2)
+		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(elasticHttpIngestFrontentConnector, config.Elasticsearch), concurrentClientsLimitV2)
 	}
+	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	ingestPipeline.AddFrontendConnector(elasticHttpIngestFrontentConnector)
+
+	quesmaBuilderV2 := NewQuesmaV2()
+	quesma, err := quesmaBuilderV2.Build()
+	_ = err
+	_ = quesma
 
 	return &dualWriteHttpProxyV2{
 		schemaRegistry: registry,
