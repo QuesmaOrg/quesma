@@ -48,6 +48,7 @@ const (
 
 	// for local debugging purposes
 	phoneHomeLocalEnabled = false // used initially for testing
+	tablesInUsageReport   = 10
 )
 
 type ClickHouseStats struct {
@@ -57,6 +58,9 @@ type ClickHouseStats struct {
 	OpenConnection    int    `json:"open_connection"`
 	MaxOpenConnection int    `json:"max_open_connection"`
 	ServerVersion     string `json:"server_version"`
+	DbInfoHash        string `json:"db_info_hash"`
+	BillableSize      int64  `json:"billable_size"`
+	TopTablesSizeInfo string `json:"top_tables_size_info"`
 }
 
 type ElasticStats struct {
@@ -108,6 +112,7 @@ type PhoneHomeStats struct {
 	ReportType string `json:"report_type"`
 	TakenAt    int64  `json:"taken_at"`
 	ConfigMode string `json:"config_mode"`
+	Usage      string `json:"usage"`
 }
 
 type PhoneHomeAgent interface {
@@ -298,13 +303,13 @@ where active
 	return nil
 }
 
-func (a *agent) collectClickHouseTableSizes(ctx context.Context) (map[string]int64, error) {
-	tablesWithSizes, err := a.getTableSizes(a.ctx)
+func (a *agent) collectClickHouseTableSizes(ctx context.Context) (int64, map[string]int64, error) {
+	totalSize, tablesWithSizes, err := a.getTableSizes(a.ctx)
 	if err != nil {
 		logger.WarnWithCtx(ctx).Msgf("Error getting table sizes from clickhouse: %v", err)
-		return nil, err
+		return 0, nil, err
 	}
-	return tablesWithSizes, nil
+	return totalSize, tablesWithSizes, nil
 }
 
 func (a *agent) getDbInfoHash() string {
@@ -323,7 +328,7 @@ func (a *agent) getDbInfoHash() string {
 	return fmt.Sprintf("%x", dbInfoHash[:8])
 }
 
-func (a *agent) getTableSizes(ctx context.Context) (map[string]int64, error) {
+func (a *agent) getTableSizes(ctx context.Context) (int64, map[string]int64, error) {
 	tableSizes := make(map[string]int64)
 	dbName := "default"
 	allTablesSize := int64(0)
@@ -338,14 +343,14 @@ ORDER BY total_size DESC;`
 
 	rows, err := a.clickHouseDb.QueryContext(ctx, query, dbName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute query: %w", err)
+		return 0, nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var tableName string
 		var totalSize int64
 		if err := rows.Scan(&tableName, &totalSize); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
+			return 0, nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		tableSize := totalSize / 1000000 // convert bytes to megabytes
 		if tableSize >= 1 {              // we're not interested in tables smaller than 1MB
@@ -353,13 +358,12 @@ ORDER BY total_size DESC;`
 		}
 		allTablesSize += tableSize
 	}
-	tableSizes = getTopNValues(tableSizes, 10)
+	tableSizes = getTopNValues(tableSizes, tablesInUsageReport)
 
-	tableSizes["QUESMA_all_tables_in_megabytes"] = allTablesSize
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating over rows: %w", err)
+		return 0, nil, fmt.Errorf("error iterating over rows: %w", err)
 	}
-	return tableSizes, nil
+	return allTablesSize, tableSizes, nil
 }
 
 func getTopNValues(in map[string]int64, n int) map[string]int64 {
@@ -639,8 +643,11 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 		stats.ClickHouse = ClickHouseStats{Status: "paused"}
 	}
 	if !strings.HasPrefix(a.config.ClickHouse.ConnectorType, "hydrolix") { // we only check table sizes for ClickHouse
-		if tables, err := a.collectClickHouseTableSizes(ctx); err == nil {
-			logger.Info().Msgf("[USAGE REPORT] dababase=[%s] table sizes=%v", a.getDbInfoHash(), tables)
+		if totalSize, topTableSizes, err := a.collectClickHouseTableSizes(ctx); err == nil {
+			stats.ClickHouse.DbInfoHash = a.getDbInfoHash()
+			stats.ClickHouse.BillableSize = totalSize
+			stats.ClickHouse.TopTablesSizeInfo = fmt.Sprintf("%v", topTableSizes)
+			logger.Info().Msgf("[USAGE REPORT] dababase=[%s] billable_size_in_Mbs=[%d] top_table_sizes=%v", a.getDbInfoHash(), totalSize, topTableSizes)
 		}
 	}
 
