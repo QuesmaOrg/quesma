@@ -27,10 +27,11 @@ import (
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/telemetry"
-	"quesma/tracing"
 	"quesma/util"
-	"quesma_v2/core/mux"
+	quesma_api_core "quesma_v2/core"
+	quesma_api "quesma_v2/core/mux"
 	"quesma_v2/core/routes"
+	tracing "quesma_v2/core/tracing"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -68,7 +69,7 @@ func (c *simultaneousClientsLimiter) ServeHTTP(w http.ResponseWriter, r *http.Re
 
 type dualWriteHttpProxy struct {
 	routingHttpServer   *http.Server
-	elasticRouter       *mux.PathRouter
+	elasticRouter       *quesma_api.PathRouter
 	indexManagement     elasticsearch.IndexManagement
 	logManager          *clickhouse.LogManager
 	publicPort          util.Port
@@ -101,9 +102,9 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 		Transport: tr,
 		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
 	}
-	routerInstance := router{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client, requestPreprocessors: processorChain{}}
+	routerInstance := router{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client, requestPreprocessors: quesma_api_core.ProcessorChain{}}
 	routerInstance.
-		registerPreprocessor(NewTraceIdPreprocessor())
+		registerPreprocessor(quesma_api_core.NewTraceIdPreprocessor())
 
 	agent.FailedRequestsCollector(func() int64 {
 		return routerInstance.failedRequests.Load()
@@ -192,7 +193,7 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	elkResponse.Body.Close()
 }
 
-func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, quesmaResponse *mux.Result, zip bool) {
+func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, quesmaResponse *quesma_api.Result, zip bool) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 
@@ -217,14 +218,14 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 
 type router struct {
 	config                  *config.QuesmaConfiguration
-	requestPreprocessors    processorChain
+	requestPreprocessors    quesma_api_core.ProcessorChain
 	quesmaManagementConsole *ui.QuesmaManagementConsole
 	phoneHomeAgent          telemetry.PhoneHomeAgent
 	httpClient              *http.Client
 	failedRequests          atomic.Int64
 }
 
-func (r *router) registerPreprocessor(preprocessor RequestPreprocessor) {
+func (r *router) registerPreprocessor(preprocessor quesma_api_core.RequestPreprocessor) {
 	r.requestPreprocessors = append(r.requestPreprocessors, preprocessor)
 }
 
@@ -233,7 +234,7 @@ func (r *router) errorResponse(ctx context.Context, err error, w http.ResponseWr
 
 	msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
 	reason := "Failed request."
-	result := mux.ServerErrorResult()
+	result := quesma_api.ServerErrorResult()
 
 	// if error is an error with user-friendly message, we should use it
 	var endUserError *end_user_errors.EndUserError
@@ -243,7 +244,7 @@ func (r *router) errorResponse(ctx context.Context, err error, w http.ResponseWr
 
 		// we treat all `Q1xxx` errors as bad requests here
 		if endUserError.ErrorType().Number < 2000 {
-			result = mux.BadReqeustResult()
+			result = quesma_api.BadReqeustResult()
 		}
 	}
 
@@ -286,13 +287,13 @@ func (*router) closedIndexResponse(ctx context.Context, w http.ResponseWriter, p
 
 }
 
-func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
+func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *quesma_api.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
 
-	quesmaRequest, ctx, err := r.preprocessRequest(ctx, &mux.Request{
+	quesmaRequest, ctx, err := r.preprocessRequest(ctx, &quesma_api.Request{
 		Method:      req.Method,
 		Path:        strings.TrimSuffix(req.URL.Path, "/"),
 		Params:      map[string]string{},
@@ -316,7 +317,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 	}
 
 	if handler != nil {
-		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
+		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*quesma_api.Result, error) {
 			return handler(ctx, quesmaRequest)
 		})
 
@@ -367,7 +368,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			}
 
 			for _, connector := range decision.UseConnectors {
-				if _, ok := connector.(*mux.ConnectorDecisionElastic); ok {
+				if _, ok := connector.(*quesma_api.ConnectorDecisionElastic); ok {
 					// this is desired elastic call
 					sendToElastic = true
 					break
@@ -400,7 +401,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 	}
 }
 
-func (r *router) preprocessRequest(ctx context.Context, quesmaRequest *mux.Request) (*mux.Request, context.Context, error) {
+func (r *router) preprocessRequest(ctx context.Context, quesmaRequest *quesma_api.Request) (*quesma_api.Request, context.Context, error) {
 	var err error
 	var processedRequest = quesmaRequest
 	for _, preprocessor := range r.requestPreprocessors {
@@ -474,7 +475,7 @@ func isIngest(path string) bool {
 	return strings.HasSuffix(path, routes.BulkPath) // We may add more methods in future such as `_put` or `_create`
 }
 
-func recordRequestToClickhouse(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() (*mux.Result, error)) (*mux.Result, error) {
+func recordRequestToClickhouse(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() (*quesma_api.Result, error)) (*quesma_api.Result, error) {
 	statName := ui.RequestStatisticKibana2Clickhouse
 	if isIngest(path) {
 		statName = ui.RequestStatisticIngest2Clickhouse

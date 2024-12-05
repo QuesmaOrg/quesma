@@ -10,8 +10,8 @@ type TableResolver interface {
 	Start()
 	Stop()
 
-	Resolve(pipeline string, indexPattern string) *mux.Decision
+	Resolve(pipeline string, indexPattern string) *quesma_api.Decision
 
 	Pipelines() []string
-	RecentDecisions() []mux.PatternDecisions
+	RecentDecisions() []quesma_api.PatternDecisions
 }

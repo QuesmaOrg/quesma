@@ -10,7 +10,7 @@ import (
 	"quesma/common_table"
 	"quesma/elasticsearch"
 	"quesma/quesma/config"
-	"quesma_v2/core/mux"
+	mux "quesma_v2/core/mux"
 	"reflect"
 	"strings"
 	"testing"

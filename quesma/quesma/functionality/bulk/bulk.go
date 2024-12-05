@@ -139,7 +139,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 			}
 		}
 
-		decision := tableResolver.Resolve(mux.IngestPipeline, index)
+		decision := tableResolver.Resolve(quesma_api.IngestPipeline, index)
 
 		if decision.Err != nil {
 			return decision.Err
@@ -181,7 +181,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 
 			switch connector.(type) {
 
-			case *mux.ConnectorDecisionElastic:
+			case *quesma_api.ConnectorDecisionElastic:
 				// Bulk entry for Elastic - forward the request as-is
 				opBytes, err := rawOp.Bytes()
 				if err != nil {
@@ -199,7 +199,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 
 				elasticBulkEntries = append(elasticBulkEntries, entryWithResponse)
 
-			case *mux.ConnectorDecisionClickhouse:
+			case *quesma_api.ConnectorDecisionClickhouse:
 
 				// Bulk entry for Clickhouse
 				if operation != "create" && operation != "index" {

@@ -25,27 +25,27 @@ import (
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/telemetry"
-	"quesma/tracing"
-	"quesma_v2/core/mux"
+	quesma_api "quesma_v2/core/mux"
 	"quesma_v2/core/routes"
+	tracing "quesma_v2/core/tracing"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 )
 
-func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) *mux.PathRouter {
+func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) *quesma_api.PathRouter {
 
 	// some syntactic sugar
-	method := mux.IsHTTPMethod
-	and := mux.And
+	method := quesma_api.IsHTTPMethod
+	and := quesma_api.And
 
-	router := mux.NewPathRouter()
+	router := quesma_api.NewPathRouter()
 
 	// These are the endpoints that are not supported by Quesma
 	// These will redirect to the elastic cluster.
 	for _, path := range elasticsearch.InternalPaths {
-		router.Register(path, mux.Never(), func(ctx context.Context, req *mux.Request) (*mux.Result, error) { return nil, nil })
+		router.Register(path, quesma_api.Never(), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) { return nil, nil })
 	}
 
 	// These are the endpoints that are supported by Quesma
@@ -58,11 +58,11 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	// So, if you add multiple handlers with the same path, the first one will be used, the rest will be redirected to the elastic cluster.
 	// This is current limitation of the router.
 
-	router.Register(routes.ClusterHealthPath, method("GET"), func(_ context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.ClusterHealthPath, method("GET"), func(_ context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, http.StatusOK), nil
 	})
 
-	router.Register(routes.BulkPath, and(method("POST", "PUT"), matchedAgainstBulkBody(cfg, tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.BulkPath, and(method("POST", "PUT"), matchedAgainstBulkBody(cfg, tableResolver)), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 
 		body, err := types.ExpectNDJSON(req.ParsedBody)
 		if err != nil {
@@ -73,16 +73,16 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return bulkInsertResult(ctx, results, err)
 	})
 
-	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExactQueryPath(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExactQueryPath(tableResolver)), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 		return elasticsearchInsertResult(`{"_shards":{"total":1,"successful":1,"failed":0}}`, http.StatusOK), nil
 	})
 
-	router.Register(routes.IndexDocPath, and(method("POST"), matchedExactIngestPath(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexDocPath, and(method("POST"), matchedExactIngestPath(tableResolver)), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 		index := req.Params["index"]
 
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
-			return &mux.Result{
+			return &quesma_api.Result{
 				Body:       string(queryparser.BadRequestParseError(err)),
 				StatusCode: http.StatusBadRequest,
 			}, nil
@@ -90,7 +90,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 		result, err := doc.Write(ctx, &index, body, ip, cfg, phoneHomeAgent, tableResolver)
 		if err != nil {
-			return &mux.Result{
+			return &quesma_api.Result{
 				Body:       string(queryparser.BadRequestParseError(err)),
 				StatusCode: http.StatusBadRequest,
 			}, nil
@@ -99,7 +99,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return indexDocResult(result)
 	})
 
-	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExactIngestPath(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExactIngestPath(tableResolver)), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 		index := req.Params["index"]
 
 		body, err := types.ExpectNDJSON(req.ParsedBody)
@@ -111,7 +111,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return bulkInsertResult(ctx, results, err)
 	})
 
-	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 		sources, err := resolve.HandleResolve(req.Params["index"], sr, cfg)
 		if err != nil {
 			return nil, err
@@ -119,18 +119,18 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return resolveIndexResult(sources)
 	})
 
-	router.Register(routes.IndexCountPath, and(method("GET"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexCountPath, and(method("GET"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 		cnt, err := queryRunner.handleCount(ctx, req.Params["index"])
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &mux.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else {
 				return nil, err
 			}
 		}
 
 		if cnt == -1 {
-			return &mux.Result{StatusCode: http.StatusNotFound}, nil
+			return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 		} else {
 			return elasticsearchCountResult(cnt, http.StatusOK)
 		}
@@ -139,7 +139,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	// TODO: This endpoint is currently disabled (mux.Never()) as it's pretty much used only by internal Kibana requests,
 	// it's error-prone to detect them in matchAgainstKibanaInternal() and Quesma can't handle well the cases of wildcard
 	// matching many indices either way.
-	router.Register(routes.GlobalSearchPath, and(mux.Never(), method("GET", "POST"), matchAgainstKibanaInternal()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.GlobalSearchPath, and(quesma_api.Never(), method("GET", "POST"), matchAgainstKibanaInternal()), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
@@ -150,7 +150,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		responseBody, err := queryRunner.handleSearch(ctx, "*", body)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &mux.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else {
 				return nil, err
 			}
@@ -158,7 +158,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
 
-	router.Register(routes.IndexSearchPath, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexSearchPath, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
@@ -168,9 +168,9 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		responseBody, err := queryRunner.handleSearch(ctx, req.Params["index"], body)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &mux.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
-				return &mux.Result{
+				return &quesma_api.Result{
 					Body:       string(queryparser.BadRequestParseError(err)),
 					StatusCode: http.StatusBadRequest,
 				}, nil
@@ -180,7 +180,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
-	router.Register(routes.IndexAsyncSearchPath, and(method("POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexAsyncSearchPath, and(method("POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 		waitForResultsMs := 1000 // Defaults to 1 second as in docs
 		if v, ok := req.Params["wait_for_completion_timeout"]; ok {
 			if w, err := time.ParseDuration(v); err == nil {
@@ -204,9 +204,9 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		responseBody, err := queryRunner.handleAsyncSearch(ctx, req.Params["index"], body, waitForResultsMs, keepOnCompletion)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &mux.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
-				return &mux.Result{
+				return &quesma_api.Result{
 					Body:       string(queryparser.BadRequestParseError(err)),
 					StatusCode: http.StatusBadRequest,
 				}, nil
@@ -217,7 +217,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
 
-	router.Register(routes.IndexMappingPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexMappingPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 
 		switch req.Method {
 
@@ -226,7 +226,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 			foundSchema, found := sr.FindSchema(schema.TableName(index))
 			if !found {
-				return &mux.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			}
 
 			hierarchicalSchema := schema.SchemaToHierarchicalSchema(&foundSchema)
@@ -251,7 +251,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 	})
 
-	router.Register(routes.AsyncSearchStatusPath, and(method("GET"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.AsyncSearchStatusPath, and(method("GET"), matchedAgainstAsyncId()), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 		responseBody, err := queryRunner.handleAsyncSearchStatus(ctx, req.Params["id"])
 		if err != nil {
 			return nil, err
@@ -259,7 +259,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
 
-	router.Register(routes.AsyncSearchIdPath, and(method("GET", "DELETE"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.AsyncSearchIdPath, and(method("GET", "DELETE"), matchedAgainstAsyncId()), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 
 		switch req.Method {
 
@@ -282,7 +282,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return nil, errors.New("unsupported method")
 	})
 
-	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 
 		responseBody, err := field_capabilities.HandleFieldCaps(ctx, cfg, sr, req.Params["index"], lm)
 		if err != nil {
@@ -290,14 +290,14 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 				if req.QueryParams.Get("allow_no_indices") == "true" || req.QueryParams.Get("ignore_unavailable") == "true" {
 					return elasticsearchQueryResult(string(field_capabilities.EmptyFieldCapsResponse()), http.StatusOK), nil
 				}
-				return &mux.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else {
 				return nil, err
 			}
 		}
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
-	router.Register(routes.TermsEnumPath, and(method("POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.TermsEnumPath, and(method("POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 		if strings.Contains(req.Params["index"], ",") {
 			return nil, errors.New("multi index terms enum is not yet supported")
 		} else {
@@ -318,7 +318,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 	})
 
-	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
 			return nil, err
@@ -327,7 +327,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		responseBody, err := queryRunner.handleEQLSearch(ctx, req.Params["index"], body)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &mux.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else {
 				return nil, err
 			}
@@ -335,7 +335,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
 
-	router.Register(routes.IndexPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 
 		switch req.Method {
 
@@ -344,7 +344,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 			foundSchema, found := sr.FindSchema(schema.TableName(index))
 			if !found {
-				return &mux.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			}
 
 			hierarchicalSchema := schema.SchemaToHierarchicalSchema(&foundSchema)
@@ -380,10 +380,10 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return nil, errors.New("unsupported method")
 	})
 
-	router.Register(routes.QuesmaTableResolverPath, method("GET"), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.QuesmaTableResolverPath, method("GET"), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
 		indexPattern := req.Params["index"]
 
-		decisions := make(map[string]*mux.Decision)
+		decisions := make(map[string]*quesma_api.Decision)
 		humanReadable := make(map[string]string)
 		for _, pipeline := range tableResolver.Pipelines() {
 			decision := tableResolver.Resolve(pipeline, indexPattern)
@@ -392,9 +392,9 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 
 		resp := struct {
-			IndexPattern  string                   `json:"index_pattern"`
-			Decisions     map[string]*mux.Decision `json:"decisions"`
-			HumanReadable map[string]string        `json:"human_readable"`
+			IndexPattern  string                          `json:"index_pattern"`
+			Decisions     map[string]*quesma_api.Decision `json:"decisions"`
+			HumanReadable map[string]string               `json:"human_readable"`
 		}{
 			IndexPattern:  indexPattern,
 			Decisions:     decisions,
@@ -406,13 +406,13 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			return nil, err
 		}
 
-		return &mux.Result{Body: string(body), StatusCode: http.StatusOK}, nil
+		return &quesma_api.Result{Body: string(body), StatusCode: http.StatusOK}, nil
 	})
 
 	return router
 }
 
-func elasticsearchCountResult(body int64, statusCode int) (*mux.Result, error) {
+func elasticsearchCountResult(body int64, statusCode int) (*quesma_api.Result, error) {
 	var result = countResult{
 		Shards: struct {
 			Failed     int `json:"failed"`
@@ -431,7 +431,7 @@ func elasticsearchCountResult(body int64, statusCode int) (*mux.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &mux.Result{Body: string(serialized), Meta: map[string]string{
+	return &quesma_api.Result{Body: string(serialized), Meta: map[string]string{
 		"Content-Type":            "application/json",
 		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode}, nil
@@ -447,8 +447,8 @@ type countResult struct {
 	Count int64 `json:"count"`
 }
 
-func elasticsearchQueryResult(body string, statusCode int) *mux.Result {
-	return &mux.Result{Body: body, Meta: map[string]string{
+func elasticsearchQueryResult(body string, statusCode int) *quesma_api.Result {
+	return &quesma_api.Result{Body: body, Meta: map[string]string{
 		// TODO copy paste from the original request
 		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode}
@@ -460,7 +460,7 @@ func noIngestEnabledButThereIngestRequest() {
 	logger.Error().Msgf("Ingest is disabled by configuration, but the request is trying to ingest data. ")
 }
 
-func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*mux.Result, error) {
+func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*quesma_api.Result, error) {
 
 	if err != nil {
 		var msg string
@@ -492,14 +492,14 @@ func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*mux
 			logger.ErrorWithCtxAndReason(ctx, reason).Msgf("Bulk insert error: %v", err)
 		}
 
-		return &mux.Result{
+		return &quesma_api.Result{
 			Body:       msg,
 			StatusCode: httpCode,
 		}, nil
 	}
 
 	if err != nil {
-		return &mux.Result{
+		return &quesma_api.Result{
 			Body:       string(queryparser.BadRequestParseError(err)),
 			StatusCode: http.StatusBadRequest,
 		}, nil
@@ -517,17 +517,17 @@ func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*mux
 	return elasticsearchInsertResult(string(body), http.StatusOK), nil
 }
 
-func elasticsearchInsertResult(body string, statusCode int) *mux.Result {
-	return &mux.Result{Body: body, Meta: map[string]string{
+func elasticsearchInsertResult(body string, statusCode int) *quesma_api.Result {
+	return &quesma_api.Result{Body: body, Meta: map[string]string{
 		// TODO copy paste from the original request
 		contentTypeHeaderKey:      "application/json",
 		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode}
 }
 
-func resolveIndexResult(sources elasticsearch.Sources) (*mux.Result, error) {
+func resolveIndexResult(sources elasticsearch.Sources) (*quesma_api.Result, error) {
 	if len(sources.Aliases) == 0 && len(sources.DataStreams) == 0 && len(sources.Indices) == 0 {
-		return &mux.Result{StatusCode: http.StatusNotFound}, nil
+		return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 	}
 
 	body, err := json.Marshal(sources)
@@ -535,13 +535,13 @@ func resolveIndexResult(sources elasticsearch.Sources) (*mux.Result, error) {
 		return nil, err
 	}
 
-	return &mux.Result{
+	return &quesma_api.Result{
 		Body:       string(body),
 		Meta:       map[string]string{},
 		StatusCode: http.StatusOK}, nil
 }
 
-func indexDocResult(bulkItem bulk.BulkItem) (*mux.Result, error) {
+func indexDocResult(bulkItem bulk.BulkItem) (*quesma_api.Result, error) {
 	body, err := json.Marshal(bulkItem.Index)
 	if err != nil {
 		return nil, err
@@ -549,7 +549,7 @@ func indexDocResult(bulkItem bulk.BulkItem) (*mux.Result, error) {
 	return elasticsearchInsertResult(string(body), http.StatusOK), nil
 }
 
-func putIndexResult(index string) (*mux.Result, error) {
+func putIndexResult(index string) (*quesma_api.Result, error) {
 	result := putIndexResponse{
 		Acknowledged:       true,
 		ShardsAcknowledged: true,
@@ -560,10 +560,10 @@ func putIndexResult(index string) (*mux.Result, error) {
 		return nil, err
 	}
 
-	return &mux.Result{StatusCode: http.StatusOK, Body: string(serialized)}, nil
+	return &quesma_api.Result{StatusCode: http.StatusOK, Body: string(serialized)}, nil
 }
 
-func getIndexMappingResult(index string, mappings map[string]any) (*mux.Result, error) {
+func getIndexMappingResult(index string, mappings map[string]any) (*quesma_api.Result, error) {
 	result := map[string]any{
 		index: map[string]any{
 			"mappings": mappings,
@@ -574,10 +574,10 @@ func getIndexMappingResult(index string, mappings map[string]any) (*mux.Result, 
 		return nil, err
 	}
 
-	return &mux.Result{StatusCode: http.StatusOK, Body: string(serialized)}, nil
+	return &quesma_api.Result{StatusCode: http.StatusOK, Body: string(serialized)}, nil
 }
 
-func getIndexResult(index string, mappings map[string]any) (*mux.Result, error) {
+func getIndexResult(index string, mappings map[string]any) (*quesma_api.Result, error) {
 	// For now return the same as getIndexMappingResult,
 	// but "GET /:index" can also contain "settings" and "aliases" (in the future)
 	return getIndexMappingResult(index, mappings)

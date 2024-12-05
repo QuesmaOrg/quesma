@@ -18,9 +18,9 @@ import (
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
-	"quesma/tracing"
 	"quesma/util"
 	"quesma_v2/core/mux"
+	tracing "quesma_v2/core/tracing"
 	"time"
 )
 
@@ -112,7 +112,7 @@ func (q *QueryRunner) runABTestingResultsCollector(ctx context.Context, indexPat
 	return optComparePlansCh, backgroundContext
 }
 
-func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, decision *mux.Decision, indexPattern string) ([]byte, error) {
+func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, decision *quesma_api.Decision, indexPattern string) ([]byte, error) {
 
 	optComparePlansCh, backgroundContext := q.runABTestingResultsCollector(ctx, indexPattern, body)
 
@@ -126,13 +126,13 @@ func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.Executio
 
 		switch connector.(type) {
 
-		case *mux.ConnectorDecisionClickhouse:
+		case *quesma_api.ConnectorDecisionClickhouse:
 			planExecutor = func(ctx context.Context) ([]byte, error) {
 				plan.Name = config.ClickhouseTarget
 				return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh, isMainPlan)
 			}
 
-		case *mux.ConnectorDecisionElastic:
+		case *quesma_api.ConnectorDecisionElastic:
 			planExecutor = func(ctx context.Context) ([]byte, error) {
 				elasticPlan := &model.ExecutionPlan{
 					IndexPattern:          plan.IndexPattern,

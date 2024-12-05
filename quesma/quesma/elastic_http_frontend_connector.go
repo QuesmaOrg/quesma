@@ -15,16 +15,16 @@ import (
 type ElasticHttpFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
 	routerInstance *routerV2
-	searchRouter   *mux.PathRouter
-	ingestRouter   *mux.PathRouter
+	searchRouter   *quesma_api.PathRouter
+	ingestRouter   *quesma_api.PathRouter
 	logManager     *clickhouse.LogManager
 	agent          telemetry.PhoneHomeAgent
 }
 
 func NewElasticHttpFrontendConnector(endpoint string,
 	routerInstance *routerV2,
-	searchRouter *mux.PathRouter,
-	ingestRouter *mux.PathRouter,
+	searchRouter *quesma_api.PathRouter,
+	ingestRouter *quesma_api.PathRouter,
 	logManager *clickhouse.LogManager,
 	agent telemetry.PhoneHomeAgent) *ElasticHttpFrontendConnector {
 	return &ElasticHttpFrontendConnector{
