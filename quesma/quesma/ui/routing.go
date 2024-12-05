@@ -4,7 +4,7 @@ package ui
 
 import (
 	"quesma/quesma/ui/internal/builder"
-	"quesma_v2/core/mux"
+	"quesma_v2/core"
 	"strings"
 )
 

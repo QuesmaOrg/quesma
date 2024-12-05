@@ -4,7 +4,7 @@ package table_resolver
 
 import (
 	"fmt"
-	"quesma_v2/core/mux"
+	"quesma_v2/core"
 )
 
 type EmptyTableResolver struct {

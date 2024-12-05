@@ -13,7 +13,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/table_resolver"
 	"quesma/util"
-	mux "quesma_v2/core/mux"
+	mux "quesma_v2/core"
 	"strings"
 	"testing"
 )

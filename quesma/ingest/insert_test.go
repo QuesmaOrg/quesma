@@ -15,7 +15,7 @@ import (
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/util"
-	mux "quesma_v2/core/mux"
+	mux "quesma_v2/core"
 	"slices"
 	"strconv"
 	"strings"

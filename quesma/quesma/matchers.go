@@ -7,7 +7,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/table_resolver"
-	"quesma_v2/core/mux"
+	"quesma_v2/core"
 	tracing "quesma_v2/core/tracing"
 	"strings"
 )

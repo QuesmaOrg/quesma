@@ -16,7 +16,7 @@ import (
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/telemetry"
-	mux "quesma_v2/core/mux"
+	mux "quesma_v2/core"
 	"testing"
 )
 

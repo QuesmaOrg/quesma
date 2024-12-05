@@ -19,7 +19,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/util"
-	"quesma_v2/core/mux"
+	"quesma_v2/core"
 	tracing "quesma_v2/core/tracing"
 	"time"
 )

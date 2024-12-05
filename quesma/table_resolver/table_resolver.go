@@ -10,7 +10,7 @@ import (
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
-	"quesma_v2/core/mux"
+	"quesma_v2/core"
 	"sort"
 	"sync"
 	"time"

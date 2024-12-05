@@ -9,7 +9,7 @@ import (
 	"quesma/frontend_connectors"
 	"quesma/quesma/recovery"
 	"quesma/telemetry"
-	"quesma_v2/core/mux"
+	"quesma_v2/core"
 )
 
 type ElasticHttpFrontendConnector struct {

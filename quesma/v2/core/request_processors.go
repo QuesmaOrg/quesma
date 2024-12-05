@@ -4,7 +4,6 @@ package quesma_api
 
 import (
 	"context"
-	"quesma_v2/core/mux"
 	"quesma_v2/core/tracing"
 )
 
@@ -12,7 +11,7 @@ const opaqueIdHeaderKey = "X-Opaque-Id"
 
 type (
 	RequestPreprocessor interface {
-		PreprocessRequest(ctx context.Context, req *quesma_api.Request) (context.Context, *quesma_api.Request, error)
+		PreprocessRequest(ctx context.Context, req *Request) (context.Context, *Request, error)
 	}
 
 	ProcessorChain []RequestPreprocessor
@@ -31,7 +30,7 @@ func NewTraceIdPreprocessor() TraceIdPreprocessor {
 	}}
 }
 
-func (t TraceIdPreprocessor) PreprocessRequest(ctx context.Context, req *quesma_api.Request) (context.Context, *quesma_api.Request, error) {
+func (t TraceIdPreprocessor) PreprocessRequest(ctx context.Context, req *Request) (context.Context, *Request, error) {
 	rid := t.RequestIdGenerator()
 	req.Headers.Add(tracing.RequestIdCtxKey.AsString(), rid)
 	ctx = context.WithValue(ctx, tracing.RequestIdCtxKey, rid)

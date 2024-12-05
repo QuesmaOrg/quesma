@@ -7,6 +7,7 @@ import (
 	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
+
 	"strings"
 )
 
@@ -19,6 +20,7 @@ type (
 		compiledPath urlpath.Path
 		predicate    RequestMatcher
 		handler      Handler
+		processors   []Processor
 	}
 	Result struct {
 		Body       string
@@ -78,7 +80,7 @@ func NewPathRouter() *PathRouter {
 
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler Handler) {
 
-	mapping := mapping{pattern, urlpath.New(pattern), predicate, handler}
+	mapping := mapping{pattern, urlpath.New(pattern), predicate, handler, nil}
 	p.mappings = append(p.mappings, mapping)
 
 }

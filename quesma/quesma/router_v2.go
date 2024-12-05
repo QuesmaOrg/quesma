@@ -24,7 +24,7 @@ import (
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/telemetry"
-	quesma_api "quesma_v2/core/mux"
+	quesma_api "quesma_v2/core"
 	"quesma_v2/core/routes"
 	tracing "quesma_v2/core/tracing"
 

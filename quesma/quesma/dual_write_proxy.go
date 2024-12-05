@@ -28,8 +28,7 @@ import (
 	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/util"
-	quesma_api_core "quesma_v2/core"
-	quesma_api "quesma_v2/core/mux"
+	quesma_api "quesma_v2/core"
 	"quesma_v2/core/routes"
 	tracing "quesma_v2/core/tracing"
 	"strconv"
@@ -102,9 +101,9 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 		Transport: tr,
 		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
 	}
-	routerInstance := router{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client, requestPreprocessors: quesma_api_core.ProcessorChain{}}
+	routerInstance := router{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client, requestPreprocessors: quesma_api.ProcessorChain{}}
 	routerInstance.
-		registerPreprocessor(quesma_api_core.NewTraceIdPreprocessor())
+		registerPreprocessor(quesma_api.NewTraceIdPreprocessor())
 
 	agent.FailedRequestsCollector(func() int64 {
 		return routerInstance.failedRequests.Load()
@@ -218,14 +217,14 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 
 type router struct {
 	config                  *config.QuesmaConfiguration
-	requestPreprocessors    quesma_api_core.ProcessorChain
+	requestPreprocessors    quesma_api.ProcessorChain
 	quesmaManagementConsole *ui.QuesmaManagementConsole
 	phoneHomeAgent          telemetry.PhoneHomeAgent
 	httpClient              *http.Client
 	failedRequests          atomic.Int64
 }
 
-func (r *router) registerPreprocessor(preprocessor quesma_api_core.RequestPreprocessor) {
+func (r *router) registerPreprocessor(preprocessor quesma_api.RequestPreprocessor) {
 	r.requestPreprocessors = append(r.requestPreprocessors, preprocessor)
 }
 

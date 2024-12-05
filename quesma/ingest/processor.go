@@ -24,7 +24,7 @@ import (
 	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/util"
-	"quesma_v2/core/mux"
+	"quesma_v2/core"
 	"slices"
 	"sort"
 	"strings"

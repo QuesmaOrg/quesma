@@ -20,7 +20,7 @@ import (
 	"quesma/stats"
 	"quesma/table_resolver"
 	"quesma/telemetry"
-	"quesma_v2/core/mux"
+	"quesma_v2/core"
 	"sort"
 	"strings"
 	"sync"

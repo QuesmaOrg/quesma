@@ -3,7 +3,7 @@
 package table_resolver
 
 import (
-	"quesma_v2/core/mux"
+	"quesma_v2/core"
 )
 
 type TableResolver interface {
