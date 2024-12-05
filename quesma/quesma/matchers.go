@@ -4,9 +4,9 @@ package quesma
 
 import (
 	"quesma/frontend_connectors"
+	"quesma/frontend_connectors/mux"
 	"quesma/logger"
 	"quesma/quesma/config"
-	"quesma/quesma/mux"
 	"quesma/quesma/types"
 	"quesma/table_resolver"
 	"quesma/tracing"

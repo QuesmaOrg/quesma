@@ -4,7 +4,7 @@ package quesma
 
 import (
 	"context"
-	"quesma/quesma/mux"
+	"quesma/frontend_connectors/mux"
 	"quesma/tracing"
 )
 
