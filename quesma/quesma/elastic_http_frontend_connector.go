@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/frontend_connectors"
-	"quesma/frontend_connectors/mux"
 	"quesma/quesma/recovery"
 	"quesma/telemetry"
+	"quesma_v2/core/mux"
 )
 
 type ElasticHttpFrontendConnector struct {

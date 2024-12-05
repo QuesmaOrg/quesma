@@ -4,35 +4,35 @@ package table_resolver
 
 import (
 	"fmt"
-	"quesma/frontend_connectors"
+	"quesma_v2/core/mux"
 )
 
 type EmptyTableResolver struct {
-	Decisions          map[string]*frontend_connectors.Decision
-	RecentDecisionList []frontend_connectors.PatternDecisions
+	Decisions          map[string]*mux.Decision
+	RecentDecisionList []mux.PatternDecisions
 	PipelinesList      []string
 }
 
 func NewEmptyTableResolver() *EmptyTableResolver {
 	return &EmptyTableResolver{
-		Decisions: make(map[string]*frontend_connectors.Decision),
+		Decisions: make(map[string]*mux.Decision),
 	}
 }
 
-func (r *EmptyTableResolver) Resolve(pipeline string, indexPattern string) *frontend_connectors.Decision {
+func (r *EmptyTableResolver) Resolve(pipeline string, indexPattern string) *mux.Decision {
 	d, ok := r.Decisions[indexPattern]
 	if ok {
 		return d
 	}
 	msg := fmt.Sprintf("Could not resolve pattern %v. Fix you test setup first.", indexPattern)
-	return &frontend_connectors.Decision{
+	return &mux.Decision{
 		Err:          fmt.Errorf("%s", msg),
 		Reason:       msg,
 		ResolverName: "EmptyTableResolver.Resolve",
 	}
 }
 
-func (r *EmptyTableResolver) RecentDecisions() []frontend_connectors.PatternDecisions {
+func (r *EmptyTableResolver) RecentDecisions() []mux.PatternDecisions {
 	return r.RecentDecisionList
 }
 

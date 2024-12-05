@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Elastic-2.0
 package table_resolver
 
-import "quesma/frontend_connectors"
+import (
+	"quesma_v2/core/mux"
+)
 
 type TableResolver interface {
 	Start()
 	Stop()
 
-	Resolve(pipeline string, indexPattern string) *frontend_connectors.Decision
+	Resolve(pipeline string, indexPattern string) *mux.Decision
 
 	Pipelines() []string
-	RecentDecisions() []frontend_connectors.PatternDecisions
+	RecentDecisions() []mux.PatternDecisions
 }
