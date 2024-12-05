@@ -32,6 +32,7 @@ import (
 	"quesma/telemetry"
 	"quesma/tracing"
 	"quesma/util"
+	quesma_api "quesma_v2/core"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -110,15 +111,24 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 		return routerInstance.failedRequests.Load()
 	})
 
-	elasticHttpFrontentConnector := NewElasticHttpFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
+	elasticHttpIngestFrontentConnector := NewElasticHttpFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
 		&routerInstance, searchRouter, ingestRouter, logManager, agent)
+
+	elasticHttpIngestFrontentConnector.AddRouter(ingestRouter)
 
 	var limitedHandler http.Handler
 	if config.DisableAuth {
-		limitedHandler = newSimultaneousClientsLimiterV2(elasticHttpFrontentConnector, concurrentClientsLimitV2)
+		limitedHandler = newSimultaneousClientsLimiterV2(elasticHttpIngestFrontentConnector, concurrentClientsLimitV2)
 	} else {
-		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(elasticHttpFrontentConnector, config.Elasticsearch), concurrentClientsLimitV2)
+		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(elasticHttpIngestFrontentConnector, config.Elasticsearch), concurrentClientsLimitV2)
 	}
+	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	ingestPipeline.AddFrontendConnector(elasticHttpIngestFrontentConnector)
+
+	quesmaBuilderV2 := NewQuesmaV2()
+	quesma, err := quesmaBuilderV2.Build()
+	_ = err
+	_ = quesma
 
 	return &dualWriteHttpProxyV2{
 		schemaRegistry: registry,
@@ -339,6 +349,42 @@ func (r *routerV2) elasticFallback(decision *frontend_connectors.Decision,
 	}
 }
 
+func (r *routerV2) executeHandlerWithoutFallback(decision *table_resolver.Decision, ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, handler mux.Handler, quesmaRequest *mux.Request, logManager *clickhouse.LogManager) bool {
+	if handler == nil {
+		return false
+	}
+
+	if decision != nil {
+		w.Header().Set(quesmaTableResolverHeader, decision.String())
+	} else {
+		w.Header().Set(quesmaTableResolverHeader, "n/a")
+	}
+
+	quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
+		return handler(ctx, quesmaRequest)
+	})
+
+	zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
+
+	if err == nil {
+		logger.Debug().Ctx(ctx).Msg("responding from quesma")
+		unzipped := []byte{}
+		if quesmaResponse != nil {
+			unzipped = []byte(quesmaResponse.Body)
+		}
+		if len(unzipped) == 0 {
+			logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
+		}
+		addProductAndContentHeaders(req.Header, w.Header())
+
+		responseFromQuesma(ctx, unzipped, w, quesmaResponse, zip)
+
+	} else {
+		r.errorResponseV2(ctx, err, w)
+	}
+	return true
+}
+
 func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, searchRouter *mux.PathRouter, ingestRouter *mux.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
@@ -375,36 +421,9 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 	if searchHandler == nil {
 		handler = ingestHandler
 	}
-	if decision != nil {
-		w.Header().Set(quesmaTableResolverHeader, decision.String())
-	} else {
-		w.Header().Set(quesmaTableResolverHeader, "n/a")
-	}
 
-	if handler != nil {
-		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
-			return handler(ctx, quesmaRequest)
-		})
-
-		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
-
-		if err == nil {
-			logger.Debug().Ctx(ctx).Msg("responding from quesma")
-			unzipped := []byte{}
-			if quesmaResponse != nil {
-				unzipped = []byte(quesmaResponse.Body)
-			}
-			if len(unzipped) == 0 {
-				logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
-			}
-			addProductAndContentHeaders(req.Header, w.Header())
-
-			responseFromQuesma(ctx, unzipped, w, quesmaResponse, zip)
-
-		} else {
-			r.errorResponseV2(ctx, err, w)
-		}
-	} else {
+	respFromQuesma := r.executeHandlerWithoutFallback(decision, ctx, w, req, reqBody, handler, quesmaRequest, logManager)
+	if !respFromQuesma {
 		r.elasticFallback(decision, ctx, w, req, reqBody, logManager)
 	}
 }
