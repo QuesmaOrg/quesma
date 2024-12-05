@@ -59,7 +59,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	// So, if you add multiple handlers with the same path, the first one will be used, the rest will be redirected to the elastic cluster.
 	// This is current limitation of the router.
 
-	router.Register(routes.ExecutePainlessScriptPath, and(method("POST"), matchAgainstPatternIntoBody(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.ExecutePainlessScriptPath, and(method("POST"), matchAgainstIndexNameInScriptRequestBody(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
 		var scriptRequest painful.ScriptRequest
 
