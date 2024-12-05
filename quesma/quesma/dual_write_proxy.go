@@ -15,16 +15,13 @@ import (
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/feature"
-	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/gzip"
-	"quesma/quesma/mux"
 	"quesma/quesma/recovery"
-	"quesma/quesma/routes"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
@@ -32,6 +29,8 @@ import (
 	"quesma/telemetry"
 	"quesma/tracing"
 	"quesma/util"
+	"quesma_v2/core/mux"
+	"quesma_v2/core/routes"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -54,7 +53,6 @@ func newSimultaneousClientsLimiter(handler http.Handler, limit int64) *simultane
 }
 
 func (c *simultaneousClientsLimiter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
 	current := c.counter.Load()
 	// this is hard limit, we should not allow to go over it
 	if current >= c.limit {
@@ -369,7 +367,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			}
 
 			for _, connector := range decision.UseConnectors {
-				if _, ok := connector.(*frontend_connectors.ConnectorDecisionElastic); ok {
+				if _, ok := connector.(*mux.ConnectorDecisionElastic); ok {
 					// this is desired elastic call
 					sendToElastic = true
 					break

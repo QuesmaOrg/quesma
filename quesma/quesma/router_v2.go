@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
-	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
@@ -20,14 +19,14 @@ import (
 	"quesma/quesma/functionality/field_capabilities"
 	"quesma/quesma/functionality/resolve"
 	"quesma/quesma/functionality/terms_enum"
-	"quesma/quesma/mux"
-	"quesma/quesma/routes"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/tracing"
+	"quesma_v2/core/mux"
+	"quesma_v2/core/routes"
 	"strings"
 	"time"
 )
@@ -394,7 +393,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 	router.Register(routes.QuesmaTableResolverPath, method("GET"), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		indexPattern := req.Params["index"]
 
-		decisions := make(map[string]*frontend_connectors.Decision)
+		decisions := make(map[string]*mux.Decision)
 		humanReadable := make(map[string]string)
 		for _, pipeline := range tableResolver.Pipelines() {
 			decision := tableResolver.Resolve(pipeline, indexPattern)
@@ -403,9 +402,9 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 		}
 
 		resp := struct {
-			IndexPattern  string                                   `json:"index_pattern"`
-			Decisions     map[string]*frontend_connectors.Decision `json:"decisions"`
-			HumanReadable map[string]string                        `json:"human_readable"`
+			IndexPattern  string                   `json:"index_pattern"`
+			Decisions     map[string]*mux.Decision `json:"decisions"`
+			HumanReadable map[string]string        `json:"human_readable"`
 		}{
 			IndexPattern:  indexPattern,
 			Decisions:     decisions,

@@ -4,14 +4,13 @@ package quesma
 
 import (
 	"github.com/goccy/go-json"
-	"quesma/frontend_connectors"
 	"quesma/logger"
 	"quesma/painful"
 	"quesma/quesma/config"
-	"quesma/quesma/mux"
 	"quesma/quesma/types"
 	"quesma/table_resolver"
 	"quesma/tracing"
+	"quesma_v2/core/mux"
 	"strings"
 )
 
@@ -36,7 +35,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 			if idx%2 == 0 {
 				name := extractIndexName(s)
 
-				decision := tableResolver.Resolve(frontend_connectors.IngestPipeline, name)
+				decision := tableResolver.Resolve(mux.IngestPipeline, name)
 
 				if decision.IsClosed {
 					return mux.MatchResult{Matched: true, Decision: decision}
@@ -44,7 +43,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 
 				// if have any enabled Clickhouse connector, then return true
 				for _, connector := range decision.UseConnectors {
-					if _, ok := connector.(*frontend_connectors.ConnectorDecisionClickhouse); ok {
+					if _, ok := connector.(*mux.ConnectorDecisionClickhouse); ok {
 						return mux.MatchResult{Matched: true, Decision: decision}
 					}
 				}
@@ -59,7 +58,7 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 
 // Query path only (looks at QueryTarget)
 func matchedAgainstPattern(indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
-	return matchAgainstTableResolver(indexRegistry, frontend_connectors.QueryPipeline)
+	return matchAgainstTableResolver(indexRegistry, mux.QueryPipeline)
 }
 
 // check whether exact index name is enabled
@@ -73,7 +72,7 @@ func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipel
 			return mux.MatchResult{Matched: false, Decision: decision}
 		}
 		for _, connector := range decision.UseConnectors {
-			if _, ok := connector.(*frontend_connectors.ConnectorDecisionClickhouse); ok {
+			if _, ok := connector.(*mux.ConnectorDecisionClickhouse); ok {
 				return mux.MatchResult{Matched: true, Decision: decision}
 			}
 		}
@@ -82,11 +81,11 @@ func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipel
 }
 
 func matchedExactQueryPath(indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
-	return matchAgainstTableResolver(indexRegistry, frontend_connectors.QueryPipeline)
+	return matchAgainstTableResolver(indexRegistry, mux.QueryPipeline)
 }
 
 func matchedExactIngestPath(indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
-	return matchAgainstTableResolver(indexRegistry, frontend_connectors.IngestPipeline)
+	return matchAgainstTableResolver(indexRegistry, mux.IngestPipeline)
 }
 
 // Returns false if the body contains a Kibana internal search.
@@ -149,7 +148,7 @@ func matchAgainstKibanaInternal() mux.RequestMatcher {
 	})
 }
 
-func matchAgainstPatternIntoBody(tableResolver table_resolver.TableResolver) mux.RequestMatcher {
+func matchAgainstIndexNameInScriptRequestBody(tableResolver table_resolver.TableResolver) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) mux.MatchResult {
 
 		var scriptRequest painful.ScriptRequest
@@ -159,13 +158,13 @@ func matchAgainstPatternIntoBody(tableResolver table_resolver.TableResolver) mux
 			return mux.MatchResult{Matched: false}
 		}
 
-		decision := tableResolver.Resolve(frontend_connectors.QueryPipeline, scriptRequest.ContextSetup.IndexName)
+		decision := tableResolver.Resolve(mux.QueryPipeline, scriptRequest.ContextSetup.IndexName)
 
 		if decision.Err != nil {
 			return mux.MatchResult{Matched: false, Decision: decision}
 		}
 		for _, connector := range decision.UseConnectors {
-			if _, ok := connector.(*frontend_connectors.ConnectorDecisionClickhouse); ok {
+			if _, ok := connector.(*mux.ConnectorDecisionClickhouse); ok {
 				return mux.MatchResult{Matched: true, Decision: decision}
 			}
 		}

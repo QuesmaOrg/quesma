@@ -3,8 +3,8 @@
 package ui
 
 import (
-	"quesma/quesma/mux"
 	"quesma/quesma/ui/internal/builder"
+	"quesma_v2/core/mux"
 	"strings"
 )
 

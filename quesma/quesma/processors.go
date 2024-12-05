@@ -4,8 +4,8 @@ package quesma
 
 import (
 	"context"
-	"quesma/quesma/mux"
 	"quesma/tracing"
+	"quesma_v2/core/mux"
 )
 
 type (

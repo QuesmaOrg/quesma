@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
-	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/quesma/config"
-	"quesma/quesma/mux"
-	"quesma/quesma/routes"
 	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/telemetry"
+	"quesma_v2/core/mux"
+	"quesma_v2/core/routes"
 	"strings"
 	"testing"
 )
@@ -359,15 +358,15 @@ func (t TestTableResolver) Start() {}
 
 func (t TestTableResolver) Stop() {}
 
-func (t TestTableResolver) Resolve(_ string, indexPattern string) *frontend_connectors.Decision {
+func (t TestTableResolver) Resolve(_ string, indexPattern string) *mux.Decision {
 	if indexPattern == testIndexName {
-		return &frontend_connectors.Decision{
-			UseConnectors: []frontend_connectors.ConnectorDecision{
-				&frontend_connectors.ConnectorDecisionClickhouse{},
+		return &mux.Decision{
+			UseConnectors: []mux.ConnectorDecision{
+				&mux.ConnectorDecisionClickhouse{},
 			},
 		}
 	} else {
-		return &frontend_connectors.Decision{
+		return &mux.Decision{
 			Err:          fmt.Errorf("TestTableResolver err"),
 			Reason:       "TestTableResolver reason",
 			ResolverName: "TestTableResolver",
@@ -377,6 +376,6 @@ func (t TestTableResolver) Resolve(_ string, indexPattern string) *frontend_conn
 
 func (t TestTableResolver) Pipelines() []string { return []string{} }
 
-func (t TestTableResolver) RecentDecisions() []frontend_connectors.PatternDecisions {
-	return []frontend_connectors.PatternDecisions{}
+func (t TestTableResolver) RecentDecisions() []mux.PatternDecisions {
+	return []mux.PatternDecisions{}
 }
