@@ -43,8 +43,7 @@ func (query *Rate) AggregationType() model.AggregationType {
 }
 
 func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	fmt.Println("rate rows:", rows)
-	if len(rows) != 1 && len(rows[0].Cols) != 1 {
+	if len(rows) != 1 || len(rows[0].Cols) != 1 {
 		logger.WarnWithCtx(query.ctx).Msgf("unexpected number of rows or columns returned for %s: %d, %d.", query.String(), len(rows), len(rows[0].Cols))
 		return model.JsonMap{"value": nil}
 	}
@@ -58,7 +57,6 @@ func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 }
 
 func (query *Rate) CalcAndSetMultiplier(parentIntervalInMs int64) {
-	fmt.Println("parentIntervalInMs:", parentIntervalInMs, "query.unit:", query.unit.ToMilliseconds(query.ctx))
 	if parentIntervalInMs == 0 {
 		logger.ErrorWithCtx(query.ctx).Msgf("parent interval is 0, cannot calculate rate multiplier")
 		return
@@ -67,7 +65,8 @@ func (query *Rate) CalcAndSetMultiplier(parentIntervalInMs int64) {
 	rateInMs := query.unit.ToMilliseconds(query.ctx)
 	// unit month/quarter/year is special, only compatible with month/quarter/year calendar intervals
 	if query.unit == Month || query.unit == Quarter || query.unit == Year {
-		if parentIntervalInMs < 30*24*60*60*1000 { // 1 month
+		oneMonthInMs := int64(30 * 24 * 60 * 60 * 1000)
+		if parentIntervalInMs < oneMonthInMs {
 			logger.WarnWithCtx(query.ctx).Msgf("parent interval (%d ms) is not compatible with rate unit %s", parentIntervalInMs, query.unit)
 			return
 		}
