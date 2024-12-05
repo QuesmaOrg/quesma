@@ -78,8 +78,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 		panic("NO INDEX NAME?!?!?")
 	}
 
-	chBackend = p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
-	if chBackend == nil {
+	if chBackend = p.GetBackendConnector(quesma_api.ClickHouseSQLBackend); chBackend == nil {
 		fmt.Println("Backend connector not found")
 		return metadata, data, nil
 	}
