@@ -6,6 +6,7 @@ package backend_connectors
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"quesma/elasticsearch"
 	"quesma/quesma/config"
@@ -28,22 +29,28 @@ type ElasticsearchBackendConnector struct {
 
 // HttpBackendConnector is a base interface for sending http requests, for now
 type HttpBackendConnector interface {
-	Send(r http.Request) *http.Response
+	Send(r *http.Request) *http.Response
 }
 
-func (e *ElasticsearchBackendConnector) Send(r http.Request) *http.Response {
+func (e *ElasticsearchBackendConnector) Send(r *http.Request) *http.Response {
 	e.client = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 		Timeout: esRequestTimeout,
 	}
-	e.config = config.ElasticsearchConfiguration{Url: &config.Url{
-		Host: "localhost:9200",
-	}}
+	e.config = config.ElasticsearchConfiguration{
+		Url:      &config.Url{Host: "localhost:9200"},
+		User:     "elastic",
+		Password: "quesmaquesma",
+	}
 	r.Host = e.config.Url.Host
-	maybeAuthdReq := elasticsearch.AddBasicAuthIfNeeded(&r, e.config.User, e.config.Password)
+	r.URL.Host = e.config.Url.Host
+	r.URL.Scheme = "https"
+	r.RequestURI = ""
+	maybeAuthdReq := elasticsearch.AddBasicAuthIfNeeded(r, e.config.User, e.config.Password)
 	if resp, err := e.client.Do(maybeAuthdReq); err != nil {
+		fmt.Printf("Error: %v\n", err)
 		panic(err)
 	} else {
 		return resp

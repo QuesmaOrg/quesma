@@ -4,10 +4,14 @@
 package es_to_ch_ingest
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/goccy/go-json"
 	"github.com/rs/zerolog/log"
+	"io"
+	"net/http"
 	"net/url"
+	"quesma/backend_connectors"
 	"quesma/clickhouse"
 	"quesma/common_table"
 	"quesma/ingest"
@@ -67,6 +71,15 @@ func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcess
 	return ip
 }
 
+func ReadRespBody(resp *http.Response) ([]byte, error) {
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
+	return respBody, nil
+}
+
 func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
 	var data []byte
 
@@ -82,8 +95,29 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 
 	tempIngestProcessor := p.prepareTemporaryIngestProcessor(chBackendConn, indexName)
 
-	for _, m := range message {
+	esBackendConn := p.GetBackendConnector(quesma_api.ElasticsearchBackend)
+	if esBackendConn == nil {
+		fmt.Println("Backend connector not found")
+		return metadata, data, nil
+	}
+	_, ok := esBackendConn.(*backend_connectors.ElasticsearchBackendConnector)
+	if !ok {
+		panic(" !!! ")
+	}
 
+	for _, m := range message {
+		/* // TODO okay just sending the req works
+		messageAsReq, err := quesma_api.CheckedCast[*http.Request](m)
+		if err != nil {
+			panic("ElasticsearchToClickHouseIngestProcessor: invalid message type")
+		}
+		resp := es.Send(messageAsReq)
+		respBody, err := ReadRespBody(resp)
+		if err != nil {
+			println(err)
+		}
+		return metadata, respBody, nil
+		*/
 		bodyAsBytes, err := quesma_api.CheckedCast[[]byte](m)
 		if err != nil {
 			panic("ElasticsearchToClickHouseIngestProcessor: invalid message type")

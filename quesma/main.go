@@ -61,7 +61,9 @@ func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 	quesmaBuilder.AddPipeline(ingestPipeline)
 
 	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector("clickhouse://localhost:9000")
+	elasticsearchBackendConnector := backend_connectors.ElasticsearchBackendConnector{}
 	ingestPipeline.AddBackendConnector(clickHouseBackendConnector)
+	ingestPipeline.AddBackendConnector(&elasticsearchBackendConnector)
 
 	quesmaInstance, err := quesmaBuilder.Build()
 	if err != nil {

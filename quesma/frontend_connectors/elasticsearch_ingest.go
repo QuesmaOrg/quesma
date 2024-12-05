@@ -110,25 +110,25 @@ func (h *ElasticsearchIngestFrontendConnector) GetEndpoint() string {
 }
 
 func bulk(request *http.Request) (map[string]interface{}, any, error) {
-	body, err := ReadRequestBody(request)
-	if err != nil {
-		return nil, nil, err
-	}
+	//body, err := ReadRequestBody(request)
+	//if err != nil {
+	//	return nil, nil, err
+	//}
 	metadata := quesma_api.MakeNewMetadata()
 	metadata[IngestAction] = BulkIndexAction
 	metadata[IngestTargetKey] = getIndexFromRequest(request)
-	return metadata, body, nil
+	return metadata, request, nil
 }
 
 func doc(request *http.Request) (map[string]interface{}, any, error) {
-	body, err := ReadRequestBody(request)
-	if err != nil {
-		return nil, nil, err
-	}
+	//body, err := ReadRequestBody(request)
+	//if err != nil {
+	//	return nil, nil, err
+	//}
 	metadata := quesma_api.MakeNewMetadata()
 	metadata[IngestAction] = DocIndexAction
 	metadata[IngestTargetKey] = getIndexFromRequest(request)
-	return metadata, body, nil
+	return metadata, request, nil
 }
 
 func getIndexFromRequest(request *http.Request) string {
