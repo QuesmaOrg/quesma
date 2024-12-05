@@ -69,20 +69,18 @@ func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcess
 
 func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
 	var data []byte
-	// TODO this processor should NOT take multiple messages? :|
-	// side-effecting for now - just store in ClickHouse it's fine for now
 
 	indexName := metadata[IngestTargetKey].(string)
 	if indexName == "" {
 		panic("NO INDEX NAME?!?!?")
 	}
-	backendConn := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
-	if backendConn == nil {
+	chBackendConn := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
+	if chBackendConn == nil {
 		fmt.Println("Backend connector not found")
 		return metadata, data, nil
 	}
 
-	tempIngestProcessor := p.prepareTemporaryIngestProcessor(backendConn, indexName)
+	tempIngestProcessor := p.prepareTemporaryIngestProcessor(chBackendConn, indexName)
 
 	for _, m := range message {
 

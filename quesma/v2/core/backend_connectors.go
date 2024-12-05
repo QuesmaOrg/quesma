@@ -11,6 +11,7 @@ const (
 	MySQLBackend
 	PgSQLBackend
 	ClickHouseSQLBackend
+	ElasticsearchBackend
 )
 
 func GetBackendConnectorNameFromType(connectorType BackendConnectorType) string {
@@ -21,6 +22,8 @@ func GetBackendConnectorNameFromType(connectorType BackendConnectorType) string 
 		return "pgsql"
 	case ClickHouseSQLBackend:
 		return "clickhouse"
+	case ElasticsearchBackend:
+		return "elasticsearch"
 	default:
 		return "noop"
 	}
