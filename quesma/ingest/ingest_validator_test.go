@@ -13,6 +13,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/table_resolver"
 	"quesma/util"
+	mux "quesma_v2/core"
 	"strings"
 	"testing"
 )
@@ -171,8 +172,8 @@ func TestIngestValidation(t *testing.T) {
 		ip.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
 
 		resolver := table_resolver.NewEmptyTableResolver()
-		decision := &table_resolver.Decision{
-			UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+		decision := &mux.Decision{
+			UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 				ClickhouseTableName: "test_table",
 			}}}
 		resolver.Decisions["test_table"] = decision

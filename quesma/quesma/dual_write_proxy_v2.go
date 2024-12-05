@@ -21,16 +21,17 @@ import (
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/gzip"
-	"quesma/quesma/mux"
 	"quesma/quesma/recovery"
-	"quesma/quesma/routes"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/telemetry"
-	"quesma/tracing"
 	"quesma/util"
+	quesma_api "quesma_v2/core"
+	tracing "quesma_v2/core/tracing"
+
+	"quesma_v2/core/routes"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -102,32 +103,21 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 		Transport: tr,
 		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
 	}
-	routerInstance := routerV2{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client, requestPreprocessors: processorChain{}}
+	routerInstance := routerV2{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client, requestPreprocessors: quesma_api.ProcessorChain{}}
 	routerInstance.
-		registerPreprocessor(NewTraceIdPreprocessor())
-
+		registerPreprocessor(quesma_api.NewTraceIdPreprocessor())
 	agent.FailedRequestsCollector(func() int64 {
 		return routerInstance.failedRequests.Load()
 	})
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		defer recovery.LogPanic()
-		reqBody, err := peekBodyV2(req)
-		if err != nil {
-			http.Error(w, "Error reading request body", http.StatusInternalServerError)
-			return
-		}
+	elasticHttpFrontentConnector := NewElasticHttpFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
+		&routerInstance, searchRouter, ingestRouter, logManager, agent)
 
-		ua := req.Header.Get("User-Agent")
-		agent.UserAgentCounters().Add(ua, 1)
-
-		routerInstance.reroute(req.Context(), w, req, reqBody, searchRouter, ingestRouter, logManager)
-	})
 	var limitedHandler http.Handler
 	if config.DisableAuth {
-		limitedHandler = newSimultaneousClientsLimiterV2(handler, concurrentClientsLimitV2)
+		limitedHandler = newSimultaneousClientsLimiterV2(elasticHttpFrontentConnector, concurrentClientsLimitV2)
 	} else {
-		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(handler, config.Elasticsearch), concurrentClientsLimitV2)
+		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(elasticHttpFrontentConnector, config.Elasticsearch), concurrentClientsLimitV2)
 	}
 
 	return &dualWriteHttpProxyV2{
@@ -192,7 +182,7 @@ func responseFromElasticV2(ctx context.Context, elkResponse *http.Response, w ht
 	elkResponse.Body.Close()
 }
 
-func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseWriter, quesmaResponse *mux.Result, zip bool) {
+func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseWriter, quesmaResponse *quesma_api.Result, zip bool) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 
@@ -217,14 +207,14 @@ func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseW
 
 type routerV2 struct {
 	config                  *config.QuesmaConfiguration
-	requestPreprocessors    processorChain
+	requestPreprocessors    quesma_api.ProcessorChain
 	quesmaManagementConsole *ui.QuesmaManagementConsole
 	phoneHomeAgent          telemetry.PhoneHomeAgent
 	httpClient              *http.Client
 	failedRequests          atomic.Int64
 }
 
-func (r *routerV2) registerPreprocessor(preprocessor RequestPreprocessor) {
+func (r *routerV2) registerPreprocessor(preprocessor quesma_api.RequestPreprocessor) {
 	r.requestPreprocessors = append(r.requestPreprocessors, preprocessor)
 }
 
@@ -233,7 +223,7 @@ func (r *routerV2) errorResponseV2(ctx context.Context, err error, w http.Respon
 
 	msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
 	reason := "Failed request."
-	result := mux.ServerErrorResult()
+	result := quesma_api.ServerErrorResult()
 
 	// if error is an error with user-friendly message, we should use it
 	var endUserError *end_user_errors.EndUserError
@@ -243,7 +233,7 @@ func (r *routerV2) errorResponseV2(ctx context.Context, err error, w http.Respon
 
 		// we treat all `Q1xxx` errors as bad requests here
 		if endUserError.ErrorType().Number < 2000 {
-			result = mux.BadReqeustResult()
+			result = quesma_api.BadReqeustResult()
 		}
 	}
 
@@ -286,13 +276,76 @@ func (*routerV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter,
 
 }
 
-func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, pathRouter *mux.PathRouter, ingestRouter *mux.PathRouter, logManager *clickhouse.LogManager) {
+func (r *routerV2) elasticFallback(decision *quesma_api.Decision,
+	ctx context.Context, w http.ResponseWriter,
+	req *http.Request, reqBody []byte, logManager *clickhouse.LogManager) {
+
+	var sendToElastic bool
+
+	if decision != nil {
+
+		if decision.Err != nil {
+			w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+			addProductAndContentHeaders(req.Header, w.Header())
+			r.errorResponseV2(ctx, decision.Err, w)
+			return
+		}
+
+		if decision.IsClosed {
+			w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+			addProductAndContentHeaders(req.Header, w.Header())
+			r.closedIndexResponse(ctx, w, decision.IndexPattern)
+			return
+		}
+
+		if decision.IsEmpty {
+			w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+			addProductAndContentHeaders(req.Header, w.Header())
+			w.WriteHeader(http.StatusNoContent)
+			w.Write(queryparser.EmptySearchResponse(ctx))
+			return
+		}
+
+		for _, connector := range decision.UseConnectors {
+			if _, ok := connector.(*quesma_api.ConnectorDecisionElastic); ok {
+				// this is desired elastic call
+				sendToElastic = true
+				break
+			}
+		}
+
+	} else {
+		// this is fallback case
+		// in case we don't support sth, we should send it to Elastic
+		sendToElastic = true
+	}
+
+	if sendToElastic {
+		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(opaqueIdHeaderKey), logManager.ResolveIndexPattern)
+
+		rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
+		response := rawResponse.response
+		if response != nil {
+			responseFromElasticV2(ctx, response, w)
+		} else {
+			w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
+			w.WriteHeader(500)
+			if rawResponse.error != nil {
+				_, _ = w.Write([]byte(rawResponse.error.Error()))
+			}
+		}
+	} else {
+		r.errorResponseV2(ctx, end_user_errors.ErrNoConnector.New(fmt.Errorf("no connector found")), w)
+	}
+}
+
+func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, searchRouter *quesma_api.PathRouter, ingestRouter *quesma_api.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
 
-	quesmaRequest, ctx, err := r.preprocessRequest(ctx, &mux.Request{
+	quesmaRequest, ctx, err := r.preprocessRequest(ctx, &quesma_api.Request{
 		Method:      req.Method,
 		Path:        strings.TrimSuffix(req.URL.Path, "/"),
 		Params:      map[string]string{},
@@ -306,20 +359,22 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
-	var handler mux.Handler
-	var decision *table_resolver.Decision
-
-	searchHandler, searchDecision := pathRouter.Matches(quesmaRequest)
-	ingestHandler, ingestDecision := ingestRouter.Matches(quesmaRequest)
-
-	if searchHandler == nil {
-		handler = ingestHandler
-		decision = ingestDecision
-	} else {
-		handler = searchHandler
+	var handler quesma_api.Handler
+	var decision *quesma_api.Decision
+	searchHandler, searchDecision := searchRouter.Matches(quesmaRequest)
+	if searchDecision != nil {
 		decision = searchDecision
 	}
-
+	if searchHandler != nil {
+		handler = searchHandler
+	}
+	ingestHandler, ingestDecision := ingestRouter.Matches(quesmaRequest)
+	if searchDecision == nil {
+		decision = ingestDecision
+	}
+	if searchHandler == nil {
+		handler = ingestHandler
+	}
 	if decision != nil {
 		w.Header().Set(quesmaTableResolverHeader, decision.String())
 	} else {
@@ -327,7 +382,7 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 
 	if handler != nil {
-		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
+		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.quesmaManagementConsole, func() (*quesma_api.Result, error) {
 			return handler(ctx, quesmaRequest)
 		})
 
@@ -350,68 +405,11 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 			r.errorResponseV2(ctx, err, w)
 		}
 	} else {
-
-		var sendToElastic bool
-
-		if decision != nil {
-
-			if decision.Err != nil {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				addProductAndContentHeaders(req.Header, w.Header())
-				r.errorResponseV2(ctx, decision.Err, w)
-				return
-			}
-
-			if decision.IsClosed {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				addProductAndContentHeaders(req.Header, w.Header())
-				r.closedIndexResponse(ctx, w, decision.IndexPattern)
-				return
-			}
-
-			if decision.IsEmpty {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				addProductAndContentHeaders(req.Header, w.Header())
-				w.WriteHeader(http.StatusNoContent)
-				w.Write(queryparser.EmptySearchResponse(ctx))
-				return
-			}
-
-			for _, connector := range decision.UseConnectors {
-				if _, ok := connector.(*table_resolver.ConnectorDecisionElastic); ok {
-					// this is desired elastic call
-					sendToElastic = true
-					break
-				}
-			}
-
-		} else {
-			// this is fallback case
-			// in case we don't support sth, we should send it to Elastic
-			sendToElastic = true
-		}
-
-		if sendToElastic {
-			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(opaqueIdHeaderKey), logManager.ResolveIndexPattern)
-
-			rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
-			response := rawResponse.response
-			if response != nil {
-				responseFromElasticV2(ctx, response, w)
-			} else {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
-				w.WriteHeader(500)
-				if rawResponse.error != nil {
-					_, _ = w.Write([]byte(rawResponse.error.Error()))
-				}
-			}
-		} else {
-			r.errorResponseV2(ctx, end_user_errors.ErrNoConnector.New(fmt.Errorf("no connector found")), w)
-		}
+		r.elasticFallback(decision, ctx, w, req, reqBody, logManager)
 	}
 }
 
-func (r *routerV2) preprocessRequest(ctx context.Context, quesmaRequest *mux.Request) (*mux.Request, context.Context, error) {
+func (r *routerV2) preprocessRequest(ctx context.Context, quesmaRequest *quesma_api.Request) (*quesma_api.Request, context.Context, error) {
 	var err error
 	var processedRequest = quesmaRequest
 	for _, preprocessor := range r.requestPreprocessors {
@@ -485,7 +483,7 @@ func isIngestV2(path string) bool {
 	return strings.HasSuffix(path, routes.BulkPath) // We may add more methods in future such as `_put` or `_create`
 }
 
-func recordRequestToClickhouseV2(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() (*mux.Result, error)) (*mux.Result, error) {
+func recordRequestToClickhouseV2(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() (*quesma_api.Result, error)) (*quesma_api.Result, error) {
 	statName := ui.RequestStatisticKibana2Clickhouse
 	if isIngestV2(path) {
 		statName = ui.RequestStatisticIngest2Clickhouse

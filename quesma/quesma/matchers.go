@@ -5,25 +5,25 @@ package quesma
 import (
 	"quesma/logger"
 	"quesma/quesma/config"
-	"quesma/quesma/mux"
 	"quesma/quesma/types"
 	"quesma/table_resolver"
-	"quesma/tracing"
+	"quesma_v2/core"
+	tracing "quesma_v2/core/tracing"
 	"strings"
 )
 
-func matchedAgainstAsyncId() mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) mux.MatchResult {
+func matchedAgainstAsyncId() quesma_api.RequestMatcher {
+	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
 		if !strings.HasPrefix(req.Params["id"], tracing.AsyncIdPrefix) {
 			logger.Debug().Msgf("async query id %s is forwarded to Elasticsearch", req.Params["id"])
-			return mux.MatchResult{Matched: false}
+			return quesma_api.MatchResult{Matched: false}
 		}
-		return mux.MatchResult{Matched: true}
+		return quesma_api.MatchResult{Matched: true}
 	})
 }
 
-func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableResolver table_resolver.TableResolver) mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) mux.MatchResult {
+func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableResolver table_resolver.TableResolver) quesma_api.RequestMatcher {
+	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
 		idx := 0
 		for _, s := range strings.Split(req.Body, "\n") {
 			if len(s) == 0 {
@@ -33,16 +33,16 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 			if idx%2 == 0 {
 				name := extractIndexName(s)
 
-				decision := tableResolver.Resolve(table_resolver.IngestPipeline, name)
+				decision := tableResolver.Resolve(quesma_api.IngestPipeline, name)
 
 				if decision.IsClosed {
-					return mux.MatchResult{Matched: true, Decision: decision}
+					return quesma_api.MatchResult{Matched: true, Decision: decision}
 				}
 
 				// if have any enabled Clickhouse connector, then return true
 				for _, connector := range decision.UseConnectors {
-					if _, ok := connector.(*table_resolver.ConnectorDecisionClickhouse); ok {
-						return mux.MatchResult{Matched: true, Decision: decision}
+					if _, ok := connector.(*quesma_api.ConnectorDecisionClickhouse); ok {
+						return quesma_api.MatchResult{Matched: true, Decision: decision}
 					}
 				}
 			}
@@ -50,46 +50,46 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableReso
 		}
 
 		// All indexes are disabled, the whole bulk can go to Elastic
-		return mux.MatchResult{Matched: false}
+		return quesma_api.MatchResult{Matched: false}
 	})
 }
 
 // Query path only (looks at QueryTarget)
-func matchedAgainstPattern(indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
-	return matchAgainstTableResolver(indexRegistry, table_resolver.QueryPipeline)
+func matchedAgainstPattern(indexRegistry table_resolver.TableResolver) quesma_api.RequestMatcher {
+	return matchAgainstTableResolver(indexRegistry, quesma_api.QueryPipeline)
 }
 
 // check whether exact index name is enabled
-func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipelineName string) mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) mux.MatchResult {
+func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipelineName string) quesma_api.RequestMatcher {
+	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
 
 		indexName := req.Params["index"]
 
 		decision := indexRegistry.Resolve(pipelineName, indexName)
 		if decision.Err != nil {
-			return mux.MatchResult{Matched: false, Decision: decision}
+			return quesma_api.MatchResult{Matched: false, Decision: decision}
 		}
 		for _, connector := range decision.UseConnectors {
-			if _, ok := connector.(*table_resolver.ConnectorDecisionClickhouse); ok {
-				return mux.MatchResult{Matched: true, Decision: decision}
+			if _, ok := connector.(*quesma_api.ConnectorDecisionClickhouse); ok {
+				return quesma_api.MatchResult{Matched: true, Decision: decision}
 			}
 		}
-		return mux.MatchResult{Matched: false, Decision: decision}
+		return quesma_api.MatchResult{Matched: false, Decision: decision}
 	})
 }
 
-func matchedExactQueryPath(indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
-	return matchAgainstTableResolver(indexRegistry, table_resolver.QueryPipeline)
+func matchedExactQueryPath(indexRegistry table_resolver.TableResolver) quesma_api.RequestMatcher {
+	return matchAgainstTableResolver(indexRegistry, quesma_api.QueryPipeline)
 }
 
-func matchedExactIngestPath(indexRegistry table_resolver.TableResolver) mux.RequestMatcher {
-	return matchAgainstTableResolver(indexRegistry, table_resolver.IngestPipeline)
+func matchedExactIngestPath(indexRegistry table_resolver.TableResolver) quesma_api.RequestMatcher {
+	return matchAgainstTableResolver(indexRegistry, quesma_api.IngestPipeline)
 }
 
 // Returns false if the body contains a Kibana internal search.
 // Kibana does several /_search where you can identify it only by field
-func matchAgainstKibanaInternal() mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) mux.MatchResult {
+func matchAgainstKibanaInternal() quesma_api.RequestMatcher {
+	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
 
 		var query types.JSON
 
@@ -99,7 +99,7 @@ func matchAgainstKibanaInternal() mux.RequestMatcher {
 			query = req.ParsedBody.(types.JSON)
 
 		default:
-			return mux.MatchResult{Matched: true}
+			return quesma_api.MatchResult{Matched: true}
 		}
 
 		hasJsonKey := func(keyFrag string, node interface{}) bool {
@@ -142,6 +142,6 @@ func matchAgainstKibanaInternal() mux.RequestMatcher {
 		// 2. migrationVersion
 		// 3., 4., 5. related to Kibana Fleet
 		matched := !hasJsonKey("kibana.alert.", q) && !hasJsonKey("migrationVersion", q) && !hasJsonKey("idleTimeoutExpiration", q) && !strings.Contains(req.Body, "fleet-message-signing-keys") && !strings.Contains(req.Body, "fleet-uninstall-tokens")
-		return mux.MatchResult{Matched: matched}
+		return quesma_api.MatchResult{Matched: matched}
 	})
 }

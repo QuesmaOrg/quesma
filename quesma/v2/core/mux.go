@@ -1,15 +1,13 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package mux
+package quesma_api
 
 import (
 	"context"
 	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
-	"quesma/logger"
-	"quesma/quesma/types"
-	"quesma/table_resolver"
+
 	"strings"
 )
 
@@ -22,6 +20,7 @@ type (
 		compiledPath urlpath.Path
 		predicate    RequestMatcher
 		handler      Handler
+		processors   []Processor
 	}
 	Result struct {
 		Body       string
@@ -38,14 +37,14 @@ type (
 		QueryParams url.Values
 
 		Body       string
-		ParsedBody types.RequestBody
+		ParsedBody RequestBody
 	}
 
 	Handler func(ctx context.Context, req *Request) (*Result, error)
 
 	MatchResult struct {
 		Matched  bool
-		Decision *table_resolver.Decision
+		Decision *Decision
 	}
 	RequestMatcher interface {
 		Matches(req *Request) MatchResult
@@ -81,28 +80,23 @@ func NewPathRouter() *PathRouter {
 
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler Handler) {
 
-	mapping := mapping{pattern, urlpath.New(pattern), predicate, handler}
+	mapping := mapping{pattern, urlpath.New(pattern), predicate, handler, nil}
 	p.mappings = append(p.mappings, mapping)
 
 }
 
-func (p *PathRouter) Matches(req *Request) (Handler, *table_resolver.Decision) {
-	if strings.Contains(req.Path, "fligh") {
-		logger.Debug().Msgf("Matched path: %s", req.Path)
-	}
+func (p *PathRouter) Matches(req *Request) (Handler, *Decision) {
 	handler, decision := p.findHandler(req)
 	if handler != nil {
 		routerStatistics.addMatched(req.Path)
-		logger.Debug().Msgf("Matched path: %s", req.Path)
 		return handler, decision
 	} else {
 		routerStatistics.addUnmatched(req.Path)
-		logger.Debug().Msgf("Non-matched path: %s", req.Path)
 		return handler, decision
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (Handler, *table_resolver.Decision) {
+func (p *PathRouter) findHandler(req *Request) (Handler, *Decision) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)
@@ -142,7 +136,7 @@ type predicateAnd struct {
 }
 
 func (p *predicateAnd) Matches(req *Request) MatchResult {
-	var lastDecision *table_resolver.Decision
+	var lastDecision *Decision
 
 	for _, predicate := range p.predicates {
 		res := predicate.Matches(req)

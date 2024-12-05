@@ -979,3 +979,107 @@ func TestFullTextFields(t *testing.T) {
 		})
 	}
 }
+
+func Test_applyMatchOperator(t *testing.T) {
+	schemaTable := schema.Table{
+		Columns: map[string]schema.Column{
+			"message": {Name: "message", Type: "String"},
+			"count":   {Name: "count", Type: "Int64"},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		query    *model.Query
+		expected *model.Query
+	}{
+		{
+			name: "match operator transformation for String (ILIKE)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("message"),
+						model.MatchOperator,
+						model.NewLiteral("'needle'"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("message"),
+						"iLIKE",
+						model.NewLiteral("'%needle%'"),
+					),
+				},
+			},
+		},
+		{
+			name: "match operator transformation for Int64 (=)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("count"),
+						model.MatchOperator,
+						model.NewLiteral("'123'"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("count"),
+						"=",
+						model.NewLiteral("123"),
+					),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tableDiscovery :=
+				fixedTableProvider{tables: map[string]schema.Table{
+					"test": schemaTable,
+				}}
+
+			indexConfig := map[string]config.IndexConfiguration{
+				"test": {
+					Name: "test",
+				},
+			}
+
+			cfg := config.QuesmaConfiguration{
+				IndexConfig: indexConfig,
+			}
+
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			transform := &SchemaCheckPass{cfg: &cfg}
+
+			indexSchema, ok := s.FindSchema("test")
+			if !ok {
+				t.Fatal("schema not found")
+			}
+
+			actual, err := transform.applyMatchOperator(indexSchema, tt.query)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Equal(t, model.AsString(tt.expected.SelectCommand), model.AsString(actual.SelectCommand))
+		})
+	}
+}
