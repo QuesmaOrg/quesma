@@ -56,14 +56,31 @@ func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
 
-	ingestProcessor := es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor()
+	ingestProcessor := es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor(
+		config.QuesmaProcessorConfig{
+			UseCommonTable: false,
+			IndexConfig: map[string]config.IndexConfiguration{
+				"test_index": {
+					Name: "test_index",
+				},
+				"test_index2": {
+					Name: "test_index2",
+				},
+			},
+		},
+	)
 	ingestPipeline.AddProcessor(ingestProcessor)
 	quesmaBuilder.AddPipeline(ingestPipeline)
 
 	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector("clickhouse://localhost:9000")
-	elasticsearchBackendConnector := backend_connectors.ElasticsearchBackendConnector{}
+	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector(
+		config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "https"},
+			User:     "elastic",
+			Password: "quesmaquesma",
+		})
 	ingestPipeline.AddBackendConnector(clickHouseBackendConnector)
-	ingestPipeline.AddBackendConnector(&elasticsearchBackendConnector)
+	ingestPipeline.AddBackendConnector(elasticsearchBackendConnector)
 
 	quesmaInstance, err := quesmaBuilder.Build()
 	if err != nil {

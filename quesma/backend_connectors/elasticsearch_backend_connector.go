@@ -27,27 +27,29 @@ type ElasticsearchBackendConnector struct {
 	config config.ElasticsearchConfiguration
 }
 
+func NewElasticsearchBackendConnector(cfg config.ElasticsearchConfiguration) *ElasticsearchBackendConnector {
+	conn := &ElasticsearchBackendConnector{
+		config: cfg,
+		client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+			Timeout: esRequestTimeout,
+		},
+	}
+	return conn
+}
+
 // HttpBackendConnector is a base interface for sending http requests, for now
 type HttpBackendConnector interface {
 	Send(r *http.Request) *http.Response
 }
 
 func (e *ElasticsearchBackendConnector) Send(r *http.Request) *http.Response {
-	e.client = &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-		Timeout: esRequestTimeout,
-	}
-	e.config = config.ElasticsearchConfiguration{
-		Url:      &config.Url{Host: "localhost:9200"},
-		User:     "elastic",
-		Password: "quesmaquesma",
-	}
 	r.Host = e.config.Url.Host
 	r.URL.Host = e.config.Url.Host
-	r.URL.Scheme = "https"
-	r.RequestURI = ""
+	r.URL.Scheme = e.config.Url.Scheme
+	r.RequestURI = "" // this is important for the request to be sent correctly to a different host
 	maybeAuthdReq := elasticsearch.AddBasicAuthIfNeeded(r, e.config.User, e.config.Password)
 	if resp, err := e.client.Do(maybeAuthdReq); err != nil {
 		fmt.Printf("Error: %v\n", err)

@@ -14,6 +14,7 @@ import (
 	"quesma/backend_connectors"
 	"quesma/clickhouse"
 	"quesma/common_table"
+	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/persistence"
 	"quesma/processors"
@@ -32,11 +33,13 @@ const (
 
 type ElasticsearchToClickHouseIngestProcessor struct {
 	processors.BaseProcessor
+	config config.QuesmaProcessorConfig
 }
 
-func NewElasticsearchToClickHouseIngestProcessor() *ElasticsearchToClickHouseIngestProcessor {
+func NewElasticsearchToClickHouseIngestProcessor(conf config.QuesmaProcessorConfig) *ElasticsearchToClickHouseIngestProcessor {
 	return &ElasticsearchToClickHouseIngestProcessor{
 		BaseProcessor: processors.NewBaseProcessor(),
+		config:        conf,
 	}
 }
 
@@ -46,18 +49,14 @@ func (p *ElasticsearchToClickHouseIngestProcessor) GetId() string {
 
 // prepareTemporaryIngestProcessor creates a temporary ingest processor which is a new version of the ingest processor,
 // which uses `quesma_api.BackendConnector` instead of `*sql.DB` for the database connection.
-func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(connector quesma_api.BackendConnector, indexName string) *ingest.IngestProcessor2 {
+func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(connector quesma_api.BackendConnector) *ingest.IngestProcessor2 {
 	u, _ := url.Parse("http://localhost:9200")
 
 	elasticsearchConfig := config.ElasticsearchConfiguration{
 		Url: (*config.Url)(u),
 	}
 	emptyConfig := &config.QuesmaConfiguration{
-		IndexConfig: map[string]config.IndexConfiguration{
-			indexName: {
-				Name: indexName,
-			},
-		},
+		IndexConfig: p.config.IndexConfig,
 	}
 
 	virtualTableStorage := persistence.NewElasticJSONDatabase(elasticsearchConfig, common_table.VirtualTableElasticIndexName)
@@ -71,54 +70,49 @@ func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcess
 	return ip
 }
 
-func ReadRespBody(resp *http.Response) ([]byte, error) {
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
-	return respBody, nil
-}
-
 func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
 	var data []byte
-
-	indexName := metadata[IngestTargetKey].(string)
-	if indexName == "" {
+	var chBackend, esBackend quesma_api.BackendConnector
+	indexNameFromIncomingReq := metadata[IngestTargetKey].(string)
+	if indexNameFromIncomingReq == "" {
 		panic("NO INDEX NAME?!?!?")
 	}
-	chBackendConn := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
-	if chBackendConn == nil {
+
+	chBackend = p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
+	if chBackend == nil {
 		fmt.Println("Backend connector not found")
 		return metadata, data, nil
 	}
 
-	tempIngestProcessor := p.prepareTemporaryIngestProcessor(chBackendConn, indexName)
+	tempIngestProcessor := p.prepareTemporaryIngestProcessor(chBackend)
 
-	esBackendConn := p.GetBackendConnector(quesma_api.ElasticsearchBackend)
-	if esBackendConn == nil {
+	esBackend = p.GetBackendConnector(quesma_api.ElasticsearchBackend)
+	if esBackend == nil {
 		fmt.Println("Backend connector not found")
 		return metadata, data, nil
 	}
-	_, ok := esBackendConn.(*backend_connectors.ElasticsearchBackendConnector)
+	es, ok := esBackend.(*backend_connectors.ElasticsearchBackendConnector) // OKAY JUST FOR NOW
 	if !ok {
 		panic(" !!! ")
 	}
 
 	for _, m := range message {
-		/* // TODO okay just sending the req works
-		messageAsReq, err := quesma_api.CheckedCast[*http.Request](m)
+		messageAsHttpReq, err := quesma_api.CheckedCast[*http.Request](m)
 		if err != nil {
 			panic("ElasticsearchToClickHouseIngestProcessor: invalid message type")
 		}
-		resp := es.Send(messageAsReq)
-		respBody, err := ReadRespBody(resp)
-		if err != nil {
-			println(err)
+
+		if _, present := p.config.IndexConfig[indexNameFromIncomingReq]; !present {
+			// route to Elasticsearch
+			resp := es.Send(messageAsHttpReq)
+			respBody, err := ReadResponseBody(resp)
+			if err != nil {
+				println(err)
+			}
+			return metadata, respBody, nil
 		}
-		return metadata, respBody, nil
-		*/
-		bodyAsBytes, err := quesma_api.CheckedCast[[]byte](m)
+
+		bodyAsBytes, err := frontend_connectors.ReadRequestBody(messageAsHttpReq)
 		if err != nil {
 			panic("ElasticsearchToClickHouseIngestProcessor: invalid message type")
 		}
@@ -129,7 +123,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			result, err := handleDocIndex(payloadJson, indexName, tempIngestProcessor)
+			result, err := handleDocIndex(payloadJson, indexNameFromIncomingReq, tempIngestProcessor)
 			if err != nil {
 				println(err)
 			}
@@ -141,7 +135,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			results, err := handleBulkIndex(payloadNDJson, indexName, tempIngestProcessor)
+			results, err := handleBulkIndex(payloadNDJson, indexNameFromIncomingReq, tempIngestProcessor)
 			if err != nil {
 				println(err)
 			}
@@ -158,5 +152,14 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 }
 
 func (p *ElasticsearchToClickHouseIngestProcessor) GetSupportedBackendConnectors() []quesma_api.BackendConnectorType {
-	return []quesma_api.BackendConnectorType{quesma_api.ClickHouseSQLBackend}
+	return []quesma_api.BackendConnectorType{quesma_api.ClickHouseSQLBackend, quesma_api.ElasticsearchBackend}
+}
+
+func ReadResponseBody(resp *http.Response) ([]byte, error) {
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
+	return respBody, nil
 }
