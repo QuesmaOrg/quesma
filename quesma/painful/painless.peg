@@ -19,12 +19,14 @@ Emit = "emit" "(" _ expr:Expr _ ")" {
     return &EmitExpr{Expr: exprVal}, nil
 }
 
-Doc = "doc" "[" '\'' key:Identifier '\'' "]" {
-    keyVal,err := ExpectString(key)
+Doc = "doc" "[" key:Expr  "]" {
+
+    exprVal ,err := ExpectExpr(key)
     if err != nil {
         return nil, err
     }
-    return &DocExpr{FieldName: keyVal}, nil
+
+    return &DocExpr{FieldName: exprVal}, nil
 }
 
 Accessor = expr:Expr "." field:Identifier {

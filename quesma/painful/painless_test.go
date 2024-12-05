@@ -40,9 +40,19 @@ func TestPainless(t *testing.T) {
 			script: "emit('a' + 'b')",
 			output: "ab",
 		},
-	}
-	for _, tt := range tests {
 
+		{
+			name: "concat date literal and string",
+			input: map[string]any{
+				"@timestamp": "2022-09-22T12:16:59.985Z",
+				"uuid":       "1234",
+			},
+			script: "emit(doc['@timestamp'].value + '&' +  doc['uuid'].value)",
+			output: "2022-09-22T12:16:59.985Z&1234",
+		},
+	}
+
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res, err := Parse("", []byte(tt.script))
 			if err != nil {

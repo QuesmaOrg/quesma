@@ -85,11 +85,19 @@ func (c *ConditionalExpr) Eval(env *Env) (any, error) {
 }
 
 type DocExpr struct {
-	FieldName string
+	FieldName Expr
 }
 
 func (d *DocExpr) Eval(env *Env) (any, error) {
-	return env.Doc[d.FieldName], nil
+
+	fieldName, err := d.FieldName.Eval(env)
+	if err != nil {
+		return nil, err
+	}
+
+	key := fmt.Sprintf("%v", fieldName)
+
+	return env.Doc[key], nil
 }
 
 type EmitExpr struct {
