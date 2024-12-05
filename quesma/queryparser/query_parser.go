@@ -899,7 +899,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 		case clickhouse.ExistsAndIsArray:
 			sql = model.NewInfixExpr(model.NewNestedProperty(
-				model.NewColumnRef(fieldNameQuoted),
+				model.NewColumnRef(fieldName),
 				model.NewLiteral("size0"),
 			), "=", model.NewLiteral("0"))
 		case clickhouse.NotExists:
