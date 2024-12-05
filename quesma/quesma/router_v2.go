@@ -11,6 +11,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/ingest"
 	"quesma/logger"
+	"quesma/painful"
 	"quesma/queryparser"
 	"quesma/quesma/config"
 	"quesma/quesma/errors"
@@ -43,6 +44,42 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, ip *ingest.IngestP
 	for _, path := range elasticsearch.InternalPaths {
 		router.Register(path, mux.Never(), func(ctx context.Context, req *mux.Request) (*mux.Result, error) { return nil, nil })
 	}
+
+	router.Register(routes.ExecutePainlessScriptPath, and(method("POST"), matchAgainstIndexNameInScriptRequestBody(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+
+		var scriptRequest painful.ScriptRequest
+
+		err := json.Unmarshal([]byte(req.Body), &scriptRequest)
+		if err != nil {
+			return nil, err
+		}
+
+		scriptResponse, err := scriptRequest.Eval()
+
+		if err != nil {
+			errorResponse := painful.RenderErrorResponse(scriptRequest.Script.Source, err)
+			responseBytes, err := json.Marshal(errorResponse)
+			if err != nil {
+				return nil, err
+			}
+
+			return &mux.Result{
+				Body:       string(responseBytes),
+				StatusCode: errorResponse.Status,
+			}, nil
+		}
+
+		responseBytes, err := json.Marshal(scriptResponse)
+		if err != nil {
+			return nil, err
+		}
+
+		return &mux.Result{
+			Body:       string(responseBytes),
+			StatusCode: http.StatusOK,
+		}, nil
+	})
+
 	router.Register(routes.BulkPath, and(method("POST", "PUT"), matchedAgainstBulkBody(cfg, tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
 		body, err := types.ExpectNDJSON(req.ParsedBody)
