@@ -73,7 +73,7 @@ MethodCall = expr:Expr "." method:Identifier "(" args:Expr* ','?  ")" {
         }
 
     default:
-        return nil, fmt.Errorf("Invalid type %T", args)
+        return nil, fmt.Errorf("internal parser error. '%T' is not valid method argument", args)
     }
 
 
