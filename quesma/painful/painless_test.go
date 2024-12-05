@@ -50,6 +50,24 @@ func TestPainless(t *testing.T) {
 			script: "emit(doc['@timestamp'].value + '&' + doc['uuid'].value)",
 			output: "2022-09-22T12:16:59.985Z&1234",
 		},
+
+		{
+			name: "get hour from date",
+			input: map[string]any{
+				"@timestamp": "2022-09-22T12:16:59.98Z",
+			},
+			script: "emit(doc['@timestamp'].value.getHour())",
+			output: 12,
+		},
+
+		{
+			name: "format date with ISO",
+			input: map[string]any{
+				"@timestamp": "2022-09-22T12:16:59.98Z",
+			},
+			script: "emit(doc['@timestamp'].value.formatISO8601())",
+			output: "2022-09-22T12:16:59Z",
+		},
 	}
 
 	for _, tt := range tests {
@@ -72,7 +90,7 @@ func TestPainless(t *testing.T) {
 				}
 
 				if !reflect.DeepEqual(tt.output, env.EmitValue) {
-					t.Errorf("expected %v, got %v", tt.output, env.Doc)
+					t.Errorf("expected %v, got %v", tt.output, env.EmitValue)
 				}
 
 			default:

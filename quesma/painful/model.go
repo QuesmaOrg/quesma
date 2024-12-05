@@ -6,6 +6,7 @@ package painful
 
 import (
 	"fmt"
+	"time"
 )
 
 func ParsePainless(script string) (Expr, error) {
@@ -114,7 +115,6 @@ func (d *DocExpr) Eval(env *Env) (any, error) {
 	}
 
 	key := fmt.Sprintf("%v", fieldName)
-
 	return env.Doc[key], nil
 }
 
@@ -153,6 +153,11 @@ func (a *AccessorExpr) Eval(env *Env) (any, error) {
 		return val, nil
 	}
 
+	// for testing purposes
+	if a.PropertyName == "type" {
+		return fmt.Sprintf("%T", val), nil
+	}
+
 	return nil, fmt.Errorf("%s: '%s' property is not supported", a.Position, a.PropertyName)
 
 }
@@ -175,8 +180,24 @@ func (m *MethodCallExpr) Eval(env *Env) (any, error) {
 
 	case "getHour":
 
-		// TODO add parse HOUR here
-		return val, nil
+		typeVal, err := ExpectDate(val)
+
+		if err != nil {
+			return nil, fmt.Errorf("%s: method '%s' failed to coerce '%v' into a datetime: %v ", m.Position, m.MethodName, val, err)
+		}
+
+		return typeVal.Hour(), nil
+
+	case "formatISO8601": // TODO maybe more easier to remember name
+
+		typeVal, err := ExpectDate(val)
+
+		if err != nil {
+			return nil, fmt.Errorf("%s: method '%s' failed to coerce '%v' into a datetime: %v ", m.Position, m.MethodName, val, err)
+		}
+
+		return typeVal.Format(time.RFC3339), nil
+
 	default:
 		return nil, fmt.Errorf("%s: '%s' method is not supported", m.Position, m.MethodName)
 	}
@@ -199,5 +220,43 @@ func ExpectString(potentialExpr any) (string, error) {
 		return str, nil
 	default:
 		return "", fmt.Errorf("expected string, got %T", potentialExpr)
+	}
+}
+
+func ExpectDate(potentialExpr any) (time.Time, error) {
+
+	switch date := potentialExpr.(type) {
+	case time.Time:
+		return date, nil
+
+	case string:
+
+		formats := []string{
+			"Jan 2, 2006 @ 15:04:05.000 -0700 MST", // this format in example provided by Kibana\
+			"2006-01-02 15:04:05.000 -0700 MST",    // clickhouse format
+			time.Layout,
+			time.ANSIC,
+			time.UnixDate,
+			time.RubyDate,
+			time.RFC822,
+			time.RFC822Z,
+			time.RFC850,
+			time.RFC1123,
+			time.RFC1123Z,
+			time.RFC3339,
+			time.RFC3339Nano,
+			time.RFC3339,
+		}
+
+		for _, format := range formats {
+			t, err := time.Parse(format, date)
+			if err == nil {
+				return t, nil
+			}
+		}
+
+		return time.Time{}, fmt.Errorf("failed to parse date: %s", date)
+	default:
+		return time.Time{}, fmt.Errorf("expected date, got %T", potentialExpr)
 	}
 }

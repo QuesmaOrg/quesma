@@ -57,6 +57,7 @@ func (t *EvalPainlessScriptOnColumnsTransformer) Transform(result [][]model.Quer
 			}
 
 			for j := range row.Cols {
+
 				if script, exists := t.FieldScripts[row.Cols[j].ColName]; exists {
 					env := &painful.Env{
 						Doc: doc,
