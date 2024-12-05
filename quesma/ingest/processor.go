@@ -12,7 +12,6 @@ import (
 	"quesma/comment_metadata"
 	"quesma/common_table"
 	"quesma/end_user_errors"
-	"quesma/frontend_connectors"
 	"quesma/jsonprocessor"
 	"quesma/logger"
 	"quesma/model"
@@ -25,6 +24,7 @@ import (
 	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/util"
+	"quesma_v2/core/mux"
 	"slices"
 	"sort"
 	"strings"
@@ -696,7 +696,7 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
 
-	decision := lm.tableResolver.Resolve(frontend_connectors.IngestPipeline, tableName)
+	decision := lm.tableResolver.Resolve(mux.IngestPipeline, tableName)
 
 	if decision.Err != nil {
 		return decision.Err
@@ -712,10 +712,10 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 
 	for _, connectorDecision := range decision.UseConnectors {
 
-		var clickhouseDecision *frontend_connectors.ConnectorDecisionClickhouse
+		var clickhouseDecision *mux.ConnectorDecisionClickhouse
 
 		var ok bool
-		if clickhouseDecision, ok = connectorDecision.(*frontend_connectors.ConnectorDecisionClickhouse); !ok {
+		if clickhouseDecision, ok = connectorDecision.(*mux.ConnectorDecisionClickhouse); !ok {
 			continue
 		}
 

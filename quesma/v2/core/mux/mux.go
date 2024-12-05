@@ -7,9 +7,6 @@ import (
 	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
-	"quesma/frontend_connectors"
-	"quesma/logger"
-	"quesma/quesma/types"
 	"strings"
 )
 
@@ -38,14 +35,14 @@ type (
 		QueryParams url.Values
 
 		Body       string
-		ParsedBody types.RequestBody
+		ParsedBody RequestBody
 	}
 
 	Handler func(ctx context.Context, req *Request) (*Result, error)
 
 	MatchResult struct {
 		Matched  bool
-		Decision *frontend_connectors.Decision
+		Decision *Decision
 	}
 	RequestMatcher interface {
 		Matches(req *Request) MatchResult
@@ -86,23 +83,18 @@ func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler 
 
 }
 
-func (p *PathRouter) Matches(req *Request) (Handler, *frontend_connectors.Decision) {
-	if strings.Contains(req.Path, "fligh") {
-		logger.Debug().Msgf("Matched path: %s", req.Path)
-	}
+func (p *PathRouter) Matches(req *Request) (Handler, *Decision) {
 	handler, decision := p.findHandler(req)
 	if handler != nil {
 		routerStatistics.addMatched(req.Path)
-		logger.Debug().Msgf("Matched path: %s", req.Path)
 		return handler, decision
 	} else {
 		routerStatistics.addUnmatched(req.Path)
-		logger.Debug().Msgf("Non-matched path: %s", req.Path)
 		return handler, decision
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (Handler, *frontend_connectors.Decision) {
+func (p *PathRouter) findHandler(req *Request) (Handler, *Decision) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)
@@ -142,7 +134,7 @@ type predicateAnd struct {
 }
 
 func (p *predicateAnd) Matches(req *Request) MatchResult {
-	var lastDecision *frontend_connectors.Decision
+	var lastDecision *Decision
 
 	for _, predicate := range p.predicates {
 		res := predicate.Matches(req)

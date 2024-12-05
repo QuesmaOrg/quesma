@@ -3,7 +3,7 @@
 package mux
 
 import (
-	"quesma/frontend_connectors/routes"
+	"quesma_v2/core/routes"
 	"slices"
 	"strings"
 	"sync"

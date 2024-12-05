@@ -12,7 +12,6 @@ import (
 	"quesma/common_table"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
-	"quesma/frontend_connectors"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/optimize"
@@ -29,6 +28,7 @@ import (
 	"quesma/telemetry"
 	"quesma/tracing"
 	"quesma/util"
+	"quesma_v2/core/mux"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -102,9 +102,9 @@ func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
 	logChan := logger.InitOnlyChannelLoggerForTests()
 
 	resolver := table_resolver.NewEmptyTableResolver()
-	resolver.Decisions[tableName] = &frontend_connectors.Decision{
-		UseConnectors: []frontend_connectors.ConnectorDecision{
-			&frontend_connectors.ConnectorDecisionClickhouse{
+	resolver.Decisions[tableName] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{
+			&mux.ConnectorDecisionClickhouse{
 				ClickhouseTableName: tableName,
 				ClickhouseTables:    []string{tableName},
 			},
@@ -296,7 +296,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 
-	decision := q.tableResolver.Resolve(frontend_connectors.QueryPipeline, indexPattern)
+	decision := q.tableResolver.Resolve(mux.QueryPipeline, indexPattern)
 
 	if decision.Err != nil {
 
@@ -325,15 +325,15 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("no connectors to use"))
 	}
 
-	var clickhouseConnector *frontend_connectors.ConnectorDecisionClickhouse
+	var clickhouseConnector *mux.ConnectorDecisionClickhouse
 
 	for _, connector := range decision.UseConnectors {
 		switch c := connector.(type) {
 
-		case *frontend_connectors.ConnectorDecisionClickhouse:
+		case *mux.ConnectorDecisionClickhouse:
 			clickhouseConnector = c
 
-		case *frontend_connectors.ConnectorDecisionElastic:
+		case *mux.ConnectorDecisionElastic:
 			// NOP
 
 		default:

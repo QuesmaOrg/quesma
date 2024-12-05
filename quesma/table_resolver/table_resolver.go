@@ -7,17 +7,17 @@ import (
 	"fmt"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
-	"quesma/frontend_connectors"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
+	"quesma_v2/core/mux"
 	"sort"
 	"sync"
 	"time"
 )
 
 type tableResolver interface {
-	resolve(indexPattern string) *frontend_connectors.Decision
+	resolve(indexPattern string) *mux.Decision
 }
 
 // parsedPattern stores the parsed index pattern
@@ -32,17 +32,17 @@ type parsedPattern struct {
 
 type patternSplitter struct {
 	name     string
-	resolver func(pattern string) (parsedPattern, *frontend_connectors.Decision)
+	resolver func(pattern string) (parsedPattern, *mux.Decision)
 }
 
 type basicResolver struct {
 	name     string
-	resolver func(part string) *frontend_connectors.Decision
+	resolver func(part string) *mux.Decision
 }
 
 type decisionMerger struct {
 	name   string
-	merger func(decisions []*frontend_connectors.Decision) *frontend_connectors.Decision
+	merger func(decisions []*mux.Decision) *mux.Decision
 }
 
 // Compound resolver works in the following way:
@@ -55,14 +55,14 @@ type compoundResolver struct {
 	decisionMerger  decisionMerger
 }
 
-func (ir *compoundResolver) resolve(indexName string) *frontend_connectors.Decision {
+func (ir *compoundResolver) resolve(indexName string) *mux.Decision {
 	input, decision := ir.patternSplitter.resolver(indexName)
 	if decision != nil {
 		decision.ResolverName = ir.patternSplitter.name
 		return decision
 	}
 
-	var decisions []*frontend_connectors.Decision
+	var decisions []*mux.Decision
 	for _, part := range input.parts {
 		for _, resolver := range ir.decisionLadder {
 			decision := resolver.resolver(part)
@@ -82,9 +82,9 @@ func (ir *compoundResolver) resolve(indexName string) *frontend_connectors.Decis
 // now we have a single config for both, but with different fields
 func getTargets(indexConf config.IndexConfiguration, pipeline string) []string {
 	switch pipeline {
-	case frontend_connectors.IngestPipeline:
+	case mux.IngestPipeline:
 		return indexConf.IngestTarget
-	case frontend_connectors.QueryPipeline:
+	case mux.QueryPipeline:
 		return indexConf.QueryTarget
 	default:
 		return []string{}
@@ -101,7 +101,7 @@ type pipelineResolver struct {
 	pipelineName string
 
 	resolver        tableResolver
-	recentDecisions map[string]*frontend_connectors.Decision
+	recentDecisions map[string]*mux.Decision
 }
 
 type tableRegistryImpl struct {
@@ -119,13 +119,13 @@ type tableRegistryImpl struct {
 	conf              config.QuesmaConfiguration
 }
 
-func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *frontend_connectors.Decision {
+func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *mux.Decision {
 	r.m.Lock()
 	defer r.m.Unlock()
 
 	res, exists := r.pipelineResolvers[pipeline]
 	if !exists {
-		return &frontend_connectors.Decision{
+		return &mux.Decision{
 			IndexPattern: indexPattern,
 			Err:          fmt.Errorf("pipeline '%s' not found", pipeline),
 			Reason:       "Pipeline not found. This is a bug.",
@@ -195,7 +195,7 @@ func (r *tableRegistryImpl) updateIndexes() {
 	r.elasticIndexes = elasticIndexes
 	r.clickhouseIndexes = clickhouseIndexes
 	for _, res := range r.pipelineResolvers {
-		res.recentDecisions = make(map[string]*frontend_connectors.Decision)
+		res.recentDecisions = make(map[string]*mux.Decision)
 	}
 }
 
@@ -224,7 +224,7 @@ func (r *tableRegistryImpl) Start() {
 	}()
 }
 
-func (r *tableRegistryImpl) RecentDecisions() []frontend_connectors.PatternDecisions {
+func (r *tableRegistryImpl) RecentDecisions() []mux.PatternDecisions {
 	r.m.Lock()
 	defer r.m.Unlock()
 
@@ -243,12 +243,12 @@ func (r *tableRegistryImpl) RecentDecisions() []frontend_connectors.PatternDecis
 
 	sort.Strings(patterns)
 
-	var res []frontend_connectors.PatternDecisions
+	var res []mux.PatternDecisions
 	for _, p := range patterns {
 
-		pd := frontend_connectors.PatternDecisions{
+		pd := mux.PatternDecisions{
 			Pattern:   p,
-			Decisions: make(map[string]*frontend_connectors.Decision),
+			Decisions: make(map[string]*mux.Decision),
 		}
 		for _, resolver := range r.pipelineResolvers {
 			if decision, ok := resolver.recentDecisions[p]; ok {
@@ -296,7 +296,7 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 	// TODO We should use the pipeline name as a key in the map.
 
 	ingestResolver := &pipelineResolver{
-		pipelineName: frontend_connectors.IngestPipeline,
+		pipelineName: mux.IngestPipeline,
 
 		resolver: &compoundResolver{
 			patternSplitter: patternSplitter{
@@ -305,25 +305,25 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 			},
 			decisionLadder: []basicResolver{
 				{"kibanaInternal", resolveInternalElasticName},
-				{"disabled", makeIsDisabledInConfig(indexConf, frontend_connectors.IngestPipeline)},
+				{"disabled", makeIsDisabledInConfig(indexConf, mux.IngestPipeline)},
 
-				{"singleIndex", res.singleIndex(indexConf, frontend_connectors.IngestPipeline)},
-				{"commonTable", res.makeCommonTableResolver(indexConf, frontend_connectors.IngestPipeline)},
+				{"singleIndex", res.singleIndex(indexConf, mux.IngestPipeline)},
+				{"commonTable", res.makeCommonTableResolver(indexConf, mux.IngestPipeline)},
 
-				{"defaultWildcard", makeDefaultWildcard(quesmaConf, frontend_connectors.IngestPipeline)},
+				{"defaultWildcard", makeDefaultWildcard(quesmaConf, mux.IngestPipeline)},
 			},
 			decisionMerger: decisionMerger{
 				name:   "basicDecisionMerger",
 				merger: basicDecisionMerger,
 			},
 		},
-		recentDecisions: make(map[string]*frontend_connectors.Decision),
+		recentDecisions: make(map[string]*mux.Decision),
 	}
 
-	res.pipelineResolvers[frontend_connectors.IngestPipeline] = ingestResolver
+	res.pipelineResolvers[mux.IngestPipeline] = ingestResolver
 
 	queryResolver := &pipelineResolver{
-		pipelineName: frontend_connectors.QueryPipeline,
+		pipelineName: mux.QueryPipeline,
 
 		resolver: &compoundResolver{
 			patternSplitter: patternSplitter{
@@ -333,23 +333,23 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 			decisionLadder: []basicResolver{
 				// checking if we can handle the parsedPattern
 				{"kibanaInternal", resolveInternalElasticName},
-				{"disabled", makeIsDisabledInConfig(indexConf, frontend_connectors.QueryPipeline)},
+				{"disabled", makeIsDisabledInConfig(indexConf, mux.QueryPipeline)},
 
-				{"singleIndex", res.singleIndex(indexConf, frontend_connectors.QueryPipeline)},
-				{"commonTable", res.makeCommonTableResolver(indexConf, frontend_connectors.QueryPipeline)},
+				{"singleIndex", res.singleIndex(indexConf, mux.QueryPipeline)},
+				{"commonTable", res.makeCommonTableResolver(indexConf, mux.QueryPipeline)},
 
 				// default action
-				{"defaultWildcard", makeDefaultWildcard(quesmaConf, frontend_connectors.QueryPipeline)},
+				{"defaultWildcard", makeDefaultWildcard(quesmaConf, mux.QueryPipeline)},
 			},
 			decisionMerger: decisionMerger{
 				name:   "basicDecisionMerger",
 				merger: basicDecisionMerger,
 			},
 		},
-		recentDecisions: make(map[string]*frontend_connectors.Decision),
+		recentDecisions: make(map[string]*mux.Decision),
 	}
 
-	res.pipelineResolvers[frontend_connectors.QueryPipeline] = queryResolver
+	res.pipelineResolvers[mux.QueryPipeline] = queryResolver
 	// update the state ASAP
 	res.updateState()
 	return res
