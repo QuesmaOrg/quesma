@@ -13,7 +13,7 @@ func TestPainless(t *testing.T) {
 		name   string
 		input  map[string]any
 		script string
-		output map[string]any
+		output any
 	}{
 		{
 			name: "simple addition",
@@ -21,10 +21,7 @@ func TestPainless(t *testing.T) {
 				"field": 42,
 			},
 			script: "emit(doc['field'].value)",
-			output: map[string]any{
-				"field":     42,
-				"new_field": 42,
-			},
+			output: 42,
 		},
 
 		{
@@ -34,11 +31,14 @@ func TestPainless(t *testing.T) {
 				"bar": "b",
 			},
 			script: "emit(doc['foo'].value + doc['bar'].value)",
-			output: map[string]any{
-				"foo":       "a",
-				"bar":       "b",
-				"new_field": "ab",
-			},
+			output: "ab",
+		},
+
+		{
+			name:   "concat strings",
+			input:  map[string]any{},
+			script: "emit('a' + 'b')",
+			output: "ab",
 		},
 	}
 	for _, tt := range tests {
@@ -50,8 +50,7 @@ func TestPainless(t *testing.T) {
 			}
 
 			env := &Env{
-				Doc:           tt.input,
-				EmitFieldName: "new_field",
+				Doc: tt.input,
 			}
 
 			switch expr := res.(type) {
@@ -62,7 +61,7 @@ func TestPainless(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				if !reflect.DeepEqual(tt.output, env.Doc) {
+				if !reflect.DeepEqual(tt.output, env.EmitValue) {
 					t.Errorf("expected %v, got %v", tt.output, env.Doc)
 				}
 

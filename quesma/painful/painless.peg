@@ -2,11 +2,12 @@
 package painful
 }
 
-Expr = expr:OpExpr / expr:MethodCall / expr:Accessor / expr:Doc / expr:Emit   {
+
+Expr =  expr:OpExpr / expr:MethodCall / expr:Accessor / expr:Doc / expr:Emit /  expr:String  {
     return expr,nil
 }
 
-Emit = "emit" "(" expr:Expr ")" {
+Emit = "emit" "(" _ expr:Expr _ ")" {
 
     exprVal ,err := ExpectExpr(expr)
     if err != nil {
@@ -16,9 +17,7 @@ Emit = "emit" "(" expr:Expr ")" {
     return &EmitExpr{Expr: exprVal}, nil
 }
 
-
 Doc = "doc" "[" '\'' key:Identifier '\'' "]" {
-
     keyVal,err := ExpectString(key)
     if err != nil {
         return nil, err
@@ -41,7 +40,7 @@ Accessor = expr:Expr "." field:Identifier {
     return &AccessorExpr{Expr: exprVal, PropertyName: strVal}, nil
 }
 
-MethodCall = expr:Expr "." method:Identifier "(" args:Expr* ")" {
+MethodCall = expr:Expr "." method:Identifier "(" args:Expr* ','?  ")" {
 
     exprVal,err := ExpectExpr(expr)
     if err != nil {
@@ -52,7 +51,6 @@ MethodCall = expr:Expr "." method:Identifier "(" args:Expr* ")" {
     if err != nil {
         return nil, err
     }
-
 
     var argsVal []Expr
 
@@ -69,7 +67,6 @@ MethodCall = expr:Expr "." method:Identifier "(" args:Expr* ")" {
             }
             argsVal = append(argsVal, argVal)
         }
-
 
     default:
         return nil, fmt.Errorf("Invalid type %T", args)
@@ -110,8 +107,15 @@ Op = op:"+"  {
     return string(c.text), nil
 }
 
+String = '\'' s:[^']* '\'' {
+
+    strVal := string(c.text)
+    strVal = strings.Trim(strVal, "'")
+    return &LiteralExpr{Value: strVal}, nil
+}
+
 Identifier = id:[a-zA-Z0-9_]+ {
-   return string( c.text), nil
+   return string(c.text), nil
 }
 
 _ "whitespace" <- [ \n\t\r]*

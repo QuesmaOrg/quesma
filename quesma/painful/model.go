@@ -11,18 +11,18 @@ import (
 type Env struct {
 	Doc map[string]any
 
-	EmitFieldName string
+	EmitValue any
 }
 
 type Expr interface {
 	Eval(env *Env) (any, error)
 }
 
-type Literal struct {
+type LiteralExpr struct {
 	Value any
 }
 
-func (l *Literal) Eval(env *Env) (any, error) {
+func (l *LiteralExpr) Eval(env *Env) (any, error) {
 	return l.Value, nil
 }
 
@@ -103,7 +103,7 @@ func (e *EmitExpr) Eval(env *Env) (any, error) {
 		return nil, err
 	}
 
-	env.Doc[env.EmitFieldName] = val
+	env.EmitValue = val
 
 	return val, nil
 }
@@ -126,14 +126,8 @@ func (a *AccessorExpr) Eval(env *Env) (any, error) {
 		return val, nil
 	}
 
-	switch v := val.(type) {
+	return nil, fmt.Errorf("unknown property %s", a.PropertyName)
 
-	case map[string]any:
-
-		return v[a.PropertyName], nil
-	default:
-		return nil, fmt.Errorf("cannot access field %s on %T", a.PropertyName, val)
-	}
 }
 
 type MethodCallExpr struct {
