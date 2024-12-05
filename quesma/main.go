@@ -63,8 +63,11 @@ func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 				"test_index": {
 					Name: "test_index",
 				},
-				"test_index2": {
-					Name: "test_index2",
+				"test_index_2": {
+					Name: "test_index_2",
+				},
+				"*": {
+					IngestTarget: []string{config.ElasticsearchTarget},
 				},
 			},
 		},

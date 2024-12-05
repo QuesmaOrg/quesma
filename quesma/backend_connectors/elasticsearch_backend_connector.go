@@ -4,6 +4,7 @@
 package backend_connectors
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -38,6 +39,27 @@ func NewElasticsearchBackendConnector(cfg config.ElasticsearchConfiguration) *El
 		},
 	}
 	return conn
+}
+
+func (e *ElasticsearchBackendConnector) RequestWithHeaders(ctx context.Context, method, endpoint string, body []byte, headers http.Header) (*http.Response, error) {
+	return e.doRequest(ctx, method, endpoint, body, headers)
+}
+
+func (e *ElasticsearchBackendConnector) doRequest(ctx context.Context, method, endpoint string, body []byte, headers http.Header) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/%s", e.config.Url, endpoint), bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	if req.Header.Get("Content-Type") == "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req = elasticsearch.AddBasicAuthIfNeeded(req, e.config.User, e.config.Password)
+	for key, values := range headers {
+		for _, value := range values {
+			req.Header.Set(key, value)
+		}
+	}
+	return e.client.Do(req)
 }
 
 // HttpBackendConnector is a base interface for sending http requests, for now

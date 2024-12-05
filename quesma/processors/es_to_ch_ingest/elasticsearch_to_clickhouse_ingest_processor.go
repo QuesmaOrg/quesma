@@ -55,17 +55,17 @@ func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcess
 	elasticsearchConfig := config.ElasticsearchConfiguration{
 		Url: (*config.Url)(u),
 	}
-	emptyConfig := &config.QuesmaConfiguration{
+	oldQuesmaConfig := &config.QuesmaConfiguration{
 		IndexConfig: p.config.IndexConfig,
 	}
 
 	virtualTableStorage := persistence.NewElasticJSONDatabase(elasticsearchConfig, common_table.VirtualTableElasticIndexName)
-	tableDisco := clickhouse.NewTableDiscovery2(emptyConfig, connector, virtualTableStorage)
-	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, emptyConfig, clickhouse.SchemaTypeAdapter{})
+	tableDisco := clickhouse.NewTableDiscovery2(oldQuesmaConfig, connector, virtualTableStorage)
+	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
 
 	v2TableResolver := NewNextGenTableResolver()
 
-	ip := ingest.NewIngestProcessor2(emptyConfig, connector, nil, tableDisco, schemaRegistry, virtualTableStorage, v2TableResolver)
+	ip := ingest.NewIngestProcessor2(oldQuesmaConfig, connector, nil, tableDisco, schemaRegistry, virtualTableStorage, v2TableResolver)
 	ip.Start()
 	return ip
 }
@@ -122,7 +122,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			result, err := handleDocIndex(payloadJson, indexNameFromIncomingReq, tempIngestProcessor)
+			result, err := handleDocIndex(payloadJson, indexNameFromIncomingReq, tempIngestProcessor, p.config)
 			if err != nil {
 				println(err)
 			}
@@ -134,7 +134,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			results, err := handleBulkIndex(payloadNDJson, indexNameFromIncomingReq, tempIngestProcessor)
+			results, err := handleBulkIndex(payloadNDJson, indexNameFromIncomingReq, tempIngestProcessor, es, p.config)
 			if err != nil {
 				println(err)
 			}
