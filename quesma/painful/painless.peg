@@ -4,7 +4,7 @@ package painful
 
 
 Expr =  expr:OpExpr / expr:MethodCall / expr:Accessor / expr:Doc / expr:Emit /  expr:String  {
-    return expr,nil
+    return expr, nil
 }
 
 Emit = "emit" "(" _ expr:Expr _ ")" {
@@ -42,12 +42,12 @@ Accessor = expr:Expr "." field:Identifier {
 
 MethodCall = expr:Expr "." method:Identifier "(" args:Expr* ','?  ")" {
 
-    exprVal,err := ExpectExpr(expr)
+    exprVal, err := ExpectExpr(expr)
     if err != nil {
         return nil, err
     }
 
-    strVal,err := ExpectString(method)
+    strVal, err := ExpectString(method)
     if err != nil {
         return nil, err
     }
