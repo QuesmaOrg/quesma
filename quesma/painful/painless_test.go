@@ -54,7 +54,7 @@ func TestPainless(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := Parse("", []byte(tt.script))
+			res, err := ParsePainless(tt.script)
 			if err != nil {
 				t.Fatal(err)
 			}

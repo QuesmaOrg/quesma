@@ -3,7 +3,6 @@
 package painful
 
 import (
-	"fmt"
 	"quesma/quesma/types"
 )
 
@@ -28,24 +27,18 @@ func (s ScriptRequest) Eval() (res ScriptResponse, err error) {
 		Doc: s.ContextSetup.Document,
 	}
 
-	evalTree, err := Parse("", []byte(s.Script.Source))
+	evalTree, err := ParsePainless(s.Script.Source)
 	if err != nil {
 		return res, err
 	}
 
-	switch expr := evalTree.(type) {
-	case Expr:
-
-		_, err = expr.Eval(env)
-		if err != nil {
-			return res, err
-		}
-
-		res.Result = []any{env.EmitValue}
-
-		return res, nil
-
-	default:
-		return res, fmt.Errorf("not an expression")
+	_, err = evalTree.Eval(env)
+	if err != nil {
+		return res, err
 	}
+
+	res.Result = []any{env.EmitValue}
+
+	return res, nil
+
 }

@@ -8,6 +8,23 @@ import (
 	"fmt"
 )
 
+func ParsePainless(script string) (Expr, error) {
+
+	evalTree, err := Parse("", []byte(script))
+	if err != nil {
+		return nil, err
+	}
+
+	switch expr := evalTree.(type) {
+	case Expr:
+		return expr, nil
+
+	default:
+		return nil, fmt.Errorf("not an painless expression")
+	}
+
+}
+
 type Env struct {
 	Doc map[string]any
 
