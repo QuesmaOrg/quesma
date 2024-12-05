@@ -770,7 +770,7 @@ func InitState(key string, value any) Option {
 }
 
 // ParseFile parses the file identified by filename.
-func ParseFile(filename string, opts ...Option) (i any, err error) {
+func ParseFile(filename string, opts ...Option) (i any, err error) { // nolint: deadcode
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -785,7 +785,7 @@ func ParseFile(filename string, opts ...Option) (i any, err error) {
 
 // ParseReader parses the data from r using filename as information in the
 // error messages.
-func ParseReader(filename string, r io.Reader, opts ...Option) (any, error) {
+func ParseReader(filename string, r io.Reader, opts ...Option) (any, error) { // nolint: deadcode
 	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -838,11 +838,13 @@ type storeDict map[string]any
 
 // the AST types...
 
+// nolint: structcheck
 type grammar struct {
 	pos   position
 	rules []*rule
 }
 
+// nolint: structcheck
 type rule struct {
 	pos         position
 	name        string
@@ -853,17 +855,20 @@ type rule struct {
 	leftRecursive bool
 }
 
+// nolint: structcheck
 type choiceExpr struct {
 	pos          position
 	alternatives []any
 }
 
+// nolint: structcheck
 type actionExpr struct {
 	pos  position
 	expr any
 	run  func(*parser) (any, error)
 }
 
+// nolint: structcheck
 type recoveryExpr struct {
 	pos          position
 	expr         any
@@ -871,55 +876,64 @@ type recoveryExpr struct {
 	failureLabel []string
 }
 
+// nolint: structcheck
 type seqExpr struct {
 	pos   position
 	exprs []any
 }
 
+// nolint: structcheck
 type throwExpr struct {
 	pos   position
 	label string
 }
 
+// nolint: structcheck
 type labeledExpr struct {
 	pos   position
 	label string
 	expr  any
 }
 
+// nolint: structcheck
 type expr struct {
 	pos  position
 	expr any
 }
 
 type (
-	andExpr        expr
-	notExpr        expr
-	zeroOrOneExpr  expr
-	zeroOrMoreExpr expr
-	oneOrMoreExpr  expr
+	andExpr        expr // nolint: structcheck
+	notExpr        expr // nolint: structcheck
+	zeroOrOneExpr  expr // nolint: structcheck
+	zeroOrMoreExpr expr // nolint: structcheck
+	oneOrMoreExpr  expr // nolint: structcheck
 )
 
+// nolint: structcheck
 type ruleRefExpr struct {
 	pos  position
 	name string
 }
 
+// nolint: structcheck
 type stateCodeExpr struct {
 	pos position
 	run func(*parser) error
 }
 
+// nolint: structcheck
 type andCodeExpr struct {
 	pos position
 	run func(*parser) (bool, error)
 }
 
+// nolint: structcheck
 type notCodeExpr struct {
 	pos position
 	run func(*parser) (bool, error)
 }
 
+// nolint: structcheck
 type litMatcher struct {
 	pos        position
 	val        string
@@ -927,6 +941,7 @@ type litMatcher struct {
 	want       string
 }
 
+// nolint: structcheck
 type charClassMatcher struct {
 	pos             position
 	val             string
@@ -938,7 +953,7 @@ type charClassMatcher struct {
 	inverted        bool
 }
 
-type anyMatcher position
+type anyMatcher position // nolint: structcheck
 
 // errList cumulates the errors found by the parser.
 type errList []error
@@ -1038,12 +1053,14 @@ func (p *parser) setOptions(opts []Option) {
 	}
 }
 
+// nolint: structcheck,deadcode
 type resultTuple struct {
 	v   any
 	b   bool
 	end savepoint
 }
 
+// nolint: varcheck
 const choiceNoMatch = -1
 
 // Stats stores some statistics, gathered during parsing
@@ -1073,6 +1090,7 @@ type ruleWithExpsStack struct {
 	estack []any
 }
 
+// nolint: structcheck,maligned
 type parser struct {
 	filename string
 	pt       savepoint
@@ -1360,6 +1378,7 @@ func (p *parser) buildRulesTable(g *grammar) {
 	}
 }
 
+// nolint: gocyclo
 func (p *parser) parse(g *grammar) (val any, err error) {
 	if len(g.rules) == 0 {
 		p.addErr(errNoRule)
@@ -1557,6 +1576,7 @@ func (p *parser) parseExprWrap(expr any) (any, bool) {
 	return val, ok
 }
 
+// nolint: gocyclo
 func (p *parser) parseExpr(expr any) (any, bool) {
 	p.ExprCnt++
 	if p.ExprCnt > p.maxExprCnt {
@@ -1681,6 +1701,7 @@ func (p *parser) parseAnyMatcher(any *anyMatcher) (any, bool) {
 	return p.sliceFrom(start), true
 }
 
+// nolint: gocyclo
 func (p *parser) parseCharClassMatcher(chr *charClassMatcher) (any, bool) {
 	if p.debug {
 		defer p.out(p.in("parseCharClassMatcher"))

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package painful
 
-//go:generate pigeon -support-left-recursion -o generated_parser.go painless.peg
+//go:generate pigeon -nolint -support-left-recursion -o generated_parser.go painless.peg
 
 import (
 	"fmt"
