@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"github.com/goccy/go-json"
+	"github.com/k0kubun/pp"
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
@@ -13,6 +14,7 @@ import (
 	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/logger"
+	"quesma/painful"
 	"quesma/queryparser"
 	"quesma/quesma/config"
 	"quesma/quesma/errors"
@@ -58,6 +60,34 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	//
 	// So, if you add multiple handlers with the same path, the first one will be used, the rest will be redirected to the elastic cluster.
 	// This is current limitation of the router.
+
+	// TODO add constants
+	router.Register("/_scripts/painless/_execute", and(method("POST"), matchAgainstPatternIntoBody(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+
+		var scriptRequest painful.ScriptRequest
+
+		err := json.Unmarshal([]byte(req.Body), &scriptRequest)
+		if err != nil {
+			return nil, err
+		}
+
+		scriptResponse, err := scriptRequest.Eval()
+		if err != nil {
+			return nil, err
+		}
+
+		responseBytes, err := json.Marshal(scriptResponse)
+		if err != nil {
+			return nil, err
+		}
+
+		pp.Println("Script response", string(responseBytes))
+
+		return &mux.Result{
+			Body:       string(responseBytes),
+			StatusCode: http.StatusOK,
+		}, nil
+	})
 
 	router.Register(routes.ClusterHealthPath, method("GET"), func(_ context.Context, req *mux.Request) (*mux.Result, error) {
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, http.StatusOK), nil

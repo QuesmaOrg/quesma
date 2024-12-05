@@ -3,8 +3,11 @@
 package quesma
 
 import (
+	"github.com/goccy/go-json"
+	"github.com/k0kubun/pp"
 	"quesma/frontend_connectors"
 	"quesma/logger"
+	"quesma/painful"
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
 	"quesma/quesma/types"
@@ -144,5 +147,35 @@ func matchAgainstKibanaInternal() mux.RequestMatcher {
 		// 3., 4., 5. related to Kibana Fleet
 		matched := !hasJsonKey("kibana.alert.", q) && !hasJsonKey("migrationVersion", q) && !hasJsonKey("idleTimeoutExpiration", q) && !strings.Contains(req.Body, "fleet-message-signing-keys") && !strings.Contains(req.Body, "fleet-uninstall-tokens")
 		return mux.MatchResult{Matched: matched}
+	})
+}
+
+func matchAgainstPatternIntoBody(tableResolver table_resolver.TableResolver) mux.RequestMatcher {
+	return mux.RequestMatcherFunc(func(req *mux.Request) mux.MatchResult {
+
+		pp.Println("XXXX checking body ", req.Body)
+
+		var scriptRequest painful.ScriptRequest
+
+		err := json.Unmarshal([]byte(req.Body), &scriptRequest)
+		if err != nil {
+			pp.Print("SCRIPT PARSE ERROR ", err)
+			return mux.MatchResult{Matched: false}
+		}
+
+		pp.Println(scriptRequest)
+
+		decision := tableResolver.Resolve(frontend_connectors.QueryPipeline, scriptRequest.ContextSetup.IndexName)
+
+		if decision.Err != nil {
+			return mux.MatchResult{Matched: false, Decision: decision}
+		}
+		for _, connector := range decision.UseConnectors {
+			if _, ok := connector.(*frontend_connectors.ConnectorDecisionClickhouse); ok {
+				return mux.MatchResult{Matched: true, Decision: decision}
+			}
+		}
+
+		return mux.MatchResult{Matched: true, Decision: nil}
 	})
 }
