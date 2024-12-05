@@ -23,13 +23,9 @@ func (u *Unknown) String() string {
 
 }
 
-type RequestBody interface {
-	isParsedRequestBody() // this is a marker method
-}
-
-func (j JSON) isParsedRequestBody()     {}
-func (n NDJSON) isParsedRequestBody()   {}
-func (u *Unknown) isParsedRequestBody() {}
+func (j JSON) IsParsedRequestBody()     {}
+func (n NDJSON) IsParsedRequestBody()   {}
+func (u *Unknown) IsParsedRequestBody() {}
 
 func ParseRequestBody(body string) quesma_api.RequestBody {
 

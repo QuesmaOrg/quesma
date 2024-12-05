@@ -3,7 +3,10 @@
 
 package es_to_ch_ingest
 
-import "quesma/table_resolver"
+import (
+	"quesma/table_resolver"
+	quesma_api "quesma_v2/core"
+)
 
 func NewNextGenTableResolver() table_resolver.TableResolver {
 	return &NextGenTableResolver{}
@@ -13,9 +16,9 @@ type NextGenTableResolver struct{}
 
 func (n *NextGenTableResolver) Start() {}
 func (n *NextGenTableResolver) Stop()  {}
-func (n *NextGenTableResolver) Resolve(_ string, tableName string) *table_resolver.Decision {
-	decision := &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+func (n *NextGenTableResolver) Resolve(_ string, tableName string) *quesma_api.Decision {
+	decision := &quesma_api.Decision{
+		UseConnectors: []quesma_api.ConnectorDecision{&quesma_api.ConnectorDecisionClickhouse{
 			ClickhouseTableName: tableName,
 		}}}
 	return decision
@@ -23,6 +26,6 @@ func (n *NextGenTableResolver) Resolve(_ string, tableName string) *table_resolv
 func (n *NextGenTableResolver) Pipelines() []string {
 	return []string{}
 }
-func (n *NextGenTableResolver) RecentDecisions() []table_resolver.PatternDecisions {
-	return []table_resolver.PatternDecisions{}
+func (n *NextGenTableResolver) RecentDecisions() []quesma_api.PatternDecisions {
+	return []quesma_api.PatternDecisions{}
 }
