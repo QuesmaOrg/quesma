@@ -4,7 +4,6 @@ package quesma
 
 import (
 	"github.com/goccy/go-json"
-	"github.com/k0kubun/pp"
 	"quesma/frontend_connectors"
 	"quesma/logger"
 	"quesma/painful"
@@ -153,17 +152,12 @@ func matchAgainstKibanaInternal() mux.RequestMatcher {
 func matchAgainstPatternIntoBody(tableResolver table_resolver.TableResolver) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) mux.MatchResult {
 
-		pp.Println("XXXX checking body ", req.Body)
-
 		var scriptRequest painful.ScriptRequest
 
 		err := json.Unmarshal([]byte(req.Body), &scriptRequest)
 		if err != nil {
-			pp.Print("SCRIPT PARSE ERROR ", err)
 			return mux.MatchResult{Matched: false}
 		}
-
-		pp.Println(scriptRequest)
 
 		decision := tableResolver.Resolve(frontend_connectors.QueryPipeline, scriptRequest.ContextSetup.IndexName)
 
@@ -176,6 +170,6 @@ func matchAgainstPatternIntoBody(tableResolver table_resolver.TableResolver) mux
 			}
 		}
 
-		return mux.MatchResult{Matched: true, Decision: nil}
+		return mux.MatchResult{Matched: false, Decision: nil}
 	})
 }

@@ -856,6 +856,7 @@ func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]
 
 	pipeline = append(pipeline, pipelineElement{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{indexSchema: indexSchema}})
 
+	// we can take the first one because all queries have the same runtime mappings
 	if len(plan.Queries[0].RuntimeMappings) > 0 {
 
 		// this transformer must be called after replaceColumNamesWithFieldNames
@@ -870,7 +871,7 @@ func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]
 		}
 
 		if len(fieldScripts) > 0 {
-			pipeline = append(pipeline, pipelineElement{"applyFieldScripts", &EvalPainlessScriptOnColumnsTransformer{FieldScripts: fieldScripts}})
+			pipeline = append(pipeline, pipelineElement{"applyPainlessScripts", &EvalPainlessScriptOnColumnsTransformer{FieldScripts: fieldScripts}})
 		}
 
 	}

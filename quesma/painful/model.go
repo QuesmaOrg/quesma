@@ -44,9 +44,10 @@ func (l *LiteralExpr) Eval(env *Env) (any, error) {
 }
 
 type InfixOpExpr struct {
-	Left  Expr
-	Op    string
-	Right Expr
+	Position string
+	Left     Expr
+	Op       string
+	Right    Expr
 }
 
 func (i *InfixOpExpr) Eval(env *Env) (any, error) {
@@ -76,7 +77,7 @@ func (i *InfixOpExpr) Eval(env *Env) (any, error) {
 
 	default:
 
-		return nil, fmt.Errorf("unknown operator: %s", i.Op)
+		return nil, fmt.Errorf("%s: '%s' operator is not supported", i.Position, i.Op)
 
 	}
 }
@@ -134,6 +135,7 @@ func (e *EmitExpr) Eval(env *Env) (any, error) {
 }
 
 type AccessorExpr struct {
+	Position     string
 	Expr         Expr
 	PropertyName string
 }
@@ -151,11 +153,12 @@ func (a *AccessorExpr) Eval(env *Env) (any, error) {
 		return val, nil
 	}
 
-	return nil, fmt.Errorf("unknown property %s", a.PropertyName)
+	return nil, fmt.Errorf("%s: '%s' property is not supported", a.Position, a.PropertyName)
 
 }
 
 type MethodCallExpr struct {
+	Position   string
 	Expr       Expr
 	MethodName string
 	Args       []Expr
@@ -171,10 +174,11 @@ func (m *MethodCallExpr) Eval(env *Env) (any, error) {
 	switch m.MethodName {
 
 	case "getHour":
+
 		// TODO add parse HOUR here
 		return val, nil
 	default:
-		return nil, fmt.Errorf("unknown method %s", m.MethodName)
+		return nil, fmt.Errorf("%s: '%s' method is not supported", m.Position, m.MethodName)
 	}
 }
 

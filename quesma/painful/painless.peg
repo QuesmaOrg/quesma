@@ -41,7 +41,7 @@ Accessor = expr:Expr "." field:Identifier {
         return nil, err
     }
 
-    return &AccessorExpr{Expr: exprVal, PropertyName: strVal}, nil
+    return &AccessorExpr{Position: c.pos.String(), Expr: exprVal, PropertyName: strVal}, nil
 }
 
 MethodCall = expr:Expr "." method:Identifier "(" args:Expr* ','?  ")" {
@@ -85,7 +85,7 @@ MethodCall = expr:Expr "." method:Identifier "(" args:Expr* ','?  ")" {
         argsVal = append(argsVal, argVal)
     }
 
-    return &MethodCallExpr{Expr: exprVal, MethodName: strVal, Args: argsVal}, nil
+    return &MethodCallExpr{Position: c.pos.String(), Expr: exprVal, MethodName: strVal, Args: argsVal}, nil
 }
 
 OpExpr = left:Expr _  op:Op _  right:Expr {
@@ -104,7 +104,7 @@ OpExpr = left:Expr _  op:Op _  right:Expr {
         return nil, err
     }
 
-    return &InfixOpExpr{Left: leftVal, Op: opVal, Right: rightVal}, nil
+    return &InfixOpExpr{Position: c.pos.String(), Left: leftVal, Op: opVal, Right: rightVal}, nil
 }
 
 Op = op:"+"  {

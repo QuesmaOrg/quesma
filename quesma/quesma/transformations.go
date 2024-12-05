@@ -51,16 +51,13 @@ func (t *EvalPainlessScriptOnColumnsTransformer) Transform(result [][]model.Quer
 
 	for _, rows := range result {
 		for _, row := range rows {
-
 			doc := make(map[string]any)
 			for j := range row.Cols {
 				doc[row.Cols[j].ColName] = row.Cols[j].Value
 			}
 
 			for j := range row.Cols {
-
 				if script, exists := t.FieldScripts[row.Cols[j].ColName]; exists {
-
 					env := &painful.Env{
 						Doc: doc,
 					}
@@ -69,7 +66,6 @@ func (t *EvalPainlessScriptOnColumnsTransformer) Transform(result [][]model.Quer
 					if err != nil {
 						return nil, err
 					}
-
 					row.Cols[j].Value = env.EmitValue
 				}
 			}

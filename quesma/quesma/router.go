@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"github.com/goccy/go-json"
-	"github.com/k0kubun/pp"
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
@@ -61,8 +60,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	// So, if you add multiple handlers with the same path, the first one will be used, the rest will be redirected to the elastic cluster.
 	// This is current limitation of the router.
 
-	// TODO add constants
-	router.Register("/_scripts/painless/_execute", and(method("POST"), matchAgainstPatternIntoBody(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.ExecutePainlessScriptPath, and(method("POST"), matchAgainstPatternIntoBody(tableResolver)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
 		var scriptRequest painful.ScriptRequest
 
@@ -72,16 +70,24 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 
 		scriptResponse, err := scriptRequest.Eval()
+
 		if err != nil {
-			return nil, err
+			errorResponse := painful.RenderErrorResponse(scriptRequest.Script.Source, err)
+			responseBytes, err := json.Marshal(errorResponse)
+			if err != nil {
+				return nil, err
+			}
+
+			return &mux.Result{
+				Body:       string(responseBytes),
+				StatusCode: errorResponse.Status,
+			}, nil
 		}
 
 		responseBytes, err := json.Marshal(scriptResponse)
 		if err != nil {
 			return nil, err
 		}
-
-		pp.Println("Script response", string(responseBytes))
 
 		return &mux.Result{
 			Body:       string(responseBytes),

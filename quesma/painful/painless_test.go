@@ -47,7 +47,7 @@ func TestPainless(t *testing.T) {
 				"@timestamp": "2022-09-22T12:16:59.985Z",
 				"uuid":       "1234",
 			},
-			script: "emit(doc['@timestamp'].value + '&' +  doc['uuid'].value)",
+			script: "emit(doc['@timestamp'].value + '&' + doc['uuid'].value)",
 			output: "2022-09-22T12:16:59.985Z&1234",
 		},
 	}
@@ -80,5 +80,4 @@ func TestPainless(t *testing.T) {
 			}
 		})
 	}
-
 }
