@@ -1,178 +1,41 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package quesma
+package frontend_connectors
 
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/feature"
-	"quesma/frontend_connectors"
-	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
-	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/gzip"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/util"
 	quesma_api "quesma_v2/core"
-	tracing "quesma_v2/core/tracing"
-
 	"quesma_v2/core/routes"
-	"strconv"
+	"quesma_v2/core/tracing"
 	"strings"
 	"sync/atomic"
 	"time"
 )
-
-const concurrentClientsLimitV2 = 100 // FIXME this should be configurable
-
-type simultaneousClientsLimiterV2 struct {
-	counter atomic.Int64
-	handler http.Handler
-	limit   int64
-}
-
-func newSimultaneousClientsLimiterV2(handler http.Handler, limit int64) *simultaneousClientsLimiterV2 {
-	return &simultaneousClientsLimiterV2{
-		handler: handler,
-		limit:   limit,
-	}
-}
-
-func (c *simultaneousClientsLimiterV2) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	current := c.counter.Load()
-	// this is hard limit, we should not allow to go over it
-	if current >= c.limit {
-		logger.ErrorWithCtx(r.Context()).Msgf("Too many requests. current: %d, limit: %d", current, c.limit)
-		http.Error(w, "Too many requests", http.StatusTooManyRequests)
-		return
-	}
-
-	c.counter.Add(1)
-	defer c.counter.Add(-1)
-	c.handler.ServeHTTP(w, r)
-}
-
-type dualWriteHttpProxyV2 struct {
-	routingHttpServer   *http.Server
-	indexManagement     elasticsearch.IndexManagement
-	logManager          *clickhouse.LogManager
-	publicPort          util.Port
-	asyncQueriesEvictor *async_search_storage.AsyncQueriesEvictor
-	queryRunner         *QueryRunner
-	schemaRegistry      schema.Registry
-	schemaLoader        clickhouse.TableDiscovery
-}
-
-func (q *dualWriteHttpProxyV2) Stop(ctx context.Context) {
-	q.Close(ctx)
-}
-
-func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, processor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
-	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, registry, abResultsRepository, resolver)
-	// not sure how we should configure our query translator ???
-	// is this a config option??
-
-	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
-
-	// tests should not be run with optimization enabled by default
-	queryRunner.EnableQueryOptimization(config)
-
-	ingestRouter := ConfigureIngestRouterV2(config, processor, agent, resolver)
-	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, quesmaManagementConsole, queryRunner, resolver)
-
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{
-		Transport: tr,
-		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
-	}
-	routerInstance := routerV2{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client, requestPreprocessors: quesma_api.ProcessorChain{}}
-	routerInstance.
-		registerPreprocessor(quesma_api.NewTraceIdPreprocessor())
-	agent.FailedRequestsCollector(func() int64 {
-		return routerInstance.failedRequests.Load()
-	})
-
-	elasticHttpFrontentConnector := NewElasticHttpFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		&routerInstance, searchRouter, ingestRouter, logManager, agent)
-
-	var limitedHandler http.Handler
-	if config.DisableAuth {
-		limitedHandler = newSimultaneousClientsLimiterV2(elasticHttpFrontentConnector, concurrentClientsLimitV2)
-	} else {
-		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(elasticHttpFrontentConnector, config.Elasticsearch), concurrentClientsLimitV2)
-	}
-
-	return &dualWriteHttpProxyV2{
-		schemaRegistry: registry,
-		schemaLoader:   schemaLoader,
-		routingHttpServer: &http.Server{
-			Addr:    ":" + strconv.Itoa(int(config.PublicTcpPort)),
-			Handler: limitedHandler,
-		},
-		indexManagement: indexManager,
-		logManager:      logManager,
-		publicPort:      config.PublicTcpPort,
-		asyncQueriesEvictor: async_search_storage.NewAsyncQueriesEvictor(
-			queryRunner.AsyncRequestStorage.(async_search_storage.AsyncSearchStorageInMemory),
-			queryRunner.AsyncQueriesContexts.(async_search_storage.AsyncQueryContextStorageInMemory),
-		),
-		queryRunner: queryRunner,
-	}
-}
-
-func (q *dualWriteHttpProxyV2) Close(ctx context.Context) {
-	if q.logManager != nil {
-		defer q.logManager.Close()
-	}
-	if q.queryRunner != nil {
-		q.queryRunner.Close()
-	}
-	if q.asyncQueriesEvictor != nil {
-		q.asyncQueriesEvictor.Close()
-	}
-	if err := q.routingHttpServer.Shutdown(ctx); err != nil {
-		logger.Fatal().Msgf("Error during server shutdown: %v", err)
-	}
-}
-
-func (q *dualWriteHttpProxyV2) Ingest() {
-	q.schemaLoader.ReloadTableDefinitions()
-	q.logManager.Start()
-	q.indexManagement.Start()
-	go q.asyncQueriesEvictor.AsyncQueriesGC()
-	go func() {
-		if err := q.routingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Fatal().Msgf("Error starting http server: %v", err)
-		}
-		logger.Info().Msgf("Accepting HTTP at :%d", q.publicPort)
-	}()
-}
 
 func responseFromElasticV2(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
 
 	copyHeadersV2(w, elkResponse)
-	w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceElastic)
+	w.Header().Set(QuesmaSourceHeader, QuesmaSourceElastic)
 	// io.Copy calls WriteHeader implicitly
 	w.WriteHeader(elkResponse.StatusCode)
 	if _, err := io.Copy(w, elkResponse.Body); err != nil {
@@ -193,7 +56,7 @@ func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseW
 	if zip {
 		w.Header().Set("Content-Encoding", "gzip")
 	}
-	w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceClickhouse)
+	w.Header().Set(QuesmaSourceHeader, QuesmaSourceClickhouse)
 	w.WriteHeader(quesmaResponse.StatusCode)
 	if zip {
 		zipped, err := gzip.Zip(unzipped)
@@ -286,22 +149,22 @@ func (r *routerV2) elasticFallback(decision *quesma_api.Decision,
 	if decision != nil {
 
 		if decision.Err != nil {
-			w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceClickhouse)
-			frontend_connectors.AddProductAndContentHeaders(req.Header, w.Header())
+			w.Header().Set(QuesmaSourceHeader, QuesmaSourceClickhouse)
+			AddProductAndContentHeaders(req.Header, w.Header())
 			r.errorResponseV2(ctx, decision.Err, w)
 			return
 		}
 
 		if decision.IsClosed {
-			w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceClickhouse)
-			frontend_connectors.AddProductAndContentHeaders(req.Header, w.Header())
+			w.Header().Set(QuesmaSourceHeader, QuesmaSourceClickhouse)
+			AddProductAndContentHeaders(req.Header, w.Header())
 			r.closedIndexResponse(ctx, w, decision.IndexPattern)
 			return
 		}
 
 		if decision.IsEmpty {
-			w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceClickhouse)
-			frontend_connectors.AddProductAndContentHeaders(req.Header, w.Header())
+			w.Header().Set(QuesmaSourceHeader, QuesmaSourceClickhouse)
+			AddProductAndContentHeaders(req.Header, w.Header())
 			w.WriteHeader(http.StatusNoContent)
 			w.Write(queryparser.EmptySearchResponse(ctx))
 			return
@@ -322,14 +185,14 @@ func (r *routerV2) elasticFallback(decision *quesma_api.Decision,
 	}
 
 	if sendToElastic {
-		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(frontend_connectors.OpaqueIdHeaderKey), logManager.ResolveIndexPattern)
+		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(OpaqueIdHeaderKey), logManager.ResolveIndexPattern)
 
 		rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 		response := rawResponse.response
 		if response != nil {
 			responseFromElasticV2(ctx, response, w)
 		} else {
-			w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceElastic)
+			w.Header().Set(QuesmaSourceHeader, QuesmaSourceElastic)
 			w.WriteHeader(500)
 			if rawResponse.error != nil {
 				_, _ = w.Write([]byte(rawResponse.error.Error()))
@@ -377,9 +240,9 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 		handler = ingestHandler
 	}
 	if decision != nil {
-		w.Header().Set(frontend_connectors.QuesmaTableResolverHeader, decision.String())
+		w.Header().Set(QuesmaTableResolverHeader, decision.String())
 	} else {
-		w.Header().Set(frontend_connectors.QuesmaTableResolverHeader, "n/a")
+		w.Header().Set(QuesmaTableResolverHeader, "n/a")
 	}
 
 	if handler != nil {
@@ -398,7 +261,7 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 			if len(unzipped) == 0 {
 				logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
 			}
-			frontend_connectors.AddProductAndContentHeaders(req.Header, w.Header())
+			AddProductAndContentHeaders(req.Header, w.Header())
 
 			responseFromQuesmaV2(ctx, unzipped, w, quesmaResponse, zip)
 
@@ -539,7 +402,7 @@ func peekBodyV2(r *http.Request) ([]byte, error) {
 func copyHeadersV2(w http.ResponseWriter, elkResponse *http.Response) {
 	for key, values := range elkResponse.Header {
 		for _, value := range values {
-			if key != frontend_connectors.HttpHeaderContentLength {
+			if key != HttpHeaderContentLength {
 				if w.Header().Get(key) == "" {
 					w.Header().Add(key, value)
 				}
