@@ -171,3 +171,24 @@ func (p *predicateAlways) Matches(req *Request) MatchResult {
 func Always() RequestMatcher {
 	return &predicateAlways{}
 }
+
+func (p *PathRouter) AddRoute(path string, handler HTTPFrontendHandler) {
+	// TODO: it seems that we can adapt this to register call
+	// p.Register(path, Always(), handler)
+	panic("not implemented")
+}
+func (p *PathRouter) AddFallbackHandler(handler HTTPFrontendHandler) {
+	panic("not implemented")
+}
+func (p *PathRouter) GetFallbackHandler() HTTPFrontendHandler {
+	panic("not implemented")
+}
+func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
+	panic("not implemented")
+}
+func SetHandlers(handlers map[string]HandlersPipe) {
+	panic("not implemented")
+}
+func Multiplexer() *http.ServeMux {
+	panic("not implemented")
+}
