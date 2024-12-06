@@ -161,6 +161,7 @@ func (h *BasicHTTPFrontendConnector) Listen() error {
 	h.listener.Handler = h
 	go func() {
 		err := h.listener.ListenAndServe()
+		// TODO: Handle error
 		_ = err
 	}()
 
