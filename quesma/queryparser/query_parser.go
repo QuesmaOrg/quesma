@@ -898,13 +898,11 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 		fieldNameQuoted := strconv.Quote(fieldName)
 
 		switch cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName)) {
+		case clickhouse.ExistsAndIsArray:
+			fallthrough // array fields are transformed later in the schema pipeline
 		case clickhouse.ExistsAndIsBaseType:
 			sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
-		case clickhouse.ExistsAndIsArray:
-			sql = model.NewInfixExpr(model.NewNestedProperty(
-				model.NewColumnRef(fieldName),
-				model.NewLiteral("size0"),
-			), "=", model.NewLiteral("0"))
+
 		case clickhouse.NotExists:
 			// TODO this is a workaround for the case when the field is a point
 			schemaInstance := cw.Schema
