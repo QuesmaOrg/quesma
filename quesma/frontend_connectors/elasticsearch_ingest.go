@@ -4,7 +4,6 @@
 package frontend_connectors
 
 import (
-	"context"
 	"fmt"
 	"github.com/ucarion/urlpath"
 	"net/http"
@@ -40,14 +39,6 @@ func NewElasticsearchIngestFrontendConnector(endpoint string) *ElasticsearchInge
 	return fc
 }
 
-func (h *ElasticsearchIngestFrontendConnector) AddRouter(router quesma_api.Router) {
-	h.router = router
-}
-
-func (h *ElasticsearchIngestFrontendConnector) GetRouter() quesma_api.Router {
-	return h.router
-}
-
 func getMatchingHandler(requestPath string, handlers map[string]quesma_api.HandlersPipe) *quesma_api.HandlersPipe {
 	for path, handler := range handlers {
 		urlPath := urlpath.New(path)
@@ -79,33 +70,6 @@ func (h *ElasticsearchIngestFrontendConnector) ServeHTTP(w http.ResponseWriter, 
 			fmt.Printf("Error writing response: %s\n", err)
 		}
 	}).ServeHTTP(w, req)
-}
-
-func (h *ElasticsearchIngestFrontendConnector) Listen() error {
-	h.listener = &http.Server{}
-	h.listener.Addr = h.endpoint
-	h.listener.Handler = h
-	go func() {
-		err := h.listener.ListenAndServe()
-		_ = err
-	}()
-
-	return nil
-}
-
-func (h *ElasticsearchIngestFrontendConnector) Stop(ctx context.Context) error {
-	if h.listener == nil {
-		return nil
-	}
-	err := h.listener.Shutdown(ctx)
-	if err != nil {
-		return err
-	}
-	return h.listener.Close()
-}
-
-func (h *ElasticsearchIngestFrontendConnector) GetEndpoint() string {
-	return h.endpoint
 }
 
 func bulk(request *http.Request) (map[string]interface{}, any, error) {
