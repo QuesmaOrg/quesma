@@ -234,6 +234,7 @@ func ExpectDate(potentialExpr any) (time.Time, error) {
 		formats := []string{
 			"Jan 2, 2006 @ 15:04:05.000 -0700 MST", // this format in example provided by Kibana\
 			"2006-01-02 15:04:05.000 -0700 MST",    // clickhouse format
+			"2006-01-02 15:04:05 -0700 MST",        // early adopter format
 			time.Layout,
 			time.ANSIC,
 			time.UnixDate,
