@@ -78,6 +78,14 @@ func NewPathRouter() *PathRouter {
 	return &PathRouter{mappings: make([]mapping, 0)}
 }
 
+func (p *PathRouter) Clone() Cloner {
+	newRouter := NewPathRouter()
+	for _, mapping := range p.mappings {
+		newRouter.Register(mapping.pattern, mapping.predicate, mapping.handler.Handler)
+	}
+	return newRouter
+}
+
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler Handler) {
 
 	mapping := mapping{pattern, urlpath.New(pattern), predicate, HttpHandlersPipe{Handler: handler}}
@@ -186,9 +194,9 @@ func (p *PathRouter) GetFallbackHandler() HTTPFrontendHandler {
 func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
 	panic("not implemented")
 }
-func SetHandlers(handlers map[string]HandlersPipe) {
+func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
 	panic("not implemented")
 }
-func Multiplexer() *http.ServeMux {
+func (p *PathRouter) Multiplexer() *http.ServeMux {
 	panic("not implemented")
 }
