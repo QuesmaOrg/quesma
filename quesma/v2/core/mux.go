@@ -15,12 +15,15 @@ type (
 	PathRouter struct {
 		mappings []mapping
 	}
+	HttpHandlersPipe struct {
+		Handler    Handler
+		Processors []Processor
+	}
 	mapping struct {
 		pattern      string
 		compiledPath urlpath.Path
 		predicate    RequestMatcher
-		handler      Handler
-		processors   []Processor
+		handler      HttpHandlersPipe
 	}
 	Result struct {
 		Body       string
@@ -80,12 +83,12 @@ func NewPathRouter() *PathRouter {
 
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler Handler) {
 
-	mapping := mapping{pattern, urlpath.New(pattern), predicate, handler, nil}
+	mapping := mapping{pattern, urlpath.New(pattern), predicate, HttpHandlersPipe{Handler: handler}}
 	p.mappings = append(p.mappings, mapping)
 
 }
 
-func (p *PathRouter) Matches(req *Request) (Handler, *Decision) {
+func (p *PathRouter) Matches(req *Request) (*HttpHandlersPipe, *Decision) {
 	handler, decision := p.findHandler(req)
 	if handler != nil {
 		routerStatistics.addMatched(req.Path)
@@ -96,7 +99,7 @@ func (p *PathRouter) Matches(req *Request) (Handler, *Decision) {
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (Handler, *Decision) {
+func (p *PathRouter) findHandler(req *Request) (*HttpHandlersPipe, *Decision) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)
@@ -104,7 +107,7 @@ func (p *PathRouter) findHandler(req *Request) (Handler, *Decision) {
 			req.Params = meta.Params
 			predicateResult := m.predicate.Matches(req)
 			if predicateResult.Matched {
-				return m.handler, predicateResult.Decision
+				return &m.handler, predicateResult.Decision
 			} else {
 				return nil, predicateResult.Decision
 			}
