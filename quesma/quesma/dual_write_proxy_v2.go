@@ -101,7 +101,6 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 
 	elasticHttpFrontentConnector := NewElasticHttpFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
 		&routerInstance, searchRouter, ingestRouter, logManager, agent)
-
 	var limitedHandler http.Handler
 	if config.DisableAuth {
 		limitedHandler = newSimultaneousClientsLimiterV2(elasticHttpFrontentConnector, concurrentClientsLimitV2)
