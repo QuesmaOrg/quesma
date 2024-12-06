@@ -3,7 +3,6 @@
 package quesma_api
 
 import (
-	"context"
 	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
@@ -42,8 +41,6 @@ type (
 		Body       string
 		ParsedBody RequestBody
 	}
-
-	Handler func(ctx context.Context, req *Request) (*Result, error)
 
 	MatchResult struct {
 		Matched  bool
