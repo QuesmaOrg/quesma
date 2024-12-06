@@ -26,7 +26,7 @@ const (
 	AsyncSearchStatusPath     = "/_async_search/status/:id"
 	KibanaInternalPrefix      = "/.kibana_"
 	IndexPath                 = "/:index"
-	ExecutePainlessScriptPath = "/_scripts/painless/_execute"
+	ExecutePainlessScriptPath = "/_scripts/painless/_execute" // This path is used on the Kibana side to evaluate painless scripts when adding a new scripted field.
 
 	// Quesma internal paths
 
