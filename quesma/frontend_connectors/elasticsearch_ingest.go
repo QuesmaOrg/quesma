@@ -12,10 +12,7 @@ import (
 )
 
 type ElasticsearchIngestFrontendConnector struct {
-	listener *http.Server
-	router   quesma_api.Router
-
-	endpoint string
+	BasicHTTPFrontendConnector
 }
 
 const (
@@ -32,7 +29,9 @@ const (
 
 func NewElasticsearchIngestFrontendConnector(endpoint string) *ElasticsearchIngestFrontendConnector {
 	fc := &ElasticsearchIngestFrontendConnector{
-		endpoint: endpoint,
+		BasicHTTPFrontendConnector: BasicHTTPFrontendConnector{
+			endpoint: endpoint,
+		},
 	}
 	router := NewHTTPRouter()
 	router.AddRoute(IndexBulkPath, bulk)
