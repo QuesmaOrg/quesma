@@ -12,7 +12,7 @@ import (
 
 var Version = "development"
 var BuildHash = ""
-var BuildDate = ""
+var BuildDate = time.Now().Format("2006-01-02")
 
 const GitHubLatestReleaseURL = "https://api.github.com/repos/quesma/quesma/releases/latest"
 
