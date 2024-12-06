@@ -14,7 +14,7 @@ import (
 
 type ElasticHttpFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
-	routerInstance *routerV2
+	routerInstance *frontend_connectors.RouterV2
 	searchRouter   *quesma_api.PathRouter
 	ingestRouter   *quesma_api.PathRouter
 	logManager     *clickhouse.LogManager
@@ -22,7 +22,7 @@ type ElasticHttpFrontendConnector struct {
 }
 
 func NewElasticHttpFrontendConnector(endpoint string,
-	routerInstance *routerV2,
+	routerInstance *frontend_connectors.RouterV2,
 	searchRouter *quesma_api.PathRouter,
 	ingestRouter *quesma_api.PathRouter,
 	logManager *clickhouse.LogManager,
@@ -39,7 +39,7 @@ func NewElasticHttpFrontendConnector(endpoint string,
 
 func (h *ElasticHttpFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer recovery.LogPanic()
-	reqBody, err := peekBodyV2(req)
+	reqBody, err := frontend_connectors.PeekBodyV2(req)
 	if err != nil {
 		http.Error(w, "Error reading request body", http.StatusInternalServerError)
 		return
@@ -48,5 +48,5 @@ func (h *ElasticHttpFrontendConnector) ServeHTTP(w http.ResponseWriter, req *htt
 	ua := req.Header.Get("User-Agent")
 	h.agent.UserAgentCounters().Add(ua, 1)
 
-	h.routerInstance.reroute(req.Context(), w, req, reqBody, h.searchRouter, h.ingestRouter, h.logManager)
+	h.routerInstance.Reroute(req.Context(), w, req, reqBody, h.searchRouter, h.ingestRouter, h.logManager)
 }

@@ -15,6 +15,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/feature"
+	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
@@ -181,7 +182,7 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
 
 	copyHeaders(w, elkResponse)
-	w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
+	w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceElastic)
 	// io.Copy calls WriteHeader implicitly
 	w.WriteHeader(elkResponse.StatusCode)
 	if _, err := io.Copy(w, elkResponse.Body); err != nil {
@@ -202,7 +203,7 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 	if zip {
 		w.Header().Set("Content-Encoding", "gzip")
 	}
-	w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+	w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceClickhouse)
 	w.WriteHeader(quesmaResponse.StatusCode)
 	if zip {
 		zipped, err := gzip.Zip(unzipped)
@@ -310,9 +311,9 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 	handler, decision := router.Matches(quesmaRequest)
 
 	if decision != nil {
-		w.Header().Set(quesmaTableResolverHeader, decision.String())
+		w.Header().Set(frontend_connectors.QuesmaTableResolverHeader, decision.String())
 	} else {
-		w.Header().Set(quesmaTableResolverHeader, "n/a")
+		w.Header().Set(frontend_connectors.QuesmaTableResolverHeader, "n/a")
 	}
 
 	if handler != nil {
@@ -331,7 +332,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			if len(unzipped) == 0 {
 				logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
 			}
-			addProductAndContentHeaders(req.Header, w.Header())
+			frontend_connectors.AddProductAndContentHeaders(req.Header, w.Header())
 
 			responseFromQuesma(ctx, unzipped, w, quesmaResponse, zip)
 
@@ -345,22 +346,22 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		if decision != nil {
 
 			if decision.Err != nil {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				addProductAndContentHeaders(req.Header, w.Header())
+				w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceClickhouse)
+				frontend_connectors.AddProductAndContentHeaders(req.Header, w.Header())
 				r.errorResponse(ctx, decision.Err, w)
 				return
 			}
 
 			if decision.IsClosed {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				addProductAndContentHeaders(req.Header, w.Header())
+				w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceClickhouse)
+				frontend_connectors.AddProductAndContentHeaders(req.Header, w.Header())
 				r.closedIndexResponse(ctx, w, decision.IndexPattern)
 				return
 			}
 
 			if decision.IsEmpty {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				addProductAndContentHeaders(req.Header, w.Header())
+				w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceClickhouse)
+				frontend_connectors.AddProductAndContentHeaders(req.Header, w.Header())
 				w.WriteHeader(http.StatusNoContent)
 				w.Write(queryparser.EmptySearchResponse(ctx))
 				return
@@ -381,14 +382,14 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		}
 
 		if sendToElastic {
-			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(opaqueIdHeaderKey), logManager.ResolveIndexPattern)
+			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(frontend_connectors.OpaqueIdHeaderKey), logManager.ResolveIndexPattern)
 
 			rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 			response := rawResponse.response
 			if response != nil {
 				responseFromElastic(ctx, response, w)
 			} else {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
+				w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceElastic)
 				w.WriteHeader(500)
 				if rawResponse.error != nil {
 					_, _ = w.Write([]byte(rawResponse.error.Error()))
@@ -529,7 +530,7 @@ func peekBody(r *http.Request) ([]byte, error) {
 func copyHeaders(w http.ResponseWriter, elkResponse *http.Response) {
 	for key, values := range elkResponse.Header {
 		for _, value := range values {
-			if key != httpHeaderContentLength {
+			if key != frontend_connectors.HttpHeaderContentLength {
 				if w.Header().Get(key) == "" {
 					w.Header().Add(key, value)
 				}
