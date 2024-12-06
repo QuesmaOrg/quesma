@@ -669,7 +669,7 @@ func (s *SchemaCheckPass) applyRuntimeMappings(indexSchema schema.Schema, query 
 		switch c := col.(type) {
 		case model.ColumnRef:
 			if mapping, ok := query.RuntimeMappings[c.ColumnName]; ok {
-				cols[i] = model.NewAliasedExpr(mapping.Expr, c.ColumnName)
+				cols[i] = model.NewAliasedExpr(mapping.DatabaseExpression, c.ColumnName)
 			}
 		}
 	}
@@ -679,7 +679,7 @@ func (s *SchemaCheckPass) applyRuntimeMappings(indexSchema schema.Schema, query 
 	visitor := model.NewBaseVisitor()
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 		if mapping, ok := query.RuntimeMappings[e.ColumnName]; ok {
-			return mapping.Expr
+			return mapping.DatabaseExpression
 		}
 		return e
 	}
