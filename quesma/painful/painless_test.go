@@ -68,6 +68,16 @@ func TestPainless(t *testing.T) {
 			script: "emit(doc['@timestamp'].value.formatISO8601())",
 			output: "2022-09-22T12:16:59Z",
 		},
+
+		{
+			name: "url-encode",
+			input: map[string]any{
+				"foo": "+",
+				"bar": "@",
+			},
+			script: "emit(URLEncoder.encode(doc['foo'].value + doc['bar'].value))",
+			output: "%2B%40",
+		},
 	}
 
 	for _, tt := range tests {

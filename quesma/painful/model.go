@@ -6,6 +6,7 @@ package painful
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 )
 
@@ -201,6 +202,25 @@ func (m *MethodCallExpr) Eval(env *Env) (any, error) {
 	default:
 		return nil, fmt.Errorf("%s: '%s' method is not supported", m.Position, m.MethodName)
 	}
+}
+
+type UrlEncodeExpr struct {
+	Expr Expr
+}
+
+func (u *UrlEncodeExpr) Eval(env *Env) (any, error) {
+	val, err := u.Expr.Eval(env)
+	if err != nil {
+		return nil, err
+	}
+
+	str, err2 := ExpectString(val)
+
+	if err2 != nil {
+		return nil, err2
+	}
+
+	return url.QueryEscape(str), nil
 }
 
 func ExpectExpr(potentialExpr any) (Expr, error) {

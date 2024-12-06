@@ -5,7 +5,7 @@ package painful
 }
 
 
-Expr =  expr:OpExpr / expr:MethodCall / expr:Accessor / expr:Doc / expr:Emit /  expr:String  {
+Expr =  expr:OpExpr / expr:MethodCall / expr:Accessor / expr:Doc / expr:Emit / expr:String / expr:UrlEncoder {
     return expr, nil
 }
 
@@ -120,6 +120,16 @@ String = '\'' s:[^']* '\'' {
 
 Identifier = id:[a-zA-Z0-9_]+ {
    return string(c.text), nil
+}
+
+UrlEncoder = "URLEncoder.encode" "(" expr:Expr ")" {
+
+    exprVal, err := ExpectExpr(expr)
+    if err != nil {
+        return nil, err
+    }
+
+    return &UrlEncodeExpr{Expr: exprVal}, nil
 }
 
 _ "whitespace" <- [ \n\t\r]*
