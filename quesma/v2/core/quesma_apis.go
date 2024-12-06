@@ -71,6 +71,7 @@ type Processor interface {
 	SetBackendConnectors(conns map[BackendConnectorType]BackendConnector)
 	GetBackendConnector(connectorType BackendConnectorType) BackendConnector
 	GetSupportedBackendConnectors() []BackendConnectorType
+	Init() error
 }
 
 type Rows interface {

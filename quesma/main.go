@@ -92,15 +92,14 @@ func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 	return quesmaInstance
 }
 
-/* Example of how to use the v2 module api in main function
-func main2() {
-	q1 := buildIngestOnlyQuesma()
-	q1.Start()
-	stop := make(chan os.Signal, 1)
-	<-stop
-	q1.Stop(context.Background())
-}
-*/
+// Example of how to use the v2 module api in main function
+//func main() {
+//	q1 := buildIngestOnlyQuesma()
+//	q1.Start()
+//	stop := make(chan os.Signal, 1)
+//	<-stop
+//	q1.Stop(context.Background())
+//}
 
 func main() {
 	if EnableConcurrencyProfiling {

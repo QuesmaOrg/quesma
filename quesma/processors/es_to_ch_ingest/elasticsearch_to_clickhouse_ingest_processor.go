@@ -33,7 +33,8 @@ const (
 
 type ElasticsearchToClickHouseIngestProcessor struct {
 	processors.BaseProcessor
-	config config.QuesmaProcessorConfig
+	config                config.QuesmaProcessorConfig
+	legacyIngestProcessor *ingest.IngestProcessor2
 }
 
 func NewElasticsearchToClickHouseIngestProcessor(conf config.QuesmaProcessorConfig) *ElasticsearchToClickHouseIngestProcessor {
@@ -41,6 +42,16 @@ func NewElasticsearchToClickHouseIngestProcessor(conf config.QuesmaProcessorConf
 		BaseProcessor: processors.NewBaseProcessor(),
 		config:        conf,
 	}
+}
+
+func (p *ElasticsearchToClickHouseIngestProcessor) Init() error {
+	chBackendConnector := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
+	if chBackendConnector == nil {
+		return fmt.Errorf("ClickHouse backend connector not found")
+	}
+	p.legacyIngestProcessor = p.prepareTemporaryIngestProcessor(chBackendConnector)
+
+	return nil
 }
 
 func (p *ElasticsearchToClickHouseIngestProcessor) GetId() string {
@@ -83,8 +94,6 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 		return metadata, data, nil
 	}
 
-	tempIngestProcessor := p.prepareTemporaryIngestProcessor(chBackend)
-
 	esBackend = p.GetBackendConnector(quesma_api.ElasticsearchBackend)
 	if esBackend == nil {
 		fmt.Println("Backend connector not found")
@@ -122,7 +131,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			result, err := handleDocIndex(payloadJson, indexNameFromIncomingReq, tempIngestProcessor, p.config)
+			result, err := handleDocIndex(payloadJson, indexNameFromIncomingReq, p.legacyIngestProcessor, p.config)
 			if err != nil {
 				println(err)
 			}
@@ -134,7 +143,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			results, err := handleBulkIndex(payloadNDJson, indexNameFromIncomingReq, tempIngestProcessor, es, p.config)
+			results, err := handleBulkIndex(payloadNDJson, indexNameFromIncomingReq, p.legacyIngestProcessor, es, p.config)
 			if err != nil {
 				println(err)
 			}

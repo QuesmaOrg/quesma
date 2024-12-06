@@ -21,6 +21,10 @@ func (p *BaseProcessor) AddProcessor(proc quesma_api.Processor) {
 	p.InnerProcessors = append(p.InnerProcessors, proc)
 }
 
+func (p *BaseProcessor) Init() error {
+	return nil
+}
+
 func (p *BaseProcessor) GetProcessors() []quesma_api.Processor {
 	return p.InnerProcessors
 }
