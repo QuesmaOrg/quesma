@@ -69,21 +69,21 @@ func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseW
 	}
 }
 
-type routerV2 struct {
-	config                  *config.QuesmaConfiguration
-	requestPreprocessors    quesma_api.ProcessorChain
-	quesmaManagementConsole *ui.QuesmaManagementConsole
-	phoneHomeAgent          telemetry.PhoneHomeAgent
-	httpClient              *http.Client
-	failedRequests          atomic.Int64
+type RouterV2 struct {
+	Config                  *config.QuesmaConfiguration
+	RequestPreprocessors    quesma_api.ProcessorChain
+	QuesmaManagementConsole *ui.QuesmaManagementConsole
+	PhoneHomeAgent          telemetry.PhoneHomeAgent
+	HttpClient              *http.Client
+	FailedRequests          atomic.Int64
 }
 
-func (r *routerV2) registerPreprocessor(preprocessor quesma_api.RequestPreprocessor) {
-	r.requestPreprocessors = append(r.requestPreprocessors, preprocessor)
+func (r *RouterV2) RegisterPreprocessor(preprocessor quesma_api.RequestPreprocessor) {
+	r.RequestPreprocessors = append(r.RequestPreprocessors, preprocessor)
 }
 
-func (r *routerV2) errorResponseV2(ctx context.Context, err error, w http.ResponseWriter) {
-	r.failedRequests.Add(1)
+func (r *RouterV2) errorResponseV2(ctx context.Context, err error, w http.ResponseWriter) {
+	r.FailedRequests.Add(1)
 
 	msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
 	reason := "Failed request."
@@ -113,7 +113,7 @@ func (r *routerV2) errorResponseV2(ctx context.Context, err error, w http.Respon
 	responseFromQuesmaV2(ctx, []byte(fmt.Sprintf("%s\nRequest ID: %s\n", msg, requestId)), w, result, false)
 }
 
-func (*routerV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter, pattern string) {
+func (*RouterV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter, pattern string) {
 	// TODO we should return a proper status code here (400?)
 	w.WriteHeader(http.StatusOK)
 
@@ -140,7 +140,7 @@ func (*routerV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter,
 
 }
 
-func (r *routerV2) elasticFallback(decision *quesma_api.Decision,
+func (r *RouterV2) elasticFallback(decision *quesma_api.Decision,
 	ctx context.Context, w http.ResponseWriter,
 	req *http.Request, reqBody []byte, logManager *clickhouse.LogManager) {
 
@@ -203,7 +203,7 @@ func (r *routerV2) elasticFallback(decision *quesma_api.Decision,
 	}
 }
 
-func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, searchRouter *quesma_api.PathRouter, ingestRouter *quesma_api.PathRouter, logManager *clickhouse.LogManager) {
+func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, searchRouter *quesma_api.PathRouter, ingestRouter *quesma_api.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
@@ -246,7 +246,7 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 
 	if handler != nil {
-		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.quesmaManagementConsole, func() (*quesma_api.Result, error) {
+		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.QuesmaManagementConsole, func() (*quesma_api.Result, error) {
 			return handler(ctx, quesmaRequest)
 		})
 
@@ -273,10 +273,10 @@ func (r *routerV2) reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 }
 
-func (r *routerV2) preprocessRequest(ctx context.Context, quesmaRequest *quesma_api.Request) (*quesma_api.Request, context.Context, error) {
+func (r *RouterV2) preprocessRequest(ctx context.Context, quesmaRequest *quesma_api.Request) (*quesma_api.Request, context.Context, error) {
 	var err error
 	var processedRequest = quesmaRequest
-	for _, preprocessor := range r.requestPreprocessors {
+	for _, preprocessor := range r.RequestPreprocessors {
 		ctx, processedRequest, err = preprocessor.PreprocessRequest(ctx, processedRequest)
 		if err != nil {
 			return nil, nil, err
@@ -291,14 +291,14 @@ type elasticResultV2 struct {
 	took     time.Duration
 }
 
-func (r *routerV2) sendHttpRequestToElastic(ctx context.Context, req *http.Request,
+func (r *RouterV2) sendHttpRequestToElastic(ctx context.Context, req *http.Request,
 	reqBody []byte, isManagement bool) chan elasticResultV2 {
 	elkResponseChan := make(chan elasticResultV2)
 
 	// If Quesma is exposing unauthenticated API but underlying Elasticsearch requires authentication, we should add the
-	if r.config.DisableAuth && req.Header.Get("Authorization") == "" && r.config.Elasticsearch.User != "" {
+	if r.Config.DisableAuth && req.Header.Get("Authorization") == "" && r.Config.Elasticsearch.User != "" {
 		logger.DebugWithCtx(ctx).Msgf("path=%s routed to Elasticsearch, need add auth header to the request", req.URL)
-		req.SetBasicAuth(r.config.Elasticsearch.User, r.config.Elasticsearch.Password)
+		req.SetBasicAuth(r.Config.Elasticsearch.User, r.Config.Elasticsearch.Password)
 	}
 
 	if req.Header.Get("Authorization") != "" {
@@ -312,26 +312,26 @@ func (r *routerV2) sendHttpRequestToElastic(ctx context.Context, req *http.Reque
 	}
 
 	go func() {
-		elkResponseChan <- recordRequestToElasticV2(req.URL.Path, r.quesmaManagementConsole, func() elasticResultV2 {
+		elkResponseChan <- recordRequestToElasticV2(req.URL.Path, r.QuesmaManagementConsole, func() elasticResultV2 {
 
 			isWrite := elasticsearch.IsWriteRequest(req)
 
 			var span telemetry.Span
 			if isManagement {
 				if isWrite {
-					span = r.phoneHomeAgent.ElasticBypassedWriteRequestsDuration().Begin()
+					span = r.PhoneHomeAgent.ElasticBypassedWriteRequestsDuration().Begin()
 				} else {
-					span = r.phoneHomeAgent.ElasticBypassedReadRequestsDuration().Begin()
+					span = r.PhoneHomeAgent.ElasticBypassedReadRequestsDuration().Begin()
 				}
 			} else {
 				if isWrite {
-					span = r.phoneHomeAgent.ElasticWriteRequestsDuration().Begin()
+					span = r.PhoneHomeAgent.ElasticWriteRequestsDuration().Begin()
 				} else {
-					span = r.phoneHomeAgent.ElasticReadRequestsDuration().Begin()
+					span = r.PhoneHomeAgent.ElasticReadRequestsDuration().Begin()
 				}
 			}
 
-			resp, err := r.sendHttpRequest(ctx, r.config.Elasticsearch.Url.String(), req, reqBody)
+			resp, err := r.sendHttpRequest(ctx, r.Config.Elasticsearch.Url.String(), req, reqBody)
 			took := span.End(err)
 			return elasticResultV2{resp, err, took}
 		})
@@ -369,7 +369,7 @@ func recordRequestToElasticV2(path string, qmc *ui.QuesmaManagementConsole, requ
 	return response
 }
 
-func peekBodyV2(r *http.Request) ([]byte, error) {
+func PeekBodyV2(r *http.Request) ([]byte, error) {
 	reqBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		logger.ErrorWithCtxAndReason(r.Context(), "incomplete request").
@@ -411,7 +411,7 @@ func copyHeadersV2(w http.ResponseWriter, elkResponse *http.Response) {
 	}
 }
 
-func (r *routerV2) sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) (*http.Response, error) {
+func (r *RouterV2) sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, originalReq.Method, address+originalReq.URL.String(), bytes.NewBuffer(originalReqBody))
 
 	if err != nil {
@@ -421,7 +421,7 @@ func (r *routerV2) sendHttpRequest(ctx context.Context, address string, original
 
 	req.Header = originalReq.Header
 
-	resp, err := r.httpClient.Do(req)
+	resp, err := r.HttpClient.Do(req)
 	if err != nil {
 		logger.ErrorWithCtxAndReason(ctx, "No network connection").
 			Msgf("Error sending request: %v", err)
