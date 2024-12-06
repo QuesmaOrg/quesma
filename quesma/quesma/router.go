@@ -10,6 +10,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
+	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/painful"
@@ -557,8 +558,8 @@ func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*que
 func elasticsearchInsertResult(body string, statusCode int) *quesma_api.Result {
 	return &quesma_api.Result{Body: body, Meta: map[string]string{
 		// TODO copy paste from the original request
-		contentTypeHeaderKey:      "application/json",
-		"X-Quesma-Headers-Source": "Quesma",
+		frontend_connectors.ContentTypeHeaderKey: "application/json",
+		"X-Quesma-Headers-Source":                "Quesma",
 	}, StatusCode: statusCode}
 }
 
