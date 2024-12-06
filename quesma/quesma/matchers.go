@@ -3,7 +3,9 @@
 package quesma
 
 import (
+	"github.com/goccy/go-json"
 	"quesma/logger"
+	"quesma/painful"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/table_resolver"
@@ -143,5 +145,30 @@ func matchAgainstKibanaInternal() quesma_api.RequestMatcher {
 		// 3., 4., 5. related to Kibana Fleet
 		matched := !hasJsonKey("kibana.alert.", q) && !hasJsonKey("migrationVersion", q) && !hasJsonKey("idleTimeoutExpiration", q) && !strings.Contains(req.Body, "fleet-message-signing-keys") && !strings.Contains(req.Body, "fleet-uninstall-tokens")
 		return quesma_api.MatchResult{Matched: matched}
+	})
+}
+
+func matchAgainstIndexNameInScriptRequestBody(tableResolver table_resolver.TableResolver) quesma_api.RequestMatcher {
+	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
+
+		var scriptRequest painful.ScriptRequest
+
+		err := json.Unmarshal([]byte(req.Body), &scriptRequest)
+		if err != nil {
+			return quesma_api.MatchResult{Matched: false}
+		}
+
+		decision := tableResolver.Resolve(quesma_api.QueryPipeline, scriptRequest.ContextSetup.IndexName)
+
+		if decision.Err != nil {
+			return quesma_api.MatchResult{Matched: false, Decision: decision}
+		}
+		for _, connector := range decision.UseConnectors {
+			if _, ok := connector.(*quesma_api.ConnectorDecisionClickhouse); ok {
+				return quesma_api.MatchResult{Matched: true, Decision: decision}
+			}
+		}
+
+		return quesma_api.MatchResult{Matched: false, Decision: nil}
 	})
 }

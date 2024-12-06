@@ -15,6 +15,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/optimize"
+	"quesma/painful"
 	"quesma/queryparser"
 	"quesma/queryparser/query_util"
 	"quesma/quesma/async_search_storage"
@@ -846,11 +847,33 @@ func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]
 	// maybe model.Schema should be part of ExecutionPlan instead of Query
 	indexSchema := plan.Queries[0].Schema
 
-	pipeline := []struct {
+	type pipelineElement struct {
 		name        string
 		transformer model.ResultTransformer
-	}{
-		{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{indexSchema: indexSchema}},
+	}
+
+	var pipeline []pipelineElement
+
+	pipeline = append(pipeline, pipelineElement{"replaceColumNamesWithFieldNames", &replaceColumNamesWithFieldNames{indexSchema: indexSchema}})
+
+	// we can take the first one because all queries have the same runtime mappings
+	if len(plan.Queries[0].RuntimeMappings) > 0 {
+
+		// this transformer must be called after replaceColumNamesWithFieldNames
+		// painless scripts rely on field names not column names
+
+		fieldScripts := make(map[string]painful.Expr)
+
+		for field, runtimeMapping := range plan.Queries[0].RuntimeMappings {
+			if runtimeMapping.PostProcessExpression != nil {
+				fieldScripts[field] = runtimeMapping.PostProcessExpression
+			}
+		}
+
+		if len(fieldScripts) > 0 {
+			pipeline = append(pipeline, pipelineElement{"applyPainlessScripts", &EvalPainlessScriptOnColumnsTransformer{FieldScripts: fieldScripts}})
+		}
+
 	}
 
 	var err error

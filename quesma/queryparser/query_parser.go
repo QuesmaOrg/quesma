@@ -71,7 +71,10 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		queries = append(queries, listQuery)
 	}
 
-	runtimeMappings := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
+	runtimeMappings, err := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
+	if err != nil {
+		return &model.ExecutionPlan{}, err
+	}
 
 	// we apply post query transformer for certain aggregation types
 	// this should be a part of the query parsing process

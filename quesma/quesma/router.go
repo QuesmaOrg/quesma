@@ -12,6 +12,7 @@ import (
 	"quesma/end_user_errors"
 	"quesma/ingest"
 	"quesma/logger"
+	"quesma/painful"
 	"quesma/queryparser"
 	"quesma/quesma/config"
 	"quesma/quesma/errors"
@@ -58,7 +59,43 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	// So, if you add multiple handlers with the same path, the first one will be used, the rest will be redirected to the elastic cluster.
 	// This is current limitation of the router.
 
+	router.Register(routes.ExecutePainlessScriptPath, and(method("POST"), matchAgainstIndexNameInScriptRequestBody(tableResolver)), func(ctx context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
+
+		var scriptRequest painful.ScriptRequest
+
+		err := json.Unmarshal([]byte(req.Body), &scriptRequest)
+		if err != nil {
+			return nil, err
+		}
+
+		scriptResponse, err := scriptRequest.Eval()
+
+		if err != nil {
+			errorResponse := painful.RenderErrorResponse(scriptRequest.Script.Source, err)
+			responseBytes, err := json.Marshal(errorResponse)
+			if err != nil {
+				return nil, err
+			}
+
+			return &quesma_api.Result{
+				Body:       string(responseBytes),
+				StatusCode: errorResponse.Status,
+			}, nil
+		}
+
+		responseBytes, err := json.Marshal(scriptResponse)
+		if err != nil {
+			return nil, err
+		}
+
+		return &quesma_api.Result{
+			Body:       string(responseBytes),
+			StatusCode: http.StatusOK,
+		}, nil
+	})
+
 	router.Register(routes.ClusterHealthPath, method("GET"), func(_ context.Context, req *quesma_api.Request) (*quesma_api.Result, error) {
+
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, http.StatusOK), nil
 	})
 
