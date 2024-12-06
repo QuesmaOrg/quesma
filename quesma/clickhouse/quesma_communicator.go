@@ -11,7 +11,7 @@ import (
 	"quesma/end_user_errors"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/tracing"
+	tracing "quesma_v2/core/tracing"
 	"strconv"
 	"strings"
 	"sync/atomic"

@@ -9,8 +9,8 @@ import (
 	"gopkg.in/yaml.v3"
 	"quesma/quesma/types"
 	"quesma/quesma/ui/internal/builder"
-	"quesma/tracing"
 	"quesma/util"
+	tracing "quesma_v2/core/tracing"
 	"strings"
 )
 

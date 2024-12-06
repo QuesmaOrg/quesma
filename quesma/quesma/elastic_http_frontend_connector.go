@@ -9,22 +9,22 @@ import (
 	"quesma/frontend_connectors"
 	"quesma/quesma/recovery"
 	"quesma/telemetry"
-	"quesma_v2/core/mux"
+	"quesma_v2/core"
 )
 
 type ElasticHttpFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
 	routerInstance *routerV2
-	searchRouter   *mux.PathRouter
-	ingestRouter   *mux.PathRouter
+	searchRouter   *quesma_api.PathRouter
+	ingestRouter   *quesma_api.PathRouter
 	logManager     *clickhouse.LogManager
 	agent          telemetry.PhoneHomeAgent
 }
 
 func NewElasticHttpFrontendConnector(endpoint string,
 	routerInstance *routerV2,
-	searchRouter *mux.PathRouter,
-	ingestRouter *mux.PathRouter,
+	searchRouter *quesma_api.PathRouter,
+	ingestRouter *quesma_api.PathRouter,
 	logManager *clickhouse.LogManager,
 	agent telemetry.PhoneHomeAgent) *ElasticHttpFrontendConnector {
 	return &ElasticHttpFrontendConnector{

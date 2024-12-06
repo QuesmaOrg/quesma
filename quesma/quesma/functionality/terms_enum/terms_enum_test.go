@@ -19,8 +19,8 @@ import (
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/telemetry"
-	"quesma/tracing"
 	"quesma/util"
+	tracing "quesma_v2/core/tracing"
 	"regexp"
 	"testing"
 )

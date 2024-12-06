@@ -15,7 +15,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
-	"quesma/tracing"
+	tracing "quesma_v2/core/tracing"
 	"strconv"
 	"time"
 )

@@ -4,7 +4,7 @@ package errorstats
 
 import (
 	"github.com/rs/zerolog"
-	"quesma/tracing"
+	tracing "quesma_v2/core/tracing"
 	"sort"
 	"sync"
 	"time"
