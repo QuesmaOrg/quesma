@@ -4,6 +4,7 @@
 package frontend_connectors
 
 import (
+	"context"
 	"fmt"
 	"github.com/ucarion/urlpath"
 	"net/http"
@@ -11,7 +12,11 @@ import (
 )
 
 type ElasticsearchIngestFrontendConnector struct {
-	BasicHTTPFrontendConnector
+	// BasicHTTPFrontendConnector // TODO: embedding resulted in ServeHTTP being called from BasicHTTPFrontendConnector instead of ElasticsearchIngestFrontendConnector
+	listener *http.Server
+	router   quesma_api.Router
+
+	endpoint string
 }
 
 const (
@@ -28,9 +33,7 @@ const (
 
 func NewElasticsearchIngestFrontendConnector(endpoint string) *ElasticsearchIngestFrontendConnector {
 	fc := &ElasticsearchIngestFrontendConnector{
-		BasicHTTPFrontendConnector: BasicHTTPFrontendConnector{
-			endpoint: endpoint,
-		},
+		endpoint: endpoint,
 	}
 	router := NewHTTPRouter()
 	router.AddRoute(IndexBulkPath, bulk)
@@ -98,4 +101,41 @@ func getIndexFromRequest(request *http.Request) string {
 	expectedUrl := urlpath.New("/:index/*")
 	match, _ := expectedUrl.Match(request.URL.Path) // safe to call at this level
 	return match.Params["index"]
+}
+
+// Temporarily ported from BasicHTTPFrontendConnector until we figure out embedding issue
+
+func (h *ElasticsearchIngestFrontendConnector) AddRouter(router quesma_api.Router) {
+	h.router = router
+}
+
+func (h *ElasticsearchIngestFrontendConnector) GetRouter() quesma_api.Router {
+	return h.router
+}
+
+func (h *ElasticsearchIngestFrontendConnector) Listen() error {
+	h.listener = &http.Server{}
+	h.listener.Addr = h.endpoint
+	h.listener.Handler = h
+	go func() {
+		err := h.listener.ListenAndServe()
+		_ = err
+	}()
+
+	return nil
+}
+
+func (h *ElasticsearchIngestFrontendConnector) Stop(ctx context.Context) error {
+	if h.listener == nil {
+		return nil
+	}
+	err := h.listener.Shutdown(ctx)
+	if err != nil {
+		return err
+	}
+	return h.listener.Close()
+}
+
+func (h *ElasticsearchIngestFrontendConnector) GetEndpoint() string {
+	return h.endpoint
 }
