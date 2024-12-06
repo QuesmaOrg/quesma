@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/ucarion/urlpath"
 	"io"
 	"net/http"
 	quesma_api "quesma_v2/core"
@@ -105,14 +106,21 @@ func (h *BasicHTTPFrontendConnector) AddRouter(router quesma_api.Router) {
 	h.router = router
 }
 
+func (h *BasicHTTPFrontendConnector) MutateResponseWriter(w http.ResponseWriter) http.ResponseWriter {
+	w.Header().Set("PRZEMYSLAW", "ALWAYS TRUE")
+	return w
+}
+
 func (h *BasicHTTPFrontendConnector) GetRouter() quesma_api.Router {
 	return h.router
 }
 
 func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	handlerWrapper, exists := h.router.GetHandlers()[req.URL.Path]
+	handlers := h.router.GetHandlers()
+	handlerWrapper := getMatchingHandler(req.URL.Path, handlers)
 	dispatcher := &quesma_api.Dispatcher{}
-	if !exists {
+	w = h.MutateResponseWriter(w)
+	if handlerWrapper == nil {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if h.router.GetFallbackHandler() != nil {
 				fmt.Printf("No handler found for path: %s\n", req.URL.Path)
@@ -135,6 +143,17 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 			fmt.Printf("Error writing response: %s\n", err)
 		}
 	}).ServeHTTP(w, req)
+}
+
+func getMatchingHandler(requestPath string, handlers map[string]quesma_api.HandlersPipe) *quesma_api.HandlersPipe {
+	for path, handler := range handlers {
+		urlPath := urlpath.New(path)
+		_, matches := urlPath.Match(requestPath)
+		if matches {
+			return &handler
+		}
+	}
+	return nil
 }
 
 func (h *BasicHTTPFrontendConnector) Listen() error {

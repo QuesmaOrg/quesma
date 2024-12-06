@@ -4,19 +4,13 @@
 package frontend_connectors
 
 import (
-	"context"
-	"fmt"
 	"github.com/ucarion/urlpath"
 	"net/http"
 	quesma_api "quesma_v2/core"
 )
 
 type ElasticsearchIngestFrontendConnector struct {
-	// BasicHTTPFrontendConnector // TODO: embedding resulted in ServeHTTP being called from BasicHTTPFrontendConnector instead of ElasticsearchIngestFrontendConnector
-	listener *http.Server
-	router   quesma_api.Router
-
-	endpoint string
+	BasicHTTPFrontendConnector
 }
 
 const (
@@ -33,7 +27,9 @@ const (
 
 func NewElasticsearchIngestFrontendConnector(endpoint string) *ElasticsearchIngestFrontendConnector {
 	fc := &ElasticsearchIngestFrontendConnector{
-		endpoint: endpoint,
+		BasicHTTPFrontendConnector: BasicHTTPFrontendConnector{
+			endpoint: endpoint,
+		},
 	}
 	router := NewHTTPRouter()
 	router.AddRoute(IndexBulkPath, bulk)
@@ -42,38 +38,31 @@ func NewElasticsearchIngestFrontendConnector(endpoint string) *ElasticsearchInge
 	return fc
 }
 
-func getMatchingHandler(requestPath string, handlers map[string]quesma_api.HandlersPipe) *quesma_api.HandlersPipe {
-	for path, handler := range handlers {
-		urlPath := urlpath.New(path)
-		_, matches := urlPath.Match(requestPath)
-		if matches {
-			return &handler
-		}
-	}
-	return nil
+func (h *ElasticsearchIngestFrontendConnector) MutateResponseWriter(w http.ResponseWriter) http.ResponseWriter {
+	w.Header().Set("Content-Type", "application/json/PRZEMYSLAW")
+	return w
 }
 
-func (h *ElasticsearchIngestFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	handlers := h.router.GetHandlers()
-	handlerWrapper := getMatchingHandler(req.URL.Path, handlers)
-	if handlerWrapper == nil {
-		h.router.Multiplexer().ServeHTTP(w, req)
-		return
-	}
-	dispatcher := &quesma_api.Dispatcher{}
-
-	// for the response out we are Elasticsearch-7 compliant
-	w.Header().Set("Content-Type", "application/json")
-	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		metadata, message, _ := handlerWrapper.Handler(req)
-		req.Header.Set("x-przemek", "blah")
-		_, message = dispatcher.Dispatch(handlerWrapper.Processors, metadata, message)
-		_, err := w.Write(message.([]byte))
-		if err != nil {
-			fmt.Printf("Error writing response: %s\n", err)
-		}
-	}).ServeHTTP(w, req)
-}
+//func (h *ElasticsearchIngestFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+//	handlers := h.router.GetHandlers()
+//	handlerWrapper := getMatchingHandler(req.URL.Path, handlers)
+//	if handlerWrapper == nil {
+//		h.router.Multiplexer().ServeHTTP(w, req)
+//		return
+//	}
+//	dispatcher := &quesma_api.Dispatcher{}
+//
+//	// for the response out we are Elasticsearch-7 compliant
+//	w.Header().Set("Content-Type", "application/json")
+//	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+//		metadata, message, _ := handlerWrapper.Handler(req)
+//		_, message = dispatcher.Dispatch(handlerWrapper.Processors, metadata, message)
+//		_, err := w.Write(message.([]byte))
+//		if err != nil {
+//			fmt.Printf("Error writing response: %s\n", err)
+//		}
+//	}).ServeHTTP(w, req)
+//}
 
 func bulk(request *http.Request) (map[string]interface{}, any, error) {
 	//body, err := ReadRequestBody(request)
@@ -101,41 +90,4 @@ func getIndexFromRequest(request *http.Request) string {
 	expectedUrl := urlpath.New("/:index/*")
 	match, _ := expectedUrl.Match(request.URL.Path) // safe to call at this level
 	return match.Params["index"]
-}
-
-// Temporarily ported from BasicHTTPFrontendConnector until we figure out embedding issue
-
-func (h *ElasticsearchIngestFrontendConnector) AddRouter(router quesma_api.Router) {
-	h.router = router
-}
-
-func (h *ElasticsearchIngestFrontendConnector) GetRouter() quesma_api.Router {
-	return h.router
-}
-
-func (h *ElasticsearchIngestFrontendConnector) Listen() error {
-	h.listener = &http.Server{}
-	h.listener.Addr = h.endpoint
-	h.listener.Handler = h
-	go func() {
-		err := h.listener.ListenAndServe()
-		_ = err
-	}()
-
-	return nil
-}
-
-func (h *ElasticsearchIngestFrontendConnector) Stop(ctx context.Context) error {
-	if h.listener == nil {
-		return nil
-	}
-	err := h.listener.Shutdown(ctx)
-	if err != nil {
-		return err
-	}
-	return h.listener.Close()
-}
-
-func (h *ElasticsearchIngestFrontendConnector) GetEndpoint() string {
-	return h.endpoint
 }
