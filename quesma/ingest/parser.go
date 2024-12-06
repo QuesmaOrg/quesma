@@ -11,6 +11,7 @@ import (
 	"quesma/util"
 	"slices"
 	"strings"
+	"time"
 )
 
 const NestedSeparator = "::"
@@ -54,6 +55,8 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 
 		columnMetadata := comment_metadata.NewCommentMetadata()
 		columnMetadata.Values[comment_metadata.ElasticFieldName] = propertyName
+		columnMetadata.Values[comment_metadata.CreatedAt] = time.Now().UTC().Format(time.RFC3339)
+		columnMetadata.Values[comment_metadata.CreatedBy] = "QuesmaIngestNewTable"
 		comment := columnMetadata.Marshall()
 
 		if columnFromSchema, found := columnsFromSchema[schema.FieldName(columnFromJson.ClickHouseColumnName)]; found && !strings.Contains(columnFromJson.ClickHouseType, "Array") {
@@ -78,6 +81,8 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 
 		columnMetadata := comment_metadata.NewCommentMetadata()
 		columnMetadata.Values[comment_metadata.ElasticFieldName] = propertyName
+		columnMetadata.Values[comment_metadata.CreatedAt] = time.Now().UTC().Format(time.RFC3339)
+		columnMetadata.Values[comment_metadata.CreatedBy] = "QuesmaIngestNewTable"
 		comment := columnMetadata.Marshall()
 
 		result.WriteString(util.Indent(1))

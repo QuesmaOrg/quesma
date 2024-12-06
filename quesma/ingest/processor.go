@@ -325,6 +325,8 @@ func (ip *IngestProcessor) generateNewColumns(
 
 		metadata := comment_metadata.NewCommentMetadata()
 		metadata.Values[comment_metadata.ElasticFieldName] = propertyName
+		metadata.Values[comment_metadata.CreatedAt] = time.Now().UTC().Format(time.RFC3339)
+		metadata.Values[comment_metadata.CreatedBy] = "QuesmaIngestAlter"
 		comment := metadata.Marshall()
 
 		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, attrKeys[i], columnType)
