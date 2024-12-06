@@ -49,7 +49,7 @@ func (v *renderer) VisitPrefixExpr(e PrefixExpr) interface{} {
 }
 
 func (v *renderer) VisitNestedProperty(e NestedProperty) interface{} {
-	return fmt.Sprintf("%v.%v", e.ColumnRef.Accept(v), e.PropertyName.Accept(v))
+	return fmt.Sprintf("%v.%v", e.ObjectExpr.Accept(v), e.PropertyName.Accept(v))
 }
 
 func (v *renderer) VisitArrayAccess(e ArrayAccess) interface{} {
