@@ -31,6 +31,13 @@ type OptimizerConfiguration struct {
 	Properties map[string]string `koanf:"properties"`
 }
 
+func (c IndexConfiguration) TableName() string {
+	if len(c.Override) > 0 {
+		return c.Override
+	}
+	return c.Name
+}
+
 func (c IndexConfiguration) String() string {
 	var builder strings.Builder
 
