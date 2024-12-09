@@ -101,10 +101,7 @@ func EmptyFieldCapsResponse() []byte {
 }
 
 func HandleFieldCaps(ctx context.Context, cfg *config.QuesmaConfiguration, schemaRegistry schema.Registry, index string, lm *clickhouse.LogManager) ([]byte, error) {
-	if len(cfg.IndexConfig[index].Override) > 0 {
-		index = cfg.IndexConfig[index].Override
-	}
-	indexes, err := lm.ResolveIndexPattern(ctx, index)
+	indexes, err := lm.ResolveIndexPattern(ctx, cfg.IndexConfig[index].TableName())
 	if err != nil {
 		return nil, err
 	}
