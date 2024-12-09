@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/goccy/go-json"
+	"net/http"
+	"quesma/backend_connectors"
 	chLib "quesma/clickhouse"
 	"quesma/comment_metadata"
 	"quesma/common_table"
@@ -39,6 +41,7 @@ type (
 		ctx                       context.Context
 		cancel                    context.CancelFunc
 		chDb                      quesma_api.BackendConnector
+		es                        backend_connectors.ElasticsearchBackendConnector
 		tableDiscovery            chLib.TableDiscovery
 		cfg                       *config.QuesmaConfiguration
 		phoneHomeAgent            telemetry.PhoneHomeAgent
@@ -103,6 +106,14 @@ func (ip *IngestProcessor2) Close() {
 //	}
 //	return count, nil
 //}
+
+func (ip *IngestProcessor2) SendToElasticsearch(req *http.Request) *http.Response {
+	return ip.es.Send(req)
+}
+
+func (ip *IngestProcessor2) RequestToElasticsearch(ctx context.Context, method, endpoint string, body []byte, headers http.Header) (*http.Response, error) {
+	return ip.es.RequestWithHeaders(ctx, method, endpoint, body, headers)
+}
 
 func (ip *IngestProcessor2) createTableObjectAndAttributes(ctx context.Context, query string, config *chLib.ChTableConfig, name string, tableDefinitionChangeOnly bool) (string, error) {
 	table, err := chLib.NewTable(query, config)
@@ -656,9 +667,9 @@ func (ip *IngestProcessor2) Ping() error {
 	return ip.chDb.Open()
 }
 
-func NewIngestProcessor2(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor2 {
+func NewIngestProcessor2(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver, esBackendConn backend_connectors.ElasticsearchBackendConnector) *IngestProcessor2 {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &IngestProcessor2{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
+	return &IngestProcessor2{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver, es: esBackendConn}
 }
 
 // validateIngest validates the document against the table schema
