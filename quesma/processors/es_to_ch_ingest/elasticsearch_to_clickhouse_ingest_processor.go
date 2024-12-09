@@ -110,8 +110,8 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			panic("ElasticsearchToClickHouseIngestProcessor: invalid message type")
 		}
 
-		if _, present := p.config.IndexConfig[indexNameFromIncomingReq]; !present {
-			// route to Elasticsearch
+		if _, present := p.config.IndexConfig[indexNameFromIncomingReq]; !present && metadata[IngestAction] == DocIndexAction {
+			// route to Elasticsearch, `bulk` request might be sent to ClickHouse depending on the request payload
 			resp := es.Send(messageAsHttpReq)
 			respBody, err := ReadResponseBody(resp)
 			if err != nil {
