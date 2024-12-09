@@ -916,8 +916,8 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			}
 
 			attrs := cw.Table.GetAttributesList()
-			var stmts = make([]model.Expr, len(attrs))
-			for i, a := range attrs {
+			var stmts []model.Expr
+			for _, a := range attrs {
 				// deprecated attributes
 				_, ok1 := cw.Table.Cols[a.KeysArrayName]
 				_, ok2 := cw.Table.Cols[a.ValuesArrayName]
@@ -927,13 +927,11 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 					arrayAccess := model.NewArrayAccess(model.NewColumnRef(a.ValuesArrayName), model.NewFunction("indexOf", []model.Expr{model.NewColumnRef(a.KeysArrayName), model.NewLiteral(fieldNameQuoted)}...))
 					isNotNull := model.NewInfixExpr(arrayAccess, "IS", model.NewLiteral("NOT NULL"))
 					compoundStatementNoFieldName := model.NewInfixExpr(hasFunc, "AND", isNotNull)
-					stmts[i] = compoundStatementNoFieldName
-				} else {
-					//It's related to https://github.com/QuesmaOrg/quesma/issues/1056
-
-					// TODO handle new attributes
-					stmts[i] = model.NewLiteral(false)
+					stmts = append(stmts, compoundStatementNoFieldName)
 				}
+
+				//It's related to https://github.com/QuesmaOrg/quesma/issues/1056
+				// TODO handle new attributes
 			}
 
 			if len(stmts) > 0 {
