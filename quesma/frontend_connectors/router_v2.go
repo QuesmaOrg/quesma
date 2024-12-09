@@ -236,7 +236,7 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	if searchDecision == nil {
 		decision = ingestDecision
 	}
-	if searchHandlerPipe == nil {
+	if searchHandlerPipe == nil && ingestHandlerPipe != nil {
 		handler = ingestHandlerPipe.Handler
 	}
 	if decision != nil {

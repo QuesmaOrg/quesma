@@ -22,7 +22,7 @@ type (
 		pattern      string
 		compiledPath urlpath.Path
 		predicate    RequestMatcher
-		handler      HttpHandlersPipe
+		handler      *HttpHandlersPipe
 	}
 	Result struct {
 		Body       string
@@ -88,7 +88,7 @@ func (p *PathRouter) Clone() Cloner {
 
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler Handler) {
 
-	mapping := mapping{pattern, urlpath.New(pattern), predicate, HttpHandlersPipe{Handler: handler}}
+	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HttpHandlersPipe{Handler: handler}}
 	p.mappings = append(p.mappings, mapping)
 
 }
@@ -112,7 +112,7 @@ func (p *PathRouter) findHandler(req *Request) (*HttpHandlersPipe, *Decision) {
 			req.Params = meta.Params
 			predicateResult := m.predicate.Matches(req)
 			if predicateResult.Matched {
-				return &m.handler, predicateResult.Decision
+				return m.handler, predicateResult.Decision
 			} else {
 				return nil, predicateResult.Decision
 			}
