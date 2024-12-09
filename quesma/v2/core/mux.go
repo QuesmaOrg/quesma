@@ -15,7 +15,7 @@ type (
 		mappings []mapping
 	}
 	HttpHandlersPipe struct {
-		Handler    Handler
+		Handler    HTTPFrontendHandler2
 		Processors []Processor
 	}
 	mapping struct {
@@ -86,7 +86,7 @@ func (p *PathRouter) Clone() Cloner {
 	return newRouter
 }
 
-func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler Handler) {
+func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler2) {
 
 	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HttpHandlersPipe{Handler: handler}}
 	p.mappings = append(p.mappings, mapping)
@@ -195,8 +195,5 @@ func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
 	panic("not implemented")
 }
 func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
-	panic("not implemented")
-}
-func (p *PathRouter) Multiplexer() *http.ServeMux {
 	panic("not implemented")
 }

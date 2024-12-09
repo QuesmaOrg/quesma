@@ -5,7 +5,6 @@ package quesma_api
 import (
 	"context"
 	"net"
-	"net/http"
 )
 
 type Router interface {
@@ -15,8 +14,7 @@ type Router interface {
 	GetFallbackHandler() HTTPFrontendHandler
 	GetHandlers() map[string]HandlersPipe
 	SetHandlers(handlers map[string]HandlersPipe)
-	Multiplexer() *http.ServeMux
-	Register(pattern string, predicate RequestMatcher, handler Handler)
+	Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler2)
 	Matches(req *Request) (*HttpHandlersPipe, *Decision)
 }
 

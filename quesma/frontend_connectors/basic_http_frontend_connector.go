@@ -85,11 +85,7 @@ func (router *HTTPRouter) Unlock() {
 	router.mutex.Unlock()
 }
 
-func (router *HTTPRouter) Multiplexer() *http.ServeMux {
-	return router.mux
-}
-
-func (router *HTTPRouter) Register(pattern string, predicate quesma_api.RequestMatcher, handler quesma_api.Handler) {
+func (router *HTTPRouter) Register(pattern string, predicate quesma_api.RequestMatcher, handler quesma_api.HTTPFrontendHandler2) {
 	panic("not implemented")
 }
 
@@ -132,7 +128,7 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 			if h.router.GetFallbackHandler() != nil {
 				fmt.Printf("No handler found for path: %s\n", req.URL.Path)
 				handler := h.router.GetFallbackHandler()
-				_, message, _ := handler(req)
+				_, message, _ := handler(context.Background(), req)
 				_, err := w.Write(message.([]byte))
 				if err != nil {
 					fmt.Printf("Error writing response: %s\n", err)
@@ -142,7 +138,7 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 		return
 	}
 	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		metadata, message, _ := handlerWrapper.Handler(req)
+		metadata, message, _ := handlerWrapper.Handler(context.Background(), req)
 
 		_, message = dispatcher.Dispatch(handlerWrapper.Processors, metadata, message)
 		_, err := w.Write(message.([]byte))

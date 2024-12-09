@@ -54,7 +54,7 @@ func Test_backendConnectorValidation(t *testing.T) {
 
 var fallbackCalled int32 = 0
 
-func fallback(request *http.Request) (map[string]interface{}, any, error) {
+func fallback(_ context.Context, request *http.Request) (map[string]interface{}, any, error) {
 	metadata := quesma_api.MakeNewMetadata()
 	atomic.AddInt32(&fallbackCalled, 1)
 	resp := []byte("unknown\n")

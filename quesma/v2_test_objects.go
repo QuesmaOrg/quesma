@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"quesma/frontend_connectors"
 	"quesma/processors"
@@ -78,7 +79,7 @@ var responses = [][]byte{
 }`),
 }
 
-func bulk(request *http.Request) (map[string]interface{}, any, error) {
+func bulk(_ context.Context, request *http.Request) (map[string]interface{}, any, error) {
 	_, err := frontend_connectors.ReadRequestBody(request)
 	if err != nil {
 		return nil, nil, err
@@ -91,7 +92,7 @@ func bulk(request *http.Request) (map[string]interface{}, any, error) {
 	return metadata, resp, nil
 }
 
-func doc(request *http.Request) (map[string]interface{}, any, error) {
+func doc(_ context.Context, request *http.Request) (map[string]interface{}, any, error) {
 	_, err := frontend_connectors.ReadRequestBody(request)
 	if err != nil {
 		return nil, nil, err
@@ -107,7 +108,7 @@ func doc(request *http.Request) (map[string]interface{}, any, error) {
 
 var correlationId int64 = 0
 
-func search(request *http.Request) (map[string]interface{}, any, error) {
+func search(_ context.Context, request *http.Request) (map[string]interface{}, any, error) {
 	metadata := quesma_api.MakeNewMetadata()
 	metadata["level"] = 0
 	atomic.AddInt64(&correlationId, 1)
