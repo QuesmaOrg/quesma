@@ -46,11 +46,11 @@ func NewElasticsearchToClickHouseIngestProcessor(conf config.QuesmaProcessorConf
 func (p *ElasticsearchToClickHouseIngestProcessor) Init() error {
 	chBackendConnector := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
 	if chBackendConnector == nil {
-		return fmt.Errorf("ClickHouse backend connector not found")
+		return fmt.Errorf("backend connector for ClickHouse not found")
 	}
 	esBackendConnector := p.GetBackendConnector(quesma_api.ElasticsearchBackend)
 	if esBackendConnector == nil {
-		return fmt.Errorf("Elasticsearch backend connector not found")
+		return fmt.Errorf("backend connector for Elasticsearch not found")
 	}
 	esBackendConnectorCasted, ok := esBackendConnector.(*backend_connectors.ElasticsearchBackendConnector) // OKAY JUST FOR NOW
 	if !ok {
