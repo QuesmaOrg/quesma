@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
 	"quesma/quesma/config"
@@ -59,7 +58,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Write(ctx context.Context, de
 	}
 
 	fmt.Printf("would send to clickhouse: [%v]\n", clickhouseDocumentsToInsert)
-	sendToClickhouse(ctx, clickhouseDocumentsToInsert, p.legacyIngestProcessor)
+	p.sendToClickhouse(ctx, clickhouseDocumentsToInsert)
 
 	return results, nil
 }
@@ -97,7 +96,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) sendToElastic(elasticRequestB
 	return nil
 }
 
-func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, ip *ingest.IngestProcessor2) {
+func (p *ElasticsearchToClickHouseIngestProcessor) sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry) {
 	for indexName, documents := range clickhouseDocumentsToInsert {
 		//phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 
@@ -106,16 +105,17 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 		//}
 		// if the index is mapped to specified database table in the configuration, use that table
 		// TODO: Index name override ignored for now
-		//if len(cfg.IndexConfig[indexName].Override) > 0 {
-		//	indexName = cfg.IndexConfig[indexName].Override
-		//}
+
+		if len(p.config.IndexConfig[indexName].Override) > 0 {
+			indexName = p.config.IndexConfig[indexName].Override
+		}
 
 		inserts := make([]types.JSON, len(documents))
 		for i, document := range documents {
 			inserts[i] = document.document
 		}
 
-		err := ip.Ingest(ctx, indexName, inserts)
+		err := p.legacyIngestProcessor.Ingest(ctx, indexName, inserts)
 
 		for _, document := range documents {
 			bulkSingleResponse := bulkmodel.BulkSingleResponse{
