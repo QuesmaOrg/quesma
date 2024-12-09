@@ -99,7 +99,7 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, util.NewSyncMapWith(testTableName, table))
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			testTableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"client_name":       {PropertyName: "client_name", InternalPropertyName: "client_name", Type: schema.QuesmaTypeObject},
@@ -119,7 +119,7 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 			},
 		},
 	}
-	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.TableName(testTableName)]}
+	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(testTableName)]}
 	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
 	expectedQuery1 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`
 	expectedQuery2 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`

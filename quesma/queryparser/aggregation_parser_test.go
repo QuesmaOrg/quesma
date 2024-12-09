@@ -710,7 +710,7 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 		{QueryMap{"script": QueryMap{"source": 1}}, nil, false},
 	}
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},

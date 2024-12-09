@@ -28,7 +28,7 @@ func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *cli
 		return nil, errors.New(errorMsg)
 	} else {
 		resolvedTableName := indices[0]
-		resolvedSchema, ok := schemaRegistry.FindSchema(schema.TableName(resolvedTableName))
+		resolvedSchema, ok := schemaRegistry.FindSchema(schema.IndexName(resolvedTableName))
 		if !ok {
 			return []byte{}, end_user_errors.ErrNoSuchSchema.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}

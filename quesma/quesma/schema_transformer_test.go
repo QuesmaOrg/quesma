@@ -396,7 +396,7 @@ func Test_ipRangeTransform(t *testing.T) {
 
 			for _, q := range queriesToTransform {
 
-				currentSchema, ok := s.FindSchema(schema.TableName(q.TableName))
+				currentSchema, ok := s.FindSchema(schema.IndexName(q.TableName))
 				if !ok {
 					t.Fatalf("schema not found for table %s", q.TableName)
 				}
@@ -602,7 +602,7 @@ func TestApplyWildCard(t *testing.T) {
 	}
 
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"test": indexSchema,
 		},
 	}

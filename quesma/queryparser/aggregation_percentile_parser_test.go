@@ -17,7 +17,7 @@ func Test_parsePercentilesAggregationWithDefaultPercents(t *testing.T) {
 		"field": "custom_name",
 	}
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -34,7 +34,7 @@ func Test_parsePercentilesAggregationWithDefaultPercents(t *testing.T) {
 			},
 		},
 	}
-	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background(), Schema: s.Tables[schema.TableName("logs-generic-default")]}
+	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background(), Schema: s.Tables[schema.IndexName("logs-generic-default")]}
 	field, _, userSpecifiedPercents := cw.parsePercentilesAggregation(payload)
 	assert.Equal(t, model.NewColumnRef("custom_name"), field)
 	assert.Equal(t, defaultPercentiles, userSpecifiedPercents)
@@ -64,7 +64,7 @@ func Test_parsePercentilesAggregationWithUserSpecifiedPercents(t *testing.T) {
 		expectedOutputMapKeys = append(expectedOutputMapKeys, k)
 	}
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -81,7 +81,7 @@ func Test_parsePercentilesAggregationWithUserSpecifiedPercents(t *testing.T) {
 			},
 		},
 	}
-	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background(), Schema: s.Tables[schema.TableName("logs-generic-default")]}
+	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background(), Schema: s.Tables[schema.IndexName("logs-generic-default")]}
 	fieldName, _, parsedMap := cw.parsePercentilesAggregation(payload)
 	assert.Equal(t, model.NewColumnRef("custom_name"), fieldName)
 

@@ -11,6 +11,7 @@ import (
 	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
+	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/util"
 	"slices"
@@ -171,6 +172,52 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (
 					}
 					return true
 				})
+		}
+	}
+
+	return util.Distinct(results), nil
+}
+
+// We should use this instead of original code
+func (lm *LogManager) ResolveIndexPatternV2(schema schema.Registry, ctx context.Context, pattern string) (results []string, err error) {
+	if err = lm.tableDiscovery.TableDefinitionsFetchError(); err != nil {
+		return nil, err
+	}
+
+	results = make([]string, 0)
+	if strings.Contains(pattern, ",") {
+		for _, pattern := range strings.Split(pattern, ",") {
+			if pattern == allElasticsearchIndicesPattern || pattern == "" {
+				for k := range schema.AllSchemas() {
+					results = append(results, k.AsString())
+				}
+				slices.Sort(results)
+				return results, nil
+			} else {
+				indexes, err := lm.ResolveIndexPatternV2(schema, ctx, pattern)
+				if err != nil {
+					return nil, err
+				}
+				results = append(results, indexes...)
+			}
+		}
+	} else {
+		if pattern == allElasticsearchIndicesPattern || len(pattern) == 0 {
+			for k := range schema.AllSchemas() {
+				results = append(results, k.AsString())
+			}
+			slices.Sort(results)
+			return results, nil
+		} else {
+			for schemaName := range schema.AllSchemas() {
+				matches, err := util.IndexPatternMatches(pattern, schemaName.AsString())
+				if err != nil {
+					logger.Error().Msgf("error matching index pattern: %v", err)
+				}
+				if matches {
+					results = append(results, schemaName.AsString())
+				}
+			}
 		}
 	}
 

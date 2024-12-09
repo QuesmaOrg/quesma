@@ -143,6 +143,7 @@ func TestIngestToCommonTable(t *testing.T) {
 			quesmaConfig := &config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
 					indexName: {
+						Name:           indexName,
 						UseCommonTable: true,
 					},
 				},

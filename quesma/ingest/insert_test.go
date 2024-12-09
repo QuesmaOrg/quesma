@@ -420,9 +420,9 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 
 			virtualTableStorage := persistence.NewStaticJSONDatabase()
 			schemaRegistry := &schema.StaticRegistry{
-				Tables: make(map[schema.TableName]schema.Schema),
+				Tables: make(map[schema.IndexName]schema.Schema),
 			}
-			schemaRegistry.Tables[schema.TableName(indexName)] = indexSchema
+			schemaRegistry.Tables[schema.IndexName(indexName)] = indexSchema
 
 			resolver := table_resolver.NewEmptyTableResolver()
 			decision := &mux.Decision{

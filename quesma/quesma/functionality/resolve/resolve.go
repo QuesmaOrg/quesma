@@ -29,7 +29,7 @@ func HandleResolve(pattern string, sr schema.Registry, cfg *config.QuesmaConfigu
 	return *sourcesToShow, nil
 }
 
-func getMatchingClickHouseTables(schemas map[schema.TableName]schema.Schema, normalizedPattern string) (tables []string) {
+func getMatchingClickHouseTables(schemas map[schema.IndexName]schema.Schema, normalizedPattern string) (tables []string) {
 	for name, currentSchema := range schemas {
 		indexName := name.AsString()
 

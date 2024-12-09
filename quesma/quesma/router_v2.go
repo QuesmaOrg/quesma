@@ -272,7 +272,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 		case "GET":
 			index := req.Params["index"]
 
-			foundSchema, found := sr.FindSchema(schema.TableName(index))
+			foundSchema, found := sr.FindSchema(schema.IndexName(index))
 			if !found {
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			}
@@ -291,7 +291,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 			}
 
 			columns := elasticsearch.ParseMappings("", body)
-			sr.UpdateDynamicConfiguration(schema.TableName(index), schema.Table{Columns: columns})
+			sr.UpdateDynamicConfiguration(schema.IndexName(index), schema.Table{Columns: columns})
 			return putIndexResult(index)
 		}
 
@@ -390,7 +390,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 		case "GET":
 			index := req.Params["index"]
 
-			foundSchema, found := sr.FindSchema(schema.TableName(index))
+			foundSchema, found := sr.FindSchema(schema.IndexName(index))
 			if !found {
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			}
@@ -420,7 +420,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 			}
 			columns := elasticsearch.ParseMappings("", mappings.(map[string]interface{}))
 
-			sr.UpdateDynamicConfiguration(schema.TableName(index), schema.Table{Columns: columns})
+			sr.UpdateDynamicConfiguration(schema.IndexName(index), schema.Table{Columns: columns})
 
 			return putIndexResult(index)
 		}
