@@ -14,22 +14,25 @@ type (
 	PathRouter struct {
 		mappings []mapping
 	}
-	HttpHandlersPipe struct {
-		Handler    Handler
-		Processors []Processor
-	}
 	mapping struct {
 		pattern      string
 		compiledPath urlpath.Path
 		predicate    RequestMatcher
-		handler      *HttpHandlersPipe
+		handler      *HandlersPipe
 	}
+	// Result is a kind of adapter for response
+	// to uniform v1 routing
+	// GenericResult is generic result that can be used by processors
 	Result struct {
-		Body       string
-		Meta       map[string]string
-		StatusCode int
+		Body          string
+		Meta          map[string]any
+		StatusCode    int
+		GenericResult any
 	}
 
+	// Request is kind of adapter for http.Request
+	// to uniform v1 routing
+	// it stores original http request
 	Request struct {
 		Method string
 		Path   string
@@ -40,6 +43,8 @@ type (
 
 		Body       string
 		ParsedBody RequestBody
+		// OriginalRequest is the original http.Request object that was received by the server.
+		OriginalRequest *http.Request
 	}
 
 	MatchResult struct {
@@ -56,14 +61,14 @@ type RequestMatcherFunc func(req *Request) MatchResult
 func ServerErrorResult() *Result {
 	return &Result{
 		StatusCode: http.StatusInternalServerError,
-		Meta:       map[string]string{"Content-Type": "text/plain"},
+		Meta:       map[string]any{"Content-Type": "text/plain"},
 	}
 }
 
 func BadReqeustResult() *Result {
 	return &Result{
 		StatusCode: http.StatusBadRequest,
-		Meta:       map[string]string{"Content-Type": "text/plain"},
+		Meta:       map[string]any{"Content-Type": "text/plain"},
 	}
 }
 
@@ -86,14 +91,14 @@ func (p *PathRouter) Clone() Cloner {
 	return newRouter
 }
 
-func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler Handler) {
+func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler) {
 
-	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HttpHandlersPipe{Handler: handler}}
+	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HandlersPipe{Handler: handler}}
 	p.mappings = append(p.mappings, mapping)
 
 }
 
-func (p *PathRouter) Matches(req *Request) (*HttpHandlersPipe, *Decision) {
+func (p *PathRouter) Matches(req *Request) (*HandlersPipe, *Decision) {
 	handler, decision := p.findHandler(req)
 	if handler != nil {
 		routerStatistics.addMatched(req.Path)
@@ -104,7 +109,7 @@ func (p *PathRouter) Matches(req *Request) (*HttpHandlersPipe, *Decision) {
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (*HttpHandlersPipe, *Decision) {
+func (p *PathRouter) findHandler(req *Request) (*HandlersPipe, *Decision) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)
@@ -192,11 +197,14 @@ func (p *PathRouter) GetFallbackHandler() HTTPFrontendHandler {
 	panic("not implemented")
 }
 func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
-	panic("not implemented")
+	callInfos := make(map[string]HandlersPipe)
+	for _, v := range p.mappings {
+		callInfos[v.pattern] = *v.handler
+	}
+	return callInfos
 }
 func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
-	panic("not implemented")
-}
-func (p *PathRouter) Multiplexer() *http.ServeMux {
-	panic("not implemented")
+	for path, handler := range handlers {
+		p.mappings = append(p.mappings, mapping{pattern: path, compiledPath: urlpath.New(path), handler: &handler})
+	}
 }
