@@ -35,6 +35,9 @@ func (c IndexConfiguration) TableName() string {
 	if len(c.Override) > 0 {
 		return c.Override
 	}
+	if len(c.Name) == 0 {
+		panic("IndexConfiguration.Name is empty")
+	}
 	return c.Name
 }
 
