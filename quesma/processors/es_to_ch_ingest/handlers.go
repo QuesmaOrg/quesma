@@ -127,8 +127,8 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 		//}
 		// if the index is mapped to specified database table in the configuration, use that table
 		// TODO: Index name override ignored for now
-		//if len(cfg.IndexConfig[indexName].Override) > 0 {
-		//	indexName = cfg.IndexConfig[indexName].Override
+		//if len(cfg.IndexConfig[indexName].override) > 0 {
+		//	indexName = cfg.IndexConfig[indexName].override
 		//}
 
 		inserts := make([]types.JSON, len(documents))
