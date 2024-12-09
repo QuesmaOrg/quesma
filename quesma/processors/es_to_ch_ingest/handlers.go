@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"quesma/backend_connectors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
@@ -20,21 +19,21 @@ import (
 )
 
 // handleDocIndex assembles the payload into bulk format to reusing existing logic of bulk ingest
-func handleDocIndex(payload types.JSON, targetTableName string, temporaryIngestProcessor *ingest.IngestProcessor2, indexConfig config.QuesmaProcessorConfig) (bulkmodel.BulkItem, error) {
+func (p *ElasticsearchToClickHouseIngestProcessor) handleDocIndex(payload types.JSON, targetTableName string) (bulkmodel.BulkItem, error) {
 	newPayload := []types.JSON{
 		map[string]interface{}{"index": map[string]interface{}{"_index": targetTableName}},
 		payload,
 	}
 
-	if results, err := Write(context.Background(), &targetTableName, newPayload, temporaryIngestProcessor, nil, indexConfig); err != nil {
+	if results, err := p.Write(context.Background(), &targetTableName, newPayload); err != nil {
 		return bulkmodel.BulkItem{}, err
 	} else {
 		return results[0], nil
 	}
 }
 
-func handleBulkIndex(payload types.NDJSON, targetTableName string, temporaryIngestProcessor *ingest.IngestProcessor2, es *backend_connectors.ElasticsearchBackendConnector, cfg config.QuesmaProcessorConfig) ([]bulkmodel.BulkItem, error) {
-	results, err := Write(context.Background(), &targetTableName, payload, temporaryIngestProcessor, es, cfg)
+func (p *ElasticsearchToClickHouseIngestProcessor) handleBulkIndex(payload types.NDJSON, targetTableName string) ([]bulkmodel.BulkItem, error) {
+	results, err := p.Write(context.Background(), &targetTableName, payload)
 	if err != nil {
 		fmt.Printf("failed writing: %v", err)
 		return []bulkmodel.BulkItem{}, err
@@ -42,55 +41,35 @@ func handleBulkIndex(payload types.NDJSON, targetTableName string, temporaryInge
 	return results, nil
 }
 
-func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor2, es *backend_connectors.ElasticsearchBackendConnector, conf config.QuesmaProcessorConfig) (results []bulkmodel.BulkItem, err error) {
+func (p *ElasticsearchToClickHouseIngestProcessor) Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON) (results []bulkmodel.BulkItem, err error) {
 	defer recovery.LogPanic()
 
 	bulkSize := len(bulk) / 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
 	// The returned results should be in the same order as the input request, however splitting the bulk might change the order.
 	// Therefore, each BulkRequestEntry has a corresponding pointer to the result entry, allowing us to freely split and reshuffle the bulk.
-	results, clickhouseDocumentsToInsert, elasticRequestBody, elasticBulkEntries, err := splitBulk(ctx, defaultIndex, bulk, bulkSize, conf)
+	results, clickhouseDocumentsToInsert, elasticRequestBody, elasticBulkEntries, err := splitBulk(ctx, defaultIndex, bulk, bulkSize, p.config)
 	if err != nil {
 		return []bulkmodel.BulkItem{}, err
 	}
 
-	// we fail if there are some documents to insert into Clickhouse but ingest processor is not available
-	//if len(clickhouseDocumentsToInsert) > 0 && ip == nil {
-	//
-	//	indexes := make(map[string]struct{})
-	//	for index := range clickhouseDocumentsToInsert {
-	//		indexes[index] = struct{}{}
-	//	}
-	//
-	//	indexesAsList := make([]string, 0, len(indexes))
-	//	for index := range indexes {
-	//		indexesAsList = append(indexesAsList, index)
-	//	}
-	//	sort.Strings(indexesAsList)
-	//
-	//	return []BulkItem{}, end_user_errors.ErrNoIngest.New(fmt.Errorf("ingest processor is not available, but documents are targeted to Clickhouse indexes: %s", strings.Join(indexesAsList, ",")))
-	//}
-
-	// No place for that here
-	err = sendToElastic(elasticRequestBody, elasticBulkEntries, es)
+	err = p.sendToElastic(elasticRequestBody, elasticBulkEntries)
 	if err != nil {
 		return []bulkmodel.BulkItem{}, err
 	}
 
-	//if ip != nil {
-	fmt.Printf("woudl send to clickhouse: [%v]", clickhouseDocumentsToInsert)
-	sendToClickhouse(ctx, clickhouseDocumentsToInsert, ip)
-	//}
+	fmt.Printf("would send to clickhouse: [%v]\n", clickhouseDocumentsToInsert)
+	sendToClickhouse(ctx, clickhouseDocumentsToInsert, p.legacyIngestProcessor)
 
 	return results, nil
 }
 
-func sendToElastic(elasticRequestBody []byte, elasticBulkEntries []BulkRequestEntry, es *backend_connectors.ElasticsearchBackendConnector) error {
+func (p *ElasticsearchToClickHouseIngestProcessor) sendToElastic(elasticRequestBody []byte, elasticBulkEntries []BulkRequestEntry) error {
 	if len(elasticRequestBody) == 0 {
 		return nil
 	}
 
-	response, err := es.RequestWithHeaders(context.Background(), "POST", "/_bulk", elasticRequestBody, http.Header{"Content-Type": {"application/x-ndjson"}})
+	response, err := p.legacyIngestProcessor.RequestToElasticsearch(context.Background(), "POST", "/_bulk", elasticRequestBody, http.Header{"Content-Type": {"application/x-ndjson"}})
 	if err != nil {
 		return err
 	}

@@ -10,7 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
-	"net/url"
 	"quesma/backend_connectors"
 	"quesma/clickhouse"
 	"quesma/common_table"
@@ -49,7 +48,16 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Init() error {
 	if chBackendConnector == nil {
 		return fmt.Errorf("ClickHouse backend connector not found")
 	}
-	p.legacyIngestProcessor = p.prepareTemporaryIngestProcessor(chBackendConnector)
+	esBackendConnector := p.GetBackendConnector(quesma_api.ElasticsearchBackend)
+	if esBackendConnector == nil {
+		return fmt.Errorf("Elasticsearch backend connector not found")
+	}
+	esBackendConnectorCasted, ok := esBackendConnector.(*backend_connectors.ElasticsearchBackendConnector) // OKAY JUST FOR NOW
+	if !ok {
+		return fmt.Errorf("failed to cast Elasticsearch backend connector")
+	}
+
+	p.legacyIngestProcessor = p.prepareTemporaryIngestProcessor(chBackendConnector, *esBackendConnectorCasted)
 
 	return nil
 }
@@ -60,48 +68,30 @@ func (p *ElasticsearchToClickHouseIngestProcessor) GetId() string {
 
 // prepareTemporaryIngestProcessor creates a temporary ingest processor which is a new version of the ingest processor,
 // which uses `quesma_api.BackendConnector` instead of `*sql.DB` for the database connection.
-func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(connector quesma_api.BackendConnector) *ingest.IngestProcessor2 {
-	u, _ := url.Parse("http://localhost:9200")
+func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(chBackendConn quesma_api.BackendConnector, esBackendConn backend_connectors.ElasticsearchBackendConnector) *ingest.IngestProcessor2 {
 
-	elasticsearchConfig := config.ElasticsearchConfiguration{
-		Url: (*config.Url)(u),
-	}
+	elasticsearchConfig := esBackendConn.GetConfig()
+
 	oldQuesmaConfig := &config.QuesmaConfiguration{
 		IndexConfig: p.config.IndexConfig,
 	}
 
 	virtualTableStorage := persistence.NewElasticJSONDatabase(elasticsearchConfig, common_table.VirtualTableElasticIndexName)
-	tableDisco := clickhouse.NewTableDiscovery2(oldQuesmaConfig, connector, virtualTableStorage)
+	tableDisco := clickhouse.NewTableDiscovery2(oldQuesmaConfig, chBackendConn, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
 
 	v2TableResolver := NewNextGenTableResolver()
 
-	ip := ingest.NewIngestProcessor2(oldQuesmaConfig, connector, nil, tableDisco, schemaRegistry, virtualTableStorage, v2TableResolver)
+	ip := ingest.NewIngestProcessor2(oldQuesmaConfig, chBackendConn, nil, tableDisco, schemaRegistry, virtualTableStorage, v2TableResolver)
 	ip.Start()
 	return ip
 }
 
 func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
 	var data []byte
-	var chBackend, esBackend quesma_api.BackendConnector
 	indexNameFromIncomingReq := metadata[IngestTargetKey].(string)
 	if indexNameFromIncomingReq == "" {
 		panic("NO INDEX NAME?!?!?")
-	}
-
-	if chBackend = p.GetBackendConnector(quesma_api.ClickHouseSQLBackend); chBackend == nil {
-		fmt.Println("Backend connector not found")
-		return metadata, data, nil
-	}
-
-	esBackend = p.GetBackendConnector(quesma_api.ElasticsearchBackend)
-	if esBackend == nil {
-		fmt.Println("Backend connector not found")
-		return metadata, data, nil
-	}
-	es, ok := esBackend.(*backend_connectors.ElasticsearchBackendConnector) // OKAY JUST FOR NOW
-	if !ok {
-		panic(" !!! ")
 	}
 
 	for _, m := range message {
@@ -112,7 +102,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 
 		if _, present := p.config.IndexConfig[indexNameFromIncomingReq]; !present && metadata[IngestAction] == DocIndexAction {
 			// route to Elasticsearch, `bulk` request might be sent to ClickHouse depending on the request payload
-			resp := es.Send(messageAsHttpReq)
+			resp := p.legacyIngestProcessor.SendToElasticsearch(messageAsHttpReq)
 			respBody, err := ReadResponseBody(resp)
 			if err != nil {
 				println(err)
@@ -131,7 +121,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			result, err := handleDocIndex(payloadJson, indexNameFromIncomingReq, p.legacyIngestProcessor, p.config)
+			result, err := p.handleDocIndex(payloadJson, indexNameFromIncomingReq)
 			if err != nil {
 				println(err)
 			}
@@ -143,7 +133,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			results, err := handleBulkIndex(payloadNDJson, indexNameFromIncomingReq, p.legacyIngestProcessor, es, p.config)
+			results, err := p.handleBulkIndex(payloadNDJson, indexNameFromIncomingReq)
 			if err != nil {
 				println(err)
 			}
