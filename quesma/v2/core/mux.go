@@ -25,9 +25,10 @@ type (
 		handler      *HttpHandlersPipe
 	}
 	Result struct {
-		Body       string
-		Meta       map[string]any
-		StatusCode int
+		Body          string
+		Meta          map[string]any
+		StatusCode    int
+		GenericResult any
 	}
 
 	Request struct {

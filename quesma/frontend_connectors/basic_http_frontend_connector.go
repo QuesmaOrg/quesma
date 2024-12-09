@@ -128,8 +128,8 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 			if h.router.GetFallbackHandler() != nil {
 				fmt.Printf("No handler found for path: %s\n", req.URL.Path)
 				handler := h.router.GetFallbackHandler()
-				_, message, _ := handler(context.Background(), req)
-				_, err := w.Write(message.([]byte))
+				result, _ := handler(context.Background(), req)
+				_, err := w.Write(result.GenericResult.([]byte))
 				if err != nil {
 					fmt.Printf("Error writing response: %s\n", err)
 				}
@@ -138,9 +138,9 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 		return
 	}
 	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		metadata, message, _ := handlerWrapper.Handler(context.Background(), req)
+		result, _ := handlerWrapper.Handler(context.Background(), req)
 
-		_, message = dispatcher.Dispatch(handlerWrapper.Processors, metadata, message)
+		_, message := dispatcher.Dispatch(handlerWrapper.Processors, result.Meta, result.GenericResult)
 		_, err := w.Write(message.([]byte))
 		if err != nil {
 			fmt.Printf("Error writing response: %s\n", err)
