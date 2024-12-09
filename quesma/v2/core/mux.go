@@ -26,7 +26,7 @@ type (
 	}
 	Result struct {
 		Body       string
-		Meta       map[string]string
+		Meta       map[string]any
 		StatusCode int
 	}
 
@@ -56,14 +56,14 @@ type RequestMatcherFunc func(req *Request) MatchResult
 func ServerErrorResult() *Result {
 	return &Result{
 		StatusCode: http.StatusInternalServerError,
-		Meta:       map[string]string{"Content-Type": "text/plain"},
+		Meta:       map[string]any{"Content-Type": "text/plain"},
 	}
 }
 
 func BadReqeustResult() *Result {
 	return &Result{
 		StatusCode: http.StatusBadRequest,
-		Meta:       map[string]string{"Content-Type": "text/plain"},
+		Meta:       map[string]any{"Content-Type": "text/plain"},
 	}
 }
 
