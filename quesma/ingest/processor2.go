@@ -107,10 +107,6 @@ func (ip *IngestProcessor2) Close() {
 //	return count, nil
 //}
 
-func (ip *IngestProcessor2) GetElasticsearchBackendConnector() backend_connectors.ElasticsearchBackendConnector {
-	return ip.es
-}
-
 func (ip *IngestProcessor2) SendToElasticsearch(req *http.Request) *http.Response {
 	return ip.es.Send(req)
 }
