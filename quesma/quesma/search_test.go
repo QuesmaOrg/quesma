@@ -28,7 +28,14 @@ const defaultAsyncSearchTimeout = 1000
 
 const tableName = model.SingleTableNamePlaceHolder
 
-var DefaultConfig = config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget}}}}
+var DefaultConfig = config.QuesmaConfiguration{
+	IndexConfig: map[string]config.IndexConfiguration{
+		tableName: {
+			Name:        tableName,
+			QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget},
+		},
+	},
+}
 
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
 

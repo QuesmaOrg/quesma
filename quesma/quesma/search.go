@@ -369,7 +369,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	if len(resolvedIndexes) == 1 {
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
-		resolvedTableName := indexName
+		resolvedTableName := q.cfg.IndexConfig[indexName].TableName()
 
 		if len(q.cfg.IndexConfig[indexName].Override) > 0 {
 			resolvedTableName = q.cfg.IndexConfig[indexName].Override

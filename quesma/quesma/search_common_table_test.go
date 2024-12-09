@@ -165,14 +165,17 @@ func TestSearchCommonTable(t *testing.T) {
 	quesmaConfig := &config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
 			"logs-1": {
+				Name:           "logs-1",
 				UseCommonTable: true,
 				QueryTarget:    []string{config.ClickhouseTarget},
 			},
 			"logs-2": {
+				Name:           "logs-2",
 				UseCommonTable: true,
 				QueryTarget:    []string{config.ClickhouseTarget},
 			},
 			"logs-3": {
+				Name:           "logs-3",
 				UseCommonTable: false,
 				QueryTarget:    []string{config.ClickhouseTarget},
 			},
