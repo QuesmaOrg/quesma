@@ -16,7 +16,7 @@ const (
 type IndexConfiguration struct {
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
-	override        string                            `koanf:"tableName"` // use method TableName()
+	Override        string                            `koanf:"tableName"` // use method TableName()
 	UseCommonTable  bool                              `koanf:"useCommonTable"`
 	Target          any                               `koanf:"target"`
 
@@ -32,8 +32,8 @@ type OptimizerConfiguration struct {
 }
 
 func (c IndexConfiguration) TableName() string {
-	if len(c.override) > 0 {
-		return c.override
+	if len(c.Override) > 0 {
+		return c.Override
 	}
 	if len(c.Name) == 0 {
 		panic("IndexConfiguration.Name is empty")
@@ -57,9 +57,9 @@ func (c IndexConfiguration) String() string {
 	} else {
 		builder.WriteString("\n\t\t\t")
 	}
-	if len(c.override) > 0 {
-		builder.WriteString(", override: ")
-		builder.WriteString(c.override)
+	if len(c.Override) > 0 {
+		builder.WriteString(", Override: ")
+		builder.WriteString(c.Override)
 	}
 	if c.UseCommonTable {
 		builder.WriteString(", useSingleTable: true")

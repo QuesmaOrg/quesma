@@ -316,8 +316,8 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 					// Only defined in query processor
 					continue
 				}
-				if queryIndexConf.override != ingestIndexConf.override {
-					return fmt.Errorf("ingest and query processors must have the same configuration of 'override' for index '%s' due to current limitations", indexName)
+				if queryIndexConf.Override != ingestIndexConf.Override {
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'Override' for index '%s' due to current limitations", indexName)
 				}
 				if queryIndexConf.UseCommonTable != ingestIndexConf.UseCommonTable {
 					return fmt.Errorf("ingest and query processors must have the same configuration of 'useCommonTable' for index '%s' due to current limitations", indexName)
@@ -614,7 +614,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 						processedConfig.UseCommonTable = queryProcessor.Config.UseCommonTable
 					}
 					if val, exists := target.properties["tableName"]; exists {
-						processedConfig.override = val.(string)
+						processedConfig.Override = val.(string)
 					}
 
 				}
@@ -755,7 +755,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					processedConfig.UseCommonTable = queryProcessor.Config.UseCommonTable
 				}
 				if val, exists := target.properties["tableName"]; exists {
-					processedConfig.override = val.(string)
+					processedConfig.Override = val.(string)
 				}
 			}
 			if len(processedConfig.QueryTarget) == 2 && !((processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) ||
@@ -807,7 +807,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					processedConfig.UseCommonTable = ingestProcessor.Config.UseCommonTable
 				}
 				if val, exists := target.properties["tableName"]; exists {
-					processedConfig.override = val.(string)
+					processedConfig.Override = val.(string)
 				}
 			}
 			conf.IndexConfig[indexName] = processedConfig
