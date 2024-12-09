@@ -33,7 +33,7 @@ import (
 	"time"
 )
 
-func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, ip *ingest.IngestProcessor, phoneHomeAgent telemetry.PhoneHomeAgent, tableResolver table_resolver.TableResolver) *quesma_api.PathRouter {
+func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, ip *ingest.IngestProcessor, phoneHomeAgent telemetry.PhoneHomeAgent, tableResolver table_resolver.TableResolver) quesma_api.Router {
 	// some syntactic sugar
 	method := quesma_api.IsHTTPMethod
 	and := quesma_api.And
@@ -127,7 +127,7 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, ip *ingest.IngestP
 	return router
 }
 
-func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) *quesma_api.PathRouter {
+func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) quesma_api.Router {
 
 	// some syntactic sugar
 	method := quesma_api.IsHTTPMethod

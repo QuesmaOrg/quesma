@@ -89,6 +89,14 @@ func (router *HTTPRouter) Multiplexer() *http.ServeMux {
 	return router.mux
 }
 
+func (router *HTTPRouter) Register(pattern string, predicate quesma_api.RequestMatcher, handler quesma_api.Handler) {
+	panic("not implemented")
+}
+
+func (router *HTTPRouter) Matches(req *quesma_api.Request) (*quesma_api.HttpHandlersPipe, *quesma_api.Decision) {
+	panic("not implemented")
+}
+
 type BasicHTTPFrontendConnector struct {
 	listener *http.Server
 	router   quesma_api.Router
@@ -161,6 +169,7 @@ func (h *BasicHTTPFrontendConnector) Listen() error {
 	h.listener.Handler = h
 	go func() {
 		err := h.listener.ListenAndServe()
+		// TODO: Handle error
 		_ = err
 	}()
 

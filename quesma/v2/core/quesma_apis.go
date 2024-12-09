@@ -16,6 +16,8 @@ type Router interface {
 	GetHandlers() map[string]HandlersPipe
 	SetHandlers(handlers map[string]HandlersPipe)
 	Multiplexer() *http.ServeMux
+	Register(pattern string, predicate RequestMatcher, handler Handler)
+	Matches(req *Request) (*HttpHandlersPipe, *Decision)
 }
 
 type FrontendConnector interface {
