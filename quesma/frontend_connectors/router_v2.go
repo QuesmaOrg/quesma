@@ -223,7 +223,7 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
-	var handler quesma_api.HTTPFrontendHandler2
+	var handler quesma_api.HTTPFrontendHandler
 	var decision *quesma_api.Decision
 	searchHandlerPipe, searchDecision := searchRouter.Matches(quesmaRequest)
 	if searchDecision != nil {

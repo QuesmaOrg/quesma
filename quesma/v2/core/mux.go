@@ -15,7 +15,7 @@ type (
 		mappings []mapping
 	}
 	HttpHandlersPipe struct {
-		Handler    HTTPFrontendHandler2
+		Handler    HTTPFrontendHandler
 		Processors []Processor
 	}
 	mapping struct {
@@ -24,6 +24,9 @@ type (
 		predicate    RequestMatcher
 		handler      *HttpHandlersPipe
 	}
+	// Result is a kind of adapter for response
+	// to uniform v1 routing
+	// GenericResult is generic result that can be used by processors
 	Result struct {
 		Body          string
 		Meta          map[string]any
@@ -31,6 +34,9 @@ type (
 		GenericResult any
 	}
 
+	// Request is kind of adapter for http.Request
+	// to uniform v1 routing
+	// it stores original http request
 	Request struct {
 		Method string
 		Path   string
@@ -39,8 +45,9 @@ type (
 		Headers     http.Header
 		QueryParams url.Values
 
-		Body            string
-		ParsedBody      RequestBody
+		Body       string
+		ParsedBody RequestBody
+		// OriginalRequest is the original http.Request object that was received by the server.
 		OriginalRequest *http.Request
 	}
 
@@ -88,7 +95,7 @@ func (p *PathRouter) Clone() Cloner {
 	return newRouter
 }
 
-func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler2) {
+func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler) {
 
 	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HttpHandlersPipe{Handler: handler}}
 	p.mappings = append(p.mappings, mapping)

@@ -85,7 +85,7 @@ func (router *HTTPRouter) Unlock() {
 	router.mutex.Unlock()
 }
 
-func (router *HTTPRouter) Register(pattern string, predicate quesma_api.RequestMatcher, handler quesma_api.HTTPFrontendHandler2) {
+func (router *HTTPRouter) Register(pattern string, predicate quesma_api.RequestMatcher, handler quesma_api.HTTPFrontendHandler) {
 	panic("not implemented")
 }
 
