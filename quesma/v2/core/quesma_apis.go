@@ -15,7 +15,7 @@ type Router interface {
 	GetHandlers() map[string]HandlersPipe
 	SetHandlers(handlers map[string]HandlersPipe)
 	Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler)
-	Matches(req *Request) (*HttpHandlersPipe, *Decision)
+	Matches(req *Request) (*HandlersPipe, *Decision)
 }
 
 type FrontendConnector interface {

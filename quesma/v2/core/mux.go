@@ -14,15 +14,11 @@ type (
 	PathRouter struct {
 		mappings []mapping
 	}
-	HttpHandlersPipe struct {
-		Handler    HTTPFrontendHandler
-		Processors []Processor
-	}
 	mapping struct {
 		pattern      string
 		compiledPath urlpath.Path
 		predicate    RequestMatcher
-		handler      *HttpHandlersPipe
+		handler      *HandlersPipe
 	}
 	// Result is a kind of adapter for response
 	// to uniform v1 routing
@@ -97,12 +93,12 @@ func (p *PathRouter) Clone() Cloner {
 
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler) {
 
-	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HttpHandlersPipe{Handler: handler}}
+	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HandlersPipe{Handler: handler}}
 	p.mappings = append(p.mappings, mapping)
 
 }
 
-func (p *PathRouter) Matches(req *Request) (*HttpHandlersPipe, *Decision) {
+func (p *PathRouter) Matches(req *Request) (*HandlersPipe, *Decision) {
 	handler, decision := p.findHandler(req)
 	if handler != nil {
 		routerStatistics.addMatched(req.Path)
@@ -113,7 +109,7 @@ func (p *PathRouter) Matches(req *Request) (*HttpHandlersPipe, *Decision) {
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (*HttpHandlersPipe, *Decision) {
+func (p *PathRouter) findHandler(req *Request) (*HandlersPipe, *Decision) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)

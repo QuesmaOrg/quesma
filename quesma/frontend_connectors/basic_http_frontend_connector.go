@@ -89,7 +89,7 @@ func (router *HTTPRouter) Register(pattern string, predicate quesma_api.RequestM
 	panic("not implemented")
 }
 
-func (router *HTTPRouter) Matches(req *quesma_api.Request) (*quesma_api.HttpHandlersPipe, *quesma_api.Decision) {
+func (router *HTTPRouter) Matches(req *quesma_api.Request) (*quesma_api.HandlersPipe, *quesma_api.Decision) {
 	panic("not implemented")
 }
 
