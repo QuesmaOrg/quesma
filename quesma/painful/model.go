@@ -6,6 +6,7 @@ package painful
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 )
 
@@ -203,6 +204,25 @@ func (m *MethodCallExpr) Eval(env *Env) (any, error) {
 	}
 }
 
+type UrlEncodeExpr struct {
+	Expr Expr
+}
+
+func (u *UrlEncodeExpr) Eval(env *Env) (any, error) {
+	val, err := u.Expr.Eval(env)
+	if err != nil {
+		return nil, err
+	}
+
+	str, err2 := ExpectString(val)
+
+	if err2 != nil {
+		return nil, err2
+	}
+
+	return url.QueryEscape(str), nil
+}
+
 func ExpectExpr(potentialExpr any) (Expr, error) {
 
 	switch expr := potentialExpr.(type) {
@@ -234,6 +254,7 @@ func ExpectDate(potentialExpr any) (time.Time, error) {
 		formats := []string{
 			"Jan 2, 2006 @ 15:04:05.000 -0700 MST", // this format in example provided by Kibana\
 			"2006-01-02 15:04:05.000 -0700 MST",    // clickhouse format
+			"2006-01-02 15:04:05 -0700 MST",        // early adopter format
 			time.Layout,
 			time.ANSIC,
 			time.UnixDate,

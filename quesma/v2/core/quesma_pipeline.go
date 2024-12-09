@@ -35,6 +35,13 @@ func (p *Pipeline) Build() PipelineBuilder {
 }
 
 func (p *Pipeline) Start() {
+	// TODO connectors for the same endpoint should be sharing the same listener
+	// This is a temporary solution to start all connectors
+	// some of them will fail to start
+	// because the port is already in use
+	// This works well from application perspective
+	// because we are copying routing table from all connectors
+	// however, bind error remains
 	for _, conn := range p.FrontendConnectors {
 		go conn.Listen()
 	}

@@ -3,7 +3,6 @@
 package quesma_api
 
 import (
-	"context"
 	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
@@ -15,12 +14,15 @@ type (
 	PathRouter struct {
 		mappings []mapping
 	}
+	HttpHandlersPipe struct {
+		Handler    Handler
+		Processors []Processor
+	}
 	mapping struct {
 		pattern      string
 		compiledPath urlpath.Path
 		predicate    RequestMatcher
-		handler      Handler
-		processors   []Processor
+		handler      *HttpHandlersPipe
 	}
 	Result struct {
 		Body       string
@@ -39,8 +41,6 @@ type (
 		Body       string
 		ParsedBody RequestBody
 	}
-
-	Handler func(ctx context.Context, req *Request) (*Result, error)
 
 	MatchResult struct {
 		Matched  bool
@@ -78,14 +78,22 @@ func NewPathRouter() *PathRouter {
 	return &PathRouter{mappings: make([]mapping, 0)}
 }
 
+func (p *PathRouter) Clone() Cloner {
+	newRouter := NewPathRouter()
+	for _, mapping := range p.mappings {
+		newRouter.Register(mapping.pattern, mapping.predicate, mapping.handler.Handler)
+	}
+	return newRouter
+}
+
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler Handler) {
 
-	mapping := mapping{pattern, urlpath.New(pattern), predicate, handler, nil}
+	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HttpHandlersPipe{Handler: handler}}
 	p.mappings = append(p.mappings, mapping)
 
 }
 
-func (p *PathRouter) Matches(req *Request) (Handler, *Decision) {
+func (p *PathRouter) Matches(req *Request) (*HttpHandlersPipe, *Decision) {
 	handler, decision := p.findHandler(req)
 	if handler != nil {
 		routerStatistics.addMatched(req.Path)
@@ -96,7 +104,7 @@ func (p *PathRouter) Matches(req *Request) (Handler, *Decision) {
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (Handler, *Decision) {
+func (p *PathRouter) findHandler(req *Request) (*HttpHandlersPipe, *Decision) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)
@@ -170,4 +178,25 @@ func (p *predicateAlways) Matches(req *Request) MatchResult {
 
 func Always() RequestMatcher {
 	return &predicateAlways{}
+}
+
+func (p *PathRouter) AddRoute(path string, handler HTTPFrontendHandler) {
+	// TODO: it seems that we can adapt this to register call
+	// p.Register(path, Always(), handler)
+	panic("not implemented")
+}
+func (p *PathRouter) AddFallbackHandler(handler HTTPFrontendHandler) {
+	panic("not implemented")
+}
+func (p *PathRouter) GetFallbackHandler() HTTPFrontendHandler {
+	panic("not implemented")
+}
+func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
+	panic("not implemented")
+}
+func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
+	panic("not implemented")
+}
+func (p *PathRouter) Multiplexer() *http.ServeMux {
+	panic("not implemented")
 }

@@ -16,6 +16,8 @@ type Router interface {
 	GetHandlers() map[string]HandlersPipe
 	SetHandlers(handlers map[string]HandlersPipe)
 	Multiplexer() *http.ServeMux
+	Register(pattern string, predicate RequestMatcher, handler Handler)
+	Matches(req *Request) (*HttpHandlersPipe, *Decision)
 }
 
 type FrontendConnector interface {
@@ -71,6 +73,7 @@ type Processor interface {
 	SetBackendConnectors(conns map[BackendConnectorType]BackendConnector)
 	GetBackendConnector(connectorType BackendConnectorType) BackendConnector
 	GetSupportedBackendConnectors() []BackendConnectorType
+	Init() error
 }
 
 type Rows interface {

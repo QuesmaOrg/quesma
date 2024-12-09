@@ -308,7 +308,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
 
-	handler, decision := router.Matches(quesmaRequest)
+	handlersPipe, decision := router.Matches(quesmaRequest)
 
 	if decision != nil {
 		w.Header().Set(frontend_connectors.QuesmaTableResolverHeader, decision.String())
@@ -316,9 +316,9 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		w.Header().Set(frontend_connectors.QuesmaTableResolverHeader, "n/a")
 	}
 
-	if handler != nil {
+	if handlersPipe != nil {
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*quesma_api.Result, error) {
-			return handler(ctx, quesmaRequest)
+			return handlersPipe.Handler(ctx, quesmaRequest)
 		})
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
