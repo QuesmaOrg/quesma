@@ -70,13 +70,11 @@ func (p *ElasticsearchToClickHouseIngestProcessor) GetId() string {
 // which uses `quesma_api.BackendConnector` instead of `*sql.DB` for the database connection.
 func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(chBackendConn quesma_api.BackendConnector, esBackendConn backend_connectors.ElasticsearchBackendConnector) *ingest.IngestProcessor2 {
 
-	elasticsearchConfig := esBackendConn.GetConfig()
-
 	oldQuesmaConfig := &config.QuesmaConfiguration{
 		IndexConfig: p.config.IndexConfig,
 	}
 
-	virtualTableStorage := persistence.NewElasticJSONDatabase(elasticsearchConfig, common_table.VirtualTableElasticIndexName)
+	virtualTableStorage := persistence.NewElasticJSONDatabase(esBackendConn.GetConfig(), common_table.VirtualTableElasticIndexName)
 	tableDisco := clickhouse.NewTableDiscovery2(oldQuesmaConfig, chBackendConn, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
 
