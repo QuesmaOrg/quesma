@@ -724,6 +724,50 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema s
 
 }
 
+func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	aggFunctionPrefixes := []string{"sum", "avg"}
+
+	dbTypes := []string{"DateTime"}
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
+
+		fnName := strings.ToLower(e.Name)
+
+		for _, prefix := range aggFunctionPrefixes {
+
+			if strings.HasPrefix(fnName, prefix) {
+				if len(e.Args) > 1 {
+					if columnRef, ok := e.Args[0].(model.ColumnRef); ok {
+						if col, ok := indexSchema.ResolveFieldByInternalName(columnRef.ColumnName); ok {
+							for _, dbType := range dbTypes {
+								if strings.HasPrefix(col.InternalPropertyType, dbType) {
+									logger.Warn().Msgf("Aggregation '%s' over unsupported type %s in column %s", e.Name, dbType, col.InternalPropertyName.AsString())
+									args := b.VisitChildren(e.Args)
+									args[1] = model.NewLiteral("NULL")
+									return model.NewFunction(e.Name, args...)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 
 	transformationChain := []struct {
@@ -752,6 +796,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
 		{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
+		{TransformationName: "AggOverUnsupportedType", Transformation: s.checkAggOverUnsupportedType},
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
