@@ -728,25 +728,24 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 
 	aggFunctionPrefixes := []string{"sum", "avg"}
 
-	dbTypes := []string{"DateTime"}
+	dbTypePrefixes := []string{"DateTime", "String", "LowCardinality(String)"}
 
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
 
-		fnName := strings.ToLower(e.Name)
+		currentFunctionName := strings.ToLower(e.Name)
 
-		for _, prefix := range aggFunctionPrefixes {
-
-			if strings.HasPrefix(fnName, prefix) {
-				if len(e.Args) > 1 {
+		for _, aggPrefix := range aggFunctionPrefixes {
+			if strings.HasPrefix(currentFunctionName, aggPrefix) {
+				if len(e.Args) > 0 {
 					if columnRef, ok := e.Args[0].(model.ColumnRef); ok {
 						if col, ok := indexSchema.ResolveFieldByInternalName(columnRef.ColumnName); ok {
-							for _, dbType := range dbTypes {
-								if strings.HasPrefix(col.InternalPropertyType, dbType) {
-									logger.Warn().Msgf("Aggregation '%s' over unsupported type %s in column %s", e.Name, dbType, col.InternalPropertyName.AsString())
+							for _, dbTypePrefix := range dbTypePrefixes {
+								if strings.HasPrefix(col.InternalPropertyType, dbTypePrefix) {
+									logger.Warn().Msgf("Aggregation '%s' over unsupported type '%s' in column '%s'", e.Name, dbTypePrefix, col.InternalPropertyName.AsString())
 									args := b.VisitChildren(e.Args)
-									args[1] = model.NewLiteral("NULL")
+									args[0] = model.NewLiteral("NULL")
 									return model.NewFunction(e.Name, args...)
 								}
 							}
