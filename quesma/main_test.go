@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
-	"net/http"
 	"os"
 	"os/signal"
 	"quesma/backend_connectors"
@@ -54,7 +53,7 @@ func Test_backendConnectorValidation(t *testing.T) {
 
 var fallbackCalled int32 = 0
 
-func fallback(_ context.Context, request *http.Request) (*quesma_api.Result, error) {
+func fallback(_ context.Context, _ *quesma_api.Request) (*quesma_api.Result, error) {
 	metadata := quesma_api.MakeNewMetadata()
 	atomic.AddInt32(&fallbackCalled, 1)
 	resp := []byte("unknown\n")

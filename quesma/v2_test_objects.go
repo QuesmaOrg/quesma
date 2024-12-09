@@ -79,8 +79,8 @@ var responses = [][]byte{
 }`),
 }
 
-func bulk(_ context.Context, request *http.Request) (*quesma_api.Result, error) {
-	_, err := frontend_connectors.ReadRequestBody(request)
+func bulk(_ context.Context, request *quesma_api.Request) (*quesma_api.Result, error) {
+	_, err := frontend_connectors.ReadRequestBody(request.OriginalRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -92,8 +92,8 @@ func bulk(_ context.Context, request *http.Request) (*quesma_api.Result, error) 
 	return &quesma_api.Result{Meta: metadata, GenericResult: resp}, nil
 }
 
-func doc(_ context.Context, request *http.Request) (*quesma_api.Result, error) {
-	_, err := frontend_connectors.ReadRequestBody(request)
+func doc(_ context.Context, request *quesma_api.Request) (*quesma_api.Result, error) {
+	_, err := frontend_connectors.ReadRequestBody(request.OriginalRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -108,12 +108,12 @@ func doc(_ context.Context, request *http.Request) (*quesma_api.Result, error) {
 
 var correlationId int64 = 0
 
-func search(_ context.Context, request *http.Request) (*quesma_api.Result, error) {
+func search(_ context.Context, request *quesma_api.Request) (*quesma_api.Result, error) {
 	metadata := quesma_api.MakeNewMetadata()
 	metadata["level"] = 0
 	atomic.AddInt64(&correlationId, 1)
 	quesma_api.SetCorrelationId(metadata, correlationId)
-	return &quesma_api.Result{Meta: metadata, GenericResult: request}, nil
+	return &quesma_api.Result{Meta: metadata, GenericResult: request.OriginalRequest}, nil
 }
 
 type IngestProcessor struct {

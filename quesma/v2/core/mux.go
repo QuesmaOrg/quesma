@@ -39,8 +39,9 @@ type (
 		Headers     http.Header
 		QueryParams url.Values
 
-		Body       string
-		ParsedBody RequestBody
+		Body            string
+		ParsedBody      RequestBody
+		OriginalRequest *http.Request
 	}
 
 	MatchResult struct {
