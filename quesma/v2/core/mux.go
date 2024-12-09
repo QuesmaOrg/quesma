@@ -197,8 +197,14 @@ func (p *PathRouter) GetFallbackHandler() HTTPFrontendHandler {
 	panic("not implemented")
 }
 func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
-	panic("not implemented")
+	callInfos := make(map[string]HandlersPipe)
+	for _, v := range p.mappings {
+		callInfos[v.pattern] = *v.handler
+	}
+	return callInfos
 }
 func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
-	panic("not implemented")
+	for path, handler := range handlers {
+		p.mappings = append(p.mappings, mapping{pattern: path, compiledPath: urlpath.New(path), handler: &handler})
+	}
 }
