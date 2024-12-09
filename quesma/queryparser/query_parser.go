@@ -898,10 +898,15 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 		fieldNameQuoted := strconv.Quote(fieldName)
 
 		switch cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName)) {
-		case clickhouse.ExistsAndIsArray:
-			fallthrough // array fields are transformed later in the schema pipeline
 		case clickhouse.ExistsAndIsBaseType:
 			sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
+		case clickhouse.ExistsAndIsArray:
+
+			sql = model.NewInfixExpr(model.NewNestedProperty(
+				model.NewColumnRef(fieldName),
+				model.NewLiteral("size0"),
+			), "=", model.NewLiteral("0"))
+			sql = model.NewSkipTransformation(sql, "array")
 
 		case clickhouse.NotExists:
 			// TODO this is a workaround for the case when the field is a point
@@ -911,15 +916,33 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			}
 
 			attrs := cw.Table.GetAttributesList()
-			stmts := make([]model.Expr, len(attrs))
+			var stmts = make([]model.Expr, len(attrs))
 			for i, a := range attrs {
-				hasFunc := model.NewFunction("has", []model.Expr{model.NewColumnRef(a.KeysArrayName), model.NewColumnRef(fieldName)}...)
-				arrayAccess := model.NewArrayAccess(model.NewColumnRef(a.ValuesArrayName), model.NewFunction("indexOf", []model.Expr{model.NewColumnRef(a.KeysArrayName), model.NewLiteral(fieldNameQuoted)}...))
-				isNotNull := model.NewInfixExpr(arrayAccess, "IS", model.NewLiteral("NOT NULL"))
-				compoundStatementNoFieldName := model.NewInfixExpr(hasFunc, "AND", isNotNull)
-				stmts[i] = compoundStatementNoFieldName
+				// deprecated attributes
+				_, ok1 := cw.Table.Cols[a.KeysArrayName]
+				_, ok2 := cw.Table.Cols[a.ValuesArrayName]
+
+				if ok1 && ok2 {
+					hasFunc := model.NewFunction("has", []model.Expr{model.NewColumnRef(a.KeysArrayName), model.NewColumnRef(fieldName)}...)
+					arrayAccess := model.NewArrayAccess(model.NewColumnRef(a.ValuesArrayName), model.NewFunction("indexOf", []model.Expr{model.NewColumnRef(a.KeysArrayName), model.NewLiteral(fieldNameQuoted)}...))
+					isNotNull := model.NewInfixExpr(arrayAccess, "IS", model.NewLiteral("NOT NULL"))
+					compoundStatementNoFieldName := model.NewInfixExpr(hasFunc, "AND", isNotNull)
+					stmts[i] = compoundStatementNoFieldName
+				} else {
+					//It's related to https://github.com/QuesmaOrg/quesma/issues/1056
+
+					// TODO handle new attributes
+					stmts[i] = model.NewLiteral(false)
+				}
 			}
-			sql = model.Or(stmts)
+
+			if len(stmts) > 0 {
+				sql = model.Or(stmts)
+				sql = model.NewSkipTransformation(sql, "array")
+			} else {
+				sql = model.NewLiteral(false)
+			}
+
 		default:
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T for exists: %s", cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName)), fieldName)
 		}
