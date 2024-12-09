@@ -15,7 +15,6 @@ import (
 	"quesma/common_table"
 	"quesma/frontend_connectors"
 	"quesma/ingest"
-	"quesma/logger"
 	"quesma/persistence"
 	"quesma/processors"
 	"quesma/quesma/config"
@@ -91,14 +90,14 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 	var data []byte
 	indexNameFromIncomingReq := metadata[IngestTargetKey].(string)
 	if indexNameFromIncomingReq == "" {
-		logger.Error().Msg("Missing index name in metadata") // SHOULD NEVER HAPPEN AND NOT BE VERIFIED HERE I GUESS
+		fmt.Printf("Missing index name in metadata") // SHOULD NEVER HAPPEN AND NOT BE VERIFIED HERE I GUESS
 		return nil, data, nil
 	}
 
 	for _, m := range message {
 		mCasted, err := quesma_api.CheckedCast[*quesma_api.Request](m)
 		if err != nil {
-			logger.Error().Msgf("ElasticsearchToClickHouseIngestProcessor: invalid message type: %v", err)
+			fmt.Printf("ElasticsearchToClickHouseIngestProcessor: invalid message type: %v", err)
 			return nil, data, err
 		}
 		messageAsHttpReq := mCasted.OriginalRequest
