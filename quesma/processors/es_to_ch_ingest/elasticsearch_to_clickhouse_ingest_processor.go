@@ -82,7 +82,8 @@ func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcess
 
 	v2TableResolver := NewNextGenTableResolver()
 
-	ip := ingest.NewIngestProcessor2(oldQuesmaConfig, chBackendConn, nil, tableDisco, schemaRegistry, virtualTableStorage, v2TableResolver)
+	ip := ingest.NewIngestProcessor2(oldQuesmaConfig, chBackendConn, nil, tableDisco, schemaRegistry, virtualTableStorage, v2TableResolver, esBackendConn)
+
 	ip.Start()
 	return ip
 }
