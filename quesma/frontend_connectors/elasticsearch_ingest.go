@@ -28,7 +28,8 @@ const (
 func NewElasticsearchIngestFrontendConnector(endpoint string) *ElasticsearchIngestFrontendConnector {
 	fc := &ElasticsearchIngestFrontendConnector{
 		BasicHTTPFrontendConnector: BasicHTTPFrontendConnector{
-			endpoint: endpoint,
+			endpoint:        endpoint,
+			responseMutator: setContentType,
 		},
 	}
 	router := NewHTTPRouter()
@@ -38,37 +39,12 @@ func NewElasticsearchIngestFrontendConnector(endpoint string) *ElasticsearchInge
 	return fc
 }
 
-func (h *ElasticsearchIngestFrontendConnector) MutateResponseWriter(w http.ResponseWriter) http.ResponseWriter {
-	w.Header().Set("Content-Type", "application/json/PRZEMYSLAW")
+func setContentType(w http.ResponseWriter) http.ResponseWriter {
+	w.Header().Set("Content-Type", "application/json")
 	return w
 }
 
-//func (h *ElasticsearchIngestFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-//	handlers := h.router.GetHandlers()
-//	handlerWrapper := getMatchingHandler(req.URL.Path, handlers)
-//	if handlerWrapper == nil {
-//		h.router.Multiplexer().ServeHTTP(w, req)
-//		return
-//	}
-//	dispatcher := &quesma_api.Dispatcher{}
-//
-//	// for the response out we are Elasticsearch-7 compliant
-//	w.Header().Set("Content-Type", "application/json")
-//	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//		metadata, message, _ := handlerWrapper.Handler(req)
-//		_, message = dispatcher.Dispatch(handlerWrapper.Processors, metadata, message)
-//		_, err := w.Write(message.([]byte))
-//		if err != nil {
-//			fmt.Printf("Error writing response: %s\n", err)
-//		}
-//	}).ServeHTTP(w, req)
-//}
-
 func bulk(request *http.Request) (map[string]interface{}, any, error) {
-	//body, err := ReadRequestBody(request)
-	//if err != nil {
-	//	return nil, nil, err
-	//}
 	metadata := quesma_api.MakeNewMetadata()
 	metadata[IngestAction] = BulkIndexAction
 	metadata[IngestTargetKey] = getIndexFromRequest(request)
@@ -76,10 +52,6 @@ func bulk(request *http.Request) (map[string]interface{}, any, error) {
 }
 
 func doc(request *http.Request) (map[string]interface{}, any, error) {
-	//body, err := ReadRequestBody(request)
-	//if err != nil {
-	//	return nil, nil, err
-	//}
 	metadata := quesma_api.MakeNewMetadata()
 	metadata[IngestAction] = DocIndexAction
 	metadata[IngestTargetKey] = getIndexFromRequest(request)

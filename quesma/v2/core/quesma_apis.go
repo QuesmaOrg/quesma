@@ -28,7 +28,6 @@ type HTTPFrontendConnector interface {
 	FrontendConnector
 	AddRouter(router Router)
 	GetRouter() Router
-	MutateResponseWriter(w http.ResponseWriter) http.ResponseWriter
 }
 
 type TCPFrontendConnector interface {
