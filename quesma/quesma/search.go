@@ -375,7 +375,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			resolvedTableName = q.cfg.IndexConfig[indexName].Override
 		}
 
-		resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.TableName(indexName))
+		resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.IndexName(indexName))
 		if !ok {
 			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
@@ -429,7 +429,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 
 		for _, idx := range resolvedIndexes {
-			scm, ok := q.schemaRegistry.FindSchema(schema.TableName(idx))
+			scm, ok := q.schemaRegistry.FindSchema(schema.IndexName(idx))
 			if !ok {
 				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", idx)).Details("Table: %s", idx)
 			}

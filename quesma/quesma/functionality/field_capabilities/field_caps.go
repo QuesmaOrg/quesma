@@ -48,7 +48,7 @@ func handleFieldCapsIndex(cfg *config.QuesmaConfiguration, schemaRegistry schema
 			continue
 		}
 
-		if schemaDefinition, found := schemaRegistry.FindSchema(schema.TableName(resolvedIndex)); found {
+		if schemaDefinition, found := schemaRegistry.FindSchema(schema.IndexName(resolvedIndex)); found {
 			indexConfig, configured := cfg.IndexConfig[resolvedIndex]
 			if configured && !indexConfig.IsClickhouseQueryEnabled() {
 				continue

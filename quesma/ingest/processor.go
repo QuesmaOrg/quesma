@@ -204,7 +204,7 @@ func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, q
 }
 
 func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
-	if foundSchema, found := schemaRegistry.FindSchema(schema.TableName(tableName)); found {
+	if foundSchema, found := schemaRegistry.FindSchema(schema.IndexName(tableName)); found {
 		return &foundSchema
 	}
 	return nil
@@ -631,7 +631,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 			fieldOrigins[schema.FieldName(column.ClickHouseColumnName)] = schema.FieldSourceIngest
 		}
 
-		ip.schemaRegistry.UpdateFieldsOrigins(schema.TableName(tableName), fieldOrigins)
+		ip.schemaRegistry.UpdateFieldsOrigins(schema.IndexName(tableName), fieldOrigins)
 
 		// This comes externally from (configuration)
 		// So we need to convert that separately

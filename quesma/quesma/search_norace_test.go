@@ -36,7 +36,7 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			defer db.Close()
 
 			s := &schema.StaticRegistry{
-				Tables: map[schema.TableName]schema.Schema{
+				Tables: map[schema.IndexName]schema.Schema{
 					tableName: {
 						Fields: map[schema.FieldName]schema.Field{
 							"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -102,7 +102,7 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	defer db.Close()
 
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},

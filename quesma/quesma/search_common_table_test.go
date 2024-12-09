@@ -180,7 +180,7 @@ func TestSearchCommonTable(t *testing.T) {
 	}
 
 	schemaRegistry := schema.StaticRegistry{
-		Tables: make(map[schema.TableName]schema.Schema),
+		Tables: make(map[schema.IndexName]schema.Schema),
 	}
 	tableMap := clickhouse.NewTableMap()
 

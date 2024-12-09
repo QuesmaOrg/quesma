@@ -14,10 +14,10 @@ import (
 
 type (
 	Registry interface {
-		AllSchemas() map[TableName]Schema
-		FindSchema(name TableName) (Schema, bool)
-		UpdateFieldsOrigins(name TableName, fields map[FieldName]FieldSource)
-		UpdateDynamicConfiguration(name TableName, table Table)
+		AllSchemas() map[IndexName]Schema
+		FindSchema(name IndexName) (Schema, bool)
+		UpdateFieldsOrigins(name IndexName, fields map[FieldName]FieldSource)
+		UpdateDynamicConfiguration(name IndexName, table Table)
 		UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName)
 		GetFieldEncodings() map[FieldEncodingKey]EncodedFieldName
 	}
@@ -36,7 +36,7 @@ type (
 		fieldEncodingsLock      sync.RWMutex
 		fieldEncodings          map[FieldEncodingKey]EncodedFieldName
 		fieldOriginsLock        sync.RWMutex
-		fieldOrigins            map[TableName]map[FieldName]FieldSource
+		fieldOrigins            map[IndexName]map[FieldName]FieldSource
 	}
 	typeAdapter interface {
 		Convert(string) (QuesmaType, bool)
@@ -74,16 +74,16 @@ func (s *schemaRegistry) getInternalToPublicFieldEncodings(tableName string) map
 	return internalToPublicFieldsEncodings
 }
 
-func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
+func (s *schemaRegistry) loadSchemas() (map[IndexName]Schema, error) {
 	definitions := s.dataSourceTableProvider.TableDefinitions()
-	schemas := make(map[TableName]Schema)
+	schemas := make(map[IndexName]Schema)
 
 	if s.dataSourceTableProvider.AutodiscoveryEnabled() {
 		for tableName, table := range definitions {
 			fields := make(map[FieldName]Field)
 			internalToPublicFieldsEncodings := s.getInternalToPublicFieldEncodings(tableName)
 			existsInDataSource := s.populateSchemaFromTableDefinition(definitions, tableName, fields, internalToPublicFieldsEncodings)
-			schemas[TableName(tableName)] = NewSchema(fields, existsInDataSource, table.DatabaseName)
+			schemas[IndexName(tableName)] = NewSchema(fields, existsInDataSource, table.DatabaseName)
 		}
 		return schemas, nil
 	}
@@ -100,9 +100,9 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 		s.removeGeoPhysicalFields(fields)
 		s.populateFieldsOrigins(indexName, fields)
 		if tableDefinition, ok := definitions[indexName]; ok {
-			schemas[TableName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource, tableDefinition.DatabaseName)
+			schemas[IndexName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource, tableDefinition.DatabaseName)
 		} else {
-			schemas[TableName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource, "")
+			schemas[IndexName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource, "")
 		}
 	}
 
@@ -125,16 +125,16 @@ func (s *schemaRegistry) populateSchemaFromDynamicConfiguration(indexName string
 	}
 }
 
-func (s *schemaRegistry) AllSchemas() map[TableName]Schema {
+func (s *schemaRegistry) AllSchemas() map[IndexName]Schema {
 	if schemas, err := s.loadSchemas(); err != nil {
 		logger.Error().Msgf("error loading schemas: %v", err)
-		return make(map[TableName]Schema)
+		return make(map[IndexName]Schema)
 	} else {
 		return schemas
 	}
 }
 
-func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
+func (s *schemaRegistry) FindSchema(name IndexName) (Schema, bool) {
 	if schemas, err := s.loadSchemas(); err != nil {
 		logger.Error().Msgf("error loading schemas: %v", err)
 		return Schema{}, false
@@ -144,7 +144,7 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 	}
 }
 
-func (s *schemaRegistry) UpdateDynamicConfiguration(name TableName, table Table) {
+func (s *schemaRegistry) UpdateDynamicConfiguration(name IndexName, table Table) {
 	s.dynamicConfiguration[name.AsString()] = table
 	dynamicEncodings := make(map[FieldEncodingKey]EncodedFieldName)
 	for _, column := range table.Columns {
@@ -282,7 +282,7 @@ func (s *schemaRegistry) removeGeoPhysicalFields(fields map[FieldName]Field) {
 
 func (s *schemaRegistry) populateFieldsOrigins(indexName string, fields map[FieldName]Field) {
 	s.fieldOriginsLock.RLock()
-	if fieldOrigins, ok := s.fieldOrigins[TableName(indexName)]; ok {
+	if fieldOrigins, ok := s.fieldOrigins[IndexName(indexName)]; ok {
 		for fieldName, field := range fields {
 			if origin, ok := fieldOrigins[field.InternalPropertyName]; ok {
 				field.Origin = origin
@@ -293,11 +293,11 @@ func (s *schemaRegistry) populateFieldsOrigins(indexName string, fields map[Fiel
 	s.fieldOriginsLock.RUnlock()
 }
 
-func (s *schemaRegistry) UpdateFieldsOrigins(name TableName, fields map[FieldName]FieldSource) {
+func (s *schemaRegistry) UpdateFieldsOrigins(name IndexName, fields map[FieldName]FieldSource) {
 	s.fieldOriginsLock.Lock()
 	defer s.fieldOriginsLock.Unlock()
 	if s.fieldOrigins == nil {
-		s.fieldOrigins = make(map[TableName]map[FieldName]FieldSource)
+		s.fieldOrigins = make(map[IndexName]map[FieldName]FieldSource)
 	}
 	s.fieldOrigins[name] = fields
 }
