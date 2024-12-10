@@ -11,6 +11,7 @@ import (
 	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
+	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/util"
 	"slices"
@@ -134,7 +135,7 @@ func (lm *LogManager) Close() {
 // and returns all matching indexes. Empty pattern means all indexes, "_all" index name means all indexes
 //
 //	Note: Empty pattern means all indexes, "_all" index name means all indexes
-func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (results []string, err error) {
+func (lm *LogManager) ResolveIndexPattern(ctx context.Context, schema schema.Registry, pattern string) (results []string, err error) {
 	if err = lm.tableDiscovery.TableDefinitionsFetchError(); err != nil {
 		return nil, err
 	}
@@ -143,11 +144,13 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (
 	if strings.Contains(pattern, ",") {
 		for _, pattern := range strings.Split(pattern, ",") {
 			if pattern == allElasticsearchIndicesPattern || pattern == "" {
-				results = lm.tableDiscovery.TableDefinitions().Keys()
+				for k := range schema.AllSchemas() {
+					results = append(results, k.AsString())
+				}
 				slices.Sort(results)
 				return results, nil
 			} else {
-				indexes, err := lm.ResolveIndexPattern(ctx, pattern)
+				indexes, err := lm.ResolveIndexPattern(ctx, schema, pattern)
 				if err != nil {
 					return nil, err
 				}
@@ -156,21 +159,21 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (
 		}
 	} else {
 		if pattern == allElasticsearchIndicesPattern || len(pattern) == 0 {
-			results = lm.tableDiscovery.TableDefinitions().Keys()
+			for k := range schema.AllSchemas() {
+				results = append(results, k.AsString())
+			}
 			slices.Sort(results)
 			return results, nil
 		} else {
-			lm.tableDiscovery.TableDefinitions().
-				Range(func(tableName string, v *Table) bool {
-					matches, err := util.IndexPatternMatches(pattern, tableName)
-					if err != nil {
-						logger.Error().Msgf("error matching index pattern: %v", err)
-					}
-					if matches {
-						results = append(results, tableName)
-					}
-					return true
-				})
+			for schemaName := range schema.AllSchemas() {
+				matches, err := util.IndexPatternMatches(pattern, schemaName.AsString())
+				if err != nil {
+					logger.Error().Msgf("error matching index pattern: %v", err)
+				}
+				if matches {
+					results = append(results, schemaName.AsString())
+				}
+			}
 		}
 	}
 

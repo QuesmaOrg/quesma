@@ -22,13 +22,13 @@ import (
 
 func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *clickhouse.LogManager,
 	schemaRegistry schema.Registry, qmc *ui.QuesmaManagementConsole) ([]byte, error) {
-	if indices, err := lm.ResolveIndexPattern(ctx, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
+	if indices, err := lm.ResolveIndexPattern(ctx, schemaRegistry, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
 		logger.Error().Msg(errorMsg)
 		return nil, errors.New(errorMsg)
 	} else {
 		resolvedTableName := indices[0]
-		resolvedSchema, ok := schemaRegistry.FindSchema(schema.TableName(resolvedTableName))
+		resolvedSchema, ok := schemaRegistry.FindSchema(schema.IndexName(resolvedTableName))
 		if !ok {
 			return []byte{}, end_user_errors.ErrNoSuchSchema.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}

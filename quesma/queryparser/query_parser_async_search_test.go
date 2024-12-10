@@ -27,7 +27,7 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 	}
 	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, &table), &config.QuesmaConfiguration{})
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -59,7 +59,7 @@ func TestQueryParserAggregation(t *testing.T) {
 	table := clickhouse.NewEmptyTable("tablename")
 	lm := clickhouse.NewLogManager(util.NewSyncMapWith("tablename", table), &config.QuesmaConfiguration{})
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"tablename": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
