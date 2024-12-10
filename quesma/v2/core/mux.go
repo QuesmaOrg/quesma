@@ -6,13 +6,13 @@ import (
 	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
-
 	"strings"
 )
 
 type (
 	PathRouter struct {
-		mappings []mapping
+		mappings        []mapping
+		fallbackHandler HTTPFrontendHandler
 	}
 	mapping struct {
 		pattern      string
@@ -92,7 +92,6 @@ func (p *PathRouter) Clone() Cloner {
 }
 
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler) {
-
 	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HandlersPipe{Handler: handler}}
 	p.mappings = append(p.mappings, mapping)
 
@@ -186,15 +185,13 @@ func Always() RequestMatcher {
 }
 
 func (p *PathRouter) AddRoute(path string, handler HTTPFrontendHandler) {
-	// TODO: it seems that we can adapt this to register call
-	// p.Register(path, Always(), handler)
-	panic("not implemented")
+	p.Register(path, Always(), handler)
 }
 func (p *PathRouter) AddFallbackHandler(handler HTTPFrontendHandler) {
-	panic("not implemented")
+	p.fallbackHandler = handler
 }
 func (p *PathRouter) GetFallbackHandler() HTTPFrontendHandler {
-	panic("not implemented")
+	return p.fallbackHandler
 }
 func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
 	callInfos := make(map[string]HandlersPipe)

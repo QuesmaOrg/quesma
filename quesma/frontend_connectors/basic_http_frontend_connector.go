@@ -15,7 +15,6 @@ import (
 )
 
 type HTTPRouter struct {
-	mux             *http.ServeMux                     // Default HTTP multiplexer
 	handlers        map[string]quesma_api.HandlersPipe // Map to store custom route handlers
 	fallbackHandler quesma_api.HTTPFrontendHandler
 	mutex           sync.RWMutex // Mutex for concurrent access to handlers
@@ -23,7 +22,6 @@ type HTTPRouter struct {
 
 func NewHTTPRouter() *HTTPRouter {
 	return &HTTPRouter{
-		mux:      http.NewServeMux(),
 		handlers: make(map[string]quesma_api.HandlersPipe),
 	}
 }
