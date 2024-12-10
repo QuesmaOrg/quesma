@@ -31,6 +31,7 @@ func NewOptimizePipeline(config *config.QuesmaConfiguration) model.QueryTransfor
 			&truncateDate{truncateTo: 5 * time.Minute},
 			&cacheQueries{},
 			&materializedViewReplace{},
+			&shortenTimeRange{},
 		},
 	}
 }
