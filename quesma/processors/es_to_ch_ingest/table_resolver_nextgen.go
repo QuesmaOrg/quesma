@@ -17,9 +17,11 @@ type NextGenTableResolver struct{}
 func (n *NextGenTableResolver) Start() {}
 func (n *NextGenTableResolver) Stop()  {}
 func (n *NextGenTableResolver) Resolve(_ string, tableName string) *quesma_api.Decision {
+	println("RESOLVE CALLED")
 	decision := &quesma_api.Decision{
 		UseConnectors: []quesma_api.ConnectorDecision{&quesma_api.ConnectorDecisionClickhouse{
 			ClickhouseTableName: tableName,
+			IsCommonTable:       tableName == "tab1" || tableName == "tab2",
 		}}}
 	return decision
 }
