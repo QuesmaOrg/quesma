@@ -50,7 +50,8 @@ func (s AggregationType) String() string {
 
 type (
 	Query struct {
-		SelectCommand SelectCommand // The representation of SELECT query
+		SelectCommand            SelectCommand // The representation of SELECT query
+		AlternativeSelectCommand *SelectCommand
 
 		OptimizeHints         *QueryOptimizeHints   // it can be optional
 		TransformationHistory TransformationHistory // it can be optional

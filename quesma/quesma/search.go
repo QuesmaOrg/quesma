@@ -30,6 +30,7 @@ import (
 	"quesma/util"
 	"quesma_v2/core"
 	tracing "quesma_v2/core/tracing"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -179,6 +180,23 @@ func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.Executio
 	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
 	if err != nil {
 		return fmt.Errorf("error transforming queries: %v", err)
+	}
+	planQueries2 := slices.Clone(plan.Queries)
+	for i, planQuery := range planQueries2 {
+		if planQuery.AlternativeSelectCommand != nil {
+			newPlanQuery := *planQuery
+			newPlanQuery.SelectCommand = *newPlanQuery.AlternativeSelectCommand
+			planQueries2[i] = &newPlanQuery
+		}
+	}
+	planQueries2, err = q.transformationPipeline.Transform(planQueries2)
+	if err != nil {
+		return fmt.Errorf("error transforming queries: %v", err)
+	}
+	for i, planQuery := range planQueries2 {
+		if planQuery.AlternativeSelectCommand != nil {
+			plan.Queries[i].AlternativeSelectCommand = &planQuery.SelectCommand
+		}
 	}
 	return nil
 }
@@ -728,8 +746,15 @@ func (q *QueryRunner) searchWorkerCommon(
 	var jobs []QueryJob
 	var jobHitsPosition []int // it keeps the position of the hits array for each job
 
-	for i, query := range queries {
+	for i, queryOrig := range queries {
+		queryVal := *queryOrig
+		query := &queryVal
 		sql := query.SelectCommand.String()
+
+		if query.AlternativeSelectCommand != nil {
+			sql = query.AlternativeSelectCommand.String()
+			query.SelectCommand = *query.AlternativeSelectCommand
+		}
 
 		if q.cfg.Logging.EnableSQLTracing {
 			logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
@@ -768,6 +793,9 @@ func (q *QueryRunner) searchWorkerCommon(
 		return
 	}
 
+	var jobs2 []QueryJob
+	var jobHitsPosition2 []int // it keeps the position of the hits array for each job
+
 	// fill the hits array with the results in the order of the database queries
 	for jobId, resultPosition := range jobHitsPosition {
 
@@ -778,6 +806,55 @@ func (q *QueryRunner) searchWorkerCommon(
 		translatedQueryBody[resultPosition].Duration = p.Duration
 		translatedQueryBody[resultPosition].ExplainPlan = p.ExplainPlan
 		translatedQueryBody[resultPosition].RowsReturned = p.RowsReturned
+
+		if queries[resultPosition].AlternativeSelectCommand != nil && len(hits[resultPosition]) == queries[resultPosition].AlternativeSelectCommand.Limit {
+			logger.Info().Msgf("Running on reduced time range succeeded - got %d results on a %d limit.", len(hits[resultPosition]), queries[resultPosition].AlternativeSelectCommand.Limit)
+		}
+
+		if queries[resultPosition].AlternativeSelectCommand != nil && len(hits[resultPosition]) < queries[resultPosition].AlternativeSelectCommand.Limit {
+			logger.Info().Msgf("Received partial result, got %d results but the limit is %d. Running the query on full time range.", len(hits[resultPosition]), queries[resultPosition].AlternativeSelectCommand.Limit)
+			query := queries[resultPosition]
+			sql := query.SelectCommand.String()
+
+			if q.cfg.Logging.EnableSQLTracing {
+				logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
+			}
+
+			translatedQueryBody[resultPosition].Query = []byte(sql)
+			if query.OptimizeHints != nil {
+				translatedQueryBody[resultPosition].PerformedOptimizations = query.OptimizeHints.OptimizationsPerformed
+			}
+			translatedQueryBody[resultPosition].ExecutionPlanName = plan.Name
+			translatedQueryBody[resultPosition].QueryTransformations = query.TransformationHistory.SchemaTransformers
+
+			if q.isInternalKibanaQuery(query) {
+				hits[resultPosition] = make([]model.QueryResultRow, 0)
+				continue
+			}
+
+			job := q.makeJob(table, query)
+			jobs2 = append(jobs2, job)
+			jobHitsPosition2 = append(jobHitsPosition2, resultPosition)
+		}
+	}
+
+	if len(jobs2) != 0 {
+		jobResults2, performance2, err2 := q.runQueryJobs(ctx, jobs2)
+		if err2 != nil {
+			return
+		}
+
+		// fill the hits array with the results in the order of the database queries
+		for jobId, resultPosition := range jobHitsPosition2 {
+
+			hits[resultPosition] = jobResults2[jobId]
+
+			p := performance2[jobId]
+			translatedQueryBody[resultPosition].QueryID = p.QueryID
+			translatedQueryBody[resultPosition].Duration = p.Duration
+			translatedQueryBody[resultPosition].ExplainPlan = p.ExplainPlan
+			translatedQueryBody[resultPosition].RowsReturned = p.RowsReturned
+		}
 	}
 
 	// apply the query rows transformers

@@ -632,7 +632,7 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 			stats.ClickHouse.DbInfoHash = a.getDbInfoHash()
 			stats.ClickHouse.BillableSize = totalSize
 			stats.ClickHouse.TopTablesSizeInfo = fmt.Sprintf("%v", topTableSizes)
-			logger.Info().Msgf("[USAGE REPORT] dababase=[%s] billable_size_in_Mbs=[%d] top_table_sizes=%v", a.getDbInfoHash(), totalSize, topTableSizes)
+			logger.Info().Msgf("[USAGE REPORT] database=[%s] billable_size_in_Mbs=[%d] top_table_sizes=%v", a.getDbInfoHash(), totalSize, topTableSizes)
 		}
 	}
 

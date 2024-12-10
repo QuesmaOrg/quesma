@@ -95,6 +95,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		query.RuntimeMappings = runtimeMappings
 		query.Indexes = cw.Indexes
 		query.Schema = cw.Schema
+		query.AlternativeSelectCommand = buildAlternativeSelectCommand(&query.SelectCommand)
 	}
 
 	plan := &model.ExecutionPlan{
@@ -103,6 +104,84 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	}
 
 	return plan, err
+}
+
+const timeRangeOptimization = 48 * 60 * 60 * 1000 // 48 hours
+
+func buildAlternativeSelectCommand(selectCommand *model.SelectCommand) *model.SelectCommand {
+	if selectCommand == nil {
+		return nil
+	}
+	if selectCommand.IsDistinct {
+		return nil
+	}
+	for _, column := range selectCommand.Columns {
+		if _, isLiteralExpr := column.(model.LiteralExpr); !isLiteralExpr {
+			return nil
+		}
+	}
+
+	var orderByColumnName string
+
+	if len(selectCommand.OrderBy) != 1 {
+		return nil
+	}
+	if orderByColumn, ok := selectCommand.OrderBy[0].Expr.(model.ColumnRef); ok {
+		orderByColumnName = orderByColumn.ColumnName
+		if selectCommand.OrderBy[0].Direction != model.DescOrder { // TODO: relax
+			return nil
+		}
+	} else {
+		return nil
+	}
+
+	var upperBound *int64
+
+	visitor := model.NewBaseVisitor()
+	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
+		if _, ok := e.Left.(model.ColumnRef); !ok {
+			e.Left.Accept(b)
+			e.Right.Accept(b)
+			return e
+		}
+		if e.Left.(model.ColumnRef).ColumnName != orderByColumnName {
+			e.Left.Accept(b)
+			e.Right.Accept(b)
+			return e
+		}
+		switch e.Op {
+		case "<", "<=":
+			if functionExpr, ok := e.Right.(model.FunctionExpr); ok && functionExpr.Name == "fromUnixTimestamp64Milli" {
+				upperBoundValue := functionExpr.Args[0].(model.LiteralExpr).Value.(int64)
+				upperBound = &upperBoundValue
+			}
+		}
+		e.Left.Accept(b)
+		e.Right.Accept(b)
+		return e
+	}
+	selectCommand.Accept(visitor)
+	if upperBound == nil {
+		return nil
+	}
+	if selectCommand.GroupBy != nil {
+		return nil
+	}
+	if selectCommand.Limit == 0 {
+		return nil
+	}
+	if len(selectCommand.LimitBy) != 0 {
+		return nil
+	}
+	if selectCommand.SampleLimit != 0 {
+		return nil
+	}
+	if len(selectCommand.NamedCTEs) != 0 {
+		return nil
+	}
+	alternativeSelectCommand := *selectCommand
+	alternativeSelectCommand.WhereClause = model.NewInfixExpr(model.NewInfixExpr(model.NewColumnRef(orderByColumnName), ">=", model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(*upperBound-timeRangeOptimization))), "AND", selectCommand.WhereClause)
+	return &alternativeSelectCommand
 }
 
 func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
