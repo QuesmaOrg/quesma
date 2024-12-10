@@ -36,7 +36,7 @@ func (s shortenTimeRange) validateSelectedColumns(columns []model.Expr) bool {
 			continue
 		}
 
-		logger.Info().Msgf("Query not eligible for time range optimization: column at index %d is an unsupported %T", i, column)
+		logger.Debug().Msgf("Query not eligible for time range optimization: column at index %d is an unsupported %T", i, column)
 		return false
 	}
 	return true
@@ -44,7 +44,7 @@ func (s shortenTimeRange) validateSelectedColumns(columns []model.Expr) bool {
 
 func (s shortenTimeRange) findOrderByColumn(selectCommand *model.SelectCommand) (string, model.OrderByDirection, bool) {
 	if len(selectCommand.OrderBy) != 1 {
-		logger.Info().Msg("Query not eligible for time range optimization: ORDER BY longer than 1")
+		logger.Debug().Msg("Query not eligible for time range optimization: ORDER BY longer than 1")
 		return "", model.DefaultOrder, false
 	}
 
@@ -52,7 +52,7 @@ func (s shortenTimeRange) findOrderByColumn(selectCommand *model.SelectCommand) 
 		return orderByColumn.ColumnName, selectCommand.OrderBy[0].Direction, true
 	}
 
-	logger.Info().Msg("Query not eligible for time range optimization: ORDER BY not a column reference")
+	logger.Debug().Msg("Query not eligible for time range optimization: ORDER BY not a column reference")
 	return "", model.DefaultOrder, false
 }
 
@@ -88,27 +88,27 @@ func (s shortenTimeRange) findTimeRange(selectCommand *model.SelectCommand) *tim
 	// The optimization is not possible for all queries.
 	// Some of those restrictions are not strictly necessary, but added here conservatively to avoid potential issues.
 	if selectCommand.Limit == 0 {
-		logger.Info().Msg("Query not eligible for time range optimization: LIMIT 0")
+		logger.Debug().Msg("Query not eligible for time range optimization: LIMIT 0")
 		return nil
 	}
 	if len(selectCommand.LimitBy) != 0 {
-		logger.Info().Msg("Query not eligible for time range optimization: LIMIT BY")
+		logger.Debug().Msg("Query not eligible for time range optimization: LIMIT BY")
 		return nil
 	}
 	if selectCommand.SampleLimit != 0 {
-		logger.Info().Msg("Query not eligible for time range optimization: SAMPLE LIMIT")
+		logger.Debug().Msg("Query not eligible for time range optimization: SAMPLE LIMIT")
 		return nil
 	}
 	if selectCommand.IsDistinct {
-		logger.Info().Msg("Query not eligible for time range optimization: DISTINCT")
+		logger.Debug().Msg("Query not eligible for time range optimization: DISTINCT")
 		return nil
 	}
 	if selectCommand.GroupBy != nil {
-		logger.Info().Msg("Query not eligible for time range optimization: GROUP BY")
+		logger.Debug().Msg("Query not eligible for time range optimization: GROUP BY")
 		return nil
 	}
 	if len(selectCommand.NamedCTEs) != 0 {
-		logger.Info().Msg("Query not eligible for time range optimization: CTEs")
+		logger.Debug().Msg("Query not eligible for time range optimization: CTEs")
 		return nil
 	}
 
@@ -123,7 +123,7 @@ func (s shortenTimeRange) findTimeRange(selectCommand *model.SelectCommand) *tim
 
 	lowerLimit, upperLimit := s.findTimeLimits(selectCommand, orderByColumnName)
 	if lowerLimit == nil || upperLimit == nil {
-		logger.Info().Msg("Query not eligible for time range optimization: missing time limits (both lower and upper)")
+		logger.Debug().Msg("Query not eligible for time range optimization: missing time limits (both lower and upper)")
 		return nil
 	}
 
