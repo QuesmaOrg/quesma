@@ -135,51 +135,7 @@ func (lm *LogManager) Close() {
 // and returns all matching indexes. Empty pattern means all indexes, "_all" index name means all indexes
 //
 //	Note: Empty pattern means all indexes, "_all" index name means all indexes
-func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (results []string, err error) {
-	if err = lm.tableDiscovery.TableDefinitionsFetchError(); err != nil {
-		return nil, err
-	}
-
-	results = make([]string, 0)
-	if strings.Contains(pattern, ",") {
-		for _, pattern := range strings.Split(pattern, ",") {
-			if pattern == allElasticsearchIndicesPattern || pattern == "" {
-				results = lm.tableDiscovery.TableDefinitions().Keys()
-				slices.Sort(results)
-				return results, nil
-			} else {
-				indexes, err := lm.ResolveIndexPattern(ctx, pattern)
-				if err != nil {
-					return nil, err
-				}
-				results = append(results, indexes...)
-			}
-		}
-	} else {
-		if pattern == allElasticsearchIndicesPattern || len(pattern) == 0 {
-			results = lm.tableDiscovery.TableDefinitions().Keys()
-			slices.Sort(results)
-			return results, nil
-		} else {
-			lm.tableDiscovery.TableDefinitions().
-				Range(func(tableName string, v *Table) bool {
-					matches, err := util.IndexPatternMatches(pattern, tableName)
-					if err != nil {
-						logger.Error().Msgf("error matching index pattern: %v", err)
-					}
-					if matches {
-						results = append(results, tableName)
-					}
-					return true
-				})
-		}
-	}
-
-	return util.Distinct(results), nil
-}
-
-// We should use this instead of original code
-func (lm *LogManager) ResolveIndexPatternV2(ctx context.Context, schema schema.Registry, pattern string) (results []string, err error) {
+func (lm *LogManager) ResolveIndexPattern(ctx context.Context, schema schema.Registry, pattern string) (results []string, err error) {
 	if err = lm.tableDiscovery.TableDefinitionsFetchError(); err != nil {
 		return nil, err
 	}
@@ -194,7 +150,7 @@ func (lm *LogManager) ResolveIndexPatternV2(ctx context.Context, schema schema.R
 				slices.Sort(results)
 				return results, nil
 			} else {
-				indexes, err := lm.ResolveIndexPatternV2(ctx, schema, pattern)
+				indexes, err := lm.ResolveIndexPattern(ctx, schema, pattern)
 				if err != nil {
 					return nil, err
 				}

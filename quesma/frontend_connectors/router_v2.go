@@ -187,7 +187,7 @@ func (r *RouterV2) elasticFallback(decision *quesma_api.Decision,
 
 	if sendToElastic {
 		resolveIndexPattern := func(ctx context.Context, pattern string) ([]string, error) {
-			return logManager.ResolveIndexPatternV2(ctx, schemaRegistry, pattern)
+			return logManager.ResolveIndexPattern(ctx, schemaRegistry, pattern)
 		}
 		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(OpaqueIdHeaderKey), resolveIndexPattern)
 

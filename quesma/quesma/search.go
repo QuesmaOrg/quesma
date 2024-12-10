@@ -120,7 +120,7 @@ func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
 
 // returns -1 when table name could not be resolved
 func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int64, error) {
-	indexes, err := q.logManager.ResolveIndexPatternV2(ctx, q.schemaRegistry, indexPattern)
+	indexes, err := q.logManager.ResolveIndexPattern(ctx, q.schemaRegistry, indexPattern)
 	if err != nil {
 		return 0, err
 	}

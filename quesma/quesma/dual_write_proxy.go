@@ -383,7 +383,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 		if sendToElastic {
 			resolveIndexPattern := func(ctx context.Context, pattern string) ([]string, error) {
-				return logManager.ResolveIndexPatternV2(ctx, schemaRegistry, pattern)
+				return logManager.ResolveIndexPattern(ctx, schemaRegistry, pattern)
 			}
 			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(frontend_connectors.OpaqueIdHeaderKey), resolveIndexPattern)
 

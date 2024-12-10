@@ -785,7 +785,7 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 			}
 			tableDefinitions.Store(tt.tables)
 			lm := &LogManager{tableDiscovery: NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tt.tables)}
-			indexes, err := lm.ResolveIndexPatternV2(context.Background(), &schemaRegistry, tt.patterns)
+			indexes, err := lm.ResolveIndexPattern(context.Background(), &schemaRegistry, tt.patterns)
 			assert.NoError(t, err)
 			assert.Equalf(t, tt.resolved, indexes, tt.patterns, "ResolveIndexPattern(%v)", tt.patterns)
 		})

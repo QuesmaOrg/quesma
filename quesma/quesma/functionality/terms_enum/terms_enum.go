@@ -22,7 +22,7 @@ import (
 
 func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *clickhouse.LogManager,
 	schemaRegistry schema.Registry, qmc *ui.QuesmaManagementConsole) ([]byte, error) {
-	if indices, err := lm.ResolveIndexPatternV2(ctx, schemaRegistry, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
+	if indices, err := lm.ResolveIndexPattern(ctx, schemaRegistry, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
 		logger.Error().Msg(errorMsg)
 		return nil, errors.New(errorMsg)
