@@ -107,7 +107,7 @@ func fallbackScenario() quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
 
 	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
-	ingestHTTPRouter := frontend_connectors.NewHTTPRouter()
+	ingestHTTPRouter := quesma_api.NewPathRouter()
 	var fallback quesma_api.HTTPFrontendHandler = fallback
 	ingestHTTPRouter.AddFallbackHandler(fallback)
 	ingestFrontendConnector.AddRouter(ingestHTTPRouter)
