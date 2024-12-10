@@ -23,7 +23,6 @@ import (
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/stats"
-	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/util"
 	quesma_api "quesma_v2/core"
@@ -50,7 +49,6 @@ type (
 		ingestFieldStatistics     IngestFieldStatistics
 		ingestFieldStatisticsLock sync.Mutex
 		virtualTableStorage       persistence.JSONDatabase
-		tableResolver             table_resolver.TableResolver
 	}
 )
 
@@ -442,63 +440,46 @@ func (lm *IngestProcessor2) Ingest(ctx context.Context, tableName string, jsonDa
 	return lm.ProcessInsertQuery(ctx, tableName, jsonData, transformer, nameFormatter)
 }
 
+func (lm *IngestProcessor2) useCommonTable(tableName string) bool {
+	if tableConfig, ok := lm.cfg.IndexConfig[tableName]; ok {
+		return tableConfig.UseCommonTable
+	}
+	return false
+}
+
 func (lm *IngestProcessor2) ProcessInsertQuery(ctx context.Context, tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
 
-	decision := lm.tableResolver.Resolve(quesma_api.IngestPipeline, tableName)
-
-	if decision.Err != nil {
-		return decision.Err
-	}
-
-	if decision.IsEmpty { // TODO
-		return fmt.Errorf("table %s not found", tableName)
-	}
-
-	if decision.IsClosed { // TODO
-		return fmt.Errorf("table %s is closed", tableName)
-	}
-
-	for _, connectorDecision := range decision.UseConnectors {
-
-		var clickhouseDecision *quesma_api.ConnectorDecisionClickhouse
-
-		var ok bool
-		if clickhouseDecision, ok = connectorDecision.(*quesma_api.ConnectorDecisionClickhouse); !ok {
-			continue
+	if lm.useCommonTable(tableName) {
+		// we have clone the data, because we want to process it twice
+		var clonedJsonData []types.JSON
+		for _, jsonValue := range jsonData {
+			clonedJsonData = append(clonedJsonData, jsonValue.Clone())
 		}
 
-		if clickhouseDecision.IsCommonTable { // TODO: TABLE_RESOLVER DECIDES WHETHER WE'RE DEALING WITH COMMON TABLE
-			// we have clone the data, because we want to process it twice
-			var clonedJsonData []types.JSON
-			for _, jsonValue := range jsonData {
-				clonedJsonData = append(clonedJsonData, jsonValue.Clone())
-			}
-
-			err := lm.processInsertQueryInternal(ctx, tableName, clonedJsonData, transformer, tableFormatter, true)
-			if err != nil {
-				// we ignore an error here, because we want to process the data and don't lose it
-				logger.ErrorWithCtx(ctx).Msgf("error processing insert query - virtual table schema update: %v", err)
-			}
-
-			pipeline := jsonprocessor.IngestTransformerPipeline{}
-			pipeline = append(pipeline, &common_table.IngestAddIndexNameTransformer{IndexName: tableName})
-			pipeline = append(pipeline, transformer)
-
-			err = lm.processInsertQueryInternal(ctx, common_table.TableName, jsonData, pipeline, tableFormatter, false)
-			if err != nil {
-				return fmt.Errorf("error processing insert query to a common table: %w", err)
-			}
-
-		} else {
-			err := lm.processInsertQueryInternal(ctx, clickhouseDecision.ClickhouseTableName, jsonData, transformer, tableFormatter, false)
-			if err != nil {
-				return fmt.Errorf("error processing insert query: %w", err)
-			}
+		err := lm.processInsertQueryInternal(ctx, tableName, clonedJsonData, transformer, tableFormatter, true)
+		if err != nil {
+			// we ignore an error here, because we want to process the data and don't lose it
+			logger.ErrorWithCtx(ctx).Msgf("error processing insert query - virtual table schema update: %v", err)
 		}
 
+		pipeline := jsonprocessor.IngestTransformerPipeline{}
+		pipeline = append(pipeline, &common_table.IngestAddIndexNameTransformer{IndexName: tableName})
+		pipeline = append(pipeline, transformer)
+
+		err = lm.processInsertQueryInternal(ctx, common_table.TableName, jsonData, pipeline, tableFormatter, false)
+		if err != nil {
+			return fmt.Errorf("error processing insert query to a common table: %w", err)
+		}
+
+	} else {
+		err := lm.processInsertQueryInternal(ctx, tableName, jsonData, transformer, tableFormatter, false)
+		if err != nil {
+			return fmt.Errorf("error processing insert query: %w", err)
+		}
 	}
+
 	return nil
 }
 
@@ -667,9 +648,9 @@ func (ip *IngestProcessor2) Ping() error {
 	return ip.chDb.Open()
 }
 
-func NewIngestProcessor2(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver, esBackendConn backend_connectors.ElasticsearchBackendConnector) *IngestProcessor2 {
+func NewIngestProcessor2(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, esBackendConn backend_connectors.ElasticsearchBackendConnector) *IngestProcessor2 {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &IngestProcessor2{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver, es: esBackendConn}
+	return &IngestProcessor2{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, es: esBackendConn}
 }
 
 // validateIngest validates the document against the table schema
