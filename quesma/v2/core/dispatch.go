@@ -4,14 +4,9 @@ package quesma_api
 
 import (
 	"context"
-	"net/http"
 )
 
-// TODO currently there are two types of handlers, HTTPFrontendHandler and Handler
-// first one comes from v2 POC and the second one comes from v1 quesma
-// we need to unify them
-type HTTPFrontendHandler func(request *http.Request) (map[string]interface{}, any, error)
-type Handler func(ctx context.Context, req *Request) (*Result, error)
+type HTTPFrontendHandler func(ctx context.Context, req *Request) (*Result, error)
 
 type HandlersPipe struct {
 	Handler    HTTPFrontendHandler

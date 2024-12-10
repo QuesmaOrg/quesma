@@ -90,14 +90,17 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 	var data []byte
 	indexNameFromIncomingReq := metadata[IngestTargetKey].(string)
 	if indexNameFromIncomingReq == "" {
-		panic("NO INDEX NAME?!?!?")
+		fmt.Printf("Missing index name in metadata") // SHOULD NEVER HAPPEN AND NOT BE VERIFIED HERE I GUESS
+		return nil, data, nil
 	}
 
 	for _, m := range message {
-		messageAsHttpReq, err := quesma_api.CheckedCast[*http.Request](m)
+		mCasted, err := quesma_api.CheckedCast[*quesma_api.Request](m)
 		if err != nil {
-			panic("ElasticsearchToClickHouseIngestProcessor: invalid message type")
+			fmt.Printf("ElasticsearchToClickHouseIngestProcessor: invalid message type: %v", err)
+			return nil, data, err
 		}
+		messageAsHttpReq := mCasted.OriginalRequest
 
 		if _, present := p.config.IndexConfig[indexNameFromIncomingReq]; !present && metadata[IngestAction] == DocIndexAction {
 			// route to Elasticsearch, `bulk` request might be sent to ClickHouse depending on the request payload

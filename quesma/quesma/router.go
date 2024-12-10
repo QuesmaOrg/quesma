@@ -469,7 +469,7 @@ func elasticsearchCountResult(body int64, statusCode int) (*quesma_api.Result, e
 	if err != nil {
 		return nil, err
 	}
-	return &quesma_api.Result{Body: string(serialized), Meta: map[string]string{
+	return &quesma_api.Result{Body: string(serialized), Meta: map[string]any{
 		"Content-Type":            "application/json",
 		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode}, nil
@@ -486,7 +486,7 @@ type countResult struct {
 }
 
 func elasticsearchQueryResult(body string, statusCode int) *quesma_api.Result {
-	return &quesma_api.Result{Body: body, Meta: map[string]string{
+	return &quesma_api.Result{Body: body, Meta: map[string]any{
 		// TODO copy paste from the original request
 		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode}
@@ -556,7 +556,7 @@ func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*que
 }
 
 func elasticsearchInsertResult(body string, statusCode int) *quesma_api.Result {
-	return &quesma_api.Result{Body: body, Meta: map[string]string{
+	return &quesma_api.Result{Body: body, Meta: map[string]any{
 		// TODO copy paste from the original request
 		frontend_connectors.ContentTypeHeaderKey: "application/json",
 		"X-Quesma-Headers-Source":                "Quesma",
@@ -575,7 +575,7 @@ func resolveIndexResult(sources elasticsearch.Sources) (*quesma_api.Result, erro
 
 	return &quesma_api.Result{
 		Body:       string(body),
-		Meta:       map[string]string{},
+		Meta:       map[string]any{},
 		StatusCode: http.StatusOK}, nil
 }
 
