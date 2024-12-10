@@ -272,14 +272,7 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 }
 
 func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
-
-	if expr, ok := model.ShouldSkipTransformation(query.SelectCommand, "array"); ok {
-		if _, ok := expr.(*model.SelectCommand); ok {
-			query.SelectCommand = *expr.(*model.SelectCommand)
-		}
-		return query, nil
-	}
-
+	
 	arrayTypeResolver := arrayTypeResolver{indexSchema: indexSchema}
 
 	// check if the query has array columns

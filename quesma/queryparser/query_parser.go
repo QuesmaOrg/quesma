@@ -906,7 +906,6 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 				model.NewColumnRef(fieldName),
 				model.NewLiteral("size0"),
 			), "=", model.NewLiteral("0"))
-			sql = model.NewSkipTransformation(sql, "array")
 
 		case clickhouse.NotExists:
 			// TODO this is a workaround for the case when the field is a point
@@ -936,7 +935,6 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 
 			if len(stmts) > 0 {
 				sql = model.Or(stmts)
-				sql = model.NewSkipTransformation(sql, "array")
 			} else {
 				sql = model.NewLiteral(false)
 			}
