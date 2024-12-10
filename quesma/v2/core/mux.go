@@ -6,13 +6,16 @@ import (
 	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"strings"
 )
 
 type (
 	PathRouter struct {
-		mappings []mapping
+		mappings        []mapping
+		mutex           sync.RWMutex
+		fallbackHandler HTTPFrontendHandler
 	}
 	mapping struct {
 		pattern      string
@@ -83,8 +86,18 @@ func NewPathRouter() *PathRouter {
 	return &PathRouter{mappings: make([]mapping, 0)}
 }
 
+func (p *PathRouter) Lock() {
+	p.mutex.Lock()
+}
+
+func (p *PathRouter) Unlock() {
+	p.mutex.Unlock()
+}
+
 func (p *PathRouter) Clone() Cloner {
 	newRouter := NewPathRouter()
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 	for _, mapping := range p.mappings {
 		newRouter.Register(mapping.pattern, mapping.predicate, mapping.handler.Handler)
 	}
@@ -92,13 +105,16 @@ func (p *PathRouter) Clone() Cloner {
 }
 
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler) {
-
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HandlersPipe{Handler: handler}}
 	p.mappings = append(p.mappings, mapping)
 
 }
 
 func (p *PathRouter) Matches(req *Request) (*HandlersPipe, *Decision) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 	handler, decision := p.findHandler(req)
 	if handler != nil {
 		routerStatistics.addMatched(req.Path)
@@ -189,12 +205,19 @@ func (p *PathRouter) AddRoute(path string, handler HTTPFrontendHandler) {
 	p.Register(path, Always(), handler)
 }
 func (p *PathRouter) AddFallbackHandler(handler HTTPFrontendHandler) {
-	panic("not implemented")
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	p.fallbackHandler = handler
 }
 func (p *PathRouter) GetFallbackHandler() HTTPFrontendHandler {
-	panic("not implemented")
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+	return p.fallbackHandler
 }
 func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
 	callInfos := make(map[string]HandlersPipe)
 	for _, v := range p.mappings {
 		callInfos[v.pattern] = *v.handler
@@ -202,6 +225,9 @@ func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
 	return callInfos
 }
 func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
 	for path, handler := range handlers {
 		p.mappings = append(p.mappings, mapping{pattern: path, compiledPath: urlpath.New(path), handler: &handler})
 	}
