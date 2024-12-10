@@ -101,7 +101,8 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 		messageAsHttpReq := mCasted.OriginalRequest
 
 		if _, present := p.config.IndexConfig[indexNameFromIncomingReq]; !present && metadata[IngestAction] == DocIndexAction {
-			// route to Elasticsearch, `bulk` request might be sent to ClickHouse depending on the request payload
+			// `_doc` at this point can go directly to Elasticsearch,
+			// `_bulk` request might be still sent to ClickHouse as the req payload may contain documents targeting CH tables
 			resp := p.legacyIngestProcessor.SendToElasticsearch(messageAsHttpReq)
 			respBody, err := ReadResponseBody(resp)
 			if err != nil {
