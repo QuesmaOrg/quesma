@@ -88,6 +88,7 @@ func (p *PathRouter) Clone() Cloner {
 	for _, mapping := range p.mappings {
 		newRouter.Register(mapping.pattern, mapping.predicate, mapping.handler.Handler)
 	}
+	newRouter.fallbackHandler = p.fallbackHandler
 	return newRouter
 }
 
