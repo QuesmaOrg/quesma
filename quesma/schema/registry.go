@@ -85,7 +85,6 @@ func (s *schemaRegistry) loadSchemas() (map[IndexName]Schema, error) {
 			existsInDataSource := s.populateSchemaFromTableDefinition(definitions, tableName, fields, internalToPublicFieldsEncodings)
 			schemas[IndexName(tableName)] = NewSchema(fields, existsInDataSource, table.DatabaseName)
 		}
-		return schemas, nil
 	}
 
 	for indexName, indexConfiguration := range *s.indexConfiguration {
