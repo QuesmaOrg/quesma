@@ -107,6 +107,13 @@ func resolveInternalElasticName(part string) *quesma_api.Decision {
 	return nil
 }
 
+func resolveTableName(quesmaConf config.QuesmaConfiguration, originalName string) string {
+	if indexCfg, ok := quesmaConf.IndexConfig[originalName]; ok {
+		return indexCfg.TableName()
+	}
+	return originalName
+}
+
 func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string) func(part string) *quesma_api.Decision {
 	return func(part string) *quesma_api.Decision {
 		var targets []string
@@ -128,9 +135,9 @@ func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string)
 			switch target {
 			case config.ClickhouseTarget:
 				useConnectors = append(useConnectors, &quesma_api.ConnectorDecisionClickhouse{
-					ClickhouseTableName: part,
+					ClickhouseTableName: resolveTableName(quesmaConf, part),
 					IsCommonTable:       quesmaConf.UseCommonTableForWildcard,
-					ClickhouseTables:    []string{part},
+					ClickhouseIndexes:   []string{part},
 				})
 			case config.ElasticsearchTarget:
 				useConnectors = append(useConnectors, &quesma_api.ConnectorDecisionElastic{})
@@ -176,8 +183,8 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 						targetDecision = &quesma_api.ConnectorDecisionElastic{}
 					case config.ClickhouseTarget:
 						targetDecision = &quesma_api.ConnectorDecisionClickhouse{
-							ClickhouseTableName: part,
-							ClickhouseTables:    []string{part},
+							ClickhouseTableName: cfg.TableName(),
+							ClickhouseIndexes:   []string{part},
 						}
 					default:
 						return &quesma_api.Decision{
@@ -197,8 +204,8 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 							Reason: "Enabled in the config. Dual write is enabled.",
 
 							UseConnectors: []quesma_api.ConnectorDecision{&quesma_api.ConnectorDecisionClickhouse{
-								ClickhouseTableName: part,
-								ClickhouseTables:    []string{part}},
+								ClickhouseTableName: cfg.TableName(),
+								ClickhouseIndexes:   []string{part}},
 								&quesma_api.ConnectorDecisionElastic{}},
 						}
 
@@ -210,8 +217,8 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 								Reason:          "Enabled in the config. A/B testing.",
 								EnableABTesting: true,
 								UseConnectors: []quesma_api.ConnectorDecision{&quesma_api.ConnectorDecisionClickhouse{
-									ClickhouseTableName: part,
-									ClickhouseTables:    []string{part}},
+									ClickhouseTableName: cfg.TableName(),
+									ClickhouseIndexes:   []string{part}},
 									&quesma_api.ConnectorDecisionElastic{}},
 							}
 						} else if targets[0] == config.ElasticsearchTarget && targets[1] == config.ClickhouseTarget {
@@ -222,8 +229,8 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 								UseConnectors: []quesma_api.ConnectorDecision{
 									&quesma_api.ConnectorDecisionElastic{},
 									&quesma_api.ConnectorDecisionClickhouse{
-										ClickhouseTableName: part,
-										ClickhouseTables:    []string{part}},
+										ClickhouseTableName: cfg.TableName(),
+										ClickhouseIndexes:   []string{part}},
 								},
 							}
 
@@ -279,7 +286,7 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 			return &quesma_api.Decision{
 				UseConnectors: []quesma_api.ConnectorDecision{&quesma_api.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					ClickhouseTables:    []string{part},
+					ClickhouseIndexes:   []string{part},
 					IsCommonTable:       true,
 				}},
 				Reason: "Common table will be used.",
@@ -314,8 +321,8 @@ func mergeUseConnectors(lhs []quesma_api.ConnectorDecision, rhs []quesma_api.Con
 								Err:    fmt.Errorf("incompatible decisions for two indexes (common table usage) - %s and %s", connDecisionRhs, connDecisionLhs),
 							}
 						}
-						lhsClickhouse.ClickhouseTables = append(lhsClickhouse.ClickhouseTables, rhsClickhouse.ClickhouseTables...)
-						lhsClickhouse.ClickhouseTables = util.Distinct(lhsClickhouse.ClickhouseTables)
+						lhsClickhouse.ClickhouseIndexes = append(lhsClickhouse.ClickhouseIndexes, rhsClickhouse.ClickhouseIndexes...)
+						lhsClickhouse.ClickhouseIndexes = util.Distinct(lhsClickhouse.ClickhouseIndexes)
 					} else {
 						if !reflect.DeepEqual(lhsClickhouse, rhsClickhouse) {
 							return nil, &quesma_api.Decision{

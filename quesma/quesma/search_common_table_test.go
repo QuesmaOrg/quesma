@@ -257,7 +257,7 @@ func TestSearchCommonTable(t *testing.T) {
 	resolver.Decisions["logs-1"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1"},
+			ClickhouseIndexes:   []string{"logs-1"},
 			IsCommonTable:       true,
 		}},
 	}
@@ -265,7 +265,7 @@ func TestSearchCommonTable(t *testing.T) {
 	resolver.Decisions["logs-2"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-2"},
+			ClickhouseIndexes:   []string{"logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
@@ -273,7 +273,7 @@ func TestSearchCommonTable(t *testing.T) {
 	resolver.Decisions["logs-3"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: "logs-3",
-			ClickhouseTables:    []string{"logs-3"},
+			ClickhouseIndexes:   []string{"logs-3"},
 			IsCommonTable:       false,
 		}},
 	}
@@ -281,7 +281,7 @@ func TestSearchCommonTable(t *testing.T) {
 	resolver.Decisions["logs-1,logs-2"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
@@ -289,14 +289,14 @@ func TestSearchCommonTable(t *testing.T) {
 	resolver.Decisions["logs-*"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
 	resolver.Decisions["*"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}

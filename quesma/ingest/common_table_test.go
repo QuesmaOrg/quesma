@@ -197,7 +197,7 @@ func TestIngestToCommonTable(t *testing.T) {
 				UseConnectors: []mux.ConnectorDecision{
 					&mux.ConnectorDecisionClickhouse{
 						ClickhouseTableName: common_table.TableName,
-						ClickhouseTables:    []string{indexName},
+						ClickhouseIndexes:   []string{indexName},
 						IsCommonTable:       true,
 					},
 				},

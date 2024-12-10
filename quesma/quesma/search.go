@@ -107,7 +107,7 @@ func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
 		UseConnectors: []quesma_api.ConnectorDecision{
 			&quesma_api.ConnectorDecisionClickhouse{
 				ClickhouseTableName: tableName,
-				ClickhouseTables:    []string{tableName},
+				ClickhouseIndexes:   []string{tableName},
 			},
 		},
 	}
@@ -365,7 +365,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	var table *clickhouse.Table // TODO we should use schema here only
 	var currentSchema schema.Schema
-	resolvedIndexes := clickhouseConnector.ClickhouseTables
+	resolvedIndexes := clickhouseConnector.ClickhouseIndexes
 
 	if len(resolvedIndexes) == 1 {
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
