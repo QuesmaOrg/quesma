@@ -179,7 +179,7 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (
 }
 
 // We should use this instead of original code
-func (lm *LogManager) ResolveIndexPatternV2(schema schema.Registry, ctx context.Context, pattern string) (results []string, err error) {
+func (lm *LogManager) ResolveIndexPatternV2(ctx context.Context, schema schema.Registry, pattern string) (results []string, err error) {
 	if err = lm.tableDiscovery.TableDefinitionsFetchError(); err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func (lm *LogManager) ResolveIndexPatternV2(schema schema.Registry, ctx context.
 				slices.Sort(results)
 				return results, nil
 			} else {
-				indexes, err := lm.ResolveIndexPatternV2(schema, ctx, pattern)
+				indexes, err := lm.ResolveIndexPatternV2(ctx, schema, pattern)
 				if err != nil {
 					return nil, err
 				}

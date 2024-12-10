@@ -8,6 +8,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/frontend_connectors"
 	"quesma/quesma/recovery"
+	"quesma/schema"
 	"quesma/telemetry"
 	"quesma_v2/core"
 )
@@ -18,6 +19,7 @@ type ElasticHttpFrontendConnector struct {
 	searchRouter   *quesma_api.PathRouter
 	ingestRouter   *quesma_api.PathRouter
 	logManager     *clickhouse.LogManager
+	registry       schema.Registry
 	agent          telemetry.PhoneHomeAgent
 }
 
@@ -26,6 +28,7 @@ func NewElasticHttpFrontendConnector(endpoint string,
 	searchRouter *quesma_api.PathRouter,
 	ingestRouter *quesma_api.PathRouter,
 	logManager *clickhouse.LogManager,
+	registry schema.Registry,
 	agent telemetry.PhoneHomeAgent) *ElasticHttpFrontendConnector {
 	return &ElasticHttpFrontendConnector{
 		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint),
@@ -33,6 +36,7 @@ func NewElasticHttpFrontendConnector(endpoint string,
 		searchRouter:               searchRouter,
 		ingestRouter:               ingestRouter,
 		logManager:                 logManager,
+		registry:                   registry,
 		agent:                      agent,
 	}
 }
@@ -48,5 +52,5 @@ func (h *ElasticHttpFrontendConnector) ServeHTTP(w http.ResponseWriter, req *htt
 	ua := req.Header.Get("User-Agent")
 	h.agent.UserAgentCounters().Add(ua, 1)
 
-	h.routerInstance.Reroute(req.Context(), w, req, reqBody, h.searchRouter, h.ingestRouter, h.logManager)
+	h.routerInstance.Reroute(req.Context(), w, req, reqBody, h.searchRouter, h.ingestRouter, h.logManager, h.registry)
 }
