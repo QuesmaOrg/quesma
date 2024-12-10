@@ -186,9 +186,7 @@ func Always() RequestMatcher {
 }
 
 func (p *PathRouter) AddRoute(path string, handler HTTPFrontendHandler) {
-	// TODO: it seems that we can adapt this to register call
-	// p.Register(path, Always(), handler)
-	panic("not implemented")
+	p.Register(path, Always(), handler)
 }
 func (p *PathRouter) AddFallbackHandler(handler HTTPFrontendHandler) {
 	panic("not implemented")
