@@ -3,8 +3,10 @@
 package optimize
 
 import (
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
+	"strconv"
 )
 
 type shortenTimeRange struct{}
@@ -25,6 +27,9 @@ func (s shortenTimeRange) validateSelectedColumns(columns []model.Expr) bool {
 			continue
 		}
 		if _, ok := column.(model.LiteralExpr); ok {
+			continue
+		}
+		if aliasedExpr, ok := column.(model.AliasedExpr); ok && s.validateSelectedColumns([]model.Expr{aliasedExpr.Expr}) {
 			continue
 		}
 		if functionExpr, ok := column.(model.FunctionExpr); ok && s.validateSelectedColumns(functionExpr.Args) {
@@ -125,6 +130,46 @@ func (s shortenTimeRange) findTimeRange(selectCommand *model.SelectCommand) *tim
 	return &timeRange{columnName: orderByColumnName, lowerLimit: *lowerLimit, upperLimit: *upperLimit, direction: direction}
 }
 
+func (s shortenTimeRange) columnsToAliasedColumns(columns []model.Expr) []model.Expr {
+	aliasedColumns := make([]model.Expr, len(columns))
+	for i, column := range columns {
+		// Using aliasing rules from ProcessQuery
+
+		if columnRef, ok := column.(model.ColumnRef); ok {
+			aliasedColumns[i] = model.NewAliasedExpr(column, columnRef.ColumnName)
+			continue
+		}
+		if col, ok := column.(model.LiteralExpr); ok {
+			var colName string
+			if str, isStr := col.Value.(string); isStr {
+				if unquoted, err := strconv.Unquote(str); err == nil {
+					colName = unquoted
+				} else {
+					colName = str
+				}
+			} else {
+				if colName == "" {
+					colName = fmt.Sprintf("column_%d", i)
+				}
+			}
+			aliasedColumns[i] = model.NewAliasedExpr(column, colName)
+			continue
+		}
+		if aliasedExpr, ok := column.(model.AliasedExpr); ok {
+			aliasedColumns[i] = aliasedExpr
+			continue
+		}
+		if _, ok := column.(model.FunctionExpr); ok {
+			aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
+			continue
+		}
+
+		aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
+		logger.Error().Msgf("Quesma internal error - unreachable code: unsupported column type %T", column)
+	}
+	return aliasedColumns
+}
+
 func (s shortenTimeRange) transformQuery(query *model.Query) (*model.Query, error) {
 	foundTimeRange := s.findTimeRange(&query.SelectCommand)
 	if foundTimeRange == nil {
@@ -144,13 +189,20 @@ func (s shortenTimeRange) transformQuery(query *model.Query) (*model.Query, erro
 
 	shortSelectCommand := query.SelectCommand
 	shortSelectCommand.WhereClause = model.NewInfixExpr(model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), ">=", model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(splitPoint))), "AND", shortSelectCommand.WhereClause)
+	shortSelectCommand.Columns = s.columnsToAliasedColumns(shortSelectCommand.Columns)
 
 	longSelectCommand := query.SelectCommand
 	longSelectCommand.WhereClause = model.NewInfixExpr(model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), "<", model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(splitPoint))), "AND", longSelectCommand.WhereClause)
+	longSelectCommand.Columns = s.columnsToAliasedColumns(longSelectCommand.Columns)
+
+	selectedColumns := make([]model.Expr, len(shortSelectCommand.Columns))
+	for i, column := range shortSelectCommand.Columns {
+		selectedColumns[i] = model.NewColumnRef(column.(model.AliasedExpr).Alias)
+	}
 
 	unionSelectCommand := model.SelectCommand{
 		IsDistinct:  false,
-		Columns:     shortSelectCommand.Columns,
+		Columns:     selectedColumns,
 		FromClause:  model.NewParenExpr(model.NewInfixExpr(model.NewParenExpr(shortSelectCommand), "UNION ALL", model.NewParenExpr(longSelectCommand))),
 		WhereClause: nil,
 		GroupBy:     nil,

@@ -254,9 +254,9 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 		return responseBody, err
 	}
 
-	if resp, err := q.checkProperties(ctx, plan, table, queryTranslator); err != nil {
-		return resp, err
-	}
+	//if resp, err := q.checkProperties(ctx, plan, table, queryTranslator); err != nil {
+	//	return resp, err
+	//}
 
 	q.runExecutePlanAsync(ctx, plan, queryTranslator, table, doneCh, optAsync)
 
