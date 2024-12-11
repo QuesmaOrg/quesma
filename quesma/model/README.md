@@ -15,7 +15,7 @@ More info: https://www.elastic.co/guide/en/elasticsearch/reference/current/searc
  Cardinality               |   :white_check_mark:   | Auto-interval date histogram |    :wavy_dash:     | Bucket script          |     :wavy_dash:    |
  Extended Stats            | :white_check_mark:[^1] | Categorize text              |        :x:         | Bucket count K-S test  |        :x:         |
  Avg                       |   :white_check_mark:   | Children                     |        :x:         | Bucket correlation     |        :x:         |
- Boxplot                   |          :x:           | Composite                    |        :x:         | Bucket selector        |        :x:         |
+ Boxplot                   |          :x:           | Composite                    | :white_check_mark: | Bucket selector        |        :x:         |
  Cardinality               |   :white_check_mark:   | Date histogram               | :white_check_mark: | Bucket sort            |        :x:         |
  Extended stats            | :white_check_mark:[^1] | Date range                   | :white_check_mark: | Change point           |        :x:         |
  Geo-bounds                |          :x:           | Diversified sampler          |        :x:         | Cumulative cardinality |        :x:         |

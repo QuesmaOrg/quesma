@@ -669,7 +669,7 @@ func (s *SchemaCheckPass) applyRuntimeMappings(indexSchema schema.Schema, query 
 		switch c := col.(type) {
 		case model.ColumnRef:
 			if mapping, ok := query.RuntimeMappings[c.ColumnName]; ok {
-				cols[i] = model.NewAliasedExpr(mapping.Expr, c.ColumnName)
+				cols[i] = model.NewAliasedExpr(mapping.DatabaseExpression, c.ColumnName)
 			}
 		}
 	}
@@ -679,7 +679,7 @@ func (s *SchemaCheckPass) applyRuntimeMappings(indexSchema schema.Schema, query 
 	visitor := model.NewBaseVisitor()
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 		if mapping, ok := query.RuntimeMappings[e.ColumnName]; ok {
-			return mapping.Expr
+			return mapping.DatabaseExpression
 		}
 		return e
 	}
@@ -724,6 +724,49 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema s
 
 }
 
+func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	aggFunctionPrefixes := []string{"sum", "avg"}
+
+	dbTypePrefixes := []string{"DateTime", "String", "LowCardinality(String)"}
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
+
+		currentFunctionName := strings.ToLower(e.Name)
+
+		for _, aggPrefix := range aggFunctionPrefixes {
+			if strings.HasPrefix(currentFunctionName, aggPrefix) {
+				if len(e.Args) > 0 {
+					if columnRef, ok := e.Args[0].(model.ColumnRef); ok {
+						if col, ok := indexSchema.ResolveFieldByInternalName(columnRef.ColumnName); ok {
+							for _, dbTypePrefix := range dbTypePrefixes {
+								if strings.HasPrefix(col.InternalPropertyType, dbTypePrefix) {
+									logger.Warn().Msgf("Aggregation '%s' over unsupported type '%s' in column '%s'", e.Name, dbTypePrefix, col.InternalPropertyName.AsString())
+									args := b.VisitChildren(e.Args)
+									args[0] = model.NewLiteral("NULL")
+									return model.NewFunction(e.Name, args...)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 
 	transformationChain := []struct {
@@ -751,6 +794,8 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 		{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
+		{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
+		{TransformationName: "AggOverUnsupportedType", Transformation: s.checkAggOverUnsupportedType},
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
@@ -759,25 +804,77 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 	for k, query := range queries {
 		var err error
 
+		if !s.cfg.Logging.EnableSQLTracing {
+			query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, "n/a")
+		}
+
 		for _, transformation := range transformationChain {
 
-			inputQuery := query.SelectCommand.String()
+			var inputQuery string
+
+			if s.cfg.Logging.EnableSQLTracing {
+				inputQuery = query.SelectCommand.String()
+			}
+
 			query, err = transformation.Transformation(query.Schema, query)
 			if err != nil {
 				return nil, err
 			}
-			if query.SelectCommand.String() != inputQuery {
 
-				query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, transformation.TransformationName)
-
-				if s.cfg.Logging.EnableSQLTracing {
+			if s.cfg.Logging.EnableSQLTracing {
+				if query.SelectCommand.String() != inputQuery {
+					query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, transformation.TransformationName)
 					logger.Info().Msgf(transformation.TransformationName+" triggered, input query: %s", inputQuery)
 					logger.Info().Msgf(transformation.TransformationName+" triggered, output query: %s", query.SelectCommand.String())
 				}
 			}
-
 		}
+
 		queries[k] = query
 	}
 	return queries, nil
+}
+
+func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	visitor := model.NewBaseVisitor()
+
+	var err error
+
+	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
+		lhs, ok := e.Left.(model.ColumnRef)
+		rhs, ok2 := e.Right.(model.LiteralExpr)
+
+		if ok && ok2 && e.Op == model.MatchOperator {
+			field, found := indexSchema.ResolveFieldByInternalName(lhs.ColumnName)
+			if !found {
+				logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhs.ColumnName, query.TableName)
+			}
+
+			rhsValue := rhs.Value.(string)
+			rhsValue = strings.TrimPrefix(rhsValue, "'")
+			rhsValue = strings.TrimSuffix(rhsValue, "'")
+
+			switch field.Type.String() {
+			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeBoolean.Name:
+				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
+			default:
+				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteral("'%"+rhsValue+"%'"))
+			}
+		}
+
+		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
 }

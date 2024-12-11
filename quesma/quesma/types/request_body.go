@@ -5,6 +5,7 @@ package types
 import (
 	"fmt"
 	"quesma/end_user_errors"
+	quesma_api "quesma_v2/core"
 	"strings"
 )
 
@@ -22,15 +23,11 @@ func (u *Unknown) String() string {
 
 }
 
-type RequestBody interface {
-	isParsedRequestBody() // this is a marker method
-}
+func (j JSON) IsParsedRequestBody()     {}
+func (n NDJSON) IsParsedRequestBody()   {}
+func (u *Unknown) IsParsedRequestBody() {}
 
-func (j JSON) isParsedRequestBody()     {}
-func (n NDJSON) isParsedRequestBody()   {}
-func (u *Unknown) isParsedRequestBody() {}
-
-func ParseRequestBody(body string) RequestBody {
+func ParseRequestBody(body string) quesma_api.RequestBody {
 
 	unknow := &Unknown{}
 	unknow.Body = body
@@ -63,7 +60,7 @@ func ParseRequestBody(body string) RequestBody {
 	return unknow
 }
 
-func ExpectJSON(body RequestBody) (JSON, error) {
+func ExpectJSON(body quesma_api.RequestBody) (JSON, error) {
 
 	switch b := body.(type) {
 	case JSON:
@@ -73,7 +70,7 @@ func ExpectJSON(body RequestBody) (JSON, error) {
 	}
 }
 
-func ExpectNDJSON(body RequestBody) (NDJSON, error) {
+func ExpectNDJSON(body quesma_api.RequestBody) (NDJSON, error) {
 
 	switch b := body.(type) {
 	case NDJSON:

@@ -4,9 +4,9 @@ package terms_enum
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/goccy/go-json"
 	"quesma/clickhouse"
 	"quesma/end_user_errors"
 	"quesma/logger"
@@ -15,7 +15,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
-	"quesma/tracing"
+	tracing "quesma_v2/core/tracing"
 	"strconv"
 	"time"
 )

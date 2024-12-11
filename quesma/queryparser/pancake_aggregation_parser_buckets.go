@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"quesma/clickhouse"
-	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -103,7 +102,7 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 	weAddedMissing := false
 	if missingRaw, exists := params["missing"]; exists {
 		if missing, ok := missingRaw.(string); ok {
-			dateManager := kibana.NewDateManager(cw.Ctx)
+			dateManager := NewDateManager(cw.Ctx)
 			if missingExpr, parsingOk := dateManager.ParseDateUsualFormat(missing, dateTimeType); parsingOk {
 				field = model.NewFunction("COALESCE", field, missingExpr)
 				weAddedMissing = true
@@ -147,18 +146,18 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 // paramsRaw - in a proper request should be of QueryMap type.
 // aggrName - "terms" or "significant_terms"
 func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeAggregationTreeNode, params QueryMap, aggrName string) error {
-	fieldExpression := cw.parseFieldField(params, aggrName)
-	fieldExpression, didWeAddMissing := cw.addMissingParameterIfPresent(fieldExpression, params)
+	field := cw.parseFieldField(params, aggrName)
+	field, didWeAddMissing := cw.addMissingParameterIfPresent(field, params)
 	if !didWeAddMissing {
 		aggregation.filterOutEmptyKeyBucket = true
 	}
 
 	const defaultSize = 10
 	size := cw.parseSize(params, defaultSize)
-	orderBy := cw.parseOrder(params, []model.Expr{fieldExpression})
+	orderBy := cw.parseOrder(params, []model.Expr{field})
 
 	aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, aggrName == "significant_terms", orderBy[0]) // TODO probably full, not [0]
-	aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)
+	aggregation.selectedColumns = append(aggregation.selectedColumns, field)
 	aggregation.limit = size
 	aggregation.orderBy = orderBy
 	return nil
@@ -196,25 +195,8 @@ func (cw *ClickhouseQueryTranslator) parseRangeAggregation(aggregation *pancakeA
 	intervals := make([]bucket_aggregations.Interval, 0, len(ranges))
 	for _, Range := range ranges {
 		rangePartMap := Range.(QueryMap)
-		var from, to float64
-		if fromRaw, ok := rangePartMap["from"]; ok {
-			from, ok = fromRaw.(float64)
-			if !ok {
-				logger.WarnWithCtx(cw.Ctx).Msgf("from is not a float64: %v, type: %T", fromRaw, fromRaw)
-				from = bucket_aggregations.IntervalInfiniteRange
-			}
-		} else {
-			from = bucket_aggregations.IntervalInfiniteRange
-		}
-		if toRaw, ok := rangePartMap["to"]; ok {
-			to, ok = toRaw.(float64)
-			if !ok {
-				logger.WarnWithCtx(cw.Ctx).Msgf("to is not a float64: %v, type: %T", toRaw, toRaw)
-				to = bucket_aggregations.IntervalInfiniteRange
-			}
-		} else {
-			to = bucket_aggregations.IntervalInfiniteRange
-		}
+		from := cw.parseFloatField(rangePartMap, "from", bucket_aggregations.IntervalInfiniteRange)
+		to := cw.parseFloatField(rangePartMap, "to", bucket_aggregations.IntervalInfiniteRange)
 		intervals = append(intervals, bucket_aggregations.NewInterval(from, to))
 	}
 
@@ -240,7 +222,7 @@ func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(aggregation *pancake
 		return nil
 	}
 
-	return fmt.Errorf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
+	return fmt.Errorf("error parsing 'field' in auto_date_histogram; field type: %T, value: %v", fieldRaw, fieldRaw)
 }
 
 func (cw *ClickhouseQueryTranslator) parseMultiTerms(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
@@ -328,6 +310,65 @@ func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggreg
 	return nil
 }
 
+// compositeRaw - in a proper request should be of QueryMap type.
+// TODO: In geotile_grid, without order specidfied, Elastic returns sort by key (a/b/c earlier than x/y/z if a<x or (a=x && b<y), etc.)
+// Maybe add some ordering, but doesn't seem to be very important.
+func (cw *ClickhouseQueryTranslator) parseComposite(currentAggrNode *pancakeAggregationTreeNode, params QueryMap) (*bucket_aggregations.Composite, error) {
+	const defaultSize = 10
+
+	// The sources parameter can be any of the following types:
+	// 1) Terms (but NOT Significant Terms) 2) Histogram 3) Date histogram 4) GeoTile grid
+	// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-composite-aggregation.html
+	isValidSourceType := func(queryType model.QueryType) bool {
+		switch typed := queryType.(type) {
+		case *bucket_aggregations.Histogram, *bucket_aggregations.DateHistogram, bucket_aggregations.GeoTileGrid:
+			return true
+		case bucket_aggregations.Terms:
+			return !typed.IsSignificant()
+		default:
+			return false
+		}
+	}
+
+	var baseAggrs []*bucket_aggregations.BaseAggregation
+	sourcesRaw, exists := params["sources"]
+	if !exists {
+		return nil, fmt.Errorf("composite has no sources")
+	}
+	sources, ok := sourcesRaw.([]any)
+	if !ok {
+		return nil, fmt.Errorf("sources is not an array, but %T, value: %v", sourcesRaw, sourcesRaw)
+	}
+	for _, sourceRaw := range sources {
+		source, ok := sourceRaw.(QueryMap)
+		if !ok {
+			return nil, fmt.Errorf("source is not a map, but %T, value: %v", sourceRaw, sourceRaw)
+		}
+		if len(source) != 1 {
+			return nil, fmt.Errorf("source has unexpected length: %v", source)
+		}
+		for aggrName, aggrRaw := range source {
+			aggr, ok := aggrRaw.(QueryMap)
+			if !ok {
+				return nil, fmt.Errorf("source value is not a map, but %T, value: %v", aggrRaw, aggrRaw)
+
+			}
+			if err := cw.pancakeTryBucketAggregation(currentAggrNode, aggr); err == nil {
+				if !isValidSourceType(currentAggrNode.queryType) {
+					return nil, fmt.Errorf("unsupported base aggregation type: %v", currentAggrNode.queryType)
+				}
+				baseAggrs = append(baseAggrs, bucket_aggregations.NewBaseAggregation(aggrName, currentAggrNode.queryType))
+			} else {
+				return nil, err
+			}
+		}
+	}
+
+	size := cw.parseIntField(params, "size", defaultSize)
+	currentAggrNode.limit = size
+	return bucket_aggregations.NewComposite(cw.Ctx, size, baseAggrs), nil
+}
+
 func (cw *ClickhouseQueryTranslator) parseOrder(params QueryMap, fieldExpressions []model.Expr) []model.OrderByExpr {
 	defaultDirection := model.DescOrder
 	defaultOrderBy := model.NewOrderByExpr(model.NewCountFunc(), defaultDirection)
@@ -373,13 +414,14 @@ func (cw *ClickhouseQueryTranslator) parseOrder(params QueryMap, fieldExpression
 				direction = model.AscOrder
 			}
 
-			if key == "_key" {
+			switch key {
+			case "_key":
 				for _, fieldExpression := range fieldExpressions {
 					fullOrderBy = append(fullOrderBy, model.OrderByExpr{Expr: fieldExpression, Direction: direction})
 				}
-			} else if key == "_count" {
+			case "_count":
 				fullOrderBy = append(fullOrderBy, model.NewOrderByExpr(model.NewCountFunc(), direction))
-			} else {
+			default:
 				fullOrderBy = append(fullOrderBy, model.OrderByExpr{Expr: model.NewLiteral(key), Direction: direction})
 			}
 		}

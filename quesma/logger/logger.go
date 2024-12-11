@@ -10,7 +10,8 @@ import (
 	"net/http"
 	"os"
 	"quesma/stats/errorstats"
-	"quesma/tracing"
+	asyncQueryTracing "quesma/tracing"
+	tracing "quesma_v2/core/tracing"
 	"time"
 )
 
@@ -41,7 +42,7 @@ const (
 var logger zerolog.Logger
 
 // InitLogger returns channel where log messages will be sent
-func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asyncQueryTraceLogger *tracing.AsyncTraceLogger) <-chan LogWithLevel {
+func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asyncQueryTraceLogger *asyncQueryTracing.AsyncTraceLogger) <-chan LogWithLevel {
 	zerolog.TimeFieldFormat = time.RFC3339Nano // without this we don't have milliseconds timestamp precision
 	var output io.Writer = zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.StampMilli}
 	if os.Getenv("GO_ENV") == "production" { // ConsoleWriter is slow, disable it in production
@@ -137,7 +138,21 @@ func InitSimpleLoggerForTestsWarnLevel() {
 		Logger()
 }
 
+var testLoggerInitialized bool
+
+const TestConsoleStatsBasedOnLogs = false
+
 func InitOnlyChannelLoggerForTests() <-chan LogWithLevel {
+
+	// We can't reassign global logger, it will lead to "race condition" in tests. It's known issue with zerolog.
+	// https://github.com/rs/zerolog/issues/242
+
+	if testLoggerInitialized {
+		// we do return a fresh channel here, it will break the stats gathering in the console
+		// see TestConsoleStatsBasedOnLogs usage in the tests
+		return make(chan LogWithLevel, 50000)
+	}
+
 	zerolog.TimeFieldFormat = time.RFC3339Nano   // without this we don't have milliseconds timestamp precision
 	logChannel := make(chan LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
 	chanWriter := channelWriter{ch: logChannel}
@@ -151,6 +166,8 @@ func InitOnlyChannelLoggerForTests() <-chan LogWithLevel {
 
 	globalError := errorstats.GlobalErrorHook{}
 	logger = logger.Hook(&globalError)
+
+	testLoggerInitialized = true
 	return logChannel
 }
 

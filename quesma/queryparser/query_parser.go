@@ -1,15 +1,15 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
+
 package queryparser
 
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
-	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -71,7 +71,10 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		queries = append(queries, listQuery)
 	}
 
-	runtimeMappings := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
+	runtimeMappings, err := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
+	if err != nil {
+		return &model.ExecutionPlan{}, err
+	}
 
 	// we apply post query transformer for certain aggregation types
 	// this should be a part of the query parsing process
@@ -588,7 +591,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					computedIdMatchingQuery := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
 					statements = append(statements, computedIdMatchingQuery.WhereClause)
 				} else {
-					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'%"+subQuery+"%'"))
+					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteral("'"+subQuery+"'"))
 					statements = append(statements, simpleStat)
 				}
 			}
@@ -804,7 +807,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			valueRaw := v.(QueryMap)[op]
 			value := sprint(valueRaw)
 			defaultValue := model.NewLiteral(value)
-			dateManager := kibana.NewDateManager(cw.Ctx)
+			dateManager := NewDateManager(cw.Ctx)
 
 			// Three stages:
 			// 1. dateManager.ParseDateUsualFormat
@@ -899,7 +902,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 		case clickhouse.ExistsAndIsArray:
 			sql = model.NewInfixExpr(model.NewNestedProperty(
-				model.NewColumnRef(fieldNameQuoted),
+				model.NewColumnRef(fieldName),
 				model.NewLiteral("size0"),
 			), "=", model.NewLiteral("0"))
 		case clickhouse.NotExists:

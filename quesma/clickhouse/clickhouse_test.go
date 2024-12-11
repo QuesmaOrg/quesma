@@ -4,9 +4,9 @@ package clickhouse
 
 import (
 	"context"
-	"quesma/concurrent"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
+	"quesma/util"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -646,49 +646,49 @@ func TestLogManager_GetTable(t *testing.T) {
 	}{
 		{
 			name:             "empty",
-			predefinedTables: *concurrent.NewMap[string, *Table](),
+			predefinedTables: *util.NewSyncMap[string, *Table](),
 			tableNamePattern: "table",
 			found:            false,
 		},
 		{
 			name:             "should find by name",
-			predefinedTables: *concurrent.NewMapWith("table1", &Table{Name: "table1"}),
+			predefinedTables: *util.NewSyncMapWith("table1", &Table{Name: "table1"}),
 			tableNamePattern: "table1",
 			found:            true,
 		},
 		{
 			name:             "should not find by name",
-			predefinedTables: *concurrent.NewMapWith("table1", &Table{Name: "table1"}),
+			predefinedTables: *util.NewSyncMapWith("table1", &Table{Name: "table1"}),
 			tableNamePattern: "foo",
 			found:            false,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-generic-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*-*-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-*-default",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*",
 			found:            true,
 		},
 		{
 			name:             "should not find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "foo-*",
 			found:            false,
 		},
@@ -784,7 +784,7 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 }
 
 func newTableMap(tables ...string) *TableMap {
-	newMap := concurrent.NewMap[string, *Table]()
+	newMap := util.NewSyncMap[string, *Table]()
 	for _, table := range tables {
 		newMap.Store(table, &Table{Name: table})
 	}

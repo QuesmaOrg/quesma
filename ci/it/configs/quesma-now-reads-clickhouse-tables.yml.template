@@ -25,9 +25,11 @@ processors:
     config:
       indexes:
         test_table:
-          target: [ my-clickhouse-instance]
+          target:
+            - my-clickhouse-instance
         "*":
-          target: [my-minimal-elasticsearch]
+          target:
+            - my-minimal-elasticsearch
 pipelines:
   - name: my-elasticsearch-proxy-read
     frontendConnectors: [ elastic-query ]

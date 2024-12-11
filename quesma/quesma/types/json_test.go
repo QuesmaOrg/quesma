@@ -3,7 +3,6 @@
 package types
 
 import (
-	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -18,36 +17,6 @@ func TestCommentedJson(t *testing.T) {
 	withoutComment := jsonStruct.ShortString()
 
 	assert.Equal(t, jsonStr, withoutComment)
-}
-
-func TestReMarshalJSON(t *testing.T) {
-
-	type dest struct {
-		Key1 string `json:"key1"`
-		Key2 string `json:"key2"`
-	}
-
-	// given
-	jsonStr := `{"key1":"value1","key2":"value2"}`
-
-	var jsonData JSON
-
-	err := json.Unmarshal([]byte(jsonStr), &jsonData)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// when
-	var destData dest
-	err = jsonData.Remarshal(&destData)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// then
-
-	assert.Equal(t, "value1", destData.Key1)
-	assert.Equal(t, "value2", destData.Key2)
 }
 
 func TestJSONClone(t *testing.T) {
@@ -65,4 +34,40 @@ func TestJSONClone(t *testing.T) {
 	clonedC := arrayJson.Clone()
 	delete(arrayJson["key2"].([]JSON)[0], "key3")
 	assert.Equal(t, "value3", clonedC["key2"].([]JSON)[0]["key3"])
+}
+
+func TestNDJSON_BulkForEach(t *testing.T) {
+
+	input := `{"create":{"_index":"kibana_sample_data_flights", "_id": "1"}}
+{"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
+{"create":{"_index":"kibana_sample_data_flights", "_id": "2"}}
+{"FlightNum":"FOO","DestCountry":"BAR","OriginWeather":"BAZ","OriginCityName":"QUIX" }
+`
+
+	ndjson, err := ParseNDJSON(input)
+	assert.NoError(t, err)
+
+	err = ndjson.BulkForEach(func(entryNumber int, operationParsed BulkOperation, operation JSON, doc JSON) error {
+
+		switch entryNumber {
+
+		case 0:
+			assert.Equal(t, "create", operationParsed.GetOperation())
+			assert.Equal(t, "kibana_sample_data_flights", operationParsed.GetIndex())
+			assert.Equal(t, "9HY9SWR", doc["FlightNum"])
+
+		case 1:
+			assert.Equal(t, "create", operationParsed.GetOperation())
+			assert.Equal(t, "kibana_sample_data_flights", operationParsed.GetIndex())
+			assert.Equal(t, "FOO", doc["FlightNum"])
+
+		default:
+			t.Errorf("Unexpected entry number: %d", entryNumber)
+		}
+
+		return nil
+	})
+
+	assert.NoError(t, err)
+
 }

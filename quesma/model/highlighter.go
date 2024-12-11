@@ -57,13 +57,13 @@ func (h *Highlighter) SetTokensToHighlight(selectCmd SelectCommand) {
 
 	visitor.OverrideVisitInfix = func(b *BaseExprVisitor, e InfixExpr) interface{} {
 		switch e.Op {
-		case "iLIKE", "LIKE", "IN", "=":
+		case "iLIKE", "LIKE", "IN", "=", MatchOperator:
 			lhs, isColumnRef := e.Left.(ColumnRef)
 			rhs, isLiteral := e.Right.(LiteralExpr)
 			if isLiteral && isColumnRef { // we only highlight in this case
 				switch literalAsString := rhs.Value.(type) {
 				case string:
-					literalAsString = strings.TrimPrefix(literalAsString, "'%")
+					literalAsString = strings.TrimPrefix(literalAsString, "'")
 					literalAsString = strings.TrimPrefix(literalAsString, "%")
 					literalAsString = strings.TrimSuffix(literalAsString, "'")
 					literalAsString = strings.TrimSuffix(literalAsString, "%")

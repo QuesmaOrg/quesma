@@ -4,14 +4,14 @@ package proxy
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"net"
 	"net/http"
-	"quesma/network"
 	"quesma/stats"
+	"quesma/util"
 	"slices"
 	"strconv"
 	"testing"
@@ -53,7 +53,7 @@ func TestTcpProxy_IngestAndProcess(t *testing.T) {
 	verifyStatistics(t, fromPort)
 }
 
-func verifyStatistics(t *testing.T, port network.Port) {
+func verifyStatistics(t *testing.T, port util.Port) {
 	go func() {
 		_, err := http.Post(fmt.Sprintf("http://localhost:%d/logs/_doc", int(port)), "application/json", bytes.NewBuffer([]byte(exampleLog())))
 		if err != nil {
@@ -73,7 +73,7 @@ func verifyStatistics(t *testing.T, port network.Port) {
 	t.Fatal("Statistics not updated")
 }
 
-func verifyTCPProxy(t1 *testing.T, data string, fromPort network.Port, toPort network.Port) {
+func verifyTCPProxy(t1 *testing.T, data string, fromPort util.Port, toPort util.Port) {
 	conn, err := net.Dial("tcp", ":"+strconv.Itoa(int(fromPort)))
 	if err != nil {
 		t1.Fatal("Error dialing to port:", err)
@@ -106,22 +106,22 @@ func verifyTCPProxy(t1 *testing.T, data string, fromPort network.Port, toPort ne
 	}
 }
 
-var allocatedPorts = make([]network.Port, 0)
+var allocatedPorts = make([]util.Port, 0)
 
-func findFreePort() network.Port {
+func findFreePort() util.Port {
 	port := 11000
 
 	for {
-		if slices.Contains(allocatedPorts, network.Port(port)) {
+		if slices.Contains(allocatedPorts, util.Port(port)) {
 			port++
 			continue
 		}
 		listener, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 		if err == nil {
 			_ = listener.Close()
-			allocatedPorts = append(allocatedPorts, network.Port(port))
+			allocatedPorts = append(allocatedPorts, util.Port(port))
 			log.Println("Allocated port:", port)
-			return network.Port(port)
+			return util.Port(port)
 		}
 		port++
 	}

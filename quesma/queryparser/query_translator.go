@@ -100,7 +100,9 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 				return nil, err
 			}
 
-			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation)
+			if aggregations, err = util.MergeMaps(aggregations, aggregation); err != nil {
+				logger.ErrorWithCtx(cw.Ctx).Msgf("failed to merge aggregations: %v", err)
+			}
 		}
 	}
 	return aggregations, nil
