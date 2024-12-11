@@ -54,7 +54,7 @@ func (query *Composite) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 				colIdx += 1
 			} else if geotileGrid, ok := baseAggr.aggregation.(GeoTileGrid); ok {
 				key[baseAggr.name] = geotileGrid.calcKey(row.Cols[colIdx:])
-				colIdx += 3
+				colIdx += 2
 			} else {
 				key[baseAggr.name] = col.Value
 				colIdx += 1
