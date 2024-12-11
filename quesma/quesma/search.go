@@ -76,8 +76,7 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 	qmc *ui.QuesmaManagementConsole,
 	schemaRegistry schema.Registry,
 	abResultsRepository ab_testing.Sender,
-	resolver table_resolver.TableResolver,
-	tableDiscovery clickhouse.TableDiscovery) *QueryRunner {
+	resolver table_resolver.TableResolver) *QueryRunner {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -87,8 +86,7 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
 		transformationPipeline: TransformationPipeline{
 			transformers: []model.QueryTransformer{
-				&SchemaCheckPass{cfg: cfg,
-					tables: tableDiscovery},
+				&SchemaCheckPass{cfg: cfg},
 			},
 		},
 		schemaRegistry:  schemaRegistry,
@@ -115,13 +113,10 @@ func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
 		},
 	}
 
-	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
-	tableDiscovery.TableMap = tables
-
 	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
 	go managementConsole.RunOnlyChannelProcessor()
 
-	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
+	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver)
 }
 
 // returns -1 when table name could not be resolved

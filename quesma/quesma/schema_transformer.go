@@ -16,8 +16,7 @@ import (
 )
 
 type SchemaCheckPass struct {
-	cfg    *config.QuesmaConfiguration
-	tables clickhouse.TableDiscovery
+	cfg *config.QuesmaConfiguration
 }
 
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
@@ -642,8 +641,58 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 		if resolvedField, ok := indexSchema.ResolveField(e.ColumnName); ok {
 			return model.NewColumnRef(resolvedField.InternalPropertyName.AsString())
 		} else {
-			return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesMetadataColumn), model.NewLiteral(e.ColumnName))
+			expr := model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
+			return expr
 		}
+	}
+
+	visitor.OverrideVisitSelectCommand = func(v *model.BaseExprVisitor, query model.SelectCommand) interface{} {
+		var columns, groupBy []model.Expr
+		var orderBy []model.OrderByExpr
+		from := query.FromClause
+		where := query.WhereClause
+
+		for _, expr := range query.Columns {
+			var alias string
+			if e, ok := expr.(model.ColumnRef); ok {
+				alias = e.ColumnName
+			}
+
+			col := expr.Accept(v).(model.Expr)
+
+			if e, ok := col.(model.ArrayAccess); ok && alias != "" {
+				col = model.NewAliasedExpr(e, alias)
+			}
+
+			columns = append(columns, col)
+		}
+		for _, expr := range query.GroupBy {
+			groupBy = append(groupBy, expr.Accept(v).(model.Expr))
+		}
+		for _, expr := range query.OrderBy {
+			orderBy = append(orderBy, expr.Accept(v).(model.OrderByExpr))
+		}
+		if query.FromClause != nil {
+			from = query.FromClause.Accept(v).(model.Expr)
+		}
+		if query.WhereClause != nil {
+			where = query.WhereClause.Accept(v).(model.Expr)
+		}
+
+		var namedCTEs []*model.CTE
+		if query.NamedCTEs != nil {
+			for _, cte := range query.NamedCTEs {
+				namedCTEs = append(namedCTEs, cte.Accept(v).(*model.CTE))
+			}
+		}
+
+		var limitBy []model.Expr
+		if query.LimitBy != nil {
+			for _, expr := range query.LimitBy {
+				limitBy = append(limitBy, expr.Accept(v).(model.Expr))
+			}
+		}
+		return model.NewSelectCommand(columns, groupBy, orderBy, from, where, limitBy, query.Limit, query.SampleLimit, query.IsDistinct, namedCTEs)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
@@ -655,6 +704,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
+
 	return query, nil
 }
 
@@ -728,7 +778,7 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema s
 
 func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
-	aggFunctionPrefixes := []string{"sum", "avg"}
+	aggFunctionPrefixes := []string{"sum", "avg", "quantiles"}
 
 	dbTypePrefixes := []string{"DateTime", "String", "LowCardinality(String)"}
 
@@ -751,6 +801,14 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 									return model.NewFunction(e.Name, args...)
 								}
 							}
+						}
+					}
+					// attributes values are always string,
+					if access, ok := e.Args[0].(model.ArrayAccess); ok {
+						if access.ColumnRef.ColumnName == clickhouse.AttributesValuesColumn {
+							args := b.VisitChildren(e.Args)
+							args[0] = model.NewFunction("toFloat64OrZero", args[0])
+							return model.NewFunction(e.Name, args...)
 						}
 					}
 				}
