@@ -3,7 +3,6 @@
 package queryparser
 
 import (
-	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -163,7 +162,6 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 
 	if rateRaw, exists := queryMap["rate"]; exists {
 		rate, ok := rateRaw.(QueryMap)
-		pp.Println(rate)
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("rate is not a map, but %T, value: %v. Skipping.", rate, rate)
 			return metricsAggregation{}, false
@@ -176,19 +174,12 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		}
 
 		var fields []model.Expr
-		if fieldRaw, ok := rate["field"]; ok {
-			if field, ok := fieldRaw.(string); ok {
-				fields = append(fields, model.NewColumnRef(cw.ResolveField(cw.Ctx, field)))
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
-			}
+		if field := cw.parseFieldField(rate, "rate"); field != nil {
+			fields = append(fields, field)
+			return metricsAggregation{AggrType: "rate", Fields: fields, unit: unit}, true
+		} else {
+			return metricsAggregation{}, false
 		}
-
-		return metricsAggregation{
-			AggrType: "rate",
-			Fields:   fields,
-			unit:     unit,
-		}, true
 	}
 
 	return metricsAggregation{}, false

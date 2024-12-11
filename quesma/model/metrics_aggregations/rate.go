@@ -33,7 +33,7 @@ const (
 )
 
 // NewRate creates a new Rate aggregation, during parsing.
-// Multiplier is set later, during pancake transformation.
+// 'multiplier' is set later, during pancake transformation.
 func NewRate(ctx context.Context, unit string) *Rate {
 	return &Rate{ctx: ctx, unit: NewRateUnit(unit)}
 }
@@ -44,7 +44,7 @@ func (query *Rate) AggregationType() model.AggregationType {
 
 func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	if len(rows) != 1 || len(rows[0].Cols) != 1 {
-		logger.WarnWithCtx(query.ctx).Msgf("unexpected number of rows or columns returned for %s: %d, %d.", query.String(), len(rows), len(rows[0].Cols))
+		logger.ErrorWithCtx(query.ctx).Msgf("unexpected number of rows or columns returned for %s: %d, %d.", query.String(), len(rows), len(rows[0].Cols))
 		return model.JsonMap{"value": nil}
 	}
 

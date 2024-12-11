@@ -220,8 +220,8 @@ func (query *DateHistogram) IntervalInMilliseconds() (int64, bool) {
 		return duration.Milliseconds(), true
 	} else {
 		logger.WarnWithCtx(query.ctx).Msg(err.Error())
+		return 0, false
 	}
-	return 0, false
 }
 
 func (query *DateHistogram) calculateResponseKeyInUTC(originalKey int64) int64 {
