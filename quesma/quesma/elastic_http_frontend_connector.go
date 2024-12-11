@@ -9,6 +9,7 @@ import (
 	"quesma/frontend_connectors"
 	"quesma/quesma/recovery"
 	"quesma/telemetry"
+	quesma_api "quesma_v2/core"
 )
 
 type ElasticHttpIngestFrontendConnector struct {
@@ -31,8 +32,11 @@ func NewElasticHttpIngestFrontendConnector(endpoint string,
 	}
 }
 
-func (h *ElasticHttpIngestFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-
+func serveHTTPHelper(w http.ResponseWriter, req *http.Request,
+	routerInstance *frontend_connectors.RouterV2,
+	pathRouter quesma_api.Router,
+	agent telemetry.PhoneHomeAgent,
+	logManager *clickhouse.LogManager) {
 	defer recovery.LogPanic()
 	reqBody, err := frontend_connectors.PeekBodyV2(req)
 	if err != nil {
@@ -41,9 +45,13 @@ func (h *ElasticHttpIngestFrontendConnector) ServeHTTP(w http.ResponseWriter, re
 	}
 
 	ua := req.Header.Get("User-Agent")
-	h.agent.UserAgentCounters().Add(ua, 1)
+	agent.UserAgentCounters().Add(ua, 1)
 
-	h.routerInstance.Reroute(req.Context(), w, req, reqBody, h.GetRouter(), h.logManager)
+	routerInstance.Reroute(req.Context(), w, req, reqBody, pathRouter, logManager)
+}
+
+func (h *ElasticHttpIngestFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	serveHTTPHelper(w, req, h.routerInstance, h.GetRouter(), h.agent, h.logManager)
 }
 
 type ElasticHttpQueryFrontendConnector struct {
@@ -67,16 +75,5 @@ func NewElasticHttpQueryFrontendConnector(endpoint string,
 }
 
 func (h *ElasticHttpQueryFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-
-	defer recovery.LogPanic()
-	reqBody, err := frontend_connectors.PeekBodyV2(req)
-	if err != nil {
-		http.Error(w, "Error reading request body", http.StatusInternalServerError)
-		return
-	}
-
-	ua := req.Header.Get("User-Agent")
-	h.agent.UserAgentCounters().Add(ua, 1)
-
-	h.routerInstance.Reroute(req.Context(), w, req, reqBody, h.GetRouter(), h.logManager)
+	serveHTTPHelper(w, req, h.routerInstance, h.GetRouter(), h.agent, h.logManager)
 }
