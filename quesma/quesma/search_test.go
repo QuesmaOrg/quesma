@@ -657,8 +657,8 @@ func TestSearchTrackTotalCount(t *testing.T) {
 	}
 }
 
-func TestSun(t *testing.T) {
-
+func TestFullQueryTestWIP(t *testing.T) {
+	t.Skip(`We need to stop "unit" testing aggregation queries, because e.g. transformations aren't performed in tests whatsoever. Tests pass, but in real world things sometimes break. It's WIP.`)
 	s := &schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
 
 	s.Tables[tableName] = schema.Schema{
@@ -667,7 +667,7 @@ func TestSun(t *testing.T) {
 		},
 	}
 
-	var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
+	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{

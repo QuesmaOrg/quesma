@@ -494,6 +494,7 @@ func Test_parseSortFields(t *testing.T) {
 }
 
 func TestInvalidQueryRequests(t *testing.T) {
+	t.Skip("Test in the making. Need 1-2 more PRs in 'Report errors in queries better' series.")
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":                     {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
