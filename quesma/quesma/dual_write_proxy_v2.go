@@ -72,19 +72,19 @@ func (q *dualWriteHttpProxyV2) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, processor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
-	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, registry, abResultsRepository, resolver)
+func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
+	queryProcessor := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, registry, abResultsRepository, resolver)
 	// not sure how we should configure our query translator ???
 	// is this a config option??
 
-	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
+	queryProcessor.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
 
 	// tests should not be run with optimization enabled by default
-	queryRunner.EnableQueryOptimization(config)
+	queryProcessor.EnableQueryOptimization(config)
 
-	ingestRouter := ConfigureIngestRouterV2(config, processor, agent, resolver)
-	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, quesmaManagementConsole, queryRunner, resolver)
-
+	ingestRouter := ConfigureIngestRouterV2(config, ingestProcessor, agent, resolver)
+	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, quesmaManagementConsole, queryProcessor, resolver)
+	router := ConfigureRouter(config, registry, logManager, ingestProcessor, quesmaManagementConsole, agent, queryProcessor, resolver)
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -92,20 +92,38 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 		Transport: tr,
 		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
 	}
-	routerInstance := frontend_connectors.RouterV2{PhoneHomeAgent: agent, Config: config, QuesmaManagementConsole: quesmaManagementConsole, HttpClient: client, RequestPreprocessors: quesma_api.ProcessorChain{}}
+	routerInstance := frontend_connectors.RouterV2{PhoneHomeAgent: agent,
+		Config: config, QuesmaManagementConsole: quesmaManagementConsole,
+		HttpClient: client, RequestPreprocessors: quesma_api.ProcessorChain{}}
 	routerInstance.
 		RegisterPreprocessor(quesma_api.NewTraceIdPreprocessor())
 	agent.FailedRequestsCollector(func() int64 {
 		return routerInstance.FailedRequests.Load()
 	})
 
-	elasticHttpFrontentConnector := NewElasticHttpFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		&routerInstance, searchRouter.(*quesma_api.PathRouter), ingestRouter.(*quesma_api.PathRouter), logManager, agent)
+	elasticHttpIngestFrontendConnector := NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
+		&routerInstance, router, logManager, agent)
+	elasticHttpIngestFrontendConnector.AddRouter(ingestRouter)
+
+	elasticHttpQueryFrontendConnector := NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
+		&routerInstance, router, logManager, agent)
+	elasticHttpQueryFrontendConnector.AddRouter(searchRouter)
+
+	quesmaV2 := quesma_api.NewQuesma()
+	ingestPipeline := quesma_api.NewPipeline()
+	ingestPipeline.AddFrontendConnector(elasticHttpIngestFrontendConnector)
+
+	queryPipeline := quesma_api.NewPipeline()
+	queryPipeline.AddFrontendConnector(elasticHttpQueryFrontendConnector)
+	quesmaV2.AddPipeline(ingestPipeline)
+	quesmaV2.AddPipeline(queryPipeline)
+	quesmaV2.Build()
+
 	var limitedHandler http.Handler
 	if config.DisableAuth {
-		limitedHandler = newSimultaneousClientsLimiterV2(elasticHttpFrontentConnector, concurrentClientsLimitV2)
+		limitedHandler = newSimultaneousClientsLimiterV2(elasticHttpIngestFrontendConnector, concurrentClientsLimitV2)
 	} else {
-		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(elasticHttpFrontentConnector, config.Elasticsearch), concurrentClientsLimitV2)
+		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(elasticHttpIngestFrontendConnector, config.Elasticsearch), concurrentClientsLimitV2)
 	}
 
 	return &dualWriteHttpProxyV2{
@@ -119,10 +137,10 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 		logManager:      logManager,
 		publicPort:      config.PublicTcpPort,
 		asyncQueriesEvictor: async_search_storage.NewAsyncQueriesEvictor(
-			queryRunner.AsyncRequestStorage.(async_search_storage.AsyncSearchStorageInMemory),
-			queryRunner.AsyncQueriesContexts.(async_search_storage.AsyncQueryContextStorageInMemory),
+			queryProcessor.AsyncRequestStorage.(async_search_storage.AsyncSearchStorageInMemory),
+			queryProcessor.AsyncQueriesContexts.(async_search_storage.AsyncQueryContextStorageInMemory),
 		),
-		queryRunner: queryRunner,
+		queryRunner: queryProcessor,
 	}
 }
 

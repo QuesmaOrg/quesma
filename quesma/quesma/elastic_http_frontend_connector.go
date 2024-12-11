@@ -12,32 +12,32 @@ import (
 	"quesma_v2/core"
 )
 
-type ElasticHttpFrontendConnector struct {
+type ElasticHttpIngestFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
 	routerInstance *frontend_connectors.RouterV2
-	searchRouter   *quesma_api.PathRouter
-	ingestRouter   *quesma_api.PathRouter
+	router         quesma_api.Router
 	logManager     *clickhouse.LogManager
 	agent          telemetry.PhoneHomeAgent
 }
 
-func NewElasticHttpFrontendConnector(endpoint string,
+func NewElasticHttpIngestFrontendConnector(endpoint string,
 	routerInstance *frontend_connectors.RouterV2,
-	searchRouter *quesma_api.PathRouter,
-	ingestRouter *quesma_api.PathRouter,
+	router quesma_api.Router,
 	logManager *clickhouse.LogManager,
-	agent telemetry.PhoneHomeAgent) *ElasticHttpFrontendConnector {
-	return &ElasticHttpFrontendConnector{
+	agent telemetry.PhoneHomeAgent) *ElasticHttpIngestFrontendConnector {
+
+	return &ElasticHttpIngestFrontendConnector{
 		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint),
 		routerInstance:             routerInstance,
-		searchRouter:               searchRouter,
-		ingestRouter:               ingestRouter,
-		logManager:                 logManager,
-		agent:                      agent,
+		router:                     router,
+
+		logManager: logManager,
+		agent:      agent,
 	}
 }
 
-func (h *ElasticHttpFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h *ElasticHttpIngestFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+
 	defer recovery.LogPanic()
 	reqBody, err := frontend_connectors.PeekBodyV2(req)
 	if err != nil {
@@ -48,5 +48,43 @@ func (h *ElasticHttpFrontendConnector) ServeHTTP(w http.ResponseWriter, req *htt
 	ua := req.Header.Get("User-Agent")
 	h.agent.UserAgentCounters().Add(ua, 1)
 
-	h.routerInstance.Reroute(req.Context(), w, req, reqBody, h.searchRouter, h.ingestRouter, h.logManager)
+	h.routerInstance.Reroute(req.Context(), w, req, reqBody, h.router, h.logManager)
+}
+
+type ElasticHttpQueryFrontendConnector struct {
+	*frontend_connectors.BasicHTTPFrontendConnector
+	routerInstance *frontend_connectors.RouterV2
+	router         quesma_api.Router
+	logManager     *clickhouse.LogManager
+	agent          telemetry.PhoneHomeAgent
+}
+
+func NewElasticHttpQueryFrontendConnector(endpoint string,
+	routerInstance *frontend_connectors.RouterV2,
+	router quesma_api.Router,
+	logManager *clickhouse.LogManager,
+	agent telemetry.PhoneHomeAgent) *ElasticHttpIngestFrontendConnector {
+
+	return &ElasticHttpIngestFrontendConnector{
+		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint),
+		routerInstance:             routerInstance,
+		router:                     router,
+		logManager:                 logManager,
+		agent:                      agent,
+	}
+}
+
+func (h *ElasticHttpQueryFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+
+	defer recovery.LogPanic()
+	reqBody, err := frontend_connectors.PeekBodyV2(req)
+	if err != nil {
+		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		return
+	}
+
+	ua := req.Header.Get("User-Agent")
+	h.agent.UserAgentCounters().Add(ua, 1)
+
+	h.routerInstance.Reroute(req.Context(), w, req, reqBody, h.router, h.logManager)
 }
