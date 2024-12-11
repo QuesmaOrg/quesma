@@ -90,9 +90,6 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
 	}
 
-	ingestRouter := ConfigureIngestRouterV2(config, ingestProcessor, agent, resolver)
-	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, quesmaManagementConsole, queryProcessor, resolver)
-
 	routerInstance := frontend_connectors.RouterV2{PhoneHomeAgent: agent,
 		Config: config, QuesmaManagementConsole: quesmaManagementConsole,
 		HttpClient: client, RequestPreprocessors: quesma_api.ProcessorChain{}}
@@ -101,6 +98,9 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 	agent.FailedRequestsCollector(func() int64 {
 		return routerInstance.FailedRequests.Load()
 	})
+
+	ingestRouter := ConfigureIngestRouterV2(config, ingestProcessor, agent, resolver)
+	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, quesmaManagementConsole, queryProcessor, resolver)
 
 	elasticHttpIngestFrontendConnector := NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
 		&routerInstance, logManager, agent)
