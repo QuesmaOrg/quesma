@@ -8,12 +8,12 @@ import (
 	"quesma/clickhouse"
 	"quesma/ingest"
 	"quesma/quesma/config"
-	"quesma/quesma/mux"
-	"quesma/quesma/routes"
 	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/telemetry"
+	mux "quesma_v2/core"
+	"quesma_v2/core/routes"
 	"strings"
 	"testing"
 )
@@ -358,15 +358,15 @@ func (t TestTableResolver) Start() {}
 
 func (t TestTableResolver) Stop() {}
 
-func (t TestTableResolver) Resolve(_ string, indexPattern string) *table_resolver.Decision {
+func (t TestTableResolver) Resolve(_ string, indexPattern string) *mux.Decision {
 	if indexPattern == testIndexName {
-		return &table_resolver.Decision{
-			UseConnectors: []table_resolver.ConnectorDecision{
-				&table_resolver.ConnectorDecisionClickhouse{},
+		return &mux.Decision{
+			UseConnectors: []mux.ConnectorDecision{
+				&mux.ConnectorDecisionClickhouse{},
 			},
 		}
 	} else {
-		return &table_resolver.Decision{
+		return &mux.Decision{
 			Err:          fmt.Errorf("TestTableResolver err"),
 			Reason:       "TestTableResolver reason",
 			ResolverName: "TestTableResolver",
@@ -376,6 +376,6 @@ func (t TestTableResolver) Resolve(_ string, indexPattern string) *table_resolve
 
 func (t TestTableResolver) Pipelines() []string { return []string{} }
 
-func (t TestTableResolver) RecentDecisions() []table_resolver.PatternDecisions {
-	return []table_resolver.PatternDecisions{}
+func (t TestTableResolver) RecentDecisions() []mux.PatternDecisions {
+	return []mux.PatternDecisions{}
 }

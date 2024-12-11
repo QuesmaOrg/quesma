@@ -71,7 +71,10 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		queries = append(queries, listQuery)
 	}
 
-	runtimeMappings := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
+	runtimeMappings, err := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
+	if err != nil {
+		return &model.ExecutionPlan{}, err
+	}
 
 	// we apply post query transformer for certain aggregation types
 	// this should be a part of the query parsing process
@@ -899,7 +902,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 		case clickhouse.ExistsAndIsArray:
 			sql = model.NewInfixExpr(model.NewNestedProperty(
-				model.NewColumnRef(fieldNameQuoted),
+				model.NewColumnRef(fieldName),
 				model.NewLiteral("size0"),
 			), "=", model.NewLiteral("0"))
 		case clickhouse.NotExists:

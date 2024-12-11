@@ -96,6 +96,9 @@ func (quesma *Quesma) Build() (QuesmaBuilder, error) {
 				}
 			}
 			proc.SetBackendConnectors(backendConnectors)
+			if err := proc.Init(); err != nil {
+				return nil, fmt.Errorf("processor %v failed to initialize: %v", proc.GetId(), err)
+			}
 		}
 
 	}

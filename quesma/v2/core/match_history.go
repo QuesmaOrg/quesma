@@ -1,9 +1,9 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package mux
+package quesma_api
 
 import (
-	"quesma/quesma/routes"
+	"quesma_v2/core/routes"
 	"slices"
 	"strings"
 	"sync"

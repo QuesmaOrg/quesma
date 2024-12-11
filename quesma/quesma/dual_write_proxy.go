@@ -15,22 +15,23 @@ import (
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/feature"
+	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/gzip"
-	"quesma/quesma/mux"
 	"quesma/quesma/recovery"
-	"quesma/quesma/routes"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/telemetry"
-	"quesma/tracing"
 	"quesma/util"
+	quesma_api "quesma_v2/core"
+	"quesma_v2/core/routes"
+	tracing "quesma_v2/core/tracing"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -53,7 +54,6 @@ func newSimultaneousClientsLimiter(handler http.Handler, limit int64) *simultane
 }
 
 func (c *simultaneousClientsLimiter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
 	current := c.counter.Load()
 	// this is hard limit, we should not allow to go over it
 	if current >= c.limit {
@@ -69,7 +69,7 @@ func (c *simultaneousClientsLimiter) ServeHTTP(w http.ResponseWriter, r *http.Re
 
 type dualWriteHttpProxy struct {
 	routingHttpServer   *http.Server
-	elasticRouter       *mux.PathRouter
+	elasticRouter       *quesma_api.PathRouter
 	indexManagement     elasticsearch.IndexManagement
 	logManager          *clickhouse.LogManager
 	publicPort          util.Port
@@ -102,9 +102,9 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 		Transport: tr,
 		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
 	}
-	routerInstance := router{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client, requestPreprocessors: processorChain{}}
+	routerInstance := router{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client, requestPreprocessors: quesma_api.ProcessorChain{}}
 	routerInstance.
-		registerPreprocessor(NewTraceIdPreprocessor())
+		registerPreprocessor(quesma_api.NewTraceIdPreprocessor())
 
 	agent.FailedRequestsCollector(func() int64 {
 		return routerInstance.failedRequests.Load()
@@ -182,7 +182,7 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
 
 	copyHeaders(w, elkResponse)
-	w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
+	w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceElastic)
 	// io.Copy calls WriteHeader implicitly
 	w.WriteHeader(elkResponse.StatusCode)
 	if _, err := io.Copy(w, elkResponse.Body); err != nil {
@@ -193,17 +193,17 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	elkResponse.Body.Close()
 }
 
-func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, quesmaResponse *mux.Result, zip bool) {
+func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, quesmaResponse *quesma_api.Result, zip bool) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 
 	for key, value := range quesmaResponse.Meta {
-		w.Header().Set(key, value)
+		w.Header().Set(key, value.(string))
 	}
 	if zip {
 		w.Header().Set("Content-Encoding", "gzip")
 	}
-	w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+	w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceClickhouse)
 	w.WriteHeader(quesmaResponse.StatusCode)
 	if zip {
 		zipped, err := gzip.Zip(unzipped)
@@ -218,14 +218,14 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 
 type router struct {
 	config                  *config.QuesmaConfiguration
-	requestPreprocessors    processorChain
+	requestPreprocessors    quesma_api.ProcessorChain
 	quesmaManagementConsole *ui.QuesmaManagementConsole
 	phoneHomeAgent          telemetry.PhoneHomeAgent
 	httpClient              *http.Client
 	failedRequests          atomic.Int64
 }
 
-func (r *router) registerPreprocessor(preprocessor RequestPreprocessor) {
+func (r *router) registerPreprocessor(preprocessor quesma_api.RequestPreprocessor) {
 	r.requestPreprocessors = append(r.requestPreprocessors, preprocessor)
 }
 
@@ -234,7 +234,7 @@ func (r *router) errorResponse(ctx context.Context, err error, w http.ResponseWr
 
 	msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
 	reason := "Failed request."
-	result := mux.ServerErrorResult()
+	result := quesma_api.ServerErrorResult()
 
 	// if error is an error with user-friendly message, we should use it
 	var endUserError *end_user_errors.EndUserError
@@ -244,7 +244,7 @@ func (r *router) errorResponse(ctx context.Context, err error, w http.ResponseWr
 
 		// we treat all `Q1xxx` errors as bad requests here
 		if endUserError.ErrorType().Number < 2000 {
-			result = mux.BadReqeustResult()
+			result = quesma_api.BadReqeustResult()
 		}
 	}
 
@@ -287,13 +287,13 @@ func (*router) closedIndexResponse(ctx context.Context, w http.ResponseWriter, p
 
 }
 
-func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
+func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *quesma_api.PathRouter, logManager *clickhouse.LogManager) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
 
-	quesmaRequest, ctx, err := r.preprocessRequest(ctx, &mux.Request{
+	quesmaRequest, ctx, err := r.preprocessRequest(ctx, &quesma_api.Request{
 		Method:      req.Method,
 		Path:        strings.TrimSuffix(req.URL.Path, "/"),
 		Params:      map[string]string{},
@@ -308,17 +308,17 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
 
-	handler, decision := router.Matches(quesmaRequest)
+	handlersPipe, decision := router.Matches(quesmaRequest)
 
 	if decision != nil {
-		w.Header().Set(quesmaTableResolverHeader, decision.String())
+		w.Header().Set(frontend_connectors.QuesmaTableResolverHeader, decision.String())
 	} else {
-		w.Header().Set(quesmaTableResolverHeader, "n/a")
+		w.Header().Set(frontend_connectors.QuesmaTableResolverHeader, "n/a")
 	}
 
-	if handler != nil {
-		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
-			return handler(ctx, quesmaRequest)
+	if handlersPipe != nil {
+		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*quesma_api.Result, error) {
+			return handlersPipe.Handler(ctx, quesmaRequest)
 		})
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
@@ -332,7 +332,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			if len(unzipped) == 0 {
 				logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
 			}
-			addProductAndContentHeaders(req.Header, w.Header())
+			frontend_connectors.AddProductAndContentHeaders(req.Header, w.Header())
 
 			responseFromQuesma(ctx, unzipped, w, quesmaResponse, zip)
 
@@ -346,29 +346,29 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		if decision != nil {
 
 			if decision.Err != nil {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				addProductAndContentHeaders(req.Header, w.Header())
+				w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceClickhouse)
+				frontend_connectors.AddProductAndContentHeaders(req.Header, w.Header())
 				r.errorResponse(ctx, decision.Err, w)
 				return
 			}
 
 			if decision.IsClosed {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				addProductAndContentHeaders(req.Header, w.Header())
+				w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceClickhouse)
+				frontend_connectors.AddProductAndContentHeaders(req.Header, w.Header())
 				r.closedIndexResponse(ctx, w, decision.IndexPattern)
 				return
 			}
 
 			if decision.IsEmpty {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				addProductAndContentHeaders(req.Header, w.Header())
+				w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceClickhouse)
+				frontend_connectors.AddProductAndContentHeaders(req.Header, w.Header())
 				w.WriteHeader(http.StatusNoContent)
 				w.Write(queryparser.EmptySearchResponse(ctx))
 				return
 			}
 
 			for _, connector := range decision.UseConnectors {
-				if _, ok := connector.(*table_resolver.ConnectorDecisionElastic); ok {
+				if _, ok := connector.(*quesma_api.ConnectorDecisionElastic); ok {
 					// this is desired elastic call
 					sendToElastic = true
 					break
@@ -382,14 +382,14 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		}
 
 		if sendToElastic {
-			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(opaqueIdHeaderKey), logManager.ResolveIndexPattern)
+			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(frontend_connectors.OpaqueIdHeaderKey), logManager.ResolveIndexPattern)
 
 			rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 			response := rawResponse.response
 			if response != nil {
 				responseFromElastic(ctx, response, w)
 			} else {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
+				w.Header().Set(frontend_connectors.QuesmaSourceHeader, frontend_connectors.QuesmaSourceElastic)
 				w.WriteHeader(500)
 				if rawResponse.error != nil {
 					_, _ = w.Write([]byte(rawResponse.error.Error()))
@@ -401,7 +401,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 	}
 }
 
-func (r *router) preprocessRequest(ctx context.Context, quesmaRequest *mux.Request) (*mux.Request, context.Context, error) {
+func (r *router) preprocessRequest(ctx context.Context, quesmaRequest *quesma_api.Request) (*quesma_api.Request, context.Context, error) {
 	var err error
 	var processedRequest = quesmaRequest
 	for _, preprocessor := range r.requestPreprocessors {
@@ -475,7 +475,7 @@ func isIngest(path string) bool {
 	return strings.HasSuffix(path, routes.BulkPath) // We may add more methods in future such as `_put` or `_create`
 }
 
-func recordRequestToClickhouse(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() (*mux.Result, error)) (*mux.Result, error) {
+func recordRequestToClickhouse(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() (*quesma_api.Result, error)) (*quesma_api.Result, error) {
 	statName := ui.RequestStatisticKibana2Clickhouse
 	if isIngest(path) {
 		statName = ui.RequestStatisticIngest2Clickhouse
@@ -530,7 +530,7 @@ func peekBody(r *http.Request) ([]byte, error) {
 func copyHeaders(w http.ResponseWriter, elkResponse *http.Response) {
 	for key, values := range elkResponse.Header {
 		for _, value := range values {
-			if key != httpHeaderContentLength {
+			if key != frontend_connectors.HttpHeaderContentLength {
 				if w.Header().Get(key) == "" {
 					w.Header().Add(key, value)
 				}

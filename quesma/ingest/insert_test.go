@@ -15,6 +15,7 @@ import (
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/util"
+	mux "quesma_v2/core"
 	"slices"
 	"strconv"
 	"strings"
@@ -239,8 +240,8 @@ func TestProcessInsertQuery(t *testing.T) {
 					db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 					ip.ip.chDb = db
 					resolver := table_resolver.NewEmptyTableResolver()
-					decision := &table_resolver.Decision{
-						UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+					decision := &mux.Decision{
+						UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 							ClickhouseTableName: "test_table",
 						}}}
 					resolver.Decisions["test_table"] = decision
@@ -424,8 +425,8 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			schemaRegistry.Tables[schema.TableName(indexName)] = indexSchema
 
 			resolver := table_resolver.NewEmptyTableResolver()
-			decision := &table_resolver.Decision{
-				UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+			decision := &mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "test_index",
 				}}}
 			resolver.Decisions["test_index"] = decision
