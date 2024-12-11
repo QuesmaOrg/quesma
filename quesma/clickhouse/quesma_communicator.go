@@ -188,7 +188,7 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 		performanceResult.Error = err
 		return nil, performanceResult, end_user_errors.GuessClickhouseErrorType(err).InternalDetails("clickhouse: query failed. err: %v, query: %v", err, queryAsString)
 	}
-	res, err = read(rows, fields, rowToScan)
+	res, err = read(rows, fields, rowToScan, query.SelectCommand.Limit)
 
 	elapsed := span.End(nil)
 	performanceResult.Duration = elapsed
@@ -204,7 +204,7 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
 // like e.g. count(), or toInt8(boolField)
-func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
+func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}, limit int) ([]model.QueryResultRow, error) {
 
 	// read selected fields from the metadata
 
@@ -213,7 +213,7 @@ func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]mod
 		rowDb = append(rowDb, &rowToScan[i])
 	}
 	resultRows := make([]model.QueryResultRow, 0)
-	for rows.Next() {
+	for (len(resultRows) < limit || limit == 0) && rows.Next() {
 		err := rows.Scan(rowDb...)
 		if err != nil {
 			return nil, fmt.Errorf("clickhouse: scan failed: %v", err)
@@ -227,9 +227,11 @@ func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]mod
 	if rows.Err() != nil {
 		return nil, fmt.Errorf("clickhouse: iterating over rows failed:  %v", rows.Err())
 	}
-	err := rows.Close()
-	if err != nil {
-		return nil, fmt.Errorf("clickhouse: closing rows failed: %v", err)
-	}
+	go func() {
+		err := rows.Close()
+		if err != nil {
+			logger.Error().Msgf("clickhouse: closing rows failed: %v", err)
+		}
+	}()
 	return resultRows, nil
 }
