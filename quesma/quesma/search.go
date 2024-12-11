@@ -52,7 +52,6 @@ type QueryRunner struct {
 	im                      elasticsearch.IndexManagement
 	quesmaManagementConsole *ui.QuesmaManagementConsole
 
-	tableDiscovery clickhouse.TableDiscovery
 	// configuration
 
 	// this is passed to the QueryTranslator to render date math expressions
