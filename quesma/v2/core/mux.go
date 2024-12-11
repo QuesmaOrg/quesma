@@ -203,7 +203,7 @@ func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
 }
 func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
 	for path, handler := range handlers {
-		if _, ok := handler.Predicate.(*predicateAlways); ok {
+		if _, ok := handler.Predicate.(*predicateAlways); ok { // in order to pass processors we have to make this alignment (predicates aren't present in the old API
 			p.mappings = append(p.mappings, mapping{pattern: path,
 				compiledPath: urlpath.New(path),
 				handler: &HandlersPipe{Handler: handler.Handler,
