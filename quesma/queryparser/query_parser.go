@@ -894,7 +894,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			return model.NewSimpleQuery(nil, false)
 		}
 
-		sql = model.NewFunction(model.ExistsFunction, model.NewColumnRef(fieldName))
+		sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 	}
 
 	return model.NewSimpleQuery(sql, true)

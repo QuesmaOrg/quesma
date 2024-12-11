@@ -642,7 +642,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 		if resolvedField, ok := indexSchema.ResolveField(e.ColumnName); ok {
 			return model.NewColumnRef(resolvedField.InternalPropertyName.AsString())
 		} else {
-			return e
+			return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesMetadataColumn), model.NewLiteral(e.ColumnName))
 		}
 	}
 
@@ -798,7 +798,6 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
 		{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
 		{TransformationName: "AggOverUnsupportedType", Transformation: s.checkAggOverUnsupportedType},
-		{TransformationName: "ExistsFunctionTransformation", Transformation: s.applyExistsFunction},
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
@@ -867,91 +866,6 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 		}
 
 		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
-	}
-
-	expr := query.SelectCommand.Accept(visitor)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if _, ok := expr.(*model.SelectCommand); ok {
-		query.SelectCommand = *expr.(*model.SelectCommand)
-	}
-	return query, nil
-
-}
-
-func (s *SchemaCheckPass) applyExistsFunction(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
-
-	table, ok := s.tables.TableDefinitions().Load(query.TableName)
-	if !ok {
-		return nil, fmt.Errorf("table %s not found", query.TableName)
-	}
-
-	visitor := model.NewBaseVisitor()
-
-	var err error
-
-	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
-
-		if e.Name == model.ExistsFunction {
-			if len(e.Args) != 1 {
-				err = fmt.Errorf("Exists function should have exactly one argument")
-				return e
-			}
-
-			column, ok := e.Args[0].(model.ColumnRef)
-			if ok {
-
-				_, found := indexSchema.ResolveFieldByInternalName(column.ColumnName)
-
-				if found {
-					return model.NewInfixExpr(column, "IS", model.NewLiteral("NOT NULL"))
-				} else {
-
-					var sql model.Expr
-					// let's check attributes
-
-					attrs := table.GetAttributesList()
-					var stmts []model.Expr
-					for _, a := range attrs {
-						// deprecated attributes
-						_, ok1 := table.Cols[a.KeysArrayName]
-						_, ok2 := table.Cols[a.ValuesArrayName]
-
-						if ok1 && ok2 {
-							hasFunc := model.NewFunction("has", []model.Expr{model.NewColumnRef(a.KeysArrayName), model.NewColumnRef(column.ColumnName)}...)
-							arrayAccess := model.NewArrayAccess(model.NewColumnRef(a.ValuesArrayName), model.NewFunction("indexOf", []model.Expr{model.NewColumnRef(a.KeysArrayName), model.NewLiteral(column.ColumnName)}...))
-							isNotNull := model.NewInfixExpr(arrayAccess, "IS", model.NewLiteral("NOT NULL"))
-							compoundStatementNoFieldName := model.NewInfixExpr(hasFunc, "AND", isNotNull)
-							stmts = append(stmts, compoundStatementNoFieldName)
-						}
-
-						_, ok3 := table.Cols[a.MapValueName]
-						if ok3 {
-							val := model.NewArrayAccess(model.NewColumnRef(a.MapValueName), model.NewLiteral(fmt.Sprintf("'%s'", column.ColumnName)))
-							stm := model.NewInfixExpr(val, "IS", model.NewLiteral("NOT NULL"))
-							stmts = append(stmts, stm)
-						}
-					}
-
-					if len(stmts) > 0 {
-						sql = model.Or(stmts)
-					} else {
-						sql = model.NewLiteral(false)
-					}
-
-					return sql
-					// TOTO read attributes
-				}
-			}
-			expr := e.Args[0].Accept(b).(model.Expr)
-			return model.NewInfixExpr(expr, "IS", model.NewLiteral("NOT NULL"))
-		}
-
-		args := b.VisitChildren(e.Args)
-		return model.NewFunction(e.Name, args...)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
