@@ -2148,7 +2148,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	{ // [10]
-		TestName: "Rate aggregation: all possible units with date_histogram's fixed_interval",
+		TestName: "Simplest Rate: only unit field present. All possible units with date_histogram's fixed_interval are tested here",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -2157,34 +2157,29 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"aggs": {
 				"2": {
 					"aggs": {
-						"week": {
+						"second": {
 							"rate": {
-								"field": "DistanceKilometers",
-								"unit": "week"
+								"unit": "second"
 							}
-						},
-						"day": {
+						}
+						"minute": {
 							"rate": {
-								"field": "DistanceKilometers",
-								"unit": "day"
+								"unit": "minute"
 							}
 						},
 						"hour": {
 							"rate": {
-								"field": "DistanceKilometers",
 								"unit": "hour"
 							}
 						},
-						"minute": {
+						"day": {
 							"rate": {
-								"field": "DistanceKilometers",
-								"unit": "minute"
+								"unit": "day"
 							}
 						},
-						"second": {
+						"week": {
 							"rate": {
-								"field": "DistanceKilometers",
-								"unit": "second"
+								"unit": "week"
 							}
 						}
 					},
@@ -2252,23 +2247,23 @@ var AggregationTests = []testdata.AggregationTestCase{
 					"2": {
 						"buckets": [
 							{
-								"day": {
-									"value": 5639433.75
-								},
-								"doc_count": 1,
-								"hour": {
-									"value": 234976.40625
-								},
 								"key": 1731584220000,
 								"key_as_string": "2024-11-14T11:37:00.000",
-								"minute": {
-									"value": 3916.2734375
-								},
+								"doc_count": 1,
 								"second": {
 									"value": 65.27122395833334
 								},
+								"minute": {
+									"value": 3916.2734375
+								},
+								"hour": {
+									"value": 234976.40625
+								},
 								"week": {
 									"value": 39476036.25
+								},
+								"day": {
+									"value": 5639433.75
 								}
 							}
 						]
@@ -2313,8 +2308,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  "timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
-	{ // [10]
-		TestName: "Rate aggregation: all  with date_histogram calendar_interval",
+	{ // [11]
+		TestName: "Simplest Rate: only unit field present. All possible units with date_histogram's calendar_interval are tested here",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -2325,49 +2320,41 @@ var AggregationTests = []testdata.AggregationTestCase{
 					"aggs": {
 						"second": {
 							"rate": {
-								"field": "DistanceKilometers",
 								"unit": "second"
 							}
 						},
 						"minute": {
 							"rate": {
-								"field": "DistanceKilometers",
 								"unit": "minute"
 							}
 						},
 						"hour": {
 							"rate": {
-								"field": "DistanceKilometers",
 								"unit": "hour"
 							}
 						},
 						"day": {
 							"rate": {
-								"field": "DistanceKilometers",
 								"unit": "day"
 							}
 						},
 						"week": {
 							"rate": {
-								"field": "DistanceKilometers",
 								"unit": "week"
 							}
 						},
 						"month": {
 							"rate": {
-								"field": "DistanceKilometers",
 								"unit": "month"
 							}
 						},
 						"quarter": {
 							"rate": {
-								"field": "DistanceKilometers",
 								"unit": "quarter"
 							}
 						},
 						"year": {
 							"rate": {
-								"field": "DistanceKilometers",
 								"unit": "year"
 							}
 						}
@@ -2510,6 +2497,167 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  fromUnixTimestamp64Milli(1731585953316))
 			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("timestamp",
 			  'Europe/Warsaw'))))*1000 AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [10]
+		TestName: "Simplest Rate: only unit field present. All possible units with date_histogram's fixed_interval are tested here",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"second": {
+							"rate": {
+								"unit": "second"
+							}
+						}
+						"minute": {
+							"rate": {
+								"unit": "minute"
+							}
+						},
+						"hour": {
+							"rate": {
+								"unit": "hour"
+							}
+						},
+						"day": {
+							"rate": {
+								"unit": "day"
+							}
+						},
+						"week": {
+							"rate": {
+								"unit": "week"
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "timestamp",
+						"fixed_interval": "30s",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-11-14T11:35:41.864Z",
+									"lte": "2024-11-14T11:50:41.864Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1731585799382,
+			"expiration_time_in_millis": 1732017799373,
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"2": {
+						"buckets": [
+							{
+								"key": 1731584220000,
+								"key_as_string": "2024-11-14T11:37:00.000",
+								"doc_count": 1,
+								"second": {
+									"value": 65.27122395833334
+								},
+								"minute": {
+									"value": 3916.2734375
+								},
+								"hour": {
+									"value": 234976.40625
+								},
+								"week": {
+									"value": 39476036.25
+								},
+								"day": {
+									"value": 5639433.75
+								}
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 4
+					}
+				},
+				"timed_out": false,
+				"took": 9
+			},
+			"start_time_in_millis": 1731585799373
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{ // incorrect
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1731587820000/30000)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+				model.NewQueryResultCol("metric__2__day_col_0", 1958.13671875),
+				model.NewQueryResultCol("metric__2__hour_col_0", 1958.13671875),
+				model.NewQueryResultCol("metric__2__minute_col_0", 1958.13671875),
+				model.NewQueryResultCol("metric__2__second_col_0", 1958.13671875),
+				model.NewQueryResultCol("metric__2__week_col_0", 1958.13671875),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+			  "timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count", "DistanceKilometers" AS "metric__2__day_col_0",
+			  "DistanceKilometers" AS "metric__2__hour_col_0",
+			  "DistanceKilometers" AS "metric__2__minute_col_0",
+			  "DistanceKilometers" AS "metric__2__second_col_0",
+			  "DistanceKilometers" AS "metric__2__week_col_0"
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1731584141864) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1731585041864))
+			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+			  "timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
 }
