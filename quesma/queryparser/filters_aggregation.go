@@ -10,17 +10,17 @@ import (
 )
 
 func (cw *ClickhouseQueryTranslator) parseFilters(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
-	nestedRaw, exists := params["filters"]
+	filtersParamRaw, exists := params["filters"]
 	if !exists {
 		return fmt.Errorf("filters is not a map, but %T, value: %v", params, params)
 	}
-	nested, ok := nestedRaw.(QueryMap)
+	filtersParam, ok := filtersParamRaw.(QueryMap)
 	if !ok {
-		return fmt.Errorf("filters is not a map, but %T, value: %v", nestedRaw, nestedRaw)
+		return fmt.Errorf("filters is not a map, but %T, value: %v", filtersParamRaw, filtersParamRaw)
 	}
 
-	filters := make([]bucket_aggregations.Filter, 0, len(nested))
-	for name, filterRaw := range nested {
+	filters := make([]bucket_aggregations.Filter, 0, len(filtersParam))
+	for name, filterRaw := range filtersParam {
 		filterMap, ok := filterRaw.(QueryMap)
 		if !ok {
 			return fmt.Errorf("filter is not a map, but %T, value: %v", filterRaw, filterRaw)
