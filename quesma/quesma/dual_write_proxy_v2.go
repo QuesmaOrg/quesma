@@ -82,9 +82,6 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 	// tests should not be run with optimization enabled by default
 	queryProcessor.EnableQueryOptimization(config)
 
-	ingestRouter := ConfigureIngestRouterV2(config, ingestProcessor, agent, resolver)
-	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, quesmaManagementConsole, queryProcessor, resolver)
-	router := ConfigureRouter(config, registry, logManager, ingestProcessor, quesmaManagementConsole, agent, queryProcessor, resolver)
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -92,6 +89,10 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 		Transport: tr,
 		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
 	}
+
+	ingestRouter := ConfigureIngestRouterV2(config, ingestProcessor, agent, resolver)
+	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, quesmaManagementConsole, queryProcessor, resolver)
+
 	routerInstance := frontend_connectors.RouterV2{PhoneHomeAgent: agent,
 		Config: config, QuesmaManagementConsole: quesmaManagementConsole,
 		HttpClient: client, RequestPreprocessors: quesma_api.ProcessorChain{}}
@@ -102,22 +103,25 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 	})
 
 	elasticHttpIngestFrontendConnector := NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		&routerInstance, router, logManager, agent)
+		&routerInstance, logManager, agent)
 	elasticHttpIngestFrontendConnector.AddRouter(ingestRouter)
 
 	elasticHttpQueryFrontendConnector := NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		&routerInstance, router, logManager, agent)
+		&routerInstance, logManager, agent)
 	elasticHttpQueryFrontendConnector.AddRouter(searchRouter)
 
-	quesmaV2 := quesma_api.NewQuesma()
+	quesmaBuilder := quesma_api.NewQuesma()
 	ingestPipeline := quesma_api.NewPipeline()
 	ingestPipeline.AddFrontendConnector(elasticHttpIngestFrontendConnector)
 
 	queryPipeline := quesma_api.NewPipeline()
 	queryPipeline.AddFrontendConnector(elasticHttpQueryFrontendConnector)
-	quesmaV2.AddPipeline(ingestPipeline)
-	quesmaV2.AddPipeline(queryPipeline)
-	quesmaV2.Build()
+	quesmaBuilder.AddPipeline(ingestPipeline)
+	quesmaBuilder.AddPipeline(queryPipeline)
+	_, err := quesmaBuilder.Build()
+	if err != nil {
+		logger.Fatal().Msgf("Error building Quesma: %v", err)
+	}
 
 	var limitedHandler http.Handler
 	if config.DisableAuth {

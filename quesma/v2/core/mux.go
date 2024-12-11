@@ -93,7 +93,7 @@ func (p *PathRouter) Clone() Cloner {
 }
 
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler) {
-	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HandlersPipe{Handler: handler}}
+	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HandlersPipe{Handler: handler, Predicate: predicate}}
 	p.mappings = append(p.mappings, mapping)
 
 }
@@ -203,6 +203,14 @@ func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
 }
 func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
 	for path, handler := range handlers {
-		p.mappings = append(p.mappings, mapping{pattern: path, compiledPath: urlpath.New(path), handler: &handler})
+		if _, ok := handler.Predicate.(*predicateAlways); ok {
+			p.mappings = append(p.mappings, mapping{pattern: path,
+				compiledPath: urlpath.New(path),
+				handler: &HandlersPipe{Handler: handler.Handler,
+					Predicate:  handler.Predicate,
+					Processors: handler.Processors}})
+		} else {
+			p.Register(path, handler.Predicate, handler.Handler)
+		}
 	}
 }
