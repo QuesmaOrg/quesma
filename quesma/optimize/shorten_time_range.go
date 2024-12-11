@@ -11,11 +11,24 @@ import (
 
 type shortenTimeRange struct{}
 
+type timeStamp struct {
+	value    int64
+	funcName string
+}
+
 type timeRange struct {
 	columnName string
-	lowerLimit int64
-	upperLimit int64
+	lowerLimit timeStamp
+	upperLimit timeStamp
 	direction  model.OrderByDirection
+}
+
+func (t timeStamp) MinusSplit() timeStamp {
+	if t.funcName == "fromUnixTimestamp64Milli" {
+		return timeStamp{value: t.value - 60*60*1000, funcName: t.funcName}
+	} else {
+		return timeStamp{value: t.value - 60*60, funcName: t.funcName}
+	}
 }
 
 func (s shortenTimeRange) validateSelectedColumns(columns []model.Expr) bool {
@@ -56,22 +69,23 @@ func (s shortenTimeRange) findOrderByColumn(selectCommand *model.SelectCommand) 
 	return "", model.DefaultOrder, false
 }
 
-func (s shortenTimeRange) findTimeLimits(selectCommand *model.SelectCommand, orderByColumnName string) (*int64, *int64) {
-	var lowerLimit, upperLimit *int64
+func (s shortenTimeRange) findTimeLimits(selectCommand *model.SelectCommand, orderByColumnName string) (*timeStamp, *timeStamp) {
+	var lowerLimit, upperLimit *timeStamp
 
 	visitor := model.NewBaseVisitor()
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 		if columnName, ok := e.Left.(model.ColumnRef); ok && columnName.ColumnName == orderByColumnName {
 			switch e.Op {
 			case "<", "<=":
-				if functionExpr, ok := e.Right.(model.FunctionExpr); ok && functionExpr.Name == "fromUnixTimestamp64Milli" {
+				if functionExpr, ok := e.Right.(model.FunctionExpr); ok &&
+					(functionExpr.Name == "fromUnixTimestamp64Milli" || functionExpr.Name == "fromUnixTimestamp") {
 					upperBoundValue := functionExpr.Args[0].(model.LiteralExpr).Value.(int64)
-					upperLimit = &upperBoundValue
+					upperLimit = &timeStamp{value: upperBoundValue, funcName: functionExpr.Name}
 				}
 			case ">", ">=":
-				if functionExpr, ok := e.Right.(model.FunctionExpr); ok && functionExpr.Name == "fromUnixTimestamp64Milli" {
+				if functionExpr, ok := e.Right.(model.FunctionExpr); ok && (functionExpr.Name == "fromUnixTimestamp64Milli" || functionExpr.Name == "fromUnixTimestamp") {
 					lowerBoundValue := functionExpr.Args[0].(model.LiteralExpr).Value.(int64)
-					lowerLimit = &lowerBoundValue
+					lowerLimit = &timeStamp{value: lowerBoundValue, funcName: functionExpr.Name}
 				}
 			}
 		}
@@ -127,6 +141,7 @@ func (s shortenTimeRange) findTimeRange(selectCommand *model.SelectCommand) *tim
 		return nil
 	}
 
+	logger.Info().Msgf("Query eligble for time range optimization on table '%s'", model.AsString(selectCommand.FromClause))
 	return &timeRange{columnName: orderByColumnName, lowerLimit: *lowerLimit, upperLimit: *upperLimit, direction: direction}
 }
 
@@ -181,18 +196,18 @@ func (s shortenTimeRange) transformQuery(query *model.Query) (*model.Query, erro
 		return query, nil
 	}
 
-	splitPoint := foundTimeRange.upperLimit - 60*60*1000 // TODO: better split point
-	if !(splitPoint >= foundTimeRange.lowerLimit && splitPoint <= foundTimeRange.upperLimit) {
+	splitPoint := foundTimeRange.upperLimit.MinusSplit() // TODO: better split point
+	if !(splitPoint.value >= foundTimeRange.lowerLimit.value && splitPoint.value <= foundTimeRange.upperLimit.value) {
 		// The time range is too short to be split
 		return query, nil
 	}
 
 	shortSelectCommand := query.SelectCommand
-	shortSelectCommand.WhereClause = model.NewInfixExpr(model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), ">=", model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(splitPoint))), "AND", shortSelectCommand.WhereClause)
+	shortSelectCommand.WhereClause = model.NewInfixExpr(model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), ">=", model.NewFunction(splitPoint.funcName, model.NewLiteral(splitPoint.value))), "AND", shortSelectCommand.WhereClause)
 	shortSelectCommand.Columns = s.columnsToAliasedColumns(shortSelectCommand.Columns)
 
 	longSelectCommand := query.SelectCommand
-	longSelectCommand.WhereClause = model.NewInfixExpr(model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), "<", model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(splitPoint))), "AND", longSelectCommand.WhereClause)
+	longSelectCommand.WhereClause = model.NewInfixExpr(model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), "<", model.NewFunction(splitPoint.funcName, model.NewLiteral(splitPoint.value))), "AND", longSelectCommand.WhereClause)
 	longSelectCommand.Columns = s.columnsToAliasedColumns(longSelectCommand.Columns)
 
 	selectedColumns := make([]model.Expr, len(shortSelectCommand.Columns))
