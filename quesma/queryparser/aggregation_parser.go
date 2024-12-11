@@ -7,6 +7,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"quesma/model/metrics_aggregations"
 	"regexp"
 	"slices"
 	"strconv"
@@ -27,6 +28,7 @@ type metricsAggregation struct {
 	Order               string                  // Only for top_metrics
 	IsFieldNameCompound bool                    // Only for a few aggregations, where we have only 1 field. It's a compound, so e.g. toHour(timestamp), not just "timestamp"
 	sigma               float64                 // only for standard deviation
+	unit                string                  // only for rate
 }
 
 type aggregationParser = func(queryMap QueryMap) (model.QueryType, error)
@@ -156,6 +158,28 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			Fields:   []model.Expr{cw.parseFieldField(extendedStats, "extended_stats")},
 			sigma:    sigma,
 		}, true
+	}
+
+	if rateRaw, exists := queryMap["rate"]; exists {
+		rate, ok := rateRaw.(QueryMap)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("rate is not a map, but %T, value: %v. Skipping.", rate, rate)
+			return metricsAggregation{}, false
+		}
+
+		unit := cw.parseStringField(rate, "unit", "")
+		if metrics_aggregations.NewRateUnit(unit) == metrics_aggregations.Invalid {
+			logger.WarnWithCtx(cw.Ctx).Msgf("unit in rate aggregation is not a valid unit: %s. Skipping.", unit)
+			return metricsAggregation{}, false
+		}
+
+		var fields []model.Expr
+		if field := cw.parseFieldField(rate, "rate"); field != nil {
+			fields = append(fields, field)
+			return metricsAggregation{AggrType: "rate", Fields: fields, unit: unit}, true
+		} else {
+			return metricsAggregation{}, false
+		}
 	}
 
 	return metricsAggregation{}, false
