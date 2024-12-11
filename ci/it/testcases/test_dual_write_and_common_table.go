@@ -40,6 +40,7 @@ func (a *DualWriteAndCommonTableTestcase) RunTests(ctx context.Context, t *testi
 	t.Run("test dual query returns data from clickhouse", func(t *testing.T) { a.testDualQueryReturnsDataFromClickHouse(ctx, t) })
 	t.Run("test dual writes work", func(t *testing.T) { a.testDualWritesWork(ctx, t) })
 	t.Run("test wildcard goes to elastic", func(t *testing.T) { a.testWildcardGoesToElastic(ctx, t) })
+	t.Run("test _resolve/index/* works properly", func(t *testing.T) { a.testResolveEndpointInQuesma(ctx, t) })
 	return nil
 }
 
@@ -100,10 +101,10 @@ func (a *DualWriteAndCommonTableTestcase) testIngestToCommonTableWorks(ctx conte
 }
 
 func (a *DualWriteAndCommonTableTestcase) testDualQueryReturnsDataFromClickHouse(ctx context.Context, t *testing.T) {
-	resp, _ := a.RequestToQuesma(ctx, t, "POST", "/logs-dual-query/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
+	resp, _ := a.RequestToQuesma(ctx, t, "POST", "/logs-dual_query/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	chQuery := "SELECT * FROM 'logs-dual-query'"
+	chQuery := "SELECT * FROM 'logs-dual_query'"
 	rows, err := a.ExecuteClickHouseQuery(ctx, chQuery)
 	if err != nil {
 		t.Fatalf("Failed to execute query: %s", err)
@@ -140,12 +141,12 @@ func (a *DualWriteAndCommonTableTestcase) testDualQueryReturnsDataFromClickHouse
 	assert.Equal(t, 31337, age)
 
 	// In the meantime let's delete the index from Elasticsearch
-	_, _ = a.RequestToElasticsearch(ctx, "DELETE", "/logs-dual-query", nil)
+	resp, _ = a.RequestToElasticsearch(ctx, "DELETE", "/logs-dual_query", nil)
 	if err != nil {
 		t.Fatalf("Failed to make DELETE request: %s", err)
 	}
 	// FINAL TEST - WHETHER QUESMA RETURNS DATA FROM CLICKHOUSE
-	resp, bodyBytes := a.RequestToQuesma(ctx, t, "GET", "/logs-dual-query/_search", []byte(`{"query": {"match_all": {}}}`))
+	resp, bodyBytes := a.RequestToQuesma(ctx, t, "GET", "/logs-dual_query/_search", []byte(`{"query": {"match_all": {}}}`))
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Contains(t, string(bodyBytes), "Przemyslaw")
 	assert.Contains(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
@@ -290,4 +291,59 @@ func (a *DualWriteAndCommonTableTestcase) testWildcardGoesToElastic(ctx context.
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Quesma-Source"))
 	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
+}
+
+func (a *DualWriteAndCommonTableTestcase) testResolveEndpointInQuesma(ctx context.Context, t *testing.T) {
+	// When Quesma searches for that document
+	resp, bodyBytes := a.RequestToQuesma(ctx, t, "GET", "/_resolve/index/*", nil)
+
+	var jsonResponse map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &jsonResponse); err != nil {
+		t.Fatalf("Failed to unmarshal response body: %s", err)
+	}
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
+	expectedResponse := map[string]interface{}{
+		"indices": []interface{}{
+			map[string]interface{}{
+				"name":       "logs-3",
+				"attributes": []interface{}{"open"},
+			},
+			map[string]interface{}{
+				"name":       "quesma_virtual_tables",
+				"attributes": []interface{}{"open"},
+			},
+			map[string]interface{}{
+				"name":       "unmentioned_index",
+				"attributes": []interface{}{"open"},
+			},
+		},
+		"aliases": []interface{}{},
+		"data_streams": []interface{}{
+			map[string]interface{}{
+				"name":            "logs-2",
+				"backing_indices": []interface{}{"logs-2"},
+				"timestamp_field": "@timestamp",
+			},
+			map[string]interface{}{
+				"name":            "logs-3",
+				"backing_indices": []interface{}{"logs-3"},
+				"timestamp_field": "@timestamp",
+			},
+			map[string]interface{}{
+				"name":            "logs-4",
+				"backing_indices": []interface{}{"logs-4"},
+				"timestamp_field": "@timestamp",
+			},
+			map[string]interface{}{
+				"name":            "logs-dual_query",
+				"backing_indices": []interface{}{"logs-dual_query"},
+				"timestamp_field": "@timestamp",
+			},
+		},
+	}
+	assert.ElementsMatchf(t, expectedResponse["indices"], jsonResponse["indices"], "indices do not match")
+	assert.ElementsMatchf(t, expectedResponse["aliases"], jsonResponse["aliases"], "aliases do not match")
+	assert.ElementsMatchf(t, expectedResponse["data_streams"], jsonResponse["data_streams"], "data_streams do not match")
 }

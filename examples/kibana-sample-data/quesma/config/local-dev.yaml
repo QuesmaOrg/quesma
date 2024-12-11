@@ -31,7 +31,8 @@ processors:
     config:
       indexes:
         kibana_sample_data_ecommerce:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               "geoip.location":
@@ -45,7 +46,8 @@ processors:
               manufacturer:
                 type: text
         kibana_sample_data_flights:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               "DestLocation":
@@ -53,7 +55,8 @@ processors:
               "OriginLocation":
                 type: geo_point
         logs-generic-default:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               timestamp:
@@ -70,13 +73,15 @@ processors:
               severity:
                 type: "keyword"
         "*":       # DO NOT remove, always required
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
       indexes:
         kibana_sample_data_ecommerce:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               "geoip.location":
@@ -90,7 +95,8 @@ processors:
               manufacturer:
                 type: text
         kibana_sample_data_flights:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               "DestLocation":
@@ -98,7 +104,8 @@ processors:
               "OriginLocation":
                 type: geo_point
         logs-generic-default:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               timestamp:
@@ -115,7 +122,8 @@ processors:
               severity:
                 type: "keyword"
         "*":
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
 pipelines:
   - name: my-pipeline-elasticsearch-query-clickhouse
     frontendConnectors: [ elastic-query ]

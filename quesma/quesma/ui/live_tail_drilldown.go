@@ -4,13 +4,13 @@ package ui
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"gopkg.in/yaml.v3"
 	"quesma/quesma/types"
 	"quesma/quesma/ui/internal/builder"
-	"quesma/tracing"
 	"quesma/util"
+	tracing "quesma_v2/core/tracing"
 	"strings"
 )
 

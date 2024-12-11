@@ -3,7 +3,7 @@
 package bulk
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/require"
 	"testing"
 )

@@ -38,7 +38,8 @@ processors:
           target:
             - my-clickhouse-data-source
         "*":
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
 
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
@@ -53,7 +54,8 @@ processors:
           target:
             - my-clickhouse-data-source
         "*":
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
 pipelines:
   - name: my-pipeline-elasticsearch-query-clickhouse
     frontendConnectors: [ elastic-query ]

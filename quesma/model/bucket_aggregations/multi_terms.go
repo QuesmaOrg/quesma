@@ -58,7 +58,11 @@ func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 	}
 	sumOtherDocCount := 0
 	if len(rows) > 0 {
-		sumOtherDocCount = int(util.ExtractInt64(query.parentCount(rows[0]))) - query.sumDocCounts(rows)
+		parentCount, err := util.ExtractInt64(query.parentCount(rows[0]))
+		if err != nil {
+			logger.Error().Err(err)
+		}
+		sumOtherDocCount = int(parentCount) - query.sumDocCounts(rows)
 	}
 	return model.JsonMap{
 		"sum_other_doc_count":         sumOtherDocCount,

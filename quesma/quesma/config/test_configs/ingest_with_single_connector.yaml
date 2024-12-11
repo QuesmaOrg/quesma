@@ -33,21 +33,27 @@ processors:
     config:
       indexes:
         siem:
-          target: [my-hydrolix-instance]
+          target:
+            - my-hydrolix-instance
         logs:
-          target: [my-hydrolix-instance]
+          target:
+            - my-hydrolix-instance
         "*":
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
       indexes:
         siem:
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
         logs:
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
         "*":
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
 pipelines:
   - name: my-elasticsearch-proxy-read
     frontendConnectors: [ elastic-query ]

@@ -24,13 +24,14 @@ func (query GeoTileGrid) AggregationType() model.AggregationType {
 }
 
 func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	if len(rows) > 0 && len(rows[0].Cols) < 3 {
+	if len(rows) > 0 && len(rows[0].Cols) < 4 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in geotile_grid aggregation response, len(rows[0].Cols): %d",
 			len(rows[0].Cols),
 		)
 	}
-	var response []model.JsonMap
+
+	buckets := make([]model.JsonMap, 0, len(rows))
 	for _, row := range rows {
 		x := int64(util.ExtractFloat64(row.Cols[0].Value))
 		y := int64(util.ExtractFloat64(row.Cols[1].Value))
@@ -41,8 +42,15 @@ func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow)
 		})
 	}
 	return model.JsonMap{
-		"buckets": response,
+		"buckets": buckets,
 	}
+}
+
+func (query GeoTileGrid) calcKey(cols []model.QueryResultCol) string {
+	zoom, _ := util.ExtractFloat64(cols[0].Value)
+	x, _ := util.ExtractFloat64(cols[1].Value)
+	y, _ := util.ExtractFloat64(cols[2].Value)
+	return strconv.FormatInt(int64(zoom), 10) + "/" + strconv.FormatInt(int64(x), 10) + "/" + strconv.FormatInt(int64(y), 10)
 }
 
 func (query GeoTileGrid) String() string {

@@ -1,15 +1,15 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
+
 package queryparser
 
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
-	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -71,7 +71,10 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		queries = append(queries, listQuery)
 	}
 
-	runtimeMappings := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
+	runtimeMappings, err := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
+	if err != nil {
+		return &model.ExecutionPlan{}, err
+	}
 
 	// we apply post query transformer for certain aggregation types
 	// this should be a part of the query parsing process
@@ -588,7 +591,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					computedIdMatchingQuery := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
 					statements = append(statements, computedIdMatchingQuery.WhereClause)
 				} else {
-					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'%"+subQuery+"%'"))
+					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteral("'"+subQuery+"'"))
 					statements = append(statements, simpleStat)
 				}
 			}
@@ -785,9 +788,14 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 		return model.NewSimpleQuery(nil, false)
 	}
 
+	// Maybe change to false if numeric fields exist.
+	// Even so, most likely >99% of ranges will be dates, as they come in (almost) every request.
+	const dateInSchemaExpected = true
+
 	for fieldName, v := range queryMap {
 		fieldName = cw.ResolveField(cw.Ctx, fieldName)
-		fieldType := cw.Table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName))
+
+		fieldType := cw.Table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName), dateInSchemaExpected)
 		stmts := make([]model.Expr, 0)
 		if _, ok := v.(QueryMap); !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid range type: %T, value: %v", v, v)
@@ -799,7 +807,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			valueRaw := v.(QueryMap)[op]
 			value := sprint(valueRaw)
 			defaultValue := model.NewLiteral(value)
-			dateManager := kibana.NewDateManager(cw.Ctx)
+			dateManager := NewDateManager(cw.Ctx)
 
 			// Three stages:
 			// 1. dateManager.ParseDateUsualFormat
@@ -894,7 +902,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 		case clickhouse.ExistsAndIsArray:
 			sql = model.NewInfixExpr(model.NewNestedProperty(
-				model.NewColumnRef(fieldNameQuoted),
+				model.NewColumnRef(fieldName),
 				model.NewLiteral("size0"),
 			), "=", model.NewLiteral("0"))
 		case clickhouse.NotExists:
@@ -1269,9 +1277,10 @@ func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap, defaultSize in
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) GetDateTimeTypeFromSelectClause(ctx context.Context, expr model.Expr) clickhouse.DateTimeType {
+func (cw *ClickhouseQueryTranslator) GetDateTimeTypeFromSelectClause(ctx context.Context, expr model.Expr,
+	dateInSchemaExpected bool) clickhouse.DateTimeType {
 	if ref, ok := expr.(model.ColumnRef); ok {
-		return cw.Table.GetDateTimeType(ctx, cw.ResolveField(ctx, ref.ColumnName))
+		return cw.Table.GetDateTimeType(ctx, cw.ResolveField(ctx, ref.ColumnName), dateInSchemaExpected)
 	}
 	return clickhouse.Invalid
 }

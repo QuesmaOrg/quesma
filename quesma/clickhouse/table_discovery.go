@@ -5,9 +5,9 @@ package clickhouse
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/goccy/go-json"
 	"quesma/common_table"
 	"quesma/end_user_errors"
 	"quesma/logger"
@@ -293,6 +293,14 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]colum
 }
 
 func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg *config.QuesmaConfiguration) {
+
+	internalColumn := make(map[string]bool)
+	internalColumn[AttributesValuesColumn] = true
+	internalColumn[AttributesMetadataColumn] = true
+	internalColumn[DeprecatedAttributesKeyColumn] = true
+	internalColumn[DeprecatedAttributesValueColumn] = true
+	internalColumn[DeprecatedAttributesValueType] = true
+
 	tableMap := NewTableMap()
 	for tableName, resTable := range configuredTables {
 		var columnsMap = make(map[string]*Column)
@@ -304,7 +312,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 					continue
 				}
 			}
-			if col != AttributesValuesColumn && col != AttributesMetadataColumn {
+			if !internalColumn[col] {
 				column := resolveColumn(col, columnMeta.colType)
 				if column != nil {
 					column.Comment = columnMeta.comment

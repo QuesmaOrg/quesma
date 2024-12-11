@@ -12,12 +12,13 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
+	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/testdata"
-	"quesma/tracing"
 	"quesma/util"
+	tracing "quesma_v2/core/tracing"
 	"testing"
 	"time"
 )
@@ -63,14 +64,16 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 				}
 			}
 
-			// Update of the count below is done asynchronously in another goroutine
-			// (go managementConsole.RunOnlyChannelProcessor() above), so we might need to wait a bit
-			assert.Eventually(t, func() bool {
-				return len(managementConsole.QueriesWithUnsupportedType(tt.QueryType)) == 1
-			}, 250*time.Millisecond, 1*time.Millisecond)
-			assert.Equal(t, 1, managementConsole.GetTotalUnsupportedQueries())
-			assert.Equal(t, 1, managementConsole.GetSavedUnsupportedQueries())
-			assert.Equal(t, 1, len(managementConsole.GetUnsupportedTypesWithCount()))
+			if logger.TestConsoleStatsBasedOnLogs {
+				// Update of the count below is done asynchronously in another goroutine
+				// (go managementConsole.RunOnlyChannelProcessor() above), so we might need to wait a bit
+				assert.Eventually(t, func() bool {
+					return len(managementConsole.QueriesWithUnsupportedType(tt.QueryType)) == 1
+				}, 250*time.Millisecond, 1*time.Millisecond)
+				assert.Equal(t, 1, managementConsole.GetTotalUnsupportedQueries())
+				assert.Equal(t, 1, managementConsole.GetSavedUnsupportedQueries())
+				assert.Equal(t, 1, len(managementConsole.GetUnsupportedTypesWithCount()))
+			}
 		})
 	}
 }
@@ -123,14 +126,19 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 		_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(testdata.UnsupportedQueriesTests[testNr].QueryRequestJson))
 	}
 
-	for i, tt := range testdata.UnsupportedQueriesTests {
-		// Update of the count below is done asynchronously in another goroutine
-		// (go managementConsole.RunOnlyChannelProcessor() above), so we might need to wait a bit
-		assert.Eventually(t, func() bool {
-			return len(queryRunner.quesmaManagementConsole.QueriesWithUnsupportedType(tt.QueryType)) == min(testCounts[i], maxSavedQueriesPerQueryType)
-		}, 600*time.Millisecond, 1*time.Millisecond,
-			tt.TestName+": wanted: %d, got: %d", min(testCounts[i], maxSavedQueriesPerQueryType),
-			len(queryRunner.quesmaManagementConsole.QueriesWithUnsupportedType(tt.QueryType)),
-		)
+	if logger.TestConsoleStatsBasedOnLogs {
+
+		for i, tt := range testdata.UnsupportedQueriesTests {
+			// Update of the count below is done asynchronously in another goroutine
+			// (go managementConsole.RunOnlyChannelProcessor() above), so we might need to wait a bit
+
+			assert.Eventually(t, func() bool {
+				return len(queryRunner.quesmaManagementConsole.QueriesWithUnsupportedType(tt.QueryType)) == min(testCounts[i], maxSavedQueriesPerQueryType)
+			}, 600*time.Millisecond, 1*time.Millisecond,
+				tt.TestName+": wanted: %d, got: %d", min(testCounts[i], maxSavedQueriesPerQueryType),
+				len(queryRunner.quesmaManagementConsole.QueriesWithUnsupportedType(tt.QueryType)),
+			)
+
+		}
 	}
 }

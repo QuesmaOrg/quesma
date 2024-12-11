@@ -179,7 +179,11 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 		if err != nil {
 			return nil, err
 		}
-		return util.MergeMaps(p.ctx, aggJson, subAggr), nil
+		mergeResult, mergeErr := util.MergeMaps(aggJson, subAggr)
+		if mergeErr != nil {
+			logger.ErrorWithCtx(p.ctx).Msgf("error merging maps: %v", mergeErr)
+		}
+		return mergeResult, nil
 	case bucket_aggregations.CombinatorAggregationInterface:
 		var bucketArray []model.JsonMap
 		for _, subGroup := range queryType.CombinatorGroups() {
@@ -193,7 +197,11 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), selectedRowsWithoutPrefix)
 			aggJson := queryType.CombinatorTranslateSqlResponseToJson(subGroup, selectedRows)
 
-			bucketArray = append(bucketArray, util.MergeMaps(p.ctx, aggJson, subAggr))
+			mergeResult, mergeErr := util.MergeMaps(aggJson, subAggr)
+			if mergeErr != nil {
+				logger.ErrorWithCtx(p.ctx).Msgf("error merging maps: %v", mergeErr)
+			}
+			bucketArray = append(bucketArray, mergeResult)
 			bucketArray[len(bucketArray)-1]["key"] = subGroup.Key
 		}
 		var bucketsJson any
@@ -319,7 +327,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 					if err != nil {
 						return nil, err
 					}
-					bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
+					if bucketArr[i], err = util.MergeMaps(bucket, subAggr); err != nil {
+						logger.ErrorWithCtx(p.ctx).Msgf("error merging maps: %v", err)
+					}
 				}
 			} else {
 				// A bit harder case. Observation: len(bucketArr) > len(subAggrRows) and set(subAggrRows' keys) is a subset of set(bucketArr's keys)
@@ -360,7 +370,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 					if err != nil {
 						return nil, err
 					}
-					bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
+					if bucketArr[i], err = util.MergeMaps(bucket, subAggr); err != nil {
+						logger.ErrorWithCtx(p.ctx).Msgf("error merging maps: %v", err)
+					}
 				}
 			}
 

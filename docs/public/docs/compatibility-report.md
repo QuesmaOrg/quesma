@@ -17,15 +17,19 @@ processors:
     config:
       indexes:
         kibana_sample_data_ecommerce:
-          target: [ backend-elastic, backend-clickhouse ]
+          target:
+            - backend-elastic
+            - backend-clickhouse
         ab_testing_logs:
-          target: [ backend-clickhouse ]
+          target:
+            - backend-clickhouse
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
       indexes:
         ab_testing_logs:
-          target: [ backend-clickhouse ]
+          target:
+            - backend-clickhouse
 ```
 
 This configuration turns on Compatibility Report for `kibana_sample_data_ecommerce` index. The `ab_testing_logs` is an internal Quesma index which is required in the configuration for Compatibility Report to work properly.
