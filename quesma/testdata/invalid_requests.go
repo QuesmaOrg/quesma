@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package testdata
 
+// InvalidAggregationTests are still WIP, not used in tests yet.
 var InvalidAggregationTests = []AggregationTestCase{
 	{
 		TestName: "Kibana 8.15, Metrics: Aggregation: Rate, invalid Unit (10)", //reason [eaggs] > reason
