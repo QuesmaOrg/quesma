@@ -9,6 +9,4 @@ const (
 
 	DateHourFunction = "__quesma_date_hour"
 	MatchOperator    = "__quesma_match"
-
-	ExistsFunction = "__quesma_exists"
 )
