@@ -2148,7 +2148,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	{ // [10]
-		TestName: "Rate aggregation with date_histogram fixed_interval",
+		TestName: "Rate aggregation: all possible units with date_histogram's fixed_interval",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -2314,7 +2314,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [10]
-		TestName: "Rate aggregation with date_histogram calendar_interval",
+		TestName: "Rate aggregation: all  with date_histogram calendar_interval",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -2323,22 +2323,10 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"aggs": {
 				"2": {
 					"aggs": {
-						"month": {
+						"second": {
 							"rate": {
 								"field": "DistanceKilometers",
-								"unit": "month"
-							}
-						},
-						"year": {
-							"rate": {
-								"field": "DistanceKilometers",
-								"unit": "year"
-							}
-						},
-						"quarter": {
-							"rate": {
-								"field": "DistanceKilometers",
-								"unit": "quarter"
+								"unit": "second"
 							}
 						},
 						"minute": {
@@ -2347,12 +2335,42 @@ var AggregationTests = []testdata.AggregationTestCase{
 								"unit": "minute"
 							}
 						},
-						"second": {
+						"hour": {
 							"rate": {
 								"field": "DistanceKilometers",
-								"unit": "second"
+								"unit": "hour"
 							}
 						},
+						"day": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "day"
+							}
+						},
+						"week": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "week"
+							}
+						},
+						"month": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "month"
+							}
+						},
+						"quarter": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "quarter"
+							}
+						},
+						"year": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "year"
+							}
+						}
 					},
 					"date_histogram": {
 						"calendar_interval": "1M",
@@ -2421,14 +2439,23 @@ var AggregationTests = []testdata.AggregationTestCase{
 								"doc_count": 3345,
 								"key": 1730415600000,
 								"key_as_string": "2024-10-31T23:00:00.000",
+								"second": {
+									"value": 9.20347966054928
+								},
 								"minute": {
 									"value": 552.2087796329569
 								},
+								"hour": {
+									"value": 33132.526778
+								},
+								"day": {
+									"value": 795180.642671
+								},
+								"week": {
+									"value": 5566264.498700
+								},
 								"month": {
 									"value": 23855419.280143738
-								},
-								"second": {
-									"value": 9.20347966054928
 								},
 								"quarter": {
 									"value": 71566257.840431
@@ -2457,20 +2484,26 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1730419200000)),
 				model.NewQueryResultCol("aggr__2__count", 3345),
+				model.NewQueryResultCol("metric__2__second_col_0", 23855419.280143738),
 				model.NewQueryResultCol("metric__2__minute_col_0", 23855419.280143738),
+				model.NewQueryResultCol("metric__2__hour_col_0", 23855419.280143738),
+				model.NewQueryResultCol("metric__2__day_col_0", 23855419.280143738),
+				model.NewQueryResultCol("metric__2__week_col_0", 23855419.280143738),
 				model.NewQueryResultCol("metric__2__month_col_0", 23855419.280143738),
 				model.NewQueryResultCol("metric__2__quarter_col_0", 23855419.280143738),
-				model.NewQueryResultCol("metric__2__second_col_0", 23855419.280143738),
 				model.NewQueryResultCol("metric__2__year_col_0", 23855419.280143738),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("timestamp",
 			  'Europe/Warsaw'))))*1000 AS "aggr__2__key_0", count(*) AS "aggr__2__count",
+			  "DistanceKilometers" AS "metric__2__day_col_0",
+			  "DistanceKilometers" AS "metric__2__hour_col_0",
 			  "DistanceKilometers" AS "metric__2__minute_col_0",
 			  "DistanceKilometers" AS "metric__2__month_col_0",
 			  "DistanceKilometers" AS "metric__2__quarter_col_0",
 			  "DistanceKilometers" AS "metric__2__second_col_0",
+			  "DistanceKilometers" AS "metric__2__week_col_0",
 			  "DistanceKilometers" AS "metric__2__year_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1668427553316) AND "timestamp"<=
