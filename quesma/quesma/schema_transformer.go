@@ -806,8 +806,9 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 					// attributes values are always string,
 					if access, ok := e.Args[0].(model.ArrayAccess); ok {
 						if access.ColumnRef.ColumnName == clickhouse.AttributesValuesColumn {
+							logger.Warn().Msgf("Unsupported case. Aggregation '%s' over attribute named: '%s'", e.Name, access.Index)
 							args := b.VisitChildren(e.Args)
-							args[0] = model.NewFunction("toFloat64OrZero", args[0])
+							args[0] = model.NewLiteral("NULL")
 							return model.NewFunction(e.Name, args...)
 						}
 					}
