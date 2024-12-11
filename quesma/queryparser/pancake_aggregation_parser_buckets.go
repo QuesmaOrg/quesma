@@ -53,6 +53,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 
 // paramsRaw - in a proper request should be of QueryMap type.
 func (cw *ClickhouseQueryTranslator) parseHistogram(aggregation *pancakeAggregationTreeNode, params QueryMap) (err error) {
+	const defaultInterval = 1.0
 	var interval float64
 	intervalRaw, ok := params["interval"]
 	if !ok {
@@ -70,7 +71,7 @@ func (cw *ClickhouseQueryTranslator) parseHistogram(aggregation *pancakeAggregat
 		interval = intervalTyped
 	default:
 		interval = 1.0
-		logger.WarnWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v. Will use 1.0.", intervalTyped, intervalTyped)
+		logger.WarnWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v. Will use default (%v)", intervalTyped, intervalTyped, defaultInterval)
 	}
 
 	minDocCount := cw.parseMinDocCount(params)
@@ -155,7 +156,10 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 
 	const defaultSize = 10
 	size := cw.parseSize(params, defaultSize)
-	orderBy := cw.parseOrder(params, []model.Expr{field})
+	orderBy, err := cw.parseOrder(params, []model.Expr{field})
+	if err != nil {
+		return err
+	}
 
 	aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, aggrName == "significant_terms", orderBy[0]) // TODO probably full, not [0]
 	aggregation.selectedColumns = append(aggregation.selectedColumns, field)
@@ -181,18 +185,10 @@ func (cw *ClickhouseQueryTranslator) parseRandomSampler(aggregation *pancakeAggr
 }
 
 func (cw *ClickhouseQueryTranslator) parseRangeAggregation(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
-	const keyedDefault = false
-
-	var ranges []any
-	if rangesRaw, ok := params["ranges"]; ok {
-		ranges, ok = rangesRaw.([]any)
-		if !ok {
-			return fmt.Errorf("ranges is not an array, but %T, value: %v", rangesRaw, rangesRaw)
-		}
-	} else {
-		return fmt.Errorf("ranges is not found in range aggregation: %v", params)
+	ranges, err := cw.parseArrayField(params, "ranges")
+	if err != nil {
+		return err
 	}
-
 	intervals := make([]bucket_aggregations.Interval, 0, len(ranges))
 	for _, Range := range ranges {
 		rangePartMap := Range.(QueryMap)
@@ -201,6 +197,7 @@ func (cw *ClickhouseQueryTranslator) parseRangeAggregation(aggregation *pancakeA
 		intervals = append(intervals, bucket_aggregations.NewInterval(from, to))
 	}
 
+	const keyedDefault = false
 	keyed := keyedDefault
 	if keyedRaw, exists := params["keyed"]; exists {
 		var ok bool
@@ -227,13 +224,9 @@ func (cw *ClickhouseQueryTranslator) parseAutoDateHistogram(aggregation *pancake
 }
 
 func (cw *ClickhouseQueryTranslator) parseMultiTerms(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
-	termsRaw, exists := params["terms"]
-	if !exists {
-		return fmt.Errorf("no terms in multi_terms")
-	}
-	terms, ok := termsRaw.([]any)
-	if !ok {
-		return fmt.Errorf("terms is not an array, but %T, value: %v. Using empty array", termsRaw, termsRaw)
+	terms, err := cw.parseArrayField(params, "terms")
+	if err != nil {
+		return err
 	}
 
 	fieldsNr := len(terms)
@@ -241,8 +234,13 @@ func (cw *ClickhouseQueryTranslator) parseMultiTerms(aggregation *pancakeAggrega
 	for _, term := range terms {
 		columns = append(columns, cw.parseFieldField(term, "multi_terms"))
 	}
+
+	orderBy, err := cw.parseOrder(params, columns)
+	if err != nil {
+		return err
+	}
+	aggregation.orderBy = append(aggregation.orderBy, orderBy...)
 	aggregation.selectedColumns = append(aggregation.selectedColumns, columns...)
-	aggregation.orderBy = append(aggregation.orderBy, cw.parseOrder(params, columns)...)
 
 	const defaultSize = 10
 	aggregation.limit = cw.parseSize(params, defaultSize)
@@ -251,13 +249,8 @@ func (cw *ClickhouseQueryTranslator) parseMultiTerms(aggregation *pancakeAggrega
 }
 
 func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
-	var precisionZoom float64
-	precisionRaw, ok := params["precision"]
-	if ok {
-		if cutValueTyped, ok := precisionRaw.(float64); ok {
-			precisionZoom = cutValueTyped
-		}
-	}
+	const defaultPrecisionZoom = 7.0
+	precisionZoom := cw.parseFloatField(params, "precision", defaultPrecisionZoom)
 	field := cw.parseFieldField(params, "geotile_grid")
 
 	// That's bucket (group by) formula for geotile_grid
@@ -332,13 +325,9 @@ func (cw *ClickhouseQueryTranslator) parseComposite(aggregation *pancakeAggregat
 	}
 
 	var baseAggrs []*bucket_aggregations.BaseAggregation
-	sourcesRaw, exists := params["sources"]
-	if !exists {
-		return fmt.Errorf("composite has no sources")
-	}
-	sources, ok := sourcesRaw.([]any)
-	if !ok {
-		return fmt.Errorf("sources is not an array, but %T, value: %v", sourcesRaw, sourcesRaw)
+	sources, err := cw.parseArrayField(params, "sources")
+	if err != nil {
+		return err
 	}
 	for _, sourceRaw := range sources {
 		source, ok := sourceRaw.(QueryMap)
@@ -353,7 +342,7 @@ func (cw *ClickhouseQueryTranslator) parseComposite(aggregation *pancakeAggregat
 			if !ok {
 				return fmt.Errorf("source value is not a map, but %T, value: %v", aggrRaw, aggrRaw)
 			}
-			if err := cw.pancakeTryBucketAggregation(aggregation, aggr); err == nil {
+			if err = cw.pancakeTryBucketAggregation(aggregation, aggr); err == nil {
 				if !isValidSourceType(aggregation.queryType) {
 					return fmt.Errorf("unsupported base aggregation type: %v", aggregation.queryType)
 				}
@@ -370,13 +359,13 @@ func (cw *ClickhouseQueryTranslator) parseComposite(aggregation *pancakeAggregat
 	return nil
 }
 
-func (cw *ClickhouseQueryTranslator) parseOrder(params QueryMap, fieldExpressions []model.Expr) []model.OrderByExpr {
+func (cw *ClickhouseQueryTranslator) parseOrder(params QueryMap, fieldExpressions []model.Expr) ([]model.OrderByExpr, error) {
 	defaultDirection := model.DescOrder
 	defaultOrderBy := model.NewOrderByExpr(model.NewCountFunc(), defaultDirection)
 
 	ordersRaw, exists := params["order"]
 	if !exists {
-		return []model.OrderByExpr{defaultOrderBy}
+		return []model.OrderByExpr{defaultOrderBy}, nil
 	}
 
 	// order can be either a single order {}, or a list of such single orders [{}(,{}...)]
@@ -389,25 +378,23 @@ func (cw *ClickhouseQueryTranslator) parseOrder(params QueryMap, fieldExpression
 			if orderTyped, ok := order.(QueryMap); ok {
 				orders = append(orders, orderTyped)
 			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("invalid order: %v", order)
+				return nil, fmt.Errorf("invalid order: %v", order)
 			}
 		}
 	default:
-		logger.WarnWithCtx(cw.Ctx).Msgf("order is not a map/list of maps, but %T, value: %v. Using default order", ordersRaw, ordersRaw)
-		return []model.OrderByExpr{defaultOrderBy}
+		return nil, fmt.Errorf("order is not a map/list of maps, but %T, value: %v. Using default order", ordersRaw, ordersRaw)
 	}
 
 	fullOrderBy := make([]model.OrderByExpr, 0)
 
 	for _, order := range orders {
 		if len(order) != 1 {
-			logger.WarnWithCtx(cw.Ctx).Msgf("invalid order length, should be 1: %v", order)
+			logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order length, should be 1: %v", order)
 		}
 		for key, valueRaw := range order { // value == "asc" or "desc"
 			value, ok := valueRaw.(string)
 			if !ok {
-				logger.WarnWithCtx(cw.Ctx).Msgf("order value is not a string, but %T, value: %v. Using default (desc)", valueRaw, valueRaw)
-				value = "desc"
+				return nil, fmt.Errorf("order value is not a string, but %T, value: %v", valueRaw, valueRaw)
 			}
 
 			direction := defaultDirection
@@ -428,21 +415,19 @@ func (cw *ClickhouseQueryTranslator) parseOrder(params QueryMap, fieldExpression
 		}
 	}
 
-	return fullOrderBy
+	return fullOrderBy, nil
 }
 
-// addMissingParameterIfPresent parses 'missing' parameter. It can be any type.
-func (cw *ClickhouseQueryTranslator) addMissingParameterIfPresent(field model.Expr,
-	aggrQueryMap QueryMap) (updatedField model.Expr, didWeAddMissing bool) {
-
-	if aggrQueryMap["missing"] == nil {
+// addMissingParameterIfPresent parses 'missing' parameter from 'params'.
+func (cw *ClickhouseQueryTranslator) addMissingParameterIfPresent(field model.Expr, params QueryMap) (updatedField model.Expr, didWeAddMissing bool) {
+	if params["missing"] == nil {
 		return field, false
 	}
 
 	// Maybe we should check the input type against the schema?
 	// Right now we quote if it's a string.
 	var value model.LiteralExpr
-	switch val := aggrQueryMap["missing"].(type) {
+	switch val := params["missing"].(type) {
 	case string:
 		value = model.NewLiteral("'" + val + "'")
 	default:
