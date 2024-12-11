@@ -4,18 +4,19 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
-	"strconv"
 )
 
 type GeoTileGrid struct {
-	ctx context.Context
+	ctx           context.Context
+	precisionZoom int
 }
 
-func NewGeoTileGrid(ctx context.Context) GeoTileGrid {
-	return GeoTileGrid{ctx: ctx}
+func NewGeoTileGrid(ctx context.Context, precisionZoom int) GeoTileGrid {
+	return GeoTileGrid{ctx: ctx, precisionZoom: precisionZoom}
 }
 
 func (query GeoTileGrid) AggregationType() model.AggregationType {
@@ -43,10 +44,9 @@ func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow)
 }
 
 func (query GeoTileGrid) calcKey(cols []model.QueryResultCol) string {
-	zoom, _ := util.ExtractFloat64(cols[0].Value)
-	x, _ := util.ExtractFloat64(cols[1].Value)
-	y, _ := util.ExtractFloat64(cols[2].Value)
-	return strconv.FormatInt(int64(zoom), 10) + "/" + strconv.FormatInt(int64(x), 10) + "/" + strconv.FormatInt(int64(y), 10)
+	x := int64(util.ExtractFloat64(cols[0].Value))
+	y := int64(util.ExtractFloat64(cols[1].Value))
+	return fmt.Sprintf("%d/%d/%d", query.precisionZoom, x, y)
 }
 
 func (query GeoTileGrid) String() string {

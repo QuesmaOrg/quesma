@@ -4504,38 +4504,33 @@ var AggregationTests2 = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__my_buckets__key_0", 8.0),
-				model.NewQueryResultCol("aggr__my_buckets__key_1", 20.0),
-				model.NewQueryResultCol("aggr__my_buckets__key_2", 44.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 20.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", 44.0),
 				model.NewQueryResultCol("aggr__my_buckets__count", int64(12)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__my_buckets__key_0", 8.0),
-				model.NewQueryResultCol("aggr__my_buckets__key_1", 20.0),
-				model.NewQueryResultCol("aggr__my_buckets__key_2", 45.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 20.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", 45.0),
 				model.NewQueryResultCol("aggr__my_buckets__count", int64(22)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__my_buckets__key_0", 8.0),
-				model.NewQueryResultCol("aggr__my_buckets__key_1", 21.0),
-				model.NewQueryResultCol("aggr__my_buckets__key_2", 49.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 21.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", 49.0),
 				model.NewQueryResultCol("aggr__my_buckets__count", int64(1)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT CAST(8.000000 AS Float32) AS "aggr__my_buckets__key_0",
-			  FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2, 8))
-			  AS "aggr__my_buckets__key_1",
+			SELECT FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2,
+			  8)) AS "aggr__my_buckets__key_0",
 			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))+(1/
 			  COS(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))))/PI())/2*POWER(2,
-			  8)) AS "aggr__my_buckets__key_2", count(*) AS "aggr__my_buckets__count"
+			  8)) AS "aggr__my_buckets__key_1", count(*) AS "aggr__my_buckets__count"
 			FROM __quesma_table_name
-			GROUP BY CAST(8.000000 AS Float32) AS "aggr__my_buckets__key_0",
-			  FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2, 8))
-			  AS "aggr__my_buckets__key_1",
+			GROUP BY FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2
+			  , 8)) AS "aggr__my_buckets__key_0",
 			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))+(1/
 			  COS(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))))/PI())/2*POWER(2,
-			  8)) AS "aggr__my_buckets__key_2"
+			  8)) AS "aggr__my_buckets__key_1"
 			LIMIT 10`,
 	},
 	{ // [69]
@@ -4673,5 +4668,86 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__my_buckets__count" DESC, "aggr__my_buckets__key_0" ASC,
 			  "aggr__my_buckets__key_1" ASC
 			LIMIT 4`,
+	},
+	{ // [70]
+		TestName: "simplest geotile_grid",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"large-grid": {
+					"geotile_grid": {
+						"field": "OriginLocation",
+						"precision": 8
+					}
+				}
+			},
+			"size": 0
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 70,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 10000,
+					"relation": "gte"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"large-grid": {
+					"buckets": [
+						{
+							"key": "8/136/95",
+							"doc_count": 416
+						},
+						{
+							"key": "8/134/91",
+							"doc_count": 360
+						},
+						{
+							"key": "8/72/128",
+							"doc_count": 283
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__large-grid__key_0", 136.),
+				model.NewQueryResultCol("aggr__large-grid__key_1", 95.),
+				model.NewQueryResultCol("aggr__large-grid__count", 416),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__large-grid__key_0", 134.),
+				model.NewQueryResultCol("aggr__large-grid__key_1", 91.),
+				model.NewQueryResultCol("aggr__large-grid__count", 360),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__large-grid__key_0", 72.),
+				model.NewQueryResultCol("aggr__large-grid__key_1", 128.),
+				model.NewQueryResultCol("aggr__large-grid__count", 283),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2,
+			  8)) AS "aggr__large-grid__key_0",
+			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))+(1/
+			  COS(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))))/PI())/2*POWER(2,
+			  8)) AS "aggr__large-grid__key_1", count(*) AS "aggr__large-grid__count"
+			FROM __quesma_table_name
+			GROUP BY FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2
+			  , 8)) AS "aggr__large-grid__key_0",
+			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))+(1/
+			  COS(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))))/PI())/2*POWER(2,
+			  8)) AS "aggr__large-grid__key_1"`,
 	},
 }
