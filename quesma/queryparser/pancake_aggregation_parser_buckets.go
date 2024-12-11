@@ -35,6 +35,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			return cw.parseTermsAggregation(node, params, "significant_terms")
 		}},
 		{"multi_terms", cw.parseMultiTerms},
+		{"composite", cw.parseComposite},
 	}
 
 	for _, aggr := range aggregationHandlers {
@@ -313,7 +314,7 @@ func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggreg
 // compositeRaw - in a proper request should be of QueryMap type.
 // TODO: In geotile_grid, without order specidfied, Elastic returns sort by key (a/b/c earlier than x/y/z if a<x or (a=x && b<y), etc.)
 // Maybe add some ordering, but doesn't seem to be very important.
-func (cw *ClickhouseQueryTranslator) parseComposite(currentAggrNode *pancakeAggregationTreeNode, params QueryMap) (*bucket_aggregations.Composite, error) {
+func (cw *ClickhouseQueryTranslator) parseComposite(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
 	const defaultSize = 10
 
 	// The sources parameter can be any of the following types:
@@ -333,40 +334,40 @@ func (cw *ClickhouseQueryTranslator) parseComposite(currentAggrNode *pancakeAggr
 	var baseAggrs []*bucket_aggregations.BaseAggregation
 	sourcesRaw, exists := params["sources"]
 	if !exists {
-		return nil, fmt.Errorf("composite has no sources")
+		return fmt.Errorf("composite has no sources")
 	}
 	sources, ok := sourcesRaw.([]any)
 	if !ok {
-		return nil, fmt.Errorf("sources is not an array, but %T, value: %v", sourcesRaw, sourcesRaw)
+		return fmt.Errorf("sources is not an array, but %T, value: %v", sourcesRaw, sourcesRaw)
 	}
 	for _, sourceRaw := range sources {
 		source, ok := sourceRaw.(QueryMap)
 		if !ok {
-			return nil, fmt.Errorf("source is not a map, but %T, value: %v", sourceRaw, sourceRaw)
+			return fmt.Errorf("source is not a map, but %T, value: %v", sourceRaw, sourceRaw)
 		}
 		if len(source) != 1 {
-			return nil, fmt.Errorf("source has unexpected length: %v", source)
+			return fmt.Errorf("source has unexpected length: %v", source)
 		}
 		for aggrName, aggrRaw := range source {
 			aggr, ok := aggrRaw.(QueryMap)
 			if !ok {
-				return nil, fmt.Errorf("source value is not a map, but %T, value: %v", aggrRaw, aggrRaw)
-
+				return fmt.Errorf("source value is not a map, but %T, value: %v", aggrRaw, aggrRaw)
 			}
-			if err := cw.pancakeTryBucketAggregation(currentAggrNode, aggr); err == nil {
-				if !isValidSourceType(currentAggrNode.queryType) {
-					return nil, fmt.Errorf("unsupported base aggregation type: %v", currentAggrNode.queryType)
+			if err := cw.pancakeTryBucketAggregation(aggregation, aggr); err == nil {
+				if !isValidSourceType(aggregation.queryType) {
+					return fmt.Errorf("unsupported base aggregation type: %v", aggregation.queryType)
 				}
-				baseAggrs = append(baseAggrs, bucket_aggregations.NewBaseAggregation(aggrName, currentAggrNode.queryType))
+				baseAggrs = append(baseAggrs, bucket_aggregations.NewBaseAggregation(aggrName, aggregation.queryType))
 			} else {
-				return nil, err
+				return err
 			}
 		}
 	}
 
 	size := cw.parseIntField(params, "size", defaultSize)
-	currentAggrNode.limit = size
-	return bucket_aggregations.NewComposite(cw.Ctx, size, baseAggrs), nil
+	aggregation.limit = size
+	aggregation.queryType = bucket_aggregations.NewComposite(cw.Ctx, size, baseAggrs)
+	return nil
 }
 
 func (cw *ClickhouseQueryTranslator) parseOrder(params QueryMap, fieldExpressions []model.Expr) []model.OrderByExpr {
