@@ -51,7 +51,7 @@ func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseW
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 
 	for key, value := range quesmaResponse.Meta {
-		w.Header().Set(key, value)
+		w.Header().Set(key, value.(string))
 	}
 	if zip {
 		w.Header().Set("Content-Encoding", "gzip")
@@ -223,7 +223,7 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
-	var handler quesma_api.Handler
+	var handler quesma_api.HTTPFrontendHandler
 	var decision *quesma_api.Decision
 	searchHandlerPipe, searchDecision := searchRouter.Matches(quesmaRequest)
 	if searchDecision != nil {

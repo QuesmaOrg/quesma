@@ -198,7 +198,7 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 
 	for key, value := range quesmaResponse.Meta {
-		w.Header().Set(key, value)
+		w.Header().Set(key, value.(string))
 	}
 	if zip {
 		w.Header().Set("Content-Encoding", "gzip")

@@ -66,6 +66,14 @@ func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 				"test_index_2": {
 					Name: "test_index_2",
 				},
+				"tab1": {
+					Name:           "tab1",
+					UseCommonTable: true,
+				},
+				"tab2": {
+					Name:           "tab2",
+					UseCommonTable: true,
+				},
 				"*": {
 					IngestTarget: []string{config.ElasticsearchTarget},
 				},

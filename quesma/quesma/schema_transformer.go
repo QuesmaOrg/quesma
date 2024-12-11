@@ -726,6 +726,49 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema s
 
 }
 
+func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	aggFunctionPrefixes := []string{"sum", "avg"}
+
+	dbTypePrefixes := []string{"DateTime", "String", "LowCardinality(String)"}
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
+
+		currentFunctionName := strings.ToLower(e.Name)
+
+		for _, aggPrefix := range aggFunctionPrefixes {
+			if strings.HasPrefix(currentFunctionName, aggPrefix) {
+				if len(e.Args) > 0 {
+					if columnRef, ok := e.Args[0].(model.ColumnRef); ok {
+						if col, ok := indexSchema.ResolveFieldByInternalName(columnRef.ColumnName); ok {
+							for _, dbTypePrefix := range dbTypePrefixes {
+								if strings.HasPrefix(col.InternalPropertyType, dbTypePrefix) {
+									logger.Warn().Msgf("Aggregation '%s' over unsupported type '%s' in column '%s'", e.Name, dbTypePrefix, col.InternalPropertyName.AsString())
+									args := b.VisitChildren(e.Args)
+									args[0] = model.NewLiteral("NULL")
+									return model.NewFunction(e.Name, args...)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 
 	transformationChain := []struct {
@@ -754,6 +797,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
 		{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
+		{TransformationName: "AggOverUnsupportedType", Transformation: s.checkAggOverUnsupportedType},
 		{TransformationName: "ExistsFunctionTransformation", Transformation: s.applyExistsFunction},
 
 		// Section 4: compensations and checks
