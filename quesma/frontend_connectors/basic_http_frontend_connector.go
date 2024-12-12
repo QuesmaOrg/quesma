@@ -11,12 +11,13 @@ import (
 	"io"
 	"net/http"
 	quesma_api "quesma_v2/core"
+	"sync"
 )
 
 type BasicHTTPFrontendConnector struct {
-	listener *http.Server
-	router   quesma_api.Router
-
+	listener        *http.Server
+	router          quesma_api.Router
+	mutex           sync.Mutex
 	responseMutator func(w http.ResponseWriter) http.ResponseWriter
 	endpoint        string
 }
@@ -80,6 +81,12 @@ func getMatchingHandler(requestPath string, handlers map[string]quesma_api.Handl
 }
 
 func (h *BasicHTTPFrontendConnector) Listen() error {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	if h.listener != nil {
+		// TODO fix it completely
+		return nil
+	}
 	h.listener = &http.Server{}
 	h.listener.Addr = h.endpoint
 	h.listener.Handler = h
@@ -93,6 +100,8 @@ func (h *BasicHTTPFrontendConnector) Listen() error {
 }
 
 func (h *BasicHTTPFrontendConnector) Stop(ctx context.Context) error {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 	if h.listener == nil {
 		return nil
 	}
