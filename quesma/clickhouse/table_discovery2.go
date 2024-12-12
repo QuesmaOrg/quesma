@@ -227,6 +227,7 @@ func (td *tableDiscovery2) configureTables(tables map[string]map[string]columnMe
 			}
 
 			if !isCommonTable && !indexConfig.IsClickhouseQueryEnabled() && !indexConfig.IsClickhouseIngestEnabled() {
+				// TODO THIS FALLS UNDER "TABLE RESOLVER" UMBRELLA
 				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 			} else {
 				comment := td.tableComment(databaseName, table)
@@ -238,7 +239,7 @@ func (td *tableDiscovery2) configureTables(tables map[string]map[string]columnMe
 			notConfiguredTables = append(notConfiguredTables, table)
 		}
 	}
-	logger.Info().Msgf(
+	fmt.Printf(
 		"Table discovery results: configured=[%s], found but not configured=[%s], explicitly disabled=[%s]",
 		strings.Join(util.MapKeys(configuredTables), ","),
 		strings.Join(notConfiguredTables, ","),
