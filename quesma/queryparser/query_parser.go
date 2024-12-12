@@ -117,6 +117,9 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	default:
 	}
 	if fullQuery != nil {
+		defaultTimestampField := model.NewColumnRef("StartTime")
+		searchAfterStrategy := model.SearchAfterStrategyFactory(cw.SearchAfterStrategy, defaultTimestampField)
+		fullQuery = searchAfterStrategy.ApplyStrategyAndTransformQuery(fullQuery, queryInfo.SearchAfter)
 		highlighter.SetTokensToHighlight(fullQuery.SelectCommand)
 		// TODO: pass right arguments
 		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, fullQuery.SelectCommand.OrderByFieldNames(), true, false, false, cw.Indexes)
