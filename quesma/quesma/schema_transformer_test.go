@@ -64,8 +64,8 @@ func Test_ipRangeTransform(t *testing.T) {
 
 	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tableMap
-	for _, index := range indexConfig {
-		tableMap.Store(index.Name, clickhouse.NewEmptyTable(index.Name))
+	for indexName := range indexConfig {
+		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
 	}
 
 	tableProvider :=
@@ -437,8 +437,8 @@ func Test_arrayType(t *testing.T) {
 
 	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tableMap
-	for _, index := range indexConfig {
-		tableMap.Store(index.Name, clickhouse.NewEmptyTable(index.Name))
+	for indexName := range indexConfig {
+		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
 	}
 
 	transform := &SchemaCheckPass{cfg: &config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery: tableDiscovery}
