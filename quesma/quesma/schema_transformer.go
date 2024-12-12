@@ -16,7 +16,8 @@ import (
 )
 
 type SchemaCheckPass struct {
-	cfg *config.QuesmaConfiguration
+	cfg            *config.QuesmaConfiguration
+	tableDiscovery clickhouse.TableDiscovery
 }
 
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
@@ -467,7 +468,7 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 		for _, col := range indexSchema.Fields {
 			// Take only fields that are ingested
 			if col.Origin == schema.FieldSourceIngest {
-				cols = append(cols, col.InternalPropertyName.AsString())
+				cols = append(cols, col.PropertyName.AsString())
 			}
 		}
 
@@ -632,17 +633,38 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
+	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !ok {
+		return nil, fmt.Errorf("table %s not found", query.TableName)
+	}
+	_, hasAttributesValuesColumn := table.Cols[clickhouse.AttributesValuesColumn]
+
 	visitor := model.NewBaseVisitor()
 
 	var err error
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 
+		// we don't want to resolve our well know technical fields
+		if e.ColumnName == model.FullTextFieldNamePlaceHolder || e.ColumnName == common_table.IndexNameColumn {
+			return e
+		}
+
+		// This is workaround.
+		// Our query parse resolves columns sometimes. Here we detect it and skip the resolution.
+		if _, ok := indexSchema.ResolveFieldByInternalName(e.ColumnName); ok {
+			logger.Warn().Msgf("Got field already resolved %s", e.ColumnName)
+			return e
+		}
+
 		if resolvedField, ok := indexSchema.ResolveField(e.ColumnName); ok {
 			return model.NewColumnRef(resolvedField.InternalPropertyName.AsString())
 		} else {
-			expr := model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
-			return expr
+			if hasAttributesValuesColumn {
+				return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
+			} else {
+				return model.NewLiteral("NULL")
+			}
 		}
 	}
 
@@ -661,6 +683,8 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 			col := expr.Accept(v).(model.Expr)
 
 			if e, ok := col.(model.ArrayAccess); ok && alias != "" {
+				col = model.NewAliasedExpr(e, alias)
+			} else if e, ok := col.(model.LiteralExpr); ok && alias != "" && e.Value == "NULL" {
 				col = model.NewAliasedExpr(e, alias)
 			}
 
