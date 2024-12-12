@@ -41,6 +41,13 @@ func (c IndexConfiguration) TableName() string {
 	return c.Name
 }
 
+func (c IndexConfiguration) TableNameOpt(optName string) string {
+	if len(c.Override) > 0 {
+		return c.Override
+	}
+	return optName
+}
+
 func (c IndexConfiguration) String() string {
 	var builder strings.Builder
 

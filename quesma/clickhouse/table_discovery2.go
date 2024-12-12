@@ -202,7 +202,9 @@ func (td *tableDiscovery2) readVirtualTables(configuredTables map[string]discove
 
 		discoTable.comment = "Virtual table. Version: " + readVirtualTable.StoredAt
 		discoTable.createTableQuery = "n/a"
-		discoTable.config = config.IndexConfiguration{}
+		discoTable.config = config.IndexConfiguration{
+			Name: virtualTable,
+		}
 		discoTable.virtualTable = true
 
 		configuredTables[virtualTable] = discoTable
@@ -223,7 +225,9 @@ func (td *tableDiscovery2) configureTables(tables map[string]map[string]columnMe
 		if indexConfig, found := td.cfg.IndexConfig[table]; found || isCommonTable {
 
 			if isCommonTable {
-				indexConfig = config.IndexConfiguration{}
+				indexConfig = config.IndexConfiguration{
+					Name: common_table.TableName,
+				}
 			}
 
 			if !isCommonTable && !indexConfig.IsClickhouseQueryEnabled() && !indexConfig.IsClickhouseIngestEnabled() {
@@ -262,7 +266,10 @@ func (td *tableDiscovery2) autoConfigureTables(tables map[string]map[string]colu
 			maybeTimestampField = td.tableTimestampField(databaseName, table, ClickHouse)
 		}
 		const isVirtualTable = false
-		configuredTables[table] = discoveredTable{table, databaseName, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField, isVirtualTable}
+		indexConfig := config.IndexConfiguration{
+			Name: table,
+		}
+		configuredTables[table] = discoveredTable{table, databaseName, columns, indexConfig, comment, createTableQuery, maybeTimestampField, isVirtualTable}
 
 	}
 	for tableName, table := range configuredTables {
