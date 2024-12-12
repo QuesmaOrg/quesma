@@ -31,28 +31,18 @@ type OptimizerConfiguration struct {
 	Properties map[string]string `koanf:"properties"`
 }
 
-func (c IndexConfiguration) TableName() string {
+func (c IndexConfiguration) TableName(origName string) string {
 	if len(c.Override) > 0 {
 		return c.Override
 	}
-	if len(c.Name) == 0 {
-		panic("IndexConfiguration.Name is empty")
-	}
-	return c.Name
+	return origName
 }
 
-func (c IndexConfiguration) TableNameOpt(optName string) string {
-	if len(c.Override) > 0 {
-		return c.Override
-	}
-	return optName
-}
-
-func (c IndexConfiguration) String() string {
+func (c IndexConfiguration) String(indexName string) string {
 	var builder strings.Builder
 
 	builder.WriteString("\n\t\t")
-	builder.WriteString(c.Name)
+	builder.WriteString(indexName)
 	builder.WriteString(", query targets: ")
 	builder.WriteString(fmt.Sprintf("%v", c.QueryTarget))
 	builder.WriteString(", ingest targets: ")
