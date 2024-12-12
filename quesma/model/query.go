@@ -157,9 +157,9 @@ func (queryType HitsInfo) String() string {
 type HitsCountInfo struct {
 	Type            HitsInfo
 	RequestedFields []string
-	Size            int           // how many hits to return
-	TrackTotalHits  int           // >= 0: we want this nr of total hits, TrackTotalHitsTrue: it was "true", TrackTotalHitsFalse: it was "false", in the request
-	SearchAfter     []interface{} // used for pagination. Nil means it was empty in the request
+	Size            int // how many hits to return
+	TrackTotalHits  int // >= 0: we want this nr of total hits, TrackTotalHitsTrue: it was "true", TrackTotalHitsFalse: it was "false", in the request
+	SearchAfter     any // used for pagination of hits. EmptySearchAfter means no pagination
 }
 
 func NewEmptyHitsCountInfo() HitsCountInfo {

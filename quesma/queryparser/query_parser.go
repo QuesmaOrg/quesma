@@ -179,6 +179,15 @@ func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model
 	queryInfo.Size = size
 	queryInfo.TrackTotalHits = trackTotalHits
 
+	defaultTimestampField := model.NewColumnRef("StartTime")
+	searchAfterStrategy := model.SearchAfterStrategyFactory(cw.SearchAfterStrategy, defaultTimestampField)
+	if err := searchAfterStrategy.Validate(queryAsMap["search_after"]); err == nil {
+		queryInfo.SearchAfter = queryAsMap["search_after"]
+	} else {
+		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing search_after: %v", err)
+		return nil, queryInfo, highlighter, err
+	}
+
 	return &parsedQuery, queryInfo, highlighter, nil
 }
 
