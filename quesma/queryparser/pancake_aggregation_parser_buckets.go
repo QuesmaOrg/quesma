@@ -231,17 +231,19 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		return success, nil
 	}
 	if geoTileGridRaw, ok := queryMap["geotile_grid"]; ok {
-		geoTileGrid, ok := geoTileGridRaw.(QueryMap)
-		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("geotile_grid is not a map, but %T, value: %v", geoTileGridRaw, geoTileGridRaw)
+		if err = bucket_aggregations.CheckParamsGeotileGrid(cw.Ctx, geoTileGridRaw); err != nil {
+			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("failed to check geotile_grid params")
+			return false, err
 		}
 
-		const defaultPrecision = 7
+		const (
+			defaultPrecision = 7
+			defaultSize      = 10000
+		)
+		geoTileGrid := geoTileGridRaw.(QueryMap)
 		precisionZoom := int(cw.parseFloatField(geoTileGrid, "precision", defaultPrecision))
-		if precisionZoom < 0 || precisionZoom > 29 {
-			// TODO: after some unmerged PRs, just return error here
-		}
 		field := cw.parseFieldField(geoTileGrid, "geotile_grid")
+		size := cw.parseIntField(geoTileGrid, "size", defaultSize)
 		aggregation.queryType = bucket_aggregations.NewGeoTileGrid(cw.Ctx, precisionZoom)
 
 		// That's bucket (group by) formula for geotile_grid
@@ -290,6 +292,10 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 
 		aggregation.selectedColumns = append(aggregation.selectedColumns, xTile)
 		aggregation.selectedColumns = append(aggregation.selectedColumns, yTile)
+		// It's not explicitly stated in the Elastic documentation, but Geotile Grid is always ordered by count desc
+		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExpr(model.NewCountFunc(), model.DescOrder))
+		fmt.Println("AGGREGATION ORDER BY", aggregation.orderBy)
+		aggregation.limit = size
 
 		delete(queryMap, "geotile_grid")
 		return success, err
