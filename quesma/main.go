@@ -60,10 +60,8 @@ func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 		config.QuesmaProcessorConfig{
 			UseCommonTable: false,
 			IndexConfig: map[string]config.IndexConfiguration{
-				"test_index": {
-				},
-				"test_index_2": {
-				},
+				"test_index":   {},
+				"test_index_2": {},
 				"tab1": {
 					UseCommonTable: true,
 				},
