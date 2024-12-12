@@ -49,7 +49,7 @@ func (s SearchAfterStrategyBasicAndFast) ApplyStrategyAndTransformQuery(query *Q
 		return query
 	}
 	timestampRangeClause := NewInfixExpr(s.timestampField, "<=", NewFunction("fromUnixTimestamp64Milli", NewLiteral(searchAfterTs)))
-	query.SelectCommand.WhereClause = Or([]Expr{query.SelectCommand.WhereClause, timestampRangeClause})
+	query.SelectCommand.WhereClause = And([]Expr{query.SelectCommand.WhereClause, timestampRangeClause})
 	return query
 }
 
