@@ -3,6 +3,7 @@
 package queryparser
 
 import (
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -175,7 +176,11 @@ func (cw *ClickhouseQueryTranslator) parseTopHits(queryMap QueryMap) (parsedTopH
 	const defaultSize = 1
 	size := cw.parseSize(params, defaultSize)
 
-	orderBy := cw.parseOrder(params, queryMap, []model.Expr{})
+	orderBy, err := cw.parseOrder(params, []model.Expr{})
+	if err != nil {
+		logger.WarnWithCtx(cw.Ctx).Msgf("error parsing order in top_hits: %v", err)
+		return
+	}
 	if len(orderBy) == 1 && orderBy[0].IsCountDesc() { // we don't need count DESC
 		orderBy = []model.OrderByExpr{}
 	}
@@ -285,6 +290,16 @@ func (cw *ClickhouseQueryTranslator) parseStringField(queryMap QueryMap, fieldNa
 		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a string, but %T, value: %v. Using default: %s", fieldName, valueRaw, valueRaw, defaultValue)
 	}
 	return defaultValue
+}
+
+func (cw *ClickhouseQueryTranslator) parseArrayField(queryMap QueryMap, fieldName string) ([]any, error) {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asArray, ok := valueRaw.([]any); ok {
+			return asArray, nil
+		}
+		return nil, fmt.Errorf("%s is not an array, but %T, value: %v", fieldName, valueRaw, valueRaw)
+	}
+	return nil, fmt.Errorf("array field '%s' not found in aggregation queryMap: %v", fieldName, queryMap)
 }
 
 // parseFieldFieldMaybeScript is basically almost a copy of parseFieldField above, but it also handles a basic script, if "field" is missing.
