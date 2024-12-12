@@ -42,8 +42,6 @@ func (h *BasicHTTPFrontendConnector) GetRouter() quesma_api.Router {
 }
 
 func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	handlers := h.router.GetHandlers()
-
 	defer recovery.LogPanic()
 	reqBody, err := PeekBodyV2(req)
 	if err != nil {
@@ -60,8 +58,6 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 		Body:        string(reqBody),
 	}
 	handlerWrapper, _ := h.router.Matches(quesmaRequest)
-	_ = handlerWrapper
-	handlerWrapper = getMatchingHandler(req.URL.Path, handlers)
 	dispatcher := &quesma_api.Dispatcher{}
 	w = h.responseMutator(w)
 	if handlerWrapper == nil {
