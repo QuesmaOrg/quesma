@@ -109,7 +109,7 @@ func resolveInternalElasticName(part string) *quesma_api.Decision {
 
 func resolveTableName(quesmaConf config.QuesmaConfiguration, originalName string) string {
 	if indexCfg, ok := quesmaConf.IndexConfig[originalName]; ok {
-		return indexCfg.TableName()
+		return indexCfg.TableName(originalName)
 	}
 	return originalName
 }
@@ -183,7 +183,7 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 						targetDecision = &quesma_api.ConnectorDecisionElastic{}
 					case config.ClickhouseTarget:
 						targetDecision = &quesma_api.ConnectorDecisionClickhouse{
-							ClickhouseTableName: cfg.TableName(),
+							ClickhouseTableName: cfg.TableName(part),
 							ClickhouseIndexes:   []string{part},
 						}
 					default:
@@ -204,7 +204,7 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 							Reason: "Enabled in the config. Dual write is enabled.",
 
 							UseConnectors: []quesma_api.ConnectorDecision{&quesma_api.ConnectorDecisionClickhouse{
-								ClickhouseTableName: cfg.TableName(),
+								ClickhouseTableName: cfg.TableName(part),
 								ClickhouseIndexes:   []string{part}},
 								&quesma_api.ConnectorDecisionElastic{}},
 						}
@@ -217,7 +217,7 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 								Reason:          "Enabled in the config. A/B testing.",
 								EnableABTesting: true,
 								UseConnectors: []quesma_api.ConnectorDecision{&quesma_api.ConnectorDecisionClickhouse{
-									ClickhouseTableName: cfg.TableName(),
+									ClickhouseTableName: cfg.TableName(part),
 									ClickhouseIndexes:   []string{part}},
 									&quesma_api.ConnectorDecisionElastic{}},
 							}
@@ -229,7 +229,7 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 								UseConnectors: []quesma_api.ConnectorDecision{
 									&quesma_api.ConnectorDecisionElastic{},
 									&quesma_api.ConnectorDecisionClickhouse{
-										ClickhouseTableName: cfg.TableName(),
+										ClickhouseTableName: cfg.TableName(part),
 										ClickhouseIndexes:   []string{part}},
 								},
 							}

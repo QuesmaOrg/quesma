@@ -48,15 +48,16 @@ func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
 		for _, tableName := range tableNames {
 			buffer.Html(`<li>`).Text(tableName)
 			cfg := qmc.cfg.IndexConfig[tableName]
-			if _, exist := tables.Load(cfg.TableName()); exist {
-				if cfg.TableName() != tableName {
-					buffer.Html(` (table exists as override '`).Text(cfg.TableName()).Html(`')`)
+			finalTableName := cfg.TableName(tableName)
+			if _, exist := tables.Load(finalTableName); exist {
+				if finalTableName != tableName {
+					buffer.Html(` (table exists as override '`).Text(finalTableName).Html(`')`)
 				} else {
 					buffer.Html(` (table exists)`)
 				}
 			} else {
-				if cfg.TableName() != tableName {
-					buffer.Html(` (table missing as override '`).Text(cfg.TableName()).Html(`')`)
+				if finalTableName != tableName {
+					buffer.Html(` (table missing as override '`).Text(finalTableName).Html(`')`)
 				}
 			}
 			buffer.Html(`</li>`)

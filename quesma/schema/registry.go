@@ -93,7 +93,7 @@ func (s *schemaRegistry) loadSchemas() (map[IndexName]Schema, error) {
 		s.populateSchemaFromDynamicConfiguration(indexName, fields)
 		s.populateSchemaFromStaticConfiguration(indexConfiguration, fields)
 		internalToPublicFieldsEncodings := s.getInternalToPublicFieldEncodings(indexName)
-		tableName := indexConfiguration.TableName()
+		tableName := indexConfiguration.TableName(indexName)
 		existsInDataSource := s.populateSchemaFromTableDefinition(definitions, tableName, fields, internalToPublicFieldsEncodings)
 		s.populateAliases(indexConfiguration, fields, aliases)
 		s.removeIgnoredFields(indexConfiguration, fields, aliases)
