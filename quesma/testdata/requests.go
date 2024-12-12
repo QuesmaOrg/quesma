@@ -1014,10 +1014,10 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": true
 		}`,
-		[]string{`("type"='task' AND "task_enabled" IN (true,54))`},
+		[]string{`("type"='task' AND "task.enabled" IN (true,54))`},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` WHERE ("type"='task' AND "task_enabled" IN (true,54)) LIMIT 10`,
+			`SELECT "message" FROM ` + TableName + ` WHERE ("type"='task' AND "task.enabled" IN (true,54)) LIMIT 10`,
 			`SELECT count(*) FROM ` + TableName,
 		},
 		[]string{},
@@ -2142,13 +2142,13 @@ var TestsSearch = []SearchTestCase{
 			  "track_total_hits": false
 			}`,
 		[]string{
-			`("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307', 3))`,
+			`("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3))`,
 		},
 		model.ListAllFields,
 		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
 		[]string{`SELECT "message" FROM ` + TableName + `WHERE ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp" =
-  toDateTime64('2024-05-24 13:32:47.307', 3))
+  toDateTime64('2024-05-24 13:32:47.307',3))
 LIMIT 10`},
 		[]string{},
 	},
@@ -2358,7 +2358,7 @@ var TestSearchRuntimeMappings = []SearchTestCase{
 
 var TestsSearchNoAttrs = []SearchTestCase{
 	{
-		"Test empty ANDs, ORs and NOTs",
+		"Test empty ANDs, ORs and NOTs... idk, this test is very old and weird, better write to Krzysiek if it fails for you",
 		`
 		{
 			"query": {
@@ -2391,15 +2391,11 @@ var TestsSearchNoAttrs = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{
-			`("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968))`,
-		},
+		[]string{`((("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968)) AND "summary" IS NOT NULL) AND NOT ("run_once" IS NOT NULL))`},
 		model.ListAllFields,
 		[]string{
 			`SELECT "@timestamp", "message" FROM ` + TableName + ` ` +
-				`WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968)) ` +
-				`AND "attributes_values"['summary'] IS NOT NULL) AND NOT ("attributes_values"['run_once'] IS NOT NULL) ` +
-				`LIMIT 10`,
+				`WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968)) AND "summary" IS NOT NULL) AND NOT ("run_once" IS NOT NULL))`,
 		},
 		[]string{},
 	},

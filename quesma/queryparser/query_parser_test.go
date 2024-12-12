@@ -64,14 +64,6 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables[schema.IndexName(tableName)]}
 
 	for i, tt := range testdata.TestsSearch {
-
-		if tt.Name == "Term as array" {
-			t.Skip("RS: FIXME test is not working")
-		}
-		if tt.Name == "Match phrase" {
-			t.Skip("RS: FIXME test is not working")
-		}
-
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
@@ -196,11 +188,6 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, table), &config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables["logs-generic-default"]}
 	for _, tt := range testdata.TestsSearchNoAttrs {
-
-		if strings.Contains(tt.Name, "Test empty AND") {
-			t.Skip("RS: FIXME test is not working")
-		}
-
 		t.Run(tt.Name, func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
@@ -209,6 +196,8 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.NoError(t, errQuery, "no error in ParseQuery")
 			assert.True(t, len(queries) > 0, "len queries > 0")
 			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
+			fmt.Println(whereClause)
+			fmt.Println(tt.WantedSql[0])
 			assert.Contains(t, tt.WantedSql, whereClause)
 
 			var simpleListQuery *model.Query
