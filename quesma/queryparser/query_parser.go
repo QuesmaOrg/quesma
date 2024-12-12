@@ -33,9 +33,12 @@ func NewEmptyHighlighter() model.Highlighter {
 }
 
 const (
-	defaultQueryResultSize = 10
-	defaultTrackTotalHits  = 10000
+	defaultQueryResultSize    = 10
+	defaultTrackTotalHits     = 10000
+	defaultTimestampFieldName = "@timestamp" // TODO remove!! add this to config per table or something else
 )
+
+var defaultTimestampField = model.NewColumnRef(defaultTimestampFieldName) // TODO remove!! add this to config per table or something else
 
 func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.ExecutionPlan, error) {
 
@@ -46,7 +49,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	}
 
 	var queries []*model.Query
-
+	fmt.Println("simpleQuery", simpleQuery, "hitsInfo", hitsInfo, "highlighter", highlighter)
 	// countQuery will be added later, depending on pancake optimization
 	countQuery := cw.buildCountQueryIfNeeded(simpleQuery, hitsInfo)
 
@@ -107,6 +110,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 
 func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	simpleQuery *model.SimpleQuery, queryInfo model.HitsCountInfo, highlighter model.Highlighter) *model.Query {
+	fmt.Println("NO JESTEM TU WTF", queryInfo.Type)
 	var fullQuery *model.Query
 	switch queryInfo.Type {
 	case model.ListByField:
@@ -117,8 +121,7 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	default:
 	}
 	if fullQuery != nil {
-		defaultTimestampField := model.NewColumnRef("StartTime")
-		searchAfterStrategy := model.SearchAfterStrategyFactory(cw.SearchAfterStrategy, defaultTimestampField)
+		searchAfterStrategy := model.SearchAfterStrategyFactory(cw.searchAfterStrategy, defaultTimestampField)
 		fullQuery = searchAfterStrategy.ApplyStrategyAndTransformQuery(fullQuery, queryInfo.SearchAfter)
 		highlighter.SetTokensToHighlight(fullQuery.SelectCommand)
 		// TODO: pass right arguments
@@ -161,6 +164,15 @@ func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model
 	}
 	size := cw.parseSize(queryAsMap, defaultQueryResultSize)
 
+	searchAfterStrategy := model.SearchAfterStrategyFactory(cw.searchAfterStrategy, defaultTimestampField)
+	var searchAfter any
+	if err := searchAfterStrategy.Validate(queryAsMap["search_after"]); err == nil {
+		searchAfter = queryAsMap["search_after"]
+	} else {
+		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing search_after: %v", err)
+		return nil, model.NewEmptyHitsCountInfo(), highlighter, err
+	}
+
 	trackTotalHits := defaultTrackTotalHits
 	if trackTotalHitsRaw, ok := queryAsMap["track_total_hits"]; ok {
 		switch trackTotalHitsTyped := trackTotalHitsRaw.(type) {
@@ -181,15 +193,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model
 	queryInfo := cw.tryProcessSearchMetadata(queryAsMap)
 	queryInfo.Size = size
 	queryInfo.TrackTotalHits = trackTotalHits
-
-	defaultTimestampField := model.NewColumnRef("StartTime")
-	searchAfterStrategy := model.SearchAfterStrategyFactory(cw.SearchAfterStrategy, defaultTimestampField)
-	if err := searchAfterStrategy.Validate(queryAsMap["search_after"]); err == nil {
-		queryInfo.SearchAfter = queryAsMap["search_after"]
-	} else {
-		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing search_after: %v", err)
-		return nil, queryInfo, highlighter, err
-	}
+	queryInfo.SearchAfter = searchAfter
 
 	return &parsedQuery, queryInfo, highlighter, nil
 }
@@ -1064,6 +1068,7 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.H
 	if !ok {
 		return model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
 	}
+	fmt.Println("WTTTTF", fields)
 	if len(fields) > 1 {
 		fieldNames := make([]string, 0)
 		for _, field := range fields {

@@ -4,6 +4,7 @@ package model
 
 import (
 	"fmt"
+	"quesma/logger"
 	"quesma/util"
 )
 
@@ -13,14 +14,22 @@ type SearchAfterStrategy interface {
 	DoSomethingWithHitsResult(hitsResult *SearchHits) // TODO change name
 }
 
-func SearchAfterStrategyFactory(strategyName string, timestampField ColumnRef) SearchAfterStrategy {
-	switch strategyName {
-	case "basic_and_fast":
+func SearchAfterStrategyFactory(strategy SearchAfterStrategyType, timestampField ColumnRef) SearchAfterStrategy {
+	switch strategy {
+	case BasicAndFast:
 		return NewSearchAfterStrategyBasicAndFast(timestampField)
 	default:
-		return SearchAfterStrategyBasicAndFast{}
+		return NewSearchAfterStrategyBasicAndFast(timestampField)
 	}
 }
+
+type SearchAfterStrategyType int
+
+const (
+	BasicAndFast SearchAfterStrategyType = iota
+	DiscardSearchAfterParam
+	Complex
+)
 
 // ----------------------------------------------------------
 // | First, simple strategy: BasicAndFast (default for now) |
@@ -48,8 +57,10 @@ func (s SearchAfterStrategyBasicAndFast) ApplyStrategyAndTransformQuery(query *Q
 	if searchAfterTs == EmptySearchAfter {
 		return query
 	}
-	timestampRangeClause := NewInfixExpr(s.timestampField, "<=", NewFunction("fromUnixTimestamp64Milli", NewLiteral(searchAfterTs)))
+	timestampRangeClause := NewInfixExpr(s.timestampField, "<", NewFunction("fromUnixTimestamp64Milli", NewLiteral(searchAfterTs)))
+	logger.Info().Msgf("search_after_ts: %d, query before: %v", searchAfterTs, AsString(query.SelectCommand))
 	query.SelectCommand.WhereClause = And([]Expr{query.SelectCommand.WhereClause, timestampRangeClause})
+	logger.Info().Msgf("query after: %v", AsString(query.SelectCommand))
 	return query
 }
 
@@ -59,6 +70,7 @@ func (s SearchAfterStrategyBasicAndFast) DoSomethingWithHitsResult(*SearchHits) 
 
 // Validate validates the SearchAfter. 'sa' is what came from the request's search_after field.
 func (s SearchAfterStrategyBasicAndFast) validateAndParse(searchAfter any) (SearchAfterStrategyBasicAndFastParamType, error) {
+	fmt.Println("searchAfter: ", searchAfter)
 	if searchAfter == nil {
 		return EmptySearchAfter, nil
 	}

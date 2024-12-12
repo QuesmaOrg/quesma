@@ -22,8 +22,8 @@ type ClickhouseQueryTranslator struct {
 	Schema schema.Schema
 	Ctx    context.Context
 
-	DateMathRenderer    string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
-	SearchAfterStrategy string // "discard_search_after", "basic_and_fast", or "complex_and..." if not set, we use "basic_and_fast" (for now)
+	DateMathRenderer    string                        // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	searchAfterStrategy model.SearchAfterStrategyType // default is 0, so BasicAndFast for now
 
 	Indexes []string
 

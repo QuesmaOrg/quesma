@@ -56,6 +56,7 @@ type QueryRunner struct {
 
 	// this is passed to the QueryTranslator to render date math expressions
 	DateMathRenderer         string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	searchAfterStrategy      string // "discard_search_after", "basic_and_fast", or "complex_and..." if not set, we use "basic_and_fast" (for now)
 	currentParallelQueryJobs atomic.Int64
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
