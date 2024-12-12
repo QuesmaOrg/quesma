@@ -6,13 +6,13 @@ import (
 	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
-
 	"strings"
 )
 
 type (
 	PathRouter struct {
-		mappings []mapping
+		mappings        []mapping
+		fallbackHandler HTTPFrontendHandler
 	}
 	mapping struct {
 		pattern      string
@@ -88,12 +88,12 @@ func (p *PathRouter) Clone() Cloner {
 	for _, mapping := range p.mappings {
 		newRouter.Register(mapping.pattern, mapping.predicate, mapping.handler.Handler)
 	}
+	newRouter.fallbackHandler = p.fallbackHandler
 	return newRouter
 }
 
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler) {
-
-	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HandlersPipe{Handler: handler}}
+	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HandlersPipe{Handler: handler, Predicate: predicate}}
 	p.mappings = append(p.mappings, mapping)
 
 }
@@ -186,15 +186,13 @@ func Always() RequestMatcher {
 }
 
 func (p *PathRouter) AddRoute(path string, handler HTTPFrontendHandler) {
-	// TODO: it seems that we can adapt this to register call
-	// p.Register(path, Always(), handler)
-	panic("not implemented")
+	p.Register(path, Always(), handler)
 }
 func (p *PathRouter) AddFallbackHandler(handler HTTPFrontendHandler) {
-	panic("not implemented")
+	p.fallbackHandler = handler
 }
 func (p *PathRouter) GetFallbackHandler() HTTPFrontendHandler {
-	panic("not implemented")
+	return p.fallbackHandler
 }
 func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
 	callInfos := make(map[string]HandlersPipe)
@@ -205,6 +203,14 @@ func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
 }
 func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
 	for path, handler := range handlers {
-		p.mappings = append(p.mappings, mapping{pattern: path, compiledPath: urlpath.New(path), handler: &handler})
+		if _, ok := handler.Predicate.(*predicateAlways); ok { // in order to pass processors we have to make this alignment (predicates aren't present in the old API
+			p.mappings = append(p.mappings, mapping{pattern: path,
+				compiledPath: urlpath.New(path),
+				handler: &HandlersPipe{Handler: handler.Handler,
+					Predicate:  handler.Predicate,
+					Processors: handler.Processors}})
+		} else {
+			p.Register(path, handler.Predicate, handler.Handler)
+		}
 	}
 }

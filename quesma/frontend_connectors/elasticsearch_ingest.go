@@ -33,7 +33,7 @@ func NewElasticsearchIngestFrontendConnector(endpoint string) *ElasticsearchInge
 			responseMutator: setContentType,
 		},
 	}
-	router := NewHTTPRouter()
+	router := quesma_api.NewPathRouter()
 	router.AddRoute(IndexBulkPath, bulk)
 	router.AddRoute(IndexDocPath, doc)
 	fc.AddRouter(router)

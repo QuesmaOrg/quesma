@@ -207,7 +207,7 @@ func (r *RouterV2) elasticFallback(decision *quesma_api.Decision,
 	}
 }
 
-func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, searchRouter *quesma_api.PathRouter, ingestRouter *quesma_api.PathRouter, logManager *clickhouse.LogManager, schemaRegistry schema.Registry) {
+func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router quesma_api.Router, logManager *clickhouse.LogManager, schemaRegistry schema.Registry) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
@@ -227,31 +227,18 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
-	var handler quesma_api.HTTPFrontendHandler
-	var decision *quesma_api.Decision
-	searchHandlerPipe, searchDecision := searchRouter.Matches(quesmaRequest)
-	if searchDecision != nil {
-		decision = searchDecision
-	}
-	if searchHandlerPipe != nil {
-		handler = searchHandlerPipe.Handler
-	}
-	ingestHandlerPipe, ingestDecision := ingestRouter.Matches(quesmaRequest)
-	if searchDecision == nil {
-		decision = ingestDecision
-	}
-	if searchHandlerPipe == nil && ingestHandlerPipe != nil {
-		handler = ingestHandlerPipe.Handler
-	}
+
+	handlersPipe, decision := router.Matches(quesmaRequest)
+
 	if decision != nil {
 		w.Header().Set(QuesmaTableResolverHeader, decision.String())
 	} else {
 		w.Header().Set(QuesmaTableResolverHeader, "n/a")
 	}
 
-	if handler != nil {
+	if handlersPipe != nil {
 		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.QuesmaManagementConsole, func() (*quesma_api.Result, error) {
-			return handler(ctx, quesmaRequest)
+			return handlersPipe.Handler(ctx, quesmaRequest)
 		})
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
