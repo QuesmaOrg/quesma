@@ -292,6 +292,7 @@ func (cw *ClickhouseQueryTranslator) parseStringField(queryMap QueryMap, fieldNa
 	return defaultValue
 }
 
+<<<<<<< Updated upstream
 func (cw *ClickhouseQueryTranslator) parseArrayField(queryMap QueryMap, fieldName string) ([]any, error) {
 	if valueRaw, exists := queryMap[fieldName]; exists {
 		if asArray, ok := valueRaw.([]any); ok {
@@ -300,6 +301,16 @@ func (cw *ClickhouseQueryTranslator) parseArrayField(queryMap QueryMap, fieldNam
 		return nil, fmt.Errorf("%s is not an array, but %T, value: %v", fieldName, valueRaw, valueRaw)
 	}
 	return nil, fmt.Errorf("array field '%s' not found in aggregation queryMap: %v", fieldName, queryMap)
+=======
+func (cw *ClickhouseQueryTranslator) parseBoolField(queryMap QueryMap, fieldName string, defaultValue bool) bool {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asBool, ok := valueRaw.(bool); ok {
+			return asBool
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a bool, but %T, value: %v. Using default: %v", fieldName, valueRaw, valueRaw, defaultValue)
+	}
+	return defaultValue
+>>>>>>> Stashed changes
 }
 
 // parseFieldFieldMaybeScript is basically almost a copy of parseFieldField above, but it also handles a basic script, if "field" is missing.
