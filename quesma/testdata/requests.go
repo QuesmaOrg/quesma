@@ -2147,9 +2147,7 @@ var TestsSearch = []SearchTestCase{
 		model.ListAllFields,
 		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
-		[]string{`SELECT "message" FROM ` + TableName + `WHERE ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp" =
-  toDateTime64('2024-05-24 13:32:47.307',3))
-LIMIT 10`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3)) LIMIT 10`},
 		[]string{},
 	},
 	{ // [34] Comments in queries
@@ -2394,8 +2392,7 @@ var TestsSearchNoAttrs = []SearchTestCase{
 		[]string{`((("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968)) AND "summary" IS NOT NULL) AND NOT ("run_once" IS NOT NULL))`},
 		model.ListAllFields,
 		[]string{
-			`SELECT "@timestamp", "message" FROM ` + TableName + ` ` +
-				`WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968)) AND "summary" IS NOT NULL) AND NOT ("run_once" IS NOT NULL))`,
+			`SELECT "@timestamp", "message" FROM __quesma_table_name WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968)) AND NULL IS NOT NULL) AND NOT (NULL IS NOT NULL)) LIMIT 10`,
 		},
 		[]string{},
 	},
@@ -2619,10 +2616,11 @@ var TestSearchFilter = []SearchTestCase{
 		},
 		model.Normal,
 		[]string{
-			`SELECT "message" ` +
+			`SELECT "@timestamp", "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE (("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) ` +
-				`AND NOT (("age".=10 AND "age".=20)))`,
+				`WHERE (("attributes_values"['user.id']='kimchy' AND ("attributes_values"['tags']='env1' OR "attributes_values"['tags']='deployed')) ` +
+				`AND NOT (("attributes_values"['age']>=10 AND "attributes_values"['age']<=20))) ` +
+				`LIMIT 10`,
 		},
 		[]string{},
 	},

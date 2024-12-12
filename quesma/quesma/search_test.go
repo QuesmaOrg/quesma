@@ -300,11 +300,6 @@ func TestSearchHandler(t *testing.T) {
 	}
 
 	for i, tt := range testdata.TestsSearch {
-
-		if tt.Name == "Match phrase using _id field" {
-			t.Skip("RS: FIXME test is not working")
-		}
-
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
 			var db *sql.DB
 			var mock sqlmock.Sqlmock
@@ -416,7 +411,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 
 	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
-		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
+		Config: clickhouse.NewChTableConfigNoAttrs(),
 		Cols: map[string]*clickhouse.Column{
 			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
@@ -428,11 +423,6 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 			"@timestamp": {
 				Name: "@timestamp",
 				Type: clickhouse.NewBaseType("DateTime64"),
-			},
-
-			clickhouse.AttributesValuesColumn: {
-				Name: clickhouse.AttributesValuesColumn,
-				Type: clickhouse.NewBaseType("Map(String,String)"),
 			},
 		},
 		Created: true,
@@ -450,11 +440,6 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 	}
 
 	for _, tt := range testdata.TestsSearchNoAttrs {
-
-		if strings.Contains(tt.Name, "Test empty AND") {
-			t.Skip("RS: FIXME test is not working")
-		}
-
 		t.Run(tt.Name, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 			defer db.Close()
@@ -474,6 +459,25 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 }
 
 func TestAsyncSearchFilter(t *testing.T) {
+	table := &clickhouse.Table{
+		Name:   tableName,
+		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*clickhouse.Column{
+			"message": {
+				Name: "message",
+				Type: clickhouse.NewBaseType("String"),
+			},
+			"@timestamp": {
+				Name: "@timestamp",
+				Type: clickhouse.NewBaseType("DateTime64"),
+			},
+			clickhouse.AttributesValuesColumn: {
+				Name: clickhouse.AttributesValuesColumn,
+				Type: clickhouse.BaseType{Name: "Map(String, String)"},
+			},
+		},
+		Created: true,
+	}
 	s := &schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
 			tableName: {
@@ -485,11 +489,6 @@ func TestAsyncSearchFilter(t *testing.T) {
 		},
 	}
 	for _, tt := range testdata.TestSearchFilter {
-
-		if strings.Contains(tt.Name, "Empty filter") {
-			t.Skip("RS: FIXME test is not working")
-		}
-
 		t.Run(tt.Name, func(t *testing.T) {
 			var db *sql.DB
 			var mock sqlmock.Sqlmock
@@ -510,7 +509,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 				}
 			}
 
-			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, table, s)
+			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, table), s)
 			_, _ = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)

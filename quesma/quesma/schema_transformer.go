@@ -632,7 +632,6 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 }
 
 func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
-
 	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
 	if !ok {
 		return nil, fmt.Errorf("table %s not found", query.TableName)
@@ -640,8 +639,6 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 	_, hasAttributesValuesColumn := table.Cols[clickhouse.AttributesValuesColumn]
 
 	visitor := model.NewBaseVisitor()
-
-	var err error
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 
@@ -720,10 +717,6 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
-
-	if err != nil {
-		return nil, err
-	}
 
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
