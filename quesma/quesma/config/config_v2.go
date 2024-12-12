@@ -596,7 +596,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 				processedConfig := indexConfig
-				processedConfig.Name = indexName
 				targets, errTarget := c.getTargetsExtendedConfig(indexConfig.Target)
 				if errTarget != nil {
 					errAcc = multierror.Append(errAcc, errTarget)
@@ -735,7 +734,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 			processedConfig := indexConfig
-			processedConfig.Name = indexName
 
 			processedConfig.IngestTarget = defaultConfig.IngestTarget
 			targets, errTarget = c.getTargetsExtendedConfig(indexConfig.Target)
@@ -785,7 +783,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				// Index is only configured in ingest processor, not in query processor,
 				// use the ingest processor's configuration as the base (similarly as in the previous loop)
 				processedConfig = indexConfig
-				processedConfig.Name = indexName
 				processedConfig.QueryTarget = defaultConfig.QueryTarget
 			}
 

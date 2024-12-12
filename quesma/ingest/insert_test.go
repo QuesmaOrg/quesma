@@ -396,9 +396,7 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 
 			quesmaConfig := &config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
-					indexName: {
-						Name: indexName,
-					},
+					indexName: {},
 				},
 			}
 

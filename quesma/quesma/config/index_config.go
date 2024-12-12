@@ -21,7 +21,6 @@ type IndexConfiguration struct {
 	Target          any                               `koanf:"target"`
 
 	// Computed based on the overall configuration
-	Name         string
 	QueryTarget  []string
 	IngestTarget []string
 }

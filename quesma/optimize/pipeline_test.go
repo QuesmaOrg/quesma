@@ -44,7 +44,6 @@ func Test_cacheQueries(t *testing.T) {
 	cfg := config.QuesmaConfiguration{}
 	cfg.IndexConfig = make(map[string]config.IndexConfiguration)
 	cfg.IndexConfig["foo"] = config.IndexConfiguration{
-		Name:       "foo",
 		Optimizers: map[string]config.OptimizerConfiguration{"cache_queries": {}},
 	}
 
@@ -198,7 +197,6 @@ func Test_dateTrunc(t *testing.T) {
 	cfg := config.QuesmaConfiguration{}
 	cfg.IndexConfig = make(map[string]config.IndexConfiguration)
 	cfg.IndexConfig["foo"] = config.IndexConfiguration{
-		Name:       "foo",
 		Optimizers: map[string]config.OptimizerConfiguration{"truncate_date": {}},
 	}
 
@@ -427,7 +425,6 @@ func Test_materialized_view_replace(t *testing.T) {
 	cfg := config.QuesmaConfiguration{}
 	cfg.IndexConfig = make(map[string]config.IndexConfiguration)
 	cfg.IndexConfig["foo"] = config.IndexConfiguration{
-		Name: "foo",
 		Optimizers: map[string]config.OptimizerConfiguration{
 			"materialized_view_replace": {
 				Properties: map[string]string{

@@ -38,11 +38,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
-	indexConfig := config.IndexConfiguration{
-		Name: "logs-generic-default",
-	}
-
-	cfg.IndexConfig[indexConfig.Name] = indexConfig
+	cfg.IndexConfig["logs-generic-default"] = config.IndexConfiguration{}
 
 	lm := clickhouse.NewEmptyLogManager(&cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
 	lm.AddTableIfDoesntExist(table)
@@ -104,12 +100,9 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 	}
 	lm := clickhouse.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
 	lm.AddTableIfDoesntExist(&table)
-	indexConfig := config.IndexConfiguration{
-		Name: "logs-generic-default",
-	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
-	cfg.IndexConfig[indexConfig.Name] = indexConfig
+	cfg.IndexConfig["logs-generic-default"] = config.IndexConfiguration{}
 	s := schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
@@ -170,12 +163,9 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	indexConfig := config.IndexConfiguration{
-		Name: "logs-generic-default",
-	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
-	cfg.IndexConfig[indexConfig.Name] = indexConfig
+	cfg.IndexConfig[tableName] = config.IndexConfiguration{}
 	s := schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
