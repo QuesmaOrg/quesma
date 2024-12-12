@@ -24,7 +24,7 @@ import (
 	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/util"
-	"quesma_v2/core/mux"
+	"quesma_v2/core"
 	"slices"
 	"sort"
 	"strings"
@@ -204,7 +204,7 @@ func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, q
 }
 
 func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
-	if foundSchema, found := schemaRegistry.FindSchema(schema.TableName(tableName)); found {
+	if foundSchema, found := schemaRegistry.FindSchema(schema.IndexName(tableName)); found {
 		return &foundSchema
 	}
 	return nil
@@ -631,7 +631,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 			fieldOrigins[schema.FieldName(column.ClickHouseColumnName)] = schema.FieldSourceIngest
 		}
 
-		ip.schemaRegistry.UpdateFieldsOrigins(schema.TableName(tableName), fieldOrigins)
+		ip.schemaRegistry.UpdateFieldsOrigins(schema.IndexName(tableName), fieldOrigins)
 
 		// This comes externally from (configuration)
 		// So we need to convert that separately
@@ -696,7 +696,7 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
 
-	decision := lm.tableResolver.Resolve(mux.IngestPipeline, tableName)
+	decision := lm.tableResolver.Resolve(quesma_api.IngestPipeline, tableName)
 
 	if decision.Err != nil {
 		return decision.Err
@@ -712,10 +712,10 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 
 	for _, connectorDecision := range decision.UseConnectors {
 
-		var clickhouseDecision *mux.ConnectorDecisionClickhouse
+		var clickhouseDecision *quesma_api.ConnectorDecisionClickhouse
 
 		var ok bool
-		if clickhouseDecision, ok = connectorDecision.(*mux.ConnectorDecisionClickhouse); !ok {
+		if clickhouseDecision, ok = connectorDecision.(*quesma_api.ConnectorDecisionClickhouse); !ok {
 			continue
 		}
 

@@ -12,7 +12,7 @@ import (
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/telemetry"
-	"quesma_v2/core/mux"
+	mux "quesma_v2/core"
 	"quesma_v2/core/routes"
 	"strings"
 	"testing"
@@ -172,7 +172,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 			pattern:       "my_index",
 			configuration: withAutodiscovery(indexConfig("another-index", false)),
 			registry: &schema.StaticRegistry{
-				Tables: map[schema.TableName]schema.Schema{
+				Tables: map[schema.IndexName]schema.Schema{
 					"my_index": {ExistsInDataSource: true},
 				},
 			},
@@ -183,7 +183,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 			pattern:       "my_index*",
 			configuration: withAutodiscovery(indexConfig("another-index", false)),
 			registry: &schema.StaticRegistry{
-				Tables: map[schema.TableName]schema.Schema{
+				Tables: map[schema.IndexName]schema.Schema{
 					"my_index8": {ExistsInDataSource: true},
 				},
 			},

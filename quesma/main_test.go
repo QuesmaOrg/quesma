@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
-	"net/http"
 	"os"
 	"os/signal"
 	"quesma/backend_connectors"
@@ -54,18 +53,18 @@ func Test_backendConnectorValidation(t *testing.T) {
 
 var fallbackCalled int32 = 0
 
-func fallback(request *http.Request) (map[string]interface{}, any, error) {
+func fallback(_ context.Context, _ *quesma_api.Request) (*quesma_api.Result, error) {
 	metadata := quesma_api.MakeNewMetadata()
 	atomic.AddInt32(&fallbackCalled, 1)
 	resp := []byte("unknown\n")
-	return metadata, resp, nil
+	return &quesma_api.Result{Meta: metadata, GenericResult: resp}, nil
 }
 
 func ab_testing_scenario() quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
 
 	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
-	ingestHTTPRouter := frontend_connectors.NewHTTPRouter()
+	ingestHTTPRouter := quesma_api.NewPathRouter()
 	ingestHTTPRouter.AddRoute("/_bulk", bulk)
 	ingestHTTPRouter.AddRoute("/_doc", doc)
 	ingestFrontendConnector.AddRouter(ingestHTTPRouter)
@@ -83,7 +82,7 @@ func ab_testing_scenario() quesma_api.QuesmaBuilder {
 	ingestPipeline.AddProcessor(abIngestTestProcessor)
 
 	queryFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
-	queryHTTPRouter := frontend_connectors.NewHTTPRouter()
+	queryHTTPRouter := quesma_api.NewPathRouter()
 	queryHTTPRouter.AddRoute("/_search", search)
 	queryFrontendConnector.AddRouter(queryHTTPRouter)
 	var queryPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
@@ -108,7 +107,7 @@ func fallbackScenario() quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
 
 	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
-	ingestHTTPRouter := frontend_connectors.NewHTTPRouter()
+	ingestHTTPRouter := quesma_api.NewPathRouter()
 	var fallback quesma_api.HTTPFrontendHandler = fallback
 	ingestHTTPRouter.AddFallbackHandler(fallback)
 	ingestFrontendConnector.AddRouter(ingestHTTPRouter)

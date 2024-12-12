@@ -10,7 +10,8 @@ import (
 	"net/http"
 	"os"
 	"quesma/stats/errorstats"
-	"quesma/tracing"
+	asyncQueryTracing "quesma/tracing"
+	tracing "quesma_v2/core/tracing"
 	"time"
 )
 
@@ -41,7 +42,7 @@ const (
 var logger zerolog.Logger
 
 // InitLogger returns channel where log messages will be sent
-func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asyncQueryTraceLogger *tracing.AsyncTraceLogger) <-chan LogWithLevel {
+func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asyncQueryTraceLogger *asyncQueryTracing.AsyncTraceLogger) <-chan LogWithLevel {
 	zerolog.TimeFieldFormat = time.RFC3339Nano // without this we don't have milliseconds timestamp precision
 	var output io.Writer = zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.StampMilli}
 	if os.Getenv("GO_ENV") == "production" { // ConsoleWriter is slow, disable it in production

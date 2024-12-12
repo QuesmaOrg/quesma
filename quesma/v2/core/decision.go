@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package mux
+package quesma_api
 
 import (
 	"fmt"
@@ -77,7 +77,7 @@ type ConnectorDecisionClickhouse struct {
 	// TODO  instance of clickhouse connector
 
 	ClickhouseTableName string   "json:\"clickhouse_table_name\""
-	ClickhouseTables    []string "json:\"clickhouse_tables\""
+	ClickhouseIndexes   []string "json:\"clickhouse_tables\""
 	IsCommonTable       bool     "json:\"is_common_table\""
 }
 
@@ -91,8 +91,8 @@ func (d *ConnectorDecisionClickhouse) Message() string {
 	if d.IsCommonTable {
 		lines = append(lines, "Common table.")
 	}
-	if len(d.ClickhouseTables) > 0 {
-		lines = append(lines, fmt.Sprintf("Indexes: %v.", d.ClickhouseTables))
+	if len(d.ClickhouseIndexes) > 0 {
+		lines = append(lines, fmt.Sprintf("Indexes: %v.", d.ClickhouseIndexes))
 	}
 
 	return strings.Join(lines, " ")

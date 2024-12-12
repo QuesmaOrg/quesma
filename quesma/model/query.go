@@ -3,6 +3,7 @@
 package model
 
 import (
+	"quesma/painful"
 	"quesma/schema"
 	"time"
 )
@@ -85,9 +86,10 @@ type (
 
 // RuntimeMapping is a mapping of a field to a runtime expression
 type RuntimeMapping struct {
-	Field string
-	Type  string
-	Expr  Expr
+	Field                 string
+	Type                  string
+	DatabaseExpression    Expr
+	PostProcessExpression painful.Expr
 }
 
 const MainExecutionPlan = "main"

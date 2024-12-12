@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package quesma
+package frontend_connectors
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -14,18 +14,18 @@ func Test_OsdHeaders(t *testing.T) {
 	request = make(http.Header)
 	response = make(http.Header)
 	request.Set(osdRequestHeaderKey, osdRequestHeaderValue)
-	addProductAndContentHeaders(request, response)
+	AddProductAndContentHeaders(request, response)
 	assert.NotContains(t, response, elasticSearchResponseHeaderKey)
-	assert.Equal(t, "application/json; charset=UTF-8", response.Get(contentTypeHeaderKey), "Content-Type set correctly")
+	assert.Equal(t, "application/json; charset=UTF-8", response.Get(ContentTypeHeaderKey), "Content-Type set correctly")
 }
 
 func Test_EsHeaders(t *testing.T) {
 	var request, response http.Header
 	request = make(http.Header)
 	response = make(http.Header)
-	addProductAndContentHeaders(request, response)
+	AddProductAndContentHeaders(request, response)
 	assert.Equal(t, elasticSearchResponseHeaderValue, response.Get(elasticSearchResponseHeaderKey), "X-Elastic-Product set correctly")
-	assert.Equalf(t, "application/json; charset=UTF-8", response.Get(contentTypeHeaderKey), "Content-Type set correctly")
+	assert.Equalf(t, "application/json; charset=UTF-8", response.Get(ContentTypeHeaderKey), "Content-Type set correctly")
 }
 
 func TestFindMissingElasticsearchHeaders(t *testing.T) {

@@ -396,7 +396,7 @@ func Test_ipRangeTransform(t *testing.T) {
 
 			for _, q := range queriesToTransform {
 
-				currentSchema, ok := s.FindSchema(schema.TableName(q.TableName))
+				currentSchema, ok := s.FindSchema(schema.IndexName(q.TableName))
 				if !ok {
 					t.Fatalf("schema not found for table %s", q.TableName)
 				}
@@ -602,7 +602,7 @@ func TestApplyWildCard(t *testing.T) {
 	}
 
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"test": indexSchema,
 		},
 	}
@@ -1075,6 +1075,108 @@ func Test_applyMatchOperator(t *testing.T) {
 			}
 
 			actual, err := transform.applyMatchOperator(indexSchema, tt.query)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Equal(t, model.AsString(tt.expected.SelectCommand), model.AsString(actual.SelectCommand))
+		})
+	}
+}
+
+func Test_checkAggOverUnsupportedType(t *testing.T) {
+	schemaTable := schema.Table{
+		Columns: map[string]schema.Column{
+			"@timestamp": {Name: "@timestamp", Type: "DateTime64"},
+			"message":    {Name: "message", Type: "String"},
+			"count":      {Name: "count", Type: "Int64"},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		query    *model.Query
+		expected *model.Query
+	}{
+		{
+			name: "String",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewLiteral("NULL"))},
+				},
+			},
+		},
+		{
+			name: "do not int field",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("count"))},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("count"))},
+				},
+			},
+		},
+		{
+			name: "DateTime",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("@timestamp"))},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewLiteral("NULL"))},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tableDiscovery :=
+				fixedTableProvider{tables: map[string]schema.Table{
+					"test": schemaTable,
+				}}
+
+			indexConfig := map[string]config.IndexConfiguration{
+				"test": {
+					Name: "test",
+				},
+			}
+
+			cfg := config.QuesmaConfiguration{
+				IndexConfig: indexConfig,
+			}
+
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			transform := &SchemaCheckPass{cfg: &cfg}
+
+			indexSchema, ok := s.FindSchema("test")
+			if !ok {
+				t.Fatal("schema not found")
+			}
+
+			actual, err := transform.checkAggOverUnsupportedType(indexSchema, tt.query)
 			if err != nil {
 				t.Fatal(err)
 			}

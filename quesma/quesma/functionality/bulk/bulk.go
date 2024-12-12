@@ -20,7 +20,7 @@ import (
 	"quesma/stats"
 	"quesma/table_resolver"
 	"quesma/telemetry"
-	"quesma_v2/core/mux"
+	"quesma_v2/core"
 	"sort"
 	"strings"
 	"sync"
@@ -139,7 +139,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 			}
 		}
 
-		decision := tableResolver.Resolve(mux.IngestPipeline, index)
+		decision := tableResolver.Resolve(quesma_api.IngestPipeline, index)
 
 		if decision.Err != nil {
 			return decision.Err
@@ -181,7 +181,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 
 			switch connector.(type) {
 
-			case *mux.ConnectorDecisionElastic:
+			case *quesma_api.ConnectorDecisionElastic:
 				// Bulk entry for Elastic - forward the request as-is
 				opBytes, err := rawOp.Bytes()
 				if err != nil {
@@ -199,7 +199,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 
 				elasticBulkEntries = append(elasticBulkEntries, entryWithResponse)
 
-			case *mux.ConnectorDecisionClickhouse:
+			case *quesma_api.ConnectorDecisionClickhouse:
 
 				// Bulk entry for Clickhouse
 				if operation != "create" && operation != "index" {
@@ -264,17 +264,13 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 		for _, document := range documents {
 			stats.GlobalStatistics.Process(cfg, indexName, document.document, clickhouse.NestedSeparator)
 		}
-		// if the index is mapped to specified database table in the configuration, use that table
-		if len(cfg.IndexConfig[indexName].Override) > 0 {
-			indexName = cfg.IndexConfig[indexName].Override
-		}
 
 		inserts := make([]types.JSON, len(documents))
 		for i, document := range documents {
 			inserts[i] = document.document
 		}
 
-		err := ip.Ingest(ctx, indexName, inserts)
+		err := ip.Ingest(ctx, cfg.IndexConfig[indexName].TableName(), inserts)
 
 		for _, document := range documents {
 			bulkSingleResponse := BulkSingleResponse{

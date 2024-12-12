@@ -1,9 +1,8 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package mux
+package quesma_api
 
 import (
-	"context"
 	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
@@ -12,20 +11,28 @@ import (
 
 type (
 	PathRouter struct {
-		mappings []mapping
+		mappings        []mapping
+		fallbackHandler HTTPFrontendHandler
 	}
 	mapping struct {
 		pattern      string
 		compiledPath urlpath.Path
 		predicate    RequestMatcher
-		handler      Handler
+		handler      *HandlersPipe
 	}
+	// Result is a kind of adapter for response
+	// to uniform v1 routing
+	// GenericResult is generic result that can be used by processors
 	Result struct {
-		Body       string
-		Meta       map[string]string
-		StatusCode int
+		Body          string
+		Meta          map[string]any
+		StatusCode    int
+		GenericResult any
 	}
 
+	// Request is kind of adapter for http.Request
+	// to uniform v1 routing
+	// it stores original http request
 	Request struct {
 		Method string
 		Path   string
@@ -36,9 +43,9 @@ type (
 
 		Body       string
 		ParsedBody RequestBody
+		// OriginalRequest is the original http.Request object that was received by the server.
+		OriginalRequest *http.Request
 	}
-
-	Handler func(ctx context.Context, req *Request) (*Result, error)
 
 	MatchResult struct {
 		Matched  bool
@@ -54,14 +61,14 @@ type RequestMatcherFunc func(req *Request) MatchResult
 func ServerErrorResult() *Result {
 	return &Result{
 		StatusCode: http.StatusInternalServerError,
-		Meta:       map[string]string{"Content-Type": "text/plain"},
+		Meta:       map[string]any{"Content-Type": "text/plain"},
 	}
 }
 
 func BadReqeustResult() *Result {
 	return &Result{
 		StatusCode: http.StatusBadRequest,
-		Meta:       map[string]string{"Content-Type": "text/plain"},
+		Meta:       map[string]any{"Content-Type": "text/plain"},
 	}
 }
 
@@ -76,14 +83,22 @@ func NewPathRouter() *PathRouter {
 	return &PathRouter{mappings: make([]mapping, 0)}
 }
 
-func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler Handler) {
+func (p *PathRouter) Clone() Cloner {
+	newRouter := NewPathRouter()
+	for _, mapping := range p.mappings {
+		newRouter.Register(mapping.pattern, mapping.predicate, mapping.handler.Handler)
+	}
+	newRouter.fallbackHandler = p.fallbackHandler
+	return newRouter
+}
 
-	mapping := mapping{pattern, urlpath.New(pattern), predicate, handler}
+func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler) {
+	mapping := mapping{pattern, urlpath.New(pattern), predicate, &HandlersPipe{Handler: handler, Predicate: predicate}}
 	p.mappings = append(p.mappings, mapping)
 
 }
 
-func (p *PathRouter) Matches(req *Request) (Handler, *Decision) {
+func (p *PathRouter) Matches(req *Request) (*HandlersPipe, *Decision) {
 	handler, decision := p.findHandler(req)
 	if handler != nil {
 		routerStatistics.addMatched(req.Path)
@@ -94,7 +109,7 @@ func (p *PathRouter) Matches(req *Request) (Handler, *Decision) {
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (Handler, *Decision) {
+func (p *PathRouter) findHandler(req *Request) (*HandlersPipe, *Decision) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)
@@ -168,4 +183,34 @@ func (p *predicateAlways) Matches(req *Request) MatchResult {
 
 func Always() RequestMatcher {
 	return &predicateAlways{}
+}
+
+func (p *PathRouter) AddRoute(path string, handler HTTPFrontendHandler) {
+	p.Register(path, Always(), handler)
+}
+func (p *PathRouter) AddFallbackHandler(handler HTTPFrontendHandler) {
+	p.fallbackHandler = handler
+}
+func (p *PathRouter) GetFallbackHandler() HTTPFrontendHandler {
+	return p.fallbackHandler
+}
+func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
+	callInfos := make(map[string]HandlersPipe)
+	for _, v := range p.mappings {
+		callInfos[v.pattern] = *v.handler
+	}
+	return callInfos
+}
+func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
+	for path, handler := range handlers {
+		if _, ok := handler.Predicate.(*predicateAlways); ok { // in order to pass processors we have to make this alignment (predicates aren't present in the old API
+			p.mappings = append(p.mappings, mapping{pattern: path,
+				compiledPath: urlpath.New(path),
+				handler: &HandlersPipe{Handler: handler.Handler,
+					Predicate:  handler.Predicate,
+					Processors: handler.Processors}})
+		} else {
+			p.Register(path, handler.Predicate, handler.Handler)
+		}
+	}
 }

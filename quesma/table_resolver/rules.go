@@ -9,7 +9,7 @@ import (
 	"quesma/end_user_errors"
 	"quesma/quesma/config"
 	"quesma/util"
-	"quesma_v2/core/mux"
+	"quesma_v2/core"
 	"reflect"
 	"strings"
 )
@@ -17,7 +17,7 @@ import (
 // TODO these rules may be incorrect and incomplete
 // They will be fixed int the next iteration.
 
-func (r *tableRegistryImpl) wildcardPatternSplitter(pattern string) (parsedPattern, *mux.Decision) {
+func (r *tableRegistryImpl) wildcardPatternSplitter(pattern string) (parsedPattern, *quesma_api.Decision) {
 	patterns := strings.Split(pattern, ",")
 
 	// Given a (potentially wildcard) pattern, find all non-wildcard index names that match the pattern
@@ -62,10 +62,10 @@ func (r *tableRegistryImpl) wildcardPatternSplitter(pattern string) (parsedPatte
 	}, nil
 }
 
-func singleIndexSplitter(pattern string) (parsedPattern, *mux.Decision) {
+func singleIndexSplitter(pattern string) (parsedPattern, *quesma_api.Decision) {
 	patterns := strings.Split(pattern, ",")
 	if len(patterns) > 1 || strings.Contains(pattern, "*") {
-		return parsedPattern{}, &mux.Decision{
+		return parsedPattern{}, &quesma_api.Decision{
 			Reason: "Pattern is not allowed.",
 			Err:    fmt.Errorf("pattern is not allowed"),
 		}
@@ -78,13 +78,13 @@ func singleIndexSplitter(pattern string) (parsedPattern, *mux.Decision) {
 	}, nil
 }
 
-func makeIsDisabledInConfig(cfg map[string]config.IndexConfiguration, pipeline string) func(part string) *mux.Decision {
+func makeIsDisabledInConfig(cfg map[string]config.IndexConfiguration, pipeline string) func(part string) *quesma_api.Decision {
 
-	return func(part string) *mux.Decision {
+	return func(part string) *quesma_api.Decision {
 		idx, ok := cfg[part]
 		if ok {
 			if len(getTargets(idx, pipeline)) == 0 {
-				return &mux.Decision{
+				return &quesma_api.Decision{
 					IsClosed: true,
 					Reason:   "Index is disabled in config.",
 				}
@@ -95,11 +95,11 @@ func makeIsDisabledInConfig(cfg map[string]config.IndexConfiguration, pipeline s
 	}
 }
 
-func resolveInternalElasticName(part string) *mux.Decision {
+func resolveInternalElasticName(part string) *quesma_api.Decision {
 
 	if elasticsearch.IsInternalIndex(part) {
-		return &mux.Decision{
-			UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionElastic{ManagementCall: true}},
+		return &quesma_api.Decision{
+			UseConnectors: []quesma_api.ConnectorDecision{&quesma_api.ConnectorDecisionElastic{ManagementCall: true}},
 			Reason:        "It's kibana internals",
 		}
 	}
@@ -107,18 +107,25 @@ func resolveInternalElasticName(part string) *mux.Decision {
 	return nil
 }
 
-func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string) func(part string) *mux.Decision {
-	return func(part string) *mux.Decision {
+func resolveTableName(quesmaConf config.QuesmaConfiguration, originalName string) string {
+	if indexCfg, ok := quesmaConf.IndexConfig[originalName]; ok {
+		return indexCfg.TableName()
+	}
+	return originalName
+}
+
+func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string) func(part string) *quesma_api.Decision {
+	return func(part string) *quesma_api.Decision {
 		var targets []string
-		var useConnectors []mux.ConnectorDecision
+		var useConnectors []quesma_api.ConnectorDecision
 
 		switch pipeline {
-		case mux.IngestPipeline:
+		case quesma_api.IngestPipeline:
 			targets = quesmaConf.DefaultIngestTarget
-		case mux.QueryPipeline:
+		case quesma_api.QueryPipeline:
 			targets = quesmaConf.DefaultQueryTarget
 		default:
-			return &mux.Decision{
+			return &quesma_api.Decision{
 				Reason: "Unsupported configuration",
 				Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported pipeline: %s", pipeline)),
 			}
@@ -127,22 +134,22 @@ func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string)
 		for _, target := range targets {
 			switch target {
 			case config.ClickhouseTarget:
-				useConnectors = append(useConnectors, &mux.ConnectorDecisionClickhouse{
-					ClickhouseTableName: part,
+				useConnectors = append(useConnectors, &quesma_api.ConnectorDecisionClickhouse{
+					ClickhouseTableName: resolveTableName(quesmaConf, part),
 					IsCommonTable:       quesmaConf.UseCommonTableForWildcard,
-					ClickhouseTables:    []string{part},
+					ClickhouseIndexes:   []string{part},
 				})
 			case config.ElasticsearchTarget:
-				useConnectors = append(useConnectors, &mux.ConnectorDecisionElastic{})
+				useConnectors = append(useConnectors, &quesma_api.ConnectorDecisionElastic{})
 			default:
-				return &mux.Decision{
+				return &quesma_api.Decision{
 					Reason: "Unsupported configuration",
 					Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported target: %s", target)),
 				}
 			}
 		}
 
-		return &mux.Decision{
+		return &quesma_api.Decision{
 			UseConnectors: useConnectors,
 			IsClosed:      len(useConnectors) == 0,
 			Reason:        fmt.Sprintf("Using default wildcard ('%s') configuration for %s processor", config.DefaultWildcardIndexName, pipeline),
@@ -150,9 +157,9 @@ func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string)
 	}
 }
 
-func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfiguration, pipeline string) func(part string) *mux.Decision {
+func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfiguration, pipeline string) func(part string) *quesma_api.Decision {
 
-	return func(part string) *mux.Decision {
+	return func(part string) *quesma_api.Decision {
 		if cfg, ok := indexConfig[part]; ok {
 			if !cfg.UseCommonTable {
 
@@ -164,23 +171,23 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 
 				case 1:
 
-					decision := &mux.Decision{
+					decision := &quesma_api.Decision{
 						Reason: "Enabled in the config. ",
 					}
 
-					var targetDecision mux.ConnectorDecision
+					var targetDecision quesma_api.ConnectorDecision
 
 					switch targets[0] {
 
 					case config.ElasticsearchTarget:
-						targetDecision = &mux.ConnectorDecisionElastic{}
+						targetDecision = &quesma_api.ConnectorDecisionElastic{}
 					case config.ClickhouseTarget:
-						targetDecision = &mux.ConnectorDecisionClickhouse{
-							ClickhouseTableName: part,
-							ClickhouseTables:    []string{part},
+						targetDecision = &quesma_api.ConnectorDecisionClickhouse{
+							ClickhouseTableName: cfg.TableName(),
+							ClickhouseIndexes:   []string{part},
 						}
 					default:
-						return &mux.Decision{
+						return &quesma_api.Decision{
 							Reason: "Unsupported configuration",
 							Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported target: %s", targets[0])),
 						}
@@ -192,57 +199,57 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 
 					switch pipeline {
 
-					case mux.IngestPipeline:
-						return &mux.Decision{
+					case quesma_api.IngestPipeline:
+						return &quesma_api.Decision{
 							Reason: "Enabled in the config. Dual write is enabled.",
 
-							UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
-								ClickhouseTableName: part,
-								ClickhouseTables:    []string{part}},
-								&mux.ConnectorDecisionElastic{}},
+							UseConnectors: []quesma_api.ConnectorDecision{&quesma_api.ConnectorDecisionClickhouse{
+								ClickhouseTableName: cfg.TableName(),
+								ClickhouseIndexes:   []string{part}},
+								&quesma_api.ConnectorDecisionElastic{}},
 						}
 
-					case mux.QueryPipeline:
+					case quesma_api.QueryPipeline:
 
 						if targets[0] == config.ClickhouseTarget && targets[1] == config.ElasticsearchTarget {
 
-							return &mux.Decision{
+							return &quesma_api.Decision{
 								Reason:          "Enabled in the config. A/B testing.",
 								EnableABTesting: true,
-								UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
-									ClickhouseTableName: part,
-									ClickhouseTables:    []string{part}},
-									&mux.ConnectorDecisionElastic{}},
+								UseConnectors: []quesma_api.ConnectorDecision{&quesma_api.ConnectorDecisionClickhouse{
+									ClickhouseTableName: cfg.TableName(),
+									ClickhouseIndexes:   []string{part}},
+									&quesma_api.ConnectorDecisionElastic{}},
 							}
 						} else if targets[0] == config.ElasticsearchTarget && targets[1] == config.ClickhouseTarget {
 
-							return &mux.Decision{
+							return &quesma_api.Decision{
 								Reason:          "Enabled in the config. A/B testing.",
 								EnableABTesting: true,
-								UseConnectors: []mux.ConnectorDecision{
-									&mux.ConnectorDecisionElastic{},
-									&mux.ConnectorDecisionClickhouse{
-										ClickhouseTableName: part,
-										ClickhouseTables:    []string{part}},
+								UseConnectors: []quesma_api.ConnectorDecision{
+									&quesma_api.ConnectorDecisionElastic{},
+									&quesma_api.ConnectorDecisionClickhouse{
+										ClickhouseTableName: cfg.TableName(),
+										ClickhouseIndexes:   []string{part}},
 								},
 							}
 
 						}
 
 					default:
-						return &mux.Decision{
+						return &quesma_api.Decision{
 							Reason: "Unsupported configuration",
 							Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported pipeline: %s", pipeline)),
 						}
 					}
 
-					return &mux.Decision{
+					return &quesma_api.Decision{
 						Reason: "Unsupported configuration",
 						Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("unsupported configuration for pipeline %s, targets: %v", pipeline, targets)),
 					}
 
 				default:
-					return &mux.Decision{
+					return &quesma_api.Decision{
 						Reason: "Unsupported configuration",
 						Err:    end_user_errors.ErrSearchCondition.New(fmt.Errorf("too many backend connector")),
 					}
@@ -254,11 +261,11 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 	}
 }
 
-func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexConfiguration, pipeline string) func(part string) *mux.Decision {
+func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexConfiguration, pipeline string) func(part string) *quesma_api.Decision {
 
-	return func(part string) *mux.Decision {
+	return func(part string) *quesma_api.Decision {
 		if part == common_table.TableName {
-			return &mux.Decision{
+			return &quesma_api.Decision{
 				Err:    fmt.Errorf("common table is not allowed to be queried directly"),
 				Reason: "It's internal table. Not allowed to be queried directly.",
 			}
@@ -276,10 +283,10 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 		}
 
 		if idxConfig, ok := cfg[part]; (ok && idxConfig.UseCommonTable) || (virtualTableExists) {
-			return &mux.Decision{
-				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
+			return &quesma_api.Decision{
+				UseConnectors: []quesma_api.ConnectorDecision{&quesma_api.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					ClickhouseTables:    []string{part},
+					ClickhouseIndexes:   []string{part},
 					IsCommonTable:       true,
 				}},
 				Reason: "Common table will be used.",
@@ -290,35 +297,35 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 	}
 }
 
-func mergeUseConnectors(lhs []mux.ConnectorDecision, rhs []mux.ConnectorDecision, rhsIndexName string) ([]mux.ConnectorDecision, *mux.Decision) {
+func mergeUseConnectors(lhs []quesma_api.ConnectorDecision, rhs []quesma_api.ConnectorDecision, rhsIndexName string) ([]quesma_api.ConnectorDecision, *quesma_api.Decision) {
 	for _, connDecisionRhs := range rhs {
 		foundMatching := false
 		for _, connDecisionLhs := range lhs {
-			if _, ok := connDecisionRhs.(*mux.ConnectorDecisionElastic); ok {
-				if _, ok := connDecisionLhs.(*mux.ConnectorDecisionElastic); ok {
+			if _, ok := connDecisionRhs.(*quesma_api.ConnectorDecisionElastic); ok {
+				if _, ok := connDecisionLhs.(*quesma_api.ConnectorDecisionElastic); ok {
 					foundMatching = true
 				}
 			}
-			if rhsClickhouse, ok := connDecisionRhs.(*mux.ConnectorDecisionClickhouse); ok {
-				if lhsClickhouse, ok := connDecisionLhs.(*mux.ConnectorDecisionClickhouse); ok {
+			if rhsClickhouse, ok := connDecisionRhs.(*quesma_api.ConnectorDecisionClickhouse); ok {
+				if lhsClickhouse, ok := connDecisionLhs.(*quesma_api.ConnectorDecisionClickhouse); ok {
 					if lhsClickhouse.ClickhouseTableName != rhsClickhouse.ClickhouseTableName {
-						return nil, &mux.Decision{
+						return nil, &quesma_api.Decision{
 							Reason: "Incompatible decisions for two indexes - they use a different ClickHouse table",
 							Err:    fmt.Errorf("incompatible decisions for two indexes (different ClickHouse table) - %s and %s", connDecisionRhs, connDecisionLhs),
 						}
 					}
 					if lhsClickhouse.IsCommonTable {
 						if !rhsClickhouse.IsCommonTable {
-							return nil, &mux.Decision{
+							return nil, &quesma_api.Decision{
 								Reason: "Incompatible decisions for two indexes - one uses the common table, the other does not",
 								Err:    fmt.Errorf("incompatible decisions for two indexes (common table usage) - %s and %s", connDecisionRhs, connDecisionLhs),
 							}
 						}
-						lhsClickhouse.ClickhouseTables = append(lhsClickhouse.ClickhouseTables, rhsClickhouse.ClickhouseTables...)
-						lhsClickhouse.ClickhouseTables = util.Distinct(lhsClickhouse.ClickhouseTables)
+						lhsClickhouse.ClickhouseIndexes = append(lhsClickhouse.ClickhouseIndexes, rhsClickhouse.ClickhouseIndexes...)
+						lhsClickhouse.ClickhouseIndexes = util.Distinct(lhsClickhouse.ClickhouseIndexes)
 					} else {
 						if !reflect.DeepEqual(lhsClickhouse, rhsClickhouse) {
-							return nil, &mux.Decision{
+							return nil, &quesma_api.Decision{
 								Reason: "Incompatible decisions for two indexes - they use ClickHouse tables differently",
 								Err:    fmt.Errorf("incompatible decisions for two indexes (different usage of ClickHouse) - %s and %s", connDecisionRhs, connDecisionLhs),
 							}
@@ -329,7 +336,7 @@ func mergeUseConnectors(lhs []mux.ConnectorDecision, rhs []mux.ConnectorDecision
 			}
 		}
 		if !foundMatching {
-			return nil, &mux.Decision{
+			return nil, &quesma_api.Decision{
 				Reason: "Incompatible decisions for two indexes - they use different connectors",
 				Err:    fmt.Errorf("incompatible decisions for two indexes - they use different connectors: could not find connector %s used for index %s in decisions: %s", connDecisionRhs, rhsIndexName, lhs),
 			}
@@ -339,9 +346,9 @@ func mergeUseConnectors(lhs []mux.ConnectorDecision, rhs []mux.ConnectorDecision
 	return lhs, nil
 }
 
-func basicDecisionMerger(decisions []*mux.Decision) *mux.Decision {
+func basicDecisionMerger(decisions []*quesma_api.Decision) *quesma_api.Decision {
 	if len(decisions) == 0 {
-		return &mux.Decision{
+		return &quesma_api.Decision{
 			IsEmpty: true,
 			Reason:  "No indexes matched, no decisions made.",
 		}
@@ -352,7 +359,7 @@ func basicDecisionMerger(decisions []*mux.Decision) *mux.Decision {
 
 	for _, decision := range decisions {
 		if decision == nil {
-			return &mux.Decision{
+			return &quesma_api.Decision{
 				Reason: "Got a nil decision. This is a bug.",
 				Err:    fmt.Errorf("could not resolve index"),
 			}
@@ -363,21 +370,21 @@ func basicDecisionMerger(decisions []*mux.Decision) *mux.Decision {
 		}
 
 		if decision.IsEmpty {
-			return &mux.Decision{
+			return &quesma_api.Decision{
 				Reason: "Got an empty decision. This is a bug.",
 				Err:    fmt.Errorf("could not resolve index, empty index: %s", decision.IndexPattern),
 			}
 		}
 
 		if decision.EnableABTesting != decisions[0].EnableABTesting {
-			return &mux.Decision{
+			return &quesma_api.Decision{
 				Reason: "One of the indexes matching the pattern does A/B testing, while another index does not - inconsistency.",
 				Err:    fmt.Errorf("inconsistent A/B testing configuration - index %s (A/B testing: %v) and index %s (A/B testing: %v)", decision.IndexPattern, decision.EnableABTesting, decisions[0].IndexPattern, decisions[0].EnableABTesting),
 			}
 		}
 	}
 
-	var nonClosedDecisions []*mux.Decision
+	var nonClosedDecisions []*quesma_api.Decision
 	for _, decision := range decisions {
 		if !decision.IsClosed {
 			nonClosedDecisions = append(nonClosedDecisions, decision)
@@ -385,7 +392,7 @@ func basicDecisionMerger(decisions []*mux.Decision) *mux.Decision {
 	}
 	if len(nonClosedDecisions) == 0 {
 		// All indexes are closed
-		return &mux.Decision{
+		return &quesma_api.Decision{
 			IsClosed: true,
 			Reason:   "All indexes matching the pattern are closed.",
 		}
@@ -400,7 +407,7 @@ func basicDecisionMerger(decisions []*mux.Decision) *mux.Decision {
 			continue
 		}
 		if len(decision.UseConnectors) != len(decisions[0].UseConnectors) {
-			return &mux.Decision{
+			return &quesma_api.Decision{
 				Reason: "Inconsistent number of connectors",
 				Err:    fmt.Errorf("inconsistent number of connectors - index %s (%d connectors) and index %s (%d connectors)", decision.IndexPattern, len(decision.UseConnectors), decisions[0].IndexPattern, len(decisions[0].UseConnectors)),
 			}
@@ -413,7 +420,7 @@ func basicDecisionMerger(decisions []*mux.Decision) *mux.Decision {
 		useConnectors = newUseConnectors
 	}
 
-	return &mux.Decision{
+	return &quesma_api.Decision{
 		UseConnectors:   useConnectors,
 		EnableABTesting: decisions[0].EnableABTesting,
 		Reason:          "Merged decisions",

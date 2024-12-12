@@ -50,12 +50,12 @@ func (e PrefixExpr) Accept(v ExprVisitor) interface{} {
 
 // NestedProperty represents a call to nested property e.g. `columnName.propertyName`
 type NestedProperty struct {
-	ColumnRef    ColumnRef
+	ObjectExpr   Expr
 	PropertyName LiteralExpr
 }
 
-func NewNestedProperty(columnRef ColumnRef, propertyName LiteralExpr) NestedProperty {
-	return NestedProperty{ColumnRef: columnRef, PropertyName: propertyName}
+func NewNestedProperty(columnRef Expr, propertyName LiteralExpr) NestedProperty {
+	return NestedProperty{ObjectExpr: columnRef, PropertyName: propertyName}
 }
 
 func (e NestedProperty) Accept(v ExprVisitor) interface{} { return v.VisitNestedProperty(e) }

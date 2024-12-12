@@ -33,7 +33,7 @@ type (
 		Type                 QuesmaType
 		Origin               FieldSource
 	}
-	TableName string
+	IndexName string
 	FieldName string
 )
 
@@ -59,7 +59,7 @@ func (f FieldName) Components() []string {
 	return strings.Split(f.AsString(), ".")
 }
 
-func (t TableName) AsString() string {
+func (t IndexName) AsString() string {
 	return string(t)
 }
 

@@ -3,12 +3,13 @@
 package quesma_api
 
 import (
-	"net/http"
+	"context"
 )
 
-type HTTPFrontendHandler func(request *http.Request) (map[string]interface{}, any, error)
+type HTTPFrontendHandler func(ctx context.Context, req *Request) (*Result, error)
 
 type HandlersPipe struct {
+	Predicate  RequestMatcher
 	Handler    HTTPFrontendHandler
 	Processors []Processor
 }

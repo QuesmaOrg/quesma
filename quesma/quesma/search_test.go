@@ -17,8 +17,8 @@ import (
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/testdata"
-	"quesma/tracing"
 	"quesma/util"
+	tracing "quesma_v2/core/tracing"
 	"strconv"
 	"strings"
 	"testing"
@@ -28,7 +28,14 @@ const defaultAsyncSearchTimeout = 1000
 
 const tableName = model.SingleTableNamePlaceHolder
 
-var DefaultConfig = config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget}}}}
+var DefaultConfig = config.QuesmaConfiguration{
+	IndexConfig: map[string]config.IndexConfiguration{
+		tableName: {
+			Name:        tableName,
+			QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget},
+		},
+	},
+}
 
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
 
@@ -65,7 +72,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 		"properties::isreg": {PropertyName: "properties::isreg", InternalPropertyName: "properties_isreg", Type: schema.QuesmaTypeInteger},
 	}
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
@@ -118,7 +125,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 	}
 
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			tableName: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
@@ -161,7 +168,7 @@ func TestSearchHandler(t *testing.T) {
 	}
 
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
@@ -229,7 +236,7 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 	})
 
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
@@ -269,7 +276,7 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 // TODO this test gives wrong results??
 func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
@@ -298,7 +305,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 
 func TestAsyncSearchFilter(t *testing.T) {
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
@@ -342,7 +349,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 // It can't return uint64, thus creating response code panics because of that.
 func TestHandlingDateTimeFields(t *testing.T) {
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -463,7 +470,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 // Both `_search`, and `_async_search` handlers are tested.
 func TestNumericFacetsQueries(t *testing.T) {
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -567,7 +574,99 @@ func TestNumericFacetsQueries(t *testing.T) {
 
 func TestSearchTrackTotalCount(t *testing.T) {
 
-	s := &schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
+	s := &schema.StaticRegistry{Tables: map[schema.IndexName]schema.Schema{}}
+
+	s.Tables[tableName] = schema.Schema{
+		Fields: map[schema.FieldName]schema.Field{
+			"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+		},
+	}
+
+	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+		Name:   tableName,
+		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*clickhouse.Column{
+			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
+			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
+			"message": {Name: "message", Type: clickhouse.NewBaseType("String")},
+		},
+		Created: true,
+	})
+
+	test := func(t *testing.T, handlerName string, testcase testdata.FullSearchTestCase) {
+		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+		defer db.Close()
+
+		for i, expectedSQL := range testcase.ExpectedSQLs {
+			rows := sqlmock.NewRows([]string{testcase.ExpectedSQLResults[i][0].Cols[0].ColName})
+			for _, row := range testcase.ExpectedSQLResults[i] {
+				rows.AddRow(row.Cols[0].Value)
+			}
+			mock.ExpectQuery(expectedSQL).WillReturnRows(rows)
+		}
+
+		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, table, s)
+
+		var response []byte
+		var err error
+
+		if handlerName == "handleSearch" {
+			response, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(testcase.QueryRequestJson))
+		} else if handlerName == "handleAsyncSearch" {
+			response, err = queryRunner.handleAsyncSearch(
+				ctx, tableName, types.MustJSON(testcase.QueryRequestJson), defaultAsyncSearchTimeout, true)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.NoError(t, err)
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			assert.NoError(t, err, "there were unfulfilled expections:")
+		}
+
+		var responseMap model.JsonMap
+		err = json.Unmarshal(response, &responseMap)
+		if err != nil {
+			pp.Println("Response", string(response))
+		}
+		assert.NoError(t, err, "error unmarshalling search API response:")
+
+		var responsePart model.JsonMap
+		if handlerName == "handleSearch" {
+			responsePart = responseMap
+		} else {
+			responsePart = responseMap["response"].(model.JsonMap)
+		}
+
+		assert.NotNil(t, testcase.ExpectedResponse, "ExpectedResponse is nil")
+		expectedResponseMap, err := util.JsonToMap(testcase.ExpectedResponse)
+		assert.NoError(t, err, "error unmarshalling expected response:")
+
+		actualMinusExpected, expectedMinusActual := util.MapDifference(responsePart,
+			expectedResponseMap, []string{}, true, true)
+		acceptableDifference := []string{"took", "_shards", "timed_out"}
+
+		pp.Println("expected", expectedResponseMap)
+		pp.Println("actual", responsePart)
+
+		assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference), "actualMinusExpected: %v", actualMinusExpected)
+		assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference), "expectedMinusActual: %v", expectedMinusActual)
+	}
+
+	handlers := []string{"handleSearch", "handleAsyncSearch"}
+	for i, tt := range testdata.FullSearchRequests {
+		for _, handlerName := range handlers[:1] {
+			t.Run(strconv.Itoa(i)+" "+tt.Name, func(t *testing.T) {
+				test(t, handlerName, tt)
+			})
+		}
+	}
+}
+
+func TestFullQueryTestWIP(t *testing.T) {
+	t.Skip(`We need to stop "unit" testing aggregation queries, because e.g. transformations aren't performed in tests whatsoever. Tests pass, but in real world things sometimes break. It's WIP.`)
+	s := &schema.StaticRegistry{Tables: map[schema.IndexName]schema.Schema{}}
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{

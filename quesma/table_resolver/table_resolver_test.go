@@ -10,7 +10,7 @@ import (
 	"quesma/common_table"
 	"quesma/elasticsearch"
 	"quesma/quesma/config"
-	"quesma_v2/core/mux"
+	mux "quesma_v2/core"
 	"reflect"
 	"strings"
 	"testing"
@@ -20,36 +20,44 @@ func TestTableResolver(t *testing.T) {
 
 	indexConf := map[string]config.IndexConfiguration{
 		"index1": {
+			Name:         "index1",
 			QueryTarget:  []string{"clickhouse"},
 			IngestTarget: []string{"clickhouse"},
 		},
 		"index2": {
+			Name:           "index2",
 			UseCommonTable: true,
 			QueryTarget:    []string{"clickhouse"},
 			IngestTarget:   []string{"clickhouse"},
 		},
 		"index3": {
+			Name:         "index3",
 			QueryTarget:  []string{"elasticsearch"},
 			IngestTarget: []string{"elasticsearch"},
 		},
 		"logs": {
+			Name:         "logs",
 			QueryTarget:  []string{"clickhouse", "elasticsearch"},
 			IngestTarget: []string{"clickhouse", "elasticsearch"},
 		},
 		"some-elastic-logs": {
+			Name:         "some-elastic-logs",
 			QueryTarget:  []string{"elasticsearch"},
 			IngestTarget: []string{"elasticsearch"},
 		},
 		"closed": {
+			Name:         "closed",
 			QueryTarget:  []string{},
 			IngestTarget: []string{},
 		},
 		"closed-common-table": {
+			Name:           "closed-common-table",
 			UseCommonTable: true,
 			QueryTarget:    []string{},
 			IngestTarget:   []string{},
 		},
 		"unknown-target": {
+			Name:         "unknown-target",
 			QueryTarget:  []string{"unknown"},
 			IngestTarget: []string{"unknown"},
 		},
@@ -165,7 +173,7 @@ func TestTableResolver(t *testing.T) {
 			expected: mux.Decision{
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "index1",
-					ClickhouseTables:    []string{"index1"}},
+					ClickhouseIndexes:   []string{"index1"}},
 				},
 			},
 			indexConf: indexConf,
@@ -178,7 +186,7 @@ func TestTableResolver(t *testing.T) {
 			expected: mux.Decision{
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "index1",
-					ClickhouseTables:    []string{"index1"}},
+					ClickhouseIndexes:   []string{"index1"}},
 				},
 			},
 			indexConf: indexConf,
@@ -191,7 +199,7 @@ func TestTableResolver(t *testing.T) {
 			expected: mux.Decision{
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					ClickhouseTables:    []string{"index2"},
+					ClickhouseIndexes:   []string{"index2"},
 					IsCommonTable:       true,
 				}},
 			},
@@ -205,7 +213,7 @@ func TestTableResolver(t *testing.T) {
 			expected: mux.Decision{
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					ClickhouseTables:    []string{"index2"},
+					ClickhouseIndexes:   []string{"index2"},
 					IsCommonTable:       true,
 				}},
 			},
@@ -260,7 +268,7 @@ func TestTableResolver(t *testing.T) {
 			expected: mux.Decision{
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					ClickhouseTables:    []string{"index2"},
+					ClickhouseIndexes:   []string{"index2"},
 					IsCommonTable:       true,
 				}},
 			},
@@ -300,7 +308,7 @@ func TestTableResolver(t *testing.T) {
 			expected: mux.Decision{
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "logs",
-					ClickhouseTables:    []string{"logs"},
+					ClickhouseIndexes:   []string{"logs"},
 				},
 					&mux.ConnectorDecisionElastic{}},
 			},
@@ -314,7 +322,7 @@ func TestTableResolver(t *testing.T) {
 				EnableABTesting: true,
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "logs",
-					ClickhouseTables:    []string{"logs"},
+					ClickhouseIndexes:   []string{"logs"},
 				},
 					&mux.ConnectorDecisionElastic{}},
 			},
@@ -328,7 +336,7 @@ func TestTableResolver(t *testing.T) {
 				EnableABTesting: true,
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "logs",
-					ClickhouseTables:    []string{"logs"},
+					ClickhouseIndexes:   []string{"logs"},
 				},
 					&mux.ConnectorDecisionElastic{}},
 			},

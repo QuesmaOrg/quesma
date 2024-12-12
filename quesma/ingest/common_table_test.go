@@ -15,7 +15,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/table_resolver"
-	"quesma_v2/core/mux"
+	mux "quesma_v2/core"
 	"testing"
 )
 
@@ -143,6 +143,7 @@ func TestIngestToCommonTable(t *testing.T) {
 			quesmaConfig := &config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
 					indexName: {
+						Name:           indexName,
 						UseCommonTable: true,
 					},
 				},
@@ -196,7 +197,7 @@ func TestIngestToCommonTable(t *testing.T) {
 				UseConnectors: []mux.ConnectorDecision{
 					&mux.ConnectorDecisionClickhouse{
 						ClickhouseTableName: common_table.TableName,
-						ClickhouseTables:    []string{indexName},
+						ClickhouseIndexes:   []string{indexName},
 						IsCommonTable:       true,
 					},
 				},

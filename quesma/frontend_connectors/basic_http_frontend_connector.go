@@ -7,97 +7,27 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/ucarion/urlpath"
 	"io"
 	"net/http"
 	quesma_api "quesma_v2/core"
 	"sync"
 )
 
-type HTTPRouter struct {
-	mux             *http.ServeMux                     // Default HTTP multiplexer
-	handlers        map[string]quesma_api.HandlersPipe // Map to store custom route handlers
-	fallbackHandler quesma_api.HTTPFrontendHandler
-	mutex           sync.RWMutex // Mutex for concurrent access to handlers
-}
-
-func NewHTTPRouter() *HTTPRouter {
-	return &HTTPRouter{
-		mux:      http.NewServeMux(),
-		handlers: make(map[string]quesma_api.HandlersPipe),
-	}
-}
-
-// AddRoute adds a new route to the router
-func (router *HTTPRouter) AddRoute(path string, handler quesma_api.HTTPFrontendHandler) {
-	router.mutex.Lock()
-	defer router.mutex.Unlock()
-	router.handlers[path] = quesma_api.HandlersPipe{Handler: handler}
-	fmt.Printf("Added route: %s\n", path)
-}
-
-func (router *HTTPRouter) AddFallbackHandler(handler quesma_api.HTTPFrontendHandler) {
-	router.mutex.Lock()
-	defer router.mutex.Unlock()
-	router.fallbackHandler = handler
-}
-
-func (router *HTTPRouter) GetFallbackHandler() quesma_api.HTTPFrontendHandler {
-	router.mutex.RLock()
-	defer router.mutex.RUnlock()
-	return router.fallbackHandler
-}
-
-func (router *HTTPRouter) Clone() quesma_api.Cloner {
-	newRouter := NewHTTPRouter()
-	router.mutex.Lock()
-	defer router.mutex.Unlock()
-	for path, handler := range router.handlers {
-		newRouter.handlers[path] = handler
-	}
-	newRouter.fallbackHandler = router.fallbackHandler
-	return newRouter
-}
-
-func (router *HTTPRouter) GetHandlers() map[string]quesma_api.HandlersPipe {
-	router.mutex.RLock()
-	defer router.mutex.RUnlock()
-	callInfos := make(map[string]quesma_api.HandlersPipe)
-	for k, v := range router.handlers {
-		callInfos[k] = v
-	}
-	return callInfos
-}
-
-func (router *HTTPRouter) SetHandlers(handlers map[string]quesma_api.HandlersPipe) {
-	router.mutex.Lock()
-	defer router.mutex.Unlock()
-	for path, handler := range handlers {
-		router.handlers[path] = handler
-	}
-}
-
-func (router *HTTPRouter) Lock() {
-	router.mutex.Lock()
-}
-
-func (router *HTTPRouter) Unlock() {
-	router.mutex.Unlock()
-}
-
-func (router *HTTPRouter) Multiplexer() *http.ServeMux {
-	return router.mux
-}
-
 type BasicHTTPFrontendConnector struct {
-	listener *http.Server
-	router   quesma_api.Router
-
-	endpoint string
+	listener        *http.Server
+	router          quesma_api.Router
+	mutex           sync.Mutex
+	responseMutator func(w http.ResponseWriter) http.ResponseWriter
+	endpoint        string
 }
 
 func NewBasicHTTPFrontendConnector(endpoint string) *BasicHTTPFrontendConnector {
 	return &BasicHTTPFrontendConnector{
 		endpoint: endpoint,
+		responseMutator: func(w http.ResponseWriter) http.ResponseWriter {
+			return w
+		},
 	}
 }
 
@@ -110,15 +40,17 @@ func (h *BasicHTTPFrontendConnector) GetRouter() quesma_api.Router {
 }
 
 func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	handlerWrapper, exists := h.router.GetHandlers()[req.URL.Path]
+	handlers := h.router.GetHandlers()
+	handlerWrapper := getMatchingHandler(req.URL.Path, handlers)
 	dispatcher := &quesma_api.Dispatcher{}
-	if !exists {
+	w = h.responseMutator(w)
+	if handlerWrapper == nil {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if h.router.GetFallbackHandler() != nil {
 				fmt.Printf("No handler found for path: %s\n", req.URL.Path)
 				handler := h.router.GetFallbackHandler()
-				_, message, _ := handler(req)
-				_, err := w.Write(message.([]byte))
+				result, _ := handler(context.Background(), &quesma_api.Request{OriginalRequest: req})
+				_, err := w.Write(result.GenericResult.([]byte))
 				if err != nil {
 					fmt.Printf("Error writing response: %s\n", err)
 				}
@@ -127,9 +59,9 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 		return
 	}
 	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		metadata, message, _ := handlerWrapper.Handler(req)
+		result, _ := handlerWrapper.Handler(context.Background(), &quesma_api.Request{OriginalRequest: req})
 
-		_, message = dispatcher.Dispatch(handlerWrapper.Processors, metadata, message)
+		_, message := dispatcher.Dispatch(handlerWrapper.Processors, result.Meta, result.GenericResult)
 		_, err := w.Write(message.([]byte))
 		if err != nil {
 			fmt.Printf("Error writing response: %s\n", err)
@@ -137,12 +69,30 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 	}).ServeHTTP(w, req)
 }
 
+func getMatchingHandler(requestPath string, handlers map[string]quesma_api.HandlersPipe) *quesma_api.HandlersPipe {
+	for path, handler := range handlers {
+		urlPath := urlpath.New(path)
+		_, matches := urlPath.Match(requestPath)
+		if matches {
+			return &handler
+		}
+	}
+	return nil
+}
+
 func (h *BasicHTTPFrontendConnector) Listen() error {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	if h.listener != nil {
+		// TODO handle this gracefully and return correct error
+		return nil
+	}
 	h.listener = &http.Server{}
 	h.listener.Addr = h.endpoint
 	h.listener.Handler = h
 	go func() {
 		err := h.listener.ListenAndServe()
+		// TODO: Handle error
 		_ = err
 	}()
 
@@ -150,6 +100,8 @@ func (h *BasicHTTPFrontendConnector) Listen() error {
 }
 
 func (h *BasicHTTPFrontendConnector) Stop(ctx context.Context) error {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 	if h.listener == nil {
 		return nil
 	}
