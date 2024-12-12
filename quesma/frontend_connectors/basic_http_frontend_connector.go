@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/ucarion/urlpath"
 	"io"
 	"net/http"
 	"quesma/quesma/recovery"
@@ -83,17 +82,6 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 			fmt.Printf("Error writing response: %s\n", err)
 		}
 	}).ServeHTTP(w, req)
-}
-
-func getMatchingHandler(requestPath string, handlers map[string]quesma_api.HandlersPipe) *quesma_api.HandlersPipe {
-	for path, handler := range handlers {
-		urlPath := urlpath.New(path)
-		_, matches := urlPath.Match(requestPath)
-		if matches {
-			return &handler
-		}
-	}
-	return nil
 }
 
 func (h *BasicHTTPFrontendConnector) Listen() error {
