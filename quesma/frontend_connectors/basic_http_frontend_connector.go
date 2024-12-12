@@ -84,7 +84,7 @@ func (h *BasicHTTPFrontendConnector) Listen() error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 	if h.listener != nil {
-		// TODO fix it completely
+		// TODO handle this gracefully and return correct error
 		return nil
 	}
 	h.listener = &http.Server{}
