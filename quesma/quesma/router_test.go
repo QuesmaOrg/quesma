@@ -209,7 +209,7 @@ func indexConfig(name string, elastic bool) config.QuesmaConfiguration {
 	} else {
 		targets = []string{config.ClickhouseTarget}
 	}
-	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {Name: name, QueryTarget: targets, IngestTarget: targets}}}
+	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {QueryTarget: targets, IngestTarget: targets}}}
 }
 
 func withAutodiscovery(cfg config.QuesmaConfiguration) config.QuesmaConfiguration {
@@ -276,9 +276,7 @@ const testIndexName = "indexName"
 func TestConfigureRouter(t *testing.T) {
 	cfg := &config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
-			testIndexName: {
-				Name: testIndexName,
-			},
+			testIndexName: {},
 		},
 	}
 	tr := TestTableResolver{}

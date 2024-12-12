@@ -32,7 +32,6 @@ func Test_ipRangeTransform(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_logs": {
-			Name: "kibana_sample_data_logs",
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				config.FieldName(IpFieldName): {Type: "ip"},
 				"message":                     {Type: "text"},
@@ -42,7 +41,6 @@ func Test_ipRangeTransform(t *testing.T) {
 		// Identical to kibana_sample_data_logs, but with "nested.clientip"
 		// instead of "clientip"
 		"kibana_sample_data_logs_nested": {
-			Name: "kibana_sample_data_logs_nested",
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				"nested.clientip": {Type: "ip"},
 				"message":         {Type: "text"},
@@ -50,7 +48,6 @@ func Test_ipRangeTransform(t *testing.T) {
 			}},
 		},
 		"kibana_sample_data_flights": {
-			Name: "kibana_sample_data_flights",
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				config.FieldName(IpFieldName): {Type: "ip"},
 				"DestLocation":                {Type: "geo_point"},
@@ -422,9 +419,7 @@ func Test_ipRangeTransform(t *testing.T) {
 func Test_arrayType(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
-		"kibana_sample_data_ecommerce": {
-			Name: "kibana_sample_data_ecommerce",
-		},
+		"kibana_sample_data_ecommerce": {},
 	}
 	fields := map[schema.FieldName]schema.Field{
 		"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
@@ -604,9 +599,7 @@ func Test_arrayType(t *testing.T) {
 func TestApplyWildCard(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
-		"kibana_sample_data_ecommerce": {
-			Name: "kibana_sample_data_ecommerce",
-		},
+		"kibana_sample_data_ecommerce": {},
 	}
 
 	indexSchema := schema.Schema{
@@ -677,9 +670,7 @@ func TestApplyWildCard(t *testing.T) {
 func TestApplyPhysicalFromExpression(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
-		"test": {
-			Name: "kibana_sample_data_ecommerce",
-		},
+		"test": {},
 	}
 	cfg := config.QuesmaConfiguration{
 		IndexConfig: indexConfig,
@@ -962,7 +953,6 @@ func TestFullTextFields(t *testing.T) {
 
 			indexConfig := map[string]config.IndexConfiguration{
 				"test": {
-					Name: "test",
 					SchemaOverrides: &config.SchemaConfiguration{
 						Fields: fieldOverrides,
 					},
@@ -1073,9 +1063,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				}}
 
 			indexConfig := map[string]config.IndexConfiguration{
-				"test": {
-					Name: "test",
-				},
+				"test": {},
 			}
 
 			cfg := config.QuesmaConfiguration{
@@ -1175,9 +1163,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 				}}
 
 			indexConfig := map[string]config.IndexConfiguration{
-				"test": {
-					Name: "test",
-				},
+				"test": {},
 			}
 
 			cfg := config.QuesmaConfiguration{

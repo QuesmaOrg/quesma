@@ -32,7 +32,6 @@ const tableName = model.SingleTableNamePlaceHolder
 var DefaultConfig = config.QuesmaConfiguration{
 	IndexConfig: map[string]config.IndexConfiguration{
 		tableName: {
-			Name:        tableName,
 			QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget},
 		},
 	},

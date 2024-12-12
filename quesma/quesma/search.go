@@ -377,7 +377,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	if len(resolvedIndexes) == 1 {
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
-		resolvedTableName := q.cfg.IndexConfig[indexName].TableName()
+		resolvedTableName := q.cfg.IndexConfig[indexName].TableName(indexName)
 
 		resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.IndexName(indexName))
 		if !ok {
@@ -396,7 +396,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		// here we filter out indexes that are not stored in the common table
 		var virtualOnlyTables []string
 		for _, indexName := range resolvedIndexes {
-			table, _ = tables.Load(q.cfg.IndexConfig[indexName].TableName())
+			table, _ = tables.Load(q.cfg.IndexConfig[indexName].TableName(indexName))
 			if table == nil {
 				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", indexName)).Details("Table: %s", indexName)
 			}

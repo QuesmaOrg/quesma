@@ -270,7 +270,7 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 			inserts[i] = document.document
 		}
 
-		err := ip.Ingest(ctx, cfg.IndexConfig[indexName].TableName(), inserts)
+		err := ip.Ingest(ctx, indexName, inserts)
 
 		for _, document := range documents {
 			bulkSingleResponse := BulkSingleResponse{
