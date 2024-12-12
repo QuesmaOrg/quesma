@@ -37,7 +37,7 @@ jobs:
         run: |
           go mod tidy
           go mod download all
-          go list -m -json all | go-licence-detector -includeIndirect -noticeTemplate=../.github/go-licence-detector/templates/NOTICE.MD.tmpl -noticeOut=../NOTICE.MD -depsTemplate=../.github/go-licence-detector/templates/dependencies.asciidoc.tmpl -depsOut=dependencies.asciidoc -overrides=../.github/go-licence-detector/overrides.ndjson
+          go list -m -json all | jq 'select(.Path != "quesma_v2")' | go-licence-detector -includeIndirect -noticeTemplate=../.github/go-licence-detector/templates/NOTICE.MD.tmpl -noticeOut=../NOTICE.MD -depsTemplate=../.github/go-licence-detector/templates/dependencies.asciidoc.tmpl -depsOut=dependencies.asciidoc -overrides=../.github/go-licence-detector/overrides.ndjson
           rm dependencies.asciidoc
 
       - name: Print NOTICE.MD

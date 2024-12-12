@@ -47,7 +47,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	lm := clickhouse.NewEmptyLogManager(&cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
 	lm.AddTableIfDoesntExist(table)
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -65,7 +65,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables[schema.TableName(tableName)]}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables[schema.IndexName(tableName)]}
 
 	for i, tt := range testdata.TestsSearch {
 
@@ -120,7 +120,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 
 	cfg.IndexConfig[indexConfig.Name] = indexConfig
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -137,7 +137,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables[schema.TableName(tableName)]}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables[schema.IndexName(tableName)]}
 
 	for i, tt := range testdata.TestsSearchNoFullTextFields {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
@@ -186,7 +186,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 
 	cfg.IndexConfig[indexConfig.Name] = indexConfig
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -415,7 +415,7 @@ func TestNew(t *testing.T) {
 	}
 	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, table), &config.QuesmaConfiguration{})
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -433,7 +433,7 @@ func TestNew(t *testing.T) {
 		},
 	}
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.TableName("logs-generic-default")]}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName("logs-generic-default")]}
 	for _, tt := range tests {
 		t.Run("test", func(t *testing.T) {
 			simpleQuery, _, _ := cw.ParseQueryAsyncSearch(tt)
@@ -503,6 +503,48 @@ func Test_parseSortFields(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.sortColumns, cw.parseSortFields(tt.sortMap))
+		})
+	}
+}
+
+func TestInvalidQueryRequests(t *testing.T) {
+	t.Skip("Test in the making. Need 1-2 more PRs in 'Report errors in queries better' series.")
+	table := clickhouse.Table{
+		Cols: map[string]*clickhouse.Column{
+			"@timestamp":                     {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"timestamp":                      {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"order_date":                     {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
+			"message":                        {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"bytes_gauge":                    {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
+			"customer_birth_date":            {Name: "customer_birth_date", Type: clickhouse.NewBaseType("DateTime")},
+			"customer_birth_date_datetime64": {Name: "customer_birth_date_datetime64", Type: clickhouse.NewBaseType("DateTime64")},
+		},
+		Name:   tableName,
+		Config: clickhouse.NewDefaultCHConfig(),
+	}
+
+	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, &table), &config.QuesmaConfiguration{})
+	currentSchema := schema.Schema{
+		Fields:             nil,
+		Aliases:            nil,
+		ExistsInDataSource: false,
+		DatabaseName:       "",
+	}
+
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: currentSchema}
+
+	for i, test := range testdata.InvalidAggregationTests {
+		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
+			if strings.Contains(strings.ToLower(test.TestName), "rate") {
+				t.Skip("Unskip after merge of rate aggregation")
+			}
+			fmt.Println("i:", i, "test:", test.TestName)
+
+			jsonp, err := types.ParseJSON(test.QueryRequestJson)
+			assert.NoError(t, err)
+
+			_, err = cw.PancakeParseAggregationJson(jsonp, false)
+			assert.Error(t, err)
 		})
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
+	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/util"
 	quesma_api "quesma_v2/core"
@@ -142,7 +143,7 @@ func (*RouterV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter,
 
 func (r *RouterV2) elasticFallback(decision *quesma_api.Decision,
 	ctx context.Context, w http.ResponseWriter,
-	req *http.Request, reqBody []byte, logManager *clickhouse.LogManager) {
+	req *http.Request, reqBody []byte, logManager *clickhouse.LogManager, schemaRegistry schema.Registry) {
 
 	var sendToElastic bool
 
@@ -185,7 +186,10 @@ func (r *RouterV2) elasticFallback(decision *quesma_api.Decision,
 	}
 
 	if sendToElastic {
-		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(OpaqueIdHeaderKey), logManager.ResolveIndexPattern)
+		resolveIndexPattern := func(ctx context.Context, pattern string) ([]string, error) {
+			return logManager.ResolveIndexPattern(ctx, schemaRegistry, pattern)
+		}
+		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(OpaqueIdHeaderKey), resolveIndexPattern)
 
 		rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 		response := rawResponse.response
@@ -203,7 +207,7 @@ func (r *RouterV2) elasticFallback(decision *quesma_api.Decision,
 	}
 }
 
-func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, searchRouter *quesma_api.PathRouter, ingestRouter *quesma_api.PathRouter, logManager *clickhouse.LogManager) {
+func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router quesma_api.Router, logManager *clickhouse.LogManager, schemaRegistry schema.Registry) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
@@ -223,31 +227,18 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
-	var handler quesma_api.HTTPFrontendHandler
-	var decision *quesma_api.Decision
-	searchHandlerPipe, searchDecision := searchRouter.Matches(quesmaRequest)
-	if searchDecision != nil {
-		decision = searchDecision
-	}
-	if searchHandlerPipe != nil {
-		handler = searchHandlerPipe.Handler
-	}
-	ingestHandlerPipe, ingestDecision := ingestRouter.Matches(quesmaRequest)
-	if searchDecision == nil {
-		decision = ingestDecision
-	}
-	if searchHandlerPipe == nil && ingestHandlerPipe != nil {
-		handler = ingestHandlerPipe.Handler
-	}
+
+	handlersPipe, decision := router.Matches(quesmaRequest)
+
 	if decision != nil {
 		w.Header().Set(QuesmaTableResolverHeader, decision.String())
 	} else {
 		w.Header().Set(QuesmaTableResolverHeader, "n/a")
 	}
 
-	if handler != nil {
+	if handlersPipe != nil {
 		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.QuesmaManagementConsole, func() (*quesma_api.Result, error) {
-			return handler(ctx, quesmaRequest)
+			return handlersPipe.Handler(ctx, quesmaRequest)
 		})
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
@@ -269,7 +260,7 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 			r.errorResponseV2(ctx, err, w)
 		}
 	} else {
-		r.elasticFallback(decision, ctx, w, req, reqBody, logManager)
+		r.elasticFallback(decision, ctx, w, req, reqBody, logManager, schemaRegistry)
 	}
 }
 

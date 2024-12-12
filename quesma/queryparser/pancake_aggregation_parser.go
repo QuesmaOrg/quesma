@@ -167,9 +167,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 	}
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
-	// 	bucketAggrPresent, err := cw.pancakeTryBucketAggregation(aggregation, queryMap)
-	_, err := cw.pancakeTryBucketAggregation(aggregation, queryMap)
-	if err != nil {
+	if err := cw.pancakeTryBucketAggregation(aggregation, queryMap); err != nil {
 		return nil, err
 	}
 
