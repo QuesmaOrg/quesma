@@ -121,7 +121,7 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 		ua := req.Header.Get("User-Agent")
 		agent.UserAgentCounters().Add(ua, 1)
 
-		routerInstance.reroute(req.Context(), w, req, reqBody, pathRouter, logManager)
+		routerInstance.reroute(req.Context(), w, req, reqBody, pathRouter, logManager, registry)
 	})
 	var limitedHandler http.Handler
 	if config.DisableAuth {
@@ -287,7 +287,7 @@ func (*router) closedIndexResponse(ctx context.Context, w http.ResponseWriter, p
 
 }
 
-func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *quesma_api.PathRouter, logManager *clickhouse.LogManager) {
+func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *quesma_api.PathRouter, logManager *clickhouse.LogManager, schemaRegistry schema.Registry) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
@@ -382,7 +382,10 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		}
 
 		if sendToElastic {
-			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(frontend_connectors.OpaqueIdHeaderKey), logManager.ResolveIndexPattern)
+			resolveIndexPattern := func(ctx context.Context, pattern string) ([]string, error) {
+				return logManager.ResolveIndexPattern(ctx, schemaRegistry, pattern)
+			}
+			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(frontend_connectors.OpaqueIdHeaderKey), resolveIndexPattern)
 
 			rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 			response := rawResponse.response

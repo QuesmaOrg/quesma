@@ -85,7 +85,7 @@ func TestFieldCaps(t *testing.T) {
 			},
 		},
 	}, &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"service.name":           {PropertyName: "service.name", InternalPropertyName: "service.name", Type: schema.QuesmaTypeKeyword},
@@ -145,7 +145,7 @@ func TestFieldCapsWithAliases(t *testing.T) {
 	resp, err := handleFieldCapsIndex(&config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{"logs-generic-default": {Name: "logs-generic-default", QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget}}},
 	}, &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields:  map[schema.FieldName]schema.Field{"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeTimestamp}},
 				Aliases: map[schema.FieldName]schema.FieldName{"timestamp": "@timestamp"},
@@ -196,7 +196,7 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 			},
 		},
 	}, &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-1": {
 				Fields: map[schema.FieldName]schema.Field{
 					"foo.bar1": {PropertyName: "foo.bar1", InternalPropertyName: "foo.bar1", Type: schema.QuesmaTypeKeyword},
@@ -312,7 +312,7 @@ func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
 			},
 		},
 	}, &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-1": {
 				Fields: map[schema.FieldName]schema.Field{
 					"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo.bar", Type: schema.QuesmaTypeKeyword},

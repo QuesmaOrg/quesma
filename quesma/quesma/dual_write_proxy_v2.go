@@ -103,11 +103,11 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, quesmaManagementConsole, queryProcessor, resolver)
 
 	elasticHttpIngestFrontendConnector := NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		&routerInstance, logManager, agent)
+		&routerInstance, logManager, registry, agent)
 	elasticHttpIngestFrontendConnector.AddRouter(ingestRouter)
 
 	elasticHttpQueryFrontendConnector := NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		&routerInstance, logManager, agent)
+		&routerInstance, logManager, registry, agent)
 	elasticHttpQueryFrontendConnector.AddRouter(searchRouter)
 
 	quesmaBuilder := quesma_api.NewQuesma()

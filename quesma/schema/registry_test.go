@@ -17,7 +17,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 		name           string
 		cfg            config.QuesmaConfiguration
 		tableDiscovery schema.TableProvider
-		tableName      schema.TableName
+		tableName      schema.IndexName
 		want           schema.Schema
 		found          bool
 	}{
@@ -33,7 +33,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			name: "schema inferred, no mappings",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
-					"some_table": {},
+					"some_table": {
+						Name: "some_table",
+					},
 				},
 			},
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
@@ -56,6 +58,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
 					"some_table": {
+						Name: "some_table",
 						SchemaOverrides: &config.SchemaConfiguration{
 							Fields: map[config.FieldName]config.FieldConfiguration{
 								"message": {Type: "keyword"},
@@ -85,6 +88,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
 					"some_table": {
+						Name: "some_table",
 						SchemaOverrides: &config.SchemaConfiguration{
 							Fields: map[config.FieldName]config.FieldConfiguration{
 								"message": {Type: "keyword"},
@@ -111,11 +115,13 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			name: "schema inferred, with type mappings not backed by db",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
-					"some_table": {SchemaOverrides: &config.SchemaConfiguration{
-						Fields: map[config.FieldName]config.FieldConfiguration{
-							"message": {Type: "keyword"},
-						},
-					}},
+					"some_table": {
+						Name: "some_table",
+						SchemaOverrides: &config.SchemaConfiguration{
+							Fields: map[config.FieldName]config.FieldConfiguration{
+								"message": {Type: "keyword"},
+							},
+						}},
 				},
 			},
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
@@ -136,11 +142,13 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			name: "schema explicitly configured, nothing in db",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
-					"some_table": {SchemaOverrides: &config.SchemaConfiguration{
-						Fields: map[config.FieldName]config.FieldConfiguration{
-							"message": {Type: "keyword"},
-						},
-					}},
+					"some_table": {
+						Name: "some_table",
+						SchemaOverrides: &config.SchemaConfiguration{
+							Fields: map[config.FieldName]config.FieldConfiguration{
+								"message": {Type: "keyword"},
+							},
+						}},
 				},
 			},
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{}},
@@ -152,11 +160,13 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			name: "schema inferred, with mapping overrides",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
-					"some_table": {SchemaOverrides: &config.SchemaConfiguration{
-						Fields: map[config.FieldName]config.FieldConfiguration{
-							"message": {Type: "keyword"},
-						},
-					}},
+					"some_table": {
+						Name: "some_table",
+						SchemaOverrides: &config.SchemaConfiguration{
+							Fields: map[config.FieldName]config.FieldConfiguration{
+								"message": {Type: "keyword"},
+							},
+						}},
 				},
 			},
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
@@ -178,12 +188,14 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			name: "schema inferred, with aliases",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
-					"some_table": {SchemaOverrides: &config.SchemaConfiguration{
-						Fields: map[config.FieldName]config.FieldConfiguration{
-							"message":       {Type: "keyword"},
-							"message_alias": {Type: "alias", TargetColumnName: "message"},
-						},
-					}},
+					"some_table": {
+						Name: "some_table",
+						SchemaOverrides: &config.SchemaConfiguration{
+							Fields: map[config.FieldName]config.FieldConfiguration{
+								"message":       {Type: "keyword"},
+								"message_alias": {Type: "alias", TargetColumnName: "message"},
+							},
+						}},
 				},
 			},
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
@@ -207,6 +219,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
 					"some_table": {
+						Name: "some_table",
 						SchemaOverrides: &config.SchemaConfiguration{
 							Fields: map[config.FieldName]config.FieldConfiguration{
 								"message_alias": {Type: "alias", TargetColumnName: "message"},
@@ -237,6 +250,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
 					"some_table": {
+						Name: "some_table",
 						SchemaOverrides: &config.SchemaConfiguration{
 							Fields: map[config.FieldName]config.FieldConfiguration{
 								"message": {Type: "keyword"},
@@ -282,7 +296,10 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 	tableName := "some_table"
 	cfg := config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
-			tableName: {QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget}},
+			tableName: {
+				Name:        tableName,
+				QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget},
+			},
 		},
 	}
 	tableDiscovery := fixedTableProvider{tables: map[string]schema.Table{
@@ -300,7 +317,7 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 		"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
 		"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}},
 		true, "")
-	resultSchema, resultFound := s.FindSchema(schema.TableName(tableName))
+	resultSchema, resultFound := s.FindSchema(schema.IndexName(tableName))
 	assert.True(t, resultFound, "schema not found")
 	if !reflect.DeepEqual(resultSchema, expectedSchema) {
 		pp.Println("Expected:", expectedSchema)
@@ -309,7 +326,7 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 	}
 
 	// now update the dynamic configuration
-	s.UpdateDynamicConfiguration(schema.TableName(tableName), schema.Table{
+	s.UpdateDynamicConfiguration(schema.IndexName(tableName), schema.Table{
 		Columns: map[string]schema.Column{
 			"new_column": {Name: "new_column", Type: "text"},
 		},
@@ -321,7 +338,7 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 		"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"},
 		"new_column": {PropertyName: "new_column", InternalPropertyName: "new_column", Type: schema.QuesmaTypeText, Origin: schema.FieldSourceMapping}},
 		true, "")
-	resultSchema, resultFound = s.FindSchema(schema.TableName(tableName))
+	resultSchema, resultFound = s.FindSchema(schema.IndexName(tableName))
 	assert.True(t, resultFound, "schema not found")
 	if !reflect.DeepEqual(resultSchema, expectedSchema) {
 		pp.Println("Expected:", expectedSchema)

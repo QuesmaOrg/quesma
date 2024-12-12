@@ -28,7 +28,14 @@ const defaultAsyncSearchTimeout = 1000
 
 const tableName = model.SingleTableNamePlaceHolder
 
-var DefaultConfig = config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget}}}}
+var DefaultConfig = config.QuesmaConfiguration{
+	IndexConfig: map[string]config.IndexConfiguration{
+		tableName: {
+			Name:        tableName,
+			QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget},
+		},
+	},
+}
 
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
 
@@ -65,7 +72,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 		"properties::isreg": {PropertyName: "properties::isreg", InternalPropertyName: "properties_isreg", Type: schema.QuesmaTypeInteger},
 	}
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
@@ -118,7 +125,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 	}
 
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			tableName: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
@@ -161,7 +168,7 @@ func TestSearchHandler(t *testing.T) {
 	}
 
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
@@ -229,7 +236,7 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 	})
 
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			model.SingleTableNamePlaceHolder: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
@@ -269,7 +276,7 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 // TODO this test gives wrong results??
 func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
@@ -298,7 +305,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 
 func TestAsyncSearchFilter(t *testing.T) {
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
@@ -342,7 +349,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 // It can't return uint64, thus creating response code panics because of that.
 func TestHandlingDateTimeFields(t *testing.T) {
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -463,7 +470,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 // Both `_search`, and `_async_search` handlers are tested.
 func TestNumericFacetsQueries(t *testing.T) {
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -567,7 +574,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 
 func TestSearchTrackTotalCount(t *testing.T) {
 
-	s := &schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
+	s := &schema.StaticRegistry{Tables: map[schema.IndexName]schema.Schema{}}
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
@@ -659,7 +666,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 
 func TestFullQueryTestWIP(t *testing.T) {
 	t.Skip(`We need to stop "unit" testing aggregation queries, because e.g. transformations aren't performed in tests whatsoever. Tests pass, but in real world things sometimes break. It's WIP.`)
-	s := &schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
+	s := &schema.StaticRegistry{Tables: map[schema.IndexName]schema.Schema{}}
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{

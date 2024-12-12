@@ -165,14 +165,17 @@ func TestSearchCommonTable(t *testing.T) {
 	quesmaConfig := &config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
 			"logs-1": {
+				Name:           "logs-1",
 				UseCommonTable: true,
 				QueryTarget:    []string{config.ClickhouseTarget},
 			},
 			"logs-2": {
+				Name:           "logs-2",
 				UseCommonTable: true,
 				QueryTarget:    []string{config.ClickhouseTarget},
 			},
 			"logs-3": {
+				Name:           "logs-3",
 				UseCommonTable: false,
 				QueryTarget:    []string{config.ClickhouseTarget},
 			},
@@ -180,7 +183,7 @@ func TestSearchCommonTable(t *testing.T) {
 	}
 
 	schemaRegistry := schema.StaticRegistry{
-		Tables: make(map[schema.TableName]schema.Schema),
+		Tables: make(map[schema.IndexName]schema.Schema),
 	}
 	tableMap := clickhouse.NewTableMap()
 
@@ -254,7 +257,7 @@ func TestSearchCommonTable(t *testing.T) {
 	resolver.Decisions["logs-1"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1"},
+			ClickhouseIndexes:   []string{"logs-1"},
 			IsCommonTable:       true,
 		}},
 	}
@@ -262,7 +265,7 @@ func TestSearchCommonTable(t *testing.T) {
 	resolver.Decisions["logs-2"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-2"},
+			ClickhouseIndexes:   []string{"logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
@@ -270,7 +273,7 @@ func TestSearchCommonTable(t *testing.T) {
 	resolver.Decisions["logs-3"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: "logs-3",
-			ClickhouseTables:    []string{"logs-3"},
+			ClickhouseIndexes:   []string{"logs-3"},
 			IsCommonTable:       false,
 		}},
 	}
@@ -278,7 +281,7 @@ func TestSearchCommonTable(t *testing.T) {
 	resolver.Decisions["logs-1,logs-2"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
@@ -286,14 +289,14 @@ func TestSearchCommonTable(t *testing.T) {
 	resolver.Decisions["logs-*"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
 	resolver.Decisions["*"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}

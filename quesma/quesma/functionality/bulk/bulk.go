@@ -264,17 +264,13 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 		for _, document := range documents {
 			stats.GlobalStatistics.Process(cfg, indexName, document.document, clickhouse.NestedSeparator)
 		}
-		// if the index is mapped to specified database table in the configuration, use that table
-		if len(cfg.IndexConfig[indexName].Override) > 0 {
-			indexName = cfg.IndexConfig[indexName].Override
-		}
 
 		inserts := make([]types.JSON, len(documents))
 		for i, document := range documents {
 			inserts[i] = document.document
 		}
 
-		err := ip.Ingest(ctx, indexName, inserts)
+		err := ip.Ingest(ctx, cfg.IndexConfig[indexName].TableName(), inserts)
 
 		for _, document := range documents {
 			bulkSingleResponse := BulkSingleResponse{

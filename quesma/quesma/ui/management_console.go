@@ -106,7 +106,7 @@ type (
 		isAuthEnabled bool
 	}
 	SchemasProvider interface {
-		AllSchemas() map[schema.TableName]schema.Schema
+		AllSchemas() map[schema.IndexName]schema.Schema
 	}
 )
 
