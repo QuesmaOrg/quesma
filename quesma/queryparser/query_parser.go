@@ -108,7 +108,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	simpleQuery *model.SimpleQuery, queryInfo model.HitsCountInfo, highlighter model.Highlighter) *model.Query {
 	var fullQuery *model.Query
-	switch queryInfo.Typ {
+	switch queryInfo.Type {
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
 		fullQuery = cw.BuildNRowsQuery(queryInfo.RequestedFields, simpleQuery, queryInfo.Size)
@@ -1050,7 +1050,7 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.H
 
 	fields, ok := queryMap["fields"].([]any)
 	if !ok {
-		return model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
+		return model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
 	}
 	if len(fields) > 1 {
 		fieldNames := make([]string, 0)
@@ -1073,13 +1073,13 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.H
 		}
 		logger.Debug().Msgf("requested more than one field %s, falling back to '*'", fieldNames)
 		// so far everywhere I've seen, > 1 field ==> "*" is one of them
-		return model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
+		return model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
 	} else if len(fields) == 0 {
 		// isCount, ok := queryMap["track_total_hits"].(bool)
 		// TODO make count separate!
 		/*
 			if ok && isCount {
-				return model.HitsCountInfo{Typ: model.CountAsync, RequestedFields: make([]string, 0), FieldName: "", I1: 0, I2: 0}, true
+				return model.HitsCountInfo{Type: model.CountAsync, RequestedFields: make([]string, 0), FieldName: "", I1: 0, I2: 0}, true
 			}
 		*/
 		return model.NewEmptyHitsCountInfo(), false
@@ -1105,9 +1105,9 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.H
 
 		resolvedField := cw.ResolveField(cw.Ctx, fieldName)
 		if resolvedField == "*" {
-			return model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
+			return model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
 		}
-		return model.HitsCountInfo{Typ: model.ListByField, RequestedFields: []string{resolvedField}, Size: size}, true
+		return model.HitsCountInfo{Type: model.ListByField, RequestedFields: []string{resolvedField}, Size: size}, true
 	}
 }
 
