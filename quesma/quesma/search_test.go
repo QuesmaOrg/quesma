@@ -173,8 +173,6 @@ func TestSearchHandler(t *testing.T) {
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
-			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
-			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
 			"message": {
 				Name: "message",
 				Type: clickhouse.NewBaseType("String"),
@@ -413,17 +411,8 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigNoAttrs(),
 		Cols: map[string]*clickhouse.Column{
-			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
-			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
-			"message": {
-				Name: "message",
-				Type: clickhouse.NewBaseType("String"),
-			},
-
-			"@timestamp": {
-				Name: "@timestamp",
-				Type: clickhouse.NewBaseType("DateTime64"),
-			},
+			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
 		Created: true,
 	})
@@ -513,7 +502,6 @@ func TestAsyncSearchFilter(t *testing.T) {
 			_, _ = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
-
 			}
 		})
 	}

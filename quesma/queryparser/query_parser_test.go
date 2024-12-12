@@ -196,8 +196,6 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.NoError(t, errQuery, "no error in ParseQuery")
 			assert.True(t, len(queries) > 0, "len queries > 0")
 			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
-			fmt.Println(whereClause)
-			fmt.Println(tt.WantedSql[0])
 			assert.Contains(t, tt.WantedSql, whereClause)
 
 			var simpleListQuery *model.Query
