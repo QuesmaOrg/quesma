@@ -197,6 +197,8 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), selectedRowsWithoutPrefix)
 			aggJson := queryType.CombinatorTranslateSqlResponseToJson(subGroup, selectedRows)
 
+			fmt.Println("aggJson", aggJson, "subAggr", subAggr)
+
 			mergeResult, mergeErr := util.MergeMaps(aggJson, subAggr)
 			if mergeErr != nil {
 				logger.ErrorWithCtx(p.ctx).Msgf("error merging maps: %v", mergeErr)

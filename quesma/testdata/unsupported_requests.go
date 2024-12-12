@@ -216,25 +216,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [13]
-		TestName:  "bucket aggregation: ip_range",
-		QueryType: "ip_range",
-		QueryRequestJson: `
-		{
-			"size": 10,
-			"aggs": {
-				"ip_ranges": {
-					"ip_range": {
-						"field": "ip",
-						"ranges": [
-							{ "to": "10.0.0.5" },
-							{ "from": "10.0.0.5" }
-						]
-					}
-				}
-			}
-		}`,
-	},
 	{ // [14]
 		TestName:  "bucket aggregation: missing",
 		QueryType: "missing",

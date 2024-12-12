@@ -257,6 +257,16 @@ func (cw *ClickhouseQueryTranslator) parseIntField(queryMap QueryMap, fieldName 
 	return defaultValue
 }
 
+func (cw *ClickhouseQueryTranslator) parseBoolField(queryMap QueryMap, fieldName string, defaultValue bool) bool {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asBool, ok := valueRaw.(bool); ok {
+			return asBool
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a bool, but %T, value: %v. Using default: %v", fieldName, valueRaw, valueRaw, defaultValue)
+	}
+	return defaultValue
+}
+
 func (cw *ClickhouseQueryTranslator) parseInt64Field(queryMap QueryMap, fieldName string, defaultValue int64) int64 {
 	if valueRaw, exists := queryMap[fieldName]; exists {
 		if asFloat, ok := valueRaw.(float64); ok {
@@ -285,6 +295,16 @@ func (cw *ClickhouseQueryTranslator) parseStringField(queryMap QueryMap, fieldNa
 		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a string, but %T, value: %v. Using default: %s", fieldName, valueRaw, valueRaw, defaultValue)
 	}
 	return defaultValue
+}
+
+func (cw *ClickhouseQueryTranslator) parseStringFieldExistCheck(queryMap QueryMap, fieldName string) (value string, exists bool) {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asString, ok := valueRaw.(string); ok {
+			return asString, true
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a string, but %T, value: %v", fieldName, valueRaw, valueRaw)
+	}
+	return "", false
 }
 
 // parseFieldFieldMaybeScript is basically almost a copy of parseFieldField above, but it also handles a basic script, if "field" is missing.

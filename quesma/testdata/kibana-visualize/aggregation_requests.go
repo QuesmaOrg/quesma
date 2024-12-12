@@ -2147,4 +2147,269 @@ var AggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 	},
+	{ // [10]
+		TestName: "Simplest IP range. In Kibana: Add panel > Aggregation Based > Area. Buckets: X-asis: IP Range",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"ip_range": {
+						"field": "clientip",
+						"ranges": [
+							{
+								"from": "0.0.0.0",
+								"to": "127.255.255.255"
+							},
+							{
+								"from": "128.0.0.0"
+							},
+							{
+								"from": "128.129.130.131",
+								"key": "my-custom-key"
+							},
+							{
+								"to": "10.0.0.5"
+							}
+						]
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 14,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 14074,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "0.0.0.0-127.255.255.255",
+							"from": "0.0.0.0",
+							"to": "127.255.255.255",
+							"doc_count": 7290
+						},
+						{
+							"key": "128.0.0.0-*",
+							"from": "128.0.0.0",
+							"doc_count": 6784
+						},
+						{
+							"key": "my-custom-key",
+							"from": "128.129.130.131",
+							"doc_count": 6752
+						},
+						{
+							"key": "*-10.0.0.5",
+							"to": "10.0.0.5",
+							"doc_count": 534
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("range_0__aggr__2__count", int64(7290)),
+				model.NewQueryResultCol("range_1__aggr__2__count", int64(6784)),
+				model.NewQueryResultCol("range_2__aggr__2__count", int64(6752)),
+				model.NewQueryResultCol("range_3__aggr__2__count", int64(534)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT countIf(("clientip">='0.0.0.0' AND "clientip"<'127.255.255.255')) AS
+			  "range_0__aggr__2__count",
+			  countIf("clientip">='128.0.0.0') AS "range_1__aggr__2__count",
+			  countIf("clientip">='128.129.130.131') AS "range_2__aggr__2__count",
+			  countIf("clientip"<'10.0.0.5') AS "range_3__aggr__2__count"
+			FROM __quesma_table_name`,
+	},
+	{ // [11]
+		TestName: "IP range, with ranges as CIDR masks. In Kibana: Add panel > Aggregation Based > Area. Buckets: X-asis: IP Range",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"ip_range": {
+						"field": "clientip",
+						"ranges": [
+							{
+								"mask": "255.255.255.253/30"
+							},
+							{
+								"from": "128.129.130.131",
+								"key": "my-custom-key"
+							},
+							{
+								"mask": "10.0.7.127/27",
+								"key": "custom-mask-key"
+							}
+						]
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 14,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 14074,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "255.255.255.253/30",
+							"from": "255.255.255.252",
+							"to": "::1:0:0:0",
+							"doc_count": 2
+						},
+						{
+							"key": "my-custom-key",
+							"from": "128.129.130.131",
+							"doc_count": 6752
+						},
+						{
+							"key": "custom-mask-key",
+							"from": "10.0.7.96",
+							"to": "10.0.7.128",
+							"doc_count": 3
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("range_0__aggr__2__count", int64(2)),
+				model.NewQueryResultCol("range_1__aggr__2__count", int64(6752)),
+				model.NewQueryResultCol("range_2__aggr__2__count", int64(3)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT countIf("clientip">='255.255.255.252') AS "range_0__aggr__2__count",
+			  countIf("clientip">='128.129.130.131') AS "range_1__aggr__2__count",
+			  countIf(("clientip">='10.0.7.96' AND "clientip"<'10.0.7.128')) AS
+			  "range_2__aggr__2__count"
+			FROM __quesma_table_name`,
+	},
+	{ // [12]
+		TestName: "IP range, with ranges as CIDR masks, keyed=true. In Kibana: Add panel > Aggregation Based > Area. Buckets: X-asis: IP Range",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"ip_range": {
+						"field": "clientip",
+						"keyed": true,
+						"ranges": [
+							{
+								"mask": "255.255.255.255/31"
+							},
+							{
+								"from": "128.129.130.131",
+								"key": "my-custom-key"
+							},
+							{
+								"mask": "10.0.7.127/27",
+								"key": "custom-mask-key"
+							}
+						]
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 14,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 14074,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": {
+						"custom-mask-key": {
+							"from": "10.0.7.96",
+							"to": "10.0.7.128",
+							"doc_count": 3
+						},
+						"my-custom-key": {
+							"from": "128.129.130.131",
+							"doc_count": 6752
+						},
+						"255.255.255.255/31": {
+							"from": "255.255.255.254",
+							"to": "::1:0:0:0",
+							"doc_count": 2
+						}
+					}
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("range_0__aggr__2__count", int64(2)),
+				model.NewQueryResultCol("range_1__aggr__2__count", int64(6752)),
+				model.NewQueryResultCol("range_2__aggr__2__count", int64(3)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT countIf("clientip">='255.255.255.254') AS "range_0__aggr__2__count",
+			  countIf("clientip">='128.129.130.131') AS "range_1__aggr__2__count",
+			  countIf(("clientip">='10.0.7.96' AND "clientip"<'10.0.7.128')) AS
+			  "range_2__aggr__2__count"
+			FROM __quesma_table_name`,
+	},
 }

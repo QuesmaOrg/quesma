@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Elastic-2.0
 package model
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 // Expr is a generic representation of an expression which is a part of the SQL query.
 type Expr interface {
@@ -111,6 +114,10 @@ var NewWildcardExpr = LiteralExpr{Value: "*"}
 
 func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value}
+}
+
+func NewLiteralSingleQuoted(value string) LiteralExpr {
+	return LiteralExpr{Value: fmt.Sprintf("'%s'", value)}
 }
 
 // DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`
