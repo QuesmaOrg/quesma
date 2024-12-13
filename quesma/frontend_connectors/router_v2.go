@@ -235,10 +235,24 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	} else {
 		w.Header().Set(QuesmaTableResolverHeader, "n/a")
 	}
-
+	dispatcher := &quesma_api.Dispatcher{}
 	if handlersPipe != nil {
 		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.QuesmaManagementConsole, func() (*quesma_api.Result, error) {
-			return handlersPipe.Handler(ctx, quesmaRequest)
+			var result *quesma_api.Result
+			result, err = handlersPipe.Handler(ctx, quesmaRequest)
+
+			if result == nil {
+				return result, err
+			}
+			metadata, message := dispatcher.Dispatch(handlersPipe.Processors, result.Meta, result.GenericResult)
+
+			result = &quesma_api.Result{
+				Body:          result.Body,
+				Meta:          metadata,
+				StatusCode:    result.StatusCode,
+				GenericResult: message,
+			}
+			return result, err
 		})
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")

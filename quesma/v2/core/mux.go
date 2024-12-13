@@ -202,15 +202,23 @@ func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
 	return callInfos
 }
 func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
+	newHandlers := make(map[string]HandlersPipe, 0)
 	for path, handler := range handlers {
-		if _, ok := handler.Predicate.(*predicateAlways); ok { // in order to pass processors we have to make this alignment (predicates aren't present in the old API
-			p.mappings = append(p.mappings, mapping{pattern: path,
-				compiledPath: urlpath.New(path),
-				handler: &HandlersPipe{Handler: handler.Handler,
-					Predicate:  handler.Predicate,
-					Processors: handler.Processors}})
-		} else {
-			p.Register(path, handler.Predicate, handler.Handler)
+		for index := range p.mappings {
+			if p.mappings[index].pattern == path {
+				p.mappings[index].handler.Processors = handler.Processors
+				p.mappings[index].handler.Predicate = handler.Predicate
+			} else {
+				newHandlers[path] = handler
+			}
 		}
+	}
+	for path, handler := range newHandlers {
+		p.mappings = append(p.mappings, mapping{pattern: path,
+			compiledPath: urlpath.New(path),
+			predicate:    handler.Predicate,
+			handler: &HandlersPipe{Handler: handler.Handler,
+				Predicate:  handler.Predicate,
+				Processors: handler.Processors}})
 	}
 }
