@@ -60,7 +60,15 @@ func Test_ipRangeTransform(t *testing.T) {
 		IndexConfig: indexConfig,
 	}
 
-	tableDiscovery :=
+	tableMap := clickhouse.NewTableMap()
+
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tableMap
+	for indexName := range indexConfig {
+		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
+	}
+
+	tableProvider :=
 		fixedTableProvider{tables: map[string]schema.Table{
 			"kibana_sample_data_flights": {Columns: map[string]schema.Column{
 				"destlocation": {Name: "destlocation", Type: "geo_point"},
@@ -77,8 +85,8 @@ func Test_ipRangeTransform(t *testing.T) {
 		{
 			TableName: "kibana_sample_data_logs_nested", FieldName: "nested.clientip"}: "nested_clientip",
 	}
-	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: &cfg}
+	s := schema.NewSchemaRegistry(tableProvider, &cfg, clickhouse.SchemaTypeAdapter{})
+	transform := &SchemaCheckPass{cfg: &cfg, tableDiscovery: tableDiscovery}
 	s.UpdateFieldEncodings(fieldEncodings)
 
 	selectColumns := []model.Expr{model.NewColumnRef("message")}
@@ -425,7 +433,15 @@ func Test_arrayType(t *testing.T) {
 		Fields: fields,
 	}
 
-	transform := &SchemaCheckPass{cfg: &config.QuesmaConfiguration{IndexConfig: indexConfig}}
+	tableMap := clickhouse.NewTableMap()
+
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tableMap
+	for indexName := range indexConfig {
+		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
+	}
+
+	transform := &SchemaCheckPass{cfg: &config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery: tableDiscovery}
 
 	tests := []struct {
 		name     string
@@ -459,7 +475,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewFunction("sumOrNull", model.NewColumnRef("products_quantity")),
+						model.NewFunction("sumOrNull", model.NewColumnRef("products.quantity")),
 					},
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
 				},
@@ -492,7 +508,7 @@ func Test_arrayType(t *testing.T) {
 						model.NewCountFunc(),
 					},
 					WhereClause: model.NewInfixExpr(
-						model.NewColumnRef("products_name"),
+						model.NewColumnRef("products.name"),
 						"ILIKE",
 						model.NewLiteral("%foo%"),
 					),
@@ -530,7 +546,7 @@ func Test_arrayType(t *testing.T) {
 						model.NewCountFunc(),
 					},
 					WhereClause: model.NewInfixExpr(
-						model.NewColumnRef("products_sku"),
+						model.NewColumnRef("products.sku"),
 						"=",
 						model.NewLiteral("'XYZ'"),
 					),
