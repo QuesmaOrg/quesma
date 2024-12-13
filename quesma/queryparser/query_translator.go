@@ -23,7 +23,7 @@ type ClickhouseQueryTranslator struct {
 	Ctx    context.Context
 
 	DateMathRenderer    string                        // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
-	searchAfterStrategy model.SearchAfterStrategyType // usually left as default in the constructor, so SearchAfterStrategyFoolproof
+	searchAfterStrategy model.SearchAfterStrategyType // usually left as default in the constructor, so SearchAfterStrategyBasicAndFast until Foolproof fully implemented
 
 	Indexes []string
 

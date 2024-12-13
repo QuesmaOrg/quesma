@@ -116,7 +116,6 @@ func TestApplyStrategyAndTransformQuery(t *testing.T) {
 		{[]any{int64(1)}, oneRealQuery(), withWhere(oneRealQuery(), 1)},
 	}
 
-	//foolproof := SearchAfterStrategyFactory(Foolproof, ColumnRef{})
 	basicAndFast := SearchAfterStrategyFactory(BasicAndFast, ColumnRef{})
 	for i, tc := range testcases {
 		t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {

@@ -39,10 +39,11 @@ const (
 	BasicAndFast SearchAfterStrategyType = iota // default for a second
 	Foolproof
 	JustDiscardTheParameter
+	emptySearchAfterTs = int64(-1)
 )
 
 func (s SearchAfterStrategyType) String() string {
-	return []string{"Foolproof", "BasicAndFast", "JustDiscardTheParameter"}[s]
+	return []string{"BasicAndFast", "Foolproof", "JustDiscardTheParameter"}[s]
 }
 
 // ---------------------------------------------------------------------------------
@@ -53,13 +54,11 @@ type (
 	SearchAfterStrategyFoolproof struct {
 		timestampField ColumnRef
 	}
-	searchAfterFoolproof struct {
+	searchAfterParsedFoolproof struct {
 		timestampMs int64
 		pkHashes    []string // md5 for now, should be improved to shorten hashes lengths
 	}
 )
-
-const emptySearchAfterTs = int64(-1)
 
 // Validate validates the 'searchAfter', which is what came from the request's search_after field.
 func (s SearchAfterStrategyFoolproof) Validate(searchAfter any) error {
@@ -68,8 +67,8 @@ func (s SearchAfterStrategyFoolproof) Validate(searchAfter any) error {
 	return err
 }
 
-func (s SearchAfterStrategyFoolproof) validateAndParse(searchAfter any) (searchAfterFoolproof, error) {
-	empty := searchAfterFoolproof{timestampMs: emptySearchAfterTs}
+func (s SearchAfterStrategyFoolproof) validateAndParse(searchAfter any) (searchAfterParsedFoolproof, error) {
+	empty := searchAfterParsedFoolproof{timestampMs: emptySearchAfterTs}
 	logger.Debug().Msgf("searchAfter: %v", searchAfter)
 	if searchAfter == nil {
 		return empty, nil
@@ -88,13 +87,13 @@ func (s SearchAfterStrategyFoolproof) validateAndParse(searchAfter any) (searchA
 		if shouldBeTimestamp >= 0 && util.IsFloat64AnInt64(shouldBeTimestamp) {
 			timestampMs = int64(shouldBeTimestamp)
 		} else {
-			return empty, fmt.Errorf("for basic_and_fast strategy, search_after must be a unix timestamp in milliseconds")
+			return empty, fmt.Errorf("for foolproof strategy, search_after[0] must be a unix timestamp in milliseconds")
 		}
 	} else {
-		return empty, fmt.Errorf("for basic_and_fast strategy, search_after must be an integer")
+		return empty, fmt.Errorf("for foolproof strategy, search_after must be an integer")
 	}
 
-	return searchAfterFoolproof{timestampMs: timestampMs, pkHashes: make([]string, 0)}, nil
+	return searchAfterParsedFoolproof{timestampMs: timestampMs, pkHashes: make([]string, 0)}, nil // TODO add parsing pk hashes
 }
 
 func (s SearchAfterStrategyFoolproof) ApplyStrategyAndTransformQuery(query *Query, searchAfterRaw any) *Query {
@@ -136,10 +135,6 @@ func (s SearchAfterStrategyJustDiscardTheParameter) DoSomethingWithHitsResult(*S
 // | First, simple strategy: BasicAndFast |
 // ----------------------------------------
 
-type SearchAfterStrategyBasicAndFastParamType int64
-
-const EmptySearchAfter = SearchAfterStrategyBasicAndFastParamType(-1)
-
 type SearchAfterStrategyBasicAndFast struct {
 	timestampField ColumnRef
 }
@@ -149,38 +144,38 @@ func (s SearchAfterStrategyBasicAndFast) Validate(searchAfter any) error {
 	return err
 }
 
-func (s SearchAfterStrategyBasicAndFast) validateAndParse(searchAfter any) (SearchAfterStrategyBasicAndFastParamType, error) {
+func (s SearchAfterStrategyBasicAndFast) validateAndParse(searchAfter any) (timestampMs int64, err error) {
 	fmt.Println("searchAfter: ", searchAfter)
 	if searchAfter == nil {
-		return EmptySearchAfter, nil
+		return emptySearchAfterTs, nil
 	}
 
 	asArray, ok := searchAfter.([]any)
 	if !ok {
-		return EmptySearchAfter, fmt.Errorf("search_after must be an array")
+		return emptySearchAfterTs, fmt.Errorf("search_after must be an array")
 	}
 
 	if len(asArray) != 1 {
-		return EmptySearchAfter, fmt.Errorf("for basic_and_fast strategy, search_after must have exactly one element")
+		return emptySearchAfterTs, fmt.Errorf("for basic_and_fast strategy, search_after must have exactly one element")
 	}
 	if shouldBeTimestamp, ok := util.ExtractNumeric64Maybe(asArray[0]); ok {
 		if shouldBeTimestamp >= 0 && util.IsFloat64AnInt64(shouldBeTimestamp) {
-			return SearchAfterStrategyBasicAndFastParamType(int64(shouldBeTimestamp)), nil
+			return int64(shouldBeTimestamp), nil
 		}
-		return EmptySearchAfter, fmt.Errorf("for basic_and_fast strategy, search_after must be a unix timestamp in milliseconds")
+		return emptySearchAfterTs, fmt.Errorf("for basic_and_fast strategy, search_after must be a unix timestamp in milliseconds")
 	}
-	return EmptySearchAfter, fmt.Errorf("for basic_and_fast strategy, search_after must be an integer")
+	return emptySearchAfterTs, fmt.Errorf("for basic_and_fast strategy, search_after must be an integer")
 }
 
 func (s SearchAfterStrategyBasicAndFast) ApplyStrategyAndTransformQuery(query *Query, searchAfterRaw any) *Query {
 	searchAfterTs, _ := s.validateAndParse(searchAfterRaw) // we validate during parsing and error there. No need to check here.
-	if searchAfterTs == EmptySearchAfter {
+	if searchAfterTs == emptySearchAfterTs {
 		return query
 	}
 	timestampRangeClause := NewInfixExpr(s.timestampField, "<", NewFunction("fromUnixTimestamp64Milli", NewLiteral(searchAfterTs)))
-	// logger.Info().Msgf("search_after_ts: %d, query before: %v", searchAfterTs, AsString(query.SelectCommand))
+	logger.Debug().Msgf("search_after_ts: %d, query before: %v", searchAfterTs, AsString(query.SelectCommand))
 	query.SelectCommand.WhereClause = And([]Expr{query.SelectCommand.WhereClause, timestampRangeClause})
-	// logger.Info().Msgf("query after: %v", AsString(query.SelectCommand))
+	logger.Debug().Msgf("query after search_after transformation: %v", AsString(query.SelectCommand))
 	return query
 }
 

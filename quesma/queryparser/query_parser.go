@@ -49,7 +49,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	}
 
 	var queries []*model.Query
-	fmt.Println("simpleQuery", simpleQuery, "hitsInfo", hitsInfo, "highlighter", highlighter)
+
 	// countQuery will be added later, depending on pancake optimization
 	countQuery := cw.buildCountQueryIfNeeded(simpleQuery, hitsInfo)
 
@@ -110,7 +110,6 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 
 func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	simpleQuery *model.SimpleQuery, queryInfo model.HitsCountInfo, highlighter model.Highlighter) *model.Query {
-	fmt.Println("NO JESTEM TU WTF", queryInfo.Type)
 	var fullQuery *model.Query
 	switch queryInfo.Type {
 	case model.ListByField:
@@ -1068,7 +1067,6 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.H
 	if !ok {
 		return model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
 	}
-	fmt.Println("WTTTTF", fields)
 	if len(fields) > 1 {
 		fieldNames := make([]string, 0)
 		for _, field := range fields {
