@@ -101,7 +101,6 @@ func (query *IpPrefix) AggregationType() model.AggregationType {
 }
 
 func (query *IpPrefix) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	fmt.Println(rows)
 	var netmask, keySuffix string
 	if !query.isIpv6 {
 		netmask = query.calcNetMask()
