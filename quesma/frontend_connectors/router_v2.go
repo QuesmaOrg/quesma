@@ -5,6 +5,7 @@ package frontend_connectors
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -77,6 +78,23 @@ type RouterV2 struct {
 	PhoneHomeAgent          telemetry.PhoneHomeAgent
 	HttpClient              *http.Client
 	FailedRequests          atomic.Int64
+}
+
+func NewRouterV2(config *config.QuesmaConfiguration, qmc *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent) *RouterV2 {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
+	}
+	return &RouterV2{
+		Config:                  config,
+		RequestPreprocessors:    quesma_api.ProcessorChain{},
+		QuesmaManagementConsole: qmc,
+		PhoneHomeAgent:          agent,
+		HttpClient:              client,
+	}
 }
 
 func (r *RouterV2) RegisterPreprocessor(preprocessor quesma_api.RequestPreprocessor) {
@@ -186,11 +204,12 @@ func (r *RouterV2) elasticFallback(decision *quesma_api.Decision,
 	}
 
 	if sendToElastic {
-		resolveIndexPattern := func(ctx context.Context, pattern string) ([]string, error) {
-			return logManager.ResolveIndexPattern(ctx, schemaRegistry, pattern)
+		if logManager != nil {
+			resolveIndexPattern := func(ctx context.Context, pattern string) ([]string, error) {
+				return logManager.ResolveIndexPattern(ctx, schemaRegistry, pattern)
+			}
+			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(OpaqueIdHeaderKey), resolveIndexPattern)
 		}
-		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(OpaqueIdHeaderKey), resolveIndexPattern)
-
 		rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 		response := rawResponse.response
 		if response != nil {
