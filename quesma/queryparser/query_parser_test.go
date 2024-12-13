@@ -29,7 +29,7 @@ import (
 func TestQueryParserStringAttrConfig(t *testing.T) {
 	tableName := "logs-generic-default"
 	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
-		( "message" String, "@timestamp" DateTime64(3, 'UTC') )
+		( "message" String, "@timestamp" DateTime64(3, 'UTC'), "attributes_values" Map(String,String))
 		ENGINE = Memory`,
 		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
 	)
@@ -48,6 +48,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
 					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+					"task.enabled":      {PropertyName: "task.enabled", InternalPropertyName: "task_enabled", Type: schema.QuesmaTypeBoolean},
 					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
 					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
 					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
@@ -156,7 +157,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 func TestQueryParserNoAttrsConfig(t *testing.T) {
 	tableName := "logs-generic-default"
 	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
-		( "message" String, "@timestamp" DateTime64(3, 'UTC') )
+		( "message" String, "@timestamp" DateTime64(3, 'UTC'), "attributes_values" Map(String,String)))
 		ENGINE = Memory`,
 		clickhouse.NewChTableConfigNoAttrs(),
 	)

@@ -214,11 +214,13 @@ func (s *schemaRegistry) populateAliases(indexConfiguration config.IndexConfigur
 }
 
 func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[string]Table, indexName string, fields map[FieldName]Field, internalToPublicFieldsEncodings map[EncodedFieldName]string) (existsInDataSource bool) {
+
 	tableDefinition, found := definitions[indexName]
 	if found {
 		logger.Debug().Msgf("loading schema for table %s", indexName)
 
 		for _, column := range tableDefinition.Columns {
+
 			var propertyName FieldName
 			if internalField, ok := internalToPublicFieldsEncodings[EncodedFieldName(column.Name)]; ok {
 				propertyName = FieldName(internalField)

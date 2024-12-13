@@ -16,7 +16,6 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/queryparser/lucene"
 	"quesma/quesma/types"
-	"quesma/schema"
 	"quesma/util"
 	"strconv"
 	"strings"
@@ -894,38 +893,10 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid exists type: %T, value: %v", v, v)
 			return model.NewSimpleQuery(nil, false)
 		}
-		fieldName = cw.ResolveField(cw.Ctx, fieldName)
-		fieldNameQuoted := strconv.Quote(fieldName)
 
-		switch cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName)) {
-		case clickhouse.ExistsAndIsBaseType:
-			sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
-		case clickhouse.ExistsAndIsArray:
-			sql = model.NewInfixExpr(model.NewNestedProperty(
-				model.NewColumnRef(fieldName),
-				model.NewLiteral("size0"),
-			), "=", model.NewLiteral("0"))
-		case clickhouse.NotExists:
-			// TODO this is a workaround for the case when the field is a point
-			schemaInstance := cw.Schema
-			if value, ok := schemaInstance.ResolveFieldByInternalName(fieldName); ok && value.Type.Equal(schema.QuesmaTypePoint) {
-				return model.NewSimpleQuery(sql, true)
-			}
-
-			attrs := cw.Table.GetAttributesList()
-			stmts := make([]model.Expr, len(attrs))
-			for i, a := range attrs {
-				hasFunc := model.NewFunction("has", []model.Expr{model.NewColumnRef(a.KeysArrayName), model.NewColumnRef(fieldName)}...)
-				arrayAccess := model.NewArrayAccess(model.NewColumnRef(a.ValuesArrayName), model.NewFunction("indexOf", []model.Expr{model.NewColumnRef(a.KeysArrayName), model.NewLiteral(fieldNameQuoted)}...))
-				isNotNull := model.NewInfixExpr(arrayAccess, "IS", model.NewLiteral("NOT NULL"))
-				compoundStatementNoFieldName := model.NewInfixExpr(hasFunc, "AND", isNotNull)
-				stmts[i] = compoundStatementNoFieldName
-			}
-			sql = model.Or(stmts)
-		default:
-			logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T for exists: %s", cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName)), fieldName)
-		}
+		sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 	}
+
 	return model.NewSimpleQuery(sql, true)
 }
 
