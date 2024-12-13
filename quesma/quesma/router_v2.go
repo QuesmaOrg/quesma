@@ -65,8 +65,9 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, ip *ingest.IngestP
 			}
 
 			return &quesma_api.Result{
-				Body:       string(responseBytes),
-				StatusCode: errorResponse.Status,
+				Body:          string(responseBytes),
+				StatusCode:    errorResponse.Status,
+				GenericResult: responseBytes,
 			}, nil
 		}
 
@@ -76,8 +77,9 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, ip *ingest.IngestP
 		}
 
 		return &quesma_api.Result{
-			Body:       string(responseBytes),
-			StatusCode: http.StatusOK,
+			Body:          string(responseBytes),
+			StatusCode:    http.StatusOK,
+			GenericResult: responseBytes,
 		}, nil
 	})
 
@@ -97,16 +99,18 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, ip *ingest.IngestP
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
 			return &quesma_api.Result{
-				Body:       string(queryparser.BadRequestParseError(err)),
-				StatusCode: http.StatusBadRequest,
+				Body:          string(queryparser.BadRequestParseError(err)),
+				StatusCode:    http.StatusBadRequest,
+				GenericResult: queryparser.BadRequestParseError(err),
 			}, nil
 		}
 
 		result, err := doc.Write(ctx, &index, body, ip, cfg, phoneHomeAgent, tableResolver)
 		if err != nil {
 			return &quesma_api.Result{
-				Body:       string(queryparser.BadRequestParseError(err)),
-				StatusCode: http.StatusBadRequest,
+				Body:          string(queryparser.BadRequestParseError(err)),
+				StatusCode:    http.StatusBadRequest,
+				GenericResult: queryparser.BadRequestParseError(err),
 			}, nil
 		}
 
@@ -171,14 +175,14 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 		cnt, err := queryRunner.handleCount(ctx, req.Params["index"])
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
 			} else {
 				return nil, err
 			}
 		}
 
 		if cnt == -1 {
-			return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
+			return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
 		} else {
 			return elasticsearchCountResult(cnt, http.StatusOK)
 		}
@@ -198,7 +202,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 		responseBody, err := queryRunner.handleSearch(ctx, "*", body)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
 			} else {
 				return nil, err
 			}
@@ -216,11 +220,12 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 		responseBody, err := queryRunner.handleSearch(ctx, req.Params["index"], body)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
 			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 				return &quesma_api.Result{
-					Body:       string(queryparser.BadRequestParseError(err)),
-					StatusCode: http.StatusBadRequest,
+					Body:          string(queryparser.BadRequestParseError(err)),
+					StatusCode:    http.StatusBadRequest,
+					GenericResult: queryparser.BadRequestParseError(err),
 				}, nil
 			} else {
 				return nil, err
@@ -252,11 +257,12 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 		responseBody, err := queryRunner.handleAsyncSearch(ctx, req.Params["index"], body, waitForResultsMs, keepOnCompletion)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
 			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 				return &quesma_api.Result{
-					Body:       string(queryparser.BadRequestParseError(err)),
-					StatusCode: http.StatusBadRequest,
+					Body:          string(queryparser.BadRequestParseError(err)),
+					StatusCode:    http.StatusBadRequest,
+					GenericResult: queryparser.BadRequestParseError(err),
 				}, nil
 			} else {
 				return nil, err
@@ -274,7 +280,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 
 			foundSchema, found := sr.FindSchema(schema.IndexName(index))
 			if !found {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
 			}
 
 			hierarchicalSchema := schema.SchemaToHierarchicalSchema(&foundSchema)
@@ -338,7 +344,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 				if req.QueryParams.Get("allow_no_indices") == "true" || req.QueryParams.Get("ignore_unavailable") == "true" {
 					return elasticsearchQueryResult(string(field_capabilities.EmptyFieldCapsResponse()), http.StatusOK), nil
 				}
-				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
 			} else {
 				return nil, err
 			}
@@ -375,7 +381,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 		responseBody, err := queryRunner.handleEQLSearch(ctx, req.Params["index"], body)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
 			} else {
 				return nil, err
 			}
@@ -392,7 +398,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 
 			foundSchema, found := sr.FindSchema(schema.IndexName(index))
 			if !found {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
+				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
 			}
 
 			hierarchicalSchema := schema.SchemaToHierarchicalSchema(&foundSchema)
@@ -454,7 +460,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, sr schema.Registry
 			return nil, err
 		}
 
-		return &quesma_api.Result{Body: string(body), StatusCode: http.StatusOK}, nil
+		return &quesma_api.Result{Body: string(body), StatusCode: http.StatusOK, GenericResult: body}, nil
 	})
 
 	return router
