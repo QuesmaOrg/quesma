@@ -91,7 +91,7 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
 		_ = zip
 		if err == nil {
-
+			AddProductAndContentHeaders(req.Header, w.Header())
 		} else {
 
 		}

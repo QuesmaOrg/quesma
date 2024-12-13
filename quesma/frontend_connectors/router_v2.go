@@ -261,7 +261,7 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 			logger.Debug().Ctx(ctx).Msg("responding from quesma")
 			unzipped := []byte{}
 			if quesmaResponse != nil {
-				unzipped = []byte(quesmaResponse.Body)
+				unzipped = quesmaResponse.GenericResult.([]byte)
 			}
 			if len(unzipped) == 0 {
 				logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)

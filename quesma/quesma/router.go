@@ -497,7 +497,7 @@ func elasticsearchQueryResult(body string, statusCode int) *quesma_api.Result {
 		// TODO copy paste from the original request
 		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode,
-		GenericResult: body}
+		GenericResult: []byte(body)}
 }
 
 var ingestWarning sync.Once
@@ -541,7 +541,7 @@ func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*que
 		return &quesma_api.Result{
 			Body:          msg,
 			StatusCode:    httpCode,
-			GenericResult: msg,
+			GenericResult: []byte(msg),
 		}, nil
 	}
 
@@ -571,7 +571,7 @@ func elasticsearchInsertResult(body string, statusCode int) *quesma_api.Result {
 		frontend_connectors.ContentTypeHeaderKey: "application/json",
 		"X-Quesma-Headers-Source":                "Quesma",
 	}, StatusCode: statusCode,
-		GenericResult: body}
+		GenericResult: []byte(body)}
 }
 
 func resolveIndexResult(sources elasticsearch.Sources) (*quesma_api.Result, error) {
