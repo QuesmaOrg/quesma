@@ -30,7 +30,7 @@ func CheckParamsIpPrefix(ctx context.Context, paramsRaw any) error {
 		"keyed":                "bool",
 		"min_doc_count":        "int",
 	}
-	logIfYouSeeThemParams := []string{"min_doc_count"}
+	logIfYouSeeThemParams := []string{"min_doc_count"} // we don't use min_doc_count yet. We'll log if "is_ipv6" == true, also.
 
 	params, ok := paramsRaw.(model.JsonMap)
 	if !ok {
@@ -66,6 +66,9 @@ func CheckParamsIpPrefix(ctx context.Context, paramsRaw any) error {
 		if _, exists := params[warnParam]; exists {
 			logger.WarnWithCtx(ctx).Msgf("we didn't expect %s in IP Range params %v", warnParam, params)
 		}
+	}
+	if isIpv6, exists := params["is_ipv6"]; exists && isIpv6.(bool) == true {
+		logger.WarnWithCtx(ctx).Msgf("is_ipv6 is true in IP Range params %v, we don't support IPv6 yet", params)
 	}
 
 	return nil
