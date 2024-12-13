@@ -67,7 +67,7 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent,
 
 	statistics := diag.NewStatistics(phoneHomeAgent, quesmaManagementConsole)
 
-	dependencies := quesma_v2.NewDI()
+	dependencies := quesma_v2.NewDependencies()
 	dependencies.Diagnostic = statistics
 
 	if v2 {

@@ -6,19 +6,26 @@ import (
 	"quesma_v2/core/diag"
 )
 
+// Here are interfaces that are used to inject dependencies into structs.
+// Component that require a dependency should implement the corresponding interface.
+//
+
 type DiagnosticInjector interface {
 	InjectDiagnostic(s diag.Diagnostic)
 }
+
+// Dependencies is a struct that contains all the dependencies that can be injected during Quesma building.
 
 type Dependencies struct {
 	Diagnostic diag.Diagnostic
 }
 
-func NewDI() *Dependencies {
+func NewDependencies() *Dependencies {
 	return &Dependencies{}
 }
 
-func (d *Dependencies) InjectDependencies(a any) {
+// InjectDependenciesInto injects dependencies into a component. This is indented to use in Quesma building process only.
+func (d *Dependencies) InjectDependenciesInto(a any) {
 
 	if injector, ok := a.(DiagnosticInjector); ok {
 		injector.InjectDiagnostic(d.Diagnostic)

@@ -7,29 +7,35 @@ import (
 	"testing"
 )
 
-type someComponent struct {
+type componentWithDependency struct {
 	diag diag.Diagnostic
 }
 
-func (sc *someComponent) InjectDiagnostic(d diag.Diagnostic) {
+func (sc *componentWithDependency) InjectDiagnostic(d diag.Diagnostic) {
 	sc.diag = d
+}
+
+type componentWithoutDependencyInjection struct {
+	diag diag.Diagnostic
 }
 
 func Test_dependencyInjection(t *testing.T) {
 
-	deps := NewDI()
+	deps := NewDependencies()
+	deps.Diagnostic = diag.EmptyDiagnostic()
 
-	diagnostic := diag.EmptyDiagnostic()
-	deps.Diagnostic = diagnostic
+	component1 := &componentWithDependency{}
+	component2 := &componentWithoutDependencyInjection{}
 
-	sc := &someComponent{}
+	deps.InjectDependenciesInto(component1)
+	deps.InjectDependenciesInto(component2)
 
-	deps.InjectDependencies(sc)
-
-	if sc.diag == nil {
+	if component1.diag == nil {
 		t.Errorf("Expected diagnostic to be injected")
 	}
 
-
+	if component2.diag != nil {
+		t.Errorf("Expected diagnostic not to be injected")
+	}
 
 }
