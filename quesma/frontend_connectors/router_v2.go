@@ -213,14 +213,14 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
 
-	quesmaRequest, ctx, err := r.preprocessRequest(ctx, &quesma_api.Request{
+	quesmaRequest, ctx, err := preprocessRequest(ctx, &quesma_api.Request{
 		Method:      req.Method,
 		Path:        strings.TrimSuffix(req.URL.Path, "/"),
 		Params:      map[string]string{},
 		Headers:     req.Header,
 		QueryParams: req.URL.Query(),
 		Body:        string(reqBody),
-	})
+	}, r.RequestPreprocessors)
 
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Error preprocessing request: %v", err)
@@ -278,10 +278,10 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 }
 
-func (r *RouterV2) preprocessRequest(ctx context.Context, quesmaRequest *quesma_api.Request) (*quesma_api.Request, context.Context, error) {
+func preprocessRequest(ctx context.Context, quesmaRequest *quesma_api.Request, requestPreprocessors quesma_api.ProcessorChain) (*quesma_api.Request, context.Context, error) {
 	var err error
 	var processedRequest = quesmaRequest
-	for _, preprocessor := range r.RequestPreprocessors {
+	for _, preprocessor := range requestPreprocessors {
 		ctx, processedRequest, err = preprocessor.PreprocessRequest(ctx, processedRequest)
 		if err != nil {
 			return nil, nil, err
