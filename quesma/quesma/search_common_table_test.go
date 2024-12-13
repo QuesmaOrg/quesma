@@ -184,6 +184,9 @@ func TestSearchCommonTable(t *testing.T) {
 	}
 	tableMap := clickhouse.NewTableMap()
 
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tableMap
+
 	schemaRegistry.Tables["logs-1"] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
 			"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
@@ -322,7 +325,8 @@ func TestSearchCommonTable(t *testing.T) {
 
 				mock.ExpectQuery(query).WillReturnRows(rows)
 			}
-			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver)
+
+			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
 			queryRunner.maxParallelQueries = 0
 
 			_, err = queryRunner.handleSearch(ctx, tt.IndexPattern, types.MustJSON(tt.QueryJson))
