@@ -56,10 +56,15 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 		QueryParams: req.URL.Query(),
 		Body:        string(reqBody),
 	}
-	handlerWrapper, _ := h.router.Matches(quesmaRequest)
+	handlersPipe, decision := h.router.Matches(quesmaRequest)
+	if decision != nil {
+		w.Header().Set(QuesmaTableResolverHeader, decision.String())
+	} else {
+		w.Header().Set(QuesmaTableResolverHeader, "n/a")
+	}
 	dispatcher := &quesma_api.Dispatcher{}
 	w = h.responseMutator(w)
-	if handlerWrapper == nil {
+	if handlersPipe == nil {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if h.router.GetFallbackHandler() != nil {
 				fmt.Printf("No handler found for path: %s\n", req.URL.Path)
@@ -74,10 +79,23 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 		return
 	}
 	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		result, _ := handlerWrapper.Handler(context.Background(), &quesma_api.Request{OriginalRequest: req})
+		result, _ := handlersPipe.Handler(context.Background(), &quesma_api.Request{OriginalRequest: req})
 
-		_, message := dispatcher.Dispatch(handlerWrapper.Processors, result.Meta, result.GenericResult)
-		_, err := w.Write(message.([]byte))
+		metadata, message := dispatcher.Dispatch(handlersPipe.Processors, result.Meta, result.GenericResult)
+		result = &quesma_api.Result{
+			Body:          result.Body,
+			Meta:          metadata,
+			StatusCode:    result.StatusCode,
+			GenericResult: message,
+		}
+		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
+		_ = zip
+		if err == nil {
+
+		} else {
+
+		}
+		_, err := w.Write(result.GenericResult.([]byte))
 		if err != nil {
 			fmt.Printf("Error writing response: %s\n", err)
 		}
