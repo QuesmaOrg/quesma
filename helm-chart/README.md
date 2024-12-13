@@ -7,17 +7,17 @@ This Helm Chart runs Quesma demo on Kubernetes cluster. It has been tested on Mi
 
 1. Create values.yaml file based on the template file:
     ```shell
-    cp quesma/values.template.yaml quesma/values.yaml
+    cp quesma-demo/values.template.yaml quesma-demo/values.yaml
     ```
-2. Fill in the values in `values.yaml` file in the `config` section.
-   Alternatively, you can just edit the Quesma configuration in `quesma/templates/configmap.yml`.
+2. Fill in the values in `values.yaml` file in the `config.quesmaConfigurationYaml` section. 
+   This section is mapped directly to the quesma configuration file.
 3. Install the chart:
     ```shell
-    helm install quesma quesma/ -f quesma/values.yaml
+    helm install quesma-demo quesma-demo/ -f quesma-demo/values.yaml
     ``` 
 4. Profit!   
 
-This installs `quesma` helm chart from `quesma/` directory.
+This installs `quesma-demo` helm chart from `quesma-demo/` directory.
 
 You can access the services by setting up a minikube tunnel:
 ```
@@ -41,7 +41,7 @@ And then access the aforementioned URLs in your browser. You also need to keep t
 
 You can remove it anytime with
 ```bash
-helm uninstall quesma
+helm uninstall quesma-demo
 ```
 
 ### Local development 

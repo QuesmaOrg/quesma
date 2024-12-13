@@ -28,4 +28,4 @@ bin/.running-docker-compose
 docs/public/node_modules
 docs/public/docs/.vitepress/cache/deps
 docs/public/docs/.vitepress/dist
-helm-chart/quesma/values.yaml
+helm-chart/quesma-demo/values.yaml

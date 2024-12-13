@@ -1,6 +1,6 @@
 apiVersion: v2
-name: quesma
-description: A Helm chart for deploying Quesma
+name: quesma-demo
+description: A Helm chart for deploying Quesma MVP Demo with minimal Elasticsearch and Kibana
 
 # A chart can be either an 'application' or a 'library' chart.
 #
