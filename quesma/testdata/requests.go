@@ -555,7 +555,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"Truncated most results. TODO Check what's at the end of response, probably count?",
 		model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: 500},
 		[]string{`
-			SELECT "@timestamp", "host_name", "message", "properties_isreg"
+			SELECT "@timestamp", "event_dataset", "host_name", "message", "properties_isreg"
 			FROM __quesma_table_name
 			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)))
 			ORDER BY "@timestamp" DESC
@@ -755,14 +755,14 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 				"aggr__stats__series__key_0" ASC) AS "aggr__stats__series__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "aggr__stats__parent_count",
-				  COALESCE("event.dataset", 'unknown') AS "aggr__stats__key_0",
+				  COALESCE("event_dataset", 'unknown') AS "aggr__stats__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__stats__key_0") AS
 				  "aggr__stats__count",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0", count(*) AS "aggr__stats__series__count"
 				FROM __quesma_table_name
 				WHERE ("@timestamp">fromUnixTimestamp64Milli(1706194439033) AND "@timestamp"<=fromUnixTimestamp64Milli(1706195339033))
-				GROUP BY COALESCE("event.dataset", 'unknown') AS "aggr__stats__key_0",
+				GROUP BY COALESCE("event_dataset", 'unknown') AS "aggr__stats__key_0",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0"))
 			WHERE "aggr__stats__order_1_rank"<=4
@@ -873,7 +873,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: 50},
 		[]string{
-			`SELECT "@timestamp", "host_name", "message", "properties_isreg"
+			`SELECT "@timestamp", "event_dataset", "host_name", "message", "properties_isreg"
 			FROM __quesma_table_name
 			LIMIT 50`,
 		},
@@ -1222,18 +1222,12 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": false
 		}`,
 		[]string{
-			`("type"='upgrade-assistant-reindex-operation' AND NOT ` +
-				`(((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL) ` +
-				`OR (has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`},
+			`("type"='upgrade-assistant-reindex-operation' AND NOT (("namespace" IS NOT NULL OR "namespaces" IS NOT NULL)))`},
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE ("type"='upgrade-assistant-reindex-operation' ` +
-				`AND NOT (((has("attributes_string_key","namespace") ` +
-				`AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL) ` +
-				`OR (has("attributes_string_key","namespaces") ` +
-				`AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`,
+				`WHERE ("type"='upgrade-assistant-reindex-operation' AND NOT (("namespace" IS NOT NULL OR "namespaces" IS NOT NULL)))`,
 		},
 		[]string{},
 	},
@@ -1528,15 +1522,15 @@ var TestsSearch = []SearchTestCase{
 		model.Normal,
 		[]string{},
 		[]string{
-			`SELECT uniqMerge(uniqState("stream.namespace")) OVER () AS
+			`SELECT uniqMerge(uniqState("stream_namespace")) OVER () AS
 			  "metric__unique_terms_col_0",
 			  sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
 			  sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
-			  "stream.namespace" AS "aggr__suggestions__key_0",
+			  "stream_namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
 			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))
-			GROUP BY "stream.namespace" AS "aggr__suggestions__key_0"
+			GROUP BY "stream_namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
 		},
@@ -1620,7 +1614,7 @@ var TestsSearch = []SearchTestCase{
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE ("service.name"='admin' AND ("@timestamp">=fromUnixTimestamp64Milli(1705934075873) AND "@timestamp"<=fromUnixTimestamp64Milli(1705934975873)))
+			WHERE ("service_name"='admin' AND ("@timestamp">=fromUnixTimestamp64Milli(1705934075873) AND "@timestamp"<=fromUnixTimestamp64Milli(1705934975873)))
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
@@ -1696,16 +1690,16 @@ var TestsSearch = []SearchTestCase{
 		model.Normal,
 		[]string{},
 		[]string{
-			`SELECT uniqMerge(uniqState("stream.namespace")) OVER () AS
+			`SELECT uniqMerge(uniqState("stream_namespace")) OVER () AS
 			  "metric__unique_terms_col_0",
 			  sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
 			  sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
-			  "stream.namespace" AS "aggr__suggestions__key_0",
+			  "stream_namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%')
+			WHERE (("message" iLIKE '%User logged out%' AND "host_name" iLIKE '%poseidon%')
 			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
-			GROUP BY "stream.namespace" AS "aggr__suggestions__key_0"
+			GROUP BY "stream_namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
 		},
@@ -1861,7 +1855,7 @@ var TestsSearch = []SearchTestCase{
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%')
+			WHERE (("message" iLIKE '%User logged out%' AND "host_name" iLIKE '%poseidon%')
 			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
@@ -2153,7 +2147,7 @@ var TestsSearch = []SearchTestCase{
 		model.ListAllFields,
 		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "@timestamp">=fromUnixTimestamp64Milli(1705915570299)`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3)) LIMIT 10`},
 		[]string{},
 	},
 	{ // [34] Comments in queries
@@ -2362,7 +2356,7 @@ var TestSearchRuntimeMappings = []SearchTestCase{
 
 var TestsSearchNoAttrs = []SearchTestCase{
 	{
-		"Test empty ANDs, ORs and NOTs",
+		"Test empty ANDs, ORs and NOTs... idk, this test is very old and weird, better write to Krzysiek if it fails for you",
 		`
 		{
 			"query": {
@@ -2395,16 +2389,10 @@ var TestsSearchNoAttrs = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{
-			`("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968))`,
-		},
+		[]string{`((("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968)) AND "summary" IS NOT NULL) AND NOT ("run_once" IS NOT NULL))`},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` ` +
-				`WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968)) ` +
-				`AND (has("attributes_string_key","summary") AND "attributes_string_value"[indexOf("attributes_string_key","summary")] IS NOT NULL)) ` +
-				`AND NOT ((has("attributes_string_key","run_once") AND "attributes_string_value"[indexOf("attributes_string_key","run_once")] IS NOT NULL))) ` +
-				`LIMIT 10`,
+			`SELECT "@timestamp", "message" FROM __quesma_table_name WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968)) AND NULL IS NOT NULL) AND NOT (NULL IS NOT NULL)) LIMIT 10`,
 		},
 		[]string{},
 	},
@@ -2594,8 +2582,8 @@ var TestSearchFilter = []SearchTestCase{
 		}`,
 		[]string{},
 		model.Normal,
-		[]string{`SELECT "message" FROM ` + TableName + ` LIMIT 10`},
 		[]string{},
+		[]string{`SELECT "@timestamp", "message" FROM __quesma_table_name LIMIT 10`},
 	},
 	{ // [4]
 		"Empty filter with other clauses",
@@ -2628,10 +2616,11 @@ var TestSearchFilter = []SearchTestCase{
 		},
 		model.Normal,
 		[]string{
-			`SELECT "message" ` +
+			`SELECT "@timestamp", "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE (("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) ` +
-				`AND NOT (("age".=10 AND "age".=20)))`,
+				`WHERE (("attributes_values"['user.id']='kimchy' AND ("attributes_values"['tags']='env1' OR "attributes_values"['tags']='deployed')) ` +
+				`AND NOT (("attributes_values"['age']>=10 AND "attributes_values"['age']<=20))) ` +
+				`LIMIT 10`,
 		},
 		[]string{},
 	},

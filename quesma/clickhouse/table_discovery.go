@@ -80,11 +80,25 @@ type TableDiscoveryTableProviderAdapter struct {
 }
 
 func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema.Table {
+
+	// here we filter out our internal columns
+
+	internalColumn := make(map[string]bool)
+	internalColumn[AttributesValuesColumn] = true
+	internalColumn[AttributesMetadataColumn] = true
+	internalColumn[DeprecatedAttributesKeyColumn] = true
+	internalColumn[DeprecatedAttributesValueColumn] = true
+	internalColumn[DeprecatedAttributesValueType] = true
+
 	tableMap := t.TableDiscovery.TableDefinitions()
 	tables := make(map[string]schema.Table)
 	tableMap.Range(func(tableName string, value *Table) bool {
 		table := schema.Table{Columns: make(map[string]schema.Column)}
 		for _, column := range value.Cols {
+			if internalColumn[column.Name] {
+				continue
+			}
+
 			table.Columns[column.Name] = schema.Column{
 				Name:    column.Name,
 				Type:    column.Type.String(),
@@ -294,13 +308,6 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]colum
 
 func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg *config.QuesmaConfiguration) {
 
-	internalColumn := make(map[string]bool)
-	internalColumn[AttributesValuesColumn] = true
-	internalColumn[AttributesMetadataColumn] = true
-	internalColumn[DeprecatedAttributesKeyColumn] = true
-	internalColumn[DeprecatedAttributesValueColumn] = true
-	internalColumn[DeprecatedAttributesValueType] = true
-
 	tableMap := NewTableMap()
 	for tableName, resTable := range configuredTables {
 		var columnsMap = make(map[string]*Column)
@@ -312,16 +319,16 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 					continue
 				}
 			}
-			if !internalColumn[col] {
-				column := resolveColumn(col, columnMeta.colType)
-				if column != nil {
-					column.Comment = columnMeta.comment
-					columnsMap[col] = column
-				} else {
-					logger.Warn().Msgf("column '%s.%s' type: '%s' not resolved. table will be skipped", tableName, col, columnMeta.colType)
-					partiallyResolved = true
-				}
+
+			column := resolveColumn(col, columnMeta.colType)
+			if column != nil {
+				column.Comment = columnMeta.comment
+				columnsMap[col] = column
+			} else {
+				logger.Warn().Msgf("column '%s.%s' type: '%s' not resolved. table will be skipped", tableName, col, columnMeta.colType)
+				partiallyResolved = true
 			}
+
 		}
 
 		var timestampFieldName *string

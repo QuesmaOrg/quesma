@@ -47,7 +47,7 @@ func (s SearchAfterStrategyType) String() string {
 }
 
 // ---------------------------------------------------------------------------------
-// | Foolproof, but might be a bit slower for gigantic datasets: (default for now) |
+// | Foolproof, but might be a bit slower for gigantic datasets                    |
 // ---------------------------------------------------------------------------------
 
 type (
@@ -131,9 +131,9 @@ func (s SearchAfterStrategyJustDiscardTheParameter) DoSomethingWithHitsResult(*S
 	// no-op
 }
 
-// ----------------------------------------
-// | First, simple strategy: BasicAndFast |
-// ----------------------------------------
+// -------------------------------------------------------------------
+// | First, simple strategy: BasicAndFast (default for just a second |
+// -------------------------------------------------------------------
 
 type SearchAfterStrategyBasicAndFast struct {
 	timestampField ColumnRef
