@@ -43,6 +43,13 @@ You can remove it anytime with
 ```bash
 helm uninstall quesma-demo
 ```
+ 
+If you make any changes to the chart you can upgrade it with
+```bash
+helm upgrade quesma-demo quesma-demo/ -f quesma-demo/values.yaml
+```
+Optionally, add `--force` flag if you made no changes in k8s object definitions but need (want? :|) to reapply the chart.
+
 
 ### Local development 
 
