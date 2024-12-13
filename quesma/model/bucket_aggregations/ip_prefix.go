@@ -67,7 +67,7 @@ func CheckParamsIpPrefix(ctx context.Context, paramsRaw any) error {
 			logger.WarnWithCtxAndThrottling(ctx, "ip_prefix", warnParam, "we didn't expect %s in IP Range params %v", warnParam, params)
 		}
 	}
-	if isIpv6, exists := params["is_ipv6"]; exists && isIpv6.(bool) == true {
+	if isIpv6, exists := params["is_ipv6"]; exists && isIpv6.(bool) {
 		logger.WarnWithCtxAndThrottling(ctx, "ip_prefix", "is_ipv6", "is_ipv6 is true in IP Range params %v, we don't support IPv6 yet", params)
 	}
 
