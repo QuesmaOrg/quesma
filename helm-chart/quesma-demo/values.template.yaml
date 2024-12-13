@@ -7,7 +7,7 @@ replicaCount: 1
 image:
   repository: quesma/quesma
   pullPolicy: Always # We might change to `IfNotPresent` in the future, but for now we're actively pushing :muscle:
-  tag: "{{ .Chart.AppVersion }}"
+  tag: "" # It's set in `deployment.yaml` template
 
 imagePullSecrets: []
 nameOverride: ""
