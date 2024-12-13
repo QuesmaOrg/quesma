@@ -64,11 +64,11 @@ func CheckParamsIpPrefix(ctx context.Context, paramsRaw any) error {
 	// log if you see them
 	for _, warnParam := range logIfYouSeeThemParams {
 		if _, exists := params[warnParam]; exists {
-			logger.WarnWithCtx(ctx).Msgf("we didn't expect %s in IP Range params %v", warnParam, params)
+			logger.WarnWithCtxAndThrottling(ctx, "ip_prefix", warnParam, "we didn't expect %s in IP Range params %v", warnParam, params)
 		}
 	}
 	if isIpv6, exists := params["is_ipv6"]; exists && isIpv6.(bool) == true {
-		logger.WarnWithCtx(ctx).Msgf("is_ipv6 is true in IP Range params %v, we don't support IPv6 yet", params)
+		logger.WarnWithCtxAndThrottling(ctx, "ip_prefix", "is_ipv6", "is_ipv6 is true in IP Range params %v, we don't support IPv6 yet", params)
 	}
 
 	return nil
