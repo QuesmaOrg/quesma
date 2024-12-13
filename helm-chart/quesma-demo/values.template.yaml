@@ -135,7 +135,7 @@ config:
         - name: my-minimal-elasticsearch
           type: elasticsearch
           config:
-            url: #PLACE_YOUR_ELASTICSEARCH_URL_HERE
+            url: "http://elasticsearch:9200"
         - name: my-sqldb-data-source
           type: #PLACE_YOUR_CONNECTOR_TYPE_HERE - `clickhouse`, `hydrolix` or `clickhouse-os`
           config:
