@@ -16,10 +16,8 @@ import (
 	"quesma/queryparser"
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
-	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
-	"quesma/telemetry"
 	"quesma/util"
 	quesma_api "quesma_v2/core"
 	"strconv"
@@ -72,8 +70,9 @@ func (q *dualWriteHttpProxyV2) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
-	queryProcessor := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, registry, abResultsRepository, resolver)
+func newDualWriteProxyV2(dependencies *quesma_api.Dependencies, schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
+
+	queryProcessor := NewQueryRunner(logManager, config, indexManager, dependencies.Diagnostic.DebugInfoCollector(), registry, abResultsRepository, resolver)
 	// not sure how we should configure our query translator ???
 	// is this a config option??
 
@@ -90,24 +89,24 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
 	}
 
-	routerInstance := frontend_connectors.RouterV2{PhoneHomeAgent: agent,
-		Config: config, QuesmaManagementConsole: quesmaManagementConsole,
+	routerInstance := frontend_connectors.RouterV2{
+		Config:     config,
 		HttpClient: client, RequestPreprocessors: quesma_api.ProcessorChain{}}
 	routerInstance.
 		RegisterPreprocessor(quesma_api.NewTraceIdPreprocessor())
-	agent.FailedRequestsCollector(func() int64 {
+	dependencies.Diagnostic.PhoneHomeAgent().FailedRequestsCollector(func() int64 {
 		return routerInstance.FailedRequests.Load()
 	})
 
-	ingestRouter := ConfigureIngestRouterV2(config, ingestProcessor, agent, resolver)
-	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, quesmaManagementConsole, queryProcessor, resolver)
+	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver)
+	searchRouter := ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
 
 	elasticHttpIngestFrontendConnector := NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		&routerInstance, logManager, registry, agent)
+		&routerInstance, logManager, registry)
 	elasticHttpIngestFrontendConnector.AddRouter(ingestRouter)
 
 	elasticHttpQueryFrontendConnector := NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		&routerInstance, logManager, registry, agent)
+		&routerInstance, logManager, registry)
 	elasticHttpQueryFrontendConnector.AddRouter(searchRouter)
 
 	quesmaBuilder := quesma_api.NewQuesma()
@@ -118,6 +117,7 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 	queryPipeline.AddFrontendConnector(elasticHttpQueryFrontendConnector)
 	quesmaBuilder.AddPipeline(ingestPipeline)
 	quesmaBuilder.AddPipeline(queryPipeline)
+	quesmaBuilder.SetDependencies(dependencies)
 	_, err := quesmaBuilder.Build()
 	if err != nil {
 		logger.Fatal().Msgf("Error building Quesma: %v", err)

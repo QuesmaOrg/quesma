@@ -15,8 +15,8 @@ import (
 	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
-	"quesma/telemetry"
 	mux "quesma_v2/core"
+	"quesma_v2/core/diag"
 	"testing"
 )
 
@@ -311,7 +311,7 @@ func TestSearchCommonTable(t *testing.T) {
 			indexManagement := elasticsearch.NewFixedIndexManagement()
 			lm := clickhouse.NewLogManagerWithConnection(db, tableMap)
 
-			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
+			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
 
 			for i, query := range tt.WantedSql {
 

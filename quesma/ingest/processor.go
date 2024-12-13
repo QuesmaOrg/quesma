@@ -25,6 +25,7 @@ import (
 	"quesma/telemetry"
 	"quesma/util"
 	"quesma_v2/core"
+	"quesma_v2/core/diag"
 	"slices"
 	"sort"
 	"strings"
@@ -61,7 +62,7 @@ type (
 		chDb                      *sql.DB
 		tableDiscovery            chLib.TableDiscovery
 		cfg                       *config.QuesmaConfiguration
-		phoneHomeAgent            telemetry.PhoneHomeAgent
+		phoneHomeAgent            diag.PhoneHomeClient
 		schemaRegistry            schema.Registry
 		ingestCounter             int64
 		ingestFieldStatistics     IngestFieldStatistics

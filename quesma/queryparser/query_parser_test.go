@@ -12,9 +12,9 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
-	"quesma/telemetry"
 	"quesma/testdata"
 	"quesma/util"
+	"quesma_v2/core/diag"
 	"strconv"
 	"strings"
 	"testing"
@@ -40,7 +40,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	cfg.IndexConfig["logs-generic-default"] = config.IndexConfiguration{}
 
-	lm := clickhouse.NewEmptyLogManager(&cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
+	lm := clickhouse.NewEmptyLogManager(&cfg, nil, diag.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
 	lm.AddTableIfDoesntExist(table)
 	s := schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
@@ -98,7 +98,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 		},
 		Created: true,
 	}
-	lm := clickhouse.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
+	lm := clickhouse.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, diag.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
 	lm.AddTableIfDoesntExist(&table)
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 

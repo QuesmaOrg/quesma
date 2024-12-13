@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"quesma/logger"
 	"quesma/quesma/config"
-	"quesma/telemetry"
 	"testing"
 	"time"
 )
@@ -18,7 +17,7 @@ func TestShouldExposePprof(t *testing.T) {
 
 	t.Skip("FIXME @pivovarit: this test is flaky, it should be fixed")
 
-	quesma := NewQuesmaTcpProxy(telemetry.NoopPhoneHomeAgent(), &config.QuesmaConfiguration{
+	quesma := NewQuesmaTcpProxy(&config.QuesmaConfiguration{
 		PublicTcpPort: 8080,
 		Elasticsearch: config.ElasticsearchConfiguration{Url: &config.Url{}},
 	}, nil, make(<-chan logger.LogWithLevel), false)
