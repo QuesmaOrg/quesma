@@ -29,7 +29,7 @@ import (
 func TestQueryParserStringAttrConfig(t *testing.T) {
 	tableName := "logs-generic-default"
 	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
-		( "message" String, "@timestamp" DateTime64(3, 'UTC') )
+		( "message" String, "@timestamp" DateTime64(3, 'UTC'), "attributes_values" Map(String,String))
 		ENGINE = Memory`,
 		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
 	)
@@ -38,11 +38,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
-	indexConfig := config.IndexConfiguration{
-		Name: "logs-generic-default",
-	}
-
-	cfg.IndexConfig[indexConfig.Name] = indexConfig
+	cfg.IndexConfig["logs-generic-default"] = config.IndexConfiguration{}
 
 	lm := clickhouse.NewEmptyLogManager(&cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
 	lm.AddTableIfDoesntExist(table)
@@ -52,6 +48,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
 					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+					"task.enabled":      {PropertyName: "task.enabled", InternalPropertyName: "task_enabled", Type: schema.QuesmaTypeBoolean},
 					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
 					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
 					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
@@ -104,12 +101,9 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 	}
 	lm := clickhouse.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
 	lm.AddTableIfDoesntExist(&table)
-	indexConfig := config.IndexConfiguration{
-		Name: "logs-generic-default",
-	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
-	cfg.IndexConfig[indexConfig.Name] = indexConfig
+	cfg.IndexConfig["logs-generic-default"] = config.IndexConfiguration{}
 	s := schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
@@ -163,19 +157,16 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 func TestQueryParserNoAttrsConfig(t *testing.T) {
 	tableName := "logs-generic-default"
 	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
-		( "message" String, "@timestamp" DateTime64(3, 'UTC') )
+		( "message" String, "@timestamp" DateTime64(3, 'UTC'), "attributes_values" Map(String,String)))
 		ENGINE = Memory`,
 		clickhouse.NewChTableConfigNoAttrs(),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	indexConfig := config.IndexConfiguration{
-		Name: "logs-generic-default",
-	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
-	cfg.IndexConfig[indexConfig.Name] = indexConfig
+	cfg.IndexConfig[tableName] = config.IndexConfiguration{}
 	s := schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {

@@ -52,6 +52,7 @@ type QueryRunner struct {
 	im                      elasticsearch.IndexManagement
 	quesmaManagementConsole *ui.QuesmaManagementConsole
 
+	tableDiscovery clickhouse.TableDiscovery
 	// configuration
 
 	// this is passed to the QueryTranslator to render date math expressions
@@ -75,7 +76,8 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 	qmc *ui.QuesmaManagementConsole,
 	schemaRegistry schema.Registry,
 	abResultsRepository ab_testing.Sender,
-	resolver table_resolver.TableResolver) *QueryRunner {
+	resolver table_resolver.TableResolver,
+	tableDiscovery clickhouse.TableDiscovery) *QueryRunner {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -85,13 +87,16 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
 		transformationPipeline: TransformationPipeline{
 			transformers: []model.QueryTransformer{
-				&SchemaCheckPass{cfg: cfg},
+				&SchemaCheckPass{
+					cfg:            cfg,
+					tableDiscovery: tableDiscovery,
+				},
 			},
 		},
-		schemaRegistry:  schemaRegistry,
-		ABResultsSender: abResultsRepository,
-		tableResolver:   resolver,
-
+		schemaRegistry:     schemaRegistry,
+		ABResultsSender:    abResultsRepository,
+		tableResolver:      resolver,
+		tableDiscovery:     tableDiscovery,
 		maxParallelQueries: maxParallelQueries,
 	}
 }
@@ -112,10 +117,13 @@ func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
 		},
 	}
 
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tables
+
 	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
 	go managementConsole.RunOnlyChannelProcessor()
 
-	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver)
+	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
 }
 
 // returns -1 when table name could not be resolved
@@ -369,7 +377,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	if len(resolvedIndexes) == 1 {
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
-		resolvedTableName := q.cfg.IndexConfig[indexName].TableName()
+		resolvedTableName := q.cfg.IndexConfig[indexName].TableName(indexName)
 
 		resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.IndexName(indexName))
 		if !ok {
@@ -388,7 +396,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		// here we filter out indexes that are not stored in the common table
 		var virtualOnlyTables []string
 		for _, indexName := range resolvedIndexes {
-			table, _ = tables.Load(q.cfg.IndexConfig[indexName].TableName())
+			table, _ = tables.Load(q.cfg.IndexConfig[indexName].TableName(indexName))
 			if table == nil {
 				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", indexName)).Details("Table: %s", indexName)
 			}

@@ -7,10 +7,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/ucarion/urlpath"
 	"io"
 	"net/http"
+	"quesma/logger"
+	"quesma/quesma/recovery"
 	quesma_api "quesma_v2/core"
+	"strings"
 	"sync"
 )
 
@@ -40,12 +42,70 @@ func (h *BasicHTTPFrontendConnector) GetRouter() quesma_api.Router {
 }
 
 func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	handlers := h.router.GetHandlers()
-	handlerWrapper := getMatchingHandler(req.URL.Path, handlers)
+	defer recovery.LogPanic()
+	reqBody, err := PeekBodyV2(req)
+	if err != nil {
+		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		return
+	}
+	ctx := req.Context()
+	requestPreprocessors := quesma_api.ProcessorChain{}
+	requestPreprocessors = append(requestPreprocessors, quesma_api.NewTraceIdPreprocessor())
+
+	quesmaRequest, ctx, err := preprocessRequest(ctx, &quesma_api.Request{
+		Method:      req.Method,
+		Path:        strings.TrimSuffix(req.URL.Path, "/"),
+		Params:      map[string]string{},
+		Headers:     req.Header,
+		QueryParams: req.URL.Query(),
+		Body:        string(reqBody),
+	}, requestPreprocessors)
+
+	handlersPipe, decision := h.router.Matches(quesmaRequest)
+	if decision != nil {
+		w.Header().Set(QuesmaTableResolverHeader, decision.String())
+	} else {
+		w.Header().Set(QuesmaTableResolverHeader, "n/a")
+	}
 	dispatcher := &quesma_api.Dispatcher{}
 	w = h.responseMutator(w)
-	if handlerWrapper == nil {
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if handlersPipe != nil {
+			result, _ := handlersPipe.Handler(context.Background(), &quesma_api.Request{OriginalRequest: req})
+			var quesmaResponse *quesma_api.Result
+
+			if result != nil {
+				metadata, message := dispatcher.Dispatch(handlersPipe.Processors, result.Meta, result.GenericResult)
+				result = &quesma_api.Result{
+					Body:          result.Body,
+					Meta:          metadata,
+					StatusCode:    result.StatusCode,
+					GenericResult: message,
+				}
+				quesmaResponse = result
+			}
+			zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
+			_ = zip
+			if err == nil {
+				logger.Debug().Ctx(ctx).Msg("responding from quesma")
+				unzipped := []byte{}
+				if quesmaResponse != nil {
+					unzipped = quesmaResponse.GenericResult.([]byte)
+				}
+				if len(unzipped) == 0 {
+					logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
+				}
+				AddProductAndContentHeaders(req.Header, w.Header())
+				_, err := w.Write(unzipped)
+				if err != nil {
+					fmt.Printf("Error writing response: %s\n", err)
+				}
+
+			} else {
+
+			}
+		} else {
 			if h.router.GetFallbackHandler() != nil {
 				fmt.Printf("No handler found for path: %s\n", req.URL.Path)
 				handler := h.router.GetFallbackHandler()
@@ -55,29 +115,8 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 					fmt.Printf("Error writing response: %s\n", err)
 				}
 			}
-		}).ServeHTTP(w, req)
-		return
-	}
-	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		result, _ := handlerWrapper.Handler(context.Background(), &quesma_api.Request{OriginalRequest: req})
-
-		_, message := dispatcher.Dispatch(handlerWrapper.Processors, result.Meta, result.GenericResult)
-		_, err := w.Write(message.([]byte))
-		if err != nil {
-			fmt.Printf("Error writing response: %s\n", err)
 		}
 	}).ServeHTTP(w, req)
-}
-
-func getMatchingHandler(requestPath string, handlers map[string]quesma_api.HandlersPipe) *quesma_api.HandlersPipe {
-	for path, handler := range handlers {
-		urlPath := urlpath.New(path)
-		_, matches := urlPath.Match(requestPath)
-		if matches {
-			return &handler
-		}
-	}
-	return nil
 }
 
 func (h *BasicHTTPFrontendConnector) Listen() error {

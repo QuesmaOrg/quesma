@@ -89,7 +89,7 @@ func bulk(_ context.Context, request *quesma_api.Request) (*quesma_api.Result, e
 	resp := []byte("bulk\n")
 	atomic.AddInt64(&correlationId, 1)
 	quesma_api.SetCorrelationId(metadata, correlationId)
-	return &quesma_api.Result{Meta: metadata, GenericResult: resp}, nil
+	return &quesma_api.Result{Meta: metadata, GenericResult: resp, StatusCode: 200}, nil
 }
 
 func doc(_ context.Context, request *quesma_api.Request) (*quesma_api.Result, error) {
@@ -103,7 +103,7 @@ func doc(_ context.Context, request *quesma_api.Request) (*quesma_api.Result, er
 	quesma_api.SetCorrelationId(metadata, correlationId)
 	resp := []byte("doc\n")
 
-	return &quesma_api.Result{Meta: metadata, GenericResult: resp}, nil
+	return &quesma_api.Result{Meta: metadata, GenericResult: resp, StatusCode: 200}, nil
 }
 
 var correlationId int64 = 0
@@ -113,7 +113,7 @@ func search(_ context.Context, request *quesma_api.Request) (*quesma_api.Result,
 	metadata["level"] = 0
 	atomic.AddInt64(&correlationId, 1)
 	quesma_api.SetCorrelationId(metadata, correlationId)
-	return &quesma_api.Result{Meta: metadata, GenericResult: request.OriginalRequest}, nil
+	return &quesma_api.Result{Meta: metadata, GenericResult: request.OriginalRequest, StatusCode: 200}, nil
 }
 
 type IngestProcessor struct {

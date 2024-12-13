@@ -96,7 +96,7 @@ func TestHtmlSchemaPage(t *testing.T) {
 
 	cfg := config.QuesmaConfiguration{}
 
-	cfg.IndexConfig = map[string]config.IndexConfiguration{xss: {Name: xss}}
+	cfg.IndexConfig = map[string]config.IndexConfiguration{xss: {}}
 
 	tables := util.NewSyncMap[string, *clickhouse.Table]()
 	tables.Store(table.Name, table)
