@@ -83,8 +83,7 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 
 	routerInstance := frontend_connectors.NewRouterV2(config,
 		quesmaManagementConsole, agent)
-	routerInstance.
-		RegisterPreprocessor(quesma_api.NewTraceIdPreprocessor())
+
 	agent.FailedRequestsCollector(func() int64 {
 		return routerInstance.FailedRequests.Load()
 	})

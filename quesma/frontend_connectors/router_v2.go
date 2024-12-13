@@ -88,9 +88,11 @@ func NewRouterV2(config *config.QuesmaConfiguration, qmc *ui.QuesmaManagementCon
 		Transport: tr,
 		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
 	}
+	requestProcessors := quesma_api.ProcessorChain{}
+	requestProcessors = append(requestProcessors, quesma_api.NewTraceIdPreprocessor())
 	return &RouterV2{
 		Config:                  config,
-		RequestPreprocessors:    quesma_api.ProcessorChain{},
+		RequestPreprocessors:    requestProcessors,
 		QuesmaManagementConsole: qmc,
 		PhoneHomeAgent:          agent,
 		HttpClient:              client,
