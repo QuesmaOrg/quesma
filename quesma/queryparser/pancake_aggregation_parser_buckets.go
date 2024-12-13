@@ -36,6 +36,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}},
 		{"multi_terms", cw.parseMultiTerms},
 		{"composite", cw.parseComposite},
+		{"ip_prefix", cw.parseIpPrefix},
 	}
 
 	for _, aggr := range aggregationHandlers {
@@ -356,6 +357,35 @@ func (cw *ClickhouseQueryTranslator) parseComposite(aggregation *pancakeAggregat
 	size := cw.parseIntField(params, "size", defaultSize)
 	aggregation.limit = size
 	aggregation.queryType = bucket_aggregations.NewComposite(cw.Ctx, size, baseAggrs)
+	return nil
+}
+
+func (cw *ClickhouseQueryTranslator) parseIpPrefix(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
+	const (
+		defaultIsIpv6             = false
+		defaultAppendPrefixLength = false
+		defaultKeyed              = false
+		defaultMinDocCount        = 1
+	)
+
+	if err := bucket_aggregations.CheckParamsIpPrefix(cw.Ctx, params); err != nil {
+		return err
+	}
+
+	aggr := bucket_aggregations.NewIpPrefix(
+		cw.Ctx,
+		cw.parseFieldField(params, "ip_prefix"),
+		cw.parseIntField(params, "prefix_length", 0), // default doesn't matter, it's required
+		cw.parseBoolField(params, "is_ipv6", defaultIsIpv6),
+		cw.parseBoolField(params, "append_prefix_length", defaultAppendPrefixLength),
+		cw.parseBoolField(params, "keyed", defaultKeyed),
+		cw.parseIntField(params, "min_doc_count", defaultMinDocCount),
+	)
+	if sql := aggr.SqlSelectQuery(); sql != nil {
+		aggregation.selectedColumns = append(aggregation.selectedColumns, sql)
+		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(sql))
+	}
+	aggregation.queryType = aggr
 	return nil
 }
 
