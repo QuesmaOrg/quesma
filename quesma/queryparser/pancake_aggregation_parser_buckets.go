@@ -229,15 +229,7 @@ func (cw *ClickhouseQueryTranslator) parseRangeAggregation(aggregation *pancakeA
 	}
 
 	const keyedDefault = false
-	// TU replace with cw.ParseBoolField()
-	keyed := keyedDefault
-	if keyedRaw, exists := params["keyed"]; exists {
-		var ok bool
-		if keyed, ok = keyedRaw.(bool); !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("keyed is not a bool, but %T, value: %v", keyedRaw, keyedRaw)
-		}
-	}
-
+	keyed := cw.parseBoolField(params, "keyed", keyedDefault)
 	field := cw.parseFieldField(params, "range")
 	aggregation.queryType = bucket_aggregations.NewRange(cw.Ctx, field, intervals, keyed)
 	aggregation.isKeyed = keyed
