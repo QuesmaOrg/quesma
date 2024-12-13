@@ -152,8 +152,8 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 	select {
 	case msg := <-qmc.queryDebugPrimarySource:
 		logger.Debug().Msg("Received debug info from primary source: " + msg.Id)
-		debugPrimaryInfo := diag.QueryDebugPrimarySource{msg.Id,
-			[]byte(util.JsonPrettify(string(msg.QueryResp), true)), msg.PrimaryTook}
+		debugPrimaryInfo := diag.QueryDebugPrimarySource{Id: msg.Id,
+			QueryResp: []byte(util.JsonPrettify(string(msg.QueryResp), true)), PrimaryTook: msg.PrimaryTook}
 		qmc.mutex.Lock()
 		if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
 			qmc.debugInfoMessages[msg.Id] = queryDebugInfo{
