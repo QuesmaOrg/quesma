@@ -84,7 +84,7 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 // I randomly select requestsNr queries from testdata.UnsupportedAggregationsTests, run them, and check
 // if all of them are properly recorded in the management console.
 func TestDifferentUnsupportedQueries(t *testing.T) {
-	const maxSavedQueriesPerQueryType = 10
+	//const maxSavedQueriesPerQueryType = 10
 	const requestsNr = 50
 
 	// generate random |requestsNr| queries to send
