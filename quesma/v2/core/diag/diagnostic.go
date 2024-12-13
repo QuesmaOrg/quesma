@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Elastic-2.0
 package diag
 
+// Diagnostic is an interface that provides access to diagnostic tools.
+// Content of this interface may change in the future.
 type Diagnostic interface {
 	PhoneHomeAgent() PhoneHomeClient
 	DebugInfoCollector() DebugInfoCollector

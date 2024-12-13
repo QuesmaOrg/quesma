@@ -174,15 +174,15 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 		logger.Debug().Msg("Received debug info from secondary source: " + msg.Id)
 		// fmt.Println(msg.IncomingQueryBody)
 		secondaryDebugInfo := diag.QueryDebugSecondarySource{
-			msg.Id,
-			msg.AsyncId,
-			msg.OpaqueId,
-			msg.Path,
-			[]byte(util.JsonPrettify(string(msg.IncomingQueryBody), true)),
-			msg.QueryBodyTranslated,
-			[]byte(util.JsonPrettify(string(msg.QueryTranslatedResults), true)),
-			msg.SecondaryTook,
-			msg.IsAlternativePlan,
+			Id:                     msg.Id,
+			AsyncId:                msg.AsyncId,
+			OpaqueId:               msg.OpaqueId,
+			Path:                   msg.Path,
+			IncomingQueryBody:      []byte(util.JsonPrettify(string(msg.IncomingQueryBody), true)),
+			QueryBodyTranslated:    msg.QueryBodyTranslated,
+			QueryTranslatedResults: []byte(util.JsonPrettify(string(msg.QueryTranslatedResults), true)),
+			SecondaryTook:          msg.SecondaryTook,
+			IsAlternativePlan:      msg.IsAlternativePlan,
 		}
 		qmc.mutex.Lock()
 
