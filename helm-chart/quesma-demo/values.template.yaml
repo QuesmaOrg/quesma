@@ -75,12 +75,12 @@ livenessProbe:
   tcpSocket:
     port: 8080
   initialDelaySeconds: 5
-  periodSeconds: 5
+  periodSeconds: 60
 readinessProbe:
   tcpSocket:
     port: 8080
   initialDelaySeconds: 10
-  periodSeconds: 5
+  periodSeconds: 60
 
 autoscaling:
   enabled: false
