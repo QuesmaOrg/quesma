@@ -208,6 +208,7 @@ func (query *IpPrefix) divideByToGroupByIpv4() uint32 {
 	return 1 << (32 - query.prefixLength)
 }
 
+// divideByToGroupByIpv6 returns 2^(128-prefixLength)
 func (query *IpPrefix) divideByToGroupByIpv6() *big.Int {
 	return big.NewInt(1).Lsh(big.NewInt(1), uint(128-query.prefixLength))
 }
