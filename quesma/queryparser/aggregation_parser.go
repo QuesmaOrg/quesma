@@ -262,16 +262,6 @@ func (cw *ClickhouseQueryTranslator) parseIntField(queryMap QueryMap, fieldName 
 	return defaultValue
 }
 
-func (cw *ClickhouseQueryTranslator) parseBoolField(queryMap QueryMap, fieldName string, defaultValue bool) bool {
-	if valueRaw, exists := queryMap[fieldName]; exists {
-		if asBool, ok := valueRaw.(bool); ok {
-			return asBool
-		}
-		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a bool, but %T, value: %v. Using default: %v", fieldName, valueRaw, valueRaw, defaultValue)
-	}
-	return defaultValue
-}
-
 func (cw *ClickhouseQueryTranslator) parseInt64Field(queryMap QueryMap, fieldName string, defaultValue int64) int64 {
 	if valueRaw, exists := queryMap[fieldName]; exists {
 		if asFloat, ok := valueRaw.(float64); ok {
