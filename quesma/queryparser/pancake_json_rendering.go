@@ -5,6 +5,7 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -105,7 +106,16 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregat
 				if strings.HasPrefix(cols.ColName, bucketKeyName) {
 					for _, previousCols := range previousBucket.Cols {
 						if cols.ColName == previousCols.ColName {
-							if cols.Value != previousCols.Value {
+							var isEqual bool
+							switch cols.Value.(type) {
+							case big.Int:
+								val := cols.Value.(big.Int)
+								prevVal := previousCols.Value.(big.Int)
+								isEqual = val.Cmp(&prevVal) == 0
+							default:
+								isEqual = cols.Value == previousCols.Value
+							}
+							if !isEqual {
 								isNewBucket = true
 							}
 							break

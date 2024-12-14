@@ -59,3 +59,20 @@ func TestParseTypeFromShowColumnsTuple_2(t *testing.T) {
 	assert.Equal(t, NewBaseType("String"), mvt.Cols[1].Type)
 	assert.Equal(t, "c", mvt.Cols[1].Name)
 }
+
+// TestWhatDriverWillReturn is a helper test for manual testing of the clickhouse driver
+// E.g. I wasn't sure what type will be returned for intDiv(ipv6, 1) in Clickhouse, so this test gave me the answer
+func TestWhatDriverWillReturn(t *testing.T) {
+	/*
+		options := clickhouse.Options{Addr: []string{"localhost:9000"}}
+		db := clickhouse.OpenDB(&options)
+		defer db.Close()
+
+		rows, _ := db.Query("SELECT intDiv(ipv6, 1) from i LIMIT 10")
+		var q big.Int
+		for rows.Next() {
+			rows.Scan(&q)
+			fmt.Printf("%v %T\n", q, q)
+		}
+	*/
+}
