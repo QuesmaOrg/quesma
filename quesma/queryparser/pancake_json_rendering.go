@@ -107,13 +107,12 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregat
 					for _, previousCols := range previousBucket.Cols {
 						if cols.ColName == previousCols.ColName {
 							var isEqual bool
-							switch cols.Value.(type) {
+							switch val := cols.Value.(type) {
 							case big.Int:
-								val := cols.Value.(big.Int)
 								prevVal := previousCols.Value.(big.Int)
 								isEqual = val.Cmp(&prevVal) == 0
 							default:
-								isEqual = cols.Value == previousCols.Value
+								isEqual = val == previousCols.Value
 							}
 							if !isEqual {
 								isNewBucket = true
