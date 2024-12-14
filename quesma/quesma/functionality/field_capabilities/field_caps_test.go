@@ -79,7 +79,6 @@ func TestFieldCaps(t *testing.T) {
 	resp, err := handleFieldCapsIndex(&config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
 			"logs-generic-default": {
-				Name:         "logs-generic-default",
 				QueryTarget:  []string{config.ClickhouseTarget},
 				IngestTarget: []string{config.ClickhouseTarget},
 			},
@@ -143,7 +142,7 @@ func TestFieldCapsWithAliases(t *testing.T) {
   ]
 }`)
 	resp, err := handleFieldCapsIndex(&config.QuesmaConfiguration{
-		IndexConfig: map[string]config.IndexConfiguration{"logs-generic-default": {Name: "logs-generic-default", QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget}}},
+		IndexConfig: map[string]config.IndexConfiguration{"logs-generic-default": {QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget}}},
 	}, &schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
@@ -185,12 +184,10 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 	resp, err := handleFieldCapsIndex(&config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
 			"logs-1": {
-				Name:         "logs-1",
 				QueryTarget:  []string{config.ClickhouseTarget},
 				IngestTarget: []string{config.ClickhouseTarget},
 			},
 			"logs-2": {
-				Name:         "logs-2",
 				QueryTarget:  []string{config.ClickhouseTarget},
 				IngestTarget: []string{config.ClickhouseTarget},
 			},
@@ -296,17 +293,14 @@ func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
 	resp, err := handleFieldCapsIndex(&config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
 			"logs-1": {
-				Name:         "logs-1",
 				QueryTarget:  []string{config.ClickhouseTarget},
 				IngestTarget: []string{config.ClickhouseTarget},
 			},
 			"logs-2": {
-				Name:         "logs-2",
 				QueryTarget:  []string{config.ClickhouseTarget},
 				IngestTarget: []string{config.ClickhouseTarget},
 			},
 			"logs-3": {
-				Name:         "logs-3",
 				QueryTarget:  []string{config.ClickhouseTarget},
 				IngestTarget: []string{config.ClickhouseTarget},
 			},

@@ -56,7 +56,7 @@ func resolveHttpServer(inspect bool) *http.Server {
 
 func configureRouting() *http.ServeMux {
 	router := http.NewServeMux()
-	configuration := &config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"_all": {Name: "_all", QueryTarget: []string{config.ElasticsearchTarget}, IngestTarget: []string{config.ElasticsearchTarget}}}}
+	configuration := &config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"_all": {QueryTarget: []string{config.ElasticsearchTarget}, IngestTarget: []string{config.ElasticsearchTarget}}}}
 	router.HandleFunc("POST /{index}/_doc", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		index := r.PathValue("index")
 

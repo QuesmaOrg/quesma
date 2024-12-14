@@ -60,7 +60,7 @@ func InitDBConnectionPool(c *config.QuesmaConfiguration) *sql.DB {
 
 	err := db.Ping()
 	if err != nil {
-
+		logger.Error().Err(err).Msg("Failed to ping database.")
 		// These error message duplicates messages from end_user_errors.GuessClickhouseErrorType
 		// Not sure if you want to keep them in sync or not. These two cases are different.
 
