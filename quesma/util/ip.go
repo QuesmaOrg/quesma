@@ -17,6 +17,8 @@ func IntToIpv4(ip uint32) string {
 	return result.String()
 }
 
+// BigIntToIpv6 converts a big.Int to an IPv6 string.
+// I don't think there's any library that does exactly this, have checked a few.
 func BigIntToIpv6(ip big.Int) string {
 	const ipv6len = 16
 	ipBytes := ip.Bytes()
@@ -29,6 +31,7 @@ func BigIntToIpv6(ip big.Int) string {
 }
 
 // HexStringToBigInt converts a hex string (e.g. "ffffc0a80b0c", or "20010db8a4f8112a0000000000000000") to a big.Int
+// Often useful when dealing with IPv6s.
 func HexStringToBigInt(s string) (i big.Int) {
 	i.SetString(s, 16)
 	return i

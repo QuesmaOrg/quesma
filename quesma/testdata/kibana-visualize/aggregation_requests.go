@@ -3033,14 +3033,14 @@ var AggregationTests = []testdata.AggregationTestCase{
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [20]
-		TestName: "simple IP Prefix (Kibana 8.13+), ipv6 field, keyed=true",
+		TestName: "IP Prefix (Kibana 8.13+), ipv6 field, keyed=true and overflow of 1<<(128-prefix_length)",
 		QueryRequestJson: `
 		{
 			"aggs": {
 				"2": {
 					"ip_prefix": {
 						"field": "clientip",
-						"prefix_length": 68,
+						"prefix_length": 38,
 						"is_ipv6": true,
 						"keyed": true
 					}
@@ -3069,7 +3069,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 						"::": {
 							"doc_count": 14074,
 							"is_ipv6": true,
-							"prefix_length": 68
+							"prefix_length": 38
 						}
 					}
 				}
@@ -3077,19 +3077,19 @@ var AggregationTests = []testdata.AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__2__key_0", util.HexStringToBigInt("")),
+				model.NewQueryResultCol("aggr__2__key_0", *bigInt0),
 				model.NewQueryResultCol("aggr__2__count", 14074),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT intDiv("clientip", 1152921504606846976) AS "aggr__2__key_0",
+			SELECT intDiv("clientip", 1237940039285380274899124224) AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			GROUP BY intDiv("clientip", 1152921504606846976) AS "aggr__2__key_0"
+			GROUP BY intDiv("clientip", 1237940039285380274899124224) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [21]
-		TestName: "simple IP Prefix (Kibana 8.13+), ipv6 field, non-zero and non-ipv4 key",
+		TestName: "simple IP Prefix (Kibana 8.13+), ipv6 field, non-zero& and non-ipv4 key",
 		QueryRequestJson: `
 		{
 			"aggs": {

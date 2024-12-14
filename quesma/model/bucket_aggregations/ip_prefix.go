@@ -110,7 +110,6 @@ func (query *IpPrefix) AggregationType() model.AggregationType {
 }
 
 func (query *IpPrefix) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	fmt.Println(rows)
 	var (
 		ok                      bool
 		key, netmask, keySuffix string
@@ -142,8 +141,7 @@ func (query *IpPrefix) TranslateSqlResponseToJson(rows []model.QueryResultRow) m
 
 			docCount = row.Cols[1].Value
 			if query.isIpv6 {
-				fmt.Println("LOL")
-				originalKeyIpv6, ok = row.Cols[0].Value.(big.Int) // check if *big.Int or not
+				originalKeyIpv6, ok = row.Cols[0].Value.(big.Int)
 			} else {
 				originalKeyIpv4, ok = row.Cols[0].Value.(uint32)
 			}
@@ -170,7 +168,6 @@ func (query *IpPrefix) TranslateSqlResponseToJson(rows []model.QueryResultRow) m
 		buckets = append(buckets, bucket)
 	}
 
-	fmt.Println(buckets)
 	// usual case
 	if !query.keyed {
 		return model.JsonMap{
@@ -200,22 +197,26 @@ func (query *IpPrefix) SqlSelectQuery() model.Expr {
 	if query.prefixLength == 0 {
 		return nil
 	}
-	return model.NewFunction("intDiv", query.field, model.NewLiteral(query.divideByToGroupBy()))
+	if query.isIpv6 {
+		return model.NewFunction("intDiv", query.field, model.NewLiteral(query.divideByToGroupByIpv6().String()))
+	} else {
+		return model.NewFunction("intDiv", query.field, model.NewLiteral(query.divideByToGroupByIpv4()))
+	}
 }
 
-func (query *IpPrefix) divideByToGroupBy() uint64 {
-	if query.isIpv6 {
-		return 1 << (128 - query.prefixLength)
-	} else {
-		return 1 << (32 - query.prefixLength)
-	}
+func (query *IpPrefix) divideByToGroupByIpv4() uint32 {
+	return 1 << (32 - query.prefixLength)
+}
+
+func (query *IpPrefix) divideByToGroupByIpv6() *big.Int {
+	return big.NewInt(1).Lsh(big.NewInt(1), uint(128-query.prefixLength))
 }
 
 func (query *IpPrefix) calcKeyIPv4(originalKey uint32) string {
 	if query.prefixLength == 0 {
 		return "0.0.0.0"
 	}
-	ipAsInt := originalKey * uint32(query.divideByToGroupBy())
+	ipAsInt := originalKey * query.divideByToGroupByIpv4()
 	part4 := ipAsInt % 256
 	ipAsInt /= 256
 	part3 := ipAsInt % 256
@@ -227,7 +228,7 @@ func (query *IpPrefix) calcKeyIPv4(originalKey uint32) string {
 }
 
 func (query *IpPrefix) calcKeyIPv6(originalKey big.Int) string {
-	// ipAsInt := originalKey * 2^(128-prefixLength)
+	// ipAsInt = originalKey * 2^(128-prefixLength)
 	ipAsInt := originalKey.Mul(&originalKey, big.NewInt(1).Lsh(big.NewInt(1), uint(128-query.prefixLength)))
 	return util.BigIntToIpv6(*ipAsInt)
 }
