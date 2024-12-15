@@ -506,9 +506,11 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			return model.NewSimpleQuery(simpleStatement, true)
 		}
 		values := make([]string, len(vAsArray))
-		fmt.Println("VALUES", values)
 		for i, v := range vAsArray {
 			if asStr, isStr := v.(string); isStr {
+				// Special case, only one so far, where we have to escape the string here, not in the renderer.
+				// Normally we escape (change e.g. ' -> \'), but here we want to have those ' unescaped,
+				// e.g. "IN ('abc', 'def')", without escaping those 4 '.
 				values[i] = util.SingleQuote(model.EscapeString(asStr))
 			} else {
 				values[i] = sprint(v)
@@ -516,7 +518,6 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 		}
 		combinedValues := model.NewLiteral("(" + strings.Join(values, ",") + ")")
 		combinedValues.LiteralAlreadyEscaped = true
-		fmt.Println("COMBINED VALUES", combinedValues)
 		compoundStatement := model.NewInfixExpr(model.NewColumnRef(k), "IN", combinedValues)
 		return model.NewSimpleQuery(compoundStatement, true)
 	}

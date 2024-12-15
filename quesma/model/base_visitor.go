@@ -41,7 +41,7 @@ func (v *BaseExprVisitor) VisitLiteral(e LiteralExpr) interface{} {
 		return v.OverrideVisitLiteral(v, e)
 	}
 
-	return LiteralExpr{e.Value, e.LiteralAlreadyEscaped}
+	return NewLiteralWithEscape(e.Value, e.LiteralAlreadyEscaped)
 }
 func (v *BaseExprVisitor) VisitInfix(e InfixExpr) interface{} {
 	if v.OverrideVisitInfix != nil {

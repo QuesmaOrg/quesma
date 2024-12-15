@@ -737,7 +737,7 @@ func ExtractNumeric64(value any) float64 {
 	return asFloat64
 }
 
-// SingleQuote str -> 'str'
+// SingleQuote is a simple helper function: str -> 'str'
 func SingleQuote(value string) string {
 	return "'" + value + "'"
 }

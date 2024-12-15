@@ -340,6 +340,8 @@ func (v *renderer) VisitCTE(c CTE) interface{} {
 	return fmt.Sprintf("%s AS (%s) ", c.Name, AsString(c.SelectCommand))
 }
 
+// EscapeString escapes the given string so that it can be used in a SQL Clickhouse query.
+// It escapes ' and \ characters: ' -> \', \ -> \\.
 func EscapeString(s string) string {
 	s = strings.ReplaceAll(s, `\`, `\\`)
 	if len(s) > 0 && s[0] == '\'' && s[len(s)-1] == '\'' {
