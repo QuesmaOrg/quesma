@@ -35,10 +35,10 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query
 			if strings.Contains(boolLiteral, "true") || strings.Contains(boolLiteral, "false") {
 				boolLiteral = strings.TrimLeft(boolLiteral, "'")
 				boolLiteral = strings.TrimRight(boolLiteral, "'")
-				return model.NewLiteral(boolLiteral)
+				return model.NewLiteralWithEscape(boolLiteral, e.LiteralAlreadyEscaped)
 			}
 		}
-		return model.NewLiteral(e.Value)
+		return model.NewLiteralWithEscape(e.Value, e.LiteralAlreadyEscaped)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)

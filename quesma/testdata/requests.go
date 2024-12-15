@@ -2329,18 +2329,19 @@ var TestsSearch = []SearchTestCase{
 					"filter": [
 						{
 							"match_phrase": {
-								"category.keyword": "Men's Clothing \\ \t \n"
+								"message": "\nMen's Clothing \\ \t"
 							}
 						}
 					]
 				}
 			},
-			"size": 0,
 			"track_total_hits": false
 		}`,
-		[]string{`"user.id"='kimchy'`},
+		[]string{`("message" __quesma_match '
+Men\'s Clothing \\ 	')`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user.id"='kimchy'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%
+Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{},
 	},
 }

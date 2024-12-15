@@ -506,11 +506,18 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			return model.NewSimpleQuery(simpleStatement, true)
 		}
 		values := make([]string, len(vAsArray))
+		fmt.Println("VALUES", values)
 		for i, v := range vAsArray {
-			values[i] = sprint(v)
+			if asStr, isStr := v.(string); isStr {
+				values[i] = util.SingleQuote(model.EscapeString(asStr))
+			} else {
+				values[i] = sprint(v)
+			}
 		}
-		combinedValues := "(" + strings.Join(values, ",") + ")"
-		compoundStatement := model.NewInfixExpr(model.NewColumnRef(k), "IN", model.NewLiteral(combinedValues))
+		combinedValues := model.NewLiteral("(" + strings.Join(values, ",") + ")")
+		combinedValues.LiteralAlreadyEscaped = true
+		fmt.Println("COMBINED VALUES", combinedValues)
+		compoundStatement := model.NewInfixExpr(model.NewColumnRef(k), "IN", combinedValues)
 		return model.NewSimpleQuery(compoundStatement, true)
 	}
 

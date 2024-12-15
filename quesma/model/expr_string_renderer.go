@@ -71,13 +71,10 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 // Also tested "\n" and "\t" in the strings, and the way we render them works for Clickhouse.
 // Not 100% sure about the other special characters (e.g. \r and \b), but they shouldn't be used very often.
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
-	if valueStr, ok := l.Value.(string); ok {
-		valueStr = strings.ReplaceAll(valueStr, `\`, `\\`)
-		if len(valueStr) > 0 && valueStr[0] == '\'' && valueStr[len(valueStr)-1] == '\'' {
-			// don't escape the first and last '
-			return util.SingleQuote(strings.ReplaceAll(valueStr[1:len(valueStr)-1], `'`, `\'`))
-		}
-		return strings.ReplaceAll(valueStr, `'`, `\'`)
+	fmt.Println(l)
+	valueStr, isStr := l.Value.(string)
+	if isStr && !l.LiteralAlreadyEscaped {
+		return EscapeString(valueStr)
 	}
 	return fmt.Sprintf("%v", l.Value)
 }
@@ -341,4 +338,13 @@ func (v *renderer) VisitJoinExpr(j JoinExpr) interface{} {
 
 func (v *renderer) VisitCTE(c CTE) interface{} {
 	return fmt.Sprintf("%s AS (%s) ", c.Name, AsString(c.SelectCommand))
+}
+
+func EscapeString(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	if len(s) > 0 && s[0] == '\'' && s[len(s)-1] == '\'' {
+		// don't escape the first and last '
+		return util.SingleQuote(strings.ReplaceAll(s[1:len(s)-1], `'`, `\'`))
+	}
+	return strings.ReplaceAll(s, `'`, `\'`)
 }

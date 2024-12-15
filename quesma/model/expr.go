@@ -79,7 +79,8 @@ func (e FunctionExpr) Accept(v ExprVisitor) interface{} {
 }
 
 type LiteralExpr struct {
-	Value any
+	Value                 any
+	LiteralAlreadyEscaped bool // default is false, in 99.5% it'll be false
 }
 
 func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
@@ -111,6 +112,10 @@ var NewWildcardExpr = LiteralExpr{Value: "*"}
 
 func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value}
+}
+
+func NewLiteralWithEscape(value any, literalAlreadyEscaped bool) LiteralExpr {
+	return LiteralExpr{Value: value, LiteralAlreadyEscaped: literalAlreadyEscaped}
 }
 
 // DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`
