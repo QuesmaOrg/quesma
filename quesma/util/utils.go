@@ -737,6 +737,11 @@ func ExtractNumeric64(value any) float64 {
 	return asFloat64
 }
 
+// SingleQuote str -> 'str'
+func SingleQuote(value string) string {
+	return "'" + value + "'"
+}
+
 type sqlMockMismatchSql struct {
 	expected string
 	actual   string
@@ -847,7 +852,7 @@ func stringifyHelper(v interface{}, isInsideArray bool) string {
 
 // This functions returns a string from an interface{}.
 func Stringify(v interface{}) string {
-	isInsideArray := false
+	const isInsideArray = false
 	return stringifyHelper(v, isInsideArray)
 }
 

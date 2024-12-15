@@ -5,6 +5,7 @@ package model
 import (
 	"fmt"
 	"quesma/quesma/types"
+	"quesma/util"
 	"regexp"
 	"sort"
 	"strconv"
@@ -74,7 +75,7 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 		valueStr = strings.ReplaceAll(valueStr, `\`, `\\`)
 		if len(valueStr) > 0 && valueStr[0] == '\'' && valueStr[len(valueStr)-1] == '\'' {
 			// don't escape the first and last '
-			return fmt.Sprintf("'%s'", strings.ReplaceAll(valueStr[1:len(valueStr)-1], `'`, `\'`))
+			return util.SingleQuote(strings.ReplaceAll(valueStr[1:len(valueStr)-1], `'`, `\'`))
 		}
 		return strings.ReplaceAll(valueStr, `'`, `\'`)
 	}
