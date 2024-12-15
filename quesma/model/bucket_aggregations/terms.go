@@ -9,6 +9,7 @@ import (
 	"quesma/util"
 )
 
+// TODO when adding include/exclude, check escaping of ' and \ in those fields
 type Terms struct {
 	ctx         context.Context
 	significant bool // true <=> significant_terms, false <=> terms

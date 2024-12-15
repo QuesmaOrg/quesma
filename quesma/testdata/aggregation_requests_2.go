@@ -3378,6 +3378,11 @@ var AggregationTests2 = []AggregationTestCase{
 									"key_as_string": "2024-01-23T14:54:00.000"
 								},
 								{
+									"doc_count": 0,
+									"key": 1706021670000,
+									"key_as_string": "2024-01-23T14:54:30.000"
+								},
+								{
 									"doc_count": 17,
 									"key": 1706021700000,
 									"key_as_string": "2024-01-23T14:55:00.000"
@@ -3633,9 +3638,19 @@ var AggregationTests2 = []AggregationTestCase{
 								}
 							},
 							{
+								"doc_count": 0,
+								"key": 1706021670000,
+								"key_as_string": "2024-01-23T14:54:30.000"
+							},
+							{
 								"doc_count": 17,
 								"key": 1706021700000,
 								"key_as_string": "2024-01-23T14:55:00.000"
+							},
+							{
+								"doc_count": 0,
+								"key": 1706021730000,
+								"key_as_string": "2024-01-23T14:55:30.000"
 							},
 							{
 								"doc_count": 15,
@@ -4673,5 +4688,76 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__my_buckets__count" DESC, "aggr__my_buckets__key_0" ASC,
 			  "aggr__my_buckets__key_1" ASC
 			LIMIT 4`,
+	},
+	{ // [70]
+		TestName: `Escaping of ', \, \n, and \t in some example aggregations. No tests for other escape characters, e.g. \r or 'b. Add if needed.`,
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"avg": {
+					"avg": {
+						"field": "@timestamp's\\"
+					}
+				},
+				"terms": {
+					"terms": {
+						"field": "agent.keyword",
+						"size": 1,
+						"missing": "quote ' and slash \\ Also \t \n"
+					}
+				}
+			},
+			"size": 0
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"avg": {
+					"value": null
+				},
+				"terms": {
+					"buckets": [
+						{
+							"doc_count": 5362,
+							"key": "Mozilla/5.0 (X11; Linux x86_64; rv:6.0a1) Gecko/20110421 Firefox/6.0a1"
+						}
+					],
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 8712
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null
+			},
+			"timed_out": false,
+			"took": 5
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("metric__avg_col_0", nil),
+				model.NewQueryResultCol("aggr__terms__parent_count", int64(14074)),
+				model.NewQueryResultCol("aggr__terms__key_0", "Mozilla/5.0 (X11; Linux x86_64; rv:6.0a1) Gecko/20110421 Firefox/6.0a1"),
+				model.NewQueryResultCol("aggr__terms__count", int64(5362)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT avgOrNullMerge(avgOrNullState("@timestamp's\\")) OVER () AS
+			  "metric__avg_col_0", sum(count(*)) OVER () AS "aggr__terms__parent_count",
+			  COALESCE("agent", 'quote \' and slash \\ Also
+') AS "aggr__terms__key_0",
+			  count(*) AS "aggr__terms__count"
+			FROM __quesma_table_name
+			GROUP BY COALESCE("agent", 'quote \' and slash \\ Also
+') AS
+			  "aggr__terms__key_0"
+			ORDER BY "aggr__terms__count" DESC, "aggr__terms__key_0" ASC
+			LIMIT 1`,
 	},
 }

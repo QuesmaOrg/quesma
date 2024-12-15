@@ -64,7 +64,20 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 	return e.Name + "(" + strings.Join(args, ",") + ")"
 }
 
+// VisitLiteral escapes string values, as e.g. ' can come inside string in a query,
+// but Clickhouse requires it to be escaped as \' or ”
+// See more https://clickhouse.com/docs/en/sql-reference/syntax > String
+// Also tested "\n" and "\t" in the strings, and the way we render them works for Clickhouse.
+// Not 100% sure about the other special characters (e.g. \r and \b), but they shouldn't be used very often.
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
+	if valueStr, ok := l.Value.(string); ok {
+		valueStr = strings.ReplaceAll(valueStr, `\`, `\\`)
+		if len(valueStr) > 0 && valueStr[0] == '\'' && valueStr[len(valueStr)-1] == '\'' {
+			// don't escape the first and last '
+			return fmt.Sprintf("'%s'", strings.ReplaceAll(valueStr[1:len(valueStr)-1], `'`, `\'`))
+		}
+		return strings.ReplaceAll(valueStr, `'`, `\'`)
+	}
 	return fmt.Sprintf("%v", l.Value)
 }
 

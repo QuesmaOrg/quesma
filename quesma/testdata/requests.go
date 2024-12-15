@@ -2320,6 +2320,29 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
+	{ // [40]
+		`Escaping of ', \, \t and \n`,
+		`	
+		{
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"match_phrase": {
+								"category.keyword": "Men's Clothing \\ \t \n"
+							}
+						}
+					]
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		[]string{`"user.id"='kimchy'`},
+		model.ListAllFields,
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user.id"='kimchy'`},
+		[]string{},
+	},
 }
 
 var TestSearchRuntimeMappings = []SearchTestCase{
