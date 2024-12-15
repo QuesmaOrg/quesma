@@ -922,7 +922,9 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 		lhs, ok := e.Left.(model.ColumnRef)
 		rhs, ok2 := e.Right.(model.LiteralExpr)
-
+		if e.Op == model.MatchOperator {
+			fmt.Println("KKKKK", e.Left, lhs, rhs, ok, ok2)
+		}
 		if ok && ok2 && e.Op == model.MatchOperator {
 			field, found := indexSchema.ResolveFieldByInternalName(lhs.ColumnName)
 			if !found {
@@ -935,9 +937,9 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeBoolean.Name:
-				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
+				return model.NewInfixExpr(lhs, "=", model.NewLiteralWithEscape(rhsValue, rhs.LiteralAlreadyEscaped))
 			default:
-				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteral("'%"+rhsValue+"%'"))
+				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteralWithEscape("'%"+rhsValue+"%'", rhs.LiteralAlreadyEscaped))
 			}
 		}
 

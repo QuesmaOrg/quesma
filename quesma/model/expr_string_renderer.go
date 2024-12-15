@@ -71,7 +71,6 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 // Also tested "\n" and "\t" in the strings, and the way we render them works for Clickhouse.
 // Not 100% sure about the other special characters (e.g. \r and \b), but they shouldn't be used very often.
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
-	fmt.Println(l)
 	valueStr, isStr := l.Value.(string)
 	if isStr && !l.LiteralAlreadyEscaped {
 		return EscapeString(valueStr)
