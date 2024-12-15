@@ -329,10 +329,6 @@ var AggregationTests = []AggregationTestCase{
 					"aggs": {
 						"1": {
 							"date_histogram": {
-								"extended_bounds": {
-									"max": 1707486436029,
-									"min": 1706881636029
-								},
 								"field": "timestamp",
 								"fixed_interval": "3h",
 								"time_zone": "Europe/Warsaw"
@@ -2631,7 +2627,8 @@ var AggregationTests = []AggregationTestCase{
 						"series": {
 							"date_histogram": {
 								"field": "@timestamp",
-								"fixed_interval": "60s"
+								"fixed_interval": "60s",
+								"min_doc_count": 12
 							}
 						}
 					}
@@ -2869,10 +2866,6 @@ var AggregationTests = []AggregationTestCase{
 					},
 					"date_histogram": {
 						"calendar_interval": "1d",
-						"extended_bounds": {
-							"max": 1708969256351,
-							"min": 1708364456351
-						},
 						"field": "order_date"
 					}
 				}
@@ -3106,7 +3099,7 @@ var AggregationTests = []AggregationTestCase{
 						"fixed_interval": "12h",
 						"extended_bounds": {
 							"min": 1708627654149,
-							"max": 1709232454149
+							"max": 1708782454149
 						}
 					},
 					"aggs": {
@@ -3215,6 +3208,26 @@ var AggregationTests = []AggregationTestCase{
 								"doc_count": 83,
 								"key": 1708689600000,
 								"key_as_string": "2024-02-23T12:00:00.000"
+							},
+							{
+								"1-bucket": {
+									"1-metric": {
+										"value": null
+									}
+								},
+								"doc_count": 0,
+								"key": 1708732800000,
+								"key_as_string": "2024-02-24T00:00:00.000"
+							},
+							{
+								"1-bucket": {
+									"1-metric": {
+										"value": null
+									}
+								},
+								"doc_count": 0,
+								"key": 1708776000000,
+								"key_as_string": "2024-02-24T12:00:00.000"
 							}
 						]
 					}
