@@ -4,7 +4,6 @@ package quesma
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"net/http"
 	"quesma/ab_testing"
@@ -22,7 +21,6 @@ import (
 	quesma_api "quesma_v2/core"
 	"strconv"
 	"sync/atomic"
-	"time"
 )
 
 const concurrentClientsLimitV2 = 100 // FIXME this should be configurable
@@ -82,20 +80,10 @@ func newDualWriteProxyV2(dependencies *quesma_api.Dependencies, schemaLoader cli
 	// tests should not be run with optimization enabled by default
 	queryProcessor.EnableQueryOptimization(config)
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{
-		Transport: tr,
-		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
-	}
+	routerInstance := frontend_connectors.NewRouterV2(config)
 
-	routerInstance := frontend_connectors.RouterV2{
-		Config:     config,
-		HttpClient: client, RequestPreprocessors: quesma_api.ProcessorChain{}}
-	routerInstance.
-		RegisterPreprocessor(quesma_api.NewTraceIdPreprocessor())
 	dependencies.Diagnostic.PhoneHomeAgent().FailedRequestsCollector(func() int64 {
+
 		return routerInstance.FailedRequests.Load()
 	})
 
@@ -103,11 +91,12 @@ func newDualWriteProxyV2(dependencies *quesma_api.Dependencies, schemaLoader cli
 	searchRouter := ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
 
 	elasticHttpIngestFrontendConnector := NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		&routerInstance, logManager, registry)
+
+		routerInstance, logManager, registry)
 	elasticHttpIngestFrontendConnector.AddRouter(ingestRouter)
 
 	elasticHttpQueryFrontendConnector := NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		&routerInstance, logManager, registry)
+		routerInstance, logManager, registry)
 	elasticHttpQueryFrontendConnector.AddRouter(searchRouter)
 
 	quesmaBuilder := quesma_api.NewQuesma()

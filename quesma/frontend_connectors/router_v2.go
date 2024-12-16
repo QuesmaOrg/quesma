@@ -5,6 +5,7 @@ package frontend_connectors
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -82,6 +83,23 @@ type RouterV2 struct {
 
 func (r *RouterV2) InjectStatistics(s diag.Diagnostic) {
 	r.statistics = s
+}
+
+func NewRouterV2(config *config.QuesmaConfiguration) *RouterV2 {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
+	}
+	requestProcessors := quesma_api.ProcessorChain{}
+	requestProcessors = append(requestProcessors, quesma_api.NewTraceIdPreprocessor())
+	return &RouterV2{
+		Config:               config,
+		RequestPreprocessors: requestProcessors,
+		HttpClient:           client,
+	}
 }
 
 func (r *RouterV2) RegisterPreprocessor(preprocessor quesma_api.RequestPreprocessor) {
@@ -191,11 +209,12 @@ func (r *RouterV2) elasticFallback(decision *quesma_api.Decision,
 	}
 
 	if sendToElastic {
-		resolveIndexPattern := func(ctx context.Context, pattern string) ([]string, error) {
-			return logManager.ResolveIndexPattern(ctx, schemaRegistry, pattern)
+		if logManager != nil {
+			resolveIndexPattern := func(ctx context.Context, pattern string) ([]string, error) {
+				return logManager.ResolveIndexPattern(ctx, schemaRegistry, pattern)
+			}
+			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(OpaqueIdHeaderKey), resolveIndexPattern)
 		}
-		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(OpaqueIdHeaderKey), resolveIndexPattern)
-
 		rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 		response := rawResponse.response
 		if response != nil {
@@ -218,14 +237,14 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
 
-	quesmaRequest, ctx, err := r.preprocessRequest(ctx, &quesma_api.Request{
+	quesmaRequest, ctx, err := preprocessRequest(ctx, &quesma_api.Request{
 		Method:      req.Method,
 		Path:        strings.TrimSuffix(req.URL.Path, "/"),
 		Params:      map[string]string{},
 		Headers:     req.Header,
 		QueryParams: req.URL.Query(),
 		Body:        string(reqBody),
-	})
+	}, r.RequestPreprocessors)
 
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Error preprocessing request: %v", err)
@@ -266,7 +285,7 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 			logger.Debug().Ctx(ctx).Msg("responding from quesma")
 			unzipped := []byte{}
 			if quesmaResponse != nil {
-				unzipped = []byte(quesmaResponse.Body)
+				unzipped = quesmaResponse.GenericResult.([]byte)
 			}
 			if len(unzipped) == 0 {
 				logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
@@ -283,10 +302,10 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 }
 
-func (r *RouterV2) preprocessRequest(ctx context.Context, quesmaRequest *quesma_api.Request) (*quesma_api.Request, context.Context, error) {
+func preprocessRequest(ctx context.Context, quesmaRequest *quesma_api.Request, requestPreprocessors quesma_api.ProcessorChain) (*quesma_api.Request, context.Context, error) {
 	var err error
 	var processedRequest = quesmaRequest
-	for _, preprocessor := range r.RequestPreprocessors {
+	for _, preprocessor := range requestPreprocessors {
 		ctx, processedRequest, err = preprocessor.PreprocessRequest(ctx, processedRequest)
 		if err != nil {
 			return nil, nil, err
