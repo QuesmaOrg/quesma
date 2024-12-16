@@ -41,6 +41,7 @@ func Test_backendConnectorValidation(t *testing.T) {
 	var postgressPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	postgressPipeline.AddProcessor(tcpProcessor)
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+	quesmaBuilder.SetDependencies(quesma_api.EmptyDependencies())
 	const endpoint = "root:password@tcp(127.0.0.1:3306)/test"
 	var mySqlBackendConnector quesma_api.BackendConnector = &backend_connectors.MySqlBackendConnector{
 		Endpoint: endpoint,
