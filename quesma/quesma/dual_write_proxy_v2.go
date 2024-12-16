@@ -90,6 +90,13 @@ func newDualWriteProxyV2(dependencies *quesma_api.Dependencies, schemaLoader cli
 	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver)
 	searchRouter := ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
 
+	fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		routerInstance.ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
+		return nil, nil
+	}
+	searchRouter.AddFallbackHandler(fallback)
+	ingestRouter.AddFallbackHandler(fallback)
+
 	elasticHttpIngestFrontendConnector := NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
 		logManager, registry, config)
 	elasticHttpIngestFrontendConnector.AddRouter(ingestRouter)

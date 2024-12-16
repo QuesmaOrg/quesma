@@ -116,7 +116,7 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 	if handlersPipe != nil {
 		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, h.diagnostic.DebugInfoCollector(), func() (*quesma_api.Result, error) {
 			var result *quesma_api.Result
-			result, err = handlersPipe.Handler(ctx, quesmaRequest)
+			result, err = handlersPipe.Handler(ctx, quesmaRequest, w)
 
 			if result == nil {
 				return result, err
@@ -153,8 +153,12 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 		if h.router.GetFallbackHandler() != nil {
 			fmt.Printf("No handler found for path: %s\n", req.URL.Path)
 			handler := h.router.GetFallbackHandler()
-			result, _ := handler(context.Background(), &quesma_api.Request{OriginalRequest: req})
-			_, err := w.Write(result.GenericResult.([]byte))
+			result, err := handler(context.Background(), &quesma_api.Request{OriginalRequest: req}, w)
+			if err != nil {
+				fmt.Printf("Error handling request: %s\n", err)
+				return
+			}
+			_, err = w.Write(result.GenericResult.([]byte))
 			if err != nil {
 				fmt.Printf("Error writing response: %s\n", err)
 			}

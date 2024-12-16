@@ -268,7 +268,7 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	if handlersPipe != nil {
 		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.diagnostic.DebugInfoCollector(), func() (*quesma_api.Result, error) {
 			var result *quesma_api.Result
-			result, err = handlersPipe.Handler(ctx, quesmaRequest)
+			result, err = handlersPipe.Handler(ctx, quesmaRequest, w)
 
 			if result == nil {
 				return result, err

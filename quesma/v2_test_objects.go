@@ -79,7 +79,7 @@ var responses = [][]byte{
 }`),
 }
 
-func bulk(_ context.Context, request *quesma_api.Request) (*quesma_api.Result, error) {
+func bulk(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 	_, err := frontend_connectors.ReadRequestBody(request.OriginalRequest)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func bulk(_ context.Context, request *quesma_api.Request) (*quesma_api.Result, e
 	return &quesma_api.Result{Meta: metadata, GenericResult: resp, StatusCode: 200}, nil
 }
 
-func doc(_ context.Context, request *quesma_api.Request) (*quesma_api.Result, error) {
+func doc(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 	_, err := frontend_connectors.ReadRequestBody(request.OriginalRequest)
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func doc(_ context.Context, request *quesma_api.Request) (*quesma_api.Result, er
 
 var correlationId int64 = 0
 
-func search(_ context.Context, request *quesma_api.Request) (*quesma_api.Result, error) {
+func search(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 	metadata := quesma_api.MakeNewMetadata()
 	metadata["level"] = 0
 	atomic.AddInt64(&correlationId, 1)
