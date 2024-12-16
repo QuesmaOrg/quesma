@@ -53,7 +53,9 @@ func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseW
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 
 	for key, value := range quesmaResponse.Meta {
-		w.Header().Set(key, value.(string))
+		if headerStringValue, ok := value.(string); ok {
+			w.Header().Set(key, headerStringValue)
+		}
 	}
 	if zip {
 		w.Header().Set("Content-Encoding", "gzip")
@@ -164,7 +166,7 @@ func (*RouterV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter,
 
 }
 
-func (r *RouterV2) elasticFallback(decision *quesma_api.Decision,
+func (r *RouterV2) ElasticFallback(decision *quesma_api.Decision,
 	ctx context.Context, w http.ResponseWriter,
 	req *http.Request, reqBody []byte, logManager *clickhouse.LogManager, schemaRegistry schema.Registry) {
 
@@ -238,12 +240,13 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	})
 
 	quesmaRequest, ctx, err := preprocessRequest(ctx, &quesma_api.Request{
-		Method:      req.Method,
-		Path:        strings.TrimSuffix(req.URL.Path, "/"),
-		Params:      map[string]string{},
-		Headers:     req.Header,
-		QueryParams: req.URL.Query(),
-		Body:        string(reqBody),
+		Method:          req.Method,
+		Path:            strings.TrimSuffix(req.URL.Path, "/"),
+		Params:          map[string]string{},
+		Headers:         req.Header,
+		QueryParams:     req.URL.Query(),
+		Body:            string(reqBody),
+		OriginalRequest: req,
 	}, r.RequestPreprocessors)
 
 	if err != nil {
@@ -298,7 +301,7 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 			r.errorResponseV2(ctx, err, w)
 		}
 	} else {
-		r.elasticFallback(decision, ctx, w, req, reqBody, logManager, schemaRegistry)
+		r.ElasticFallback(decision, ctx, w, req, reqBody, logManager, schemaRegistry)
 	}
 }
 
@@ -385,7 +388,9 @@ func recordRequestToClickhouseV2(path string, qmc diag.DebugInfoCollector, reque
 	}
 	now := time.Now()
 	response, err := requestFunc()
-	qmc.RecordRequest(statName, time.Since(now), err != nil)
+	if qmc != nil {
+		qmc.RecordRequest(statName, time.Since(now), err != nil)
+	}
 	return response, err
 }
 
@@ -396,7 +401,9 @@ func recordRequestToElasticV2(path string, qmc diag.DebugInfoCollector, requestF
 	}
 	now := time.Now()
 	response := requestFunc()
-	qmc.RecordRequest(statName, time.Since(now), !isResponseOkV2(response.response))
+	if qmc != nil {
+		qmc.RecordRequest(statName, time.Since(now), !isResponseOkV2(response.response))
+	}
 	return response
 }
 

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/frontend_connectors"
+	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/schema"
 	quesma_api "quesma_v2/core"
@@ -18,17 +19,18 @@ type ElasticHttpIngestFrontendConnector struct {
 	routerInstance *frontend_connectors.RouterV2
 	logManager     *clickhouse.LogManager
 	registry       schema.Registry
+	Config         *config.QuesmaConfiguration
 	diagnostic     diag.Diagnostic
 }
 
 func NewElasticHttpIngestFrontendConnector(endpoint string,
-	routerInstance *frontend_connectors.RouterV2,
 	logManager *clickhouse.LogManager,
-	registry schema.Registry) *ElasticHttpIngestFrontendConnector {
+	registry schema.Registry,
+	config *config.QuesmaConfiguration) *ElasticHttpIngestFrontendConnector {
 
 	return &ElasticHttpIngestFrontendConnector{
-		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint),
-		routerInstance:             routerInstance,
+		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
+		routerInstance:             frontend_connectors.NewRouterV2(config),
 		logManager:                 logManager,
 		registry:                   registry,
 	}
@@ -36,6 +38,10 @@ func NewElasticHttpIngestFrontendConnector(endpoint string,
 
 func (h *ElasticHttpIngestFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
 	h.diagnostic = diagnostic
+
+	// TODO this is a hack
+	h.BasicHTTPFrontendConnector.InjectDiagnostic(diagnostic)
+	h.routerInstance.InjectDiagnostic(diagnostic)
 }
 
 func serveHTTPHelper(w http.ResponseWriter, req *http.Request,
@@ -70,13 +76,13 @@ type ElasticHttpQueryFrontendConnector struct {
 }
 
 func NewElasticHttpQueryFrontendConnector(endpoint string,
-	routerInstance *frontend_connectors.RouterV2,
 	logManager *clickhouse.LogManager,
-	registry schema.Registry) *ElasticHttpIngestFrontendConnector {
+	registry schema.Registry,
+	config *config.QuesmaConfiguration) *ElasticHttpIngestFrontendConnector {
 
 	return &ElasticHttpIngestFrontendConnector{
-		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint),
-		routerInstance:             routerInstance,
+		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
+		routerInstance:             frontend_connectors.NewRouterV2(config),
 		logManager:                 logManager,
 		registry:                   registry,
 	}
