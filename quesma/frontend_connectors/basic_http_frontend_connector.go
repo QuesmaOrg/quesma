@@ -123,7 +123,6 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 		})
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
-		_ = zip
 		if err == nil {
 			logger.Debug().Ctx(ctx).Msg("responding from quesma")
 			unzipped := []byte{}
@@ -134,13 +133,11 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 				logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
 			}
 			AddProductAndContentHeaders(req.Header, w.Header())
-			_, err := w.Write(unzipped)
-			if err != nil {
-				fmt.Printf("Error writing response: %s\n", err)
-			}
+
+			responseFromQuesmaV2(ctx, unzipped, w, quesmaResponse, zip)
 
 		} else {
-
+			h.routerInstance.errorResponseV2(ctx, err, w)
 		}
 	} else {
 		if h.router.GetFallbackHandler() != nil {
