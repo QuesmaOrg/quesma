@@ -4,6 +4,7 @@
 package quesma
 
 import (
+	"context"
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/frontend_connectors"
@@ -26,19 +27,28 @@ type ElasticHttpIngestFrontendConnector struct {
 func NewElasticHttpIngestFrontendConnector(endpoint string,
 	logManager *clickhouse.LogManager,
 	registry schema.Registry,
-	config *config.QuesmaConfiguration) *ElasticHttpIngestFrontendConnector {
+	config *config.QuesmaConfiguration, router quesma_api.Router) *ElasticHttpIngestFrontendConnector {
 
-	return &ElasticHttpIngestFrontendConnector{
+	routerInstance := frontend_connectors.NewRouterV2(config)
+	fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		routerInstance.ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
+		return nil, nil
+	}
+	fc := &ElasticHttpIngestFrontendConnector{
 		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
-		routerInstance:             frontend_connectors.NewRouterV2(config),
+		routerInstance:             routerInstance,
 		logManager:                 logManager,
 		registry:                   registry,
 	}
+	_ = fallback
+	router.AddFallbackHandler(fallback)
+	fc.AddRouter(router)
+
+	return fc
 }
 
 func (h *ElasticHttpIngestFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
 	h.diagnostic = diagnostic
-
 	// TODO this is a hack
 	h.BasicHTTPFrontendConnector.InjectDiagnostic(diagnostic)
 	h.routerInstance.InjectDiagnostic(diagnostic)
@@ -78,18 +88,29 @@ type ElasticHttpQueryFrontendConnector struct {
 func NewElasticHttpQueryFrontendConnector(endpoint string,
 	logManager *clickhouse.LogManager,
 	registry schema.Registry,
-	config *config.QuesmaConfiguration) *ElasticHttpIngestFrontendConnector {
-
-	return &ElasticHttpIngestFrontendConnector{
+	config *config.QuesmaConfiguration, router quesma_api.Router) *ElasticHttpIngestFrontendConnector {
+	routerInstance := frontend_connectors.NewRouterV2(config)
+	fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		routerInstance.ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
+		return nil, nil
+	}
+	_ = fallback
+	fc := &ElasticHttpIngestFrontendConnector{
 		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
 		routerInstance:             frontend_connectors.NewRouterV2(config),
 		logManager:                 logManager,
 		registry:                   registry,
 	}
+	router.AddFallbackHandler(fallback)
+	fc.AddRouter(router)
+	return fc
 }
 
 func (h *ElasticHttpQueryFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
 	h.diagnostic = diagnostic
+	// TODO this is a hack
+	h.BasicHTTPFrontendConnector.InjectDiagnostic(diagnostic)
+	h.routerInstance.InjectDiagnostic(diagnostic)
 }
 
 func (h *ElasticHttpQueryFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {

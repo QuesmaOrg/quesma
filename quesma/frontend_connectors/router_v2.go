@@ -33,8 +33,9 @@ import (
 )
 
 func responseFromElasticV2(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter) {
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
-	logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
+	if id, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
+		logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
+	}
 
 	copyHeadersV2(w, elkResponse)
 	w.Header().Set(QuesmaSourceHeader, QuesmaSourceElastic)
@@ -86,7 +87,6 @@ type RouterV2 struct {
 func (r *RouterV2) InjectDiagnostic(s diag.Diagnostic) {
 	r.diagnostic = s
 }
-
 func NewRouterV2(config *config.QuesmaConfiguration) *RouterV2 {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -97,6 +97,7 @@ func NewRouterV2(config *config.QuesmaConfiguration) *RouterV2 {
 	}
 	requestProcessors := quesma_api.ProcessorChain{}
 	requestProcessors = append(requestProcessors, quesma_api.NewTraceIdPreprocessor())
+
 	return &RouterV2{
 		Config:               config,
 		RequestPreprocessors: requestProcessors,
@@ -303,7 +304,18 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 			r.errorResponseV2(ctx, err, w)
 		}
 	} else {
-		r.ElasticFallback(decision, ctx, w, req, reqBody, logManager, schemaRegistry)
+		if router.GetFallbackHandler() != nil {
+			fmt.Printf("No handler found for path: %s\n", req.URL.Path)
+			handler := router.GetFallbackHandler()
+			result, _ := handler(ctx, quesmaRequest, w)
+			if result == nil {
+				return
+			}
+			_, err = w.Write(result.GenericResult.([]byte))
+			if err != nil {
+				fmt.Printf("Error writing response: %s\n", err)
+			}
+		}
 	}
 }
 

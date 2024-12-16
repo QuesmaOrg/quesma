@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/logger"
+	"quesma/queryparser"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
@@ -68,9 +69,12 @@ func (h *BasicHTTPFrontendConnector) GetRouter() quesma_api.Router {
 }
 
 func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	defer recovery.LogPanic()
-
 	ctx := req.Context()
+	defer recovery.LogAndHandlePanic(ctx, func(err error) {
+		w.WriteHeader(500)
+		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
+	})
+
 	requestPreprocessors := quesma_api.ProcessorChain{}
 	requestPreprocessors = append(requestPreprocessors, quesma_api.NewTraceIdPreprocessor())
 
@@ -154,8 +158,7 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 			fmt.Printf("No handler found for path: %s\n", req.URL.Path)
 			handler := h.router.GetFallbackHandler()
 			result, err := handler(context.Background(), &quesma_api.Request{OriginalRequest: req}, w)
-			if err != nil {
-				fmt.Printf("Error handling request: %s\n", err)
+			if result == nil {
 				return
 			}
 			_, err = w.Write(result.GenericResult.([]byte))
