@@ -185,7 +185,6 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			},
 		},
 	}
-	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, table), &config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables["logs-generic-default"]}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -269,7 +268,6 @@ func Test_parseSortFields(t *testing.T) {
 		ENGINE = Memory`,
 		clickhouse.NewChTableConfigNoAttrs(),
 	)
-	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, table), &config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background()}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -294,7 +292,6 @@ func TestInvalidQueryRequests(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, &table), &config.QuesmaConfiguration{})
 	currentSchema := schema.Schema{
 		Fields:             nil,
 		Aliases:            nil,

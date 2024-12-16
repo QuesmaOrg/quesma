@@ -10,7 +10,6 @@ import (
 	"quesma/clickhouse"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
-	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/util"
