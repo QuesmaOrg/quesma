@@ -1,8 +1,10 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package telemetry
+package diag
 
-import "time"
+import (
+	"time"
+)
 import "context"
 
 type emptyTimer struct {
@@ -37,7 +39,7 @@ func (d emptyMultiCounter) AggregateTopValuesAndReset() MultiCounterTopValuesSta
 	return MultiCounterTopValuesStats{}
 }
 
-func NoopPhoneHomeAgent() PhoneHomeAgent {
+func NoopPhoneHomeAgent() PhoneHomeClient {
 	return &emptyAgent{}
 }
 
@@ -50,10 +52,6 @@ func (d emptyAgent) Start() {
 
 func (d emptyAgent) Stop(ctx context.Context) {
 	// do nothing
-}
-
-func (d emptyAgent) RecentStats() (recent PhoneHomeStats, available bool) {
-	return PhoneHomeStats{}, false
 }
 
 func (d emptyAgent) ClickHouseQueryDuration() DurationMeasurement {
@@ -92,6 +90,40 @@ func (d emptyAgent) FailedRequestsCollector(func() int64) {
 
 }
 
-func NewPhoneHomeEmptyAgent() PhoneHomeAgent {
+func NewPhoneHomeEmptyAgent() PhoneHomeClient {
 	return &emptyAgent{}
+}
+
+type emptyPhoneHomeRecentStatsProvider struct {
+}
+
+func (d emptyPhoneHomeRecentStatsProvider) RecentStats() (PhoneHomeStats, bool) {
+	return PhoneHomeStats{}, true
+}
+
+func EmptyPhoneHomeRecentStatsProvider() PhoneHomeRecentStatsProvider {
+	return &emptyPhoneHomeRecentStatsProvider{}
+}
+
+type emptyDebugInfoCollector struct {
+}
+
+func EmptyDebugInfoCollector() DebugInfoCollector {
+	return &emptyDebugInfoCollector{}
+}
+
+func (e *emptyDebugInfoCollector) PushPrimaryInfo(qdebugInfo *QueryDebugPrimarySource) {
+}
+
+func (e *emptyDebugInfoCollector) PushSecondaryInfo(qdebugInfo *QueryDebugSecondarySource) {
+}
+
+func (e *emptyDebugInfoCollector) RecordRequest(typeName string, took time.Duration, error bool) {
+}
+
+func EmptyDiagnostic() Diagnostic {
+	return &diagnosticImpl{
+		phoneHomeAgent:     NewPhoneHomeEmptyAgent(),
+		debugInfoCollector: EmptyDebugInfoCollector(),
+	}
 }
