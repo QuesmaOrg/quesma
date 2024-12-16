@@ -66,6 +66,12 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 		http.Error(w, "Error reading request body", http.StatusInternalServerError)
 		return
 	}
+
+	ua := req.Header.Get("User-Agent")
+	if h.phoneHomeAgent != nil {
+		h.phoneHomeAgent.UserAgentCounters().Add(ua, 1)
+	}
+
 	ctx := req.Context()
 	requestPreprocessors := quesma_api.ProcessorChain{}
 	requestPreprocessors = append(requestPreprocessors, quesma_api.NewTraceIdPreprocessor())
