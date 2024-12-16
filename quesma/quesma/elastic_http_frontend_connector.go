@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/frontend_connectors"
+	"quesma/quesma/config"
 	"quesma/quesma/recovery"
+	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/telemetry"
 	quesma_api "quesma_v2/core"
@@ -15,21 +17,24 @@ import (
 
 type ElasticHttpIngestFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
-	routerInstance *frontend_connectors.RouterV2
-	logManager     *clickhouse.LogManager
-	registry       schema.Registry
-	agent          telemetry.PhoneHomeAgent
+	routerInstance          *frontend_connectors.RouterV2
+	logManager              *clickhouse.LogManager
+	registry                schema.Registry
+	Config                  *config.QuesmaConfiguration
+	QuesmaManagementConsole *ui.QuesmaManagementConsole
+	agent                   telemetry.PhoneHomeAgent
 }
 
 func NewElasticHttpIngestFrontendConnector(endpoint string,
-	routerInstance *frontend_connectors.RouterV2,
 	logManager *clickhouse.LogManager,
 	registry schema.Registry,
+	config *config.QuesmaConfiguration,
+	quesmaManagementConsole *ui.QuesmaManagementConsole,
 	agent telemetry.PhoneHomeAgent) *ElasticHttpIngestFrontendConnector {
 
 	return &ElasticHttpIngestFrontendConnector{
-		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint),
-		routerInstance:             routerInstance,
+		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
+		routerInstance:             frontend_connectors.NewRouterV2(config, quesmaManagementConsole, agent),
 		logManager:                 logManager,
 		registry:                   registry,
 		agent:                      agent,
@@ -68,14 +73,15 @@ type ElasticHttpQueryFrontendConnector struct {
 }
 
 func NewElasticHttpQueryFrontendConnector(endpoint string,
-	routerInstance *frontend_connectors.RouterV2,
 	logManager *clickhouse.LogManager,
 	registry schema.Registry,
+	config *config.QuesmaConfiguration,
+	quesmaManagementConsole *ui.QuesmaManagementConsole,
 	agent telemetry.PhoneHomeAgent) *ElasticHttpIngestFrontendConnector {
 
 	return &ElasticHttpIngestFrontendConnector{
-		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint),
-		routerInstance:             routerInstance,
+		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
+		routerInstance:             frontend_connectors.NewRouterV2(config, quesmaManagementConsole, agent),
 		logManager:                 logManager,
 		registry:                   registry,
 		agent:                      agent,

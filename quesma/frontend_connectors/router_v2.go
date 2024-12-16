@@ -161,7 +161,7 @@ func (*RouterV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter,
 
 }
 
-func (r *RouterV2) elasticFallback(decision *quesma_api.Decision,
+func (r *RouterV2) ElasticFallback(decision *quesma_api.Decision,
 	ctx context.Context, w http.ResponseWriter,
 	req *http.Request, reqBody []byte, logManager *clickhouse.LogManager, schemaRegistry schema.Registry) {
 
@@ -295,7 +295,7 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 			r.errorResponseV2(ctx, err, w)
 		}
 	} else {
-		r.elasticFallback(decision, ctx, w, req, reqBody, logManager, schemaRegistry)
+		r.ElasticFallback(decision, ctx, w, req, reqBody, logManager, schemaRegistry)
 	}
 }
 
@@ -343,7 +343,7 @@ func (r *RouterV2) sendHttpRequestToElastic(ctx context.Context, req *http.Reque
 			isWrite := elasticsearch.IsWriteRequest(req)
 
 			var span telemetry.Span
-			if isManagement {
+			if isManagement && r.PhoneHomeAgent != nil {
 				if isWrite {
 					span = r.PhoneHomeAgent.ElasticBypassedWriteRequestsDuration().Begin()
 				} else {
@@ -380,7 +380,9 @@ func recordRequestToClickhouseV2(path string, qmc *ui.QuesmaManagementConsole, r
 	}
 	now := time.Now()
 	response, err := requestFunc()
-	qmc.RecordRequest(statName, time.Since(now), err != nil)
+	if qmc != nil {
+		qmc.RecordRequest(statName, time.Since(now), err != nil)
+	}
 	return response, err
 }
 
@@ -391,7 +393,9 @@ func recordRequestToElasticV2(path string, qmc *ui.QuesmaManagementConsole, requ
 	}
 	now := time.Now()
 	response := requestFunc()
-	qmc.RecordRequest(statName, time.Since(now), !isResponseOkV2(response.response))
+	if qmc != nil {
+		qmc.RecordRequest(statName, time.Since(now), !isResponseOkV2(response.response))
+	}
 	return response
 }
 

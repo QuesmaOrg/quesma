@@ -11,6 +11,7 @@ import (
 	"quesma/backend_connectors"
 	"quesma/frontend_connectors"
 	"quesma/processors"
+	"quesma/quesma/config"
 	quesma_api "quesma_v2/core"
 	"sync/atomic"
 	"syscall"
@@ -63,7 +64,16 @@ func fallback(_ context.Context, _ *quesma_api.Request) (*quesma_api.Result, err
 func ab_testing_scenario() quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
 
-	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
+	cfg := &config.QuesmaConfiguration{
+		DisableAuth: true,
+		Elasticsearch: config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     "",
+			Password: "",
+		},
+	}
+
+	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
 	ingestHTTPRouter := quesma_api.NewPathRouter()
 	ingestHTTPRouter.AddRoute("/_bulk", bulk)
 	ingestHTTPRouter.AddRoute("/_doc", doc)
@@ -81,7 +91,7 @@ func ab_testing_scenario() quesma_api.QuesmaBuilder {
 	ingestPipeline.AddProcessor(ingestProcessor)
 	ingestPipeline.AddProcessor(abIngestTestProcessor)
 
-	queryFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
+	queryFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
 	queryHTTPRouter := quesma_api.NewPathRouter()
 	queryHTTPRouter.AddRoute("/_search", search)
 	queryFrontendConnector.AddRouter(queryHTTPRouter)
@@ -105,8 +115,15 @@ func ab_testing_scenario() quesma_api.QuesmaBuilder {
 
 func fallbackScenario() quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
-
-	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
+	cfg := &config.QuesmaConfiguration{
+		DisableAuth: true,
+		Elasticsearch: config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     "",
+			Password: "",
+		},
+	}
+	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
 	ingestHTTPRouter := quesma_api.NewPathRouter()
 	var fallback quesma_api.HTTPFrontendHandler = fallback
 	ingestHTTPRouter.AddFallbackHandler(fallback)

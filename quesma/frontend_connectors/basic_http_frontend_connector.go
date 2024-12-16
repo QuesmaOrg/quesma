@@ -9,24 +9,42 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"quesma/clickhouse"
 	"quesma/logger"
+	"quesma/quesma/config"
 	"quesma/quesma/recovery"
+	"quesma/quesma/ui"
+	"quesma/schema"
+	"quesma/telemetry"
 	quesma_api "quesma_v2/core"
 	"strings"
 	"sync"
 )
 
 type BasicHTTPFrontendConnector struct {
-	listener        *http.Server
-	router          quesma_api.Router
-	mutex           sync.Mutex
-	responseMutator func(w http.ResponseWriter) http.ResponseWriter
-	endpoint        string
+	listener                *http.Server
+	router                  quesma_api.Router
+	mutex                   sync.Mutex
+	responseMutator         func(w http.ResponseWriter) http.ResponseWriter
+	endpoint                string
+	routerInstance          *RouterV2
+	logManager              *clickhouse.LogManager
+	registry                schema.Registry
+	config                  *config.QuesmaConfiguration
+	quesmaManagementConsole *ui.QuesmaManagementConsole
+	phoneHomeAgent          telemetry.PhoneHomeAgent
 }
 
-func NewBasicHTTPFrontendConnector(endpoint string) *BasicHTTPFrontendConnector {
+func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfiguration) *BasicHTTPFrontendConnector {
+
 	return &BasicHTTPFrontendConnector{
-		endpoint: endpoint,
+		endpoint:                endpoint,
+		config:                  config,
+		routerInstance:          NewRouterV2(config, nil, nil),
+		logManager:              nil,
+		registry:                nil,
+		quesmaManagementConsole: nil,
+		phoneHomeAgent:          nil,
 		responseMutator: func(w http.ResponseWriter) http.ResponseWriter {
 			return w
 		},
