@@ -78,11 +78,11 @@ type RouterV2 struct {
 	HttpClient     *http.Client
 	FailedRequests atomic.Int64
 
-	statistics diag.Diagnostic
+	diagnostic diag.Diagnostic
 }
 
-func (r *RouterV2) InjectStatistics(s diag.Diagnostic) {
-	r.statistics = s
+func (r *RouterV2) InjectDiagnostic(s diag.Diagnostic) {
+	r.diagnostic = s
 }
 
 func NewRouterV2(config *config.QuesmaConfiguration) *RouterV2 {
@@ -261,7 +261,7 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 	dispatcher := &quesma_api.Dispatcher{}
 	if handlersPipe != nil {
-		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.statistics.DebugInfoCollector(), func() (*quesma_api.Result, error) {
+		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.diagnostic.DebugInfoCollector(), func() (*quesma_api.Result, error) {
 			var result *quesma_api.Result
 			result, err = handlersPipe.Handler(ctx, quesmaRequest)
 
@@ -341,11 +341,11 @@ func (r *RouterV2) sendHttpRequestToElastic(ctx context.Context, req *http.Reque
 	}
 
 	go func() {
-		elkResponseChan <- recordRequestToElasticV2(req.URL.Path, r.statistics.DebugInfoCollector(), func() elasticResultV2 {
+		elkResponseChan <- recordRequestToElasticV2(req.URL.Path, r.diagnostic.DebugInfoCollector(), func() elasticResultV2 {
 
 			isWrite := elasticsearch.IsWriteRequest(req)
 
-			phoneHome := r.statistics.PhoneHomeAgent()
+			phoneHome := r.diagnostic.PhoneHomeAgent()
 
 			var span diag.Span
 			if isManagement {
