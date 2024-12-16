@@ -200,22 +200,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [12]
-		TestName:  "bucket aggregation: ip_prefix",
-		QueryType: "ip_prefix",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"ipv4-subnets": {
-					"ip_prefix": {
-						"field": "ipv4",
-						"prefix_length": 24
-					}
-				}
-			}
-		}`,
-	},
 	{ // [13]
 		TestName:  "bucket aggregation: ip_range",
 		QueryType: "ip_range",

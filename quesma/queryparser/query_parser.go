@@ -232,36 +232,6 @@ func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) model.H
 	return highlighter
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (model.SimpleQuery, model.HitsCountInfo, model.Highlighter) {
-	queryAsMap, err := types.ParseJSON(queryAsJson)
-	if err != nil {
-		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
-		return model.NewSimpleQuery(nil, false), model.NewEmptyHitsCountInfo(), NewEmptyHighlighter()
-	}
-
-	// we must parse "highlights" here, because it is stripped from the queryAsMap later
-	highlighter := cw.ParseHighlighter(queryAsMap)
-
-	var parsedQuery model.SimpleQuery
-	if query, ok := queryAsMap["query"]; ok {
-		queryMap, ok := query.(QueryMap)
-		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("invalid query type: %T, value: %v", query, query)
-			return model.NewSimpleQuery(nil, false), model.NewEmptyHitsCountInfo(), NewEmptyHighlighter()
-		}
-		parsedQuery = cw.parseQueryMap(queryMap)
-	} else {
-		return model.NewSimpleQuery(nil, true), cw.tryProcessSearchMetadata(queryAsMap), highlighter
-	}
-
-	if sort, ok := queryAsMap["sort"]; ok {
-		parsedQuery.OrderBy = cw.parseSortFields(sort)
-	}
-	queryInfo := cw.tryProcessSearchMetadata(queryAsMap)
-
-	return parsedQuery, queryInfo, highlighter
-}
-
 // Metadata attributes are the ones that are on the same level as query tag
 // They are moved into separate map for further processing if needed
 func (cw *ClickhouseQueryTranslator) parseMetadata(queryMap QueryMap) QueryMap {

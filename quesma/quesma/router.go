@@ -79,8 +79,9 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			}
 
 			return &quesma_api.Result{
-				Body:       string(responseBytes),
-				StatusCode: errorResponse.Status,
+				Body:          string(responseBytes),
+				StatusCode:    errorResponse.Status,
+				GenericResult: responseBytes,
 			}, nil
 		}
 
@@ -90,8 +91,9 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 
 		return &quesma_api.Result{
-			Body:       string(responseBytes),
-			StatusCode: http.StatusOK,
+			Body:          string(responseBytes),
+			StatusCode:    http.StatusOK,
+			GenericResult: responseBytes,
 		}, nil
 	})
 
@@ -121,16 +123,18 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
 			return &quesma_api.Result{
-				Body:       string(queryparser.BadRequestParseError(err)),
-				StatusCode: http.StatusBadRequest,
+				Body:          string(queryparser.BadRequestParseError(err)),
+				StatusCode:    http.StatusBadRequest,
+				GenericResult: queryparser.BadRequestParseError(err),
 			}, nil
 		}
 
 		result, err := doc.Write(ctx, &index, body, ip, cfg, phoneHomeAgent, tableResolver)
 		if err != nil {
 			return &quesma_api.Result{
-				Body:       string(queryparser.BadRequestParseError(err)),
-				StatusCode: http.StatusBadRequest,
+				Body:          string(queryparser.BadRequestParseError(err)),
+				StatusCode:    http.StatusBadRequest,
+				GenericResult: queryparser.BadRequestParseError(err),
 			}, nil
 		}
 
@@ -209,8 +213,9 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 				return &quesma_api.Result{
-					Body:       string(queryparser.BadRequestParseError(err)),
-					StatusCode: http.StatusBadRequest,
+					Body:          string(queryparser.BadRequestParseError(err)),
+					StatusCode:    http.StatusBadRequest,
+					GenericResult: queryparser.BadRequestParseError(err),
 				}, nil
 			} else {
 				return nil, err
@@ -245,8 +250,9 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 				return &quesma_api.Result{
-					Body:       string(queryparser.BadRequestParseError(err)),
-					StatusCode: http.StatusBadRequest,
+					Body:          string(queryparser.BadRequestParseError(err)),
+					StatusCode:    http.StatusBadRequest,
+					GenericResult: queryparser.BadRequestParseError(err),
 				}, nil
 			} else {
 				return nil, err
@@ -444,7 +450,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			return nil, err
 		}
 
-		return &quesma_api.Result{Body: string(body), StatusCode: http.StatusOK}, nil
+		return &quesma_api.Result{Body: string(body), StatusCode: http.StatusOK, GenericResult: body}, nil
 	})
 
 	return router
@@ -472,7 +478,8 @@ func elasticsearchCountResult(body int64, statusCode int) (*quesma_api.Result, e
 	return &quesma_api.Result{Body: string(serialized), Meta: map[string]any{
 		"Content-Type":            "application/json",
 		"X-Quesma-Headers-Source": "Quesma",
-	}, StatusCode: statusCode}, nil
+	}, StatusCode: statusCode,
+		GenericResult: serialized}, nil
 }
 
 type countResult struct {
@@ -489,7 +496,8 @@ func elasticsearchQueryResult(body string, statusCode int) *quesma_api.Result {
 	return &quesma_api.Result{Body: body, Meta: map[string]any{
 		// TODO copy paste from the original request
 		"X-Quesma-Headers-Source": "Quesma",
-	}, StatusCode: statusCode}
+	}, StatusCode: statusCode,
+		GenericResult: []byte(body)}
 }
 
 var ingestWarning sync.Once
@@ -531,15 +539,17 @@ func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*que
 		}
 
 		return &quesma_api.Result{
-			Body:       msg,
-			StatusCode: httpCode,
+			Body:          msg,
+			StatusCode:    httpCode,
+			GenericResult: []byte(msg),
 		}, nil
 	}
 
 	if err != nil {
 		return &quesma_api.Result{
-			Body:       string(queryparser.BadRequestParseError(err)),
-			StatusCode: http.StatusBadRequest,
+			Body:          string(queryparser.BadRequestParseError(err)),
+			StatusCode:    http.StatusBadRequest,
+			GenericResult: queryparser.BadRequestParseError(err),
 		}, nil
 	}
 
@@ -560,7 +570,8 @@ func elasticsearchInsertResult(body string, statusCode int) *quesma_api.Result {
 		// TODO copy paste from the original request
 		frontend_connectors.ContentTypeHeaderKey: "application/json",
 		"X-Quesma-Headers-Source":                "Quesma",
-	}, StatusCode: statusCode}
+	}, StatusCode: statusCode,
+		GenericResult: []byte(body)}
 }
 
 func resolveIndexResult(sources elasticsearch.Sources) (*quesma_api.Result, error) {
@@ -574,9 +585,10 @@ func resolveIndexResult(sources elasticsearch.Sources) (*quesma_api.Result, erro
 	}
 
 	return &quesma_api.Result{
-		Body:       string(body),
-		Meta:       map[string]any{},
-		StatusCode: http.StatusOK}, nil
+		Body:          string(body),
+		Meta:          map[string]any{},
+		StatusCode:    http.StatusOK,
+		GenericResult: body}, nil
 }
 
 func indexDocResult(bulkItem bulk.BulkItem) (*quesma_api.Result, error) {
@@ -598,7 +610,7 @@ func putIndexResult(index string) (*quesma_api.Result, error) {
 		return nil, err
 	}
 
-	return &quesma_api.Result{StatusCode: http.StatusOK, Body: string(serialized)}, nil
+	return &quesma_api.Result{StatusCode: http.StatusOK, Body: string(serialized), GenericResult: serialized}, nil
 }
 
 func getIndexMappingResult(index string, mappings map[string]any) (*quesma_api.Result, error) {
@@ -612,7 +624,7 @@ func getIndexMappingResult(index string, mappings map[string]any) (*quesma_api.R
 		return nil, err
 	}
 
-	return &quesma_api.Result{StatusCode: http.StatusOK, Body: string(serialized)}, nil
+	return &quesma_api.Result{StatusCode: http.StatusOK, Body: string(serialized), GenericResult: serialized}, nil
 }
 
 func getIndexResult(index string, mappings map[string]any) (*quesma_api.Result, error) {
