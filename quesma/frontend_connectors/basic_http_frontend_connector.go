@@ -158,7 +158,7 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 			fmt.Printf("No handler found for path: %s\n", req.URL.Path)
 			handler := h.router.GetFallbackHandler()
 			result, err := handler(context.Background(), &quesma_api.Request{OriginalRequest: req}, w)
-			if result == nil {
+			if result == nil && err == nil {
 				return
 			}
 			_, err = w.Write(result.GenericResult.([]byte))
