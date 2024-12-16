@@ -40,7 +40,9 @@ func (h *BasicHTTPFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic
 	h.diagnostic = diagnostic
 
 	// TODO this is a hack
-	h.routerInstance.InjectDiagnostic(diagnostic)
+	if h.routerInstance != nil {
+		h.routerInstance.InjectDiagnostic(diagnostic)
+	}
 }
 
 func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfiguration) *BasicHTTPFrontendConnector {
