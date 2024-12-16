@@ -62,6 +62,11 @@ func (h *BasicHTTPFrontendConnector) GetRouter() quesma_api.Router {
 
 func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer recovery.LogPanic()
+
+	ctx := req.Context()
+	requestPreprocessors := quesma_api.ProcessorChain{}
+	requestPreprocessors = append(requestPreprocessors, quesma_api.NewTraceIdPreprocessor())
+
 	reqBody, err := PeekBodyV2(req)
 	if err != nil {
 		http.Error(w, "Error reading request body", http.StatusInternalServerError)
@@ -72,10 +77,6 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 	if h.phoneHomeAgent != nil {
 		h.phoneHomeAgent.UserAgentCounters().Add(ua, 1)
 	}
-
-	ctx := req.Context()
-	requestPreprocessors := quesma_api.ProcessorChain{}
-	requestPreprocessors = append(requestPreprocessors, quesma_api.NewTraceIdPreprocessor())
 
 	quesmaRequest, ctx, err := preprocessRequest(ctx, &quesma_api.Request{
 		Method:          req.Method,
