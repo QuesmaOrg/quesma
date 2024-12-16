@@ -388,9 +388,7 @@ func recordRequestToClickhouseV2(path string, qmc diag.DebugInfoCollector, reque
 	}
 	now := time.Now()
 	response, err := requestFunc()
-	if qmc != nil {
-		qmc.RecordRequest(statName, time.Since(now), err != nil)
-	}
+	qmc.RecordRequest(statName, time.Since(now), err != nil)
 	return response, err
 }
 
