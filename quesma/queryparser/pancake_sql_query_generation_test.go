@@ -38,7 +38,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, &table), &config.QuesmaConfiguration{})
 	currentSchema := schema.Schema{
 		Fields:             nil,
 		Aliases:            nil,
@@ -46,7 +45,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 		DatabaseName:       "",
 	}
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: currentSchema}
+	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: currentSchema}
 
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
@@ -211,11 +210,9 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, &table), &config.QuesmaConfiguration{})
-
 	currentSchema := schema.Schema{}
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: currentSchema}
+	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: currentSchema}
 
 	tests := []struct {
 		name string

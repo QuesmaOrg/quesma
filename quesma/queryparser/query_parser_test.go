@@ -61,7 +61,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables[schema.IndexName(tableName)]}
+	cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables[schema.IndexName(tableName)]}
 
 	for i, tt := range testdata.TestsSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
@@ -122,7 +122,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables[schema.IndexName(tableName)]}
+	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables[schema.IndexName(tableName)]}
 
 	for i, tt := range testdata.TestsSearchNoFullTextFields {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
@@ -186,7 +186,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 		},
 	}
 	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, table), &config.QuesmaConfiguration{})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables["logs-generic-default"]}
+	cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Config: &cfg, Schema: s.Tables["logs-generic-default"]}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
@@ -270,7 +270,7 @@ func Test_parseSortFields(t *testing.T) {
 		clickhouse.NewChTableConfigNoAttrs(),
 	)
 	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, table), &config.QuesmaConfiguration{})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
+	cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background()}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.sortColumns, cw.parseSortFields(tt.sortMap))
@@ -302,7 +302,7 @@ func TestInvalidQueryRequests(t *testing.T) {
 		DatabaseName:       "",
 	}
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: currentSchema}
+	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: currentSchema}
 
 	for i, test := range testdata.InvalidAggregationTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
