@@ -12,7 +12,7 @@ import (
 func Test_validateAndParse(t *testing.T) {
 	var testcases = []struct {
 		searchAfter                     any
-		isInputFineFoolproofStrategy    bool
+		isInputFineBulletproofStrategy  bool
 		isInputFineBasicAndFastStrategy bool
 	}{
 		{nil, true, true},
@@ -25,13 +25,13 @@ func Test_validateAndParse(t *testing.T) {
 		{"string is bad", false, false},
 	}
 
-	foolproof := SearchAfterStrategyFactory(Foolproof, ColumnRef{})
+	bulletproof := SearchAfterStrategyFactory(Bulletproof, ColumnRef{})
 	basicAndFast := SearchAfterStrategyFactory(BasicAndFast, ColumnRef{})
 	for i, tc := range testcases {
 		t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
-			err := foolproof.Validate(tc.searchAfter)
-			if (err == nil) != tc.isInputFineFoolproofStrategy {
-				t.Errorf("Foolproof strategy failed to validate the input: %v", tc.searchAfter)
+			err := bulletproof.Validate(tc.searchAfter)
+			if (err == nil) != tc.isInputFineBulletproofStrategy {
+				t.Errorf("Bulletproof strategy failed to validate the input: %v", tc.searchAfter)
 			}
 
 			err = basicAndFast.Validate(tc.searchAfter)
