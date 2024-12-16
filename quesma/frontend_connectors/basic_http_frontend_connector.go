@@ -104,19 +104,24 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 	w = h.responseMutator(w)
 
 	if handlersPipe != nil {
-		result, _ := handlersPipe.Handler(context.Background(), &quesma_api.Request{OriginalRequest: quesmaRequest.OriginalRequest})
-		var quesmaResponse *quesma_api.Result
+		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, h.quesmaManagementConsole, func() (*quesma_api.Result, error) {
+			var result *quesma_api.Result
+			result, err = handlersPipe.Handler(ctx, quesmaRequest)
 
-		if result != nil {
+			if result == nil {
+				return result, err
+			}
 			metadata, message := dispatcher.Dispatch(handlersPipe.Processors, result.Meta, result.GenericResult)
+
 			result = &quesma_api.Result{
 				Body:          result.Body,
 				Meta:          metadata,
 				StatusCode:    result.StatusCode,
 				GenericResult: message,
 			}
-			quesmaResponse = result
-		}
+			return result, err
+		})
+
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
 		_ = zip
 		if err == nil {
