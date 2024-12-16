@@ -257,6 +257,8 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 
 	handlersPipe, decision := router.Matches(quesmaRequest)
 
+	quesmaRequest.Decision = decision
+
 	if decision != nil {
 		w.Header().Set(QuesmaTableResolverHeader, decision.String())
 	} else {

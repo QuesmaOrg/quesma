@@ -103,6 +103,8 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 
 	handlersPipe, decision := h.router.Matches(quesmaRequest)
 
+	quesmaRequest.Decision = decision
+
 	if decision != nil {
 		w.Header().Set(QuesmaTableResolverHeader, decision.String())
 	} else {
