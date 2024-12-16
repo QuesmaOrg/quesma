@@ -235,12 +235,13 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	})
 
 	quesmaRequest, ctx, err := preprocessRequest(ctx, &quesma_api.Request{
-		Method:      req.Method,
-		Path:        strings.TrimSuffix(req.URL.Path, "/"),
-		Params:      map[string]string{},
-		Headers:     req.Header,
-		QueryParams: req.URL.Query(),
-		Body:        string(reqBody),
+		Method:          req.Method,
+		Path:            strings.TrimSuffix(req.URL.Path, "/"),
+		Params:          map[string]string{},
+		Headers:         req.Header,
+		QueryParams:     req.URL.Query(),
+		Body:            string(reqBody),
+		OriginalRequest: req,
 	}, r.RequestPreprocessors)
 
 	if err != nil {

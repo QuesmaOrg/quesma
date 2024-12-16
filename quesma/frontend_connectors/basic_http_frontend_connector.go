@@ -78,12 +78,13 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 	requestPreprocessors = append(requestPreprocessors, quesma_api.NewTraceIdPreprocessor())
 
 	quesmaRequest, ctx, err := preprocessRequest(ctx, &quesma_api.Request{
-		Method:      req.Method,
-		Path:        strings.TrimSuffix(req.URL.Path, "/"),
-		Params:      map[string]string{},
-		Headers:     req.Header,
-		QueryParams: req.URL.Query(),
-		Body:        string(reqBody),
+		Method:          req.Method,
+		Path:            strings.TrimSuffix(req.URL.Path, "/"),
+		Params:          map[string]string{},
+		Headers:         req.Header,
+		QueryParams:     req.URL.Query(),
+		Body:            string(reqBody),
+		OriginalRequest: req,
 	}, requestPreprocessors)
 
 	if err != nil {
@@ -103,7 +104,7 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 	w = h.responseMutator(w)
 
 	if handlersPipe != nil {
-		result, _ := handlersPipe.Handler(context.Background(), &quesma_api.Request{OriginalRequest: req})
+		result, _ := handlersPipe.Handler(context.Background(), &quesma_api.Request{OriginalRequest: quesmaRequest.OriginalRequest})
 		var quesmaResponse *quesma_api.Result
 
 		if result != nil {
