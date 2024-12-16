@@ -49,20 +49,13 @@ func (quesma *Quesma) Stop(ctx context.Context) {
 	}
 }
 
-func (quesma *Quesma) Build() (QuesmaBuilder, error) {
-
-	var componentsToInjectDependencies []interface{}
-	deferInjectDepenencies := func(a any) {
-		componentsToInjectDependencies = append(componentsToInjectDependencies, a)
-	}
+func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 
 	endpoints := make(map[string]struct{})
 	handlers := make(map[string]HandlersPipe)
 
 	for _, pipeline := range quesma.pipelines {
-		deferInjectDepenencies(pipeline)
 		for _, conn := range pipeline.GetFrontendConnectors() {
-			deferInjectDepenencies(conn)
 			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
 				endpoints[conn.GetEndpoint()] = struct{}{}
 				router := httpConn.GetRouter()
@@ -75,9 +68,7 @@ func (quesma *Quesma) Build() (QuesmaBuilder, error) {
 	}
 	if len(endpoints) == 1 {
 		for _, pipeline := range quesma.pipelines {
-			deferInjectDepenencies(pipeline)
 			for _, conn := range pipeline.GetFrontendConnectors() {
-				deferInjectDepenencies(conn)
 				if httpConn, ok := conn.(HTTPFrontendConnector); ok {
 					router := httpConn.GetRouter().Clone().(Router)
 					if len(endpoints) == 1 {
@@ -93,7 +84,6 @@ func (quesma *Quesma) Build() (QuesmaBuilder, error) {
 	for _, pipeline := range quesma.pipelines {
 		backendConnectorTypesPerPipeline := make(map[BackendConnectorType]struct{})
 		for _, conn := range pipeline.GetFrontendConnectors() {
-			deferInjectDepenencies(conn)
 			if tcpConn, ok := conn.(TCPFrontendConnector); ok {
 				if len(pipeline.GetProcessors()) > 0 {
 					tcpConn.GetConnectionHandler().SetHandlers(pipeline.GetProcessors())
@@ -105,7 +95,6 @@ func (quesma *Quesma) Build() (QuesmaBuilder, error) {
 			backendConnectorTypesPerPipeline[backendConnector.GetId()] = struct{}{}
 		}
 		for _, proc := range pipeline.GetProcessors() {
-			deferInjectDepenencies(proc)
 			supportedBackendConnectorsByProc := proc.GetSupportedBackendConnectors()
 			for _, backendConnectorType := range supportedBackendConnectorsByProc {
 				if _, ok := backendConnectorTypesPerPipeline[backendConnectorType]; !ok {
@@ -120,9 +109,41 @@ func (quesma *Quesma) Build() (QuesmaBuilder, error) {
 
 	}
 
-	for _, a := range componentsToInjectDependencies {
-		quesma.dependencies.InjectDependenciesInto(a)
+	return quesma, nil
+}
+
+func (quesma *Quesma) injectDependencies() error {
+	if quesma.dependencies == nil {
+		return fmt.Errorf("dependencies not set")
+	}
+
+	for _, pipeline := range quesma.pipelines {
+		quesma.dependencies.InjectDependenciesInto(pipeline)
+		for _, conn := range pipeline.GetFrontendConnectors() {
+			quesma.dependencies.InjectDependenciesInto(conn)
+		}
+		for _, proc := range pipeline.GetProcessors() {
+			quesma.dependencies.InjectDependenciesInto(proc)
+		}
+		for _, conn := range pipeline.GetBackendConnectors() {
+			quesma.dependencies.InjectDependenciesInto(conn)
+		}
+	}
+	return nil
+}
+
+func (quesma *Quesma) Build() (QuesmaBuilder, error) {
+
+	_, err := quesma.buildInternal()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build quesma instance: %v", err)
+	}
+
+	err = quesma.injectDependencies()
+	if err != nil {
+		return nil, fmt.Errorf("failed to inject dependencies: %v", err)
 	}
 
 	return quesma, nil
+
 }
