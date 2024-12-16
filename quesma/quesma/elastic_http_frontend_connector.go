@@ -38,6 +38,10 @@ func NewElasticHttpIngestFrontendConnector(endpoint string,
 
 func (h *ElasticHttpIngestFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
 	h.diagnostic = diagnostic
+
+	// TODO this is a hack
+	h.BasicHTTPFrontendConnector.InjectDiagnostic(diagnostic)
+	h.routerInstance.InjectDiagnostic(diagnostic)
 }
 
 func serveHTTPHelper(w http.ResponseWriter, req *http.Request,
