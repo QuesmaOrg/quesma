@@ -26,9 +26,9 @@ import (
 	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
-	"quesma/telemetry"
 	"quesma/util"
 	"quesma_v2/core"
+	"quesma_v2/core/diag"
 	tracing "quesma_v2/core/tracing"
 	"strings"
 	"sync/atomic"
@@ -43,14 +43,14 @@ const (
 )
 
 type QueryRunner struct {
-	executionCtx            context.Context
-	cancel                  context.CancelFunc
-	AsyncRequestStorage     async_search_storage.AsyncRequestResultStorage
-	AsyncQueriesContexts    async_search_storage.AsyncQueryContextStorage
-	logManager              *clickhouse.LogManager
-	cfg                     *config.QuesmaConfiguration
-	im                      elasticsearch.IndexManagement
-	quesmaManagementConsole *ui.QuesmaManagementConsole
+	executionCtx         context.Context
+	cancel               context.CancelFunc
+	AsyncRequestStorage  async_search_storage.AsyncRequestResultStorage
+	AsyncQueriesContexts async_search_storage.AsyncQueryContextStorage
+	logManager           *clickhouse.LogManager
+	cfg                  *config.QuesmaConfiguration
+	im                   elasticsearch.IndexManagement
+	debugInfoCollector   diag.DebugInfoCollector
 
 	tableDiscovery clickhouse.TableDiscovery
 	// configuration
@@ -73,7 +73,7 @@ func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
 func NewQueryRunner(lm *clickhouse.LogManager,
 	cfg *config.QuesmaConfiguration,
 	im elasticsearch.IndexManagement,
-	qmc *ui.QuesmaManagementConsole,
+	qmc diag.DebugInfoCollector,
 	schemaRegistry schema.Registry,
 	abResultsRepository ab_testing.Sender,
 	resolver table_resolver.TableResolver,
@@ -81,7 +81,7 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
+	return &QueryRunner{logManager: lm, cfg: cfg, im: im, debugInfoCollector: qmc,
 		executionCtx: ctx, cancel: cancel,
 		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemory(),
 		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
@@ -120,7 +120,8 @@ func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
 	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tables
 
-	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
+	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
+
 	go managementConsole.RunOnlyChannelProcessor()
 
 	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
@@ -171,7 +172,7 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string
 
 type asyncSearchWithError struct {
 	response            *model.SearchResp
-	translatedQueryBody []types.TranslatedSQLQuery
+	translatedQueryBody []diag.TranslatedSQLQuery
 	err                 error
 }
 
@@ -281,7 +282,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 		} else {
 			responseBody, err = response.response.Marshal()
 		}
-		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
+		pushSecondaryInfo(q.debugInfoCollector, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
 		sendMainPlanResult(responseBody, err)
 		return responseBody, err
 	} else {
@@ -290,12 +291,12 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 			go func() { // Async search takes longer. Return partial results and wait for
 				recovery.LogPanicWithCtx(ctx)
 				res := <-doneCh
-				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res, true, opaqueId)
+				responseBody, err = q.storeAsyncSearch(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, body, res, true, opaqueId)
 				sendMainPlanResult(responseBody, err)
 			}()
 			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
 		case res := <-doneCh:
-			responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res,
+			responseBody, err = q.storeAsyncSearch(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, body, res,
 				optAsync.keepOnCompletion, opaqueId)
 			sendMainPlanResult(responseBody, err)
 			return responseBody, err
@@ -450,7 +451,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
 		queries := plan.Queries
-		queriesBody := make([]types.TranslatedSQLQuery, len(queries))
+		queriesBody := make([]diag.TranslatedSQLQuery, len(queries))
 		queriesBodyConcat := ""
 		for i, query := range queries {
 			queriesBody[i].Query = []byte(query.SelectCommand.String())
@@ -459,7 +460,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		responseBody = []byte(fmt.Sprintf("Invalid Queries: %v, err: %v", queriesBody, err))
 		logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
 		bodyAsBytes, _ := body.Bytes()
-		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
+		pushSecondaryInfo(q.debugInfoCollector, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
 		return responseBody, errors.New(string(responseBody))
 	}
 
@@ -475,7 +476,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 }
 
-func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncId string,
+func (q *QueryRunner) storeAsyncSearch(qmc diag.DebugInfoCollector, id, asyncId string,
 	startTime time.Time, path string, body types.JSON, result asyncSearchWithError, keep bool, opaqueId string) (responseBody []byte, err error) {
 
 	took := time.Since(startTime)
@@ -489,7 +490,7 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 		err = result.err
 	}
 
-	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
 		Id:                     id,
 		AsyncId:                asyncId,
 		OpaqueId:               opaqueId,
@@ -717,11 +718,11 @@ func (q *QueryRunner) makeJob(table *clickhouse.Table, query *model.Query) Query
 func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
 	plan *model.ExecutionPlan,
-	table *clickhouse.Table) (translatedQueryBody []types.TranslatedSQLQuery, hits [][]model.QueryResultRow, err error) {
+	table *clickhouse.Table) (translatedQueryBody []diag.TranslatedSQLQuery, hits [][]model.QueryResultRow, err error) {
 
 	queries := plan.Queries
 
-	translatedQueryBody = make([]types.TranslatedSQLQuery, len(queries))
+	translatedQueryBody = make([]diag.TranslatedSQLQuery, len(queries))
 	hits = make([][]model.QueryResultRow, len(queries))
 
 	var jobs []QueryJob
@@ -794,7 +795,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	plan *model.ExecutionPlan,
 	table *clickhouse.Table,
 	doneCh chan<- asyncSearchWithError,
-	optAsync *AsyncQuery) (translatedQueryBody []types.TranslatedSQLQuery, resultRows [][]model.QueryResultRow, err error) {
+	optAsync *AsyncQuery) (translatedQueryBody []diag.TranslatedSQLQuery, resultRows [][]model.QueryResultRow, err error) {
 	if optAsync != nil {
 		if q.reachedQueriesLimit(ctx, optAsync.asyncId, doneCh) {
 			return
@@ -891,16 +892,16 @@ func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]
 	return results, nil
 }
 
-func pushPrimaryInfo(qmc *ui.QuesmaManagementConsole, Id string, QueryResp []byte, startTime time.Time) {
-	qmc.PushPrimaryInfo(&ui.QueryDebugPrimarySource{
+func pushPrimaryInfo(qmc diag.DebugInfoCollector, Id string, QueryResp []byte, startTime time.Time) {
+	qmc.PushPrimaryInfo(&diag.QueryDebugPrimarySource{
 		Id:          Id,
 		QueryResp:   QueryResp,
 		PrimaryTook: time.Since(startTime),
 	})
 }
 
-func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []types.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
-	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+func pushSecondaryInfo(qmc diag.DebugInfoCollector, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []diag.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
+	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
 		Id:                     Id,
 		AsyncId:                AsyncId,
 		Path:                   Path,

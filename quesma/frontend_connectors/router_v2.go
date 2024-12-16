@@ -22,9 +22,9 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
-	"quesma/telemetry"
 	"quesma/util"
 	quesma_api "quesma_v2/core"
+	"quesma_v2/core/diag"
 	"quesma_v2/core/routes"
 	"quesma_v2/core/tracing"
 	"strings"
@@ -74,15 +74,20 @@ func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseW
 }
 
 type RouterV2 struct {
-	Config                  *config.QuesmaConfiguration
-	RequestPreprocessors    quesma_api.ProcessorChain
-	QuesmaManagementConsole *ui.QuesmaManagementConsole
-	PhoneHomeAgent          telemetry.PhoneHomeAgent
-	HttpClient              *http.Client
-	FailedRequests          atomic.Int64
+	Config               *config.QuesmaConfiguration
+	RequestPreprocessors quesma_api.ProcessorChain
+
+	HttpClient     *http.Client
+	FailedRequests atomic.Int64
+
+	diagnostic diag.Diagnostic
 }
 
-func NewRouterV2(config *config.QuesmaConfiguration, qmc *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent) *RouterV2 {
+func (r *RouterV2) InjectDiagnostic(s diag.Diagnostic) {
+	r.diagnostic = s
+}
+
+func NewRouterV2(config *config.QuesmaConfiguration) *RouterV2 {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -93,11 +98,9 @@ func NewRouterV2(config *config.QuesmaConfiguration, qmc *ui.QuesmaManagementCon
 	requestProcessors := quesma_api.ProcessorChain{}
 	requestProcessors = append(requestProcessors, quesma_api.NewTraceIdPreprocessor())
 	return &RouterV2{
-		Config:                  config,
-		RequestPreprocessors:    requestProcessors,
-		QuesmaManagementConsole: qmc,
-		PhoneHomeAgent:          agent,
-		HttpClient:              client,
+		Config:               config,
+		RequestPreprocessors: requestProcessors,
+		HttpClient:           client,
 	}
 }
 
@@ -261,7 +264,7 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 	dispatcher := &quesma_api.Dispatcher{}
 	if handlersPipe != nil {
-		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.QuesmaManagementConsole, func() (*quesma_api.Result, error) {
+		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.diagnostic.DebugInfoCollector(), func() (*quesma_api.Result, error) {
 			var result *quesma_api.Result
 			result, err = handlersPipe.Handler(ctx, quesmaRequest)
 
@@ -341,22 +344,24 @@ func (r *RouterV2) sendHttpRequestToElastic(ctx context.Context, req *http.Reque
 	}
 
 	go func() {
-		elkResponseChan <- recordRequestToElasticV2(req.URL.Path, r.QuesmaManagementConsole, func() elasticResultV2 {
+		elkResponseChan <- recordRequestToElasticV2(req.URL.Path, r.diagnostic.DebugInfoCollector(), func() elasticResultV2 {
 
 			isWrite := elasticsearch.IsWriteRequest(req)
 
-			var span telemetry.Span
-			if isManagement && r.PhoneHomeAgent != nil {
+			phoneHome := r.diagnostic.PhoneHomeAgent()
+
+			var span diag.Span
+			if isManagement {
 				if isWrite {
-					span = r.PhoneHomeAgent.ElasticBypassedWriteRequestsDuration().Begin()
+					span = phoneHome.ElasticBypassedWriteRequestsDuration().Begin()
 				} else {
-					span = r.PhoneHomeAgent.ElasticBypassedReadRequestsDuration().Begin()
+					span = phoneHome.ElasticBypassedReadRequestsDuration().Begin()
 				}
 			} else {
 				if isWrite {
-					span = r.PhoneHomeAgent.ElasticWriteRequestsDuration().Begin()
+					span = phoneHome.ElasticWriteRequestsDuration().Begin()
 				} else {
-					span = r.PhoneHomeAgent.ElasticReadRequestsDuration().Begin()
+					span = phoneHome.ElasticReadRequestsDuration().Begin()
 				}
 			}
 
@@ -376,7 +381,7 @@ func isIngestV2(path string) bool {
 	return strings.HasSuffix(path, routes.BulkPath) // We may add more methods in future such as `_put` or `_create`
 }
 
-func recordRequestToClickhouseV2(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() (*quesma_api.Result, error)) (*quesma_api.Result, error) {
+func recordRequestToClickhouseV2(path string, qmc diag.DebugInfoCollector, requestFunc func() (*quesma_api.Result, error)) (*quesma_api.Result, error) {
 	statName := ui.RequestStatisticKibana2Clickhouse
 	if isIngestV2(path) {
 		statName = ui.RequestStatisticIngest2Clickhouse
@@ -389,7 +394,7 @@ func recordRequestToClickhouseV2(path string, qmc *ui.QuesmaManagementConsole, r
 	return response, err
 }
 
-func recordRequestToElasticV2(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() elasticResultV2) elasticResultV2 {
+func recordRequestToElasticV2(path string, qmc diag.DebugInfoCollector, requestFunc func() elasticResultV2) elasticResultV2 {
 	statName := ui.RequestStatisticKibana2Elasticsearch
 	if isIngestV2(path) {
 		statName = ui.RequestStatisticIngest2Elasticsearch

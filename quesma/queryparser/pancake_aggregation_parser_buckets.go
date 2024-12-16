@@ -10,6 +10,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -36,6 +37,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}},
 		{"multi_terms", cw.parseMultiTerms},
 		{"composite", cw.parseComposite},
+		{"ip_prefix", cw.parseIpPrefix},
 	}
 
 	for _, aggr := range aggregationHandlers {
@@ -51,7 +53,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 	return nil
 }
 
-// paramsRaw - in a proper request should be of QueryMap type.
 func (cw *ClickhouseQueryTranslator) parseHistogram(aggregation *pancakeAggregationTreeNode, params QueryMap) (err error) {
 	const defaultInterval = 1.0
 	var interval float64
@@ -96,7 +97,6 @@ func (cw *ClickhouseQueryTranslator) parseHistogram(aggregation *pancakeAggregat
 	return nil
 }
 
-// paramsRaw - in a proper request should be of QueryMap type.
 func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggregationTreeNode, params QueryMap) (err error) {
 	field := cw.parseFieldField(params, "date_histogram")
 	dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
@@ -145,7 +145,6 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 	return nil
 }
 
-// paramsRaw - in a proper request should be of QueryMap type.
 // aggrName - "terms" or "significant_terms"
 func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeAggregationTreeNode, params QueryMap, aggrName string) error {
 	field := cw.parseFieldField(params, aggrName)
@@ -165,6 +164,38 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 	aggregation.selectedColumns = append(aggregation.selectedColumns, field)
 	aggregation.limit = size
 	aggregation.orderBy = orderBy
+	return nil
+}
+
+func (cw *ClickhouseQueryTranslator) parseFilters(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
+	filtersParamRaw, exists := params["filters"]
+	if !exists {
+		return fmt.Errorf("filters is not a map, but %T, value: %v", params, params)
+	}
+	filtersParam, ok := filtersParamRaw.(QueryMap)
+	if !ok {
+		return fmt.Errorf("filters is not a map, but %T, value: %v", filtersParamRaw, filtersParamRaw)
+	}
+
+	filters := make([]bucket_aggregations.Filter, 0, len(filtersParam))
+	for name, filterRaw := range filtersParam {
+		filterMap, ok := filterRaw.(QueryMap)
+		if !ok {
+			return fmt.Errorf("filter is not a map, but %T, value: %v", filterRaw, filterRaw)
+		}
+		filter := cw.parseQueryMap(filterMap)
+		if filter.WhereClause == nil {
+			filter.WhereClause = model.TrueExpr
+			filter.CanParse = true
+		}
+		filters = append(filters, bucket_aggregations.NewFilter(name, filter))
+	}
+
+	sort.Slice(filters, func(i, j int) bool {
+		return filters[i].Name < filters[j].Name
+	})
+	aggregation.queryType = bucket_aggregations.NewFilters(cw.Ctx, filters)
+	aggregation.isKeyed = true
 	return nil
 }
 
@@ -198,14 +229,7 @@ func (cw *ClickhouseQueryTranslator) parseRangeAggregation(aggregation *pancakeA
 	}
 
 	const keyedDefault = false
-	keyed := keyedDefault
-	if keyedRaw, exists := params["keyed"]; exists {
-		var ok bool
-		if keyed, ok = keyedRaw.(bool); !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("keyed is not a bool, but %T, value: %v", keyedRaw, keyedRaw)
-		}
-	}
-
+	keyed := cw.parseBoolField(params, "keyed", keyedDefault)
 	field := cw.parseFieldField(params, "range")
 	aggregation.queryType = bucket_aggregations.NewRange(cw.Ctx, field, intervals, keyed)
 	aggregation.isKeyed = keyed
@@ -304,7 +328,6 @@ func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggreg
 	return nil
 }
 
-// compositeRaw - in a proper request should be of QueryMap type.
 // TODO: In geotile_grid, without order specidfied, Elastic returns sort by key (a/b/c earlier than x/y/z if a<x or (a=x && b<y), etc.)
 // Maybe add some ordering, but doesn't seem to be very important.
 func (cw *ClickhouseQueryTranslator) parseComposite(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
@@ -356,6 +379,35 @@ func (cw *ClickhouseQueryTranslator) parseComposite(aggregation *pancakeAggregat
 	size := cw.parseIntField(params, "size", defaultSize)
 	aggregation.limit = size
 	aggregation.queryType = bucket_aggregations.NewComposite(cw.Ctx, size, baseAggrs)
+	return nil
+}
+
+func (cw *ClickhouseQueryTranslator) parseIpPrefix(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
+	const (
+		defaultIsIpv6             = false
+		defaultAppendPrefixLength = false
+		defaultKeyed              = false
+		defaultMinDocCount        = 1
+	)
+
+	if err := bucket_aggregations.CheckParamsIpPrefix(cw.Ctx, params); err != nil {
+		return err
+	}
+
+	aggr := bucket_aggregations.NewIpPrefix(
+		cw.Ctx,
+		cw.parseFieldField(params, "ip_prefix"),
+		cw.parseIntField(params, "prefix_length", 0), // default doesn't matter, it's required
+		cw.parseBoolField(params, "is_ipv6", defaultIsIpv6),
+		cw.parseBoolField(params, "append_prefix_length", defaultAppendPrefixLength),
+		cw.parseBoolField(params, "keyed", defaultKeyed),
+		cw.parseIntField(params, "min_doc_count", defaultMinDocCount),
+	)
+	if sql := aggr.SqlSelectQuery(); sql != nil {
+		aggregation.selectedColumns = append(aggregation.selectedColumns, sql)
+		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(sql))
+	}
+	aggregation.queryType = aggr
 	return nil
 }
 

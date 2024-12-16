@@ -41,7 +41,7 @@ func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfigu
 	return &BasicHTTPFrontendConnector{
 		endpoint:                endpoint,
 		config:                  config,
-		routerInstance:          NewRouterV2(config, nil, nil),
+		routerInstance:          NewRouterV2(config),
 		logManager:              nil,
 		registry:                nil,
 		quesmaManagementConsole: nil,

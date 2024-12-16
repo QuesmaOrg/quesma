@@ -19,8 +19,8 @@ import (
 	"quesma/quesma/types"
 	"quesma/stats"
 	"quesma/table_resolver"
-	"quesma/telemetry"
 	"quesma_v2/core"
+	"quesma_v2/core/diag"
 	"sort"
 	"strings"
 	"sync"
@@ -69,7 +69,7 @@ type (
 )
 
 func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor,
-	cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent, tableResolver table_resolver.TableResolver) (results []BulkItem, err error) {
+	cfg *config.QuesmaConfiguration, phoneHomeAgent diag.PhoneHomeClient, tableResolver table_resolver.TableResolver) (results []BulkItem, err error) {
 	defer recovery.LogPanic()
 
 	bulkSize := len(bulk) / 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
@@ -257,7 +257,7 @@ func sendToElastic(elasticRequestBody []byte, cfg *config.QuesmaConfiguration, e
 	return nil
 }
 
-func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, phoneHomeAgent telemetry.PhoneHomeAgent, cfg *config.QuesmaConfiguration, ip *ingest.IngestProcessor) {
+func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, phoneHomeAgent diag.PhoneHomeClient, cfg *config.QuesmaConfiguration, ip *ingest.IngestProcessor) {
 	for indexName, documents := range clickhouseDocumentsToInsert {
 		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 

@@ -12,9 +12,9 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
-	"quesma/telemetry"
 	"quesma/testdata"
 	"quesma/util"
+	"quesma_v2/core/diag"
 	"strconv"
 	"strings"
 	"testing"
@@ -40,7 +40,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	cfg.IndexConfig["logs-generic-default"] = config.IndexConfiguration{}
 
-	lm := clickhouse.NewEmptyLogManager(&cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
+	lm := clickhouse.NewEmptyLogManager(&cfg, nil, diag.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
 	lm.AddTableIfDoesntExist(table)
 	s := schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
@@ -99,7 +99,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 		},
 		Created: true,
 	}
-	lm := clickhouse.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
+	lm := clickhouse.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, diag.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
 	lm.AddTableIfDoesntExist(&table)
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
@@ -209,212 +209,6 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 				assert.Equal(t, model.NewTableRef(testdata.TableName), simpleListQuery.SelectCommand.FromClause)
 				assert.Equal(t, []model.Expr{model.NewWildcardExpr}, simpleListQuery.SelectCommand.Columns)
 			}
-		})
-	}
-}
-
-// TODO this will be updated in the next PR
-var tests = []string{
-	`{
-		"_source": {
-			"excludes": []
-		},
-		"aggs": {
-			"0": {
-				"histogram": {
-					"field": "FlightDelayMin",
-					"interval": 1,
-					"min_doc_count": 1
-				}
-			}
-		},
-		"fields": [
-			{
-				"field": "timestamp",
-				"format": "date_time"
-			}
-		],
-		"query": {
-			"bool": {
-				"filter": [
-					{
-						"range": {
-							"timestamp": {
-								"format": "strict_date_optional_time",
-								"gte": "2024-02-02T13:47:16.029Z",
-								"lte": "2024-02-09T13:47:16.029Z"
-							}
-						}
-					}
-				],
-				"must": [],
-				"must_not": [
-					{
-						"match_phrase": {
-							"FlightDelayMin": {
-								"query": 0
-							}
-						}
-					}
-				],
-				"should": []
-			}
-		},
-		"runtime_mappings": {
-			"hour_of_day": {
-				"script": {
-					"source": "emit(doc['timestamp'].value.getHour());"
-				},
-				"type": "long"
-			}
-		},
-		"script_fields": {},
-		"size": 0,
-		"stored_fields": [
-			"*"
-		],
-		"track_total_hits": true
-	}`,
-	`{
-		"_source": {
-			"excludes": []
-		},
-		"aggs": {
-			"0": {
-				"aggs": {
-					"1-bucket": {
-						"filter": {
-							"bool": {
-								"filter": [
-									{
-										"bool": {
-											"minimum_should_match": 1,
-											"should": [
-												{
-													"match": {
-														"FlightDelay": true
-													}
-												}
-											]
-										}
-									}
-								],
-								"must": [],
-								"must_not": [],
-								"should": []
-							}
-						}
-					},
-					"3-bucket": {
-						"filter": {
-							"bool": {
-								"filter": [
-									{
-										"bool": {
-											"minimum_should_match": 1,
-											"should": [
-												{
-													"match": {
-														"Cancelled": true
-													}
-												}
-											]
-										}
-									}
-								],
-								"must": [],
-								"must_not": [],
-								"should": []
-							}
-						}
-					}
-				},
-				"terms": {
-					"field": "OriginCityName",
-					"order": {
-						"_key": "asc"
-					},
-					"size": 1000
-				}
-			}
-		},
-		"fields": [
-			{
-				"field": "timestamp",
-				"format": "date_time"
-			}
-		],
-		"query": {
-			"bool": {
-				"filter": [
-					{
-						"range": {
-							"timestamp": {
-								"format": "strict_date_optional_time",
-								"gte": "2024-02-02T13:47:16.029Z",
-								"lte": "2024-02-09T13:47:16.029Z"
-							}
-						}
-					}
-				],
-				"must": [],
-				"must_not": [],
-				"should": []
-			}
-		},
-		"runtime_mappings": {
-			"hour_of_day": {
-				"script": {
-					"source": "emit(doc['timestamp'].value.getHour());"
-				},
-				"type": "long"
-			}
-		},
-		"script_fields": {},
-		"size": 0,
-		"stored_fields": [
-			"*"
-		],
-		"track_total_hits": true
-	}`,
-}
-
-// TODO this will be updated in the next PR
-func TestNew(t *testing.T) {
-	tableName := `"logs-generic-default"`
-	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
-		( "message" String, "timestamp" DateTime64(3, 'UTC') )
-		ENGINE = Memory`,
-		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, table), &config.QuesmaConfiguration{})
-	s := schema.StaticRegistry{
-		Tables: map[schema.IndexName]schema.Schema{
-			"logs-generic-default": {
-				Fields: map[schema.FieldName]schema.Field{
-					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
-				},
-			},
-		},
-	}
-
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName("logs-generic-default")]}
-	for _, tt := range tests {
-		t.Run("test", func(t *testing.T) {
-			simpleQuery, _, _ := cw.ParseQueryAsyncSearch(tt)
-			assert.True(t, simpleQuery.CanParse)
 		})
 	}
 }
