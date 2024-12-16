@@ -17,9 +17,9 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
-	"quesma/quesma/ui"
 	"quesma/util"
 	"quesma_v2/core"
+	"quesma_v2/core/diag"
 	tracing "quesma_v2/core/tracing"
 	"time"
 )
@@ -167,7 +167,7 @@ func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.Executio
 
 type asyncElasticSearchWithError struct {
 	response            types.JSON
-	translatedQueryBody []types.TranslatedSQLQuery
+	translatedQueryBody []diag.TranslatedSQLQuery
 	err                 error
 }
 
@@ -211,7 +211,7 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 			responseBody, err = response.response.Bytes()
 		}
 
-		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
+		pushSecondaryInfo(q.debugInfoCollector, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
 		sendABResult(responseBody, err)
 		return responseBody, err
 	} else {
@@ -224,12 +224,12 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 			go func() { // Async search takes longer. Return partial results and wait for
 				recovery.LogPanicWithCtx(ctx)
 				res := <-doneCh
-				responseBody, err = q.storeAsyncSearchWithRaw(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, requestBody, res.response, res.err, res.translatedQueryBody, true, opaqueId)
+				responseBody, err = q.storeAsyncSearchWithRaw(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, requestBody, res.response, res.err, res.translatedQueryBody, true, opaqueId)
 				sendABResult(responseBody, err)
 			}()
 			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
 		case res := <-doneCh:
-			responseBody, err = q.storeAsyncSearchWithRaw(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, requestBody, res.response, res.err, res.translatedQueryBody, true, opaqueId)
+			responseBody, err = q.storeAsyncSearchWithRaw(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, requestBody, res.response, res.err, res.translatedQueryBody, true, opaqueId)
 			sendABResult(responseBody, err)
 			return responseBody, err
 		}
@@ -273,7 +273,7 @@ func (q *QueryRunner) callElastic(ctx context.Context, plan *model.ExecutionPlan
 	}
 
 	contextValues := tracing.ExtractValues(ctx)
-	pushPrimaryInfo(q.quesmaManagementConsole, contextValues.RequestId, data, plan.StartTime)
+	pushPrimaryInfo(q.debugInfoCollector, contextValues.RequestId, data, plan.StartTime)
 
 	responseBody, err = types.ParseJSON(string(data))
 
@@ -314,8 +314,8 @@ func WrapElasticResponseAsAsync(searchResponse any, asyncId string, isPartial bo
 }
 
 // TODO rename and change signature to use asyncElasticSearchWithError
-func (q *QueryRunner) storeAsyncSearchWithRaw(qmc *ui.QuesmaManagementConsole, id, asyncId string,
-	startTime time.Time, path string, body types.JSON, resultJSON types.JSON, resultError error, translatedQueryBody []types.TranslatedSQLQuery, keep bool, opaqueId string) (responseBody []byte, err error) {
+func (q *QueryRunner) storeAsyncSearchWithRaw(qmc diag.DebugInfoCollector, id, asyncId string,
+	startTime time.Time, path string, body types.JSON, resultJSON types.JSON, resultError error, translatedQueryBody []diag.TranslatedSQLQuery, keep bool, opaqueId string) (responseBody []byte, err error) {
 
 	took := time.Since(startTime)
 
@@ -336,7 +336,7 @@ func (q *QueryRunner) storeAsyncSearchWithRaw(qmc *ui.QuesmaManagementConsole, i
 		err = resultError
 	}
 
-	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
 		Id:                     id,
 		AsyncId:                asyncId,
 		OpaqueId:               opaqueId,

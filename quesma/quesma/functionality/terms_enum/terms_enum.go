@@ -13,15 +13,15 @@ import (
 	"quesma/model"
 	"quesma/queryparser"
 	"quesma/quesma/types"
-	"quesma/quesma/ui"
 	"quesma/schema"
+	"quesma_v2/core/diag"
 	tracing "quesma_v2/core/tracing"
 	"strconv"
 	"time"
 )
 
 func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *clickhouse.LogManager,
-	schemaRegistry schema.Registry, qmc *ui.QuesmaManagementConsole) ([]byte, error) {
+	schemaRegistry schema.Registry, qmc diag.DebugInfoCollector) ([]byte, error) {
 	if indices, err := lm.ResolveIndexPattern(ctx, schemaRegistry, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
 		logger.Error().Msg(errorMsg)
@@ -40,7 +40,7 @@ func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *cli
 }
 
 func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparser.ClickhouseQueryTranslator,
-	qmc *ui.QuesmaManagementConsole) (result []byte, err error) {
+	qmc diag.DebugInfoCollector) (result []byte, err error) {
 	startTime := time.Now()
 
 	// defaults as in:
@@ -113,12 +113,12 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparse
 	ctxValues := tracing.ExtractValues(ctx)
 
 	reqBody, _ := body.Bytes()
-	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
 		Id:                     ctxValues.RequestId,
 		Path:                   path,
 		OpaqueId:               ctxValues.OpaqueId,
 		IncomingQueryBody:      reqBody,
-		QueryBodyTranslated:    []types.TranslatedSQLQuery{{Query: []byte(selectQuery.SelectCommand.String())}},
+		QueryBodyTranslated:    []diag.TranslatedSQLQuery{{Query: []byte(selectQuery.SelectCommand.String())}},
 		QueryTranslatedResults: result,
 		SecondaryTook:          time.Since(startTime),
 	})

@@ -20,6 +20,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/health"
 	telemetry_headers "quesma/telemetry/headers"
+	"quesma_v2/core/diag"
 	"sort"
 
 	"quesma/logger"
@@ -51,86 +52,12 @@ const (
 	tablesInUsageReport   = 10
 )
 
-type ClickHouseStats struct {
-	Status            string `json:"status"`
-	NumberOfRows      int64  `json:"number_of_rows" db:"number_of_rows"`
-	DiskSpace         int64  `json:"disk_space"`
-	OpenConnection    int    `json:"open_connection"`
-	MaxOpenConnection int    `json:"max_open_connection"`
-	ServerVersion     string `json:"server_version"`
-	DbInfoHash        string `json:"db_info_hash"`
-	BillableSize      int64  `json:"billable_size"`
-	TopTablesSizeInfo string `json:"top_tables_size_info"`
-}
-
-type ElasticStats struct {
-	Status        string `json:"status"`
-	NumberOfDocs  int64  `json:"number_of_docs"`
-	Size          int64  `json:"size"`
-	ServerVersion string `json:"server_version"`
-	HealthStatus  string `json:"health_status"`
-}
-
-type RuntimeStats struct {
-	MemoryUsed         uint64 `json:"memory_used"`
-	MemoryAvailable    uint64 `json:"memory_available"`
-	NumberOfGoroutines int    `json:"number_of_goroutines"`
-	NumberOfCPUs       int    `json:"number_of_cpus"`
-	NumberOfGC         uint32 `json:"number_of_gc"`
-}
-
-type PhoneHomeStats struct {
-	AgentStartedAt int64  `json:"started_at"`
-	Hostname       string `json:"hostname"`
-	QuesmaVersion  string `json:"quesma_version"`
-	BuildHash      string `json:"build_hash"`
-	BuildDate      string `json:"build_date"`
-	InstanceID     string `json:"instanceId"`
-
-	// add more stats here about running
-
-	ClickHouse    ClickHouseStats `json:"clickhouse"`
-	Elasticsearch ElasticStats    `json:"elasticsearch"`
-
-	ClickHouseQueriesDuration DurationStats `json:"clickhouse_queries"`
-	ClickHouseInsertsDuration DurationStats `json:"clickhouse_inserts"`
-	ElasticReadsDuration      DurationStats `json:"elastic_read_requests"`
-	ElasticWritesDuration     DurationStats `json:"elastic_write_requests"`
-
-	ElasticBypassedReadsDuration  DurationStats `json:"elastic_bypassed_read_requests"`
-	ElasticBypassedWritesDuration DurationStats `json:"elastic_bypassed_write_requests"`
-
-	// Due to schema issues, we are not using this for now
-	IngestCounters    MultiCounterStats          `json:"-"`
-	UserAgentCounters MultiCounterTopValuesStats `json:"top_user_agents"`
-
-	RuntimeStats           RuntimeStats `json:"runtime"`
-	NumberOfPanics         int64        `json:"number_of_panics"`
-	TopErrors              []string     `json:"top_errors"`
-	NumberOfFailedRequests int64        `json:"number_of_failed_requests"`
-
-	ReportType string `json:"report_type"`
-	TakenAt    int64  `json:"taken_at"`
-	ConfigMode string `json:"config_mode"`
-}
-
 type PhoneHomeAgent interface {
 	Start()
 	Stop(ctx context.Context)
 
-	RecentStats() (recent PhoneHomeStats, available bool)
-
-	ClickHouseQueryDuration() DurationMeasurement
-	ClickHouseInsertDuration() DurationMeasurement
-	ElasticReadRequestsDuration() DurationMeasurement
-	ElasticWriteRequestsDuration() DurationMeasurement
-
-	ElasticBypassedReadRequestsDuration() DurationMeasurement
-	ElasticBypassedWriteRequestsDuration() DurationMeasurement
-
-	IngestCounters() MultiCounter
-	UserAgentCounters() MultiCounter
-	FailedRequestsCollector(f func() int64)
+	diag.PhoneHomeClient
+	diag.PhoneHomeRecentStatsProvider
 }
 
 type agent struct {
@@ -145,20 +72,20 @@ type agent struct {
 	statedAt   time.Time
 	hostname   string
 
-	clickHouseQueryTimes   DurationMeasurement
-	clickHouseInsertsTimes DurationMeasurement
-	elasticReadTimes       DurationMeasurement
-	elasticWriteTimes      DurationMeasurement
+	clickHouseQueryTimes   diag.DurationMeasurement
+	clickHouseInsertsTimes diag.DurationMeasurement
+	elasticReadTimes       diag.DurationMeasurement
+	elasticWriteTimes      diag.DurationMeasurement
 
-	elasticBypassedReadTimes  DurationMeasurement
-	elasticBypassedWriteTimes DurationMeasurement
+	elasticBypassedReadTimes  diag.DurationMeasurement
+	elasticBypassedWriteTimes diag.DurationMeasurement
 
-	ingestCounters    MultiCounter
-	userAgentCounters MultiCounter
+	ingestCounters    diag.MultiCounter
+	userAgentCounters diag.MultiCounter
 
 	failedRequestCollector func() int64
 
-	recent            PhoneHomeStats
+	recent            diag.PhoneHomeStats
 	telemetryEndpoint *config.Url
 
 	httpClient *http.Client
@@ -222,43 +149,43 @@ func (a *agent) FailedRequestsCollector(f func() int64) {
 	a.failedRequestCollector = f
 }
 
-func (a *agent) ClickHouseQueryDuration() DurationMeasurement {
+func (a *agent) ClickHouseQueryDuration() diag.DurationMeasurement {
 	return a.clickHouseQueryTimes
 }
 
-func (a *agent) ClickHouseInsertDuration() DurationMeasurement {
+func (a *agent) ClickHouseInsertDuration() diag.DurationMeasurement {
 	return a.clickHouseInsertsTimes
 }
 
-func (a *agent) ElasticReadRequestsDuration() DurationMeasurement {
+func (a *agent) ElasticReadRequestsDuration() diag.DurationMeasurement {
 	return a.elasticReadTimes
 }
 
-func (a *agent) ElasticWriteRequestsDuration() DurationMeasurement {
+func (a *agent) ElasticWriteRequestsDuration() diag.DurationMeasurement {
 	return a.elasticWriteTimes
 }
 
-func (a *agent) ElasticBypassedReadRequestsDuration() DurationMeasurement {
+func (a *agent) ElasticBypassedReadRequestsDuration() diag.DurationMeasurement {
 	return a.elasticBypassedReadTimes
 }
 
-func (a *agent) ElasticBypassedWriteRequestsDuration() DurationMeasurement {
+func (a *agent) ElasticBypassedWriteRequestsDuration() diag.DurationMeasurement {
 	return a.elasticBypassedWriteTimes
 }
 
-func (a *agent) IngestCounters() MultiCounter {
+func (a *agent) IngestCounters() diag.MultiCounter {
 	return a.ingestCounters
 }
 
-func (a *agent) UserAgentCounters() MultiCounter {
+func (a *agent) UserAgentCounters() diag.MultiCounter {
 	return a.userAgentCounters
 }
 
-func (a *agent) RecentStats() (recent PhoneHomeStats, available bool) {
+func (a *agent) RecentStats() (recent diag.PhoneHomeStats, available bool) {
 	return a.recent, a.recent.TakenAt != 0
 }
 
-func (a *agent) collectClickHouseUsage(ctx context.Context, stats *ClickHouseStats) error {
+func (a *agent) collectClickHouseUsage(ctx context.Context, stats *diag.ClickHouseStats) error {
 	// it counts whole clickhouse database, including system tables
 	totalSummaryQuery := `
 select 
@@ -281,7 +208,7 @@ where active
 			return err
 		}
 
-		logger.WarnWithCtxAndReason(ctx, "No clickhouse stats").Err(err).Msg("Error getting stats from clickhouse.")
+		logger.WarnWithCtxAndReason(ctx, "No clickhouse diag").Err(err).Msg("Error getting diag from clickhouse.")
 		return err
 	}
 
@@ -290,13 +217,13 @@ where active
 	if rows.Next() {
 		err := rows.Scan(&stats.NumberOfRows, &stats.DiskSpace)
 		if err != nil {
-			logger.WarnWithCtxAndReason(ctx, "No clickhouse stats").Err(err).Msg("Error getting stats from clickhouse.")
+			logger.WarnWithCtxAndReason(ctx, "No clickhouse diag").Err(err).Msg("Error getting diag from clickhouse.")
 			return err
 		}
 	}
 
 	if rows.Err() != nil {
-		logger.WarnWithCtxAndReason(ctx, "No clickhouse stats").Err(rows.Err()).Msg("Error getting stats from clickhouse.")
+		logger.WarnWithCtxAndReason(ctx, "No clickhouse diag").Err(rows.Err()).Msg("Error getting diag from clickhouse.")
 		return rows.Err()
 	}
 	return nil
@@ -384,7 +311,7 @@ func getTopNValues(in map[string]int64, n int) map[string]int64 {
 	return result
 }
 
-func (a *agent) collectClickHouseVersion(ctx context.Context, stats *ClickHouseStats) error {
+func (a *agent) collectClickHouseVersion(ctx context.Context, stats *diag.ClickHouseStats) error {
 
 	// https://clickhouse.com/docs/en/sql-reference/functions/other-functions#version
 	totalSummaryQuery := `select version()`
@@ -416,7 +343,7 @@ func (a *agent) collectClickHouseVersion(ctx context.Context, stats *ClickHouseS
 	return nil
 }
 
-func (a *agent) CollectClickHouse(ctx context.Context) (stats ClickHouseStats) {
+func (a *agent) CollectClickHouse(ctx context.Context) (stats diag.ClickHouseStats) {
 
 	// https://gist.github.com/sanchezzzhak/511fd140e8809857f8f1d84ddb937015
 	stats.Status = statusNotOk
@@ -465,7 +392,7 @@ func (a *agent) callElastic(ctx context.Context, url *url.URL, response interfac
 	request, err := a.buildElastisearchRequest(ctx, url, nil)
 
 	if err != nil {
-		logger.Error().Err(err).Msg("Error getting stats from elasticsearch. ")
+		logger.Error().Err(err).Msg("Error getting diag from elasticsearch. ")
 		return err
 	}
 
@@ -498,7 +425,7 @@ func (a *agent) callElastic(ctx context.Context, url *url.URL, response interfac
 	return nil
 }
 
-func (a *agent) collectElasticUsage(ctx context.Context, stats *ElasticStats) (err error) {
+func (a *agent) collectElasticUsage(ctx context.Context, stats *diag.ElasticStats) (err error) {
 	// queries
 	//curl  -s 'http://localhost:9200/_all/_stats?pretty=true' | jq ._all.total.docs
 	//curl  -s 'http://localhost:9200/_all/_stats?pretty=true' | jq ._all.total.store
@@ -519,7 +446,7 @@ func (a *agent) collectElasticUsage(ctx context.Context, stats *ElasticStats) (e
 	return nil
 }
 
-func (a *agent) collectElasticVersion(ctx context.Context, stats *ElasticStats) (err error) {
+func (a *agent) collectElasticVersion(ctx context.Context, stats *diag.ElasticStats) (err error) {
 
 	elasticUrl := a.config.Elasticsearch.Url
 
@@ -536,7 +463,7 @@ func (a *agent) collectElasticVersion(ctx context.Context, stats *ElasticStats) 
 	return nil
 }
 
-func (a *agent) collectElasticHealthStatus(ctx context.Context, stats *ElasticStats) (err error) {
+func (a *agent) collectElasticHealthStatus(ctx context.Context, stats *diag.ElasticStats) (err error) {
 
 	healthChecker := health.NewElasticHealthChecker(a.config)
 
@@ -545,7 +472,7 @@ func (a *agent) collectElasticHealthStatus(ctx context.Context, stats *ElasticSt
 	return nil
 }
 
-func (a *agent) CollectElastic(ctx context.Context) (stats ElasticStats) {
+func (a *agent) CollectElastic(ctx context.Context) (stats diag.ElasticStats) {
 
 	stats.Status = statusNotOk
 	stats.HealthStatus = "n/a"
@@ -578,7 +505,7 @@ func (a *agent) buildElastisearchRequest(ctx context.Context, statsUrl *url.URL,
 	return req, nil
 }
 
-func (a *agent) runtimeStats() (stats RuntimeStats) {
+func (a *agent) runtimeStats() (stats diag.RuntimeStats) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
@@ -594,7 +521,7 @@ func (a *agent) runtimeStats() (stats RuntimeStats) {
 	return stats
 }
 
-func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHomeStats) {
+func (a *agent) collect(ctx context.Context, reportType string) (stats diag.PhoneHomeStats) {
 	// FIXME: this should log the pipelines used, not phased-out modes
 	if a.config.TransparentProxy {
 		stats.ConfigMode = "proxy-inspect"
@@ -625,7 +552,7 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 	if stats.ClickHouseInsertsDuration.Count > 0 || stats.ClickHouseQueriesDuration.Count > 0 {
 		stats.ClickHouse = a.CollectClickHouse(ctx)
 	} else {
-		stats.ClickHouse = ClickHouseStats{Status: "paused"}
+		stats.ClickHouse = diag.ClickHouseStats{Status: "paused"}
 	}
 	if !strings.HasPrefix(a.config.ClickHouse.ConnectorType, "hydrolix") { // we only check table sizes for ClickHouse
 		if totalSize, topTableSizes, err := a.collectClickHouseTableSizes(ctx); err == nil {
@@ -716,11 +643,11 @@ func (a *agent) phoneHomeLocalQuesma(ctx context.Context, body []byte) (err erro
 	return nil
 }
 
-func (a *agent) report(ctx context.Context, stats PhoneHomeStats) {
+func (a *agent) report(ctx context.Context, stats diag.PhoneHomeStats) {
 
 	data, err := json.Marshal(stats)
 	if err != nil {
-		logger.Error().Err(err).Msgf("Error marshalling stats")
+		logger.Error().Err(err).Msgf("Error marshalling diag")
 		return
 	}
 
@@ -763,7 +690,7 @@ func (a *agent) telemetryCollection(ctx context.Context, reportType string) {
 
 func (a *agent) loop() {
 
-	// do not collect stats immediately
+	// do not collect diag immediately
 	// wait for a while to let the system settle
 	select {
 	case <-a.ctx.Done():
@@ -799,7 +726,7 @@ func (a *agent) Stop(ctx context.Context) {
 	// stop the loop and all goroutines
 	a.cancel()
 
-	// collect the last stats using given context
+	// collect the last diag using given context
 	a.telemetryCollection(ctx, reportTypeOnShutdown)
 
 	// stop all

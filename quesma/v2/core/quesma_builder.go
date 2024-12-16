@@ -8,13 +8,18 @@ import (
 )
 
 type Quesma struct {
-	pipelines []PipelineBuilder
+	pipelines    []PipelineBuilder
+	dependencies *Dependencies
 }
 
 func NewQuesma() *Quesma {
 	return &Quesma{
 		pipelines: make([]PipelineBuilder, 0),
 	}
+}
+
+func (quesma *Quesma) SetDependencies(dependencies *Dependencies) {
+	quesma.dependencies = dependencies
 }
 
 func (quesma *Quesma) AddPipeline(pipeline PipelineBuilder) {
@@ -44,7 +49,8 @@ func (quesma *Quesma) Stop(ctx context.Context) {
 	}
 }
 
-func (quesma *Quesma) Build() (QuesmaBuilder, error) {
+func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
+
 	endpoints := make(map[string]struct{})
 	handlers := make(map[string]HandlersPipe)
 
@@ -104,4 +110,49 @@ func (quesma *Quesma) Build() (QuesmaBuilder, error) {
 	}
 
 	return quesma, nil
+}
+
+func (quesma *Quesma) injectDependencies() error {
+	if quesma.dependencies == nil {
+		return fmt.Errorf("dependencies not set")
+	}
+
+	//
+	// We should have a better way to traverse the pipeline graph
+	// maybe we should have an `getSubComponents` method in every component
+	//
+	for _, pipeline := range quesma.pipelines {
+		quesma.dependencies.InjectDependenciesInto(pipeline)
+		for _, conn := range pipeline.GetFrontendConnectors() {
+			quesma.dependencies.InjectDependenciesInto(conn)
+
+			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
+				router := httpConn.GetRouter()
+				quesma.dependencies.InjectDependenciesInto(router)
+			}
+		}
+		for _, proc := range pipeline.GetProcessors() {
+			quesma.dependencies.InjectDependenciesInto(proc)
+		}
+		for _, conn := range pipeline.GetBackendConnectors() {
+			quesma.dependencies.InjectDependenciesInto(conn)
+		}
+	}
+	return nil
+}
+
+func (quesma *Quesma) Build() (QuesmaBuilder, error) {
+
+	_, err := quesma.buildInternal()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build quesma instance: %v", err)
+	}
+
+	err = quesma.injectDependencies()
+	if err != nil {
+		return nil, fmt.Errorf("failed to inject dependencies: %v", err)
+	}
+
+	return quesma, nil
+
 }
