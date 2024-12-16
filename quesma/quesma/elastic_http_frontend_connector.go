@@ -16,8 +16,6 @@ import (
 
 type ElasticHttpIngestFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
-	logManager *clickhouse.LogManager
-	registry   schema.Registry
 	Config     *config.QuesmaConfiguration
 	diagnostic diag.Diagnostic
 }
@@ -29,8 +27,6 @@ func NewElasticHttpIngestFrontendConnector(endpoint string,
 
 	fc := &ElasticHttpIngestFrontendConnector{
 		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
-		logManager:                 logManager,
-		registry:                   registry,
 	}
 	fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		fc.BasicHTTPFrontendConnector.GetRouterInstance().ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
@@ -51,8 +47,6 @@ func (h *ElasticHttpIngestFrontendConnector) InjectDiagnostic(diagnostic diag.Di
 
 type ElasticHttpQueryFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
-	logManager *clickhouse.LogManager
-	registry   schema.Registry
 	diagnostic diag.Diagnostic
 }
 
@@ -63,8 +57,6 @@ func NewElasticHttpQueryFrontendConnector(endpoint string,
 
 	fc := &ElasticHttpIngestFrontendConnector{
 		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
-		logManager:                 logManager,
-		registry:                   registry,
 	}
 	fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		fc.BasicHTTPFrontendConnector.GetRouterInstance().ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
