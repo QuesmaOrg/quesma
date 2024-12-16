@@ -14,38 +14,39 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
-	"quesma/quesma/ui"
 	"quesma/schema"
-	"quesma/telemetry"
 	quesma_api "quesma_v2/core"
+	"quesma_v2/core/diag"
 	"strings"
 	"sync"
 )
 
 type BasicHTTPFrontendConnector struct {
-	listener                *http.Server
-	router                  quesma_api.Router
-	mutex                   sync.Mutex
-	responseMutator         func(w http.ResponseWriter) http.ResponseWriter
-	endpoint                string
-	routerInstance          *RouterV2
-	logManager              *clickhouse.LogManager
-	registry                schema.Registry
-	config                  *config.QuesmaConfiguration
-	quesmaManagementConsole *ui.QuesmaManagementConsole
-	phoneHomeAgent          telemetry.PhoneHomeAgent
+	listener        *http.Server
+	router          quesma_api.Router
+	mutex           sync.Mutex
+	responseMutator func(w http.ResponseWriter) http.ResponseWriter
+	endpoint        string
+	routerInstance  *RouterV2
+	logManager      *clickhouse.LogManager
+	registry        schema.Registry
+	config          *config.QuesmaConfiguration
+
+	diagnostic diag.Diagnostic
+}
+
+func (h *BasicHTTPFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
+	h.diagnostic = diagnostic
 }
 
 func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfiguration) *BasicHTTPFrontendConnector {
 
 	return &BasicHTTPFrontendConnector{
-		endpoint:                endpoint,
-		config:                  config,
-		routerInstance:          NewRouterV2(config),
-		logManager:              nil,
-		registry:                nil,
-		quesmaManagementConsole: nil,
-		phoneHomeAgent:          nil,
+		endpoint:       endpoint,
+		config:         config,
+		routerInstance: NewRouterV2(config),
+		logManager:     nil,
+		registry:       nil,
 		responseMutator: func(w http.ResponseWriter) http.ResponseWriter {
 			return w
 		},
@@ -74,8 +75,8 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 	}
 
 	ua := req.Header.Get("User-Agent")
-	if h.phoneHomeAgent != nil {
-		h.phoneHomeAgent.UserAgentCounters().Add(ua, 1)
+	if h.diagnostic.PhoneHomeAgent() != nil {
+		h.diagnostic.PhoneHomeAgent().UserAgentCounters().Add(ua, 1)
 	}
 
 	quesmaRequest, ctx, err := preprocessRequest(ctx, &quesma_api.Request{
@@ -105,7 +106,7 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 	w = h.responseMutator(w)
 
 	if handlersPipe != nil {
-		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, h.quesmaManagementConsole, func() (*quesma_api.Result, error) {
+		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, h.diagnostic.DebugInfoCollector(), func() (*quesma_api.Result, error) {
 			var result *quesma_api.Result
 			result, err = handlersPipe.Handler(ctx, quesmaRequest)
 
