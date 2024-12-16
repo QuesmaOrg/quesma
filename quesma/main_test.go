@@ -62,6 +62,7 @@ func fallback(_ context.Context, _ *quesma_api.Request) (*quesma_api.Result, err
 
 func ab_testing_scenario() quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+	quesmaBuilder.SetDependencies(quesma_api.EmptyDependencies())
 
 	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
 	ingestHTTPRouter := quesma_api.NewPathRouter()
@@ -105,6 +106,7 @@ func ab_testing_scenario() quesma_api.QuesmaBuilder {
 
 func fallbackScenario() quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+	quesmaBuilder.SetDependencies(quesma_api.EmptyDependencies())
 
 	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
 	ingestHTTPRouter := quesma_api.NewPathRouter()

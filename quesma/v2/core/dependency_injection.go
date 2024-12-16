@@ -24,6 +24,12 @@ func NewDependencies() *Dependencies {
 	return &Dependencies{}
 }
 
+func EmptyDependencies() *Dependencies {
+	return &Dependencies{
+		Diagnostic: diag.EmptyDiagnostic(),
+	}
+}
+
 // InjectDependenciesInto injects dependencies into a component. This is indented to use in Quesma building process only.
 func (d *Dependencies) InjectDependenciesInto(a any) {
 
