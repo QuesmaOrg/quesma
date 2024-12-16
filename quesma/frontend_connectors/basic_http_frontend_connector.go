@@ -35,14 +35,21 @@ type BasicHTTPFrontendConnector struct {
 	diagnostic diag.Diagnostic
 }
 
-func (h *BasicHTTPFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
+func (h *BasicHTTPFrontendConnector) ListSubComponentsToInitialize() []interface{} {
+	components := make([]interface{}, 0)
 
-	h.diagnostic = diagnostic
-
-	// TODO this is a hack
-	if h.routerInstance != nil {
-		h.routerInstance.InjectDiagnostic(diagnostic)
+	if h.router != nil {
+		components = append(components, h.router)
 	}
+
+	if h.routerInstance != nil {
+		components = append(components, h.routerInstance)
+	}
+	return components
+}
+
+func (h *BasicHTTPFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
+	h.diagnostic = diagnostic
 }
 
 func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfiguration) *BasicHTTPFrontendConnector {

@@ -4,6 +4,7 @@
 package quesma
 
 import (
+	"fmt"
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/frontend_connectors"
@@ -36,12 +37,23 @@ func NewElasticHttpIngestFrontendConnector(endpoint string,
 	}
 }
 
-func (h *ElasticHttpIngestFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
-	h.diagnostic = diagnostic
+func (h *ElasticHttpIngestFrontendConnector) ListSubComponentsToInitialize() []interface{} {
+	components := make([]interface{}, 0)
 
-	// TODO this is a hack
-	h.BasicHTTPFrontendConnector.InjectDiagnostic(diagnostic)
-	h.routerInstance.InjectDiagnostic(diagnostic)
+	if h.routerInstance != nil {
+		components = append(components, h.routerInstance)
+	}
+
+	if h.BasicHTTPFrontendConnector != nil {
+		components = append(components, h.BasicHTTPFrontendConnector)
+	}
+
+	return components
+}
+
+func (h *ElasticHttpIngestFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
+	fmt.Println("ElasticHttpQueryFrontendConnector InjectDiagnostic")
+	h.diagnostic = diagnostic
 }
 
 func serveHTTPHelper(w http.ResponseWriter, req *http.Request,
@@ -88,7 +100,21 @@ func NewElasticHttpQueryFrontendConnector(endpoint string,
 	}
 }
 
+func (h *ElasticHttpQueryFrontendConnector) ListSubComponentsToInitialize() []interface{} {
+	components := make([]interface{}, 0)
+
+	if h.routerInstance != nil {
+		components = append(components, h.routerInstance)
+	}
+
+	if h.BasicHTTPFrontendConnector != nil {
+		components = append(components, h.BasicHTTPFrontendConnector)
+	}
+	return components
+}
+
 func (h *ElasticHttpQueryFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
+
 	h.diagnostic = diagnostic
 }
 
