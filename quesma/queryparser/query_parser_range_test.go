@@ -6,9 +6,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
-	"quesma/quesma/config"
 	"quesma/schema"
-	"quesma/util"
 	"testing"
 )
 
@@ -102,8 +100,7 @@ func Test_parseRange(t *testing.T) {
 				t.Fatal(err)
 			}
 			assert.NoError(t, err)
-			lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, table), &config.QuesmaConfiguration{})
-			cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(tableName)]}
+			cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(tableName)]}
 
 			simpleQuery := cw.parseRange(test.rangePartOfQuery)
 			assert.Equal(t, test.expectedWhere, simpleQuery.WhereClauseAsString())

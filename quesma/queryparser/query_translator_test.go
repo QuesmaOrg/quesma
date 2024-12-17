@@ -437,7 +437,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 // tests MakeSearchResponse, in particular if JSON we return is a proper JSON.
 // used to fail before we fixed field quoting.
 func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
-	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
+	cw := ClickhouseQueryTranslator{Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
 	const limit = 1000
 	queries := []*model.Query{
 		cw.BuildNRowsQuery([]string{"*"}, &model.SimpleQuery{}, limit),

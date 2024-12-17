@@ -242,7 +242,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldField(shouldBeMap any, aggregatio
 	}
 	if fieldRaw, ok := Map["field"]; ok {
 		if field, ok := fieldRaw.(string); ok {
-			return model.NewColumnRef(cw.ResolveField(cw.Ctx, field)) // model.NewSelectColumnTableField(cw.Table.ResolveField(cw.Ctx, field)) // remove this resolve? we do all transforms after parsing is done?
+			return model.NewColumnRef(ResolveField(cw.Ctx, field, cw.Schema)) // model.NewSelectColumnTableField(cw.Table.ResolveField(cw.Ctx, field)) // remove this resolve? we do all transforms after parsing is done?
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 		}
@@ -322,7 +322,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any,
 	// maybe "field" field
 	if fieldRaw, ok := Map["field"]; ok {
 		if field, ok := fieldRaw.(string); ok {
-			return model.NewColumnRef(cw.ResolveField(cw.Ctx, field)), true // remove this resolve? we do all transforms after parsing is done?
+			return model.NewColumnRef(ResolveField(cw.Ctx, field, cw.Schema)), true // remove this resolve? we do all transforms after parsing is done?
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 		}
