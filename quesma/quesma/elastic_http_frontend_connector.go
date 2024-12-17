@@ -18,8 +18,6 @@ type ElasticHttpIngestFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
 
 	routerInstance *frontend_connectors.RouterV2
-	logManager     *clickhouse.LogManager
-	registry       schema.Registry
 	Config         *config.QuesmaConfiguration
 
 	phoneHomeClient diag.PhoneHomeClient
@@ -66,8 +64,6 @@ type ElasticHttpQueryFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
 
 	routerInstance  *frontend_connectors.RouterV2
-	logManager      *clickhouse.LogManager
-	registry        schema.Registry
 	phoneHomeClient diag.PhoneHomeClient
 }
 
