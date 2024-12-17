@@ -80,6 +80,9 @@ func (e FunctionExpr) Accept(v ExprVisitor) interface{} {
 
 type LiteralExpr struct {
 	Value any
+	// LiteralAlreadyEscaped in 99.5% will simply be false, which is the default.
+	// So far it's only true in terms Query DSL, e.g. "field IN ('abc', 'def')". There we don't want to escape "('abc', 'def')" further.
+	LiteralAlreadyEscaped bool
 }
 
 func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
@@ -109,8 +112,14 @@ func NewCountFunc(args ...Expr) FunctionExpr {
 
 var NewWildcardExpr = LiteralExpr{Value: "*"}
 
+// NewLiteral can be used in 95% of cases, where we create a simple new Literal.
+// Use NewLiteralWithEscape if you copy another LiteralExpr which can have LiteralAlreadyEscaped set to true.
 func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value}
+}
+
+func NewLiteralWithEscape(value any, literalAlreadyEscaped bool) LiteralExpr {
+	return LiteralExpr{Value: value, LiteralAlreadyEscaped: literalAlreadyEscaped}
 }
 
 // DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`

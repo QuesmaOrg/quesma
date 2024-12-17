@@ -2320,6 +2320,30 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
+	{ // [40]
+		`Escaping of ', \, \t and \n`,
+		`	
+		{
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"match_phrase": {
+								"message": "\nMen's Clothing \\ \t"
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`("message" __quesma_match '
+Men\'s Clothing \\ 	')`},
+		model.ListAllFields,
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%
+Men\\'s Clothing \\\\ 	%' LIMIT 10`},
+		[]string{},
+	},
 }
 
 var TestSearchRuntimeMappings = []SearchTestCase{
