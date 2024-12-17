@@ -68,9 +68,9 @@ func (q *dualWriteHttpProxyV2) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxyV2(dependencies *quesma_api.Dependencies, schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
+func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
 
-	queryProcessor := NewQueryRunner(logManager, config, indexManager, dependencies.Diagnostic.DebugInfoCollector(), registry, abResultsRepository, resolver, schemaLoader)
+	queryProcessor := NewQueryRunner(logManager, config, indexManager, dependencies.DebugInfoCollector(), registry, abResultsRepository, resolver, schemaLoader)
 
 	// not sure how we should configure our query translator ???
 	// is this a config option??
@@ -82,7 +82,7 @@ func newDualWriteProxyV2(dependencies *quesma_api.Dependencies, schemaLoader cli
 
 	routerInstance := frontend_connectors.NewRouterV2(config)
 
-	dependencies.Diagnostic.PhoneHomeAgent().FailedRequestsCollector(func() int64 {
+	dependencies.PhoneHomeAgent().FailedRequestsCollector(func() int64 {
 
 		return routerInstance.FailedRequests.Load()
 	})

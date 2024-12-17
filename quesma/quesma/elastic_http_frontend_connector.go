@@ -4,7 +4,6 @@
 package quesma
 
 import (
-	"fmt"
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/frontend_connectors"
@@ -21,7 +20,8 @@ type ElasticHttpIngestFrontendConnector struct {
 	logManager     *clickhouse.LogManager
 	registry       schema.Registry
 	Config         *config.QuesmaConfiguration
-	diagnostic     diag.Diagnostic
+
+	phoneHomeClient diag.PhoneHomeClient
 }
 
 func NewElasticHttpIngestFrontendConnector(endpoint string,
@@ -51,9 +51,8 @@ func (h *ElasticHttpIngestFrontendConnector) ListSubComponentsToInitialize() []i
 	return components
 }
 
-func (h *ElasticHttpIngestFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
-	fmt.Println("ElasticHttpQueryFrontendConnector InjectDiagnostic")
-	h.diagnostic = diagnostic
+func (h *ElasticHttpIngestFrontendConnector) InjectDependencies(deps quesma_api.Dependencies) {
+	h.phoneHomeClient = deps.PhoneHomeAgent()
 }
 
 func serveHTTPHelper(w http.ResponseWriter, req *http.Request,
@@ -76,15 +75,15 @@ func serveHTTPHelper(w http.ResponseWriter, req *http.Request,
 }
 
 func (h *ElasticHttpIngestFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	serveHTTPHelper(w, req, h.routerInstance, h.GetRouter(), h.diagnostic.PhoneHomeAgent(), h.logManager, h.registry)
+	serveHTTPHelper(w, req, h.routerInstance, h.GetRouter(), h.phoneHomeClient, h.logManager, h.registry)
 }
 
 type ElasticHttpQueryFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
-	routerInstance *frontend_connectors.RouterV2
-	logManager     *clickhouse.LogManager
-	registry       schema.Registry
-	diagnostic     diag.Diagnostic
+	routerInstance  *frontend_connectors.RouterV2
+	logManager      *clickhouse.LogManager
+	registry        schema.Registry
+	phoneHomeClient diag.PhoneHomeClient
 }
 
 func NewElasticHttpQueryFrontendConnector(endpoint string,
@@ -113,11 +112,10 @@ func (h *ElasticHttpQueryFrontendConnector) ListSubComponentsToInitialize() []in
 	return components
 }
 
-func (h *ElasticHttpQueryFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
-
-	h.diagnostic = diagnostic
+func (h *ElasticHttpQueryFrontendConnector) InjectDependencies(deps quesma_api.Dependencies) {
+	h.phoneHomeClient = deps.PhoneHomeAgent()
 }
 
 func (h *ElasticHttpQueryFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	serveHTTPHelper(w, req, h.routerInstance, h.GetRouter(), h.diagnostic.PhoneHomeAgent(), h.logManager, h.registry)
+	serveHTTPHelper(w, req, h.routerInstance, h.GetRouter(), h.phoneHomeClient, h.logManager, h.registry)
 }

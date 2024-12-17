@@ -32,7 +32,8 @@ type BasicHTTPFrontendConnector struct {
 	registry        schema.Registry
 	config          *config.QuesmaConfiguration
 
-	diagnostic diag.Diagnostic
+	phoneHomeClient    diag.PhoneHomeClient
+	debugInfoCollector diag.DebugInfoCollector
 }
 
 func (h *BasicHTTPFrontendConnector) ListSubComponentsToInitialize() []interface{} {
@@ -48,8 +49,9 @@ func (h *BasicHTTPFrontendConnector) ListSubComponentsToInitialize() []interface
 	return components
 }
 
-func (h *BasicHTTPFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
-	h.diagnostic = diagnostic
+func (h *BasicHTTPFrontendConnector) InjectDependencies(deps quesma_api.Dependencies) {
+	h.phoneHomeClient = deps.PhoneHomeAgent()
+	h.debugInfoCollector = deps.DebugInfoCollector()
 }
 
 func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfiguration) *BasicHTTPFrontendConnector {
@@ -88,8 +90,8 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 	}
 
 	ua := req.Header.Get("User-Agent")
-	if h.diagnostic.PhoneHomeAgent() != nil {
-		h.diagnostic.PhoneHomeAgent().UserAgentCounters().Add(ua, 1)
+	if h.phoneHomeClient != nil {
+		h.phoneHomeClient.UserAgentCounters().Add(ua, 1)
 	}
 
 	quesmaRequest, ctx, err := preprocessRequest(ctx, &quesma_api.Request{
@@ -119,7 +121,7 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 	w = h.responseMutator(w)
 
 	if handlersPipe != nil {
-		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, h.diagnostic.DebugInfoCollector(), func() (*quesma_api.Result, error) {
+		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, h.debugInfoCollector, func() (*quesma_api.Result, error) {
 			var result *quesma_api.Result
 			result, err = handlersPipe.Handler(ctx, quesmaRequest)
 

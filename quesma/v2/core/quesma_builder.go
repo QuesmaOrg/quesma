@@ -9,7 +9,7 @@ import (
 
 type Quesma struct {
 	pipelines    []PipelineBuilder
-	dependencies *Dependencies
+	dependencies Dependencies
 }
 
 func NewQuesma() *Quesma {
@@ -29,7 +29,7 @@ func (quesma *Quesma) ListSubComponentsToInitialize() []any {
 	return componentList
 }
 
-func (quesma *Quesma) SetDependencies(dependencies *Dependencies) {
+func (quesma *Quesma) SetDependencies(dependencies Dependencies) {
 	quesma.dependencies = dependencies
 }
 

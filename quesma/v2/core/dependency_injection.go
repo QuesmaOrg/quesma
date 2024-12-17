@@ -7,12 +7,19 @@ import (
 	"quesma_v2/core/diag"
 )
 
+type Dependencies interface {
+	PhoneHomeAgent() diag.PhoneHomeClient
+	DebugInfoCollector() diag.DebugInfoCollector
+
+	InjectDependenciesInto(a any)
+}
+
 // Here are interfaces that are used to inject dependencies into structs.
 // Component that require a dependency should implement the corresponding interface.
 //
 
-type DiagnosticInjector interface {
-	InjectDiagnostic(s diag.Diagnostic)
+type DependencyInjector interface {
+	InjectDependencies(deps Dependencies)
 }
 
 //
@@ -54,7 +61,7 @@ func (b *ComponentTreeBuilder) buildComponentTree(level int, a any) *ComponentTo
 	}
 
 	node := &ComponentToInitializeNode{
-		Id:        fmt.Sprintf("%T", a),
+		Id:        fmt.Sprintf("%T(%p)", a, a),
 		Children:  make([]*ComponentToInitializeNode, 0),
 		Component: a,
 		Level:     level,
@@ -78,24 +85,42 @@ func (b *ComponentTreeBuilder) BuildComponentTree(a any) *ComponentToInitializeN
 
 // Dependencies is a struct that contains all the dependencies that can be injected during Quesma building.
 
-type Dependencies struct {
-	Diagnostic diag.Diagnostic
+type DependenciesImpl struct {
+	phoneHomeAgent     diag.PhoneHomeClient
+	debugInfoCollector diag.DebugInfoCollector
 }
 
-func NewDependencies() *Dependencies {
-	return &Dependencies{}
+func (d *DependenciesImpl) PhoneHomeAgent() diag.PhoneHomeClient {
+	return d.phoneHomeAgent
 }
 
-func EmptyDependencies() *Dependencies {
-	return &Dependencies{
-		Diagnostic: diag.EmptyDiagnostic(),
+func (d *DependenciesImpl) DebugInfoCollector() diag.DebugInfoCollector {
+	return d.debugInfoCollector
+}
+
+func NewDependencies() *DependenciesImpl {
+	return EmptyDependencies()
+}
+
+func (d *DependenciesImpl) SetPhoneHomeAgent(phoneHomeAgent diag.PhoneHomeClient) {
+	d.phoneHomeAgent = phoneHomeAgent
+}
+
+func (d *DependenciesImpl) SetDebugInfoCollector(debugInfoCollector diag.DebugInfoCollector) {
+	d.debugInfoCollector = debugInfoCollector
+}
+
+func EmptyDependencies() *DependenciesImpl {
+	return &DependenciesImpl{
+		phoneHomeAgent:     diag.NewPhoneHomeEmptyAgent(),
+		debugInfoCollector: diag.EmptyDebugInfoCollector(),
 	}
 }
 
 const traceDependencyInjection bool = true
 
 // InjectDependenciesInto injects dependencies into a component. This is indented to use in Quesma building process only.
-func (d *Dependencies) InjectDependenciesInto(a any) {
+func (d *DependenciesImpl) InjectDependenciesInto(a any) {
 
 	// TODO fmt for now. Later we can use logger. We need to move logger to the V2 module.
 
@@ -110,11 +135,11 @@ func (d *Dependencies) InjectDependenciesInto(a any) {
 		trace = func(a ...any) {}
 	}
 
-	if injector, ok := a.(DiagnosticInjector); ok {
-		injector.InjectDiagnostic(d.Diagnostic)
-		trace("OK - Injected Diagnostic")
+	if injector, ok := a.(DependencyInjector); ok {
+		injector.InjectDependencies(d)
+		trace("OK - Injected Dependencies")
 
 	} else {
-		trace("SKIP - No Diagnostic to inject. It doesn't implement DiagnosticInjector interface.")
+		trace("SKIP - No dependencies to inject. It doesn't implement DependencyInjector interface.")
 	}
 }
