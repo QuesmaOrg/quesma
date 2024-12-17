@@ -31,7 +31,7 @@ import (
 	"time"
 )
 
-func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies *quesma_api.Dependencies, ip *ingest.IngestProcessor, tableResolver table_resolver.TableResolver) quesma_api.Router {
+func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesma_api.Dependencies, ip *ingest.IngestProcessor, tableResolver table_resolver.TableResolver) quesma_api.Router {
 	// some syntactic sugar
 	method := quesma_api.IsHTTPMethod
 	and := quesma_api.And
@@ -90,7 +90,7 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies *ques
 			return nil, err
 		}
 
-		results, err := bulk.Write(ctx, nil, body, ip, cfg, dependencies.Diagnostic.PhoneHomeAgent(), tableResolver)
+		results, err := bulk.Write(ctx, nil, body, ip, cfg, dependencies.PhoneHomeAgent(), tableResolver)
 		return bulkInsertResult(ctx, results, err)
 	})
 	router.Register(routes.IndexDocPath, and(method("POST"), matchedExactIngestPath(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
@@ -105,7 +105,7 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies *ques
 			}, nil
 		}
 
-		result, err := doc.Write(ctx, &index, body, ip, cfg, dependencies.Diagnostic.PhoneHomeAgent(), tableResolver)
+		result, err := doc.Write(ctx, &index, body, ip, cfg, dependencies.PhoneHomeAgent(), tableResolver)
 		if err != nil {
 			return &quesma_api.Result{
 				Body:          string(queryparser.BadRequestParseError(err)),
@@ -125,13 +125,13 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies *ques
 			return nil, err
 		}
 
-		results, err := bulk.Write(ctx, &index, body, ip, cfg, dependencies.Diagnostic.PhoneHomeAgent(), tableResolver)
+		results, err := bulk.Write(ctx, &index, body, ip, cfg, dependencies.PhoneHomeAgent(), tableResolver)
 		return bulkInsertResult(ctx, results, err)
 	})
 	return router
 }
 
-func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies *quesma_api.Dependencies, sr schema.Registry, lm *clickhouse.LogManager, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) quesma_api.Router {
+func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesma_api.Dependencies, sr schema.Registry, lm *clickhouse.LogManager, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) quesma_api.Router {
 
 	// some syntactic sugar
 	method := quesma_api.IsHTTPMethod
@@ -366,7 +366,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies *ques
 				return nil, errors.New("invalid request body, expecting JSON")
 			}
 
-			if responseBody, err := terms_enum.HandleTermsEnum(ctx, req.Params["index"], body, lm, sr, dependencies.Diagnostic.DebugInfoCollector()); err != nil {
+			if responseBody, err := terms_enum.HandleTermsEnum(ctx, req.Params["index"], body, lm, sr, dependencies.DebugInfoCollector()); err != nil {
 				return nil, err
 			} else {
 				return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil

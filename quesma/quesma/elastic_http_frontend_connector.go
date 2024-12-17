@@ -16,8 +16,10 @@ import (
 
 type ElasticHttpIngestFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
-	Config     *config.QuesmaConfiguration
-	diagnostic diag.Diagnostic
+
+	Config *config.QuesmaConfiguration
+
+	phoneHomeClient diag.PhoneHomeClient
 }
 
 func NewElasticHttpIngestFrontendConnector(endpoint string,
@@ -39,15 +41,23 @@ func NewElasticHttpIngestFrontendConnector(endpoint string,
 	return fc
 }
 
-func (h *ElasticHttpIngestFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
-	h.diagnostic = diagnostic
-	// TODO this is a hack
-	h.BasicHTTPFrontendConnector.InjectDiagnostic(diagnostic)
+func (h *ElasticHttpIngestFrontendConnector) GetChildComponents() []interface{} {
+	components := make([]interface{}, 0)
+	if h.BasicHTTPFrontendConnector != nil {
+		components = append(components, h.BasicHTTPFrontendConnector)
+	}
+
+	return components
+}
+
+func (h *ElasticHttpIngestFrontendConnector) SetDependencies(deps quesma_api.Dependencies) {
+	h.phoneHomeClient = deps.PhoneHomeAgent()
 }
 
 type ElasticHttpQueryFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
-	diagnostic diag.Diagnostic
+
+	phoneHomeClient diag.PhoneHomeClient
 }
 
 func NewElasticHttpQueryFrontendConnector(endpoint string,
@@ -67,8 +77,14 @@ func NewElasticHttpQueryFrontendConnector(endpoint string,
 	return fc
 }
 
-func (h *ElasticHttpQueryFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
-	h.diagnostic = diagnostic
-	// TODO this is a hack
-	h.BasicHTTPFrontendConnector.InjectDiagnostic(diagnostic)
+func (h *ElasticHttpQueryFrontendConnector) GetChildComponents() []interface{} {
+	components := make([]interface{}, 0)
+	if h.BasicHTTPFrontendConnector != nil {
+		components = append(components, h.BasicHTTPFrontendConnector)
+	}
+	return components
+}
+
+func (h *ElasticHttpQueryFrontendConnector) SetDependencies(deps quesma_api.Dependencies) {
+	h.phoneHomeClient = deps.PhoneHomeAgent()
 }

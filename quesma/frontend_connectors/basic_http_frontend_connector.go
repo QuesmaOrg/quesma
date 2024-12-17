@@ -27,17 +27,26 @@ type BasicHTTPFrontendConnector struct {
 	registry        schema.Registry
 	config          *config.QuesmaConfiguration
 
-	diagnostic diag.Diagnostic
+	phoneHomeClient    diag.PhoneHomeClient
+	debugInfoCollector diag.DebugInfoCollector
 }
 
-func (h *BasicHTTPFrontendConnector) InjectDiagnostic(diagnostic diag.Diagnostic) {
+func (h *BasicHTTPFrontendConnector) GetChildComponents() []interface{} {
+	components := make([]interface{}, 0)
 
-	h.diagnostic = diagnostic
-
-	// TODO this is a hack
-	if h.routerInstance != nil {
-		h.routerInstance.InjectDiagnostic(diagnostic)
+	if h.router != nil {
+		components = append(components, h.router)
 	}
+
+	if h.routerInstance != nil {
+		components = append(components, h.routerInstance)
+	}
+	return components
+}
+
+func (h *BasicHTTPFrontendConnector) SetDependencies(deps quesma_api.Dependencies) {
+	h.phoneHomeClient = deps.PhoneHomeAgent()
+	h.debugInfoCollector = deps.DebugInfoCollector()
 }
 
 func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfiguration) *BasicHTTPFrontendConnector {
@@ -70,9 +79,10 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 	}
 
 	ua := req.Header.Get("User-Agent")
-	if h.diagnostic.PhoneHomeAgent() != nil {
-		h.diagnostic.PhoneHomeAgent().UserAgentCounters().Add(ua, 1)
+	if h.phoneHomeClient != nil {
+		h.phoneHomeClient.UserAgentCounters().Add(ua, 1)
 	}
+
 	h.routerInstance.Reroute(req.Context(), w, req, reqBody, h.router, h.logManager, h.registry)
 }
 

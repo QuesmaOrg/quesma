@@ -120,10 +120,3 @@ func (e *emptyDebugInfoCollector) PushSecondaryInfo(qdebugInfo *QueryDebugSecond
 
 func (e *emptyDebugInfoCollector) RecordRequest(typeName string, took time.Duration, error bool) {
 }
-
-func EmptyDiagnostic() Diagnostic {
-	return &diagnosticImpl{
-		phoneHomeAgent:     NewPhoneHomeEmptyAgent(),
-		debugInfoCollector: EmptyDebugInfoCollector(),
-	}
-}
