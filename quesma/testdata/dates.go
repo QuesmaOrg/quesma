@@ -323,7 +323,7 @@ var AggregationTestsWithDates = []AggregationTestCase{
 			  ("@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0"
 			ORDER BY "aggr__timeseries__key_0" ASC`,
 	},
-	{ // [1]
+	{ // [2]
 		TestName: "extended_bounds post keys (timezone calculations most tricky to get right)",
 		QueryRequestJson: `
 		{
@@ -503,5 +503,135 @@ var AggregationTestsWithDates = []AggregationTestCase{
 			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
 			  ("@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0"
 			ORDER BY "aggr__timeseries__key_0" ASC`,
+	},
+	{ // [3]
+		TestName: "empty results, we still should add empty buckets, because of the extended_bounds and min_doc_count defaulting to 0",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"sum": {
+								"field": "body_bytes_sent"
+							}
+						}
+					},
+					"date_histogram": {
+						"calendar_interval": "1d",
+						"extended_bounds": {
+							"min": 1732327903466,
+							"max": 1732713503466
+						},
+						"field": "@timestamp",
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"@timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2009-11-27T13:18:23.466Z",
+									"lte": "2024-11-27T13:18:23.466Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1707486436398,
+			"expiration_time_in_millis": 1707486496397,
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"doc_count": 0,
+								"key": 1732402800000,
+								"key_as_string": "2024-11-23T23:00:00.000",
+								"1": {
+									"value": null
+								}
+							},
+							{
+								"doc_count": 0,
+								"key": 1732489200000,
+								"key_as_string": "2024-11-24T23:00:00.000",
+								"1": {
+									"value": null
+								}
+							},
+							{
+								"doc_count": 0,
+								"key": 1732575600000,
+								"key_as_string": "2024-11-25T23:00:00.000",
+								"1": {
+									"value": null
+								}
+							},
+							{
+								"doc_count": 0,
+								"key": 1732662000000,
+								"key_as_string": "2024-11-26T23:00:00.000",
+								"1": {
+									"value": null
+								}
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 2200
+					}
+				},
+				"timed_out": false,
+				"took": 1
+			},
+			"start_time_in_millis": 1707486436397
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{},
+		ExpectedPancakeSQL: `
+			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
+			  "@timestamp", 'Europe/Warsaw'))*1000) / 86400000) AS "aggr__0__key_0",
+			  count(*) AS "aggr__0__count",
+			  sumOrNull("body_bytes_sent") AS "metric__0__1_col_0"
+			FROM __quesma_table_name
+			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1259327903466) AND "@timestamp"<=
+			  fromUnixTimestamp64Milli(1732713503466))
+			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
+			  ("@timestamp", 'Europe/Warsaw'))*1000) / 86400000) AS "aggr__0__key_0"
+			ORDER BY "aggr__0__key_0" ASC`,
 	},
 }

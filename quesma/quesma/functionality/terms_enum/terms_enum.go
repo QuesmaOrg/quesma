@@ -33,13 +33,11 @@ func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *cli
 			return []byte{}, end_user_errors.ErrNoSuchSchema.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
-		return handleTermsEnumRequest(ctx, body, &queryparser.ClickhouseQueryTranslator{
-			ClickhouseLM: lm, Table: lm.FindTable(indices[0]), Ctx: context.Background(), Schema: resolvedSchema,
-		}, qmc)
+		return handleTermsEnumRequest(ctx, body, lm, &queryparser.ClickhouseQueryTranslator{Table: lm.FindTable(indices[0]), Ctx: context.Background(), Schema: resolvedSchema}, qmc)
 	}
 }
 
-func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparser.ClickhouseQueryTranslator,
+func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm *clickhouse.LogManager, qt *queryparser.ClickhouseQueryTranslator,
 	qmc diag.DebugInfoCollector) (result []byte, err error) {
 	startTime := time.Now()
 
@@ -60,7 +58,7 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparse
 		logger.ErrorWithCtx(ctx).Msgf("error reading terms enum API request body: field is not present")
 		return json.Marshal(emptyTermsEnumResponse())
 	}
-	field = qt.ResolveField(ctx, field)
+	field = queryparser.ResolveField(ctx, field, qt.Schema)
 
 	size := defaultSize
 	if sizeRaw, ok := body["size"]; ok {
@@ -93,11 +91,12 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparse
 	}
 
 	where := qt.ParseAutocomplete(indexFilter, field, prefixString, caseInsensitive)
-	selectQuery := qt.BuildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
+	selectQuery := buildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
 	dbQueryCtx, cancel := context.WithCancel(ctx)
 	// TODO this will be used to cancel goroutine that is executing the query
 	_ = cancel
-	if rows, _, err2 := qt.ClickhouseLM.ProcessQuery(dbQueryCtx, qt.Table, selectQuery); err2 != nil {
+
+	if rows, _, err2 := lm.ProcessQuery(dbQueryCtx, qt.Table, selectQuery); err2 != nil {
 		logger.Error().Msgf("terms enum failed - error processing SQL query [%s]", err2)
 		result, err = json.Marshal(emptyTermsEnumResponse())
 	} else {
@@ -147,5 +146,22 @@ func emptyTermsEnumResponse() *model.TermsEnumResponse {
 	return &model.TermsEnumResponse{
 		Complete: false,
 		Terms:    nil,
+	}
+}
+
+func buildAutocompleteQuery(fieldName, tableName string, whereClause model.Expr, limit int) *model.Query {
+	return &model.Query{
+		SelectCommand: *model.NewSelectCommand(
+			[]model.Expr{model.NewColumnRef(fieldName)},
+			nil,
+			nil,
+			model.NewTableRef(tableName),
+			whereClause,
+			[]model.Expr{},
+			limit,
+			0,
+			true,
+			nil,
+		),
 	}
 }

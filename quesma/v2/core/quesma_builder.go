@@ -64,7 +64,6 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 
 	endpoints := make(map[string]struct{})
 	handlers := make(map[string]HandlersPipe)
-
 	for _, pipeline := range quesma.pipelines {
 		for _, conn := range pipeline.GetFrontendConnectors() {
 			if httpConn, ok := conn.(HTTPFrontendConnector); ok {

@@ -46,10 +46,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 						}
 					},
 					"date_histogram": {
-						"extended_bounds": {
-							"max": 1716812096627,
-							"min": 1716811196627
-						},
 						"field": "@timestamp",
 						"fixed_interval": "30s",
 						"time_zone": "Europe/Warsaw"
@@ -140,6 +136,15 @@ var AggregationTests = []testdata.AggregationTestCase{
 								"doc_count": 4,
 								"key": 1716827010000,
 								"key_as_string": "2024-05-27T16:23:30.000"
+							},
+							{
+								"doc_count": 0,
+								"key": 1716827040000,
+								"key_as_string": "2024-05-27T16:24:00.000",
+								"1": {
+									"buckets": [],
+									"sum_other_doc_count": 0
+								}
 							},
 							{
 								"1": {
@@ -267,10 +272,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 					"aggs": {
 						"1": {
 							"date_histogram": {
-								"extended_bounds": {
-									"max": 1716812073493,
-									"min": 1716811173493
-								},
 								"field": "@timestamp",
 								"fixed_interval": "30s"
 							}
@@ -344,6 +345,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 											"doc_count": 1,
 											"key": 1716834450000,
 											"key_as_string": "2024-05-27T18:27:30.000"
+										},
+										{
+											"doc_count": 0,
+											"key": 1716834480000,
+											"key_as_string": "2024-05-27T18:28:00.000"
 										},
 										{
 											"doc_count": 2,
@@ -454,6 +460,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 									"max": 1716834478178,
 									"min": 1716833578178
 								},
+								"min_doc_count": 1,
 								"field": "@timestamp",
 								"fixed_interval": "30s"
 							}

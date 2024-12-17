@@ -625,7 +625,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 				if len(processedConfig.QueryTarget) == 2 {
 					// Turn on A/B testing
-					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+					if processedConfig.Optimizers == nil {
+						processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+					}
 					processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
 						Disabled:   false,
 						Properties: map[string]string{},
@@ -764,7 +766,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			if len(processedConfig.QueryTarget) == 2 {
 				// Turn on A/B testing
-				processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+				if processedConfig.Optimizers == nil {
+					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+				}
 				processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
 					Disabled:   false,
 					Properties: map[string]string{},

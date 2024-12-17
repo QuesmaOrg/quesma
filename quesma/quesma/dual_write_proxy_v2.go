@@ -91,13 +91,10 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 	searchRouter := ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
 
 	elasticHttpIngestFrontendConnector := NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		logManager, registry, config)
-	elasticHttpIngestFrontendConnector.AddRouter(ingestRouter)
+		logManager, registry, config, ingestRouter)
 
 	elasticHttpQueryFrontendConnector := NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		logManager, registry, config)
-
-	elasticHttpQueryFrontendConnector.AddRouter(searchRouter)
+		logManager, registry, config, searchRouter)
 
 	quesmaBuilder := quesma_api.NewQuesma()
 	ingestPipeline := quesma_api.NewPipeline()
