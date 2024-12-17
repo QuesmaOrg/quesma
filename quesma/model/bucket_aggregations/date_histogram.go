@@ -17,7 +17,6 @@ import (
 type DateHistogramIntervalType bool
 
 const (
-	DefaultMinDocCount                                      = -1
 	DateHistogramFixedInterval    DateHistogramIntervalType = true
 	DateHistogramCalendarInterval DateHistogramIntervalType = false
 	defaultDateTimeType                                     = clickhouse.DateTime64

@@ -470,6 +470,23 @@ func (cw *ClickhouseQueryTranslator) parseOrder(params QueryMap, fieldExpression
 	return fullOrderBy, nil
 }
 
+func (cw *ClickhouseQueryTranslator) parseMinDocCount(queryMap QueryMap) int {
+	const defaultMinDocCount = 0
+	if minDocCountRaw, exists := queryMap["min_doc_count"]; exists {
+		if minDocCount, ok := minDocCountRaw.(float64); ok {
+			asInt := int(minDocCount)
+			if asInt != 0 && asInt != 1 {
+				logger.WarnWithCtx(cw.Ctx).Msgf("min_doc_count is not 0 or 1, but %d. Not really supported", asInt)
+			}
+			return asInt
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("min_doc_count is not a number, but %T, value: %v. Using default value: %d",
+				minDocCountRaw, minDocCountRaw, defaultMinDocCount)
+		}
+	}
+	return defaultMinDocCount
+}
+
 // addMissingParameterIfPresent parses 'missing' parameter from 'params'.
 func (cw *ClickhouseQueryTranslator) addMissingParameterIfPresent(field model.Expr, params QueryMap) (updatedField model.Expr, didWeAddMissing bool) {
 	if params["missing"] == nil {
