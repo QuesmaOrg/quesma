@@ -43,7 +43,6 @@ func NewElasticHttpIngestFrontendConnector(endpoint string,
 
 func (h *ElasticHttpIngestFrontendConnector) GetChildComponents() []interface{} {
 	components := make([]interface{}, 0)
-
 	if h.BasicHTTPFrontendConnector != nil {
 		components = append(components, h.BasicHTTPFrontendConnector)
 	}
@@ -80,7 +79,6 @@ func NewElasticHttpQueryFrontendConnector(endpoint string,
 
 func (h *ElasticHttpQueryFrontendConnector) GetChildComponents() []interface{} {
 	components := make([]interface{}, 0)
-	
 	if h.BasicHTTPFrontendConnector != nil {
 		components = append(components, h.BasicHTTPFrontendConnector)
 	}
