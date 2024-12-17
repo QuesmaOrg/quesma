@@ -11,6 +11,7 @@ import (
 	"quesma/end_user_errors"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/quesma/recovery"
 	tracing "quesma_v2/core/tracing"
 	"strconv"
 	"strings"
@@ -234,6 +235,7 @@ func read(ctx context.Context, rows *sql.Rows, selectFields []string, rowToScan 
 		return nil, fmt.Errorf("clickhouse: iterating over rows failed:  %v", rows.Err())
 	}
 	go func() {
+		recovery.LogPanicWithCtx(ctx)
 		err := rows.Close()
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("clickhouse: closing rows failed: %v", err)
