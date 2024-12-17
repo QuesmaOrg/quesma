@@ -117,7 +117,7 @@ func EmptyDependencies() *DependenciesImpl {
 	}
 }
 
-const traceDependencyInjection bool = true
+const traceDependencyInjection bool = false
 
 // InjectDependenciesInto injects dependencies into a component. This is indented to use in Quesma building process only.
 func (d *DependenciesImpl) InjectDependenciesInto(a any) {

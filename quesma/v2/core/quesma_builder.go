@@ -163,7 +163,9 @@ func (quesma *Quesma) Build() (QuesmaBuilder, error) {
 		return nil, fmt.Errorf("failed to inject dependencies: %v", err)
 	}
 
-	quesma.printTree(tree)
+	if traceDependencyInjection {
+		quesma.printTree(tree)
+	}
 
 	return quesma, nil
 
