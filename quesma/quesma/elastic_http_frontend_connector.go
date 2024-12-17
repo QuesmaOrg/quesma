@@ -17,8 +17,7 @@ import (
 type ElasticHttpIngestFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
 
-	routerInstance *frontend_connectors.RouterV2
-	Config         *config.QuesmaConfiguration
+	Config *config.QuesmaConfiguration
 
 	phoneHomeClient diag.PhoneHomeClient
 }
@@ -45,10 +44,6 @@ func NewElasticHttpIngestFrontendConnector(endpoint string,
 func (h *ElasticHttpIngestFrontendConnector) GetChildComponents() []interface{} {
 	components := make([]interface{}, 0)
 
-	if h.routerInstance != nil {
-		components = append(components, h.routerInstance)
-	}
-
 	if h.BasicHTTPFrontendConnector != nil {
 		components = append(components, h.BasicHTTPFrontendConnector)
 	}
@@ -63,7 +58,6 @@ func (h *ElasticHttpIngestFrontendConnector) SetDependencies(deps quesma_api.Dep
 type ElasticHttpQueryFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
 
-	routerInstance  *frontend_connectors.RouterV2
 	phoneHomeClient diag.PhoneHomeClient
 }
 
@@ -86,11 +80,7 @@ func NewElasticHttpQueryFrontendConnector(endpoint string,
 
 func (h *ElasticHttpQueryFrontendConnector) GetChildComponents() []interface{} {
 	components := make([]interface{}, 0)
-
-	if h.routerInstance != nil {
-		components = append(components, h.routerInstance)
-	}
-
+	
 	if h.BasicHTTPFrontendConnector != nil {
 		components = append(components, h.BasicHTTPFrontendConnector)
 	}
