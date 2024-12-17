@@ -305,7 +305,6 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 		}
 	} else {
 		if router.GetFallbackHandler() != nil {
-			fmt.Printf("No handler found for path: %s\n", req.URL.Path)
 			handler := router.GetFallbackHandler()
 			result, _ := handler(ctx, quesmaRequest, w)
 			if result == nil {
