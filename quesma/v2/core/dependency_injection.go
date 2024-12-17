@@ -18,24 +18,24 @@ type Dependencies interface {
 // Component that require a dependency should implement the corresponding interface.
 //
 
-type DependencyInjector interface {
-	InjectDependencies(deps Dependencies)
+type DependenciesSetter interface {
+	SetDependencies(deps Dependencies)
 }
 
 //
 
-type SubComponentsToInitializeProvider interface {
-	ListSubComponentsToInitialize() []any
+type ChildComponentProvider interface {
+	GetChildComponents() []any
 }
 
-type ComponentToInitializeNode struct {
+type ComponentTreeNode struct {
 	Id        string
 	Level     int
 	Component any
-	Children  []*ComponentToInitializeNode
+	Children  []*ComponentTreeNode
 }
 
-func (n *ComponentToInitializeNode) walk(f func(*ComponentToInitializeNode)) {
+func (n *ComponentTreeNode) walk(f func(*ComponentTreeNode)) {
 	f(n)
 	for _, child := range n.Children {
 		child.walk(f)
@@ -43,16 +43,16 @@ func (n *ComponentToInitializeNode) walk(f func(*ComponentToInitializeNode)) {
 }
 
 type ComponentTreeBuilder struct {
-	visited map[any]*ComponentToInitializeNode
+	visited map[any]*ComponentTreeNode
 }
 
 func NewComponentToInitializeProviderBuilder() *ComponentTreeBuilder {
 	return &ComponentTreeBuilder{
-		visited: make(map[any]*ComponentToInitializeNode),
+		visited: make(map[any]*ComponentTreeNode),
 	}
 }
 
-func (b *ComponentTreeBuilder) buildComponentTree(level int, a any) *ComponentToInitializeNode {
+func (b *ComponentTreeBuilder) buildComponentTree(level int, a any) *ComponentTreeNode {
 
 	// cycle detection
 	// TODO add detection if the a is hashable
@@ -60,17 +60,17 @@ func (b *ComponentTreeBuilder) buildComponentTree(level int, a any) *ComponentTo
 		return v
 	}
 
-	node := &ComponentToInitializeNode{
+	node := &ComponentTreeNode{
 		Id:        fmt.Sprintf("%T(%p)", a, a),
-		Children:  make([]*ComponentToInitializeNode, 0),
+		Children:  make([]*ComponentTreeNode, 0),
 		Component: a,
 		Level:     level,
 	}
 
 	b.visited[a] = node
 
-	if provider, ok := a.(SubComponentsToInitializeProvider); ok {
-		for _, child := range provider.ListSubComponentsToInitialize() {
+	if provider, ok := a.(ChildComponentProvider); ok {
+		for _, child := range provider.GetChildComponents() {
 			childNode := b.buildComponentTree(level+1, child)
 			node.Children = append(node.Children, childNode)
 		}
@@ -79,7 +79,7 @@ func (b *ComponentTreeBuilder) buildComponentTree(level int, a any) *ComponentTo
 	return node
 }
 
-func (b *ComponentTreeBuilder) BuildComponentTree(a any) *ComponentToInitializeNode {
+func (b *ComponentTreeBuilder) BuildComponentTree(a any) *ComponentTreeNode {
 	return b.buildComponentTree(0, a)
 }
 
@@ -135,11 +135,11 @@ func (d *DependenciesImpl) InjectDependenciesInto(a any) {
 		trace = func(a ...any) {}
 	}
 
-	if injector, ok := a.(DependencyInjector); ok {
-		injector.InjectDependencies(d)
+	if injector, ok := a.(DependenciesSetter); ok {
+		injector.SetDependencies(d)
 		trace("OK - Injected Dependencies")
 
 	} else {
-		trace("SKIP - No dependencies to inject. It doesn't implement DependencyInjector interface.")
+		trace("SKIP - No dependencies to inject. It doesn't implement DependenciesSetter interface.")
 	}
 }

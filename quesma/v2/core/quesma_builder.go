@@ -18,7 +18,7 @@ func NewQuesma() *Quesma {
 	}
 }
 
-func (quesma *Quesma) ListSubComponentsToInitialize() []any {
+func (quesma *Quesma) GetChildComponents() []any {
 
 	componentList := make([]any, 0)
 
@@ -123,22 +123,22 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 	return quesma, nil
 }
 
-func (quesma *Quesma) injectDependencies(tree *ComponentToInitializeNode) error {
+func (quesma *Quesma) injectDependencies(tree *ComponentTreeNode) error {
 	if quesma.dependencies == nil {
 		return fmt.Errorf("dependencies not set")
 	}
 
-	tree.walk(func(n *ComponentToInitializeNode) {
+	tree.walk(func(n *ComponentTreeNode) {
 		quesma.dependencies.InjectDependenciesInto(n.Component)
 	})
 
 	return nil
 }
 
-func (quesma *Quesma) printTree(tree *ComponentToInitializeNode) {
+func (quesma *Quesma) printTree(tree *ComponentTreeNode) {
 
 	fmt.Println("Component tree:\n---")
-	tree.walk(func(n *ComponentToInitializeNode) {
+	tree.walk(func(n *ComponentTreeNode) {
 
 		for i := 0; i < n.Level; i++ {
 			fmt.Print("  ")

@@ -84,7 +84,7 @@ type RouterV2 struct {
 	phoneHomeAgent     diag.PhoneHomeClient
 }
 
-func (r *RouterV2) InjectDependencies(deps quesma_api.Dependencies) {
+func (r *RouterV2) SetDependencies(deps quesma_api.Dependencies) {
 	r.debugInfoCollector = deps.DebugInfoCollector()
 	r.phoneHomeAgent = deps.PhoneHomeAgent()
 }

@@ -11,7 +11,7 @@ type componentWithDependency struct {
 	phoneHomeClient diag.PhoneHomeClient
 }
 
-func (sc *componentWithDependency) InjectDependencies(deps Dependencies) {
+func (sc *componentWithDependency) SetDependencies(deps Dependencies) {
 	sc.phoneHomeClient = deps.PhoneHomeAgent()
 }
 

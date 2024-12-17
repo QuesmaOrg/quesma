@@ -36,7 +36,7 @@ type BasicHTTPFrontendConnector struct {
 	debugInfoCollector diag.DebugInfoCollector
 }
 
-func (h *BasicHTTPFrontendConnector) ListSubComponentsToInitialize() []interface{} {
+func (h *BasicHTTPFrontendConnector) GetChildComponents() []interface{} {
 	components := make([]interface{}, 0)
 
 	if h.router != nil {
@@ -49,7 +49,7 @@ func (h *BasicHTTPFrontendConnector) ListSubComponentsToInitialize() []interface
 	return components
 }
 
-func (h *BasicHTTPFrontendConnector) InjectDependencies(deps quesma_api.Dependencies) {
+func (h *BasicHTTPFrontendConnector) SetDependencies(deps quesma_api.Dependencies) {
 	h.phoneHomeClient = deps.PhoneHomeAgent()
 	h.debugInfoCollector = deps.DebugInfoCollector()
 }

@@ -37,7 +37,7 @@ func NewElasticHttpIngestFrontendConnector(endpoint string,
 	}
 }
 
-func (h *ElasticHttpIngestFrontendConnector) ListSubComponentsToInitialize() []interface{} {
+func (h *ElasticHttpIngestFrontendConnector) GetChildComponents() []interface{} {
 	components := make([]interface{}, 0)
 
 	if h.routerInstance != nil {
@@ -51,7 +51,7 @@ func (h *ElasticHttpIngestFrontendConnector) ListSubComponentsToInitialize() []i
 	return components
 }
 
-func (h *ElasticHttpIngestFrontendConnector) InjectDependencies(deps quesma_api.Dependencies) {
+func (h *ElasticHttpIngestFrontendConnector) SetDependencies(deps quesma_api.Dependencies) {
 	h.phoneHomeClient = deps.PhoneHomeAgent()
 }
 
@@ -99,7 +99,7 @@ func NewElasticHttpQueryFrontendConnector(endpoint string,
 	}
 }
 
-func (h *ElasticHttpQueryFrontendConnector) ListSubComponentsToInitialize() []interface{} {
+func (h *ElasticHttpQueryFrontendConnector) GetChildComponents() []interface{} {
 	components := make([]interface{}, 0)
 
 	if h.routerInstance != nil {
@@ -112,7 +112,7 @@ func (h *ElasticHttpQueryFrontendConnector) ListSubComponentsToInitialize() []in
 	return components
 }
 
-func (h *ElasticHttpQueryFrontendConnector) InjectDependencies(deps quesma_api.Dependencies) {
+func (h *ElasticHttpQueryFrontendConnector) SetDependencies(deps quesma_api.Dependencies) {
 	h.phoneHomeClient = deps.PhoneHomeAgent()
 }
 

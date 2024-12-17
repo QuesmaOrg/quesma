@@ -18,7 +18,7 @@ func NewPipeline() *Pipeline {
 	}
 }
 
-func (p *Pipeline) ListSubComponentsToInitialize() []any {
+func (p *Pipeline) GetChildComponents() []any {
 	var components []any
 
 	for _, conn := range p.FrontendConnectors {
