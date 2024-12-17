@@ -17,7 +17,6 @@ import (
 	"quesma/optimize"
 	"quesma/painful"
 	"quesma/queryparser"
-	"quesma/queryparser/query_util"
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
 	"quesma/quesma/errors"
@@ -192,22 +191,6 @@ func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.Executio
 	return nil
 }
 
-// Deprecated - this method should be examined and potentially removed
-func (q *QueryRunner) checkProperties(ctx context.Context, plan *model.ExecutionPlan, table *clickhouse.Table, queryTranslator IQueryTranslator) ([]byte, error) {
-	queries := plan.Queries
-	if len(queries) > 0 && query_util.IsNonAggregationQuery(queries[0]) {
-		if properties := q.findNonexistingProperties(queries[0], table, queryTranslator); len(properties) > 0 {
-			logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
-			if elasticsearch.IsIndexPattern(plan.IndexPattern) {
-				return queryparser.EmptySearchResponse(ctx), nil
-			} else {
-				return nil, fmt.Errorf("properties %s not found in table %s", properties, table.Name)
-			}
-		}
-	}
-	return nil, nil
-}
-
 func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, doneCh chan asyncSearchWithError, optAsync *AsyncQuery) {
 	go func() {
 		defer recovery.LogAndHandlePanic(ctx, func(err error) {
@@ -261,10 +244,6 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	err = q.transformQueries(ctx, plan)
 	if err != nil {
 		return responseBody, err
-	}
-
-	if resp, err := q.checkProperties(ctx, plan, table, queryTranslator); err != nil {
-		return resp, err
 	}
 
 	q.runExecutePlanAsync(ctx, plan, queryTranslator, table, doneCh, optAsync)
@@ -812,30 +791,6 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 func (q *QueryRunner) Close() {
 	q.cancel()
 	logger.Info().Msg("queryRunner Stopped")
-}
-
-func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *clickhouse.Table, queryTranslator IQueryTranslator) []string {
-	// this is not fully correct, but we keep it backward compatible
-	var results = make([]string, 0)
-	var allReferencedFields = make([]string, 0)
-	for _, col := range query.SelectCommand.Columns {
-		for _, c := range model.GetUsedColumns(col) {
-			allReferencedFields = append(allReferencedFields, c.ColumnName)
-		}
-	}
-	allReferencedFields = append(allReferencedFields, query.SelectCommand.OrderByFieldNames()...)
-
-	// TODO This should be done using query.Schema instead of table
-	for _, property := range allReferencedFields {
-		queryTranslatorValue, ok := queryTranslator.(*queryparser.ClickhouseQueryTranslator)
-		if ok {
-			property = queryTranslatorValue.ResolveField(q.executionCtx, property)
-		}
-		if property != "*" && !table.HasColumn(q.executionCtx, property) {
-			results = append(results, property)
-		}
-	}
-	return results
 }
 
 func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
