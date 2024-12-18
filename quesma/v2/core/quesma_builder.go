@@ -3,6 +3,7 @@
 package quesma_api
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 )
@@ -136,16 +137,20 @@ func (quesma *Quesma) injectDependencies(tree *ComponentTreeNode) error {
 
 func (quesma *Quesma) printTree(tree *ComponentTreeNode) {
 
-	fmt.Println("Component tree:\n---")
+	var buff bytes.Buffer
+
+	_, _ = fmt.Fprintln(&buff, "Component tree:")
+
 	tree.walk(func(n *ComponentTreeNode) {
 
 		for i := 0; i < n.Level; i++ {
-			fmt.Print("  ")
+			_, _ = fmt.Fprint(&buff, "  ")
 		}
 
-		fmt.Println(n.Name, n.Id)
+		_, _ = fmt.Fprintln(&buff, n.Name, n.Id)
 	})
-	fmt.Println("---")
+
+	quesma.dependencies.Logger().Debug().Msg(buff.String())
 }
 
 func (quesma *Quesma) Build() (QuesmaBuilder, error) {
@@ -168,5 +173,4 @@ func (quesma *Quesma) Build() (QuesmaBuilder, error) {
 	}
 
 	return quesma, nil
-
 }

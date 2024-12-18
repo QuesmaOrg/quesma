@@ -202,7 +202,7 @@ func openLogFiles(logsPath string) {
 // --- legacy API
 
 // global logger, TODO  this should be removed
-var logger = quesma_v2.NewQuesmaLogger(zerolog.Logger{})
+var logger = quesma_v2.EmptyQuesmaLogger()
 
 // global logger delegates
 

@@ -5,7 +5,9 @@ package quesma_api
 import (
 	"context"
 	"github.com/rs/zerolog"
+	"os"
 	"quesma_v2/core/tracing"
+	"time"
 )
 
 const (
@@ -44,6 +46,8 @@ type QuesmaLogger interface {
 	ErrorWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event
 
 	MarkTraceEndWithCtx(ctx context.Context) *zerolog.Event
+
+	WithComponent(name string) QuesmaLogger
 }
 
 type QuesmaLoggerImpl struct {
@@ -53,6 +57,12 @@ type QuesmaLoggerImpl struct {
 func NewQuesmaLogger(log zerolog.Logger) QuesmaLogger {
 	return &QuesmaLoggerImpl{
 		Logger: log,
+	}
+}
+
+func (l *QuesmaLoggerImpl) WithComponent(name string) QuesmaLogger {
+	return &QuesmaLoggerImpl{
+		Logger: l.Logger.With().Str("component", name).Logger(),
 	}
 }
 
@@ -119,4 +129,18 @@ func (l *QuesmaLoggerImpl) ErrorWithCtx(ctx context.Context) *zerolog.Event {
 	event := l.Error().Ctx(ctx)
 	event = l.addKnownContextValues(event, ctx)
 	return event
+}
+
+func EmptyQuesmaLogger() QuesmaLogger {
+	// not so empty :D
+	return NewQuesmaLogger(zerolog.New(
+		zerolog.ConsoleWriter{
+			Out:        os.Stderr,
+			TimeFormat: time.StampMilli,
+		}).
+		Level(zerolog.DebugLevel).
+		With().
+		Timestamp().
+		Logger())
+
 }

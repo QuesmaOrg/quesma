@@ -118,10 +118,15 @@ func search(_ context.Context, request *quesma_api.Request, _ http.ResponseWrite
 
 type IngestProcessor struct {
 	processors.BaseProcessor
+	logger quesma_api.QuesmaLogger
 }
 
 func NewIngestProcessor() *IngestProcessor {
 	return &IngestProcessor{BaseProcessor: processors.NewBaseProcessor()}
+}
+
+func (p *IngestProcessor) SetDependencies(deps quesma_api.Dependencies) {
+	p.logger = deps.Logger()
 }
 
 func (p *IngestProcessor) InstanceName() string {
@@ -133,6 +138,9 @@ func (p *IngestProcessor) GetId() string {
 }
 
 func (p *IngestProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
+
+	p.logger.Info().Msgf("IngestProcessor: handling message %T", message)
+
 	var data []byte
 	for _, m := range message {
 		var err error

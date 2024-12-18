@@ -10,7 +10,7 @@ import (
 type Dependencies interface {
 	PhoneHomeAgent() diag.PhoneHomeClient
 	DebugInfoCollector() diag.DebugInfoCollector
-
+	Logger() QuesmaLogger
 	InjectDependenciesInto(a any)
 }
 
@@ -96,6 +96,7 @@ func (b *ComponentTreeBuilder) BuildComponentTree(a any) *ComponentTreeNode {
 type DependenciesImpl struct {
 	phoneHomeAgent     diag.PhoneHomeClient
 	debugInfoCollector diag.DebugInfoCollector
+	logger             QuesmaLogger
 }
 
 func (d *DependenciesImpl) PhoneHomeAgent() diag.PhoneHomeClient {
@@ -104,6 +105,10 @@ func (d *DependenciesImpl) PhoneHomeAgent() diag.PhoneHomeClient {
 
 func (d *DependenciesImpl) DebugInfoCollector() diag.DebugInfoCollector {
 	return d.debugInfoCollector
+}
+
+func (d *DependenciesImpl) Logger() QuesmaLogger {
+	return d.logger
 }
 
 func NewDependencies() *DependenciesImpl {
@@ -118,10 +123,15 @@ func (d *DependenciesImpl) SetDebugInfoCollector(debugInfoCollector diag.DebugIn
 	d.debugInfoCollector = debugInfoCollector
 }
 
+func (d *DependenciesImpl) SetLogger(logger QuesmaLogger) {
+	d.logger = logger
+}
+
 func (d *DependenciesImpl) Clone() *DependenciesImpl {
 	return &DependenciesImpl{
 		phoneHomeAgent:     d.phoneHomeAgent,
 		debugInfoCollector: d.debugInfoCollector,
+		logger:             d.logger,
 	}
 }
 
@@ -129,10 +139,12 @@ func EmptyDependencies() *DependenciesImpl {
 	return &DependenciesImpl{
 		phoneHomeAgent:     diag.NewPhoneHomeEmptyAgent(),
 		debugInfoCollector: diag.EmptyDebugInfoCollector(),
+
+		logger: EmptyQuesmaLogger(),
 	}
 }
 
-const traceDependencyInjection bool = false
+const traceDependencyInjection bool = true
 
 // InjectDependenciesInto injects dependencies into a component. This is indented to use in Quesma building process only.
 func (d *DependenciesImpl) InjectDependenciesInto(component any) {
@@ -144,7 +156,8 @@ func (d *DependenciesImpl) InjectDependenciesInto(component any) {
 	if traceDependencyInjection {
 		prefix := fmt.Sprintf("Dependency injection into %T :", component)
 		trace = func(a ...any) {
-			fmt.Println(prefix, fmt.Sprint(a...))
+			d.logger.Info().Msgf("%s%s", prefix, fmt.Sprint(a...))
+			//fmt.Println(prefix, fmt.Sprint(a...))
 		}
 	} else {
 		trace = func(a ...any) {}
@@ -156,7 +169,8 @@ func (d *DependenciesImpl) InjectDependenciesInto(component any) {
 		if named, ok := component.(InstanceNamer); ok {
 			// We have a named component. We can use to inject sub logger here.
 
-			// TODO add a sub logger for the component, using name.
+			deps = d.Clone()
+			deps.SetLogger(deps.Logger().WithComponent(named.InstanceName()))
 			trace("Injecting dependencies into", named.InstanceName())
 		}
 
