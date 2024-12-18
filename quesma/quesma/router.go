@@ -191,7 +191,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 
 		// TODO we should pass JSON here instead of []byte
-		responseBody, err := queryRunner.handleSearch(ctx, "*", body)
+		responseBody, err := queryRunner.HandleSearch(ctx, "*", body)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
@@ -209,7 +209,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			return nil, err
 		}
 
-		responseBody, err := queryRunner.handleSearch(ctx, req.Params["index"], body)
+		responseBody, err := queryRunner.HandleSearch(ctx, req.Params["index"], body)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil

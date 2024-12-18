@@ -148,7 +148,7 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int
 	}
 }
 
-func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
+func (q *QueryRunner) HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
 	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageDefault)
 }
 

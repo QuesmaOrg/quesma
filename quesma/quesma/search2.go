@@ -58,6 +58,12 @@ type QueryRunner2 struct {
 	maxParallelQueries int // if set to 0, we run queries in sequence, it's fine for testing purposes
 }
 
+type QueryRunnerIFace interface {
+	// HandleSearch is temporarily exported (used to be private) just to bridge gap between QueryRunner and QueryRunner2 in router_v2.go
+	// moving forwards as we remove two implementations we might look at making this private again.
+	HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error)
+}
+
 func (q *QueryRunner2) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
 	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
 }
@@ -140,7 +146,7 @@ func (q *QueryRunner2) handleCount(ctx context.Context, indexPattern string) (in
 	}
 }
 
-func (q *QueryRunner2) handleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
+func (q *QueryRunner2) HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
 	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageDefault)
 }
 
