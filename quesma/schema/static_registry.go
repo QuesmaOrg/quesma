@@ -11,6 +11,14 @@ type StaticRegistry struct {
 	FieldEncodings       map[FieldEncodingKey]EncodedFieldName
 }
 
+func NewStaticRegistry(tables map[IndexName]Schema, dynamicConfiguration map[string]Table, fieldEncodings map[FieldEncodingKey]EncodedFieldName) *StaticRegistry {
+	return &StaticRegistry{
+		Tables:               tables,
+		DynamicConfiguration: dynamicConfiguration,
+		FieldEncodings:       fieldEncodings,
+	}
+}
+
 func (e *StaticRegistry) AllSchemas() map[IndexName]Schema {
 	if e.Tables != nil {
 		return e.Tables

@@ -105,7 +105,7 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 	// no highlighting here
 	highlighter = queryparser.NewEmptyHighlighter()
 
-	searchQueryInfo.Typ = model.ListAllFields
+	searchQueryInfo.Type = model.ListAllFields
 
 	var eqlQuery string
 
