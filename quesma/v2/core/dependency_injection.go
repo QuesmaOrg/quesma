@@ -30,6 +30,7 @@ type ChildComponentProvider interface {
 
 type ComponentTreeNode struct {
 	Id        string
+	Name      string
 	Level     int
 	Component any
 	Children  []*ComponentTreeNode
@@ -60,8 +61,15 @@ func (b *ComponentTreeBuilder) buildComponentTree(level int, a any) *ComponentTr
 		return v
 	}
 
+	id := fmt.Sprintf("%T(%p)", a, a)
+	name := id
+	if identifiable, ok := a.(InstanceNamer); ok {
+		name = identifiable.InstanceName()
+	}
+
 	node := &ComponentTreeNode{
-		Id:        fmt.Sprintf("%T(%p)", a, a),
+		Id:        id,
+		Name:      name,
 		Children:  make([]*ComponentTreeNode, 0),
 		Component: a,
 		Level:     level,
@@ -120,14 +128,14 @@ func EmptyDependencies() *DependenciesImpl {
 const traceDependencyInjection bool = false
 
 // InjectDependenciesInto injects dependencies into a component. This is indented to use in Quesma building process only.
-func (d *DependenciesImpl) InjectDependenciesInto(a any) {
+func (d *DependenciesImpl) InjectDependenciesInto(component any) {
 
 	// TODO fmt for now. Later we can use logger. We need to move logger to the V2 module.
 
 	var trace func(a ...any)
 
 	if traceDependencyInjection {
-		prefix := fmt.Sprintf("Dependency injection into %T :", a)
+		prefix := fmt.Sprintf("Dependency injection into %T :", component)
 		trace = func(a ...any) {
 			fmt.Println(prefix, fmt.Sprint(a...))
 		}
@@ -135,8 +143,17 @@ func (d *DependenciesImpl) InjectDependenciesInto(a any) {
 		trace = func(a ...any) {}
 	}
 
-	if injector, ok := a.(DependenciesSetter); ok {
-		injector.SetDependencies(d)
+	if target, ok := component.(DependenciesSetter); ok {
+		deps := d
+
+		if named, ok := component.(InstanceNamer); ok {
+			// We have a named component. We can use to inject sub logger here.
+
+			// TODO add a sub logger for the component, using name.
+			trace("Injecting dependencies into", named.InstanceName())
+		}
+
+		target.SetDependencies(deps)
 		trace("OK - Injected Dependencies")
 
 	} else {

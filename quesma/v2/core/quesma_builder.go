@@ -143,7 +143,7 @@ func (quesma *Quesma) printTree(tree *ComponentTreeNode) {
 			fmt.Print("  ")
 		}
 
-		fmt.Println(n.Id)
+		fmt.Println(n.Name, n.Id)
 	})
 	fmt.Println("---")
 }

@@ -63,6 +63,10 @@ func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfigu
 	}
 }
 
+func (h *BasicHTTPFrontendConnector) InstanceName() string {
+	return "BasicHTTPFrontendConnector" // TODO return name from config
+}
+
 func (h *BasicHTTPFrontendConnector) AddRouter(router quesma_api.Router) {
 	h.router = router
 }

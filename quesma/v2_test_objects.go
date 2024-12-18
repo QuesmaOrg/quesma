@@ -124,6 +124,10 @@ func NewIngestProcessor() *IngestProcessor {
 	return &IngestProcessor{BaseProcessor: processors.NewBaseProcessor()}
 }
 
+func (p *IngestProcessor) InstanceName() string {
+	return "IngestProcessor" // TODO return name from config
+}
+
 func (p *IngestProcessor) GetId() string {
 	return "IngestProcessor"
 }
@@ -155,6 +159,10 @@ func NewInnerQueryProcessor2() *InnerQueryProcessor2 {
 		BaseProcessor: processors.NewBaseProcessor(),
 		reqNum:        0,
 	}
+}
+
+func (p *InnerQueryProcessor2) InstanceName() string {
+	return "InnerQueryProcessor2"
 }
 
 func (p *InnerQueryProcessor2) GetId() string {
@@ -192,6 +200,10 @@ func NewInnerQueryProcessor1() *InnerQueryProcessor1 {
 	}
 }
 
+func (p *InnerQueryProcessor1) InstanceName() string {
+	return "InnerQueryProcessor1"
+}
+
 func (p *InnerQueryProcessor1) GetId() string {
 	return "InnerQueryProcessor1"
 }
@@ -226,6 +238,10 @@ func NewInnerIngestProcessor2() *InnerIngestProcessor2 {
 	}
 }
 
+func (p *InnerIngestProcessor2) InstanceName() string {
+	return "InnerIngestProcessor2"
+}
+
 func (p *InnerIngestProcessor2) GetId() string {
 	return "InnerIngestProcessor2"
 }
@@ -256,6 +272,10 @@ func NewInnerIngestProcessor1() *InnerIngestProcessor1 {
 	}
 }
 
+func (p *InnerIngestProcessor1) InstanceName() string {
+	return "InnerIngestProcessor1"
+}
+
 func (p *InnerIngestProcessor1) GetId() string {
 	return "InnerIngestProcessor1"
 }
@@ -284,6 +304,10 @@ func NewQueryProcessor() *QueryProcessor {
 	return &QueryProcessor{
 		BaseProcessor: processors.NewBaseProcessor(),
 	}
+}
+
+func (p *QueryProcessor) InstanceName() string {
+	return "QueryProcessor" // TODO return name from config
 }
 
 func (p *QueryProcessor) GetId() string {
