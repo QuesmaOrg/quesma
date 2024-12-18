@@ -101,7 +101,16 @@ func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 func buildQueryOnlyQuesma() quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
 	quesmaBuilder.SetDependencies(quesma_api.EmptyDependencies())
-	queryFrontendConnector := frontend_connectors.NewElasticsearchQueryFrontendConnector(":8080")
+	queryFrontendConnector := frontend_connectors.NewElasticsearchQueryFrontendConnector(
+		":8080",
+		&config.QuesmaConfiguration{
+			DisableAuth: true,
+			Elasticsearch: config.ElasticsearchConfiguration{
+				Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+				User:     "",
+				Password: "",
+			},
+		})
 
 	var queryPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	queryPipeline.AddFrontendConnector(queryFrontendConnector)

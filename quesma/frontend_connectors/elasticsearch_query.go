@@ -6,6 +6,7 @@ package frontend_connectors
 import (
 	"context"
 	"net/http"
+	"quesma/quesma/config"
 	quesma_api "quesma_v2/core"
 )
 
@@ -34,15 +35,15 @@ const ( // taken from `router.go`
 	SearchIndexTargetKey = "search_index_target"
 )
 
-func NewElasticsearchQueryFrontendConnector(endpoint string) *ElasticsearchQueryFrontendConnector {
+func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaConfiguration) *ElasticsearchQueryFrontendConnector {
+
+	basicHttpFrontendConnector := NewBasicHTTPFrontendConnector(endpoint, cfg)
+	basicHttpFrontendConnector.responseMutator = func(w http.ResponseWriter) http.ResponseWriter {
+		w.Header().Set("Content-Type", "application/json")
+		return w
+	}
 	fc := &ElasticsearchQueryFrontendConnector{
-		BasicHTTPFrontendConnector: BasicHTTPFrontendConnector{
-			endpoint: endpoint,
-			responseMutator: func(w http.ResponseWriter) http.ResponseWriter {
-				w.Header().Set("Content-Type", "application/json")
-				return w
-			},
-		},
+		BasicHTTPFrontendConnector: *basicHttpFrontendConnector,
 	}
 	router := quesma_api.NewPathRouter()
 	router.AddRoute(IndexSearchPath, searchHandler)

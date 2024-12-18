@@ -102,6 +102,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 		switch findQueryTarget(indexNameFromIncomingReq, p.config) {
 		case config.ClickhouseTarget:
 			res, _ := quesm.HandleIndexSearch2(context.Background(), quesmaReq, p.queryRunner)
+
 			return metadata, res, nil
 		case config.ElasticsearchTarget:
 			println("POSZLO DO ELASTICSEARCHA ")
