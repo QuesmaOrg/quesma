@@ -55,7 +55,7 @@ func printContainerLogs(ctx context.Context, container *testcontainers.Container
 
 	log.Printf("Logs for container '%s':", name)
 	for _, line := range strings.Split(string(output), "\n") {
-		log.Printf("Container '%s': %s", name, line)
+		log.Printf("[%s]: %s", name, line)
 	}
 }
 
