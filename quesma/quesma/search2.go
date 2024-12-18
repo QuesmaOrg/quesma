@@ -24,9 +24,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
-	"quesma/table_resolver"
 	"quesma/util"
-	"quesma_v2/core"
 	"quesma_v2/core/diag"
 	tracing "quesma_v2/core/tracing"
 	"strings"
@@ -53,7 +51,6 @@ type QueryRunner2 struct {
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
 	ABResultsSender          ab_testing.Sender
-	tableResolver            table_resolver.TableResolver
 
 	maxParallelQueries int // if set to 0, we run queries in sequence, it's fine for testing purposes
 }
@@ -74,7 +71,6 @@ func NewQueryRunner2(lm *clickhouse.LogManager2,
 	qmc *ui.QuesmaManagementConsole,
 	schemaRegistry schema.Registry,
 	abResultsRepository ab_testing.Sender,
-	resolver table_resolver.TableResolver,
 	tableDiscovery clickhouse.TableDiscovery) *QueryRunner2 {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -93,7 +89,6 @@ func NewQueryRunner2(lm *clickhouse.LogManager2,
 		},
 		schemaRegistry:     schemaRegistry,
 		ABResultsSender:    abResultsRepository,
-		tableResolver:      resolver,
 		tableDiscovery:     tableDiscovery,
 		maxParallelQueries: maxParallelQueries,
 	}
@@ -288,58 +283,14 @@ func (q *QueryRunner2) executePlan(ctx context.Context, plan *model.ExecutionPla
 	}
 }
 
+func (q *QueryRunner2) useCommonTable(tableName string) bool {
+	if tableConfig, ok := q.cfg.IndexConfig[tableName]; ok {
+		return tableConfig.UseCommonTable
+	}
+	return false
+}
+
 func (q *QueryRunner2) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
-
-	decision := q.tableResolver.Resolve(quesma_api.QueryPipeline, indexPattern)
-
-	if decision.Err != nil {
-
-		var resp []byte
-		if optAsync != nil {
-			resp, _ = queryparser.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
-		} else {
-			resp = queryparser.EmptySearchResponse(ctx)
-		}
-		return resp, decision.Err
-	}
-
-	if decision.IsEmpty {
-		if optAsync != nil {
-			return queryparser.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
-		} else {
-			return queryparser.EmptySearchResponse(ctx), nil
-		}
-	}
-
-	if decision.IsClosed {
-		return nil, quesma_errors.ErrIndexNotExists() // TODO
-	}
-
-	if len(decision.UseConnectors) == 0 {
-		return nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("no connectors to use"))
-	}
-
-	var clickhouseConnector *quesma_api.ConnectorDecisionClickhouse
-
-	for _, connector := range decision.UseConnectors {
-		switch c := connector.(type) {
-
-		case *quesma_api.ConnectorDecisionClickhouse:
-			clickhouseConnector = c
-
-		case *quesma_api.ConnectorDecisionElastic:
-			// NOP
-
-		default:
-			return nil, fmt.Errorf("unknown connector type: %T", c)
-		}
-	}
-
-	// it's impossible here to don't have a clickhouse decision
-	if clickhouseConnector == nil {
-		return nil, fmt.Errorf("no clickhouse connector")
-	}
-
 	var responseBody []byte
 
 	startTime := time.Now()
@@ -359,10 +310,11 @@ func (q *QueryRunner2) handleSearchCommon(ctx context.Context, indexPattern stri
 
 	var table *clickhouse.Table // TODO we should use schema here only
 	var currentSchema schema.Schema
-	resolvedIndexes := clickhouseConnector.ClickhouseIndexes
+	var resolvedIndexes []string
 
-	if len(resolvedIndexes) == 1 {
-		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
+	if !q.useCommonTable(indexPattern) {
+		resolvedIndexes = append(resolvedIndexes, indexPattern)
+		indexName := indexPattern
 		resolvedTableName := q.cfg.IndexConfig[indexName].TableName(indexName)
 
 		resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.IndexName(indexName))
@@ -378,8 +330,8 @@ func (q *QueryRunner2) handleSearchCommon(ctx context.Context, indexPattern stri
 		currentSchema = resolvedSchema
 
 	} else {
-
 		// here we filter out indexes that are not stored in the common table
+		resolvedIndexes = strings.Split(indexPattern, ",")
 		var virtualOnlyTables []string
 		for _, indexName := range resolvedIndexes {
 			table, _ = tables.Load(q.cfg.IndexConfig[indexName].TableName(indexName))

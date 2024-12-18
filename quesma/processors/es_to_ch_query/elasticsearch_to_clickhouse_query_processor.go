@@ -76,7 +76,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor
 
 	logManager := clickhouse.NewEmptyLogManager2(oldQuesmaConfig, chBackendConn, nil, tableDisco)
 	logManager.Start()
-	queryRunner := quesm.NewQueryRunner2(logManager, oldQuesmaConfig, nil, nil, schemaRegistry, nil, NewNextGenTableResolver(), tableDisco)
+	queryRunner := quesm.NewQueryRunner2(logManager, oldQuesmaConfig, nil, nil, schemaRegistry, nil, tableDisco)
 	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
 
 	return queryRunner
