@@ -118,6 +118,13 @@ func (d *DependenciesImpl) SetDebugInfoCollector(debugInfoCollector diag.DebugIn
 	d.debugInfoCollector = debugInfoCollector
 }
 
+func (d *DependenciesImpl) Clone() *DependenciesImpl {
+	return &DependenciesImpl{
+		phoneHomeAgent:     d.phoneHomeAgent,
+		debugInfoCollector: d.debugInfoCollector,
+	}
+}
+
 func EmptyDependencies() *DependenciesImpl {
 	return &DependenciesImpl{
 		phoneHomeAgent:     diag.NewPhoneHomeEmptyAgent(),
