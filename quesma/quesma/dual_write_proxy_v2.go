@@ -9,7 +9,6 @@ import (
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
-	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
@@ -79,13 +78,6 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 
 	// tests should not be run with optimization enabled by default
 	queryProcessor.EnableQueryOptimization(config)
-
-	routerInstance := frontend_connectors.NewRouterV2(config)
-
-	dependencies.PhoneHomeAgent().FailedRequestsCollector(func() int64 {
-
-		return routerInstance.FailedRequests.Load()
-	})
 
 	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver)
 	searchRouter := ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
