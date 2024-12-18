@@ -158,7 +158,7 @@ const migrationQuery = `{
 					"must": [
 						{
 							"term": {
-								"type": "core-usage-stats"
+								"type": "core-usage-diag"
 							}
 						},
 						{
@@ -174,7 +174,7 @@ const migrationQuery = `{
 												},
 												{
 													"exists": {
-														"field": "migrationVersion.core-usage-stats"
+														"field": "migrationVersion.core-usage-diag"
 													}
 												}
 											]
@@ -189,7 +189,7 @@ const migrationQuery = `{
 											},
 											"must_not": {
 												"term": {
-													"migrationVersion.core-usage-stats": "7.14.1"
+													"migrationVersion.core-usage-diag": "7.14.1"
 												}
 											}
 										}

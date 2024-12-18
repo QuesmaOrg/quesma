@@ -51,6 +51,8 @@ const EnableConcurrencyProfiling = false
 // buildIngestOnlyQuesma is for now a helper function to help establishing the way of v2 module api import
 func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+	quesmaBuilder.SetDependencies(quesma_api.EmptyDependencies())
+
 	ingestFrontendConnector := frontend_connectors.NewElasticsearchIngestFrontendConnector(":8080")
 
 	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
@@ -60,11 +62,13 @@ func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 		config.QuesmaProcessorConfig{
 			UseCommonTable: false,
 			IndexConfig: map[string]config.IndexConfiguration{
-				"test_index": {
-					Name: "test_index",
+				"test_index":   {},
+				"test_index_2": {},
+				"tab1": {
+					UseCommonTable: true,
 				},
-				"test_index_2": {
-					Name: "test_index_2",
+				"tab2": {
+					UseCommonTable: true,
 				},
 				"*": {
 					IngestTarget: []string{config.ElasticsearchTarget},
@@ -92,15 +96,14 @@ func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 	return quesmaInstance
 }
 
-/* Example of how to use the v2 module api in main function
-func main2() {
-	q1 := buildIngestOnlyQuesma()
-	q1.Start()
-	stop := make(chan os.Signal, 1)
-	<-stop
-	q1.Stop(context.Background())
-}
-*/
+// Example of how to use the v2 module api in main function
+//func main() {
+//	q1 := buildIngestOnlyQuesma()
+//	q1.Start()
+//	stop := make(chan os.Signal, 1)
+//	<-stop
+//	q1.Stop(context.Background())
+//}
 
 func main() {
 	if EnableConcurrencyProfiling {
@@ -205,7 +208,7 @@ func main() {
 
 func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender, indexRegistry table_resolver.TableResolver) *quesma.Quesma {
 	if cfg.TransparentProxy {
-		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, false)
+		return quesma.NewQuesmaTcpProxy(cfg, quesmaManagementConsole, logChan, false)
 	} else {
 		const quesma_v2 = false
 		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry, quesma_v2)

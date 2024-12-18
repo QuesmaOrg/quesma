@@ -6,6 +6,7 @@ package painful
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 )
 
@@ -198,9 +199,38 @@ func (m *MethodCallExpr) Eval(env *Env) (any, error) {
 
 		return typeVal.Format(time.RFC3339), nil
 
+	case "formatISO8601NoTimezone":
+
+		typeVal, err := ExpectDate(val)
+
+		if err != nil {
+			return nil, fmt.Errorf("%s: method '%s' failed to coerce '%v' into a datetime: %v ", m.Position, m.MethodName, val, err)
+		}
+
+		return typeVal.Format("2006-01-02T15:04:05"), nil
+
 	default:
 		return nil, fmt.Errorf("%s: '%s' method is not supported", m.Position, m.MethodName)
 	}
+}
+
+type UrlEncodeExpr struct {
+	Expr Expr
+}
+
+func (u *UrlEncodeExpr) Eval(env *Env) (any, error) {
+	val, err := u.Expr.Eval(env)
+	if err != nil {
+		return nil, err
+	}
+
+	str, err2 := ExpectString(val)
+
+	if err2 != nil {
+		return nil, err2
+	}
+
+	return url.QueryEscape(str), nil
 }
 
 func ExpectExpr(potentialExpr any) (Expr, error) {
@@ -232,8 +262,9 @@ func ExpectDate(potentialExpr any) (time.Time, error) {
 	case string:
 
 		formats := []string{
-			"Jan 2, 2006 @ 15:04:05.000 -0700 MST", // this format in example provided by Kibana\
+			"Jan 2, 2006 @ 15:04:05.000 -0700 MST", // this format in example provided by Kibana
 			"2006-01-02 15:04:05.000 -0700 MST",    // clickhouse format
+			"2006-01-02 15:04:05 -0700 MST",        // early adopter format
 			time.Layout,
 			time.ANSIC,
 			time.UnixDate,

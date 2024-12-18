@@ -5,7 +5,6 @@ package quesma_api
 import (
 	"context"
 	"net"
-	"net/http"
 )
 
 type Router interface {
@@ -15,7 +14,8 @@ type Router interface {
 	GetFallbackHandler() HTTPFrontendHandler
 	GetHandlers() map[string]HandlersPipe
 	SetHandlers(handlers map[string]HandlersPipe)
-	Multiplexer() *http.ServeMux
+	Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler)
+	Matches(req *Request) (*HandlersPipe, *Decision)
 }
 
 type FrontendConnector interface {
@@ -59,6 +59,7 @@ type PipelineBuilder interface {
 type QuesmaBuilder interface {
 	AddPipeline(pipeline PipelineBuilder)
 	GetPipelines() []PipelineBuilder
+	SetDependencies(dependencies Dependencies)
 	Build() (QuesmaBuilder, error)
 	Start()
 	Stop(ctx context.Context)
@@ -71,6 +72,7 @@ type Processor interface {
 	SetBackendConnectors(conns map[BackendConnectorType]BackendConnector)
 	GetBackendConnector(connectorType BackendConnectorType) BackendConnector
 	GetSupportedBackendConnectors() []BackendConnectorType
+	Init() error
 }
 
 type Rows interface {

@@ -17,8 +17,6 @@ import (
 type JsonMap = map[string]interface{}
 
 type ClickhouseQueryTranslator struct {
-	ClickhouseLM *clickhouse.LogManager
-
 	Schema schema.Schema
 	Ctx    context.Context
 
@@ -311,21 +309,4 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 
 func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldNames []string, query *model.SimpleQuery, limit int) *model.Query {
 	return query_util.BuildHitsQuery(cw.Ctx, model.SingleTableNamePlaceHolder, fieldNames, query, limit)
-}
-
-func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, tableName string, whereClause model.Expr, limit int) *model.Query {
-	return &model.Query{
-		SelectCommand: *model.NewSelectCommand(
-			[]model.Expr{model.NewColumnRef(fieldName)},
-			nil,
-			nil,
-			model.NewTableRef(tableName),
-			whereClause,
-			[]model.Expr{},
-			limit,
-			0,
-			true,
-			nil,
-		),
-	}
 }

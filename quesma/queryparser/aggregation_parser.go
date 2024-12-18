@@ -3,10 +3,10 @@
 package queryparser
 
 import (
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/model/bucket_aggregations"
 	"regexp"
 	"slices"
 	"strconv"
@@ -175,7 +175,11 @@ func (cw *ClickhouseQueryTranslator) parseTopHits(queryMap QueryMap) (parsedTopH
 	const defaultSize = 1
 	size := cw.parseSize(params, defaultSize)
 
-	orderBy := cw.parseOrder(params, queryMap, []model.Expr{})
+	orderBy, err := cw.parseOrder(params, []model.Expr{})
+	if err != nil {
+		logger.WarnWithCtx(cw.Ctx).Msgf("error parsing order in top_hits: %v", err)
+		return
+	}
 	if len(orderBy) == 1 && orderBy[0].IsCountDesc() { // we don't need count DESC
 		orderBy = []model.OrderByExpr{}
 	}
@@ -237,7 +241,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldField(shouldBeMap any, aggregatio
 	}
 	if fieldRaw, ok := Map["field"]; ok {
 		if field, ok := fieldRaw.(string); ok {
-			return model.NewColumnRef(cw.ResolveField(cw.Ctx, field)) // model.NewSelectColumnTableField(cw.Table.ResolveField(cw.Ctx, field)) // remove this resolve? we do all transforms after parsing is done?
+			return model.NewColumnRef(ResolveField(cw.Ctx, field, cw.Schema)) // model.NewSelectColumnTableField(cw.Table.ResolveField(cw.Ctx, field)) // remove this resolve? we do all transforms after parsing is done?
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 		}
@@ -287,6 +291,26 @@ func (cw *ClickhouseQueryTranslator) parseStringField(queryMap QueryMap, fieldNa
 	return defaultValue
 }
 
+func (cw *ClickhouseQueryTranslator) parseArrayField(queryMap QueryMap, fieldName string) ([]any, error) {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asArray, ok := valueRaw.([]any); ok {
+			return asArray, nil
+		}
+		return nil, fmt.Errorf("%s is not an array, but %T, value: %v", fieldName, valueRaw, valueRaw)
+	}
+	return nil, fmt.Errorf("array field '%s' not found in aggregation queryMap: %v", fieldName, queryMap)
+}
+
+func (cw *ClickhouseQueryTranslator) parseBoolField(queryMap QueryMap, fieldName string, defaultValue bool) bool {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asBool, ok := valueRaw.(bool); ok {
+			return asBool
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a bool, but %T, value: %v. Using default: %v", fieldName, valueRaw, valueRaw, defaultValue)
+	}
+	return defaultValue
+}
+
 // parseFieldFieldMaybeScript is basically almost a copy of parseFieldField above, but it also handles a basic script, if "field" is missing.
 func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any, aggregationType string) (field model.Expr, isFromScript bool) {
 	Map, ok := shouldBeMap.(QueryMap)
@@ -297,7 +321,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any,
 	// maybe "field" field
 	if fieldRaw, ok := Map["field"]; ok {
 		if field, ok := fieldRaw.(string); ok {
-			return model.NewColumnRef(cw.ResolveField(cw.Ctx, field)), true // remove this resolve? we do all transforms after parsing is done?
+			return model.NewColumnRef(ResolveField(cw.Ctx, field, cw.Schema)), true // remove this resolve? we do all transforms after parsing is done?
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 		}
@@ -339,22 +363,6 @@ func (cw *ClickhouseQueryTranslator) parseFieldFromScriptField(queryMap QueryMap
 		return model.NewFunction("toHour", model.NewColumnRef(matches[1])), true
 	}
 	return
-}
-
-func (cw *ClickhouseQueryTranslator) parseMinDocCount(queryMap QueryMap) int {
-	if minDocCountRaw, exists := queryMap["min_doc_count"]; exists {
-		if minDocCount, ok := minDocCountRaw.(float64); ok {
-			asInt := int(minDocCount)
-			if asInt != 0 && asInt != 1 {
-				logger.WarnWithCtx(cw.Ctx).Msgf("min_doc_count is not 0 or 1, but %d. Not really supported", asInt)
-			}
-			return asInt
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("min_doc_count is not a number, but %T, value: %v. Using default value: %d",
-				minDocCountRaw, minDocCountRaw, bucket_aggregations.DefaultMinDocCount)
-		}
-	}
-	return bucket_aggregations.DefaultMinDocCount
 }
 
 // quoteArray returns a new array with the same elements, but quoted

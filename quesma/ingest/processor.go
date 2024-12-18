@@ -25,6 +25,7 @@ import (
 	"quesma/telemetry"
 	"quesma/util"
 	"quesma_v2/core"
+	"quesma_v2/core/diag"
 	"slices"
 	"sort"
 	"strings"
@@ -61,7 +62,7 @@ type (
 		chDb                      *sql.DB
 		tableDiscovery            chLib.TableDiscovery
 		cfg                       *config.QuesmaConfiguration
-		phoneHomeAgent            telemetry.PhoneHomeAgent
+		phoneHomeAgent            diag.PhoneHomeClient
 		schemaRegistry            schema.Registry
 		ingestCounter             int64
 		ingestFieldStatistics     IngestFieldStatistics
@@ -204,7 +205,7 @@ func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, q
 }
 
 func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
-	if foundSchema, found := schemaRegistry.FindSchema(schema.TableName(tableName)); found {
+	if foundSchema, found := schemaRegistry.FindSchema(schema.IndexName(tableName)); found {
 		return &foundSchema
 	}
 	return nil
@@ -633,7 +634,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 			fieldOrigins[schema.FieldName(column.ClickHouseColumnName)] = schema.FieldSourceIngest
 		}
 
-		ip.schemaRegistry.UpdateFieldsOrigins(schema.TableName(tableName), fieldOrigins)
+		ip.schemaRegistry.UpdateFieldsOrigins(schema.IndexName(tableName), fieldOrigins)
 
 		// This comes externally from (configuration)
 		// So we need to convert that separately
@@ -687,11 +688,11 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
 }
 
-func (lm *IngestProcessor) Ingest(ctx context.Context, tableName string, jsonData []types.JSON) error {
+func (lm *IngestProcessor) Ingest(ctx context.Context, indexName string, jsonData []types.JSON) error {
 
 	nameFormatter := DefaultColumnNameFormatter()
-	transformer := jsonprocessor.IngestTransformerFor(tableName, lm.cfg)
-	return lm.ProcessInsertQuery(ctx, tableName, jsonData, transformer, nameFormatter)
+	transformer := jsonprocessor.IngestTransformerFor(indexName, lm.cfg)
+	return lm.ProcessInsertQuery(ctx, indexName, jsonData, transformer, nameFormatter)
 }
 
 func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName string,

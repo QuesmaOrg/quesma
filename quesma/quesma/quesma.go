@@ -17,6 +17,7 @@ import (
 	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/util"
+	quesma_v2 "quesma_v2/core"
 )
 
 type (
@@ -45,7 +46,7 @@ func (q *Quesma) Start() {
 	go q.quesmaManagementConsole.Run()
 }
 
-func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, inspect bool) *Quesma {
+func NewQuesmaTcpProxy(config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, inspect bool) *Quesma {
 	return &Quesma{
 		processor:               proxy.NewTcpProxy(config.PublicTcpPort, config.Elasticsearch.Url.Host, inspect),
 		publicTcpPort:           config.PublicTcpPort,
@@ -63,11 +64,15 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent,
 	abResultsRepository ab_testing.Sender, resolver table_resolver.TableResolver,
 	v2 bool) *Quesma {
 
+	dependencies := quesma_v2.NewDependencies()
+	dependencies.SetPhoneHomeAgent(phoneHomeAgent)
+	dependencies.SetDebugInfoCollector(quesmaManagementConsole)
+
 	if v2 {
 		return &Quesma{
 			telemetryAgent: phoneHomeAgent,
-			processor: newDualWriteProxyV2(schemaLoader, logManager, indexManager,
-				schemaRegistry, config, quesmaManagementConsole, phoneHomeAgent,
+			processor: newDualWriteProxyV2(dependencies, schemaLoader, logManager, indexManager,
+				schemaRegistry, config,
 				ingestProcessor, resolver, abResultsRepository),
 			publicTcpPort:           config.PublicTcpPort,
 			quesmaManagementConsole: quesmaManagementConsole,

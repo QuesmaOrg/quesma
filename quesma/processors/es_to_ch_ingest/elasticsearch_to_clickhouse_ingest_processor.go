@@ -10,7 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
-	"net/url"
 	"quesma/backend_connectors"
 	"quesma/clickhouse"
 	"quesma/common_table"
@@ -33,7 +32,8 @@ const (
 
 type ElasticsearchToClickHouseIngestProcessor struct {
 	processors.BaseProcessor
-	config config.QuesmaProcessorConfig
+	config                config.QuesmaProcessorConfig
+	legacyIngestProcessor *ingest.IngestProcessor2
 }
 
 func NewElasticsearchToClickHouseIngestProcessor(conf config.QuesmaProcessorConfig) *ElasticsearchToClickHouseIngestProcessor {
@@ -43,67 +43,67 @@ func NewElasticsearchToClickHouseIngestProcessor(conf config.QuesmaProcessorConf
 	}
 }
 
+func (p *ElasticsearchToClickHouseIngestProcessor) Init() error {
+	chBackendConnector := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
+	if chBackendConnector == nil {
+		return fmt.Errorf("backend connector for ClickHouse not found")
+	}
+	esBackendConnector := p.GetBackendConnector(quesma_api.ElasticsearchBackend)
+	if esBackendConnector == nil {
+		return fmt.Errorf("backend connector for Elasticsearch not found")
+	}
+	esBackendConnectorCasted, ok := esBackendConnector.(*backend_connectors.ElasticsearchBackendConnector) // OKAY JUST FOR NOW
+	if !ok {
+		return fmt.Errorf("failed to cast Elasticsearch backend connector")
+	}
+
+	p.legacyIngestProcessor = p.prepareTemporaryIngestProcessor(chBackendConnector, *esBackendConnectorCasted)
+
+	return nil
+}
+
 func (p *ElasticsearchToClickHouseIngestProcessor) GetId() string {
 	return "elasticsearch_to_clickhouse_ingest"
 }
 
 // prepareTemporaryIngestProcessor creates a temporary ingest processor which is a new version of the ingest processor,
 // which uses `quesma_api.BackendConnector` instead of `*sql.DB` for the database connection.
-func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(connector quesma_api.BackendConnector) *ingest.IngestProcessor2 {
-	u, _ := url.Parse("http://localhost:9200")
+func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(chBackendConn quesma_api.BackendConnector, esBackendConn backend_connectors.ElasticsearchBackendConnector) *ingest.IngestProcessor2 {
 
-	elasticsearchConfig := config.ElasticsearchConfiguration{
-		Url: (*config.Url)(u),
-	}
 	oldQuesmaConfig := &config.QuesmaConfiguration{
 		IndexConfig: p.config.IndexConfig,
 	}
 
-	virtualTableStorage := persistence.NewElasticJSONDatabase(elasticsearchConfig, common_table.VirtualTableElasticIndexName)
-	tableDisco := clickhouse.NewTableDiscovery2(oldQuesmaConfig, connector, virtualTableStorage)
+	virtualTableStorage := persistence.NewElasticJSONDatabase(esBackendConn.GetConfig(), common_table.VirtualTableElasticIndexName)
+	tableDisco := clickhouse.NewTableDiscovery2(oldQuesmaConfig, chBackendConn, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
 
-	v2TableResolver := NewNextGenTableResolver()
+	ip := ingest.NewIngestProcessor2(oldQuesmaConfig, chBackendConn, nil, tableDisco, schemaRegistry, virtualTableStorage, esBackendConn)
 
-	ip := ingest.NewIngestProcessor2(oldQuesmaConfig, connector, nil, tableDisco, schemaRegistry, virtualTableStorage, v2TableResolver)
 	ip.Start()
 	return ip
 }
 
 func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
 	var data []byte
-	var chBackend, esBackend quesma_api.BackendConnector
 	indexNameFromIncomingReq := metadata[IngestTargetKey].(string)
 	if indexNameFromIncomingReq == "" {
-		panic("NO INDEX NAME?!?!?")
-	}
-
-	if chBackend = p.GetBackendConnector(quesma_api.ClickHouseSQLBackend); chBackend == nil {
-		fmt.Println("Backend connector not found")
-		return metadata, data, nil
-	}
-
-	tempIngestProcessor := p.prepareTemporaryIngestProcessor(chBackend)
-
-	esBackend = p.GetBackendConnector(quesma_api.ElasticsearchBackend)
-	if esBackend == nil {
-		fmt.Println("Backend connector not found")
-		return metadata, data, nil
-	}
-	es, ok := esBackend.(*backend_connectors.ElasticsearchBackendConnector) // OKAY JUST FOR NOW
-	if !ok {
-		panic(" !!! ")
+		fmt.Printf("Missing index name in metadata") // SHOULD NEVER HAPPEN AND NOT BE VERIFIED HERE I GUESS
+		return nil, data, nil
 	}
 
 	for _, m := range message {
-		messageAsHttpReq, err := quesma_api.CheckedCast[*http.Request](m)
+		mCasted, err := quesma_api.CheckedCast[*quesma_api.Request](m)
 		if err != nil {
-			panic("ElasticsearchToClickHouseIngestProcessor: invalid message type")
+			fmt.Printf("ElasticsearchToClickHouseIngestProcessor: invalid message type: %v", err)
+			return nil, data, err
 		}
+		messageAsHttpReq := mCasted.OriginalRequest
 
-		if _, present := p.config.IndexConfig[indexNameFromIncomingReq]; !present {
-			// route to Elasticsearch
-			resp := es.Send(messageAsHttpReq)
+		if _, present := p.config.IndexConfig[indexNameFromIncomingReq]; !present && metadata[IngestAction] == DocIndexAction {
+			// `_doc` at this point can go directly to Elasticsearch,
+			// `_bulk` request might be still sent to ClickHouse as the req payload may contain documents targeting CH tables
+			resp := p.legacyIngestProcessor.SendToElasticsearch(messageAsHttpReq)
 			respBody, err := ReadResponseBody(resp)
 			if err != nil {
 				println(err)
@@ -122,7 +122,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			result, err := handleDocIndex(payloadJson, indexNameFromIncomingReq, tempIngestProcessor, p.config)
+			result, err := p.handleDocIndex(payloadJson, indexNameFromIncomingReq)
 			if err != nil {
 				println(err)
 			}
@@ -134,7 +134,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				println(err)
 			}
-			results, err := handleBulkIndex(payloadNDJson, indexNameFromIncomingReq, tempIngestProcessor, es, p.config)
+			results, err := p.handleBulkIndex(payloadNDJson, indexNameFromIncomingReq)
 			if err != nil {
 				println(err)
 			}

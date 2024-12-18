@@ -16,14 +16,14 @@ const UnboundedInterval = "*"
 // 1) in Clickhouse's proper format, e.g. toStartOfDay(subDate(now(), INTERVAL 3 week))
 // 2) * (UnboundedInterval), which means no bound
 type DateTimeInterval struct {
-	Begin string
-	End   string
+	begin string
+	end   string
 }
 
 func NewDateTimeInterval(begin, end string) DateTimeInterval {
 	return DateTimeInterval{
-		Begin: begin,
-		End:   end,
+		begin: begin,
+		end:   end,
 	}
 }
 
@@ -31,8 +31,8 @@ func NewDateTimeInterval(begin, end string) DateTimeInterval {
 // We query Clickhouse for this timestamp, as it's defined in Clickhouse's format, e.g. now()-1d.
 // It's only 1 more field to our SELECT query, so it shouldn't be a performance issue.
 func (interval DateTimeInterval) BeginTimestampToSQL() (sqlSelect model.Expr, selectNeeded bool) {
-	if interval.Begin != UnboundedInterval {
-		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewLiteral(interval.Begin))), true
+	if interval.begin != UnboundedInterval {
+		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewLiteral(interval.begin))), true
 	}
 	return nil, false
 }
@@ -41,21 +41,21 @@ func (interval DateTimeInterval) BeginTimestampToSQL() (sqlSelect model.Expr, se
 // We query Clickhouse for this timestamp, as it's defined in Clickhouse's format, e.g. now()-1d.
 // It's only 1 more field to our SELECT query, so it isn't a performance issue.
 func (interval DateTimeInterval) EndTimestampToSQL() (sqlSelect model.Expr, selectNeeded bool) {
-	if interval.End != UnboundedInterval {
-		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewLiteral(interval.End))), true
+	if interval.end != UnboundedInterval {
+		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewLiteral(interval.end))), true
 	}
 	return nil, false
 }
 
-func (interval DateTimeInterval) ToWhereClause(fieldName string) model.Expr {
+func (interval DateTimeInterval) ToWhereClause(field model.Expr) model.Expr {
 	begin, isBegin := interval.BeginTimestampToSQL()
 	end, isEnd := interval.EndTimestampToSQL()
 
 	if isBegin {
-		begin = model.NewInfixExpr(model.NewColumnRef(fieldName), ">=", begin)
+		begin = model.NewInfixExpr(field, ">=", begin)
 	}
 	if isEnd {
-		end = model.NewInfixExpr(model.NewColumnRef(fieldName), "<", end)
+		end = model.NewInfixExpr(field, "<", end)
 	}
 
 	if isBegin && isEnd {
@@ -65,20 +65,20 @@ func (interval DateTimeInterval) ToWhereClause(fieldName string) model.Expr {
 	} else if isEnd {
 		return end
 	} else {
-		return model.NewLiteral("TRUE")
+		return model.TrueExpr
 	}
 }
 
 type DateRange struct {
 	ctx             context.Context
-	FieldName       string
-	Format          string
-	Intervals       []DateTimeInterval
-	SelectColumnsNr int // how many columns we add to the query because of date_range aggregation, e.g. SELECT x,y,z -> 3
+	field           model.Expr
+	format          string
+	intervals       []DateTimeInterval
+	selectColumnsNr int // how many columns we add to the query because of date_range aggregation, e.g. SELECT x,y,z -> 3
 }
 
-func NewDateRange(ctx context.Context, fieldName string, format string, intervals []DateTimeInterval, selectColumnsNr int) DateRange {
-	return DateRange{ctx: ctx, FieldName: fieldName, Format: format, Intervals: intervals, SelectColumnsNr: selectColumnsNr}
+func NewDateRange(ctx context.Context, field model.Expr, format string, intervals []DateTimeInterval, selectColumnsNr int) DateRange {
+	return DateRange{ctx: ctx, field: field, format: format, intervals: intervals, selectColumnsNr: selectColumnsNr}
 }
 
 func (query DateRange) AggregationType() model.AggregationType {
@@ -92,7 +92,7 @@ func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow) m
 	}
 
 	response := make([]model.JsonMap, 0)
-	startIteration := len(rows[0].Cols) - 1 - query.SelectColumnsNr
+	startIteration := len(rows[0].Cols) - 1 - query.selectColumnsNr
 	if startIteration < 0 || startIteration >= len(rows[0].Cols) {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected column nr in aggregation response, startIteration: %d, len(rows[0].Cols): %d",
@@ -100,7 +100,7 @@ func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow) m
 		)
 		return nil
 	}
-	for intervalIdx, columnIdx := 0, startIteration; intervalIdx < len(query.Intervals); intervalIdx++ {
+	for intervalIdx, columnIdx := 0, startIteration; intervalIdx < len(query.intervals); intervalIdx++ {
 		responseForInterval, nextColumnIdx := query.responseForInterval(&rows[0], intervalIdx, columnIdx)
 		response = append(response, responseForInterval)
 		columnIdx = nextColumnIdx
@@ -111,7 +111,7 @@ func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow) m
 }
 
 func (query DateRange) String() string {
-	return "date_range, intervals: " + fmt.Sprintf("%v", query.Intervals)
+	return "date_range, intervals: " + fmt.Sprintf("%v", query.intervals)
 }
 
 func (query DateRange) responseForInterval(row *model.QueryResultRow, intervalIdx, columnIdx int) (
@@ -123,7 +123,7 @@ func (query DateRange) responseForInterval(row *model.QueryResultRow, intervalId
 
 	var from, to int64
 	var fromString, toString string
-	if query.Intervals[intervalIdx].Begin == UnboundedInterval {
+	if query.intervals[intervalIdx].begin == UnboundedInterval {
 		fromString = UnboundedInterval
 	} else {
 		if columnIdx >= len(row.Cols) {
@@ -137,7 +137,7 @@ func (query DateRange) responseForInterval(row *model.QueryResultRow, intervalId
 		columnIdx++
 	}
 
-	if query.Intervals[intervalIdx].End == UnboundedInterval {
+	if query.intervals[intervalIdx].end == UnboundedInterval {
 		toString = UnboundedInterval
 	} else {
 		if columnIdx >= len(row.Cols) {
@@ -173,16 +173,16 @@ func (query DateRange) DoesNotHaveGroupBy() bool {
 }
 
 func (query DateRange) CombinatorGroups() (result []CombinatorGroup) {
-	for intervalIdx, interval := range query.Intervals {
+	for intervalIdx, interval := range query.intervals {
 		prefix := fmt.Sprintf("range_%d__", intervalIdx)
-		if len(query.Intervals) == 1 {
+		if len(query.intervals) == 1 {
 			prefix = ""
 		}
 		result = append(result, CombinatorGroup{
 			idx:         intervalIdx,
 			Prefix:      prefix,
 			Key:         prefix, // TODO: we need translate date to real time
-			WhereClause: interval.ToWhereClause(query.FieldName),
+			WhereClause: interval.ToWhereClause(query.field),
 		})
 	}
 	return
@@ -199,23 +199,23 @@ func (query DateRange) CombinatorTranslateSqlResponseToJson(subGroup CombinatorG
 	}
 
 	// TODO: we need translate relative to real time
-	interval := query.Intervals[subGroup.idx]
-	if interval.Begin != UnboundedInterval {
-		response["from"] = interval.Begin
-		response["from_as_string"] = interval.Begin
+	interval := query.intervals[subGroup.idx]
+	if interval.begin != UnboundedInterval {
+		response["from"] = interval.begin
+		response["from_as_string"] = interval.begin
 	}
-	if interval.End != UnboundedInterval {
-		response["to"] = interval.End
-		response["to_as_string"] = interval.End
+	if interval.end != UnboundedInterval {
+		response["to"] = interval.end
+		response["to_as_string"] = interval.end
 	}
 
 	return response
 }
 
 func (query DateRange) CombinatorSplit() []model.QueryType {
-	result := make([]model.QueryType, 0, len(query.Intervals))
-	for _, interval := range query.Intervals {
-		result = append(result, NewDateRange(query.ctx, query.FieldName, query.Format, []DateTimeInterval{interval}, query.SelectColumnsNr))
+	result := make([]model.QueryType, 0, len(query.intervals))
+	for _, interval := range query.intervals {
+		result = append(result, NewDateRange(query.ctx, query.field, query.format, []DateTimeInterval{interval}, query.selectColumnsNr))
 	}
 	return result
 }

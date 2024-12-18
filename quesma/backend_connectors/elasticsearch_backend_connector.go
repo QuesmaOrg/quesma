@@ -41,6 +41,10 @@ func NewElasticsearchBackendConnector(cfg config.ElasticsearchConfiguration) *El
 	return conn
 }
 
+func (e *ElasticsearchBackendConnector) GetConfig() config.ElasticsearchConfiguration {
+	return e.config
+}
+
 func (e *ElasticsearchBackendConnector) RequestWithHeaders(ctx context.Context, method, endpoint string, body []byte, headers http.Header) (*http.Response, error) {
 	return e.doRequest(ctx, method, endpoint, body, headers)
 }

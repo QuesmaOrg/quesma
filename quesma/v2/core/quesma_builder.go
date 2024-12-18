@@ -8,13 +8,29 @@ import (
 )
 
 type Quesma struct {
-	pipelines []PipelineBuilder
+	pipelines    []PipelineBuilder
+	dependencies Dependencies
 }
 
 func NewQuesma() *Quesma {
 	return &Quesma{
 		pipelines: make([]PipelineBuilder, 0),
 	}
+}
+
+func (quesma *Quesma) GetChildComponents() []any {
+
+	componentList := make([]any, 0)
+
+	for _, pipeline := range quesma.pipelines {
+		componentList = append(componentList, pipeline)
+	}
+
+	return componentList
+}
+
+func (quesma *Quesma) SetDependencies(dependencies Dependencies) {
+	quesma.dependencies = dependencies
 }
 
 func (quesma *Quesma) AddPipeline(pipeline PipelineBuilder) {
@@ -44,10 +60,10 @@ func (quesma *Quesma) Stop(ctx context.Context) {
 	}
 }
 
-func (quesma *Quesma) Build() (QuesmaBuilder, error) {
+func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
+
 	endpoints := make(map[string]struct{})
 	handlers := make(map[string]HandlersPipe)
-
 	for _, pipeline := range quesma.pipelines {
 		for _, conn := range pipeline.GetFrontendConnectors() {
 			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
@@ -96,9 +112,61 @@ func (quesma *Quesma) Build() (QuesmaBuilder, error) {
 				}
 			}
 			proc.SetBackendConnectors(backendConnectors)
+			if err := proc.Init(); err != nil {
+				return nil, fmt.Errorf("processor %v failed to initialize: %v", proc.GetId(), err)
+			}
 		}
 
 	}
 
 	return quesma, nil
+}
+
+func (quesma *Quesma) injectDependencies(tree *ComponentTreeNode) error {
+	if quesma.dependencies == nil {
+		return fmt.Errorf("dependencies not set")
+	}
+
+	tree.walk(func(n *ComponentTreeNode) {
+		quesma.dependencies.InjectDependenciesInto(n.Component)
+	})
+
+	return nil
+}
+
+func (quesma *Quesma) printTree(tree *ComponentTreeNode) {
+
+	fmt.Println("Component tree:\n---")
+	tree.walk(func(n *ComponentTreeNode) {
+
+		for i := 0; i < n.Level; i++ {
+			fmt.Print("  ")
+		}
+
+		fmt.Println(n.Id)
+	})
+	fmt.Println("---")
+}
+
+func (quesma *Quesma) Build() (QuesmaBuilder, error) {
+
+	_, err := quesma.buildInternal()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build quesma instance: %v", err)
+	}
+
+	treeBuilder := NewComponentToInitializeProviderBuilder()
+	tree := treeBuilder.BuildComponentTree(quesma)
+
+	err = quesma.injectDependencies(tree)
+	if err != nil {
+		return nil, fmt.Errorf("failed to inject dependencies: %v", err)
+	}
+
+	if traceDependencyInjection {
+		quesma.printTree(tree)
+	}
+
+	return quesma, nil
+
 }

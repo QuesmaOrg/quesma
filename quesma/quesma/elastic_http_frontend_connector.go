@@ -4,49 +4,87 @@
 package quesma
 
 import (
+	"context"
 	"net/http"
 	"quesma/clickhouse"
 	"quesma/frontend_connectors"
-	"quesma/quesma/recovery"
-	"quesma/telemetry"
-	"quesma_v2/core"
+	"quesma/quesma/config"
+	"quesma/schema"
+	quesma_api "quesma_v2/core"
+	"quesma_v2/core/diag"
 )
 
-type ElasticHttpFrontendConnector struct {
+type ElasticHttpIngestFrontendConnector struct {
 	*frontend_connectors.BasicHTTPFrontendConnector
-	routerInstance *frontend_connectors.RouterV2
-	searchRouter   *quesma_api.PathRouter
-	ingestRouter   *quesma_api.PathRouter
-	logManager     *clickhouse.LogManager
-	agent          telemetry.PhoneHomeAgent
+
+	Config *config.QuesmaConfiguration
+
+	phoneHomeClient diag.PhoneHomeClient
 }
 
-func NewElasticHttpFrontendConnector(endpoint string,
-	routerInstance *frontend_connectors.RouterV2,
-	searchRouter *quesma_api.PathRouter,
-	ingestRouter *quesma_api.PathRouter,
+func NewElasticHttpIngestFrontendConnector(endpoint string,
 	logManager *clickhouse.LogManager,
-	agent telemetry.PhoneHomeAgent) *ElasticHttpFrontendConnector {
-	return &ElasticHttpFrontendConnector{
-		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint),
-		routerInstance:             routerInstance,
-		searchRouter:               searchRouter,
-		ingestRouter:               ingestRouter,
-		logManager:                 logManager,
-		agent:                      agent,
+	registry schema.Registry,
+	config *config.QuesmaConfiguration, router quesma_api.Router) *ElasticHttpIngestFrontendConnector {
+
+	fc := &ElasticHttpIngestFrontendConnector{
+		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
 	}
+	fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		fc.BasicHTTPFrontendConnector.GetRouterInstance().ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
+		return nil, nil
+	}
+
+	router.AddFallbackHandler(fallback)
+	fc.AddRouter(router)
+
+	return fc
 }
 
-func (h *ElasticHttpFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	defer recovery.LogPanic()
-	reqBody, err := frontend_connectors.PeekBodyV2(req)
-	if err != nil {
-		http.Error(w, "Error reading request body", http.StatusInternalServerError)
-		return
+func (h *ElasticHttpIngestFrontendConnector) GetChildComponents() []interface{} {
+	components := make([]interface{}, 0)
+	if h.BasicHTTPFrontendConnector != nil {
+		components = append(components, h.BasicHTTPFrontendConnector)
 	}
 
-	ua := req.Header.Get("User-Agent")
-	h.agent.UserAgentCounters().Add(ua, 1)
+	return components
+}
 
-	h.routerInstance.Reroute(req.Context(), w, req, reqBody, h.searchRouter, h.ingestRouter, h.logManager)
+func (h *ElasticHttpIngestFrontendConnector) SetDependencies(deps quesma_api.Dependencies) {
+	h.phoneHomeClient = deps.PhoneHomeAgent()
+}
+
+type ElasticHttpQueryFrontendConnector struct {
+	*frontend_connectors.BasicHTTPFrontendConnector
+
+	phoneHomeClient diag.PhoneHomeClient
+}
+
+func NewElasticHttpQueryFrontendConnector(endpoint string,
+	logManager *clickhouse.LogManager,
+	registry schema.Registry,
+	config *config.QuesmaConfiguration, router quesma_api.Router) *ElasticHttpIngestFrontendConnector {
+
+	fc := &ElasticHttpIngestFrontendConnector{
+		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
+	}
+	fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		fc.BasicHTTPFrontendConnector.GetRouterInstance().ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
+		return nil, nil
+	}
+	router.AddFallbackHandler(fallback)
+	fc.AddRouter(router)
+	return fc
+}
+
+func (h *ElasticHttpQueryFrontendConnector) GetChildComponents() []interface{} {
+	components := make([]interface{}, 0)
+	if h.BasicHTTPFrontendConnector != nil {
+		components = append(components, h.BasicHTTPFrontendConnector)
+	}
+	return components
+}
+
+func (h *ElasticHttpQueryFrontendConnector) SetDependencies(deps quesma_api.Dependencies) {
+	h.phoneHomeClient = deps.PhoneHomeAgent()
 }

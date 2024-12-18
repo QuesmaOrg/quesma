@@ -32,7 +32,6 @@ func Test_ipRangeTransform(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_logs": {
-			Name: "kibana_sample_data_logs",
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				config.FieldName(IpFieldName): {Type: "ip"},
 				"message":                     {Type: "text"},
@@ -42,7 +41,6 @@ func Test_ipRangeTransform(t *testing.T) {
 		// Identical to kibana_sample_data_logs, but with "nested.clientip"
 		// instead of "clientip"
 		"kibana_sample_data_logs_nested": {
-			Name: "kibana_sample_data_logs_nested",
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				"nested.clientip": {Type: "ip"},
 				"message":         {Type: "text"},
@@ -50,7 +48,6 @@ func Test_ipRangeTransform(t *testing.T) {
 			}},
 		},
 		"kibana_sample_data_flights": {
-			Name: "kibana_sample_data_flights",
 			SchemaOverrides: &config.SchemaConfiguration{Fields: map[config.FieldName]config.FieldConfiguration{
 				config.FieldName(IpFieldName): {Type: "ip"},
 				"DestLocation":                {Type: "geo_point"},
@@ -63,7 +60,15 @@ func Test_ipRangeTransform(t *testing.T) {
 		IndexConfig: indexConfig,
 	}
 
-	tableDiscovery :=
+	tableMap := clickhouse.NewTableMap()
+
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tableMap
+	for indexName := range indexConfig {
+		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
+	}
+
+	tableProvider :=
 		fixedTableProvider{tables: map[string]schema.Table{
 			"kibana_sample_data_flights": {Columns: map[string]schema.Column{
 				"destlocation": {Name: "destlocation", Type: "geo_point"},
@@ -80,8 +85,8 @@ func Test_ipRangeTransform(t *testing.T) {
 		{
 			TableName: "kibana_sample_data_logs_nested", FieldName: "nested.clientip"}: "nested_clientip",
 	}
-	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: &cfg}
+	s := schema.NewSchemaRegistry(tableProvider, &cfg, clickhouse.SchemaTypeAdapter{})
+	transform := &SchemaCheckPass{cfg: &cfg, tableDiscovery: tableDiscovery}
 	s.UpdateFieldEncodings(fieldEncodings)
 
 	selectColumns := []model.Expr{model.NewColumnRef("message")}
@@ -396,7 +401,7 @@ func Test_ipRangeTransform(t *testing.T) {
 
 			for _, q := range queriesToTransform {
 
-				currentSchema, ok := s.FindSchema(schema.TableName(q.TableName))
+				currentSchema, ok := s.FindSchema(schema.IndexName(q.TableName))
 				if !ok {
 					t.Fatalf("schema not found for table %s", q.TableName)
 				}
@@ -414,9 +419,7 @@ func Test_ipRangeTransform(t *testing.T) {
 func Test_arrayType(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
-		"kibana_sample_data_ecommerce": {
-			Name: "kibana_sample_data_ecommerce",
-		},
+		"kibana_sample_data_ecommerce": {},
 	}
 	fields := map[schema.FieldName]schema.Field{
 		"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
@@ -430,7 +433,15 @@ func Test_arrayType(t *testing.T) {
 		Fields: fields,
 	}
 
-	transform := &SchemaCheckPass{cfg: &config.QuesmaConfiguration{IndexConfig: indexConfig}}
+	tableMap := clickhouse.NewTableMap()
+
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tableMap
+	for indexName := range indexConfig {
+		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
+	}
+
+	transform := &SchemaCheckPass{cfg: &config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery: tableDiscovery}
 
 	tests := []struct {
 		name     string
@@ -464,7 +475,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewFunction("sumOrNull", model.NewColumnRef("products_quantity")),
+						model.NewFunction("sumOrNull", model.NewColumnRef("products.quantity")),
 					},
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
 				},
@@ -476,7 +487,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewFunction("sumOrNull", model.NewFunction("arrayJoin", model.NewColumnRef("products_quantity"))),
+						model.NewAliasedExpr(model.NewFunction("sumOrNull", model.NewFunction("arrayJoin", model.NewColumnRef("products_quantity"))), "column_1"),
 					},
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
 				},
@@ -497,7 +508,7 @@ func Test_arrayType(t *testing.T) {
 						model.NewCountFunc(),
 					},
 					WhereClause: model.NewInfixExpr(
-						model.NewColumnRef("products_name"),
+						model.NewColumnRef("products.name"),
 						"ILIKE",
 						model.NewLiteral("%foo%"),
 					),
@@ -510,7 +521,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewCountFunc(),
+						model.NewAliasedExpr(model.NewCountFunc(), "column_1"),
 					},
 					WhereClause: model.NewFunction(
 						"arrayExists",
@@ -535,7 +546,7 @@ func Test_arrayType(t *testing.T) {
 						model.NewCountFunc(),
 					},
 					WhereClause: model.NewInfixExpr(
-						model.NewColumnRef("products_sku"),
+						model.NewColumnRef("products.sku"),
 						"=",
 						model.NewLiteral("'XYZ'"),
 					),
@@ -548,7 +559,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewCountFunc(),
+						model.NewAliasedExpr(model.NewCountFunc(), "column_1"),
 					},
 					WhereClause: model.NewFunction(
 						"has",
@@ -588,9 +599,7 @@ func Test_arrayType(t *testing.T) {
 func TestApplyWildCard(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
-		"kibana_sample_data_ecommerce": {
-			Name: "kibana_sample_data_ecommerce",
-		},
+		"kibana_sample_data_ecommerce": {},
 	}
 
 	indexSchema := schema.Schema{
@@ -602,7 +611,7 @@ func TestApplyWildCard(t *testing.T) {
 	}
 
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"test": indexSchema,
 		},
 	}
@@ -661,9 +670,7 @@ func TestApplyWildCard(t *testing.T) {
 func TestApplyPhysicalFromExpression(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
-		"test": {
-			Name: "kibana_sample_data_ecommerce",
-		},
+		"test": {},
 	}
 	cfg := config.QuesmaConfiguration{
 		IndexConfig: indexConfig,
@@ -946,7 +953,6 @@ func TestFullTextFields(t *testing.T) {
 
 			indexConfig := map[string]config.IndexConfiguration{
 				"test": {
-					Name: "test",
 					SchemaOverrides: &config.SchemaConfiguration{
 						Fields: fieldOverrides,
 					},
@@ -1057,9 +1063,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				}}
 
 			indexConfig := map[string]config.IndexConfiguration{
-				"test": {
-					Name: "test",
-				},
+				"test": {},
 			}
 
 			cfg := config.QuesmaConfiguration{
@@ -1075,6 +1079,106 @@ func Test_applyMatchOperator(t *testing.T) {
 			}
 
 			actual, err := transform.applyMatchOperator(indexSchema, tt.query)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Equal(t, model.AsString(tt.expected.SelectCommand), model.AsString(actual.SelectCommand))
+		})
+	}
+}
+
+func Test_checkAggOverUnsupportedType(t *testing.T) {
+	schemaTable := schema.Table{
+		Columns: map[string]schema.Column{
+			"@timestamp": {Name: "@timestamp", Type: "DateTime64"},
+			"message":    {Name: "message", Type: "String"},
+			"count":      {Name: "count", Type: "Int64"},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		query    *model.Query
+		expected *model.Query
+	}{
+		{
+			name: "String",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewLiteral("NULL"))},
+				},
+			},
+		},
+		{
+			name: "do not int field",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("count"))},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("count"))},
+				},
+			},
+		},
+		{
+			name: "DateTime",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("@timestamp"))},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewLiteral("NULL"))},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tableDiscovery :=
+				fixedTableProvider{tables: map[string]schema.Table{
+					"test": schemaTable,
+				}}
+
+			indexConfig := map[string]config.IndexConfiguration{
+				"test": {},
+			}
+
+			cfg := config.QuesmaConfiguration{
+				IndexConfig: indexConfig,
+			}
+
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			transform := &SchemaCheckPass{cfg: &cfg}
+
+			indexSchema, ok := s.FindSchema("test")
+			if !ok {
+				t.Fatal("schema not found")
+			}
+
+			actual, err := transform.checkAggOverUnsupportedType(indexSchema, tt.query)
 			if err != nil {
 				t.Fatal(err)
 			}

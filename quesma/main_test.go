@@ -12,6 +12,7 @@ import (
 	"quesma/backend_connectors"
 	"quesma/frontend_connectors"
 	"quesma/processors"
+	"quesma/quesma/config"
 	quesma_api "quesma_v2/core"
 	"sync/atomic"
 	"syscall"
@@ -42,6 +43,7 @@ func Test_backendConnectorValidation(t *testing.T) {
 	var postgressPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	postgressPipeline.AddProcessor(tcpProcessor)
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+	quesmaBuilder.SetDependencies(quesma_api.EmptyDependencies())
 	const endpoint = "root:password@tcp(127.0.0.1:3306)/test"
 	var mySqlBackendConnector quesma_api.BackendConnector = &backend_connectors.MySqlBackendConnector{
 		Endpoint: endpoint,
@@ -54,18 +56,28 @@ func Test_backendConnectorValidation(t *testing.T) {
 
 var fallbackCalled int32 = 0
 
-func fallback(request *http.Request) (map[string]interface{}, any, error) {
+func fallback(_ context.Context, _ *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 	metadata := quesma_api.MakeNewMetadata()
 	atomic.AddInt32(&fallbackCalled, 1)
 	resp := []byte("unknown\n")
-	return metadata, resp, nil
+	return &quesma_api.Result{Meta: metadata, GenericResult: resp}, nil
 }
 
 func ab_testing_scenario() quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+	quesmaBuilder.SetDependencies(quesma_api.EmptyDependencies())
 
-	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
-	ingestHTTPRouter := frontend_connectors.NewHTTPRouter()
+	cfg := &config.QuesmaConfiguration{
+		DisableAuth: true,
+		Elasticsearch: config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     "",
+			Password: "",
+		},
+	}
+
+	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
+	ingestHTTPRouter := quesma_api.NewPathRouter()
 	ingestHTTPRouter.AddRoute("/_bulk", bulk)
 	ingestHTTPRouter.AddRoute("/_doc", doc)
 	ingestFrontendConnector.AddRouter(ingestHTTPRouter)
@@ -82,8 +94,8 @@ func ab_testing_scenario() quesma_api.QuesmaBuilder {
 	ingestPipeline.AddProcessor(ingestProcessor)
 	ingestPipeline.AddProcessor(abIngestTestProcessor)
 
-	queryFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
-	queryHTTPRouter := frontend_connectors.NewHTTPRouter()
+	queryFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
+	queryHTTPRouter := quesma_api.NewPathRouter()
 	queryHTTPRouter.AddRoute("/_search", search)
 	queryFrontendConnector.AddRouter(queryHTTPRouter)
 	var queryPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
@@ -106,9 +118,18 @@ func ab_testing_scenario() quesma_api.QuesmaBuilder {
 
 func fallbackScenario() quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+	quesmaBuilder.SetDependencies(quesma_api.EmptyDependencies())
+	cfg := &config.QuesmaConfiguration{
+		DisableAuth: true,
+		Elasticsearch: config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     "",
+			Password: "",
+		},
+	}
+	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
 
-	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
-	ingestHTTPRouter := frontend_connectors.NewHTTPRouter()
+	ingestHTTPRouter := quesma_api.NewPathRouter()
 	var fallback quesma_api.HTTPFrontendHandler = fallback
 	ingestHTTPRouter.AddFallbackHandler(fallback)
 	ingestFrontendConnector.AddRouter(ingestHTTPRouter)

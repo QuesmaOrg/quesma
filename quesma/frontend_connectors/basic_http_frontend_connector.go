@@ -6,98 +6,63 @@ package frontend_connectors
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net/http"
+	"quesma/clickhouse"
+	"quesma/quesma/config"
+	"quesma/schema"
 	quesma_api "quesma_v2/core"
+	"quesma_v2/core/diag"
 	"sync"
 )
 
-type HTTPRouter struct {
-	mux             *http.ServeMux                     // Default HTTP multiplexer
-	handlers        map[string]quesma_api.HandlersPipe // Map to store custom route handlers
-	fallbackHandler quesma_api.HTTPFrontendHandler
-	mutex           sync.RWMutex // Mutex for concurrent access to handlers
-}
-
-func NewHTTPRouter() *HTTPRouter {
-	return &HTTPRouter{
-		mux:      http.NewServeMux(),
-		handlers: make(map[string]quesma_api.HandlersPipe),
-	}
-}
-
-// AddRoute adds a new route to the router
-func (router *HTTPRouter) AddRoute(path string, handler quesma_api.HTTPFrontendHandler) {
-	router.mutex.Lock()
-	defer router.mutex.Unlock()
-	router.handlers[path] = quesma_api.HandlersPipe{Handler: handler}
-	fmt.Printf("Added route: %s\n", path)
-}
-
-func (router *HTTPRouter) AddFallbackHandler(handler quesma_api.HTTPFrontendHandler) {
-	router.mutex.Lock()
-	defer router.mutex.Unlock()
-	router.fallbackHandler = handler
-}
-
-func (router *HTTPRouter) GetFallbackHandler() quesma_api.HTTPFrontendHandler {
-	router.mutex.RLock()
-	defer router.mutex.RUnlock()
-	return router.fallbackHandler
-}
-
-func (router *HTTPRouter) Clone() quesma_api.Cloner {
-	newRouter := NewHTTPRouter()
-	router.mutex.Lock()
-	defer router.mutex.Unlock()
-	for path, handler := range router.handlers {
-		newRouter.handlers[path] = handler
-	}
-	newRouter.fallbackHandler = router.fallbackHandler
-	return newRouter
-}
-
-func (router *HTTPRouter) GetHandlers() map[string]quesma_api.HandlersPipe {
-	router.mutex.RLock()
-	defer router.mutex.RUnlock()
-	callInfos := make(map[string]quesma_api.HandlersPipe)
-	for k, v := range router.handlers {
-		callInfos[k] = v
-	}
-	return callInfos
-}
-
-func (router *HTTPRouter) SetHandlers(handlers map[string]quesma_api.HandlersPipe) {
-	router.mutex.Lock()
-	defer router.mutex.Unlock()
-	for path, handler := range handlers {
-		router.handlers[path] = handler
-	}
-}
-
-func (router *HTTPRouter) Lock() {
-	router.mutex.Lock()
-}
-
-func (router *HTTPRouter) Unlock() {
-	router.mutex.Unlock()
-}
-
-func (router *HTTPRouter) Multiplexer() *http.ServeMux {
-	return router.mux
-}
-
 type BasicHTTPFrontendConnector struct {
-	listener *http.Server
-	router   quesma_api.Router
+	listener        *http.Server
+	router          quesma_api.Router
+	mutex           sync.Mutex
+	responseMutator func(w http.ResponseWriter) http.ResponseWriter
+	endpoint        string
+	routerInstance  *RouterV2
+	logManager      *clickhouse.LogManager
+	registry        schema.Registry
+	config          *config.QuesmaConfiguration
 
-	endpoint string
+	phoneHomeClient    diag.PhoneHomeClient
+	debugInfoCollector diag.DebugInfoCollector
 }
 
-func NewBasicHTTPFrontendConnector(endpoint string) *BasicHTTPFrontendConnector {
+func (h *BasicHTTPFrontendConnector) GetChildComponents() []interface{} {
+	components := make([]interface{}, 0)
+
+	if h.router != nil {
+		components = append(components, h.router)
+	}
+
+	if h.routerInstance != nil {
+		components = append(components, h.routerInstance)
+	}
+	return components
+}
+
+func (h *BasicHTTPFrontendConnector) SetDependencies(deps quesma_api.Dependencies) {
+	h.phoneHomeClient = deps.PhoneHomeAgent()
+	h.debugInfoCollector = deps.DebugInfoCollector()
+	deps.PhoneHomeAgent().FailedRequestsCollector(func() int64 {
+		return h.routerInstance.FailedRequests.Load()
+	})
+}
+
+func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfiguration) *BasicHTTPFrontendConnector {
+
 	return &BasicHTTPFrontendConnector{
-		endpoint: endpoint,
+		endpoint:       endpoint,
+		config:         config,
+		routerInstance: NewRouterV2(config),
+		logManager:     nil,
+		registry:       nil,
+		responseMutator: func(w http.ResponseWriter) http.ResponseWriter {
+			return w
+		},
 	}
 }
 
@@ -110,39 +75,33 @@ func (h *BasicHTTPFrontendConnector) GetRouter() quesma_api.Router {
 }
 
 func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	handlerWrapper, exists := h.router.GetHandlers()[req.URL.Path]
-	dispatcher := &quesma_api.Dispatcher{}
-	if !exists {
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if h.router.GetFallbackHandler() != nil {
-				fmt.Printf("No handler found for path: %s\n", req.URL.Path)
-				handler := h.router.GetFallbackHandler()
-				_, message, _ := handler(req)
-				_, err := w.Write(message.([]byte))
-				if err != nil {
-					fmt.Printf("Error writing response: %s\n", err)
-				}
-			}
-		}).ServeHTTP(w, req)
+	reqBody, err := PeekBodyV2(req)
+	if err != nil {
+		http.Error(w, "Error reading request body", http.StatusInternalServerError)
 		return
 	}
-	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		metadata, message, _ := handlerWrapper.Handler(req)
 
-		_, message = dispatcher.Dispatch(handlerWrapper.Processors, metadata, message)
-		_, err := w.Write(message.([]byte))
-		if err != nil {
-			fmt.Printf("Error writing response: %s\n", err)
-		}
-	}).ServeHTTP(w, req)
+	ua := req.Header.Get("User-Agent")
+	if h.phoneHomeClient != nil {
+		h.phoneHomeClient.UserAgentCounters().Add(ua, 1)
+	}
+
+	h.routerInstance.Reroute(req.Context(), w, req, reqBody, h.router, h.logManager, h.registry)
 }
 
 func (h *BasicHTTPFrontendConnector) Listen() error {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	if h.listener != nil {
+		// TODO handle this gracefully and return correct error
+		return nil
+	}
 	h.listener = &http.Server{}
 	h.listener.Addr = h.endpoint
 	h.listener.Handler = h
 	go func() {
 		err := h.listener.ListenAndServe()
+		// TODO: Handle error
 		_ = err
 	}()
 
@@ -150,6 +109,8 @@ func (h *BasicHTTPFrontendConnector) Listen() error {
 }
 
 func (h *BasicHTTPFrontendConnector) Stop(ctx context.Context) error {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 	if h.listener == nil {
 		return nil
 	}
@@ -171,4 +132,8 @@ func ReadRequestBody(request *http.Request) ([]byte, error) {
 	}
 	request.Body = io.NopCloser(bytes.NewBuffer(reqBody))
 	return reqBody, nil
+}
+
+func (h *BasicHTTPFrontendConnector) GetRouterInstance() *RouterV2 {
+	return h.routerInstance
 }

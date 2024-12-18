@@ -9,8 +9,6 @@ import (
 	"quesma/clickhouse"
 	"quesma/model"
 	"quesma/queryparser"
-	"quesma/quesma/config"
-	"quesma/telemetry"
 	"testing"
 )
 
@@ -108,12 +106,9 @@ func TestParseHighLight(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	lm := clickhouse.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), nil)
-
 	cw := queryparser.ClickhouseQueryTranslator{
-		ClickhouseLM: lm,
-		Table:        &table,
-		Ctx:          context.Background(),
+		Table: &table,
+		Ctx:   context.Background(),
 	}
 
 	queryAsMap := make(queryparser.QueryMap)
