@@ -13,9 +13,10 @@ type Quesma struct {
 	dependencies Dependencies
 }
 
-func NewQuesma() *Quesma {
+func NewQuesma(deps Dependencies) *Quesma {
 	return &Quesma{
-		pipelines: make([]PipelineBuilder, 0),
+		pipelines:    make([]PipelineBuilder, 0),
+		dependencies: deps,
 	}
 }
 
@@ -30,10 +31,6 @@ func (quesma *Quesma) GetChildComponents() []any {
 	return componentList
 }
 
-func (quesma *Quesma) SetDependencies(dependencies Dependencies) {
-	quesma.dependencies = dependencies
-}
-
 func (quesma *Quesma) AddPipeline(pipeline PipelineBuilder) {
 	quesma.pipelines = append(quesma.pipelines, pipeline)
 }
@@ -44,6 +41,7 @@ func (quesma *Quesma) GetPipelines() []PipelineBuilder {
 
 func (quesma *Quesma) Start() {
 	for _, pipeline := range quesma.pipelines {
+		quesma.dependencies.Logger().Info().Msgf("Starting pipeline %v", pipeline)
 		pipeline.Start()
 	}
 }
@@ -147,7 +145,7 @@ func (quesma *Quesma) printTree(tree *ComponentTreeNode) {
 			_, _ = fmt.Fprint(&buff, "  ")
 		}
 
-		_, _ = fmt.Fprintln(&buff, n.Name, n.Id)
+		_, _ = fmt.Fprintln(&buff, n.Name)
 	})
 
 	quesma.dependencies.Logger().Debug().Msg(buff.String())

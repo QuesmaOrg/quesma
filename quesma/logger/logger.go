@@ -204,6 +204,10 @@ func openLogFiles(logsPath string) {
 // global logger, TODO  this should be removed
 var logger = quesma_v2.EmptyQuesmaLogger()
 
+func GlobalLogger() quesma_v2.QuesmaLogger {
+	return logger
+}
+
 // global logger delegates
 
 func Debug() *zerolog.Event {

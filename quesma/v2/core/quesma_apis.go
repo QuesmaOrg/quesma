@@ -64,7 +64,6 @@ type PipelineBuilder interface {
 type QuesmaBuilder interface {
 	AddPipeline(pipeline PipelineBuilder)
 	GetPipelines() []PipelineBuilder
-	SetDependencies(dependencies Dependencies)
 	Build() (QuesmaBuilder, error)
 	Start()
 	Stop(ctx context.Context)

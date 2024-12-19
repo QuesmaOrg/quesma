@@ -29,6 +29,7 @@ type BasicHTTPFrontendConnector struct {
 
 	phoneHomeClient    diag.PhoneHomeClient
 	debugInfoCollector diag.DebugInfoCollector
+	logger             quesma_api.QuesmaLogger
 }
 
 func (h *BasicHTTPFrontendConnector) GetChildComponents() []interface{} {
@@ -47,6 +48,7 @@ func (h *BasicHTTPFrontendConnector) GetChildComponents() []interface{} {
 func (h *BasicHTTPFrontendConnector) SetDependencies(deps quesma_api.Dependencies) {
 	h.phoneHomeClient = deps.PhoneHomeAgent()
 	h.debugInfoCollector = deps.DebugInfoCollector()
+	h.logger = deps.Logger()
 }
 
 func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfiguration) *BasicHTTPFrontendConnector {
@@ -101,9 +103,9 @@ func (h *BasicHTTPFrontendConnector) Listen() error {
 	h.listener.Addr = h.endpoint
 	h.listener.Handler = h
 	go func() {
+		h.logger.Info().Msgf("HTTP server started on %s", h.endpoint)
 		err := h.listener.ListenAndServe()
-		// TODO: Handle error
-		_ = err
+		h.logger.Error().Err(err).Msg("HTTP server stopped")
 	}()
 
 	return nil
