@@ -278,6 +278,10 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 			}
 			metadata, message := dispatcher.Dispatch(handlersPipe.Processors, result.Meta, result.GenericResult)
 
+			if res, ok := message.(*quesma_api.Result); ok {
+				return res, nil
+			}
+
 			result = &quesma_api.Result{
 				Body:          result.Body,
 				Meta:          metadata,

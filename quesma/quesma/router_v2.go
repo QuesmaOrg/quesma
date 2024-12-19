@@ -201,7 +201,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		}
 
 		// TODO we should pass JSON here instead of []byte
-		responseBody, err := queryRunner.handleSearch(ctx, "*", body)
+		responseBody, err := queryRunner.HandleSearch(ctx, "*", body)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
@@ -213,64 +213,11 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 	})
 
 	router.Register(routes.IndexSearchPath, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-
-		body, err := types.ExpectJSON(req.ParsedBody)
-		if err != nil {
-			return nil, err
-		}
-
-		responseBody, err := queryRunner.handleSearch(ctx, req.Params["index"], body)
-		if err != nil {
-			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
-			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
-				return &quesma_api.Result{
-					Body:          string(queryparser.BadRequestParseError(err)),
-					StatusCode:    http.StatusBadRequest,
-					GenericResult: queryparser.BadRequestParseError(err),
-				}, nil
-			} else {
-				return nil, err
-			}
-		}
-		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+		return HandleIndexSearch(ctx, req, queryRunner)
 	})
+
 	router.Register(routes.IndexAsyncSearchPath, and(method("POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		waitForResultsMs := 1000 // Defaults to 1 second as in docs
-		if v, ok := req.Params["wait_for_completion_timeout"]; ok {
-			if w, err := time.ParseDuration(v); err == nil {
-				waitForResultsMs = int(w.Milliseconds())
-			} else {
-				logger.Warn().Msgf("Can't parse wait_for_completion_timeout value: %s", v)
-			}
-		}
-		keepOnCompletion := false
-		if v, ok := req.Params["keep_on_completion"]; ok {
-			if v == "true" {
-				keepOnCompletion = true
-			}
-		}
-
-		body, err := types.ExpectJSON(req.ParsedBody)
-		if err != nil {
-			return nil, err
-		}
-
-		responseBody, err := queryRunner.handleAsyncSearch(ctx, req.Params["index"], body, waitForResultsMs, keepOnCompletion)
-		if err != nil {
-			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
-			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
-				return &quesma_api.Result{
-					Body:          string(queryparser.BadRequestParseError(err)),
-					StatusCode:    http.StatusBadRequest,
-					GenericResult: queryparser.BadRequestParseError(err),
-				}, nil
-			} else {
-				return nil, err
-			}
-		}
-		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+		return HandleIndexAsyncSearch(ctx, req, nil, queryRunner)
 	})
 
 	router.Register(routes.IndexMappingPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
@@ -354,6 +301,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
 	router.Register(routes.TermsEnumPath, and(method("POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+
 		if strings.Contains(req.Params["index"], ",") {
 			return nil, errors.New("multi index terms enum is not yet supported")
 		} else {
@@ -466,4 +414,66 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 	})
 
 	return router
+}
+
+func HandleIndexSearch(ctx context.Context, req *quesma_api.Request, queryRunner QueryRunnerIFace) (*quesma_api.Result, error) {
+
+	body, err := types.ExpectJSON(req.ParsedBody)
+	if err != nil {
+		return nil, err
+	}
+
+	responseBody, err := queryRunner.HandleSearch(ctx, req.Params["index"], body)
+	if err != nil {
+		if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
+			return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
+		} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
+			return &quesma_api.Result{
+				Body:          string(queryparser.BadRequestParseError(err)),
+				StatusCode:    http.StatusBadRequest,
+				GenericResult: queryparser.BadRequestParseError(err),
+			}, nil
+		} else {
+			return nil, err
+		}
+	}
+	return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+}
+
+func HandleIndexAsyncSearch(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter, queryRunner QueryRunnerIFace) (*quesma_api.Result, error) {
+	waitForResultsMs := 1000 // Defaults to 1 second as in docs
+	if v, ok := req.Params["wait_for_completion_timeout"]; ok {
+		if w, err := time.ParseDuration(v); err == nil {
+			waitForResultsMs = int(w.Milliseconds())
+		} else {
+			logger.Warn().Msgf("Can't parse wait_for_completion_timeout value: %s", v)
+		}
+	}
+	keepOnCompletion := false
+	if v, ok := req.Params["keep_on_completion"]; ok {
+		if v == "true" {
+			keepOnCompletion = true
+		}
+	}
+
+	body, err := types.ExpectJSON(req.ParsedBody)
+	if err != nil {
+		return nil, err
+	}
+
+	responseBody, err := queryRunner.HandleAsyncSearch(ctx, req.Params["index"], body, waitForResultsMs, keepOnCompletion)
+	if err != nil {
+		if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
+			return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
+		} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
+			return &quesma_api.Result{
+				Body:          string(queryparser.BadRequestParseError(err)),
+				StatusCode:    http.StatusBadRequest,
+				GenericResult: queryparser.BadRequestParseError(err),
+			}, nil
+		} else {
+			return nil, err
+		}
+	}
+	return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 }
