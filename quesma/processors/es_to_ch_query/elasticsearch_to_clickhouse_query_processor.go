@@ -64,18 +64,26 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Init() error {
 	if chBackendConnector == nil {
 		return fmt.Errorf("backend connector for ClickHouse not found")
 	}
+	esBackendConnector, err := p.getElasticsearchBackendConnector()
+	if err != nil {
+		return err
+	}
+
+	queryRunner := p.prepareTemporaryQueryProcessor(chBackendConnector, esBackendConnector)
+	p.queryRunner = queryRunner
+	return nil
+}
+
+func (p *ElasticsearchToClickHouseQueryProcessor) getElasticsearchBackendConnector() (*backend_connectors.ElasticsearchBackendConnector, error) {
 	esBackendConnector := p.GetBackendConnector(quesma_api.ElasticsearchBackend)
 	if esBackendConnector == nil {
-		return fmt.Errorf("backend connector for Elasticsearch not found")
+		return nil, fmt.Errorf("backend connector for Elasticsearch not found")
 	}
 	esBackendConnectorCasted, ok := esBackendConnector.(*backend_connectors.ElasticsearchBackendConnector) // OKAY JUST FOR NOW
 	if !ok {
-		return fmt.Errorf("failed to cast Elasticsearch backend connector")
+		return nil, fmt.Errorf("failed to cast Elasticsearch backend connector")
 	}
-
-	queryRunner := p.prepareTemporaryQueryProcessor(chBackendConnector, esBackendConnectorCasted)
-	p.queryRunner = queryRunner
-	return nil
+	return esBackendConnectorCasted, nil
 }
 
 func (p *ElasticsearchToClickHouseQueryProcessor) GetId() string {
@@ -138,10 +146,17 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 			res, _ := quesm.HandleAsyncSearchStatus(context.Background(), quesmaReq, nil, p.queryRunner)
 			return metadata, res, nil
 		case ResolveIndexPath:
-			//res, _ := quesm.HandleResolveIndex(context.Background(), quesmaReq, nil,  p.queryRunner.schemaRegistry)
-			return metadata, nil, nil
+			esConn, err := p.getElasticsearchBackendConnector()
+			if err != nil {
+				return nil, nil, err
+			}
+			res, _ := quesm.HandleResolveIndex(context.Background(), quesmaReq, nil, p.queryRunner.GetSchemaRegistry(), esConn.GetConfig())
+			return metadata, res, nil
 		case IndexCountPath:
 			res, _ := quesm.HandleIndexCount(context.Background(), quesmaReq, nil, p.queryRunner)
+			return metadata, res, nil
+		case FieldCapsPath:
+			res, _ := quesm.HandleFieldCaps(context.Background(), quesmaReq, nil, p.config.IndexConfig, p.queryRunner.GetSchemaRegistry(), p.queryRunner.GetLogManager())
 			return metadata, res, nil
 		default:
 			return nil, data, fmt.Errorf("invalid processor action")

@@ -74,6 +74,18 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 		metadata[PathPattern] = AsyncSearchStatusPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
+	router.Register(FieldCapsPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		metadata := quesma_api.MakeNewMetadata()
+		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, FieldCapsPath)
+		metadata[PathPattern] = FieldCapsPath
+		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
+	})
+	router.Register(ResolveIndexPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		metadata := quesma_api.MakeNewMetadata()
+		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, ResolveIndexPath)
+		metadata[PathPattern] = ResolveIndexPath
+		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
+	})
 	fc.AddRouter(router)
 	return fc
 }

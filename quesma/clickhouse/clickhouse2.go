@@ -29,6 +29,10 @@ type (
 	}
 )
 
+type LogManagerIFace interface {
+	ResolveIndexPattern(ctx context.Context, schema schema.Registry, pattern string) (results []string, err error)
+}
+
 func (lm *LogManager2) Ping() error {
 	return lm.chDb.Open()
 }

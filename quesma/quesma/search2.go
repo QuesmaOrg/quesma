@@ -62,6 +62,9 @@ type QueryRunnerIFace interface {
 	HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON, waitForResultsMs int, keepOnCompletion bool) ([]byte, error)
 	HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error)
 	HandleCount(ctx context.Context, indexPattern string) (int64, error)
+	// Todo: consider removing this getters for these two below, this was required for temporary Field Caps impl in v2 api
+	GetSchemaRegistry() schema.Registry
+	GetLogManager() clickhouse.LogManagerIFace
 }
 
 func (q *QueryRunner2) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
@@ -95,6 +98,14 @@ func NewQueryRunner2(lm *clickhouse.LogManager2,
 		tableDiscovery:     tableDiscovery,
 		maxParallelQueries: maxParallelQueries,
 	}
+}
+
+func (q *QueryRunner2) GetSchemaRegistry() schema.Registry {
+	return q.schemaRegistry
+}
+
+func (q *QueryRunner2) GetLogManager() clickhouse.LogManagerIFace {
+	return q.logManager
 }
 
 //func NewQueryRunner2DefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,

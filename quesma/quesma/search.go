@@ -100,6 +100,14 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 	}
 }
 
+func (q *QueryRunner) GetSchemaRegistry() schema.Registry {
+	return q.schemaRegistry
+}
+
+func (q *QueryRunner) GetLogManager() clickhouse.LogManagerIFace {
+	return q.logManager
+}
+
 func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
 	tableName string, tables *clickhouse.TableMap, staticRegistry *schema.StaticRegistry) *QueryRunner {
 
