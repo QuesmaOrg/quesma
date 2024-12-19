@@ -5,6 +5,7 @@ package frontend_connectors
 
 import (
 	"context"
+	"github.com/ucarion/urlpath"
 	"net/http"
 	"quesma/quesma/config"
 	quesma_api "quesma_v2/core"
@@ -32,7 +33,10 @@ const ( // taken from `router.go`
 	/*
 		section on metadata/headers below
 	*/
-	SearchIndexTargetKey = "search_index_target"
+	//SearchIndexTargetKey = "search_index_target"
+	IndexPattern = "index_pattern"
+	PathPattern  = "path_pattern"
+	Id           = "id"
 )
 
 func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaConfiguration) *ElasticsearchQueryFrontendConnector {
@@ -46,21 +50,36 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 		BasicHTTPFrontendConnector: *basicHttpFrontendConnector,
 	}
 	router := quesma_api.NewPathRouter()
-	router.AddRoute(IndexSearchPath, searchHandler)
-	router.AddRoute(IndexAsyncSearchPath, searchHandler)
+	router.AddRoute(IndexSearchPath, func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		metadata := quesma_api.MakeNewMetadata()
+		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, IndexSearchPath)
+		metadata[PathPattern] = IndexSearchPath
+		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
+	})
+	router.AddRoute(IndexAsyncSearchPath, func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		metadata := quesma_api.MakeNewMetadata()
+		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, IndexSearchPath)
+		metadata[PathPattern] = IndexAsyncSearchPath
+		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
+	})
+	router.AddRoute(AsyncSearchIdPath, func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		metadata := quesma_api.MakeNewMetadata()
+		metadata[Id] = getIdFromRequestURI(req.OriginalRequest, AsyncSearchIdPath)
+		metadata[PathPattern] = AsyncSearchIdPath
+		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
+	})
 	fc.AddRouter(router)
 	return fc
 }
 
-func searchHandler(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-	metadata := quesma_api.MakeNewMetadata()
-	metadata[SearchIndexTargetKey] = getIndexFromRequest(request.OriginalRequest)
-	return &quesma_api.Result{Meta: metadata, GenericResult: request.OriginalRequest}, nil
+func getIndexPatternFromRequestURI(request *http.Request, indexPath string) string {
+	expectedUrl := urlpath.New(indexPath)
+	match, _ := expectedUrl.Match(request.URL.Path) // safe to call at this level
+	return match.Params["index"]
 }
 
-// getIndexFromRequest exist in `elasticsearch_ingest`, so it should be moved to a common packaga perhaps?
-//func getIndexFromRequest(request *http.Request) string {
-//	expectedUrl := urlpath.New("/:index/*")
-//	match, _ := expectedUrl.Match(request.URL.Path) // safe to call at this level
-//	return match.Params["index"]
-//}
+func getIdFromRequestURI(request *http.Request, idPath string) string {
+	expectedUrl := urlpath.New(idPath)
+	match, _ := expectedUrl.Match(request.URL.Path) // safe to call at this level
+	return match.Params["id"]
+}

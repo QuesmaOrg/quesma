@@ -156,7 +156,7 @@ func (q *QueryRunner) handleEQLSearch(ctx context.Context, indexPattern string, 
 	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageEQL)
 }
 
-func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
+func (q *QueryRunner) HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
 	waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	async := AsyncQuery{
 		asyncId:          tracing.GetAsyncId(),

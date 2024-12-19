@@ -22,8 +22,28 @@ import (
 	"strings"
 )
 
-const (
-	SearchIndexTargetKey = "search_index_target"
+const ( // taken from `router.go`
+	IndexSearchPath       = "/:index/_search"
+	IndexAsyncSearchPath  = "/:index/_async_search"
+	IndexCountPath        = "/:index/_count"
+	IndexRefreshPath      = "/:index/_refresh"
+	IndexMappingPath      = "/:index/_mapping"
+	FieldCapsPath         = "/:index/_field_caps"
+	TermsEnumPath         = "/:index/_terms_enum"
+	EQLSearch             = "/:index/_eql/search"
+	ResolveIndexPath      = "/_resolve/index/:index"
+	ClusterHealthPath     = "/_cluster/health"
+	BulkPath              = "/_bulk"
+	AsyncSearchIdPrefix   = "/_async_search/"
+	AsyncSearchIdPath     = "/_async_search/:id"
+	AsyncSearchStatusPath = "/_async_search/status/:id"
+	/*
+		section on metadata/headers below
+	*/
+	//SearchIndexTargetKey = "search_index_target"
+	IndexPattern = "index_pattern"
+	PathPattern  = "path_pattern"
+	Id           = "id"
 )
 
 type ElasticsearchToClickHouseQueryProcessor struct {
@@ -84,76 +104,38 @@ func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor
 
 func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
 	var data []byte
-	indexNameFromIncomingReq := metadata[SearchIndexTargetKey].(string)
-	if indexNameFromIncomingReq == "" {
-		fmt.Printf("Missing index name in metadata") // SHOULD NEVER HAPPEN AND NOT BE VERIFIED HERE I GUESS
-		return nil, data, nil
-	}
+	//indexNameFromIncomingReq := metadata[SearchIndexTargetKey].(string)
+	//if indexNameFromIncomingReq == "" {
+	//	fmt.Printf("Missing index name in metadata") // SHOULD NEVER HAPPEN AND NOT BE VERIFIED HERE I GUESS
+	//	return nil, data, nil
+	//}
 
 	for _, m := range message {
-
 		req, err := quesma_api.CheckedCast[*http.Request](m)
 		if err != nil {
 			fmt.Printf("Another cast failed: invalid message type: %v", err)
 			return nil, data, err
 		}
+
 		quesmaReq := ToQuesmaRequest(req)
 
-		switch findQueryTarget(indexNameFromIncomingReq, p.config) {
-		case config.ClickhouseTarget:
-			res, _ := quesm.HandleIndexSearch(context.Background(), quesmaReq, p.queryRunner)
-
-			return metadata, res, nil
-		case config.ElasticsearchTarget:
-			println("POSZLO DO ELASTICSEARCHA ")
-			return nil, data, fmt.Errorf("invalid query target")
-		default:
-			return nil, data, fmt.Errorf("invalid query target")
+		if findQueryTarget(quesmaReq.Params["index"], p.config) != config.ClickhouseTarget {
+			return nil, data, fmt.Errorf("WOULD FORWARD TO ELASTICSEARCH")
 		}
-		//if _, present := p.config.IndexConfig[indexNameFromIncomingReq]; !present && p.con {
-		//
-		//	resp := p.legacyIngestProcessor.SendToElasticsearch(messageAsHttpReq)
-		//	respBody, err := ReadResponseBody(resp)
-		//	if err != nil {
-		//		println(err)
-		//	}
-		//	return metadata, respBody, nil
-		//}
 
-		//bodyAsBytes, err := frontend_connectors.ReadRequestBody(messageAsHttpReq)
-		//if err != nil {
-		//	panic("ElasticsearchToClickHouseQueryProcessor: invalid message type")
-		//}
-
-		//switch metadata[SearchIndexTargetKey] {
-		//case DocIndexAction:
-		//	//payloadJson, err := types.ExpectJSON(types.ParseRequestBody(string(bodyAsBytes)))
-		//	//if err != nil {
-		//	//	println(err)
-		//	//}
-		//	//result, err := p.handleDocIndex(payloadJson, index\NameFromIncomingReq)
-		//	//if err != nil {
-		//	//	println(err)
-		//	//}
-		//	//if respBody, err := json.Marshal(result.Index); err == nil {
-		//	//	return metadata, respBody, nil
-		//	//}
-		//case BulkIndexAction:
-		//	//payloadNDJson, err := types.ExpectNDJSON(types.ParseRequestBody(string(bodyAsBytes)))
-		//	//if err != nil {
-		//	//	println(err)
-		//	//}
-		//	////results, err := p.handleBulkIndex(payloadNDJson, indexNameFromIncomingReq)
-		//	//if err != nil {
-		//	//	println(err)
-		//	//}
-		//	//if respBody, err := json.Marshal(results); err == nil {
-		//	//	return metadata, respBody, nil
-		//	//}
-		//	//println("BulkIndexAction")
-		//default:
-		//	log.Info().Msg("Rethink you whole life and start over again")
-		//}
+		switch metadata[PathPattern] {
+		case IndexSearchPath:
+			res, _ := quesm.HandleIndexSearch(context.Background(), quesmaReq, p.queryRunner)
+			return metadata, res, nil
+		case IndexAsyncSearchPath:
+			res, _ := quesm.HandleIndexAsyncSearch(context.Background(), quesmaReq, nil, p.queryRunner)
+			return metadata, res, nil
+		case AsyncSearchIdPath:
+			fmt.Printf("ID OF ASYNC SEARCH %d", metadata[Id])
+			return nil, nil, fmt.Errorf("not implemented")
+		default:
+			return nil, data, fmt.Errorf("invalid processor action")
+		}
 
 	}
 	return metadata, data, nil

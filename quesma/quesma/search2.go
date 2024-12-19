@@ -55,10 +55,11 @@ type QueryRunner2 struct {
 	maxParallelQueries int // if set to 0, we run queries in sequence, it's fine for testing purposes
 }
 
+// QueryRunnerIFace is a temporary interface to bridge gap between QueryRunner and QueryRunner2 in `router_v2.go`.
+// moving forwards as we remove two implementations we might look at making all these methods private again.
 type QueryRunnerIFace interface {
-	// HandleSearch is temporarily exported (used to be private) just to bridge gap between QueryRunner and QueryRunner2 in router_v2.go
-	// moving forwards as we remove two implementations we might look at making this private again.
 	HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error)
+	HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON, waitForResultsMs int, keepOnCompletion bool) ([]byte, error)
 }
 
 func (q *QueryRunner2) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
@@ -149,7 +150,7 @@ func (q *QueryRunner2) handleEQLSearch(ctx context.Context, indexPattern string,
 	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageEQL)
 }
 
-func (q *QueryRunner2) handleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
+func (q *QueryRunner2) HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
 	waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	async := AsyncQuery{
 		asyncId:          tracing.GetAsyncId(),
