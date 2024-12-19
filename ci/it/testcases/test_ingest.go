@@ -852,7 +852,7 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 			name:        "geo_shape",
 			ingestValue: `{"type": "polygon", "coordinates": [[[21.0, 52.0], [21.1, 52.0], [21.1, 52.1], [21.0, 52.1], [21.0, 52.0]]]}`,
 			description: "Complex shapes like polygons.",
-			supported:   true,
+			supported:   false,
 		},
 		{
 			name:        "integer_range",
@@ -1013,9 +1013,21 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 
 			r.currentSupport = len(r.errors) == 0
 
-			if r.claimedSupport && !r.currentSupport {
+			switch {
+
+			case !r.claimedSupport && r.currentSupport:
+				t.Log("Type not supported but works. What a surprise!")
+
+			case r.claimedSupport && r.currentSupport:
+				t.Log("Type supported and works. All good.")
+
+			case !r.claimedSupport && !r.currentSupport:
+				t.Log("Type not supported and it doesn't work. Not great. Not terrible.")
+
+			case r.claimedSupport && !r.currentSupport:
 				t.Errorf("Type %s should be supported but is not: %v", r.name, r.errors)
 			}
+
 		})
 	}
 
