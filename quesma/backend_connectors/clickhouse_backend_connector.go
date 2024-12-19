@@ -96,3 +96,7 @@ func NewClickHouseBackendConnector(endpoint string) *ClickHouseBackendConnector 
 		Endpoint: endpoint,
 	}
 }
+
+func (p *ClickHouseBackendConnector) InstanceName() string {
+	return "clickhouse" // TODO add name taken from config
+}

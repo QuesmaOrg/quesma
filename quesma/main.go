@@ -50,8 +50,7 @@ const EnableConcurrencyProfiling = false
 
 // buildIngestOnlyQuesma is for now a helper function to help establishing the way of v2 module api import
 func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
-	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
-	quesmaBuilder.SetDependencies(quesma_api.EmptyDependencies())
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
 
 	ingestFrontendConnector := frontend_connectors.NewElasticsearchIngestFrontendConnector(":8080")
 

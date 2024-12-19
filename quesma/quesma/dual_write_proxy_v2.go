@@ -88,7 +88,7 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 	elasticHttpQueryFrontendConnector := NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
 		logManager, registry, config, searchRouter)
 
-	quesmaBuilder := quesma_api.NewQuesma()
+	quesmaBuilder := quesma_api.NewQuesma(dependencies)
 	ingestPipeline := quesma_api.NewPipeline()
 	ingestPipeline.AddFrontendConnector(elasticHttpIngestFrontendConnector)
 
@@ -96,7 +96,7 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 	queryPipeline.AddFrontendConnector(elasticHttpQueryFrontendConnector)
 	quesmaBuilder.AddPipeline(ingestPipeline)
 	quesmaBuilder.AddPipeline(queryPipeline)
-	quesmaBuilder.SetDependencies(dependencies)
+
 	_, err := quesmaBuilder.Build()
 	if err != nil {
 		logger.Fatal().Msgf("Error building Quesma: %v", err)

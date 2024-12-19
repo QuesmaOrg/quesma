@@ -7,6 +7,10 @@ import (
 	"net"
 )
 
+type InstanceNamer interface {
+	InstanceName() string
+}
+
 type Router interface {
 	Cloner
 	AddRoute(path string, handler HTTPFrontendHandler)
@@ -19,6 +23,7 @@ type Router interface {
 }
 
 type FrontendConnector interface {
+	InstanceNamer
 	Listen() error // Start listening on the endpoint
 	GetEndpoint() string
 	Stop(ctx context.Context) error // Stop listening
@@ -59,13 +64,13 @@ type PipelineBuilder interface {
 type QuesmaBuilder interface {
 	AddPipeline(pipeline PipelineBuilder)
 	GetPipelines() []PipelineBuilder
-	SetDependencies(dependencies Dependencies)
 	Build() (QuesmaBuilder, error)
 	Start()
 	Stop(ctx context.Context)
 }
 
 type Processor interface {
+	InstanceNamer
 	CompoundProcessor
 	GetId() string
 	Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error)
@@ -83,6 +88,7 @@ type Rows interface {
 }
 
 type BackendConnector interface {
+	InstanceNamer
 	GetId() BackendConnectorType
 	Open() error
 	// Query executes a query that returns rows, typically a SELECT.

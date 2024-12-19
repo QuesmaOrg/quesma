@@ -21,6 +21,10 @@ func NewPostgresToMySqlProcessor() *PostgresToMySqlProcessor {
 	}
 }
 
+func (p *PostgresToMySqlProcessor) InstanceName() string {
+	return "PostgresToMySqlProcessor"
+}
+
 func (p *PostgresToMySqlProcessor) GetId() string {
 	return "postgrestomysql_processor"
 }
