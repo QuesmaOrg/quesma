@@ -65,6 +65,18 @@ type QueryRunner struct {
 	maxParallelQueries int // if set to 0, we run queries in sequence, it's fine for testing purposes
 }
 
+// QueryRunnerIFace is a temporary interface to bridge gap between QueryRunner and QueryRunner2 in `router_v2.go`.
+// moving forwards as we remove two implementations we might look at making all these methods private again.
+type QueryRunnerIFace interface {
+	HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error)
+	HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON, waitForResultsMs int, keepOnCompletion bool) ([]byte, error)
+	HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error)
+	HandleCount(ctx context.Context, indexPattern string) (int64, error)
+	// Todo: consider removing this getters for these two below, this was required for temporary Field Caps impl in v2 api
+	GetSchemaRegistry() schema.Registry
+	GetLogManager() clickhouse.LogManagerIFace
+}
+
 func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
 	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
 }
