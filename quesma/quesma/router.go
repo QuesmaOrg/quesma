@@ -298,7 +298,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	})
 
 	router.Register(routes.AsyncSearchStatusPath, and(method("GET"), matchedAgainstAsyncId()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		responseBody, err := queryRunner.handleAsyncSearchStatus(ctx, req.Params["id"])
+		responseBody, err := queryRunner.HandleAsyncSearchStatus(ctx, req.Params["id"])
 		if err != nil {
 			return nil, err
 		}

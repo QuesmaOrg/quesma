@@ -133,6 +133,10 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 		case AsyncSearchIdPath:
 			fmt.Printf("ID OF ASYNC SEARCH %d", metadata[Id])
 			return nil, nil, fmt.Errorf("not implemented")
+		case AsyncSearchStatusPath:
+			fmt.Printf("ID OF ASYNC SEARCH %d", metadata[Id])
+			res, _ := quesm.HandleAsyncSearchStatus(context.Background(), quesmaReq, nil, p.queryRunner)
+			return metadata, res, nil
 		default:
 			return nil, data, fmt.Errorf("invalid processor action")
 		}

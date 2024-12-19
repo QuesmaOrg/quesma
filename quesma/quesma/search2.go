@@ -60,6 +60,7 @@ type QueryRunner2 struct {
 type QueryRunnerIFace interface {
 	HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error)
 	HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON, waitForResultsMs int, keepOnCompletion bool) ([]byte, error)
+	HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error)
 }
 
 func (q *QueryRunner2) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
@@ -466,7 +467,7 @@ func (q *QueryRunner2) asyncQueriesCumulatedBodySize() int {
 	return size
 }
 
-func (q *QueryRunner2) handleAsyncSearchStatus(_ context.Context, id string) ([]byte, error) {
+func (q *QueryRunner2) HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error) {
 	if _, ok := q.AsyncRequestStorage.Load(id); ok { // there IS a result in storage, so query is completed/no longer running,
 		return queryparser.EmptyAsyncSearchStatusResponse(id, false, false, 200)
 	} else { // there is no result so query is might be(*) running

@@ -504,7 +504,7 @@ func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
 	return size
 }
 
-func (q *QueryRunner) handleAsyncSearchStatus(_ context.Context, id string) ([]byte, error) {
+func (q *QueryRunner) HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error) {
 	if _, ok := q.AsyncRequestStorage.Load(id); ok { // there IS a result in storage, so query is completed/no longer running,
 		return queryparser.EmptyAsyncSearchStatusResponse(id, false, false, 200)
 	} else { // there is no result so query is might be(*) running
