@@ -14,6 +14,11 @@ backendConnectors:
       url: "http://{{ .elasticsearch_host }}:{{ .elasticsearch_port }}"
       user: elastic
       password: quesmaquesma
+logging:
+  path: "logs"
+  level: "info"
+  disableFileLogging: false
+  enableSQLTracing: true
 processors:
   - name: noop-query-processor
     type: quesma-v1-processor-noop
