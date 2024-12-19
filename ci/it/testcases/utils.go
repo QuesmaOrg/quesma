@@ -36,6 +36,46 @@ type Containers struct {
 	ClickHouse    *testcontainers.Container
 }
 
+// Read the last X bytes from the reader and return the last N lines from that
+// Requires two readers because io.Reader doesn't support seeking
+func tail(reader io.Reader, readerCopy io.Reader) ([]string, error) {
+	// Size of chunk to read from the end (1MB)
+	const chunkSize = 1024 * 1024
+	// Maximum number of lines to return
+	const maxLines = 1000
+
+	totalSize, err := io.Copy(io.Discard, reader)
+	if err != nil {
+		return nil, err
+	}
+
+	skip := totalSize - chunkSize
+	if skip > 0 {
+		_, err = io.CopyN(io.Discard, readerCopy, skip)
+		if err != nil && err != io.EOF {
+			return nil, err
+		}
+	}
+
+	output, err := io.ReadAll(readerCopy)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(string(output), "\n")
+
+	if len(lines) > maxLines {
+		lines = lines[len(lines)-maxLines:]
+	}
+
+	// The chunk could have started in the middle of a line, so we skip the first line
+	if len(lines) > 0 {
+		lines = lines[1:]
+	}
+
+	return lines, nil
+}
+
 func printContainerLogs(ctx context.Context, container *testcontainers.Container, name string) {
 	if container == nil {
 		return
@@ -46,15 +86,23 @@ func printContainerLogs(ctx context.Context, container *testcontainers.Container
 		log.Printf("Failed to get logs for container '%s': %v", name, err)
 		return
 	}
+	defer reader.Close()
 
-	output, err := io.ReadAll(reader)
+	readerCopy, err := (*container).Logs(ctx)
+	if err != nil {
+		log.Printf("Failed to get logs for container '%s': %v", name, err)
+		return
+	}
+	defer readerCopy.Close()
+
+	lines, err := tail(reader, readerCopy)
 	if err != nil {
 		log.Printf("Failed to read logs for container '%s': %v", name, err)
 		return
 	}
 
 	log.Printf("Logs for container '%s':", name)
-	for _, line := range strings.Split(string(output), "\n") {
+	for _, line := range lines {
 		log.Printf("[%s]: %s", name, line)
 	}
 }
