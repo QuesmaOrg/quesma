@@ -20,7 +20,7 @@ import (
 type TestCase interface {
 	SetupContainers(ctx context.Context) error
 	RunTests(ctx context.Context, t *testing.T) error
-	Cleanup(ctx context.Context)
+	Cleanup(ctx context.Context, t *testing.T)
 }
 
 type IntegrationTestcaseBase struct {
@@ -36,8 +36,10 @@ func (tc *IntegrationTestcaseBase) RunTests(ctx context.Context, t *testing.T) e
 	return nil
 }
 
-func (tc *IntegrationTestcaseBase) Cleanup(ctx context.Context) {
-	tc.Containers.Cleanup(ctx)
+func (tc *IntegrationTestcaseBase) Cleanup(ctx context.Context, t *testing.T) {
+	if tc.Containers != nil {
+		tc.Containers.Cleanup(ctx, t)
+	}
 }
 
 func (tc *IntegrationTestcaseBase) getQuesmaEndpoint() string {

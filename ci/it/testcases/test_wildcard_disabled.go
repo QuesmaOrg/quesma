@@ -25,11 +25,8 @@ func NewWildcardDisabledTestcase() *WildcardDisabledTestcase {
 
 func (a *WildcardDisabledTestcase) SetupContainers(ctx context.Context) error {
 	containers, err := setupAllContainersWithCh(ctx, a.ConfigTemplate)
-	if err != nil {
-		return err
-	}
 	a.Containers = containers
-	return nil
+	return err
 }
 
 func (a *WildcardDisabledTestcase) RunTests(ctx context.Context, t *testing.T) error {

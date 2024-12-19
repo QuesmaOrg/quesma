@@ -34,11 +34,8 @@ func NewABTestcase() *ABTestcase {
 
 func (a *ABTestcase) SetupContainers(ctx context.Context) error {
 	containers, err := setupAllContainersWithCh(ctx, a.ConfigTemplate)
-	if err != nil {
-		return err
-	}
 	a.Containers = containers
-	return nil
+	return err
 }
 
 func (a *ABTestcase) RunTests(ctx context.Context, t *testing.T) error {
