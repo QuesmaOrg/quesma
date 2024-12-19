@@ -50,25 +50,25 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 		BasicHTTPFrontendConnector: *basicHttpFrontendConnector,
 	}
 	router := quesma_api.NewPathRouter()
-	router.AddRoute(IndexSearchPath, func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+	router.Register(IndexSearchPath, quesma_api.IsHTTPMethod("GET", "POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
 		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, IndexSearchPath)
 		metadata[PathPattern] = IndexSearchPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
-	router.AddRoute(IndexAsyncSearchPath, func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+	router.Register(IndexAsyncSearchPath, quesma_api.IsHTTPMethod("POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
 		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, IndexSearchPath)
 		metadata[PathPattern] = IndexAsyncSearchPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
-	router.AddRoute(AsyncSearchIdPath, func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+	router.Register(AsyncSearchIdPath, quesma_api.IsHTTPMethod("GET", "DELETE"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
 		metadata[Id] = getIdFromRequestURI(req.OriginalRequest, AsyncSearchIdPath)
 		metadata[PathPattern] = AsyncSearchIdPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
-	router.AddRoute(AsyncSearchStatusPath, func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+	router.Register(AsyncSearchStatusPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
 		metadata[Id] = getIdFromRequestURI(req.OriginalRequest, AsyncSearchStatusPath)
 		metadata[PathPattern] = AsyncSearchStatusPath

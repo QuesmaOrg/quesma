@@ -123,7 +123,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 			return nil, data, fmt.Errorf("WOULD FORWARD TO ELASTICSEARCH")
 		}
 
-		switch metadata[PathPattern] {
+		switch metadata[PathPattern] { // TODO well, this IS http routing TBH
 		case IndexSearchPath:
 			res, _ := quesm.HandleIndexSearch(context.Background(), quesmaReq, p.queryRunner)
 			return metadata, res, nil
