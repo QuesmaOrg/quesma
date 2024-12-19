@@ -84,7 +84,7 @@ func (lm *LogManager) Start() {
 	forceReloadCh := lm.tableDiscovery.ForceReloadCh()
 
 	go func() {
-		recovery.LogPanic()
+		defer recovery.LogPanic()
 		for {
 			select {
 			case <-lm.ctx.Done():

@@ -222,7 +222,7 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 
 		case <-time.After(time.Duration(optAsync.waitForResultsMs) * time.Millisecond):
 			go func() { // Async search takes longer. Return partial results and wait for
-				recovery.LogPanicWithCtx(ctx)
+				defer recovery.LogPanicWithCtx(ctx)
 				res := <-doneCh
 				responseBody, err = q.storeAsyncSearchWithRaw(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, requestBody, res.response, res.err, res.translatedQueryBody, true, opaqueId)
 				sendABResult(responseBody, err)

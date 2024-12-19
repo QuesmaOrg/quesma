@@ -111,14 +111,14 @@ func (r *InMemoryCollector) Start() {
 	logger.Info().Msg("Starting A/B Results Collector")
 
 	go func() {
-		recovery.LogAndHandlePanic(r.ctx, func(err error) {
+		defer recovery.LogAndHandlePanic(r.ctx, func(err error) {
 			r.cancelFunc()
 		})
 		r.receiveIncomingResults()
 	}()
 
 	go func() {
-		recovery.LogAndHandlePanic(r.ctx, func(err error) {
+		defer recovery.LogAndHandlePanic(r.ctx, func(err error) {
 			r.cancelFunc()
 		})
 		r.receiveHealthAndErrorsLoop()

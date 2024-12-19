@@ -124,7 +124,7 @@ func (c *SenderCoordinator) Start() {
 	c.sender.Start()
 
 	go func() {
-		recovery.LogAndHandlePanic(c.ctx, func(err error) {
+		defer recovery.LogAndHandlePanic(c.ctx, func(err error) {
 			c.cancelFunc()
 		})
 		c.receiveHealthStatusesLoop()
