@@ -166,28 +166,11 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 	})
 
 	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		sources, err := resolve.HandleResolve(req.Params["index"], sr, cfg)
-		if err != nil {
-			return nil, err
-		}
-		return resolveIndexResult(sources)
+		return HandleResolveIndex(ctx, req, nil, sr, cfg)
 	})
 
 	router.Register(routes.IndexCountPath, and(method("GET"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		cnt, err := queryRunner.handleCount(ctx, req.Params["index"])
-		if err != nil {
-			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
-			} else {
-				return nil, err
-			}
-		}
-
-		if cnt == -1 {
-			return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
-		} else {
-			return elasticsearchCountResult(cnt, http.StatusOK)
-		}
+		return HandleIndexCount(ctx, req, nil, queryRunner)
 	})
 
 	// TODO: This endpoint is currently disabled (mux.Never()) as it's pretty much used only by internal Kibana requests,
@@ -480,4 +463,29 @@ func HandleIndexAsyncSearch(ctx context.Context, req *quesma_api.Request, _ http
 		}
 	}
 	return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+}
+
+func HandleResolveIndex(_ context.Context, req *quesma_api.Request, _ http.ResponseWriter, sr schema.Registry, cfg *config.QuesmaConfiguration) (*quesma_api.Result, error) {
+	sources, err := resolve.HandleResolve(req.Params["index"], sr, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return resolveIndexResult(sources)
+}
+
+func HandleIndexCount(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter, queryRunner QueryRunnerIFace) (*quesma_api.Result, error) {
+	cnt, err := queryRunner.HandleCount(ctx, req.Params["index"])
+	if err != nil {
+		if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
+			return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	if cnt == -1 {
+		return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
+	} else {
+		return elasticsearchCountResult(cnt, http.StatusOK)
+	}
 }

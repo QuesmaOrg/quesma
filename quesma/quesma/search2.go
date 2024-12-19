@@ -61,6 +61,7 @@ type QueryRunnerIFace interface {
 	HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error)
 	HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON, waitForResultsMs int, keepOnCompletion bool) ([]byte, error)
 	HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error)
+	HandleCount(ctx context.Context, indexPattern string) (int64, error)
 }
 
 func (q *QueryRunner2) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
@@ -122,7 +123,7 @@ func NewQueryRunner2(lm *clickhouse.LogManager2,
 //}
 
 // returns -1 when table name could not be resolved
-func (q *QueryRunner2) handleCount(ctx context.Context, indexPattern string) (int64, error) {
+func (q *QueryRunner2) HandleCount(ctx context.Context, indexPattern string) (int64, error) {
 	indexes, err := q.logManager.ResolveIndexPattern(ctx, q.schemaRegistry, indexPattern)
 	if err != nil {
 		return 0, err

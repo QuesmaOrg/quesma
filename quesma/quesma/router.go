@@ -164,7 +164,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	})
 
 	router.Register(routes.IndexCountPath, and(method("GET"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		cnt, err := queryRunner.handleCount(ctx, req.Params["index"])
+		cnt, err := queryRunner.HandleCount(ctx, req.Params["index"])
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil

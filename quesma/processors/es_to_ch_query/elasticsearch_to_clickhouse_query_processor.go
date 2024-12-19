@@ -137,6 +137,12 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 			fmt.Printf("ID OF ASYNC SEARCH %d", metadata[Id])
 			res, _ := quesm.HandleAsyncSearchStatus(context.Background(), quesmaReq, nil, p.queryRunner)
 			return metadata, res, nil
+		case ResolveIndexPath:
+			//res, _ := quesm.HandleResolveIndex(context.Background(), quesmaReq, nil,  p.queryRunner.schemaRegistry)
+			return metadata, nil, nil
+		case IndexCountPath:
+			res, _ := quesm.HandleIndexCount(context.Background(), quesmaReq, nil, p.queryRunner)
+			return metadata, res, nil
 		default:
 			return nil, data, fmt.Errorf("invalid processor action")
 		}
