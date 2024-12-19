@@ -49,6 +49,10 @@ func (h *BasicHTTPFrontendConnector) SetDependencies(deps quesma_api.Dependencie
 	h.phoneHomeClient = deps.PhoneHomeAgent()
 	h.debugInfoCollector = deps.DebugInfoCollector()
 	h.logger = deps.Logger()
+
+	deps.PhoneHomeAgent().FailedRequestsCollector(func() int64 {
+		return h.routerInstance.FailedRequests.Load()
+	})
 }
 
 func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfiguration) *BasicHTTPFrontendConnector {
