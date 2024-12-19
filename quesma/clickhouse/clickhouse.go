@@ -67,6 +67,10 @@ type (
 	}
 )
 
+type LogManagerIFace interface {
+	ResolveIndexPattern(ctx context.Context, schema schema.Registry, pattern string) (results []string, err error)
+}
+
 func NewTableMap() *TableMap {
 	return util.NewSyncMap[string, *Table]()
 }
