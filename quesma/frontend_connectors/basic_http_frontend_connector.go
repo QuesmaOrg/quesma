@@ -30,6 +30,7 @@ type BasicHTTPFrontendConnector struct {
 	phoneHomeClient    diag.PhoneHomeClient
 	debugInfoCollector diag.DebugInfoCollector
 	logger             quesma_api.QuesmaLogger
+	middlewares        []http.Handler
 }
 
 func (h *BasicHTTPFrontendConnector) GetChildComponents() []interface{} {
@@ -66,6 +67,7 @@ func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfigu
 		responseMutator: func(w http.ResponseWriter) http.ResponseWriter {
 			return w
 		},
+		middlewares: make([]http.Handler, 0),
 	}
 }
 
@@ -82,6 +84,24 @@ func (h *BasicHTTPFrontendConnector) GetRouter() quesma_api.Router {
 }
 
 func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	index := 0
+	var runMiddleware func()
+
+	runMiddleware = func() {
+		if index < len(h.middlewares) {
+			middleware := h.middlewares[index]
+			index++
+			middleware.ServeHTTP(w, req) // Automatically proceeds to the next middleware
+			runMiddleware()
+		} else {
+			h.finalHandler(w, req)
+		}
+	}
+
+	runMiddleware()
+}
+
+func (h *BasicHTTPFrontendConnector) finalHandler(w http.ResponseWriter, req *http.Request) {
 	reqBody, err := PeekBodyV2(req)
 	if err != nil {
 		http.Error(w, "Error reading request body", http.StatusInternalServerError)
@@ -143,4 +163,8 @@ func ReadRequestBody(request *http.Request) ([]byte, error) {
 
 func (h *BasicHTTPFrontendConnector) GetRouterInstance() *RouterV2 {
 	return h.routerInstance
+}
+
+func (h *BasicHTTPFrontendConnector) AddMiddleware(middleware http.Handler) {
+	h.middlewares = append(h.middlewares, middleware)
 }

@@ -26,14 +26,12 @@ const concurrentClientsLimitV2 = 100 // FIXME this should be configurable
 
 type simultaneousClientsLimiterV2 struct {
 	counter atomic.Int64
-	handler http.Handler
 	limit   int64
 }
 
-func newSimultaneousClientsLimiterV2(handler http.Handler, limit int64) *simultaneousClientsLimiterV2 {
+func newSimultaneousClientsLimiterV2(limit int64) *simultaneousClientsLimiterV2 {
 	return &simultaneousClientsLimiterV2{
-		handler: handler,
-		limit:   limit,
+		limit: limit,
 	}
 }
 
@@ -49,7 +47,6 @@ func (c *simultaneousClientsLimiterV2) ServeHTTP(w http.ResponseWriter, r *http.
 
 	c.counter.Add(1)
 	defer c.counter.Add(-1)
-	c.handler.ServeHTTP(w, r)
 }
 
 type dualWriteHttpProxyV2 struct {
@@ -101,12 +98,17 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 	if err != nil {
 		logger.Fatal().Msgf("Error building Quesma: %v", err)
 	}
-
 	var limitedHandler http.Handler
 	if config.DisableAuth {
-		limitedHandler = newSimultaneousClientsLimiterV2(elasticHttpIngestFrontendConnector, concurrentClientsLimitV2)
+		elasticHttpIngestFrontendConnector.AddMiddleware(newSimultaneousClientsLimiterV2(concurrentClientsLimitV2))
+		elasticHttpQueryFrontendConnector.AddMiddleware(newSimultaneousClientsLimiterV2(concurrentClientsLimitV2))
+		limitedHandler = elasticHttpIngestFrontendConnector
 	} else {
-		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(elasticHttpIngestFrontendConnector, config.Elasticsearch), concurrentClientsLimitV2)
+		elasticHttpQueryFrontendConnector.AddMiddleware(newSimultaneousClientsLimiterV2(concurrentClientsLimitV2))
+		elasticHttpQueryFrontendConnector.AddMiddleware(NewAuthMiddlewareV2(config.Elasticsearch))
+		elasticHttpIngestFrontendConnector.AddMiddleware(newSimultaneousClientsLimiterV2(concurrentClientsLimitV2))
+		elasticHttpIngestFrontendConnector.AddMiddleware(NewAuthMiddlewareV2(config.Elasticsearch))
+		limitedHandler = elasticHttpIngestFrontendConnector
 	}
 
 	return &dualWriteHttpProxyV2{
