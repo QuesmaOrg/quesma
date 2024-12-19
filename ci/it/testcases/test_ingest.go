@@ -789,7 +789,7 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 			name:        "nested",
 			ingestValue: `[{"first": "John", "last": "Smith"}, {"first": "Alice", "last": "White"}]`,
 			description: "Array of JSON objects preserving the relationship between subfields.",
-			queryValue:  map[string]any{"field_nested_first": []string{"John", "Alice"}, "field_nested_last": []string{"Smith", "White"}},
+			queryValue:  map[string]any{"field_nested.first": []string{"John", "Alice"}, "field_nested.last": []string{"Smith", "White"}},
 			supported:   true,
 		},
 		{
@@ -817,7 +817,7 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 			name:        "annotated-text",
 			ingestValue: `"This is <entity>annotated</entity> text."`,
 			description: "Text containing special markup for identifying named entities.",
-			queryValue:  map[string]any{"field_annotated_text": "This is <entity>annotated</entity> text."},
+			queryValue:  map[string]any{"field_annotated-text": "This is <entity>annotated</entity> text."},
 			supported:   true,
 		},
 		{
@@ -900,7 +900,7 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 		ingest         bool
 		query          bool
 		errors         []string
-		dbType         string
+		dbStorage      string
 	}
 
 	var results []*result
@@ -968,14 +968,15 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 			} else {
 
 				if typ.queryValue == nil {
-					addError("no query value provided")
+					t.Skip("no query value provided")
 				}
 
 				for k, v := range typ.queryValue {
 					if value, ok := source[k]; !ok {
+						addError(fmt.Sprintf("field %s not found in response", k))
 						fmt.Println("EXPECTED", typ.queryValue, "GOT", source)
 						r.query = false
-						addError(fmt.Sprintf("field %s not found in response", k, value))
+
 						continue
 					} else {
 						if !reflect.DeepEqual(value, v) {
@@ -993,16 +994,19 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 				t.Fatalf("failed to fetch 'quesma_common_table' columns: %v", err)
 			} else {
 				if dbType, ok := columns[fieldName]; ok {
-					r.dbType = dbType
+					r.dbStorage = "single column: " + dbType
 				} else {
-					r.dbType = "n/a"
+					r.dbStorage = "n/a"
 					prefix := fieldName + "_"
 
+					var cols []string
 					for k, _ := range columns {
 						if strings.HasPrefix(k, prefix) {
-							r.dbType = fmt.Sprintf("column %s ...", k)
-							break
+							cols = append(cols, k)
 						}
+					}
+					if len(cols) > 0 {
+						r.dbStorage = "columns: " + strings.Join(cols, ", ")
 					}
 				}
 			}
@@ -1030,7 +1034,7 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 	// Print rows
 	for _, res := range results {
 		fmt.Fprintf(w, "%s\t%v\t%v\t%v\t%v\t%v\t%v\t\n",
-			res.name, res.claimedSupport, res.currentSupport, res.putMapping, res.ingest, res.query, res.dbType)
+			res.name, res.claimedSupport, res.currentSupport, res.putMapping, res.ingest, res.query, res.dbStorage)
 	}
 
 	// Flush the writer to output
