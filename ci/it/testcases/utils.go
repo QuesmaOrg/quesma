@@ -52,7 +52,7 @@ func (c *Containers) Cleanup(ctx context.Context) {
 func setupElasticsearch(ctx context.Context) (testcontainers.Container, error) {
 	req := testcontainers.ContainerRequest{
 		Image:        "docker.elastic.co/elasticsearch/elasticsearch:8.11.1",
-		ExposedPorts: []string{"9200/tcp", "9300/tcp"},
+		ExposedPorts: []string{"0.0.0.0::9200/tcp", "0.0.0.0::9300/tcp"},
 		// Do i ned
 		Env: map[string]string{
 			"discovery.type":         "single-node",
@@ -99,7 +99,7 @@ func setupQuesma(ctx context.Context, quesmaConfig string) (testcontainers.Conta
 	}
 	quesmaReq := testcontainers.ContainerRequest{
 		Image:        "quesma/quesma:nightly",
-		ExposedPorts: []string{"9999/tcp", "8080/tcp"},
+		ExposedPorts: []string{"0.0.0.0::9999/tcp", "0.0.0.0::8080/tcp"},
 		Env: map[string]string{
 			"QUESMA_CONFIG_FILE": "/configuration/conf.yaml",
 		},
@@ -138,7 +138,7 @@ func setupKibana(ctx context.Context, quesmaContainer testcontainers.Container) 
 
 	req := testcontainers.ContainerRequest{
 		Image:        "docker.elastic.co/kibana/kibana:8.11.1",
-		ExposedPorts: []string{"5601/tcp"},
+		ExposedPorts: []string{"0.0.0.0::5601/tcp"},
 		Env: map[string]string{
 			"ELASTICSEARCH_HOSTS":                       fmt.Sprintf("[\"%s\"]", fmt.Sprintf("http://%s:%s", GetInternalDockerHost(), port.Port())),
 			"XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY": "QUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMA",
@@ -165,7 +165,7 @@ func setupKibana(ctx context.Context, quesmaContainer testcontainers.Container) 
 func setupClickHouse(ctx context.Context) (testcontainers.Container, error) {
 	req := testcontainers.ContainerRequest{
 		Image:        "clickhouse/clickhouse-server:24.5.3.5-alpine",
-		ExposedPorts: []string{"8123/tcp", "9000/tcp"},
+		ExposedPorts: []string{"0.0.0.0::8123/tcp", "0.0.0.0::9000/tcp"},
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.ExtraHosts = []string{"localhost-for-github-ci:host-gateway"}
 		},
