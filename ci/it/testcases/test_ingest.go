@@ -8,10 +8,18 @@ package testcases
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/stretchr/testify/assert"
+	"log"
 	"maps"
 	"net/http"
+	"os"
+	"reflect"
+	"sort"
+	"strings"
 	"testing"
+	"text/tabwriter"
 )
 
 type IngestTestcase struct {
@@ -44,6 +52,7 @@ func (a *IngestTestcase) RunTests(ctx context.Context, t *testing.T) error {
 	t.Run("test ignored fields", func(t *testing.T) { a.testIgnoredFields(ctx, t) })
 	t.Run("test nested fields", func(t *testing.T) { a.testNestedFields(ctx, t) })
 	t.Run("test field encodings (mappings bug)", func(t *testing.T) { a.testFieldEncodingsMappingsBug(ctx, t) })
+	t.Run("test supported types", func(t *testing.T) { a.testSupportedTypesInVanillaSetup(ctx, t) })
 	return nil
 }
 
@@ -647,4 +656,398 @@ func (a *IngestTestcase) testFieldEncodingsMappingsBug(ctx context.Context, t *t
 
 	assert.Equal(t, "quesmaMetadataV1:fieldName=Field1", comments["field1"])
 	assert.Equal(t, "quesmaMetadataV1:fieldName=Field2", comments["field2"])
+}
+
+// Struct to parse only the `fields` tree
+type Hit struct {
+	Fields map[string][]any `json:"fields"`
+	Source map[string]any   `json:"_source"`
+}
+
+type HitsWrapper struct {
+	Hits []Hit `json:"hits"`
+}
+
+type Response struct {
+	Hits HitsWrapper `json:"hits"`
+}
+
+func ParseResponse(t *testing.T, body []byte) map[string]any {
+	var response Response
+	err := json.Unmarshal([]byte(body), &response)
+	if err != nil {
+		log.Fatalf("Error parsing JSON: %v", err)
+	}
+
+	// Extract and print the `fields` tree
+	for _, hit := range response.Hits.Hits {
+		return hit.Source
+	}
+	return nil
+}
+
+func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t *testing.T) {
+
+	// Struct to parse only the `fields` tree
+	type Hit struct {
+		Fields map[string][]string `json:"fields"`
+	}
+
+	type HitsWrapper struct {
+		Hits []Hit `json:"hits"`
+	}
+
+	type Response struct {
+		Hits HitsWrapper `json:"hits"`
+	}
+
+	types := []struct {
+		name        string
+		ingestValue string
+		queryValue  map[string]any
+		description string
+		supported   bool
+	}{
+		{
+			name:        "binary",
+			ingestValue: `"U29tZSBiaW5hcnkgZGF0YQ=="`,
+			description: "Binary value encoded as a Base64 string.",
+			queryValue:  map[string]any{"field_binary": "U29tZSBiaW5hcnkgZGF0YQ=="},
+			supported:   true,
+		},
+		{
+			name:        "boolean",
+			ingestValue: "true",
+			queryValue:  map[string]any{"field_boolean": true},
+			description: "Represents `true` and `false` values.",
+			supported:   true,
+		},
+		{
+			name:        "keyword",
+			ingestValue: `"example_keyword"`,
+			description: "Used for structured content like tags, keywords, or identifiers.",
+			queryValue:  map[string]any{"field_keyword": "example_keyword"},
+			supported:   true,
+		},
+		{
+			name:        "constant_keyword",
+			ingestValue: `"fixed_value"`,
+			description: "A keyword field for a single constant value across all documents.",
+			queryValue:  map[string]any{"field_constant_keyword": "fixed_value"},
+			supported:   true,
+		},
+		{
+			name:        "wildcard",
+			ingestValue: `"example*wildcard"`,
+			description: "Optimized for wildcard search patterns.",
+			queryValue:  map[string]any{"field_wildcard": "example*wildcard"},
+			supported:   true,
+		},
+		{
+			name:        "long",
+			ingestValue: "1234",
+			description: "64-bit integer value.",
+			queryValue:  map[string]any{"field_long": 1234.0},
+			supported:   true,
+		},
+		{
+			name:        "double",
+			ingestValue: "3.14159",
+			description: "Double-precision 64-bit IEEE 754 floating point.",
+			queryValue:  map[string]any{"field_double": 3.14159},
+			supported:   true,
+		},
+		{
+			name:        "date",
+			ingestValue: `"2024-12-19"`,
+			description: "Date value in ISO 8601 format.",
+			queryValue:  map[string]any{"field_date": "2024-12-19"},
+			supported:   true,
+		},
+		{
+			name:        "date_nanos",
+			ingestValue: `"2024-12-19T13:21:53.123456789Z"`,
+			description: "Date value with nanosecond precision.",
+			queryValue:  map[string]any{"field_date_nanos": "2024-12-19 13:21:53.123 +0000 UTC"},
+			supported:   true,
+		},
+		{
+			name:        "object",
+			ingestValue: `{"name": "John", "age": 30}`,
+			description: "JSON object containing multiple fields.",
+			queryValue:  map[string]any{"field_object.name": "John", "field_object.age": 30.0},
+			supported:   true,
+		},
+		{
+			name:        "flattened",
+			ingestValue: `{"key1": "value1", "key2": "value2"}`,
+			description: "Entire JSON object as a single field value.",
+			queryValue:  map[string]any{"field_flattened.key1": "value1", "field_flattened.key2": "value2"},
+			supported:   true,
+		},
+		{
+			name:        "nested",
+			ingestValue: `[{"first": "John", "last": "Smith"}, {"first": "Alice", "last": "White"}]`,
+			description: "Array of JSON objects preserving the relationship between subfields.",
+			queryValue:  map[string]any{"field_nested_first": []string{"John", "Alice"}, "field_nested_last": []string{"Smith", "White"}},
+			supported:   true,
+		},
+		{
+			name:        "ip",
+			ingestValue: `"192.168.1.1"`,
+			description: "IPv4 or IPv6 address.",
+			queryValue:  map[string]any{"field_ip": "192.168.1.1"},
+			supported:   true,
+		},
+		{
+			name:        "version",
+			ingestValue: `"1.2.3"`,
+			description: "Software version following Semantic Versioning.",
+			queryValue:  map[string]any{"field_version": "1.2.3"},
+			supported:   true,
+		},
+		{
+			name:        "text",
+			ingestValue: `"This is a full-text field."`,
+			description: "Analyzed, unstructured text for full-text search.",
+			queryValue:  map[string]any{"field_text": "This is a full-text field."},
+			supported:   true,
+		},
+		{
+			name:        "annotated-text",
+			ingestValue: `"This is <entity>annotated</entity> text."`,
+			description: "Text containing special markup for identifying named entities.",
+			queryValue:  map[string]any{"field_annotated_text": "This is <entity>annotated</entity> text."},
+			supported:   true,
+		},
+		{
+			name:        "completion",
+			ingestValue: `"autocomplete suggestion"`,
+			description: "Used for auto-complete suggestions.",
+			queryValue:  map[string]any{"field_completion": "autocomplete suggestion"},
+			supported:   true,
+		},
+		{
+			name:        "search_as_you_type",
+			ingestValue: `"search as you type"`,
+			description: "Text-like type for as-you-type completion.",
+			queryValue:  map[string]any{"field_search_as_you_type": "search as you type"},
+			supported:   true,
+		},
+		{
+			name:        "dense_vector",
+			ingestValue: `[0.1, 0.2, 0.3]`,
+			queryValue:  map[string]any{"field_dense_vector": []float64{0.1, 0.2, 0.3}},
+			description: "Array of float values representing a dense vector.",
+			supported:   true,
+		},
+		{
+			name:        "geo_point",
+			ingestValue: `{"lat": 52.2297, "lon": 21.0122}`,
+			queryValue:  map[string]any{"field_geo_point.lat": 52.2297, "field_geo_point.lon": 21.0122},
+			description: "Latitude and longitude point.",
+			supported:   true,
+		},
+		{
+			name:        "geo_shape",
+			ingestValue: `{"type": "polygon", "coordinates": [[[21.0, 52.0], [21.1, 52.0], [21.1, 52.1], [21.0, 52.1], [21.0, 52.0]]]}`,
+			description: "Complex shapes like polygons.",
+			supported:   true,
+		},
+		{
+			name:        "integer_range",
+			ingestValue: `{"gte": 10, "lte": 20}`,
+			description: "Range of 32-bit integer values.",
+			supported:   true,
+		},
+		{
+			name:        "float_range",
+			ingestValue: `{"gte": 1.5, "lte": 10.0}`,
+			description: "Range of 32-bit floating-point values.",
+			supported:   true,
+		},
+		{
+			name:        "long_range",
+			ingestValue: `{"gte": 1000000000, "lte": 2000000000}`,
+			description: "Range of 64-bit integer values.",
+			supported:   true,
+		},
+		{
+			name:        "double_range",
+			ingestValue: `{"gte": 2.5, "lte": 20.5}`,
+			description: "Range of 64-bit double-precision floating-point values.",
+			supported:   true,
+		},
+		{
+			name:        "date_range",
+			ingestValue: `{"gte": "2024-01-01", "lte": "2024-12-31"}`,
+			description: "Range of date values, specified in ISO 8601 format.",
+			supported:   true,
+		},
+		{
+			name:        "ip_range",
+			ingestValue: `{"gte": "192.168.0.0", "lte": "192.168.0.255"}`,
+			description: "Range of IPv4 or IPv6 addresses.",
+			supported:   true,
+		},
+	}
+
+	type result struct {
+		name           string
+		claimedSupport bool
+		currentSupport bool
+		putMapping     bool
+		ingest         bool
+		query          bool
+		errors         []string
+		dbType         string
+	}
+
+	var results []*result
+
+	for _, typ := range types {
+		t.Run(typ.name, func(t *testing.T) {
+			fmt.Println("Testing type: ", typ.name)
+
+			r := &result{
+				name:           typ.name,
+				claimedSupport: typ.supported,
+			}
+
+			addError := func(s string) {
+				r.errors = append(r.errors, s)
+			}
+
+			checkIfStatusOK := func(op string, resp *http.Response) bool {
+				if resp.StatusCode != http.StatusOK {
+					addError(fmt.Sprintf("failed HTTP request %s got status %d", op, resp.StatusCode))
+					return false
+				}
+				return true
+			}
+
+			results = append(results, r)
+
+			indexName := "types_test_" + typ.name
+			fieldName := "field_" + typ.name
+
+			resp, _ := a.RequestToQuesma(ctx, t, "PUT", "/"+indexName, []byte(`
+{
+	"mappings": {
+		"properties": {
+			"`+fieldName+`": {
+				"type": "`+typ.name+`"
+			},
+		}
+	},
+	"settings": {
+		"index": {}
+	}
+}`))
+
+			r.putMapping = checkIfStatusOK("PUT mapping", resp)
+
+			resp, _ = a.RequestToQuesma(ctx, t, "POST", fmt.Sprintf("/%s/_doc", indexName), []byte(`
+{
+	"`+fieldName+`": `+typ.ingestValue+`
+}`))
+			r.ingest = checkIfStatusOK("POST document", resp)
+
+			resp, bytes := a.RequestToQuesma(ctx, t, "GET", "/"+indexName+"/_search", []byte(`
+{ "query": { "match_all": {} } }
+`))
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+			fmt.Println("BODY", string(bytes))
+
+			r.query = true
+			source := ParseResponse(t, bytes)
+			if source == nil {
+				r.query = false
+				addError("failed to parse quesma response")
+			} else {
+
+				if typ.queryValue == nil {
+					addError("no query value provided")
+				}
+
+				for k, v := range typ.queryValue {
+					if value, ok := source[k]; !ok {
+						fmt.Println("EXPECTED", typ.queryValue, "GOT", source)
+						r.query = false
+						addError(fmt.Sprintf("field %s not found in response", k, value))
+						continue
+					} else {
+						if !reflect.DeepEqual(value, v) {
+							r.query = false
+							addError(fmt.Sprintf("field %s has unexpected value %v", k, value))
+							fmt.Println("EXPECTED", typ.queryValue, "GOT", source)
+						}
+					}
+				}
+			}
+
+			columns, err := a.FetchClickHouseColumns(ctx, "quesma_common_table")
+
+			if err != nil {
+				t.Fatalf("failed to fetch 'quesma_common_table' columns: %v", err)
+			} else {
+				if dbType, ok := columns[fieldName]; ok {
+					r.dbType = dbType
+				} else {
+					r.dbType = "n/a"
+					prefix := fieldName + "_"
+
+					for k, _ := range columns {
+						if strings.HasPrefix(k, prefix) {
+							r.dbType = fmt.Sprintf("column %s ...", k)
+							break
+						}
+					}
+				}
+			}
+
+			r.currentSupport = len(r.errors) == 0
+
+			if r.claimedSupport && !r.currentSupport {
+				t.Errorf("Type %s should be supported but is not: %v", r.name, r.errors)
+			}
+		})
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].name < results[j].name
+	})
+
+	fmt.Println("")
+	// Create a new tabwriter
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+
+	// Print table header
+	fmt.Fprintf(w, "Name\tSupport\tCurrent Support\tPut Mapping\tIngest\tQuery\tStored as\t\n")
+	fmt.Fprintf(w, "----\t-------\t---------------\t-----------\t------\t-----\t---------\t\n")
+
+	// Print rows
+	for _, res := range results {
+		fmt.Fprintf(w, "%s\t%v\t%v\t%v\t%v\t%v\t%v\t\n",
+			res.name, res.claimedSupport, res.currentSupport, res.putMapping, res.ingest, res.query, res.dbType)
+	}
+
+	// Flush the writer to output
+	w.Flush()
+
+	fmt.Println("")
+
+	var failedTypes []string
+
+	for _, r := range results {
+
+		if r.claimedSupport && !r.currentSupport {
+			failedTypes = append(failedTypes, r.name)
+		}
+		if len(r.errors) > 0 {
+			fmt.Println("Type: ", r.name)
+			fmt.Println("Errors: ", strings.Join(r.errors, ", "))
+		}
+	}
 }

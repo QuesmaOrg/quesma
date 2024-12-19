@@ -96,8 +96,9 @@ processors:
           target:
             - my-clickhouse-instance
         "*":
+          useCommonTable: true
           target:
-            - my-minimal-elasticsearch
+            - my-clickhouse-instance
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
@@ -174,8 +175,10 @@ processors:
           target:
             - my-clickhouse-instance
         "*":
+          useCommonTable: true
           target:
-            - my-minimal-elasticsearch
+            - my-clickhouse-instance
+
 pipelines:
   - name: my-elasticsearch-proxy-read
     frontendConnectors: [ elastic-query ]
