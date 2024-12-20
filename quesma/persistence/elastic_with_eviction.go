@@ -20,7 +20,7 @@ import (
 type ElasticDatabaseWithEviction struct {
 	ctx                  context.Context
 	*ElasticJSONDatabase // maybe remove and copy fields here
-	EvictorInterface
+	// EvictorInterface
 	sizeInBytesLimit int64
 }
 
@@ -28,8 +28,8 @@ func NewElasticDatabaseWithEviction(cfg config.ElasticsearchConfiguration, index
 	return &ElasticDatabaseWithEviction{
 		ctx:                 context.Background(),
 		ElasticJSONDatabase: NewElasticJSONDatabase(cfg, indexName),
-		EvictorInterface:    &Evictor{},
-		sizeInBytesLimit:    sizeInBytesLimit,
+		// EvictorInterface:    &Evictor{},
+		sizeInBytesLimit: sizeInBytesLimit,
 	}
 }
 
@@ -45,6 +45,7 @@ func (db *ElasticDatabaseWithEviction) Put(document *JSONWithSize) error {
 	}
 	bytesNeeded := dbSize + document.SizeInBytesTotal
 	if bytesNeeded > db.SizeInBytesLimit() {
+		return errors.New("elastic database: is full, cannot put document")
 		/*
 			TODO: restore after eviction readded
 			logger.Info().Msgf("elastic database: is full, need %d bytes more. Evicting documents", bytesNeeded-db.SizeInBytesLimit())
@@ -57,9 +58,6 @@ func (db *ElasticDatabaseWithEviction) Put(document *JSONWithSize) error {
 			bytesNeeded -= bytesEvicted
 
 		*/
-	}
-	if bytesNeeded > db.SizeInBytesLimit() {
-		return errors.New("elastic database: is full, cannot put document")
 	}
 
 	elasticsearchURL := fmt.Sprintf("%s/_update/%s", db.indexName, document.id)
