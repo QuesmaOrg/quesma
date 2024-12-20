@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"os"
@@ -135,13 +136,13 @@ func fallbackScenario() quesma_api.QuesmaBuilder {
 	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
 	quesmaBuilder.AddPipeline(ingestPipeline)
-	quesma, _ := quesmaBuilder.Build()
-	quesma.Start()
-	return quesma
+
+	return quesmaBuilder
 }
 
 func Test_fallbackScenario(t *testing.T) {
-	q1 := fallbackScenario()
+	qBuilder := fallbackScenario()
+	q1, _ := qBuilder.Build()
 	q1.Start()
 	stop := make(chan os.Signal, 1)
 	emitRequests(stop)
@@ -158,4 +159,59 @@ func Test_scenario1(t *testing.T) {
 	emitRequests(stop)
 	<-stop
 	q1.Stop(context.Background())
+}
+
+type Middleware struct {
+}
+
+func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "middleware", http.StatusInternalServerError)
+	w.Header().Set("Delak", "delak")
+
+	fmt.Println("middleware")
+}
+
+type Middleware2 struct {
+}
+
+func (m *Middleware2) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	//http.Error(w, "middleware", http.StatusInternalServerError)
+	fmt.Println("middleware2:", w.Header().Get("Delak"))
+
+	w.WriteHeader(200)
+}
+
+func Test_middleware(t *testing.T) {
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+	quesmaBuilder.SetDependencies(quesma_api.EmptyDependencies())
+
+	cfg := &config.QuesmaConfiguration{
+		DisableAuth: true,
+		Elasticsearch: config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     "",
+			Password: "",
+		},
+	}
+
+	frontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
+	HTTPRouter := quesma_api.NewPathRouter()
+	var fallback quesma_api.HTTPFrontendHandler = fallback
+	HTTPRouter.AddFallbackHandler(fallback)
+	frontendConnector.AddRouter(HTTPRouter)
+	frontendConnector.AddMiddleware(&Middleware{})
+	frontendConnector.AddMiddleware(&Middleware2{})
+
+	var pipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	pipeline.AddFrontendConnector(frontendConnector)
+	var ingestProcessor quesma_api.Processor = NewIngestProcessor()
+	pipeline.AddProcessor(ingestProcessor)
+	quesmaBuilder.AddPipeline(pipeline)
+
+	quesmaBuilder.Build()
+	quesmaBuilder.Start()
+	stop := make(chan os.Signal, 1)
+	emitRequests(stop)
+	<-stop
+	quesmaBuilder.Stop(context.Background())
 }

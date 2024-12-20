@@ -92,12 +92,14 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 			middleware := h.middlewares[index]
 			index++
 			middleware.ServeHTTP(w, req) // Automatically proceeds to the next middleware
-			runMiddleware()
+			if w.Header().Get("Content-Length") == "" {
+				runMiddleware()
+			}
+
 		} else {
 			h.finalHandler(w, req)
 		}
 	}
-
 	runMiddleware()
 }
 
