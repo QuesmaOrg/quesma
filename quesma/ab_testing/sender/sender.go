@@ -36,7 +36,7 @@ func newSender(ctx context.Context) *sender {
 func (f *sender) Start() {
 
 	go func() {
-		recovery.LogPanic()
+		defer recovery.LogPanic()
 
 		for {
 			select {

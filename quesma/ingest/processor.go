@@ -99,7 +99,7 @@ func (ip *IngestProcessor) Start() {
 	forceReloadCh := ip.tableDiscovery.ForceReloadCh()
 
 	go func() {
-		recovery.LogPanic()
+		defer recovery.LogPanic()
 		for {
 			select {
 			case <-ip.ctx.Done():

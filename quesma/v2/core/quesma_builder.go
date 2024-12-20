@@ -3,6 +3,7 @@
 package quesma_api
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 )
@@ -12,9 +13,10 @@ type Quesma struct {
 	dependencies Dependencies
 }
 
-func NewQuesma() *Quesma {
+func NewQuesma(deps Dependencies) *Quesma {
 	return &Quesma{
-		pipelines: make([]PipelineBuilder, 0),
+		pipelines:    make([]PipelineBuilder, 0),
+		dependencies: deps,
 	}
 }
 
@@ -29,10 +31,6 @@ func (quesma *Quesma) GetChildComponents() []any {
 	return componentList
 }
 
-func (quesma *Quesma) SetDependencies(dependencies Dependencies) {
-	quesma.dependencies = dependencies
-}
-
 func (quesma *Quesma) AddPipeline(pipeline PipelineBuilder) {
 	quesma.pipelines = append(quesma.pipelines, pipeline)
 }
@@ -43,6 +41,7 @@ func (quesma *Quesma) GetPipelines() []PipelineBuilder {
 
 func (quesma *Quesma) Start() {
 	for _, pipeline := range quesma.pipelines {
+		quesma.dependencies.Logger().Info().Msgf("Starting pipeline %v", pipeline)
 		pipeline.Start()
 	}
 }
@@ -136,16 +135,20 @@ func (quesma *Quesma) injectDependencies(tree *ComponentTreeNode) error {
 
 func (quesma *Quesma) printTree(tree *ComponentTreeNode) {
 
-	fmt.Println("Component tree:\n---")
+	var buff bytes.Buffer
+
+	_, _ = fmt.Fprintln(&buff, "Component tree:")
+
 	tree.walk(func(n *ComponentTreeNode) {
 
 		for i := 0; i < n.Level; i++ {
-			fmt.Print("  ")
+			_, _ = fmt.Fprint(&buff, "  ")
 		}
 
-		fmt.Println(n.Id)
+		_, _ = fmt.Fprintln(&buff, n.Name)
 	})
-	fmt.Println("---")
+
+	quesma.dependencies.Logger().Debug().Msg(buff.String())
 }
 
 func (quesma *Quesma) Build() (QuesmaBuilder, error) {
@@ -168,5 +171,4 @@ func (quesma *Quesma) Build() (QuesmaBuilder, error) {
 	}
 
 	return quesma, nil
-
 }

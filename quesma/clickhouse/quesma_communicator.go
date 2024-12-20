@@ -235,7 +235,7 @@ func read(ctx context.Context, rows *sql.Rows, selectFields []string, rowToScan 
 		return nil, fmt.Errorf("clickhouse: iterating over rows failed:  %v", rows.Err())
 	}
 	go func() {
-		recovery.LogPanicWithCtx(ctx)
+		defer recovery.LogPanicWithCtx(ctx)
 		err := rows.Close()
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("clickhouse: closing rows failed: %v", err)

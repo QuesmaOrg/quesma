@@ -67,6 +67,7 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent,
 	dependencies := quesma_v2.NewDependencies()
 	dependencies.SetPhoneHomeAgent(phoneHomeAgent)
 	dependencies.SetDebugInfoCollector(quesmaManagementConsole)
+	dependencies.SetLogger(logger.GlobalLogger()) // FIXME: we're using global logger here, create
 
 	if v2 {
 		return &Quesma{

@@ -27,6 +27,10 @@ func NewABTestProcessor(id string, doResultComparison bool) *ABTestProcessor {
 	}
 }
 
+func (p *ABTestProcessor) InstanceName() string {
+	return "ABTestProcessor"
+}
+
 func (p *ABTestProcessor) GetId() string {
 	return p.Id
 }
