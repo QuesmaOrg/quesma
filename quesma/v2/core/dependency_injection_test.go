@@ -8,21 +8,20 @@ import (
 )
 
 type componentWithDependency struct {
-	diag diag.Diagnostic
+	phoneHomeClient diag.PhoneHomeClient
 }
 
-func (sc *componentWithDependency) InjectDiagnostic(d diag.Diagnostic) {
-	sc.diag = d
+func (sc *componentWithDependency) SetDependencies(deps Dependencies) {
+	sc.phoneHomeClient = deps.PhoneHomeAgent()
 }
 
 type componentWithoutDependencyInjection struct {
-	diag diag.Diagnostic
+	phoneHomeClient diag.PhoneHomeClient
 }
 
 func Test_dependencyInjection(t *testing.T) {
 
-	deps := NewDependencies()
-	deps.Diagnostic = diag.EmptyDiagnostic()
+	deps := EmptyDependencies()
 
 	component1 := &componentWithDependency{}
 	component2 := &componentWithoutDependencyInjection{}
@@ -30,11 +29,11 @@ func Test_dependencyInjection(t *testing.T) {
 	deps.InjectDependenciesInto(component1)
 	deps.InjectDependenciesInto(component2)
 
-	if component1.diag == nil {
+	if component1.phoneHomeClient == nil {
 		t.Errorf("Expected diagnostic to be injected")
 	}
 
-	if component2.diag != nil {
+	if component2.phoneHomeClient != nil {
 		t.Errorf("Expected diagnostic not to be injected")
 	}
 

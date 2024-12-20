@@ -18,6 +18,22 @@ func NewPipeline() *Pipeline {
 	}
 }
 
+func (p *Pipeline) GetChildComponents() []any {
+	var components []any
+
+	for _, conn := range p.FrontendConnectors {
+		components = append(components, conn)
+	}
+	for _, proc := range p.Processors {
+		components = append(components, proc)
+	}
+	for _, conn := range p.BackendConnectors {
+		components = append(components, conn)
+	}
+
+	return components
+}
+
 func (p *Pipeline) AddFrontendConnector(conn FrontendConnector) {
 	p.FrontendConnectors = append(p.FrontendConnectors, conn)
 }

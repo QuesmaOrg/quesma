@@ -9,7 +9,6 @@ import (
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
-	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
@@ -68,9 +67,9 @@ func (q *dualWriteHttpProxyV2) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxyV2(dependencies *quesma_api.Dependencies, schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
+func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
 
-	queryProcessor := NewQueryRunner(logManager, config, indexManager, dependencies.Diagnostic.DebugInfoCollector(), registry, abResultsRepository, resolver, schemaLoader)
+	queryProcessor := NewQueryRunner(logManager, config, indexManager, dependencies.DebugInfoCollector(), registry, abResultsRepository, resolver, schemaLoader)
 
 	// not sure how we should configure our query translator ???
 	// is this a config option??
@@ -80,24 +79,14 @@ func newDualWriteProxyV2(dependencies *quesma_api.Dependencies, schemaLoader cli
 	// tests should not be run with optimization enabled by default
 	queryProcessor.EnableQueryOptimization(config)
 
-	routerInstance := frontend_connectors.NewRouterV2(config)
-
-	dependencies.Diagnostic.PhoneHomeAgent().FailedRequestsCollector(func() int64 {
-
-		return routerInstance.FailedRequests.Load()
-	})
-
 	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver)
 	searchRouter := ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
 
 	elasticHttpIngestFrontendConnector := NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-
-		routerInstance, logManager, registry)
-	elasticHttpIngestFrontendConnector.AddRouter(ingestRouter)
+		logManager, registry, config, ingestRouter)
 
 	elasticHttpQueryFrontendConnector := NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		routerInstance, logManager, registry)
-	elasticHttpQueryFrontendConnector.AddRouter(searchRouter)
+		logManager, registry, config, searchRouter)
 
 	quesmaBuilder := quesma_api.NewQuesma()
 	ingestPipeline := quesma_api.NewPipeline()

@@ -45,6 +45,7 @@ type (
 		ParsedBody RequestBody
 		// OriginalRequest is the original http.Request object that was received by the server.
 		OriginalRequest *http.Request
+		Decision        *Decision
 	}
 
 	MatchResult struct {

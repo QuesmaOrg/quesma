@@ -319,7 +319,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 	if handlersPipe != nil {
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*quesma_api.Result, error) {
-			return handlersPipe.Handler(ctx, quesmaRequest)
+			return handlersPipe.Handler(ctx, quesmaRequest, w)
 		})
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")

@@ -4,9 +4,10 @@ package quesma_api
 
 import (
 	"context"
+	"net/http"
 )
 
-type HTTPFrontendHandler func(ctx context.Context, req *Request) (*Result, error)
+type HTTPFrontendHandler func(ctx context.Context, req *Request, writer http.ResponseWriter) (*Result, error)
 
 type HandlersPipe struct {
 	Predicate  RequestMatcher

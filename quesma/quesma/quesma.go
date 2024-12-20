@@ -18,7 +18,6 @@ import (
 	"quesma/telemetry"
 	"quesma/util"
 	quesma_v2 "quesma_v2/core"
-	"quesma_v2/core/diag"
 )
 
 type (
@@ -65,10 +64,9 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent,
 	abResultsRepository ab_testing.Sender, resolver table_resolver.TableResolver,
 	v2 bool) *Quesma {
 
-	statistics := diag.NewStatistics(phoneHomeAgent, quesmaManagementConsole)
-
 	dependencies := quesma_v2.NewDependencies()
-	dependencies.Diagnostic = statistics
+	dependencies.SetPhoneHomeAgent(phoneHomeAgent)
+	dependencies.SetDebugInfoCollector(quesmaManagementConsole)
 
 	if v2 {
 		return &Quesma{

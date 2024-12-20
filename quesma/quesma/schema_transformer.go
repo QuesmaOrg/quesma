@@ -854,6 +854,41 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 
 }
 
+func columnsToAliasedColumns(columns []model.Expr) []model.Expr {
+	aliasedColumns := make([]model.Expr, len(columns))
+	for i, column := range columns {
+		if columnRef, ok := column.(model.ColumnRef); ok {
+			aliasedColumns[i] = columnRef
+			continue
+		}
+		if col, ok := column.(model.LiteralExpr); ok {
+			if _, isStr := col.Value.(string); !isStr {
+				aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
+			} else {
+				aliasedColumns[i] = col
+			}
+			continue
+		}
+		if aliasedExpr, ok := column.(model.AliasedExpr); ok {
+			aliasedColumns[i] = aliasedExpr
+			continue
+		}
+		if _, ok := column.(model.FunctionExpr); ok {
+			aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
+			continue
+		}
+
+		aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
+		logger.Error().Msgf("Quesma internal error - unreachable code: unsupported column type %T", column)
+	}
+	return aliasedColumns
+}
+
+func (s *SchemaCheckPass) applyAliasColumns(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	query.SelectCommand.Columns = columnsToAliasedColumns(query.SelectCommand.Columns)
+	return query, nil
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	transformationChain := []struct {
 		TransformationName string
@@ -863,6 +898,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMappings},
+		{TransformationName: "AliasColumnsTransformation", Transformation: s.applyAliasColumns},
 
 		// Section 2: generic schema based transformations
 		//

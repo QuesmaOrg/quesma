@@ -9,7 +9,7 @@ import (
 
 type Quesma struct {
 	pipelines    []PipelineBuilder
-	dependencies *Dependencies
+	dependencies Dependencies
 }
 
 func NewQuesma() *Quesma {
@@ -18,7 +18,18 @@ func NewQuesma() *Quesma {
 	}
 }
 
-func (quesma *Quesma) SetDependencies(dependencies *Dependencies) {
+func (quesma *Quesma) GetChildComponents() []any {
+
+	componentList := make([]any, 0)
+
+	for _, pipeline := range quesma.pipelines {
+		componentList = append(componentList, pipeline)
+	}
+
+	return componentList
+}
+
+func (quesma *Quesma) SetDependencies(dependencies Dependencies) {
 	quesma.dependencies = dependencies
 }
 
@@ -53,7 +64,6 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 
 	endpoints := make(map[string]struct{})
 	handlers := make(map[string]HandlersPipe)
-
 	for _, pipeline := range quesma.pipelines {
 		for _, conn := range pipeline.GetFrontendConnectors() {
 			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
@@ -112,33 +122,30 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 	return quesma, nil
 }
 
-func (quesma *Quesma) injectDependencies() error {
+func (quesma *Quesma) injectDependencies(tree *ComponentTreeNode) error {
 	if quesma.dependencies == nil {
 		return fmt.Errorf("dependencies not set")
 	}
 
-	//
-	// We should have a better way to traverse the pipeline graph
-	// maybe we should have an `getSubComponents` method in every component
-	//
-	for _, pipeline := range quesma.pipelines {
-		quesma.dependencies.InjectDependenciesInto(pipeline)
-		for _, conn := range pipeline.GetFrontendConnectors() {
-			quesma.dependencies.InjectDependenciesInto(conn)
+	tree.walk(func(n *ComponentTreeNode) {
+		quesma.dependencies.InjectDependenciesInto(n.Component)
+	})
 
-			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
-				router := httpConn.GetRouter()
-				quesma.dependencies.InjectDependenciesInto(router)
-			}
-		}
-		for _, proc := range pipeline.GetProcessors() {
-			quesma.dependencies.InjectDependenciesInto(proc)
-		}
-		for _, conn := range pipeline.GetBackendConnectors() {
-			quesma.dependencies.InjectDependenciesInto(conn)
-		}
-	}
 	return nil
+}
+
+func (quesma *Quesma) printTree(tree *ComponentTreeNode) {
+
+	fmt.Println("Component tree:\n---")
+	tree.walk(func(n *ComponentTreeNode) {
+
+		for i := 0; i < n.Level; i++ {
+			fmt.Print("  ")
+		}
+
+		fmt.Println(n.Id)
+	})
+	fmt.Println("---")
 }
 
 func (quesma *Quesma) Build() (QuesmaBuilder, error) {
@@ -148,9 +155,16 @@ func (quesma *Quesma) Build() (QuesmaBuilder, error) {
 		return nil, fmt.Errorf("failed to build quesma instance: %v", err)
 	}
 
-	err = quesma.injectDependencies()
+	treeBuilder := NewComponentToInitializeProviderBuilder()
+	tree := treeBuilder.BuildComponentTree(quesma)
+
+	err = quesma.injectDependencies(tree)
 	if err != nil {
 		return nil, fmt.Errorf("failed to inject dependencies: %v", err)
+	}
+
+	if traceDependencyInjection {
+		quesma.printTree(tree)
 	}
 
 	return quesma, nil
