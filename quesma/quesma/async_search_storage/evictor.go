@@ -33,8 +33,8 @@ func (e *AsyncQueriesEvictor) AsyncQueriesGC() {
 		case <-e.ctx.Done():
 			logger.Debug().Msg("evictor stopped")
 			return
-		case <-time.After(GCInterval):
-			e.tryEvictAsyncRequests(EvictionInterval)
+		case <-time.After(gcInterval):
+			e.tryEvictAsyncRequests(evictionInterval)
 		}
 	}
 }

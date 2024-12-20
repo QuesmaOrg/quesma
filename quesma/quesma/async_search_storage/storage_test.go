@@ -119,9 +119,8 @@ func testConfig() config.ElasticsearchConfiguration {
 	}
 }
 
-func TestKK(t *testing.T) {
-	// TODO: remove this test after evicting from Clickhouse from UI works
-	t.Skip()
+func TestEvictingAsyncQuery_1(t *testing.T) {
+	t.Skip("TODO: automize this test after evicting from Clickhouse from UI works")
 	options := clickhouse.Options{Addr: []string{"localhost:9000"}}
 	a := clickhouse.OpenDB(&options)
 	ctx := clickhouse.Context(context.Background(), clickhouse.WithQueryID(qid))
@@ -136,12 +135,11 @@ func TestKK(t *testing.T) {
 	fmt.Println(b, "q:", q, err)
 }
 
-func TestCancel(t *testing.T) {
-	// TODO: remove this test after evicting from Clickhouse from UI works
-	t.Skip()
+func TestEvictingAsyncQuery_2(t *testing.T) {
+	t.Skip("TODO: automize this test after evicting from Clickhouse from UI works")
 	options := clickhouse.Options{Addr: []string{"localhost:9000"}}
 	a := clickhouse.OpenDB(&options)
 
-	b, err := a.Query("KILL QUERY WHERE query_id=	'dupa'")
+	b, err := a.Query("KILL QUERY WHERE query_id=	'x'")
 	fmt.Println(b, err)
 }

@@ -11,7 +11,6 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"time"
@@ -34,30 +33,39 @@ func NewElasticDatabaseWithEviction(cfg config.ElasticsearchConfiguration, index
 	}
 }
 
+const printDebugElasticDB = false // TODO: remove this + all occurances after final version of the storage
+
 func (db *ElasticDatabaseWithEviction) Put(document *JSONWithSize) error {
-	pp.Println(db)
 	dbSize, err := db.SizeInBytes()
 	if err != nil {
 		return err
 	}
-	fmt.Println("kk dbg Put() dbSize:", dbSize)
-	bytesNeeded := dbSize + document.SizeInBytesTotal // improve
+	if printDebugElasticDB {
+		fmt.Println("kk dbg Put() dbSize:", dbSize)
+	}
+	bytesNeeded := dbSize + document.SizeInBytesTotal
 	if bytesNeeded > db.SizeInBytesLimit() {
-		logger.Info().Msgf("elastic database: is full, need %d bytes more. Evicting documents", bytesNeeded-db.SizeInBytesLimit())
-		allDocs, err := db.getAll()
-		if err != nil {
-			return err
-		}
-		bytesEvicted := db.Evict(allDocs, bytesNeeded-db.SizeInBytesLimit())
-		logger.Info().Msgf("elastic database: evicted %d bytes", bytesEvicted)
-		bytesNeeded -= bytesEvicted
+		/*
+			TODO: restore after eviction readded
+			logger.Info().Msgf("elastic database: is full, need %d bytes more. Evicting documents", bytesNeeded-db.SizeInBytesLimit())
+			allDocs, err := db.getAll()
+			if err != nil {
+				return err
+			}
+			bytesEvicted := db.Evict(allDocs, bytesNeeded-db.SizeInBytesLimit())
+			logger.Info().Msgf("elastic database: evicted %d bytes", bytesEvicted)
+			bytesNeeded -= bytesEvicted
+
+		*/
 	}
 	if bytesNeeded > db.SizeInBytesLimit() {
 		return errors.New("elastic database: is full, cannot put document")
 	}
 
 	elasticsearchURL := fmt.Sprintf("%s/_update/%s", db.indexName, document.id)
-	fmt.Println("kk dbg Put() elasticsearchURL:", elasticsearchURL)
+	if printDebugElasticDB {
+		fmt.Println("kk dbg Put() elasticsearchURL:", elasticsearchURL)
+	}
 
 	updateContent := types.JSON{}
 	updateContent["doc"] = document.JSON
@@ -69,15 +77,17 @@ func (db *ElasticDatabaseWithEviction) Put(document *JSONWithSize) error {
 	}
 
 	resp, err := db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodPost, elasticsearchURL, jsonData)
-	fmt.Println("kk dbg Put() resp:", resp, "err:", err)
+	if printDebugElasticDB {
+		fmt.Println("kk dbg Put() resp:", resp, "err:", err)
+	}
 	if err != nil && (resp == nil || resp.StatusCode != http.StatusCreated) {
 		return err
 	}
 	return nil
 }
 
-// co zwraca? zrobić switch na oba typy jakie teraz mamy?
-func (db *ElasticDatabaseWithEviction) Get(id string) ([]byte, error) { // probably change return type to *Sizeable
+// Get TODO: probably change return type to some more useful
+func (db *ElasticDatabaseWithEviction) Get(id string) ([]byte, error) {
 	elasticsearchURL := fmt.Sprintf("%s/_source/%s", db.indexName, id)
 	resp, err := db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodGet, elasticsearchURL, nil)
 	if err != nil {
@@ -89,10 +99,6 @@ func (db *ElasticDatabaseWithEviction) Get(id string) ([]byte, error) { // proba
 }
 
 func (db *ElasticDatabaseWithEviction) Delete(id string) error {
-	// mark as deleted, don't actually delete
-	// (single document deletion is hard in ES, it's done by evictor for entire index)
-
-	// TODO: check if doc exists?
 	elasticsearchURL := fmt.Sprintf("%s/_doc/%s", db.indexName, id)
 	resp, err := db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodDelete, elasticsearchURL, nil)
 	if err != nil && (resp == nil || resp.StatusCode != http.StatusCreated) {
@@ -122,11 +128,15 @@ func (db *ElasticDatabaseWithEviction) DeleteOld(deleteOlderThan time.Duration) 
 		}
 	}`, rangeStr)
 
-	fmt.Println(query)
+	if printDebugElasticDB {
+		fmt.Println(query)
+	}
 
 	var resp *http.Response
 	resp, err = db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodPost, elasticsearchURL, []byte(query))
-	fmt.Println("kk dbg DocCount() resp:", resp, "err:", err, "elastic url:", elasticsearchURL)
+	if printDebugElasticDB {
+		fmt.Println("kk dbg DocCount() resp:", resp, "err:", err, "elastic url:", elasticsearchURL)
+	}
 	return err
 }
 
@@ -140,7 +150,9 @@ func (db *ElasticDatabaseWithEviction) DocCount() (docCount int, err error) {
 
 	var resp *http.Response
 	resp, err = db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodGet, elasticsearchURL, []byte(query))
-	fmt.Println("kk dbg DocCount() resp:", resp, "err:", err, "elastic url:", elasticsearchURL)
+	if printDebugElasticDB {
+		fmt.Println("kk dbg DocCount() resp:", resp, "err:", err, "elastic url:", elasticsearchURL)
+	}
 	if err != nil {
 		if resp != nil && (resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound) {
 			return 0, nil
@@ -160,13 +172,16 @@ func (db *ElasticDatabaseWithEviction) DocCount() (docCount int, err error) {
 		return
 	}
 
-	fmt.Println("kk dbg DocCount() result:", result)
+	if printDebugElasticDB {
+		fmt.Println("kk dbg DocCount() result:", result)
+	}
 
 	return int(result["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64)), nil // TODO: add some checks... to prevent panic
 }
 
 func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, err error) {
 	elasticsearchURL := fmt.Sprintf("%s/_search", db.indexName)
+	// TODO change query to aggregation
 	query := `{
 		"_source": ["sizeInBytes"],
 		"size": 10000,
@@ -175,7 +190,9 @@ func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, err err
 
 	var resp *http.Response
 	resp, err = db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodGet, elasticsearchURL, []byte(query))
-	fmt.Println("kk dbg SizeInBytes() err:", err, "\nresp:", resp)
+	if printDebugElasticDB {
+		fmt.Println("kk dbg SizeInBytes() err:", err, "\nresp:", resp)
+	}
 	if err != nil {
 		if resp != nil && resp.StatusCode == 404 {
 			return 0, nil
@@ -190,7 +207,9 @@ func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, err err
 		return
 	}
 
-	fmt.Println("kk dbg SizeInBytes() resp.StatusCode:", resp.StatusCode)
+	if printDebugElasticDB {
+		fmt.Println("kk dbg SizeInBytes() resp.StatusCode:", resp.StatusCode)
+	}
 
 	// Unmarshal the JSON response
 	var result map[string]interface{}
@@ -200,12 +219,16 @@ func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, err err
 
 	a := make([]int64, 0)
 	for _, hit := range result["hits"].(map[string]interface{})["hits"].([]interface{}) {
-		pp.Println("hit:", hit)
+		if printDebugElasticDB {
+			pp.Println("hit:", hit)
+		}
 		b := sizeInBytes
 		sizeInBytes += int64(hit.(map[string]interface{})["_source"].(map[string]interface{})["sizeInBytes"].(float64)) // TODO: add checks
 		a = append(a, sizeInBytes-b)
 	}
-	fmt.Println("kk dbg SizeInBytes() sizes in storage:", a)
+	if printDebugElasticDB {
+		fmt.Println("kk dbg SizeInBytes() sizes in storage:", a)
+	}
 	return sizeInBytes, nil
 }
 
@@ -223,6 +246,7 @@ func (db *ElasticDatabaseWithEviction) getAll() (documents []*JSONWithSize, err 
 		"track_total_hits": true
 	}`
 	/*
+		TODO: restore after eviction readded
 		db.httpClient.
 
 		resp, err := db.httpClient.Request(context.Background(), "GET", elasticsearchURL, []byte(query))

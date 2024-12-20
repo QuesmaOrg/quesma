@@ -135,7 +135,7 @@ func (e *AsyncQueryTraceLoggerEvictor) Stop() {
 func (e *AsyncQueryTraceLoggerEvictor) TryFlushHangingAsyncQueryTrace(timeFun func(time.Time) time.Duration) {
 	asyncIds := []string{}
 	e.AsyncQueryTrace.Range(func(key string, value tracing.TraceCtx) bool {
-		if timeFun(value.Added) > EvictionInterval {
+		if timeFun(value.Added) > evictionInterval {
 			asyncIds = append(asyncIds, key)
 			logger.Error().Msgf("Async query %s was not finished", key)
 			var formattedLines strings.Builder
@@ -154,7 +154,7 @@ func (e *AsyncQueryTraceLoggerEvictor) FlushHangingAsyncQueryTrace(timeFun func(
 		defer recovery.LogPanic()
 		for {
 			select {
-			case <-time.After(GCInterval):
+			case <-time.After(gcInterval):
 				e.TryFlushHangingAsyncQueryTrace(timeFun)
 			case <-e.ctx.Done():
 				logger.Debug().Msg("AsyncQueryTraceLoggerEvictor stopped")
