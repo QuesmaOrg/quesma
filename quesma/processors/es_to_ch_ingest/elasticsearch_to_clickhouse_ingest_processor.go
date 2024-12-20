@@ -43,6 +43,10 @@ func NewElasticsearchToClickHouseIngestProcessor(conf config.QuesmaProcessorConf
 	}
 }
 
+func (p *ElasticsearchToClickHouseIngestProcessor) InstanceName() string {
+	return "elasticsearch_to_clickhouse_ingest" // TODO return name from config
+}
+
 func (p *ElasticsearchToClickHouseIngestProcessor) Init() error {
 	chBackendConnector := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
 	if chBackendConnector == nil {

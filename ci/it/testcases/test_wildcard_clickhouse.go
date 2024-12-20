@@ -25,11 +25,8 @@ func NewWildcardClickhouseTestcase() *WildcardClickhouseTestcase {
 
 func (a *WildcardClickhouseTestcase) SetupContainers(ctx context.Context) error {
 	containers, err := setupAllContainersWithCh(ctx, a.ConfigTemplate)
-	if err != nil {
-		return err
-	}
 	a.Containers = containers
-	return nil
+	return err
 }
 
 func (a *WildcardClickhouseTestcase) RunTests(ctx context.Context, t *testing.T) error {

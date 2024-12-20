@@ -25,11 +25,8 @@ func NewQueryAndIngestPipelineTestcase() *QueryAndIngestPipelineTestcase {
 
 func (a *QueryAndIngestPipelineTestcase) SetupContainers(ctx context.Context) error {
 	containers, err := setupAllContainersWithCh(ctx, a.ConfigTemplate)
-	if err != nil {
-		return err
-	}
 	a.Containers = containers
-	return nil
+	return err
 }
 
 func (a *QueryAndIngestPipelineTestcase) RunTests(ctx context.Context, t *testing.T) error {

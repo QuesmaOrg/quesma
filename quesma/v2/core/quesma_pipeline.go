@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Elastic-2.0
 package quesma_api
 
+import "fmt"
+
 type Pipeline struct {
 	FrontendConnectors []FrontendConnector
 	Processors         []Processor
 	BackendConnectors  map[BackendConnectorType]BackendConnector
+	logger             QuesmaLogger
 }
 
 func NewPipeline() *Pipeline {
@@ -34,6 +37,14 @@ func (p *Pipeline) GetChildComponents() []any {
 	return components
 }
 
+func (p *Pipeline) SetDependencies(deps Dependencies) {
+	p.logger = deps.Logger()
+}
+
+func (p *Pipeline) InstanceName() string {
+	return fmt.Sprintf("pipeline(%p)", p) // TODO return name from config
+}
+
 func (p *Pipeline) AddFrontendConnector(conn FrontendConnector) {
 	p.FrontendConnectors = append(p.FrontendConnectors, conn)
 }
@@ -59,6 +70,7 @@ func (p *Pipeline) Start() {
 	// because we are copying routing table from all connectors
 	// however, bind error remains
 	for _, conn := range p.FrontendConnectors {
+		p.logger.Info().Msgf("Starting frontend connector %s", conn)
 		go conn.Listen()
 	}
 }
