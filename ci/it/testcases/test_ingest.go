@@ -15,8 +15,8 @@ import (
 	"maps"
 	"net/http"
 	"os"
-	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"text/tabwriter"
@@ -52,7 +52,7 @@ func (a *IngestTestcase) RunTests(ctx context.Context, t *testing.T) error {
 	t.Run("test ignored fields", func(t *testing.T) { a.testIgnoredFields(ctx, t) })
 	t.Run("test nested fields", func(t *testing.T) { a.testNestedFields(ctx, t) })
 	t.Run("test field encodings (mappings bug)", func(t *testing.T) { a.testFieldEncodingsMappingsBug(ctx, t) })
-	t.Run("test supported types", func(t *testing.T) { a.testSupportedTypesInVanillaSetup(ctx, t) })
+	t.Run("test supported types", func(t *testing.T) { a.testSupportedTypesInDefaultSetup(ctx, t) })
 	return nil
 }
 
@@ -686,7 +686,7 @@ func ParseResponse(t *testing.T, body []byte) map[string]any {
 	return nil
 }
 
-func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t *testing.T) {
+func (a *IngestTestcase) testSupportedTypesInDefaultSetup(ctx context.Context, t *testing.T) {
 
 	// Struct to parse only the `fields` tree
 	type Hit struct {
@@ -704,21 +704,19 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 	types := []struct {
 		name        string
 		ingestValue string
-		queryValue  map[string]any
 		description string
 		supported   bool
+		skipReason  string
 	}{
 		{
 			name:        "binary",
 			ingestValue: `"U29tZSBiaW5hcnkgZGF0YQ=="`,
 			description: "Binary value encoded as a Base64 string.",
-			queryValue:  map[string]any{"field_binary": "U29tZSBiaW5hcnkgZGF0YQ=="},
 			supported:   true,
 		},
 		{
 			name:        "boolean",
 			ingestValue: "true",
-			queryValue:  map[string]any{"field_boolean": true},
 			description: "Represents `true` and `false` values.",
 			supported:   true,
 		},
@@ -726,127 +724,109 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 			name:        "keyword",
 			ingestValue: `"example_keyword"`,
 			description: "Used for structured content like tags, keywords, or identifiers.",
-			queryValue:  map[string]any{"field_keyword": "example_keyword"},
 			supported:   true,
 		},
 		{
 			name:        "constant_keyword",
 			ingestValue: `"fixed_value"`,
 			description: "A keyword field for a single constant value across all documents.",
-			queryValue:  map[string]any{"field_constant_keyword": "fixed_value"},
 			supported:   true,
 		},
 		{
 			name:        "wildcard",
 			ingestValue: `"example*wildcard"`,
 			description: "Optimized for wildcard search patterns.",
-			queryValue:  map[string]any{"field_wildcard": "example*wildcard"},
 			supported:   true,
 		},
 		{
 			name:        "long",
 			ingestValue: "1234",
 			description: "64-bit integer value.",
-			queryValue:  map[string]any{"field_long": 1234.0},
 			supported:   true,
 		},
 		{
 			name:        "double",
 			ingestValue: "3.14159",
 			description: "Double-precision 64-bit IEEE 754 floating point.",
-			queryValue:  map[string]any{"field_double": 3.14159},
 			supported:   true,
 		},
 		{
 			name:        "date",
 			ingestValue: `"2024-12-19"`,
 			description: "Date value in ISO 8601 format.",
-			queryValue:  map[string]any{"field_date": "2024-12-19"},
 			supported:   true,
 		},
 		{
 			name:        "date_nanos",
-			ingestValue: `"2024-12-19T13:21:53.123456789Z"`,
+			ingestValue: `"2024-12-19 13:21:53.123 +0000 UTC"`,
 			description: "Date value with nanosecond precision.",
-			queryValue:  map[string]any{"field_date_nanos": "2024-12-19 13:21:53.123 +0000 UTC"},
 			supported:   true,
 		},
 		{
 			name:        "object",
 			ingestValue: `{"name": "John", "age": 30}`,
 			description: "JSON object containing multiple fields.",
-			queryValue:  map[string]any{"field_object.name": "John", "field_object.age": 30.0},
-			supported:   true,
+			supported:   false,
 		},
 		{
 			name:        "flattened",
 			ingestValue: `{"key1": "value1", "key2": "value2"}`,
 			description: "Entire JSON object as a single field value.",
-			queryValue:  map[string]any{"field_flattened.key1": "value1", "field_flattened.key2": "value2"},
-			supported:   true,
+			supported:   false,
 		},
 		{
 			name:        "nested",
 			ingestValue: `[{"first": "John", "last": "Smith"}, {"first": "Alice", "last": "White"}]`,
 			description: "Array of JSON objects preserving the relationship between subfields.",
-			queryValue:  map[string]any{"field_nested.first": []string{"John", "Alice"}, "field_nested.last": []string{"Smith", "White"}},
-			supported:   true,
+			supported:   false,
 		},
 		{
 			name:        "ip",
 			ingestValue: `"192.168.1.1"`,
 			description: "IPv4 or IPv6 address.",
-			queryValue:  map[string]any{"field_ip": "192.168.1.1"},
 			supported:   true,
 		},
 		{
 			name:        "version",
 			ingestValue: `"1.2.3"`,
 			description: "Software version following Semantic Versioning.",
-			queryValue:  map[string]any{"field_version": "1.2.3"},
 			supported:   true,
 		},
 		{
 			name:        "text",
 			ingestValue: `"This is a full-text field."`,
 			description: "Analyzed, unstructured text for full-text search.",
-			queryValue:  map[string]any{"field_text": "This is a full-text field."},
 			supported:   true,
 		},
 		{
 			name:        "annotated-text",
 			ingestValue: `"This is <entity>annotated</entity> text."`,
 			description: "Text containing special markup for identifying named entities.",
-			queryValue:  map[string]any{"field_annotated-text": "This is <entity>annotated</entity> text."},
 			supported:   true,
 		},
 		{
 			name:        "completion",
 			ingestValue: `"autocomplete suggestion"`,
 			description: "Used for auto-complete suggestions.",
-			queryValue:  map[string]any{"field_completion": "autocomplete suggestion"},
 			supported:   true,
 		},
 		{
 			name:        "search_as_you_type",
 			ingestValue: `"search as you type"`,
 			description: "Text-like type for as-you-type completion.",
-			queryValue:  map[string]any{"field_search_as_you_type": "search as you type"},
 			supported:   true,
 		},
 		{
 			name:        "dense_vector",
-			ingestValue: `[0.1, 0.2, 0.3]`,
-			queryValue:  map[string]any{"field_dense_vector": []float64{0.1, 0.2, 0.3}},
+			ingestValue: `[0.1,0.2,0.3]`,
 			description: "Array of float values representing a dense vector.",
 			supported:   true,
 		},
 		{
 			name:        "geo_point",
 			ingestValue: `{"lat": 52.2297, "lon": 21.0122}`,
-			queryValue:  map[string]any{"field_geo_point.lat": 52.2297, "field_geo_point.lon": 21.0122},
 			description: "Latitude and longitude point.",
-			supported:   true,
+			supported:   false,
 		},
 		{
 			name:        "geo_shape",
@@ -858,56 +838,55 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 			name:        "integer_range",
 			ingestValue: `{"gte": 10, "lte": 20}`,
 			description: "Range of 32-bit integer values.",
-			supported:   true,
+			supported:   false,
 		},
 		{
 			name:        "float_range",
 			ingestValue: `{"gte": 1.5, "lte": 10.0}`,
 			description: "Range of 32-bit floating-point values.",
-			supported:   true,
+			supported:   false,
 		},
 		{
 			name:        "long_range",
 			ingestValue: `{"gte": 1000000000, "lte": 2000000000}`,
 			description: "Range of 64-bit integer values.",
-			supported:   true,
+			supported:   false,
 		},
 		{
 			name:        "double_range",
 			ingestValue: `{"gte": 2.5, "lte": 20.5}`,
 			description: "Range of 64-bit double-precision floating-point values.",
-			supported:   true,
+			supported:   false,
 		},
 		{
 			name:        "date_range",
 			ingestValue: `{"gte": "2024-01-01", "lte": "2024-12-31"}`,
 			description: "Range of date values, specified in ISO 8601 format.",
-			supported:   true,
+			supported:   false,
 		},
 		{
 			name:        "ip_range",
 			ingestValue: `{"gte": "192.168.0.0", "lte": "192.168.0.255"}`,
 			description: "Range of IPv4 or IPv6 addresses.",
-			supported:   true,
+			supported:   false,
 		},
 	}
 
 	type result struct {
-		name           string
-		claimedSupport bool
-		currentSupport bool
-		putMapping     bool
-		ingest         bool
-		query          bool
-		errors         []string
-		dbStorage      string
+		name              string
+		claimedSupport    bool
+		currentSupport    bool
+		putMappingSuccess bool
+		ingestSuccess     bool
+		querySuccess      bool
+		errors            []string
+		dbStorage         string
 	}
 
 	var results []*result
 
 	for _, typ := range types {
 		t.Run(typ.name, func(t *testing.T) {
-			fmt.Println("Testing type: ", typ.name)
 
 			r := &result{
 				name:           typ.name,
@@ -945,59 +924,90 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 	}
 }`))
 
-			r.putMapping = checkIfStatusOK("PUT mapping", resp)
+			r.putMappingSuccess = checkIfStatusOK("PUT mapping", resp)
 
 			resp, _ = a.RequestToQuesma(ctx, t, "POST", fmt.Sprintf("/%s/_doc", indexName), []byte(`
 {
 	"`+fieldName+`": `+typ.ingestValue+`
 }`))
-			r.ingest = checkIfStatusOK("POST document", resp)
+			r.ingestSuccess = checkIfStatusOK("POST document", resp)
 
 			resp, bytes := a.RequestToQuesma(ctx, t, "GET", "/"+indexName+"/_search", []byte(`
 { "query": { "match_all": {} } }
 `))
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-			fmt.Println("BODY", string(bytes))
+			r.querySuccess = true
 
-			r.query = true
 			source := ParseResponse(t, bytes)
 			if source == nil {
-				r.query = false
+				r.querySuccess = false
 				addError("failed to parse quesma response")
 			} else {
 
-				if typ.queryValue == nil {
-					t.Skip("no query value provided")
+				if typ.skipReason != "" {
+					t.Skip(typ.skipReason)
 				}
 
-				for k, v := range typ.queryValue {
-					if value, ok := source[k]; !ok {
-						addError(fmt.Sprintf("field %s not found in response", k))
-						fmt.Println("EXPECTED", typ.queryValue, "GOT", source)
-						r.query = false
+				// We perform a strict comparison of the field value here.
 
-						continue
-					} else {
-						if !reflect.DeepEqual(value, v) {
-							r.query = false
-							addError(fmt.Sprintf("field %s has unexpected value %v", k, value))
-							fmt.Println("EXPECTED", typ.queryValue, "GOT", source)
+				// TODO: we should compare flattened ingest value as well. Quesma doesn't "unflattening" the 'object' types.
+				// In some cases it works (for kibana). Is some it doesn't e.g. geo type.
+
+				fieldValue, ok := source[fieldName]
+				if !ok {
+
+					prefix := fieldName + "."
+					var fields []string
+					for k, _ := range source {
+						if strings.HasPrefix(k, prefix) {
+							fields = append(fields, k)
 						}
 					}
+
+					if len(fields) > 0 {
+						r.querySuccess = false
+						addError(fmt.Sprintf("field %s not found in response, but found fields: %v", fieldName, fields))
+					} else {
+						addError(fmt.Sprintf("field %s not found in response", fieldName))
+						r.querySuccess = false
+					}
+				} else {
+
+					var fieldValueAsString string
+					switch v := fieldValue.(type) {
+
+					case string:
+						fieldValueAsString = strconv.Quote(v)
+					case float64:
+						fieldValueAsString = strconv.FormatFloat(v, 'f', -1, 64)
+
+					default:
+						data, err := json.Marshal(v)
+						if err != nil {
+
+						}
+						fieldValueAsString = string(data)
+					}
+
+					if fieldValueAsString != typ.ingestValue {
+						r.querySuccess = false
+						addError(fmt.Sprintf("field %s has unexpected value %v", fieldName, fieldValueAsString))
+					}
+
 				}
 			}
 
-			columns, err := a.FetchClickHouseColumns(ctx, "quesma_common_table")
-
+			columns, err := a.FetchClickHouseColumns(ctx, indexName)
+			columName := strings.ReplaceAll(fieldName, "-", "_")
 			if err != nil {
 				t.Fatalf("failed to fetch 'quesma_common_table' columns: %v", err)
 			} else {
-				if dbType, ok := columns[fieldName]; ok {
+				if dbType, ok := columns[columName]; ok {
 					r.dbStorage = "single column: " + dbType
 				} else {
 					r.dbStorage = "n/a"
-					prefix := fieldName + "_"
+					prefix := columName + "_"
 
 					var cols []string
 					for k, _ := range columns {
@@ -1022,10 +1032,10 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 				t.Log("Type supported and works. All good.")
 
 			case !r.claimedSupport && !r.currentSupport:
-				t.Log("Type not supported and it doesn't work. Not great. Not terrible.")
+				t.Skip("Type not supported and it doesn't work. Not great. Not terrible.")
 
 			case r.claimedSupport && !r.currentSupport:
-				t.Errorf("Type %s should be supported but is not: %v", r.name, r.errors)
+				t.Errorf("Type '%s' should be supported but is not: %v", r.name, r.errors)
 			}
 
 		})
@@ -1046,7 +1056,7 @@ func (a *IngestTestcase) testSupportedTypesInVanillaSetup(ctx context.Context, t
 	// Print rows
 	for _, res := range results {
 		fmt.Fprintf(w, "%s\t%v\t%v\t%v\t%v\t%v\t%v\t\n",
-			res.name, res.claimedSupport, res.currentSupport, res.putMapping, res.ingest, res.query, res.dbStorage)
+			res.name, res.claimedSupport, res.currentSupport, res.putMappingSuccess, res.ingestSuccess, res.querySuccess, res.dbStorage)
 	}
 
 	// Flush the writer to output

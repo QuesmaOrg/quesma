@@ -96,7 +96,6 @@ processors:
           target:
             - my-clickhouse-instance
         "*":
-          useCommonTable: true
           target:
             - my-clickhouse-instance
   - name: my-ingest-processor
@@ -175,7 +174,6 @@ processors:
           target:
             - my-clickhouse-instance
         "*":
-          useCommonTable: true
           target:
             - my-clickhouse-instance
 
