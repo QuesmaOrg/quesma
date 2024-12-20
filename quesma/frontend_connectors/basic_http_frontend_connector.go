@@ -103,6 +103,7 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 			index++
 			responseWriter := &ResponseWriterWithStatusCode{w, 0}
 			middleware.ServeHTTP(responseWriter, req) // Automatically proceeds to the next middleware
+			// Only if the middleware did not set a status code, we proceed to the next middleware
 			if responseWriter.statusCode == 0 {
 				runMiddleware()
 			}
