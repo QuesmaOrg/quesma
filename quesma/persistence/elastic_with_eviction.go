@@ -234,8 +234,9 @@ func (db *ElasticDatabaseWithEviction) SizeInBytesLimit() int64 {
 	return db.sizeInBytesLimit
 }
 
+/* TODO: restore after eviction readded, or remove
 func (db *ElasticDatabaseWithEviction) getAll() (documents []*JSONWithSize, err error) {
-	_ = fmt.Sprintf("%s*/_search", db.indexName)
+	_ = fmt.Sprintf("%s/_search", db.indexName)
 	_ = `{
 		"_source": {
 			"excludes": "data"
@@ -243,8 +244,7 @@ func (db *ElasticDatabaseWithEviction) getAll() (documents []*JSONWithSize, err 
 		"size": 10000,
 		"track_total_hits": true
 	}`
-	/*
-		TODO: restore after eviction readded
+
 		db.httpClient.
 
 		resp, err := db.httpClient.Request(context.Background(), "GET", elasticsearchURL, []byte(query))
@@ -287,10 +287,9 @@ func (db *ElasticDatabaseWithEviction) getAll() (documents []*JSONWithSize, err 
 			fmt.Println(doc)
 			documents = append(documents, doc)
 		}
-
-	*/
 	return documents, nil
 }
+*/
 
 func (db *ElasticDatabaseWithEviction) fullIndexName() string {
 	now := time.Now().UTC()
