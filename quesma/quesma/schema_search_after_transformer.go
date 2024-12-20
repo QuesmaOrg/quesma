@@ -165,7 +165,7 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 				return nil, fmt.Errorf("for basic_and_fast strategy, search_after must be an integer")
 			}
 		} else {
-			searchAfterParsed[i] = model.NewLiteral(searchAfterValue)
+			searchAfterParsed[i] = model.NewLiteral(util.SingleQuoteIfString(searchAfterValue))
 		}
 	}
 

@@ -189,11 +189,10 @@ func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model
 		}
 	}
 
-	searchAfter := queryAsMap["search_after"]
 	queryInfo := cw.tryProcessSearchMetadata(queryAsMap)
 	queryInfo.Size = size
 	queryInfo.TrackTotalHits = trackTotalHits
-	queryInfo.SearchAfter = searchAfter
+	queryInfo.SearchAfter = queryAsMap["search_after"]
 	pp.Println("search_after", queryInfo.SearchAfter)
 
 	return &parsedQuery, queryInfo, highlighter, nil
@@ -240,7 +239,7 @@ func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) model.H
 func (cw *ClickhouseQueryTranslator) parseMetadata(queryMap QueryMap) QueryMap {
 	queryMetadata := make(QueryMap, 5)
 	for k, v := range queryMap {
-		if k == "query" || k == "bool" || k == "query_string" || k == "index_filter" { // probably change that, made so tests work, but let's see after more real use cases {
+		if k == "query" || k == "bool" || k == "query_string" || k == "index_filter" || k == "search_after" { // probably change that, made so tests work, but let's see after more real use cases {
 			continue
 		}
 		queryMetadata[k] = v
