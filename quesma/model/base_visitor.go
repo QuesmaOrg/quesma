@@ -5,6 +5,7 @@ package model
 type BaseExprVisitor struct {
 	OverrideVisitFunction       func(b *BaseExprVisitor, e FunctionExpr) interface{}
 	OverrideVisitLiteral        func(b *BaseExprVisitor, l LiteralExpr) interface{}
+	OverrideVisitTuple          func(b *BaseExprVisitor, e TupleExpr) interface{}
 	OverrideVisitInfix          func(b *BaseExprVisitor, e InfixExpr) interface{}
 	OverrideVisitColumnRef      func(b *BaseExprVisitor, e ColumnRef) interface{}
 	OverrideVisitPrefixExpr     func(b *BaseExprVisitor, e PrefixExpr) interface{}
@@ -43,6 +44,18 @@ func (v *BaseExprVisitor) VisitLiteral(e LiteralExpr) interface{} {
 
 	return NewLiteral(e.Value)
 }
+
+func (v *BaseExprVisitor) VisitTuple(e TupleExpr) interface{} {
+	if v.OverrideVisitTuple != nil {
+		return v.OverrideVisitTuple(v, e)
+	}
+	newExprs := make([]Expr, len(e.Exprs))
+	for i, expr := range e.Exprs {
+		newExprs[i] = expr.Accept(v).(Expr)
+	}
+	return NewTupleExpr(newExprs)
+}
+
 func (v *BaseExprVisitor) VisitInfix(e InfixExpr) interface{} {
 	if v.OverrideVisitInfix != nil {
 		return v.OverrideVisitInfix(v, e)

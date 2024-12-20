@@ -113,14 +113,14 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	switch queryInfo.Type {
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
-		fullQuery = cw.BuildNRowsQuery(queryInfo.RequestedFields, simpleQuery, queryInfo.Size)
+		fullQuery = cw.BuildNRowsQuery(queryInfo.RequestedFields, simpleQuery, queryInfo)
 	case model.ListAllFields:
-		fullQuery = cw.BuildNRowsQuery([]string{"*"}, simpleQuery, queryInfo.Size)
+		fullQuery = cw.BuildNRowsQuery([]string{"*"}, simpleQuery, queryInfo)
 	default:
 	}
 	if fullQuery != nil {
-		searchAfterStrategy := model.SearchAfterStrategyFactory(cw.searchAfterStrategy, defaultTimestampField)
-		fullQuery = searchAfterStrategy.ApplyStrategyAndTransformQuery(fullQuery, queryInfo.SearchAfter)
+		//searchAfterStrategy := model.SearchAfterStrategyFactory(cw.searchAfterStrategy, defaultTimestampField)
+		//fullQuery = searchAfterStrategy.ApplyStrategyAndTransformQuery(fullQuery, queryInfo.SearchAfter)
 		highlighter.SetTokensToHighlight(fullQuery.SelectCommand)
 		// TODO: pass right arguments
 		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, fullQuery.SelectCommand.OrderByFieldNames(), true, false, false, cw.Indexes)
@@ -162,14 +162,14 @@ func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model
 	}
 	size := cw.parseSize(queryAsMap, defaultQueryResultSize)
 
-	searchAfterStrategy := model.SearchAfterStrategyFactory(cw.searchAfterStrategy, defaultTimestampField)
-	var searchAfter any
-	if err := searchAfterStrategy.Validate(queryAsMap["search_after"]); err == nil {
-		searchAfter = queryAsMap["search_after"]
-	} else {
-		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing search_after: %v", err)
-		return nil, model.NewEmptyHitsCountInfo(), highlighter, err
-	}
+	//searchAfterStrategy := model.SearchAfterStrategyFactory(cw.searchAfterStrategy, defaultTimestampField)
+	//var searchAfter any
+	//if err := searchAfterStrategy.Validate(queryAsMap["search_after"]); err == nil {
+	//	searchAfter = queryAsMap["search_after"]
+	//} else {
+	//		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing search_after: %v", err)
+	//		return nil, model.NewEmptyHitsCountInfo(), highlighter, err
+	//	}
 
 	trackTotalHits := defaultTrackTotalHits
 	if trackTotalHitsRaw, ok := queryAsMap["track_total_hits"]; ok {
@@ -188,10 +188,12 @@ func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model
 		}
 	}
 
+	searchAfter := queryAsMap["search_after"]
 	queryInfo := cw.tryProcessSearchMetadata(queryAsMap)
 	queryInfo.Size = size
 	queryInfo.TrackTotalHits = trackTotalHits
 	queryInfo.SearchAfter = searchAfter
+	pp.Println("search_after", queryInfo.SearchAfter)
 
 	return &parsedQuery, queryInfo, highlighter, nil
 }

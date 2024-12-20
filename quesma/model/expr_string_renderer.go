@@ -3,7 +3,9 @@
 package model
 
 import (
+	"context"
 	"fmt"
+	"quesma/logger"
 	"quesma/quesma/types"
 	"regexp"
 	"sort"
@@ -66,6 +68,22 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 	return fmt.Sprintf("%v", l.Value)
+}
+
+func (v *renderer) VisitTuple(t TupleExpr) interface{} {
+	exprs := make([]string, 0)
+	for _, expr := range t.Exprs {
+		exprs = append(exprs, expr.Accept(v).(string))
+	}
+	switch len(exprs) {
+	case 0:
+		logger.WarnWithCtxAndThrottling(context.Background(), "visit", "tuple", "tuple with 0 length") // hacky way to log this
+		return "()"
+	case 1:
+		return exprs[0]
+	default:
+		return fmt.Sprintf("(%s)", strings.Join(exprs, ", "))
+	}
 }
 
 func (v *renderer) VisitInfix(e InfixExpr) interface{} {

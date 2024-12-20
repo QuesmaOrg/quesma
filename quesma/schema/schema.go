@@ -3,6 +3,7 @@
 package schema
 
 import (
+	"github.com/k0kubun/pp"
 	"strings"
 )
 
@@ -79,5 +80,8 @@ func (s Schema) ResolveField(fieldName string) (Field, bool) {
 		return field, exists
 	}
 	field, exists := s.Fields[FieldName(fieldName)]
+	if !exists {
+		pp.Println("Field not found in schema: ", fieldName, "schema:", s.Fields)
+	}
 	return field, exists
 }

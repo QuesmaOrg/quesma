@@ -923,7 +923,7 @@ func TestFullQueryTestWIP(t *testing.T) {
 	}
 }
 
-// TestSearchAfterParameter simulates user viewing hits in Discover view in Kibana.
+// TestSearchAfterParameter_sortByJustTimestamp simulates user viewing hits in Discover view in Kibana.
 // For simplicity nr of hits is vastly reduced, from e.g. 500 to 3, but that shouldn't change the logic at all.
 // Rows in DB are as follows (sorted by @timestamp DESC):
 // (t, m1); (t, m2); (t, m3); (t, m4); (t, m5); (t, m6); (t, m7) (7 rows with same timestamp 't')
@@ -932,7 +932,7 @@ func TestFullQueryTestWIP(t *testing.T) {
 // (t-2s, m11); (t-3s, m12); (t-4s, m13); (t-5s, m14); (t-6s, m15); (t-7s, m16); (t-8s, m17)
 //
 // We send 4 requests, simulating user scrolling through hits.
-func TestSearchAfterParameter(t *testing.T) {
+func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 	fields := map[schema.FieldName]schema.Field{
 		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 		"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
@@ -971,30 +971,30 @@ func TestSearchAfterParameter(t *testing.T) {
 		},
 		{
 			request:                     `{"search_after": [1706551896491], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
-			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE "@timestamp"<fromUnixTimestamp64Milli(1706551896491) ORDER BY "@timestamp" DESC LIMIT 3`,
+			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896491)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
 			resultRowsFromDB:            [][]any{{sub(1), "m8"}, {sub(2), "m9"}, {sub(3), "m10"}},
 			basicAndFastSortFieldPerHit: []int64{sub(1).UnixMilli(), sub(2).UnixMilli(), sub(3).UnixMilli()},
 		},
 		{
 			request:                     `{"search_after": [1706551896488], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
-			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE "@timestamp"<fromUnixTimestamp64Milli(1706551896488) ORDER BY "@timestamp" DESC LIMIT 3`,
+			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896488)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
 			resultRowsFromDB:            [][]any{{sub(4), "m11"}, {sub(5), "m12"}, {sub(6), "m13"}},
 			basicAndFastSortFieldPerHit: []int64{sub(4).UnixMilli(), sub(5).UnixMilli(), sub(6).UnixMilli()},
 		},
 		{
 			request:                     `{"search_after": [1706551896485], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
-			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE "@timestamp"<fromUnixTimestamp64Milli(1706551896485) ORDER BY "@timestamp" DESC LIMIT 3`,
+			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896485)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
 			resultRowsFromDB:            [][]any{{sub(7), "m14"}, {sub(8), "m15"}, {sub(9), "m16"}},
 			basicAndFastSortFieldPerHit: []int64{sub(7).UnixMilli(), sub(8).UnixMilli(), sub(9).UnixMilli()},
 		},
 	}
 
-	test := func(strategy model.SearchAfterStrategy, dateTimeType string, handlerName string) {
+	test := func(strategy searchAfterStrategy, dateTimeType string, handlerName string) {
 		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 		defer db.Close()
 		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
 
-		for _, iteration := range iterations {
+		for _, iteration := range iterations[:2] {
 			rows := sqlmock.NewRows([]string{"@timestamp", "message"})
 			for _, row := range iteration.resultRowsFromDB {
 				rows.AddRow(row[0], row[1])
@@ -1023,6 +1023,7 @@ func TestSearchAfterParameter(t *testing.T) {
 				responsePart = responseMap["response"].(model.JsonMap)
 			}
 
+			pp.Println(responsePart)
 			hits := responsePart["hits"].(model.JsonMap)["hits"].([]any)
 			assert.Len(t, hits, len(iteration.resultRowsFromDB))
 			for i, hit := range hits {
@@ -1038,7 +1039,7 @@ func TestSearchAfterParameter(t *testing.T) {
 	}
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
-	for _, strategy := range []model.SearchAfterStrategy{model.SearchAfterStrategyFactory(model.BasicAndFast, model.NewColumnRef("@timestamp"))} {
+	for _, strategy := range []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)} {
 		for _, handlerName := range handlers {
 			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
 				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)

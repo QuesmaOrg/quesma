@@ -182,7 +182,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
 			hitQuery := query_util.BuildHitsQuery(
 				context.Background(), "test", []string{"*"},
-				&model.SimpleQuery{}, model.WeNeedUnlimitedCount,
+				&model.SimpleQuery{}, model.WeNeedUnlimitedCount, nil,
 			)
 			highlighter := NewEmptyHighlighter()
 			queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, hitQuery.SelectCommand.OrderByFieldNames(), true, false, false, []string{cw.Table.Name})
@@ -275,7 +275,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("message", "User updated")}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("message", "User created")}},
 			},
-			query_util.BuildHitsQuery(context.Background(), "test", []string{"message"}, &model.SimpleQuery{}, model.WeNeedUnlimitedCount),
+			query_util.BuildHitsQuery(context.Background(), "test", []string{"message"}, &model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty),
 		},
 		{
 			`
@@ -413,7 +413,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 					},
 				},
 			},
-			query_util.BuildHitsQuery(context.Background(), "test", []string{"*"}, &model.SimpleQuery{}, model.WeNeedUnlimitedCount)},
+			query_util.BuildHitsQuery(context.Background(), "test", []string{"*"}, &model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty)},
 	}
 	for i, tt := range args {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
@@ -440,8 +440,8 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
 	const limit = 1000
 	queries := []*model.Query{
-		cw.BuildNRowsQuery([]string{"*"}, &model.SimpleQuery{}, limit),
-		cw.BuildNRowsQuery([]string{"@"}, &model.SimpleQuery{}, 0),
+		cw.BuildNRowsQuery([]string{"*"}, &model.SimpleQuery{}, model.HitsCountInfo{Size: limit}),
+		cw.BuildNRowsQuery([]string{"@"}, &model.SimpleQuery{}, model.HitsCountInfo{Size: 0}),
 	}
 	for _, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}

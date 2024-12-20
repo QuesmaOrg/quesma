@@ -22,8 +22,7 @@ type ClickhouseQueryTranslator struct {
 	Schema schema.Schema
 	Ctx    context.Context
 
-	DateMathRenderer    string                        // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
-	searchAfterStrategy model.SearchAfterStrategyType // usually left as default in the constructor, so SearchAfterStrategyBasicAndFast until Foolproof fully implemented
+	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 
 	Indexes []string
 
@@ -310,8 +309,8 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldNames []string, simpleQuery *model.SimpleQuery, limit int) *model.Query {
-	return query_util.BuildHitsQuery(cw.Ctx, model.SingleTableNamePlaceHolder, fieldNames, simpleQuery, limit)
+func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldNames []string, simpleQuery *model.SimpleQuery, info model.HitsCountInfo) *model.Query {
+	return query_util.BuildHitsQuery(cw.Ctx, model.SingleTableNamePlaceHolder, fieldNames, simpleQuery, info.Size, info.SearchAfter)
 }
 
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, tableName string, whereClause model.Expr, limit int) *model.Query {

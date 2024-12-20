@@ -64,6 +64,7 @@ type (
 		Schema schema.Schema
 
 		Highlighter Highlighter
+		SearchAfter any // value of query's "search_after" param. Used for pagination of hits. SearchAfterEmpty means no pagination
 
 		RuntimeMappings map[string]RuntimeMapping
 
@@ -83,6 +84,8 @@ type (
 		String() string
 	}
 )
+
+var SearchAfterEmpty any = nil
 
 // RuntimeMapping is a mapping of a field to a runtime expression
 type RuntimeMapping struct {

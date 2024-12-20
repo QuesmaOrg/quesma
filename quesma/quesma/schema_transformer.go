@@ -16,8 +16,17 @@ import (
 )
 
 type SchemaCheckPass struct {
-	cfg            *config.QuesmaConfiguration
-	tableDiscovery clickhouse.TableDiscovery
+	cfg                 *config.QuesmaConfiguration
+	tableDiscovery      clickhouse.TableDiscovery
+	searchAfterStrategy searchAfterStrategy
+}
+
+func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery clickhouse.TableDiscovery, searchAfterStrategy searchAfterStrategyType) *SchemaCheckPass {
+	return &SchemaCheckPass{
+		cfg:                 cfg,
+		tableDiscovery:      tableDiscovery,
+		searchAfterStrategy: searchAfterStrategyFactory(searchAfterStrategy),
+	}
 }
 
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
@@ -846,7 +855,6 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 }
 
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
-
 	transformationChain := []struct {
 		TransformationName string
 		Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
@@ -865,6 +873,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
+		{TransformationName: "ApplySearchAfterParameter", Transformation: s.applySearchAfterParameter},
 
 		// Section 3: clickhouse specific transformations
 		{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse},
@@ -896,6 +905,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 
 			query, err = transformation.Transformation(query.Schema, query)
 			if err != nil {
+				fmt.Println("SchemaCheckPass.Transform", err)
 				return nil, err
 			}
 

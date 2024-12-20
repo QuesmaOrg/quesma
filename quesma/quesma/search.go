@@ -86,12 +86,7 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemory(),
 		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
 		transformationPipeline: TransformationPipeline{
-			transformers: []model.QueryTransformer{
-				&SchemaCheckPass{
-					cfg:            cfg,
-					tableDiscovery: tableDiscovery,
-				},
-			},
+			transformers: []model.QueryTransformer{NewSchemaCheckPass(cfg, tableDiscovery, basicAndFast)},
 		},
 		schemaRegistry:     schemaRegistry,
 		ABResultsSender:    abResultsRepository,
