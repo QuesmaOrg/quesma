@@ -20,6 +20,7 @@ type (
 		GetSources() Sources
 		GetSourceNames() map[string]bool
 		GetSourceNamesMatching(indexPattern string) map[string]bool
+		Resolve(indexPattern string) (Sources, bool, error)
 	}
 	indexManagement struct {
 		ElasticsearchUrl string
@@ -39,6 +40,10 @@ func NewIndexManagement(elasticsearch config.ElasticsearchConfiguration) IndexMa
 		ElasticsearchUrl: elasticsearch.Url.String(),
 		indexResolver:    NewIndexResolver(elasticsearch),
 	}
+}
+
+func (im *indexManagement) Resolve(indexPattern string) (Sources, bool, error) {
+	return im.indexResolver.Resolve(indexPattern)
 }
 
 func (im *indexManagement) ReloadIndices() {
@@ -128,6 +133,9 @@ type stubIndexManagement struct {
 func (s stubIndexManagement) Start()         {}
 func (s stubIndexManagement) Stop()          {}
 func (s stubIndexManagement) ReloadIndices() {}
+func (s stubIndexManagement) Resolve(_ string) (Sources, bool, error) {
+	return Sources{}, true, nil
+}
 func (s stubIndexManagement) GetSources() Sources {
 	var dataStreams = []DataStream{}
 	for _, index := range s.indexes {

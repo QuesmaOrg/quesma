@@ -29,11 +29,6 @@ const (
 	ExistsAndIsArray
 )
 
-func (lm *LogManager) Query(ctx context.Context, query string) (*sql.Rows, error) {
-	rows, err := lm.chDb.QueryContext(ctx, query)
-	return rows, err
-}
-
 type PerformanceResult struct {
 	QueryID      string
 	Duration     time.Duration
@@ -106,7 +101,7 @@ var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 const slowQueryThreshold = 30 * time.Second
 const slowQuerySampleRate = 0.1
 
-func (lm *LogManager) shouldExplainQuery(elapsed time.Duration) bool {
+func shouldExplainQuery(elapsed time.Duration) bool {
 	return elapsed > slowQueryThreshold && random.Float64() < slowQuerySampleRate
 }
 
@@ -187,7 +182,7 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 
 	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(settings), clickhouse.WithQueryID(queryID))
 
-	rows, err := lm.Query(ctx, queryAsString)
+	rows, err := lm.chDb.QueryContext(ctx, queryAsString)
 	if err != nil {
 		elapsed := span.End(err)
 		performanceResult.Duration = elapsed
@@ -200,7 +195,7 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 	performanceResult.Duration = elapsed
 	performanceResult.RowsReturned = len(res)
 	if err == nil {
-		if lm.shouldExplainQuery(elapsed) {
+		if shouldExplainQuery(elapsed) {
 			performanceResult.ExplainPlan = lm.explainQuery(ctx, queryAsString, elapsed)
 		}
 	}
