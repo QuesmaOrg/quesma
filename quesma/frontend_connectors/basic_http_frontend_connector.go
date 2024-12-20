@@ -83,6 +83,16 @@ func (h *BasicHTTPFrontendConnector) GetRouter() quesma_api.Router {
 	return h.router
 }
 
+type ResponseWriterWithStatusCode struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (w *ResponseWriterWithStatusCode) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
 func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	index := 0
 	var runMiddleware func()
@@ -91,8 +101,9 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 		if index < len(h.middlewares) {
 			middleware := h.middlewares[index]
 			index++
-			middleware.ServeHTTP(w, req) // Automatically proceeds to the next middleware
-			if w.Header().Get("Content-Length") == "" {
+			responseWriter := &ResponseWriterWithStatusCode{w, 0}
+			middleware.ServeHTTP(responseWriter, req) // Automatically proceeds to the next middleware
+			if responseWriter.statusCode == 0 {
 				runMiddleware()
 			}
 
