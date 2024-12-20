@@ -32,6 +32,10 @@ func GetBackendConnectorNameFromType(connectorType BackendConnectorType) string 
 type NoopBackendConnector struct {
 }
 
+func (p *NoopBackendConnector) InstanceName() string {
+	return "noop"
+}
+
 func (p *NoopBackendConnector) GetId() BackendConnectorType {
 	return NoopBackend
 }
