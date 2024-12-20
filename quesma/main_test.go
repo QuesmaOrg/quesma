@@ -221,7 +221,7 @@ func Test_middleware(t *testing.T) {
 		atomic.LoadInt32(&middleWareCalled)
 		assert.Equal(t, int32(4), middleWareCalled)
 	}
-	middleWareCalled = 0
+	atomic.StoreInt32(&middleWareCalled, 0)
 	{
 		quesmaBuilder := createMiddleWareScenario(false, cfg)
 		quesmaBuilder.Build()
