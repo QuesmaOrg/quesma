@@ -311,14 +311,14 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 		case "GET":
 			ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, req.Params["id"])
-			responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, req.Params["id"])
+			responseBody, err := queryRunner.HandlePartialAsyncSearch(ctx, req.Params["id"])
 			if err != nil {
 				return nil, err
 			}
 			return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 
 		case "DELETE":
-			responseBody, err := queryRunner.deleteAsyncSearch(req.Params["id"])
+			responseBody, err := queryRunner.DeleteAsyncSearch(req.Params["id"])
 			if err != nil {
 				return nil, err
 			}

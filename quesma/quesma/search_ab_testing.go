@@ -227,7 +227,7 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 				responseBody, err = q.storeAsyncSearchWithRaw(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, requestBody, res.response, res.err, res.translatedQueryBody, true, opaqueId)
 				sendABResult(responseBody, err)
 			}()
-			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
+			return q.HandlePartialAsyncSearch(ctx, optAsync.asyncId)
 		case res := <-doneCh:
 			responseBody, err = q.storeAsyncSearchWithRaw(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, requestBody, res.response, res.err, res.translatedQueryBody, true, opaqueId)
 			sendABResult(responseBody, err)

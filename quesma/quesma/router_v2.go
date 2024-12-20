@@ -246,19 +246,10 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		switch req.Method {
 
 		case "GET":
-			ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, req.Params["id"])
-			responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, req.Params["id"])
-			if err != nil {
-				return nil, err
-			}
-			return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+			return HandleGettingAsyncSearchById(ctx, req, queryRunner)
 
 		case "DELETE":
-			responseBody, err := queryRunner.deleteAsyncSearch(req.Params["id"])
-			if err != nil {
-				return nil, err
-			}
-			return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+			return HandleDeletingAsyncSearchById(queryRunner, req)
 		}
 
 		return nil, errors.New("unsupported method")
@@ -381,6 +372,23 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 	})
 
 	return router
+}
+
+func HandleDeletingAsyncSearchById(queryRunner QueryRunnerIFace, req *quesma_api.Request) (*quesma_api.Result, error) {
+	responseBody, err := queryRunner.DeleteAsyncSearch(req.Params["id"])
+	if err != nil {
+		return nil, err
+	}
+	return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+}
+
+func HandleGettingAsyncSearchById(ctx context.Context, req *quesma_api.Request, queryRunner QueryRunnerIFace) (*quesma_api.Result, error) {
+	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, req.Params["id"])
+	responseBody, err := queryRunner.HandlePartialAsyncSearch(ctx, req.Params["id"])
+	if err != nil {
+		return nil, err
+	}
+	return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 }
 
 func HandleAsyncSearchStatus(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter, queryRunner QueryRunnerIFace) (*quesma_api.Result, error) {

@@ -61,7 +61,7 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 	})
 	router.Register(IndexAsyncSearchPath, quesma_api.IsHTTPMethod("POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
-		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, IndexSearchPath)
+		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, IndexAsyncSearchPath)
 		metadata[PathPattern] = IndexAsyncSearchPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
@@ -77,7 +77,7 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 		metadata[PathPattern] = AsyncSearchStatusPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
-	router.Register(FieldCapsPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+	router.Register(FieldCapsPath, quesma_api.IsHTTPMethod("GET", "POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
 		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, FieldCapsPath)
 		metadata[PathPattern] = FieldCapsPath

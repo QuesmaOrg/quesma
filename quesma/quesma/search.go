@@ -75,6 +75,8 @@ type QueryRunnerIFace interface {
 	// Todo: consider removing this getters for these two below, this was required for temporary Field Caps impl in v2 api
 	GetSchemaRegistry() schema.Registry
 	GetLogManager() clickhouse.LogManagerIFace
+	DeleteAsyncSearch(id string) ([]byte, error)
+	HandlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error)
 }
 
 func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
@@ -293,7 +295,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 				responseBody, err = q.storeAsyncSearch(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, body, res, true, opaqueId)
 				sendMainPlanResult(responseBody, err)
 			}()
-			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
+			return q.HandlePartialAsyncSearch(ctx, optAsync.asyncId)
 		case res := <-doneCh:
 			responseBody, err = q.storeAsyncSearch(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, body, res,
 				optAsync.keepOnCompletion, opaqueId)
@@ -534,7 +536,7 @@ func (q *QueryRunner) HandleAsyncSearchStatus(_ context.Context, id string) ([]b
 	// However since you're referring to async ID given from Quesma, we naively assume it *does* exist.
 }
 
-func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
+func (q *QueryRunner) HandlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
 	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		logger.ErrorWithCtx(ctx).Msgf("non quesma async id: %v", id)
 		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
@@ -569,7 +571,7 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 	}
 }
 
-func (q *QueryRunner) deleteAsyncSearch(id string) ([]byte, error) {
+func (q *QueryRunner) DeleteAsyncSearch(id string) ([]byte, error) {
 	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		return nil, errors.New("invalid quesma async search id : " + id)
 	}

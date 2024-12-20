@@ -275,7 +275,7 @@ func (q *QueryRunner2) executePlan(ctx context.Context, plan *model.ExecutionPla
 				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res, true, opaqueId)
 				sendMainPlanResult(responseBody, err)
 			}()
-			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
+			return q.HandlePartialAsyncSearch(ctx, optAsync.asyncId)
 		case res := <-doneCh:
 			responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res,
 				optAsync.keepOnCompletion, opaqueId)
@@ -477,7 +477,7 @@ func (q *QueryRunner2) HandleAsyncSearchStatus(_ context.Context, id string) ([]
 	// However since you're referring to async ID given from Quesma, we naively assume it *does* exist.
 }
 
-func (q *QueryRunner2) handlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
+func (q *QueryRunner2) HandlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
 	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		logger.ErrorWithCtx(ctx).Msgf("non quesma async id: %v", id)
 		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
@@ -512,7 +512,7 @@ func (q *QueryRunner2) handlePartialAsyncSearch(ctx context.Context, id string) 
 	}
 }
 
-func (q *QueryRunner2) deleteAsyncSearch(id string) ([]byte, error) {
+func (q *QueryRunner2) DeleteAsyncSearch(id string) ([]byte, error) {
 	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		return nil, errors.New("invalid quesma async search id : " + id)
 	}
