@@ -33,12 +33,9 @@ func NewEmptyHighlighter() model.Highlighter {
 }
 
 const (
-	defaultQueryResultSize    = 10
-	defaultTrackTotalHits     = 10000
-	defaultTimestampFieldName = "@timestamp" // TODO remove!! add this to config per table or something else
+	defaultQueryResultSize = 10
+	defaultTrackTotalHits  = 10000
 )
-
-var defaultTimestampField = model.NewColumnRef(defaultTimestampFieldName) // TODO remove!! add this to config per table or something else
 
 func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.ExecutionPlan, error) {
 
@@ -120,8 +117,6 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	default:
 	}
 	if fullQuery != nil {
-		//searchAfterStrategy := model.SearchAfterStrategyFactory(cw.searchAfterStrategy, defaultTimestampField)
-		//fullQuery = searchAfterStrategy.ApplyStrategyAndTransformQuery(fullQuery, queryInfo.SearchAfter)
 		highlighter.SetTokensToHighlight(fullQuery.SelectCommand)
 		// TODO: pass right arguments
 		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, fullQuery.SelectCommand.OrderByFieldNames(), true, false, false, cw.Indexes)
@@ -163,15 +158,6 @@ func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model
 	}
 	size := cw.parseSize(queryAsMap, defaultQueryResultSize)
 
-	//searchAfterStrategy := model.SearchAfterStrategyFactory(cw.searchAfterStrategy, defaultTimestampField)
-	//var searchAfter any
-	//if err := searchAfterStrategy.Validate(queryAsMap["search_after"]); err == nil {
-	//	searchAfter = queryAsMap["search_after"]
-	//} else {
-	//		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing search_after: %v", err)
-	//		return nil, model.NewEmptyHitsCountInfo(), highlighter, err
-	//	}
-
 	trackTotalHits := defaultTrackTotalHits
 	if trackTotalHitsRaw, ok := queryAsMap["track_total_hits"]; ok {
 		switch trackTotalHitsTyped := trackTotalHitsRaw.(type) {
@@ -193,7 +179,6 @@ func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model
 	queryInfo.Size = size
 	queryInfo.TrackTotalHits = trackTotalHits
 	queryInfo.SearchAfter = queryAsMap["search_after"]
-	pp.Println("search_after", queryInfo.SearchAfter)
 
 	return &parsedQuery, queryInfo, highlighter, nil
 }
