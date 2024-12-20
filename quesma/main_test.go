@@ -160,14 +160,14 @@ func Test_scenario1(t *testing.T) {
 	q1.Stop(context.Background())
 }
 
-var middleWareCalled int32 = 0
+var middlewareCallCount int32 = 0
 
 type Middleware struct {
 	emitError bool
 }
 
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	atomic.AddInt32(&middleWareCalled, 1)
+	atomic.AddInt32(&middlewareCallCount, 1)
 	if m.emitError {
 		http.Error(w, "middleware", http.StatusInternalServerError)
 	}
@@ -177,7 +177,7 @@ type Middleware2 struct {
 }
 
 func (m *Middleware2) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	atomic.AddInt32(&middleWareCalled, 1)
+	atomic.AddInt32(&middlewareCallCount, 1)
 	w.WriteHeader(200)
 }
 
@@ -218,10 +218,10 @@ func Test_middleware(t *testing.T) {
 		emitRequests(stop)
 		<-stop
 		quesmaBuilder.Stop(context.Background())
-		atomic.LoadInt32(&middleWareCalled)
-		assert.Equal(t, int32(4), middleWareCalled)
+		atomic.LoadInt32(&middlewareCallCount)
+		assert.Equal(t, int32(4), middlewareCallCount)
 	}
-	atomic.StoreInt32(&middleWareCalled, 0)
+	atomic.StoreInt32(&middlewareCallCount, 0)
 	{
 		quesmaBuilder := createMiddleWareScenario(false, cfg)
 		quesmaBuilder.Build()
@@ -230,7 +230,7 @@ func Test_middleware(t *testing.T) {
 		emitRequests(stop)
 		<-stop
 		quesmaBuilder.Stop(context.Background())
-		atomic.LoadInt32(&middleWareCalled)
-		assert.Equal(t, int32(8), middleWareCalled)
+		atomic.LoadInt32(&middlewareCallCount)
+		assert.Equal(t, int32(8), middlewareCallCount)
 	}
 }
