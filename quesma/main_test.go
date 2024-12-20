@@ -181,8 +181,26 @@ func (m *Middleware2) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 }
 
-func Test_middleware(t *testing.T) {
+func createMiddleWareScenario(emitError bool, cfg *config.QuesmaConfiguration) quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+
+	frontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
+	HTTPRouter := quesma_api.NewPathRouter()
+	var fallback quesma_api.HTTPFrontendHandler = fallback
+	HTTPRouter.AddFallbackHandler(fallback)
+	frontendConnector.AddRouter(HTTPRouter)
+	frontendConnector.AddMiddleware(&Middleware{emitError: emitError})
+	frontendConnector.AddMiddleware(&Middleware2{})
+
+	var pipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	pipeline.AddFrontendConnector(frontendConnector)
+	var ingestProcessor quesma_api.Processor = NewIngestProcessor()
+	pipeline.AddProcessor(ingestProcessor)
+	quesmaBuilder.AddPipeline(pipeline)
+	return quesmaBuilder
+}
+
+func Test_middleware(t *testing.T) {
 
 	cfg := &config.QuesmaConfiguration{
 		DisableAuth: true,
@@ -193,20 +211,7 @@ func Test_middleware(t *testing.T) {
 		},
 	}
 	{
-		frontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
-		HTTPRouter := quesma_api.NewPathRouter()
-		var fallback quesma_api.HTTPFrontendHandler = fallback
-		HTTPRouter.AddFallbackHandler(fallback)
-		frontendConnector.AddRouter(HTTPRouter)
-		frontendConnector.AddMiddleware(&Middleware{emitError: true})
-		frontendConnector.AddMiddleware(&Middleware2{})
-
-		var pipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
-		pipeline.AddFrontendConnector(frontendConnector)
-		var ingestProcessor quesma_api.Processor = NewIngestProcessor()
-		pipeline.AddProcessor(ingestProcessor)
-		quesmaBuilder.AddPipeline(pipeline)
-
+		quesmaBuilder := createMiddleWareScenario(true, cfg)
 		quesmaBuilder.Build()
 		quesmaBuilder.Start()
 		stop := make(chan os.Signal, 1)
@@ -218,20 +223,7 @@ func Test_middleware(t *testing.T) {
 	}
 	middleWareCalled = 0
 	{
-		frontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
-		HTTPRouter := quesma_api.NewPathRouter()
-		var fallback quesma_api.HTTPFrontendHandler = fallback
-		HTTPRouter.AddFallbackHandler(fallback)
-		frontendConnector.AddRouter(HTTPRouter)
-		frontendConnector.AddMiddleware(&Middleware{emitError: false})
-		frontendConnector.AddMiddleware(&Middleware2{})
-
-		var pipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
-		pipeline.AddFrontendConnector(frontendConnector)
-		var ingestProcessor quesma_api.Processor = NewIngestProcessor()
-		pipeline.AddProcessor(ingestProcessor)
-		quesmaBuilder.AddPipeline(pipeline)
-
+		quesmaBuilder := createMiddleWareScenario(false, cfg)
 		quesmaBuilder.Build()
 		quesmaBuilder.Start()
 		stop := make(chan os.Signal, 1)
