@@ -37,6 +37,9 @@ const ( // taken from `router.go`
 	IndexPattern = "index_pattern"
 	PathPattern  = "path_pattern"
 	Id           = "id"
+
+	// Maybe to be removed, it's a dumb fallback handler
+	Bypass = "true"
 )
 
 func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaConfiguration) *ElasticsearchQueryFrontendConnector {
@@ -86,6 +89,20 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 		metadata[PathPattern] = ResolveIndexPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
+
+	//fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+	//	metadata := quesma_api.MakeNewMetadata()
+	//	metadata[Bypass] = true
+	//	return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
+	//}
+	//
+	//router.AddFallbackHandler(fallback)
+	router.Register("*", quesma_api.Always(), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		metadata := quesma_api.MakeNewMetadata()
+		metadata[Bypass] = true
+		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
+	})
+
 	fc.AddRouter(router)
 	return fc
 }

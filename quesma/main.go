@@ -142,7 +142,7 @@ func buildQueryOnlyQuesma() quesma_api.QuesmaBuilder {
 	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector("clickhouse://localhost:9000")
 	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector(
 		config.ElasticsearchConfiguration{
-			Url:      &config.Url{Host: "localhost:9200", Scheme: "https"},
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
 			User:     "elastic",
 			Password: "quesmaquesma",
 		})

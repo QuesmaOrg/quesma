@@ -4,8 +4,10 @@
 package es_to_ch_query
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"quesma/backend_connectors"
 	"quesma/clickhouse"
@@ -124,12 +126,31 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 			fmt.Printf("Another cast failed: invalid message type: %v", err)
 			return nil, data, err
 		}
-
-		quesmaReq := ToQuesmaRequest(req)
-
-		if findQueryTarget(quesmaReq.Params["index"], p.config) != config.ClickhouseTarget {
-			return nil, data, fmt.Errorf("WOULD FORWARD TO ELASTICSEARCH")
+		var quesmaReq *quesma_api.Request
+		if indexPattern, ok := metadata[IndexPattern]; ok {
+			quesmaReq = ToQuesmaRequest(req, indexPattern.(string))
+		} else {
+			quesmaReq = ToQuesmaRequest(req, "")
 		}
+
+		routerOrderedToBypass := metadata[frontend_connectors.Bypass] == true
+		indexNotInConfig := findQueryTarget(quesmaReq.Params["index"], p.config) != config.ClickhouseTarget
+
+		if routerOrderedToBypass || indexNotInConfig {
+			//fmt.Printf("Bypassing %s \t routerOrdered=%v, indexNotConfigured=%v\n", quesmaReq.Path, routerOrderedToBypass, indexNotInConfig)
+			esConn, err := p.getElasticsearchBackendConnector()
+			if err != nil {
+				return nil, nil, err
+			}
+			resp := esConn.Send(quesmaReq.OriginalRequest)
+			respBody, err := ReadResponseBody(resp)
+			if err != nil {
+				return metadata, nil, fmt.Errorf("failed to read response body from Elastic")
+			}
+			return metadata, respBody, nil
+
+		}
+		fmt.Printf("Processing %s\n", quesmaReq.Path)
 
 		switch metadata[PathPattern] { // TODO well, this IS http routing TBH
 		case IndexSearchPath:
@@ -139,10 +160,8 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 			res, _ := quesm.HandleIndexAsyncSearch(context.Background(), quesmaReq, nil, p.queryRunner)
 			return metadata, res, nil
 		case AsyncSearchIdPath:
-			fmt.Printf("ID OF ASYNC SEARCH %d", metadata[Id])
 			return nil, nil, fmt.Errorf("not implemented")
 		case AsyncSearchStatusPath:
-			fmt.Printf("ID OF ASYNC SEARCH %d", metadata[Id])
 			res, _ := quesm.HandleAsyncSearchStatus(context.Background(), quesmaReq, nil, p.queryRunner)
 			return metadata, res, nil
 		case ResolveIndexPath:
@@ -181,19 +200,23 @@ func findQueryTarget(index string, processorConfig config.QuesmaProcessorConfig)
 	}
 }
 
-func ToQuesmaRequest(req *http.Request) *quesma_api.Request {
+func ToQuesmaRequest(req *http.Request, indexPattern string) *quesma_api.Request {
 	if reqBody, err := frontend_connectors.PeekBodyV2(req); err != nil {
 		println("FAILED CREATING QUESMA REQUEST")
 		return nil
 	} else {
 		bodyAsString := string(reqBody)
 
+		//var params map[string]string
+		params := make(map[string]string)
+		if indexPattern != "" {
+			params["index"] = indexPattern
+		}
+
 		return &quesma_api.Request{
-			Method: req.Method,
-			Path:   strings.TrimSuffix(req.URL.Path, "/"),
-			Params: map[string]string{
-				"index": "kibana_sample_data_ecommerce", //TODO
-			},
+			Method:          req.Method,
+			Path:            strings.TrimSuffix(req.URL.Path, "/"),
+			Params:          params,
 			Headers:         req.Header,
 			QueryParams:     req.URL.Query(),
 			Body:            bodyAsString,
@@ -202,4 +225,13 @@ func ToQuesmaRequest(req *http.Request) *quesma_api.Request {
 		}
 	}
 
+}
+
+func ReadResponseBody(resp *http.Response) ([]byte, error) {
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
+	return respBody, nil
 }
