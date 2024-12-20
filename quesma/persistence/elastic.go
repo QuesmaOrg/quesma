@@ -142,7 +142,7 @@ func (p *ElasticJSONDatabase) List() ([]string, error) {
 	var ids []string
 	// Unmarshal the JSON response
 	var result map[string]interface{}
-	if err := json.Unmarshal(jsonAsBytes, &result); err != nil {
+	if err = json.Unmarshal(jsonAsBytes, &result); err != nil {
 		log.Fatalf("Error parsing the response JSON: %s", err)
 	}
 
