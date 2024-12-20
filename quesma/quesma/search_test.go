@@ -1048,6 +1048,131 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 	}
 }
 
+// TestSearchAfterParameter_sortByJustTimestamp simulates user viewing hits in Discover view in Kibana.
+// For simplicity nr of hits is vastly reduced, from e.g. 500 to 3, but that shouldn't change the logic at all.
+// Rows in DB are as follows (sorted by @timestamp DESC):
+// (t, m1); (t, m2); (t, m3); (t, m4); (t, m5); (t, m6); (t, m7) (7 rows with same timestamp 't')
+// (t-1s, m8); (t-1s, m9); (t-1s, m10) (3 rows with same timestamp 't-1s')
+// and now unique timestamps for rest of rows
+// (t-2s, m11); (t-3s, m12); (t-4s, m13); (t-5s, m14); (t-6s, m15); (t-7s, m16); (t-8s, m17)
+//
+// We send 4 requests, simulating user scrolling through hits.
+func TestSearchAfterParameter_sortByJustTimestampAdditionalInternalSortField(t *testing.T) {
+	fields := map[schema.FieldName]schema.Field{
+		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+		"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+	}
+	Schema := schema.NewSchema(fields, true, "")
+	staticRegistry := schema.NewStaticRegistry(
+		map[schema.IndexName]schema.Schema{tableName: Schema},
+		map[string]schema.Table{},
+		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
+	)
+	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+		Name:   tableName,
+		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*clickhouse.Column{
+			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+		},
+		Created: true,
+	})
+
+	someTime := time.Date(2024, 1, 29, 18, 11, 36, 491000000, time.UTC) // 1706551896491 in UnixMilli
+	sub := func(secondsFromSomeTime int) time.Time {
+		return someTime.Add(time.Second * time.Duration(-secondsFromSomeTime))
+	}
+	iterations := []struct {
+		request                     string
+		expectedSQL                 string
+		resultRowsFromDB            [][]any
+		basicAndFastSortFieldPerHit []int64
+	}{
+		{
+			request:                     `{"size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
+			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name ORDER BY "@timestamp" DESC LIMIT 3`,
+			resultRowsFromDB:            [][]any{{someTime, "m1"}, {someTime, "m2"}, {someTime, "m3"}},
+			basicAndFastSortFieldPerHit: []int64{someTime.UnixMilli(), someTime.UnixMilli(), someTime.UnixMilli()},
+		},
+		{
+			request:                     `{"search_after": [1706551896491], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
+			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896491)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
+			resultRowsFromDB:            [][]any{{sub(1), "m8"}, {sub(2), "m9"}, {sub(3), "m10"}},
+			basicAndFastSortFieldPerHit: []int64{sub(1).UnixMilli(), sub(2).UnixMilli(), sub(3).UnixMilli()},
+		},
+		{
+			request:                     `{"search_after": [1706551896488], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
+			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896488)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
+			resultRowsFromDB:            [][]any{{sub(4), "m11"}, {sub(5), "m12"}, {sub(6), "m13"}},
+			basicAndFastSortFieldPerHit: []int64{sub(4).UnixMilli(), sub(5).UnixMilli(), sub(6).UnixMilli()},
+		},
+		{
+			request:                     `{"search_after": [1706551896485], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
+			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896485)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
+			resultRowsFromDB:            [][]any{{sub(7), "m14"}, {sub(8), "m15"}, {sub(9), "m16"}},
+			basicAndFastSortFieldPerHit: []int64{sub(7).UnixMilli(), sub(8).UnixMilli(), sub(9).UnixMilli()},
+		},
+	}
+
+	test := func(strategy searchAfterStrategy, dateTimeType string, handlerName string) {
+		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+		defer db.Close()
+		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
+
+		for _, iteration := range iterations {
+			rows := sqlmock.NewRows([]string{"@timestamp", "message"})
+			for _, row := range iteration.resultRowsFromDB {
+				rows.AddRow(row[0], row[1])
+			}
+			mock.ExpectQuery(iteration.expectedSQL).WillReturnRows(rows)
+
+			var (
+				response                  []byte
+				err                       error
+				responseMap, responsePart model.JsonMap
+			)
+			switch handlerName {
+			case "handleSearch":
+				response, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(iteration.request))
+			case "handleAsyncSearch":
+				response, err = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(iteration.request), defaultAsyncSearchTimeout, true)
+			default:
+				t.Fatalf("Unknown handler name: %s", handlerName)
+			}
+			assert.NoError(t, err)
+			err = json.Unmarshal(response, &responseMap)
+			assert.NoError(t, err)
+			if handlerName == "handleSearch" {
+				responsePart = responseMap
+			} else {
+				responsePart = responseMap["response"].(model.JsonMap)
+			}
+
+			pp.Println(responsePart)
+			hits := responsePart["hits"].(model.JsonMap)["hits"].([]any)
+			assert.Len(t, hits, len(iteration.resultRowsFromDB))
+			for i, hit := range hits {
+				sortField := hit.(model.JsonMap)["sort"].([]any)
+				assert.Len(t, sortField, 1)
+				assert.Equal(t, float64(iteration.basicAndFastSortFieldPerHit[i]), sortField[0].(float64))
+			}
+		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatal("there were unfulfilled expections:", err)
+		}
+	}
+
+	handlers := []string{"handleSearch", "handleAsyncSearch"}
+	for _, strategy := range []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)} {
+		for _, handlerName := range handlers {
+			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
+				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
+			})
+		}
+	}
+}
+
 // TestSearchAfterParameter_sortByJustOneStringField simulates user viewing hits in Discover view in Kibana.
 // For simplicity nr of hits is vastly reduced, from e.g. 500 to 3, but that shouldn't change the logic at all.
 // Rows in DB are as follows (sorted by message ASC):
@@ -1305,6 +1430,109 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 				assert.Equal(t, float64(iteration.basicAndFastSortFieldPerHit[i][0].(int64)), sortField[0].(float64))
 				assert.Equal(t, iteration.basicAndFastSortFieldPerHit[i][1].(string), sortField[1].(string))
 				assert.Equal(t, float64(iteration.basicAndFastSortFieldPerHit[i][2].(int64)), sortField[2].(float64))
+			}
+		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatal("there were unfulfilled expections:", err)
+		}
+	}
+
+	handlers := []string{"handleSearch", "handleAsyncSearch"}
+	for _, strategy := range []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)} {
+		for _, handlerName := range handlers {
+			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
+				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
+			})
+		}
+	}
+}
+
+// TestSearchAfterParameter_sortByNoField simulates user viewing hits in Discover view in Kibana.
+// For simplicity nr of hits is vastly reduced, from e.g. 500 to 3, but that shouldn't change the logic at all.
+//
+// When data view has no timestamp field, by default Kibana will send sort: [{"_score": {"order": "desc"}}] request.
+// And hits response will have no sort field.
+// This test checks this behaviour.
+func TestSearchAfterParameter_sortByNoField(t *testing.T) {
+	fields := map[schema.FieldName]schema.Field{
+		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+		"bicep_size": {PropertyName: "bicep_size", InternalPropertyName: "bicep_size", Type: schema.QuesmaTypeInteger},
+		"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+	}
+	Schema := schema.NewSchema(fields, true, "")
+	staticRegistry := schema.NewStaticRegistry(
+		map[schema.IndexName]schema.Schema{tableName: Schema},
+		map[string]schema.Table{},
+		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
+	)
+	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+		Name:   tableName,
+		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*clickhouse.Column{
+			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"bicep_size": {Name: "bicep_size", Type: clickhouse.NewBaseType("Int64")},
+			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+		},
+		Created: true,
+	})
+
+	someTime := time.Date(2024, 1, 29, 18, 11, 36, 491000000, time.UTC) // 1706551896491 in UnixMilli
+	iterations := []struct {
+		request          string
+		expectedSQL      string
+		resultRowsFromDB [][]any
+	}{
+		{
+			request:     `{"size": 3, "track_total_hits": false, "sort": [{"_score": {"order": "desc"}}]}`,
+			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name LIMIT 3`,
+			resultRowsFromDB: [][]any{
+				{someTime, int64(1), "m1"},
+				{someTime, int64(2), "m2"},
+				{someTime, int64(3), "m3"},
+			},
+		},
+	}
+
+	test := func(strategy searchAfterStrategy, dateTimeType string, handlerName string) {
+		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+		defer db.Close()
+		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
+
+		for _, iteration := range iterations {
+			rows := sqlmock.NewRows([]string{"@timestamp", "bicep_size", "message"})
+			for _, row := range iteration.resultRowsFromDB {
+				rows.AddRow(row[0], row[1], row[2])
+			}
+			mock.ExpectQuery(iteration.expectedSQL).WillReturnRows(rows)
+
+			var (
+				response                  []byte
+				err                       error
+				responseMap, responsePart model.JsonMap
+			)
+			switch handlerName {
+			case "handleSearch":
+				response, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(iteration.request))
+			case "handleAsyncSearch":
+				response, err = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(iteration.request), defaultAsyncSearchTimeout, true)
+			default:
+				t.Fatalf("Unknown handler name: %s", handlerName)
+			}
+			assert.NoError(t, err)
+			err = json.Unmarshal(response, &responseMap)
+			assert.NoError(t, err)
+			if handlerName == "handleSearch" {
+				responsePart = responseMap
+			} else {
+				responsePart = responseMap["response"].(model.JsonMap)
+			}
+
+			hits := responsePart["hits"].(model.JsonMap)["hits"].([]any)
+			assert.Len(t, hits, len(iteration.resultRowsFromDB))
+			for _, hit := range hits {
+				_, exists := hit.(model.JsonMap)["sort"]
+				assert.False(t, exists)
 			}
 		}
 

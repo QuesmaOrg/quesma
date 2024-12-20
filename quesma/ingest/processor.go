@@ -934,7 +934,7 @@ func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHome
 
 func NewOnlySchemaFieldsCHConfig() *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
-		HasTimestamp:                          true,
+		HasTimestamp:                          false,
 		TimestampDefaultsNow:                  true,
 		Engine:                                "MergeTree",
 		OrderBy:                               "(" + `"@timestamp"` + ")",
@@ -944,12 +944,13 @@ func NewOnlySchemaFieldsCHConfig() *chLib.ChTableConfig {
 		Attributes:                            []chLib.Attribute{chLib.NewDefaultStringAttribute()},
 		CastUnsupportedAttrValueTypesToString: false,
 		PreferCastingToOthers:                 false,
+		Settings:                              "allow_nullable_key=true",
 	}
 }
 
 func NewDefaultCHConfig() *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
-		HasTimestamp:         true,
+		HasTimestamp:         false,
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(" + `"@timestamp"` + ")",
@@ -964,6 +965,7 @@ func NewDefaultCHConfig() *chLib.ChTableConfig {
 		},
 		CastUnsupportedAttrValueTypesToString: true,
 		PreferCastingToOthers:                 true,
+		Settings:                              "allow_nullable_key=true",
 	}
 }
 
@@ -976,6 +978,7 @@ func NewChTableConfigNoAttrs() *chLib.ChTableConfig {
 		Attributes:                            []chLib.Attribute{},
 		CastUnsupportedAttrValueTypesToString: true,
 		PreferCastingToOthers:                 true,
+		Settings:                              "allow_nullable_key=true",
 	}
 }
 
@@ -993,5 +996,6 @@ func NewChTableConfigFourAttrs() *chLib.ChTableConfig {
 		},
 		CastUnsupportedAttrValueTypesToString: true,
 		PreferCastingToOthers:                 true,
+		Settings:                              "allow_nullable_key=true",
 	}
 }
