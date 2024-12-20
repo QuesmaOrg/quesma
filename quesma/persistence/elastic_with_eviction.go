@@ -20,7 +20,7 @@ import (
 type ElasticDatabaseWithEviction struct {
 	ctx                  context.Context
 	*ElasticJSONDatabase // maybe remove and copy fields here
-	// EvictorInterface
+	// EvictorInterface TODO: rethink how eviction should work, maybe remove
 	sizeInBytesLimit int64
 }
 
