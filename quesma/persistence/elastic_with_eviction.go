@@ -215,17 +215,17 @@ func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, err err
 		return
 	}
 
-	a := make([]int64, 0)
+	sizes := make([]int64, 0)
 	for _, hit := range result["hits"].(map[string]interface{})["hits"].([]interface{}) {
 		if printDebugElasticDB {
 			pp.Println("hit:", hit)
 		}
 		b := sizeInBytes
 		sizeInBytes += int64(hit.(map[string]interface{})["_source"].(map[string]interface{})["sizeInBytes"].(float64)) // TODO: add checks
-		a = append(a, sizeInBytes-b)
+		sizes = append(sizes, sizeInBytes-b)
 	}
 	if printDebugElasticDB {
-		fmt.Println("kk dbg SizeInBytes() sizes in storage:", a)
+		fmt.Println("kk dbg SizeInBytes() sizes in storage:", sizes)
 	}
 	return sizeInBytes, nil
 }
