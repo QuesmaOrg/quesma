@@ -737,6 +737,13 @@ func ExtractNumeric64(value any) float64 {
 	return asFloat64
 }
 
+func SingleQuoteIfString(value any) any {
+	if str, ok := value.(string); ok {
+		return fmt.Sprintf("'%s'", str)
+	}
+	return value
+}
+
 type sqlMockMismatchSql struct {
 	expected string
 	actual   string
