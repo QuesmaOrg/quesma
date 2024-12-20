@@ -1198,7 +1198,6 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 	sub := func(secondsFromSomeTime int) time.Time {
 		return someTime.Add(time.Second * time.Duration(-secondsFromSomeTime))
 	}
-	_ = sub
 	iterations := []struct {
 		request                     string
 		expectedSQL                 string

@@ -141,20 +141,20 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 		return nil, fmt.Errorf("len(search_after) != len(sortFields), search_after: %v, sortFields: %v", asArray, query.SelectCommand.OrderBy)
 	}
 
-	fmt.Println("searchAfterParsed")
-	n := len(asArray)
-	searchAfterParsed = make([]model.Expr, n)
+	sortFieldsNr := len(asArray)
+	searchAfterParsed = make([]model.Expr, sortFieldsNr)
 	for i, searchAfterValue := range asArray {
 		column, ok := query.SelectCommand.OrderBy[i].Expr.(model.ColumnRef)
 		if !ok {
 			return nil, fmt.Errorf("for basic_and_fast strategy, order by must be a column reference")
 		}
 		field, resolved := indexSchema.ResolveField(column.ColumnName)
+		// logger.Info().Msgf("search_after: %v, field: %v, resolved: %v", searchAfterValue, field, resolved)
 		if !resolved {
 			return nil, fmt.Errorf("could not resolve field: %v", model.AsString(query.SelectCommand.OrderBy[i].Expr))
 		}
 		// TODO: fix error msgs below
-		if field.Type.Name == "date" {
+		if field.Type.Name == "date" || field.Type.Name == "timestamp" {
 			if number, isNumber := util.ExtractNumeric64Maybe(searchAfterValue); isNumber {
 				if number >= 0 && util.IsFloat64AnInt64(number) {
 					searchAfterParsed[i] = model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number)))
