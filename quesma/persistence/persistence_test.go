@@ -86,7 +86,7 @@ func TestNewElasticPersistence(t *testing.T) {
 }
 
 func TestJSONDatabaseWithEviction_noEviction(t *testing.T) {
-	t.Skip("passes locally, but requires elasticsearch to be running, so skipping")
+	t.Skip("Test passes locally (20.12.2024), but requires elasticsearch to be running, so skipping for now")
 	logger.InitSimpleLoggerForTests()
 	indexName := fmt.Sprintf("quesma_test_%d", time.Now().UnixMilli())
 	fmt.Println("indexName:", indexName)
@@ -155,7 +155,7 @@ func TestJSONDatabaseWithEviction_noEviction(t *testing.T) {
 }
 
 func TestJSONDatabaseWithEviction_withEviction(t *testing.T) {
-	t.Skip("passes locally, but requires elasticsearch to be running, so skipping")
+	t.Skip("Test passes locally (20.12.2024), but requires elasticsearch to be running, so skipping for now")
 	logger.InitSimpleLoggerForTests()
 	indexName := fmt.Sprintf("quesma_test_%d", time.Now().UnixMilli())
 
@@ -213,7 +213,6 @@ func TestJSONDatabaseWithEviction_withEviction(t *testing.T) {
 	assert.Equal(t, 2, docCount)
 
 	err = db.Put(docs[4])
-	fmt.Println("put", docs[4].SizeInBytesTotal, err)
 	assert.NoError(t, err)
 
 	time.Sleep(elasticUpdateTime)

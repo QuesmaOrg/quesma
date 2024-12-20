@@ -27,11 +27,10 @@ func NewAsyncRequestResultStorageInElasticsearch(cfg config.ElasticsearchConfigu
 		User:     "",
 		Password: "",
 	}
-	i := rand.Int()
-	fmt.Println("kk dbg NewAsyncRequestResultStorageInElasticsearch() i:", cfg)
-	return AsyncRequestResultStorageInElasticsearch{
-		db: persistence.NewElasticDatabaseWithEviction(cfg, "quesma_async_storage-"+strconv.Itoa(i), 1_000_000_000),
-	}
+		fmt.Println("kk dbg NewAsyncRequestResultStorageInElasticsearch() i:", cfg)
+		return AsyncRequestResultStorageInElasticsearch{
+			db: persistence.NewElasticDatabaseWithEviction(cfg, "quesma_async_storage-"+strconv.Itoa(i), 1_000_000_000),
+		}
 	*/
 	return AsyncRequestResultStorageInElasticsearch{
 		db: persistence.NewElasticDatabaseWithEviction(cfg, defaultElasticDbName, defaultElasticDbStorageLimitInBytes),

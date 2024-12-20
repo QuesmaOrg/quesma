@@ -15,59 +15,73 @@ import (
 )
 
 func TestAsyncQueriesEvictorTimePassed(t *testing.T) {
-	// TODO: add also 3rd storage and nice test for it (remove from memory, but still in elastic)
-	//realUrl, _ := url.Parse("http://localhost:9201")
-	//cfgUrl := config.Url(*realUrl)
-	//cfg := config.ElasticsearchConfiguration{Url: &cfgUrl}
 	storageKinds := []AsyncRequestResultStorage{
 		NewAsyncRequestResultStorageInMemory(),
-		//NewAsyncRequestResultStorageInElasticsearch(cfg),  // passes, reskip after merge
-		//NewAsyncSearchStorageInMemoryFallbackElastic(cfg), // passes, reskip after merge
+		NewAsyncRequestResultStorageInElasticsearch(testConfig()),
+		NewAsyncSearchStorageInMemoryFallbackElastic(testConfig()),
 	}
 	for _, storage := range storageKinds {
-		queryContextStorage := NewAsyncQueryContextStorageInMemory().(AsyncQueryContextStorageInMemory)
-		queryContextStorage.idToContext.Store("1", &AsyncQueryContext{})
-		evictor := NewAsyncQueriesEvictor(storage, queryContextStorage)
-		evictor.AsyncRequestStorage.Store("1", &AsyncRequestResult{Added: time.Now()})
-		evictor.AsyncRequestStorage.Store("2", &AsyncRequestResult{Added: time.Now()})
-		evictor.AsyncRequestStorage.Store("3", &AsyncRequestResult{Added: time.Now()})
+		t.Run(fmt.Sprintf("storage %T", storage), func(t *testing.T) {
+			_, inMemory := storage.(AsyncRequestResultStorageInMemory)
+			if !inMemory {
+				t.Skip("Test passes locally (20.12.2024), but requires elasticsearch to be running, so skipping for now")
+			}
 
-		time.Sleep(2 * time.Second)
-		evictor.tryEvictAsyncRequests(1 * time.Second)
-		time.Sleep(2 * time.Second)
+			queryContextStorage := NewAsyncQueryContextStorageInMemory().(AsyncQueryContextStorageInMemory)
+			queryContextStorage.idToContext.Store("1", &AsyncQueryContext{})
+			evictor := NewAsyncQueriesEvictor(storage, queryContextStorage)
+			evictor.AsyncRequestStorage.Store("1", &AsyncRequestResult{Added: time.Now().Add(-2 * time.Second)})
+			evictor.AsyncRequestStorage.Store("2", &AsyncRequestResult{Added: time.Now().Add(-5 * time.Second)})
+			evictor.AsyncRequestStorage.Store("3", &AsyncRequestResult{Added: time.Now().Add(2 * time.Second)})
 
-		assert.Equal(t, 0, evictor.AsyncRequestStorage.DocCount())
+			if !inMemory {
+				time.Sleep(2 * time.Second)
+			}
+			evictor.tryEvictAsyncRequests(1 * time.Second)
+			if !inMemory {
+				time.Sleep(2 * time.Second)
+			}
+
+			assert.Equal(t, 1, evictor.AsyncRequestStorage.DocCount())
+		})
 	}
 }
 
 func TestAsyncQueriesEvictorStillAlive(t *testing.T) {
-	// TODO: add also 3rd storage and nice test for it (remove from memory, but still in elastic)
-	//realUrl, _ := url.Parse("http://localhost:9201")
-	//cfgUrl := config.Url(*realUrl)
-	//cfg := config.ElasticsearchConfiguration{Url: &cfgUrl}
 	storageKinds := []AsyncRequestResultStorage{
 		NewAsyncRequestResultStorageInMemory(),
-		//NewAsyncRequestResultStorageInElasticsearch(cfg),  // passes, reskip after merge
-		//NewAsyncSearchStorageInMemoryFallbackElastic(cfg), // passes, reskip after merge
+		NewAsyncRequestResultStorageInElasticsearch(testConfig()),
+		NewAsyncSearchStorageInMemoryFallbackElastic(testConfig()),
 	}
 	for _, storage := range storageKinds {
-		queryContextStorage := NewAsyncQueryContextStorageInMemory().(AsyncQueryContextStorageInMemory)
-		queryContextStorage.idToContext.Store("1", &AsyncQueryContext{})
-		evictor := NewAsyncQueriesEvictor(storage, queryContextStorage)
-		evictor.AsyncRequestStorage.Store("1", &AsyncRequestResult{Added: time.Now()})
-		evictor.AsyncRequestStorage.Store("2", &AsyncRequestResult{Added: time.Now()})
-		evictor.AsyncRequestStorage.Store("3", &AsyncRequestResult{Added: time.Now()})
+		t.Run(fmt.Sprintf("storage %T", storage), func(t *testing.T) {
+			_, inMemory := storage.(AsyncRequestResultStorageInMemory)
+			if !inMemory {
+				t.Skip("Test passes locally (20.12.2024), but requires elasticsearch to be running, so skipping for now")
+			}
 
-		time.Sleep(2 * time.Second)
-		evictor.tryEvictAsyncRequests(10 * time.Second)
-		time.Sleep(2 * time.Second)
+			queryContextStorage := NewAsyncQueryContextStorageInMemory().(AsyncQueryContextStorageInMemory)
+			queryContextStorage.idToContext.Store("1", &AsyncQueryContext{})
+			evictor := NewAsyncQueriesEvictor(storage, queryContextStorage)
+			evictor.AsyncRequestStorage.Store("1", &AsyncRequestResult{Added: time.Now()})
+			evictor.AsyncRequestStorage.Store("2", &AsyncRequestResult{Added: time.Now()})
+			evictor.AsyncRequestStorage.Store("3", &AsyncRequestResult{Added: time.Now()})
 
-		assert.Equal(t, 3, evictor.AsyncRequestStorage.DocCount())
+			if !inMemory {
+				time.Sleep(2 * time.Second)
+			}
+			evictor.tryEvictAsyncRequests(10 * time.Second)
+			if !inMemory {
+				time.Sleep(2 * time.Second)
+			}
+
+			assert.Equal(t, 3, evictor.AsyncRequestStorage.DocCount())
+		})
 	}
 }
 
 func TestInMemoryFallbackElasticStorage(t *testing.T) {
-	//t.Skip("passes locally, but requires elasticsearch to be running, so skipping")
+	t.Skip("Test passes locally (20.12.2024), but requires elasticsearch to be running, so skipping for now")
 	storage := NewAsyncSearchStorageInMemoryFallbackElastic(testConfig())
 	storage.Store("1", &AsyncRequestResult{})
 	storage.Store("2", &AsyncRequestResult{})
@@ -122,24 +136,26 @@ func testConfig() config.ElasticsearchConfiguration {
 func TestEvictingAsyncQuery_1(t *testing.T) {
 	t.Skip("TODO: automize this test after evicting from Clickhouse from UI works")
 	options := clickhouse.Options{Addr: []string{"localhost:9000"}}
-	a := clickhouse.OpenDB(&options)
-	ctx := clickhouse.Context(context.Background(), clickhouse.WithQueryID(qid))
+	db := clickhouse.OpenDB(&options)
+	defer db.Close()
 
-	b, err := a.QueryContext(ctx, "SELECT number FROM (SELECT number FROM numbers(100_000_000_000)) ORDER BY number DESC LIMIT 10")
-	var q int64
-	for b.Next() {
-		b.Scan(&q)
-		fmt.Println(q)
+	ctx := clickhouse.Context(context.Background(), clickhouse.WithQueryID(qid))
+	rows, err := db.QueryContext(ctx, "SELECT number FROM (SELECT number FROM numbers(100_000_000_000)) ORDER BY number DESC LIMIT 10")
+	var i int64
+	for rows.Next() {
+		rows.Scan(&i)
+		fmt.Println(i)
 	}
 
-	fmt.Println(b, "q:", q, err)
+	fmt.Println(rows, "i:", i, err)
 }
 
 func TestEvictingAsyncQuery_2(t *testing.T) {
 	t.Skip("TODO: automize this test after evicting from Clickhouse from UI works")
 	options := clickhouse.Options{Addr: []string{"localhost:9000"}}
-	a := clickhouse.OpenDB(&options)
+	db := clickhouse.OpenDB(&options)
+	defer db.Close()
 
-	b, err := a.Query("KILL QUERY WHERE query_id=	'x'")
-	fmt.Println(b, err)
+	rows, err := db.Query("KILL QUERY WHERE query_id=	'x'")
+	fmt.Println(rows, err)
 }
