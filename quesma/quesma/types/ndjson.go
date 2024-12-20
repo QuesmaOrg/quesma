@@ -3,8 +3,8 @@
 package types
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"strings"
 )
 
@@ -69,9 +69,22 @@ func (n NDJSON) BulkForEach(f func(entryNumber int, operationParsed BulkOperatio
 		operation := n[i]  // {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}
 		document := n[i+1] // {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
 
-		var operationParsed BulkOperation // operationName (create, index, update, delete) -> DocumentTarget
+		operationParsed := make(map[string]DocumentTarget)
 
-		_ = operation.Remarshal(&operationParsed) // ignore error, the callback must handle it (it will see an unknown operation)
+		for k, v := range operation {
+			d := DocumentTarget{}
+			if op, ok := v.(map[string]interface{}); ok {
+				if index, ok := op["_index"].(string); ok {
+					d.Index = &index
+				}
+
+				if id, ok := op["_id"].(string); ok {
+					d.Id = &id
+				}
+			}
+
+			operationParsed[k] = d
+		}
 
 		err := f(i/2, operationParsed, operation, document)
 		if err != nil {

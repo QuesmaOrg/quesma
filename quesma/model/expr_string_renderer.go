@@ -49,7 +49,7 @@ func (v *renderer) VisitPrefixExpr(e PrefixExpr) interface{} {
 }
 
 func (v *renderer) VisitNestedProperty(e NestedProperty) interface{} {
-	return fmt.Sprintf("%v.%v", e.ColumnRef.Accept(v), e.PropertyName.Accept(v))
+	return fmt.Sprintf("%v.%v", e.ObjectExpr.Accept(v), e.PropertyName.Accept(v))
 }
 
 func (v *renderer) VisitArrayAccess(e ArrayAccess) interface{} {
@@ -82,9 +82,9 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	}
 	// This might look like a strange heuristics to but is aligned with the way we are currently generating the statement
 	// I think in the future every infix op should be in braces.
-	if e.Op == "AND" || e.Op == "OR" {
+	if strings.HasPrefix(e.Op, "_") || e.Op == "AND" || e.Op == "OR" {
 		return fmt.Sprintf("(%v %v %v)", lhs, e.Op, rhs)
-	} else if strings.Contains(e.Op, "LIKE") || e.Op == "IS" || e.Op == "IN" || e.Op == "REGEXP" {
+	} else if strings.Contains(e.Op, "LIKE") || e.Op == "IS" || e.Op == "IN" || e.Op == "REGEXP" || strings.Contains(e.Op, "UNION") {
 		return fmt.Sprintf("%v %v %v", lhs, e.Op, rhs)
 	} else {
 		return fmt.Sprintf("%v%v%v", lhs, e.Op, rhs)
@@ -191,13 +191,17 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 		sb.WriteString(" FROM ")
 	}
 	/* HACK ALERT END */
-	if c.FromClause != nil { // here we have to handle nested
-		if nestedCmd, isNested := c.FromClause.(SelectCommand); isNested {
-			sb.WriteString(fmt.Sprintf("(%s)", AsString(nestedCmd)))
-		} else if nestedCmdPtr, isNested := c.FromClause.(*SelectCommand); isNested {
-			sb.WriteString(fmt.Sprintf("(%s)", AsString(nestedCmdPtr)))
-		} else {
+	if c.FromClause != nil {
+		// Non-nested FROM clauses don't have to be wrapped in parentheses
+		if _, isTableRef := c.FromClause.(TableRef); isTableRef {
 			sb.WriteString(AsString(c.FromClause))
+		} else if _, isLiteral := c.FromClause.(LiteralExpr); isLiteral {
+			sb.WriteString(AsString(c.FromClause))
+		} else if _, isJoinExpr := c.FromClause.(JoinExpr); isJoinExpr {
+			sb.WriteString(AsString(c.FromClause))
+		} else {
+			// Nested sub-query
+			sb.WriteString(fmt.Sprintf("(%s)", AsString(c.FromClause)))
 		}
 	}
 	if c.WhereClause != nil {

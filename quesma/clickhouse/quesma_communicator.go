@@ -11,7 +11,8 @@ import (
 	"quesma/end_user_errors"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/tracing"
+	"quesma/quesma/recovery"
+	tracing "quesma_v2/core/tracing"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -59,10 +60,11 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 			colName = col.Alias
 		case model.LiteralExpr:
 
-			// This should be moved to the SchemaCheck pipeline. It'll require to change a lot of tests.
+			// There's now a AliasColumnsTransformation transformation that handles this,
+			// but it's not fully complete as it'll require to change a lot more tests.
 			//
-			// It can be removed just after the pancake will be the only way to generate SQL.
-			// Pancake SQL are aliased properly.
+			// The only remaining issue is that Pancake SQLs sometimes generate LiteralExpr in SELECT
+			// instead of ColumnRef (nested SQLs case).
 
 			if str, isStr := col.Value.(string); isStr {
 				if unquoted, err := strconv.Unquote(str); err == nil {
@@ -71,11 +73,15 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 					colName = str
 				}
 			} else {
+				// AliasColumnsTransformation should have handled this
+				logger.Warn().Msgf("Unexpected unaliased literal: %v", col.Value)
 				if colName == "" {
 					colName = fmt.Sprintf("column_%d", count)
 				}
 			}
 		default:
+			// AliasColumnsTransformation should have handled this
+			logger.Warn().Msgf("Unexpected unaliased literal: %v", col)
 			if colName == "" {
 				colName = fmt.Sprintf("column_%d", count)
 			}
@@ -188,7 +194,7 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 		performanceResult.Error = err
 		return nil, performanceResult, end_user_errors.GuessClickhouseErrorType(err).InternalDetails("clickhouse: query failed. err: %v, query: %v", err, queryAsString)
 	}
-	res, err = read(rows, fields, rowToScan)
+	res, err = read(ctx, rows, fields, rowToScan, query.SelectCommand.Limit)
 
 	elapsed := span.End(nil)
 	performanceResult.Duration = elapsed
@@ -204,7 +210,7 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
 // like e.g. count(), or toInt8(boolField)
-func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
+func read(ctx context.Context, rows *sql.Rows, selectFields []string, rowToScan []interface{}, limit int) ([]model.QueryResultRow, error) {
 
 	// read selected fields from the metadata
 
@@ -213,7 +219,8 @@ func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]mod
 		rowDb = append(rowDb, &rowToScan[i])
 	}
 	resultRows := make([]model.QueryResultRow, 0)
-	for rows.Next() {
+	// If a limit is set (limit != 0) then collect only the first 'limit' rows
+	for (len(resultRows) < limit || limit == 0) && rows.Next() {
 		err := rows.Scan(rowDb...)
 		if err != nil {
 			return nil, fmt.Errorf("clickhouse: scan failed: %v", err)
@@ -227,9 +234,12 @@ func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]mod
 	if rows.Err() != nil {
 		return nil, fmt.Errorf("clickhouse: iterating over rows failed:  %v", rows.Err())
 	}
-	err := rows.Close()
-	if err != nil {
-		return nil, fmt.Errorf("clickhouse: closing rows failed: %v", err)
-	}
+	go func() {
+		defer recovery.LogPanicWithCtx(ctx)
+		err := rows.Close()
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("clickhouse: closing rows failed: %v", err)
+		}
+	}()
 	return resultRows, nil
 }

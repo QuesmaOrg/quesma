@@ -8,10 +8,8 @@ import (
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
-	"quesma/concurrent"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
-	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/util"
@@ -24,20 +22,21 @@ const TableName = model.SingleTableNamePlaceHolder
 
 func TestPancakeQueryGeneration(t *testing.T) {
 
-	// logger.InitSimpleLoggerForTests()
+	// logger.InitSimpleLoggerForTestsWarnLevel()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
-			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"order_date":  {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
-			"message":     {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"bytes_gauge": {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
+			"@timestamp":                     {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"timestamp":                      {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"order_date":                     {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
+			"message":                        {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"bytes_gauge":                    {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
+			"customer_birth_date":            {Name: "customer_birth_date", Type: clickhouse.NewBaseType("DateTime")},
+			"customer_birth_date_datetime64": {Name: "customer_birth_date_datetime64", Type: clickhouse.NewBaseType("DateTime64")},
 		},
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), &config.QuesmaConfiguration{})
 	currentSchema := schema.Schema{
 		Fields:             nil,
 		Aliases:            nil,
@@ -45,32 +44,25 @@ func TestPancakeQueryGeneration(t *testing.T) {
 		DatabaseName:       "",
 	}
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: currentSchema}
+	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: currentSchema}
 
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
 			}
-			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:22)" {
-				t.Skip("error: filter(s)/range/dataRange aggregation must be the last bucket aggregation")
+
+			if test.TestName == "Line, Y-axis: Min, Buckets: Date Range, X-Axis: Terms, Split Chart: Date Histogram(file:kibana-visualize/agg_req,nr:9)" {
+				t.Skip("Date range is broken, fix in progress (PR #971)")
 			}
 
 			if test.TestName == "Terms with order by top metrics(file:kibana-visualize/agg_req,nr:8)" {
 				t.Skip("Need to implement order by top metrics (talk with Jacek, he has an idea)")
 			}
 
-			if test.TestName == "multiple buckets_path(file:clients/clover,nr:1)" {
-				t.Skip("This needs fixing ASAP, easy to fix")
-			}
-
 			if test.TestName == "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)(file:opensearch-visualize/pipeline_agg_req,nr:20)" ||
 				test.TestName == "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range(file:opensearch-visualize/pipeline_agg_req,nr:21)" {
 				t.Skip("Was skipped before. Wrong key in max_bucket, should be an easy fix")
-			}
-
-			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram(file:opensearch-visualize/pipeline_agg_req,nr:24)" {
-				t.Skip("Was skipped before, no expected results")
 			}
 
 			// TODO: add test for filter(s) both at the beginning and end of aggregation tree
@@ -217,11 +209,9 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), &config.QuesmaConfiguration{})
-
 	currentSchema := schema.Schema{}
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: currentSchema}
+	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: currentSchema}
 
 	tests := []struct {
 		name string

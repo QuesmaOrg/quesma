@@ -3,11 +3,19 @@
 package kibana_visualize
 
 import (
+	"math/big"
 	"quesma/model"
 	"quesma/testdata"
+	"quesma/util"
 )
 
 const TableName = model.SingleTableNamePlaceHolder
+
+var (
+	bigInt4763694 = big.NewInt(4763694)
+	bigInt0       = big.NewInt(0)
+	bigInt1       = big.NewInt(1)
+)
 
 var AggregationTests = []testdata.AggregationTestCase{
 	{ // [0]
@@ -38,10 +46,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 						}
 					},
 					"date_histogram": {
-						"extended_bounds": {
-							"max": 1716812096627,
-							"min": 1716811196627
-						},
 						"field": "@timestamp",
 						"fixed_interval": "30s",
 						"time_zone": "Europe/Warsaw"
@@ -132,6 +136,15 @@ var AggregationTests = []testdata.AggregationTestCase{
 								"doc_count": 4,
 								"key": 1716827010000,
 								"key_as_string": "2024-05-27T16:23:30.000"
+							},
+							{
+								"doc_count": 0,
+								"key": 1716827040000,
+								"key_as_string": "2024-05-27T16:24:00.000",
+								"1": {
+									"buckets": [],
+									"sum_other_doc_count": 0
+								}
 							},
 							{
 								"1": {
@@ -259,10 +272,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 					"aggs": {
 						"1": {
 							"date_histogram": {
-								"extended_bounds": {
-									"max": 1716812073493,
-									"min": 1716811173493
-								},
 								"field": "@timestamp",
 								"fixed_interval": "30s"
 							}
@@ -336,6 +345,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 											"doc_count": 1,
 											"key": 1716834450000,
 											"key_as_string": "2024-05-27T18:27:30.000"
+										},
+										{
+											"doc_count": 0,
+											"key": 1716834480000,
+											"key_as_string": "2024-05-27T18:28:00.000"
 										},
 										{
 											"doc_count": 2,
@@ -446,6 +460,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 									"max": 1716834478178,
 									"min": 1716833578178
 								},
+								"min_doc_count": 1,
 								"field": "@timestamp",
 								"fixed_interval": "30s"
 							}
@@ -1783,5 +1798,1480 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__1__key_0"))
 			WHERE "aggr__0__order_1_rank"<=13
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+	},
+	{ // [9]
+		TestName: "Line, Y-axis: Min, Buckets: Date Range, X-Axis: Terms, Split Chart: Date Histogram",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"3": {
+							"aggs": {
+								"1": {
+									"min": {
+										"field": "FlightDelayMin"
+									}
+								},
+								"4": {
+									"aggs": {
+										"1": {
+											"min": {
+												"field": "FlightDelayMin"
+											}
+										}
+									},
+									"date_histogram": {
+										"field": "timestamp",
+										"fixed_interval": "30d",
+										"min_doc_count": 1,
+										"time_zone": "Europe/Warsaw"
+									}
+								}
+							},
+							"terms": {
+								"field": "DistanceKilometers",
+								"order": {
+									"1": "desc"
+								},
+								"shard_size": 25,
+								"size": 5
+							}
+						}
+					},
+					"date_range": {
+						"field": "timestamp",
+						"ranges": [
+							{
+								"from": "now-1w/w",
+								"to": "now"
+							},
+							{
+								"from": "now-1d"
+							}
+						],
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2009-11-12T08:31:26.584Z",
+									"lte": "2024-11-12T08:31:26.584Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"3": {
+								"buckets": [
+									{
+										"1": {
+											"value": 360.0
+										},
+										"4": {
+											"buckets": [
+												{
+													"1": {
+														"value": 360.0
+													},
+													"doc_count": 1,
+													"key": 1728856800000,
+													"key_as_string": "2024-10-13T22:00:00.000"
+												}
+											]
+										},
+										"doc_count": 1,
+										"key": 1502.8392333984375
+									},
+									{
+										"1": {
+											"value": 360.0
+										},
+										"4": {
+											"buckets": [
+												{
+													"1": {
+														"value": 360.0
+													},
+													"doc_count": 1,
+													"key": 1728856800000,
+													"key_as_string": "2024-10-13T22:00:00.000"
+												}
+											]
+										},
+										"doc_count": 1,
+										"key": 2649.456787109375
+									},
+									{
+										"1": {
+											"value": 360.0
+										},
+										"4": {
+											"buckets": [
+												{
+													"1": {
+														"value": 360.0
+													},
+													"doc_count": 1,
+													"key": 1728856800000,
+													"key_as_string": "2024-10-13T22:00:00.000"
+												}
+											]
+										},
+										"doc_count": 1,
+										"key": 6280.2021484375
+									}
+								],
+								"doc_count_error_upper_bound": -1,
+								"sum_other_doc_count": 2666
+							},
+							"doc_count": 2671,
+							"from": 1730674800000.0,
+							"from_as_string": "2024-11-04T00:00:00.000+01:00",
+							"key": "2024-11-04T00:00:00.000+01:00-2024-11-12T10:15:15.067+01:00",
+							"to": 1731402915067.0,
+							"to_as_string": "2024-11-12T10:15:15.067+01:00"
+						},
+						{
+							"3": {
+								"buckets": [
+									{
+										"1": {
+											"value": 360.0
+										},
+										"4": {
+											"buckets": [
+												{
+													"1": {
+														"value": 360.0
+													},
+													"doc_count": 1,
+													"key": 1728856800000,
+													"key_as_string": "2024-10-13T22:00:00.000"
+												}
+											]
+										},
+										"doc_count": 1,
+										"key": 6287.01806640625
+									}
+								],
+								"doc_count_error_upper_bound": -1,
+								"sum_other_doc_count": 333
+							},
+							"doc_count": 338,
+							"from": 1731316515067.0,
+							"from_as_string": "2024-11-11T10:15:15.067+01:00",
+							"key": "2024-11-11T10:15:15.067+01:00-*"
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2671
+				}
+			},
+			"timed_out": false,
+			"took": 129
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__count", int64(2671)),
+				model.NewQueryResultCol("aggr__2__3__parent_count", int64(2671)),
+				model.NewQueryResultCol("aggr__2__3__key_0", 1502.8392333984375),
+				model.NewQueryResultCol("aggr__2__3__count", int64(1)),
+				model.NewQueryResultCol("metric__2__3__1_col_0", 360.0),
+				model.NewQueryResultCol("aggr__2__3__4__key_0", int64(1728864000000/2592000000)),
+				model.NewQueryResultCol("aggr__2__3__4__count", int64(1)),
+				model.NewQueryResultCol("metric__2__3__4__1_col_0", 360.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__count", int64(2671)),
+				model.NewQueryResultCol("aggr__2__3__parent_count", int64(2671)),
+				model.NewQueryResultCol("aggr__2__3__key_0", 2649.456787109375),
+				model.NewQueryResultCol("aggr__2__3__count", int64(1)),
+				model.NewQueryResultCol("metric__2__3__1_col_0", 360.0),
+				model.NewQueryResultCol("aggr__2__3__4__key_0", int64(1728864000000/2592000000)),
+				model.NewQueryResultCol("aggr__2__3__4__count", int64(1)),
+				model.NewQueryResultCol("metric__2__3__4__1_col_0", 360.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__count", int64(2671)),
+				model.NewQueryResultCol("aggr__2__3__parent_count", int64(2671)),
+				model.NewQueryResultCol("aggr__2__3__key_0", 6280.2021484375),
+				model.NewQueryResultCol("aggr__2__3__count", int64(1)),
+				model.NewQueryResultCol("metric__2__3__1_col_0", 360.0),
+				model.NewQueryResultCol("aggr__2__3__4__key_0", int64(1728864000000/2592000000)),
+				model.NewQueryResultCol("aggr__2__3__4__count", int64(1)),
+				model.NewQueryResultCol("metric__2__3__4__1_col_0", 360.0),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0",
+			  "aggr__2__3__count", "metric__2__3__1_col_0", "aggr__2__3__4__key_0",
+			  "aggr__2__3__4__count", "metric__2__3__4__1_col_0"
+			FROM (
+			  SELECT "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0",
+				"aggr__2__3__count", "metric__2__3__1_col_0", "aggr__2__3__4__key_0",
+				"aggr__2__3__4__count", "metric__2__3__4__1_col_0",
+				dense_rank() OVER (ORDER BY "metric__2__3__1_col_0" DESC,
+				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__3__key_0" ORDER BY
+				"aggr__2__3__4__key_0" ASC) AS "aggr__2__3__4__order_1_rank"
+			  FROM (
+				SELECT sum(countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfWeek(
+				  subDate(now(), INTERVAL 1 week)))) AND "timestamp"<toInt64(toUnixTimestamp
+				  (now()))))) OVER () AS "aggr__2__count",
+				  sum(countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfWeek(subDate(
+				  now(), INTERVAL 1 week)))) AND "timestamp"<toInt64(toUnixTimestamp(now()))
+				  ))) OVER () AS "aggr__2__3__parent_count",
+				  "DistanceKilometers" AS "aggr__2__3__key_0",
+				  sum(countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfWeek(subDate(
+				  now(), INTERVAL 1 week)))) AND "timestamp"<toInt64(toUnixTimestamp(now()))
+				  ))) OVER (PARTITION BY "aggr__2__3__key_0") AS "aggr__2__3__count",
+				  minOrNull(minOrNullIf("FlightDelayMin", ("timestamp">=toInt64(
+				  toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND
+				  "timestamp"<toInt64(toUnixTimestamp(now()))))) OVER (PARTITION BY
+				  "aggr__2__3__key_0") AS "metric__2__3__1_col_0",
+				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				  "timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
+				  "aggr__2__3__4__key_0",
+				  countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfWeek(subDate(now(),
+				  INTERVAL 1 week)))) AND "timestamp"<toInt64(toUnixTimestamp(now())))) AS
+				  "aggr__2__3__4__count",
+				  minOrNullIf("FlightDelayMin", ("timestamp">=toInt64(toUnixTimestamp(
+				  toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND "timestamp"<toInt64(
+				  toUnixTimestamp(now())))) AS "metric__2__3__4__1_col_0"
+				FROM __quesma_table_name
+				WHERE (("timestamp">=fromUnixTimestamp64Milli(1258014686584) AND "timestamp"
+				  <=fromUnixTimestamp64Milli(1731400286584)) AND ("timestamp">=toInt64(
+				  toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND
+				  "timestamp"<toInt64(toUnixTimestamp(now()))))
+				GROUP BY "DistanceKilometers" AS "aggr__2__3__key_0",
+				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				  "timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
+				  "aggr__2__3__4__key_0"))
+			WHERE "aggr__2__3__order_1_rank"<=6
+			ORDER BY "aggr__2__3__order_1_rank" ASC, "aggr__2__3__4__order_1_rank" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{`
+			SELECT "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0",
+			  "aggr__2__3__count", "metric__2__3__1_col_0", "aggr__2__3__4__key_0",
+			  "aggr__2__3__4__count", "metric__2__3__4__1_col_0"
+			FROM (
+			  SELECT "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0",
+				"aggr__2__3__count", "metric__2__3__1_col_0", "aggr__2__3__4__key_0",
+				"aggr__2__3__4__count", "metric__2__3__4__1_col_0",
+				dense_rank() OVER (ORDER BY "metric__2__3__1_col_0" DESC,
+				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__3__key_0" ORDER BY
+				"aggr__2__3__4__key_0" ASC) AS "aggr__2__3__4__order_1_rank"
+			  FROM (
+				SELECT sum(countIf("timestamp">=toInt64(toUnixTimestamp(subDate(now(),
+				  INTERVAL 1 day))))) OVER () AS "aggr__2__count",
+				  sum(countIf("timestamp">=toInt64(toUnixTimestamp(subDate(now(), INTERVAL 1
+				  day))))) OVER () AS "aggr__2__3__parent_count",
+				  "DistanceKilometers" AS "aggr__2__3__key_0",
+				  sum(countIf("timestamp">=toInt64(toUnixTimestamp(subDate(now(), INTERVAL 1
+				  day))))) OVER (PARTITION BY "aggr__2__3__key_0") AS "aggr__2__3__count",
+				  minOrNull(minOrNullIf("FlightDelayMin", "timestamp">=toInt64(
+				  toUnixTimestamp(subDate(now(), INTERVAL 1 day))))) OVER (PARTITION BY
+				  "aggr__2__3__key_0") AS "metric__2__3__1_col_0",
+				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				  "timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
+				  "aggr__2__3__4__key_0",
+				  countIf("timestamp">=toInt64(toUnixTimestamp(subDate(now(), INTERVAL 1 day
+				  )))) AS "aggr__2__3__4__count",
+				  minOrNullIf("FlightDelayMin", "timestamp">=toInt64(toUnixTimestamp(subDate
+				  (now(), INTERVAL 1 day)))) AS "metric__2__3__4__1_col_0"
+				FROM __quesma_table_name
+				WHERE (("timestamp">=fromUnixTimestamp64Milli(1258014686584) AND "timestamp"
+				  <=fromUnixTimestamp64Milli(1731400286584)) AND "timestamp">=toInt64(
+				  toUnixTimestamp(subDate(now(), INTERVAL 1 day))))
+				GROUP BY "DistanceKilometers" AS "aggr__2__3__key_0",
+				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				  "timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
+				  "aggr__2__3__4__key_0"))
+			WHERE "aggr__2__3__order_1_rank"<=6
+			ORDER BY "aggr__2__3__order_1_rank" ASC, "aggr__2__3__4__order_1_rank" ASC`,
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__2__count", int64(2671)),
+					model.NewQueryResultCol("aggr__2__3__parent_count", int64(338)),
+					model.NewQueryResultCol("aggr__2__3__key_0", 6287.01806640625),
+					model.NewQueryResultCol("aggr__2__3__count", int64(1)),
+					model.NewQueryResultCol("metric__2__3__1_col_0", 360.0),
+					model.NewQueryResultCol("aggr__2__3__4__key_0", int64(1728864000000/2592000000)),
+					model.NewQueryResultCol("aggr__2__3__4__count", int64(1)),
+					model.NewQueryResultCol("metric__2__3__4__1_col_0", 360.0),
+				}},
+			},
+		},
+	},
+	{ // [10]
+		TestName: "simplest IP Prefix (Kibana 8.13+), ipv4 field, prefix_length=0",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"ip_prefix": {
+						"field": "clientip",
+						"prefix_length": 0
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 1,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "0.0.0.0",
+							"netmask": "0.0.0.0",
+							"doc_count": 14074,
+							"is_ipv6": false,
+							"prefix_length": 0
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__count", 14074),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT count(*) AS "aggr__2__count"
+			FROM __quesma_table_name`,
+	},
+	{ // [11]
+		TestName: "simplest IP Prefix (Kibana 8.13+), ipv4 field, prefix_length=1",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"ip_prefix": {
+						"field": "clientip",
+						"prefix_length": 1
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 1,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "0.0.0.0",
+							"netmask": "128.0.0.0",
+							"doc_count": 7290,
+							"is_ipv6": false,
+							"prefix_length": 1
+						},
+						{
+							"key": "128.0.0.0",
+							"netmask": "128.0.0.0",
+							"doc_count": 6784,
+							"is_ipv6": false,
+							"prefix_length": 1
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(0)),
+				model.NewQueryResultCol("aggr__2__count", 7290),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(1)),
+				model.NewQueryResultCol("aggr__2__count", 6784),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT intDiv("clientip", 2147483648) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY intDiv("clientip", 2147483648) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [12]
+		TestName: "simplest IP Prefix (Kibana 8.13+), ipv4 field, prefix_length=10",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"ip_prefix": {
+						"field": "clientip",
+						"prefix_length": 10
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 1,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "0.0.0.0",
+							"netmask": "255.192.0.0",
+							"doc_count": 1,
+							"is_ipv6": false,
+							"prefix_length": 10
+						},
+						{
+							"key": "5.0.0.0",
+							"netmask": "255.192.0.0",
+							"doc_count": 1,
+							"is_ipv6": false,
+							"prefix_length": 10
+						},
+						{
+							"key": "90.128.0.0",
+							"netmask": "255.192.0.0",
+							"doc_count": 1,
+							"is_ipv6": false,
+							"prefix_length": 10
+						},
+						{
+							"key": "128.192.0.0",
+							"netmask": "255.192.0.0",
+							"doc_count": 2,
+							"is_ipv6": false,
+							"prefix_length": 10
+						},
+						{
+							"key": "192.128.0.0",
+							"netmask": "255.192.0.0",
+							"doc_count": 1,
+							"is_ipv6": false,
+							"prefix_length": 10
+						},
+						{
+							"key": "222.128.0.0",
+							"netmask": "255.192.0.0",
+							"doc_count": 1,
+							"is_ipv6": false,
+							"prefix_length": 10
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(0)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(20)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(362)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(515)),
+				model.NewQueryResultCol("aggr__2__count", 2),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(770)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(890)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT intDiv("clientip", 4194304) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY intDiv("clientip", 4194304) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [13]
+		TestName: "simplest IP Prefix (Kibana 8.13+), ipv4 field, prefix_length=32",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"ip_prefix": {
+						"field": "clientip",
+						"prefix_length": 32,
+						"is_ipv6": false
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 1,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "0.0.0.0",
+							"netmask": "255.255.255.255",
+							"doc_count": 1,
+							"is_ipv6": false,
+							"prefix_length": 32
+						},
+						{
+							"key": "5.5.5.5",
+							"netmask": "255.255.255.255",
+							"doc_count": 1,
+							"is_ipv6": false,
+							"prefix_length": 32
+						},
+						{
+							"key": "90.180.90.180",
+							"netmask": "255.255.255.255",
+							"doc_count": 1,
+							"is_ipv6": false,
+							"prefix_length": 32
+						},
+						{
+							"key": "128.200.0.8",
+							"netmask": "255.255.255.255",
+							"doc_count": 2,
+							"is_ipv6": false,
+							"prefix_length": 32
+						},
+						{
+							"key": "192.168.1.67",
+							"netmask": "255.255.255.255",
+							"doc_count": 1,
+							"is_ipv6": false,
+							"prefix_length": 32
+						},
+						{
+							"key": "222.168.22.67",
+							"netmask": "255.255.255.255",
+							"doc_count": 1,
+							"is_ipv6": false,
+							"prefix_length": 32
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(0)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(84215045)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(1521769140)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(2160590856)),
+				model.NewQueryResultCol("aggr__2__count", 2),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(3232235843)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(3735557699)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT intDiv("clientip", 1) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY intDiv("clientip", 1) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [14]
+		TestName: "simplest IP Prefix (Kibana 8.13+), ipv4 field, keyed=true",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"ip_prefix": {
+						"field": "clientip",
+						"prefix_length": 19,
+						"keyed": true
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 47,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": {
+						"5.5.0.0": {
+							"netmask": "255.255.224.0",
+							"doc_count": 7290,
+							"is_ipv6": false,
+							"prefix_length": 19
+						},
+						"192.168.0.0": {
+							"netmask": "255.255.224.0",
+							"doc_count": 6784,
+							"is_ipv6": false,
+							"prefix_length": 19
+						}
+					}
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(10280)),
+				model.NewQueryResultCol("aggr__2__count", 7290),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(394560)),
+				model.NewQueryResultCol("aggr__2__count", 6784),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT intDiv("clientip", 8192) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY intDiv("clientip", 8192) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [15]
+		TestName: "simplest IP Prefix (Kibana 8.13+), ipv4 field, append_prefix_length=true",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"ip_prefix": {
+						"field": "clientip",
+						"prefix_length": 25,
+						"append_prefix_length": true
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 47,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "90.180.90.128/25",
+							"netmask": "255.255.255.128",
+							"doc_count": 7290,
+							"is_ipv6": false,
+							"prefix_length": 25
+						},
+						{
+							"key": "128.200.0.0/25",
+							"netmask": "255.255.255.128",
+							"doc_count": 6784,
+							"is_ipv6": false,
+							"prefix_length": 25
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(11888821)),
+				model.NewQueryResultCol("aggr__2__count", 7290),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(16879616)),
+				model.NewQueryResultCol("aggr__2__count", 6784),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT intDiv("clientip", 128) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY intDiv("clientip", 128) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [16]
+		TestName: "simplest IP Prefix (Kibana 8.13+), ipv4 field, keyed=true, append_prefix_length=true",
+		QueryRequestJson: `
+			{
+				"aggs": {
+					"2": {
+						"ip_prefix": {
+							"field": "clientip",
+							"prefix_length": 31,
+							"keyed": true,
+							"append_prefix_length": true
+						}
+					}
+				},
+				"size": 0,
+				"track_total_hits": false
+			}`,
+		ExpectedResponse: `
+			{
+				"took": 47,
+				"timed_out": false,
+				"_shards": {
+					"total": 1,
+					"successful": 1,
+					"skipped": 0,
+					"failed": 0
+				},
+				"hits": {
+					"max_score": null,
+					"hits": []
+				},
+				"aggregations": {
+					"2": {
+						"buckets": {
+							"90.180.90.180/31": {
+								"netmask": "255.255.255.254",
+								"doc_count": 7290,
+								"is_ipv6": false,
+								"prefix_length": 31
+							},
+							"222.168.22.66/31": {
+								"netmask": "255.255.255.254",
+								"doc_count": 6784,
+								"is_ipv6": false,
+								"prefix_length": 31
+							}
+						}
+					}
+				}
+			}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(760884570)),
+				model.NewQueryResultCol("aggr__2__count", 7290),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", uint32(1867778849)),
+				model.NewQueryResultCol("aggr__2__count", 6784),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT intDiv("clientip", 2) AS "aggr__2__key_0", count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY intDiv("clientip", 2) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [17]
+		TestName: "IP Prefix with other aggregations",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"terms": {
+						"field": "bytes",
+						"size": 2
+					},
+					"aggs": {
+						"3": {
+							"ip_prefix": {
+								"field": "clientip",
+								"prefix_length": 2
+							},
+							"aggs": {
+								"4": {
+									"sum": {
+										"field": "bytes"
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 5,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 13530,
+					"buckets": [
+						{
+							"3": {
+								"buckets": [
+									{
+										"4": {
+											"value": 0
+										},
+										"key": "0.0.0.0",
+										"netmask": "192.0.0.0",
+										"doc_count": 107,
+										"is_ipv6": false,
+										"prefix_length": 2
+									},
+									{
+										"4": {
+											"value": 0
+										},
+										"key": "64.0.0.0",
+										"netmask": "192.0.0.0",
+										"doc_count": 119,
+										"is_ipv6": false,
+										"prefix_length": 2
+									},
+									{
+										"4": {
+											"value": 0
+										},
+										"key": "128.0.0.0",
+										"netmask": "192.0.0.0",
+										"doc_count": 104,
+										"is_ipv6": false,
+										"prefix_length": 2
+									},
+									{
+										"4": {
+											"value": 0
+										},
+										"key": "192.0.0.0",
+										"netmask": "192.0.0.0",
+										"doc_count": 111,
+										"is_ipv6": false,
+										"prefix_length": 2
+									}
+								]
+							},
+							"key": 0,
+							"doc_count": 441
+						},
+						{
+							"3": {
+								"buckets": [
+									{
+										"4": {
+											"value": 184931
+										},
+										"key": "0.0.0.0",
+										"netmask": "192.0.0.0",
+										"doc_count": 101,
+										"is_ipv6": false,
+										"prefix_length": 2
+									},
+									{
+										"4": {
+											"value": 1831
+										},
+										"key": "64.0.0.0",
+										"netmask": "192.0.0.0",
+										"doc_count": 1,
+										"is_ipv6": false,
+										"prefix_length": 2
+									},
+									{
+										"4": {
+											"value": 1831
+										},
+										"key": "128.0.0.0",
+										"netmask": "192.0.0.0",
+										"doc_count": 1,
+										"is_ipv6": false,
+										"prefix_length": 2
+									}
+								]
+							},
+							"key": 1831,
+							"doc_count": 103
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", uint64(13530)),
+				model.NewQueryResultCol("aggr__2__key_0", 0),
+				model.NewQueryResultCol("aggr__2__count", 441),
+				model.NewQueryResultCol("aggr__2__3__key_0", uint32(0)),
+				model.NewQueryResultCol("aggr__2__3__count", 107),
+				model.NewQueryResultCol("metric__2__3__4_col_0", 0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", uint64(13530)),
+				model.NewQueryResultCol("aggr__2__key_0", 0),
+				model.NewQueryResultCol("aggr__2__count", 441),
+				model.NewQueryResultCol("aggr__2__3__key_0", uint32(1)),
+				model.NewQueryResultCol("aggr__2__3__count", 119),
+				model.NewQueryResultCol("metric__2__3__4_col_0", 0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", uint64(13530)),
+				model.NewQueryResultCol("aggr__2__key_0", 0),
+				model.NewQueryResultCol("aggr__2__count", 441),
+				model.NewQueryResultCol("aggr__2__3__key_0", uint32(2)),
+				model.NewQueryResultCol("aggr__2__3__count", 104),
+				model.NewQueryResultCol("metric__2__3__4_col_0", 0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", uint64(13530)),
+				model.NewQueryResultCol("aggr__2__key_0", 0),
+				model.NewQueryResultCol("aggr__2__count", 441),
+				model.NewQueryResultCol("aggr__2__3__key_0", uint32(3)),
+				model.NewQueryResultCol("aggr__2__3__count", 111),
+				model.NewQueryResultCol("metric__2__3__4_col_0", 0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", uint64(13530)),
+				model.NewQueryResultCol("aggr__2__key_0", 1831),
+				model.NewQueryResultCol("aggr__2__count", 103),
+				model.NewQueryResultCol("aggr__2__3__key_0", uint32(0)),
+				model.NewQueryResultCol("aggr__2__3__count", 101),
+				model.NewQueryResultCol("metric__2__3__4_col_0", 184931),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", uint64(13530)),
+				model.NewQueryResultCol("aggr__2__key_0", 1831),
+				model.NewQueryResultCol("aggr__2__count", 103),
+				model.NewQueryResultCol("aggr__2__3__key_0", uint32(1)),
+				model.NewQueryResultCol("aggr__2__3__count", 1),
+				model.NewQueryResultCol("metric__2__3__4_col_0", 1831),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__parent_count", uint64(13530)),
+				model.NewQueryResultCol("aggr__2__key_0", 1831),
+				model.NewQueryResultCol("aggr__2__count", 103),
+				model.NewQueryResultCol("aggr__2__3__key_0", uint32(2)),
+				model.NewQueryResultCol("aggr__2__3__count", 1),
+				model.NewQueryResultCol("metric__2__3__4_col_0", 1831),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
+			  "aggr__2__3__key_0", "aggr__2__3__count", "metric__2__3__4_col_0"
+			FROM (
+			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
+				"aggr__2__3__key_0", "aggr__2__3__count", "metric__2__3__4_col_0",
+				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
+				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank"
+			  FROM (
+				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
+				  "bytes" AS "aggr__2__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  intDiv("clientip", 1073741824) AS "aggr__2__3__key_0",
+				  count(*) AS "aggr__2__3__count",
+				  sumOrNull("bytes") AS "metric__2__3__4_col_0"
+				FROM __quesma_table_name
+				GROUP BY "bytes" AS "aggr__2__key_0",
+				  intDiv("clientip", 1073741824) AS "aggr__2__3__key_0"))
+			WHERE "aggr__2__order_1_rank"<=3
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
+	},
+	{ // [18]
+		TestName: "simplest IP Prefix (Kibana 8.13+), ipv6 field, prefix_length=0",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"ip_prefix": {
+						"field": "clientip",
+						"prefix_length": 0,
+						"is_ipv6": true
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 1,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "::",
+							"doc_count": 14074,
+							"is_ipv6": true,
+							"prefix_length": 0
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{model.NewQueryResultCol("aggr__2__count", 14074)}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT count(*) AS "aggr__2__count"
+			FROM __quesma_table_name`,
+	},
+	{ // [19]
+		TestName: "simplest IP Prefix (Kibana 8.13+), ipv6 field, prefix_length=128",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"ip_prefix": {
+						"field": "clientip",
+						"prefix_length": 128,
+						"is_ipv6": true
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 1,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "::48:b02e",
+							"doc_count": 14,
+							"is_ipv6": true,
+							"prefix_length": 128
+						},
+						{
+							"key": "2001:db8:85a3:8d3:1319:8a2e:370:7344",
+							"doc_count": 2,
+							"is_ipv6": true,
+							"prefix_length": 128
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", *bigInt4763694),
+				model.NewQueryResultCol("aggr__2__count", 14),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", util.HexStringToBigInt("20010db885a308d313198a2e03707344")),
+				model.NewQueryResultCol("aggr__2__count", 2),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT intDiv("clientip", 1) AS "aggr__2__key_0", count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY intDiv("clientip", 1) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [20]
+		TestName: "IP Prefix (Kibana 8.13+), ipv6 field, keyed=true and overflow of 1<<(128-prefix_length)",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"ip_prefix": {
+						"field": "clientip",
+						"prefix_length": 38,
+						"is_ipv6": true,
+						"keyed": true
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 1,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": {
+						"::": {
+							"doc_count": 14074,
+							"is_ipv6": true,
+							"prefix_length": 38
+						}
+					}
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", *bigInt0),
+				model.NewQueryResultCol("aggr__2__count", 14074),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT intDiv("clientip", 1237940039285380274899124224) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY intDiv("clientip", 1237940039285380274899124224) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [21]
+		TestName: "simple IP Prefix (Kibana 8.13+), ipv6 field, non-zero& and non-ipv4 key",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"ip_prefix": {
+						"field": "clientip",
+						"prefix_length": 95,
+						"is_ipv6": true,
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 1,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "::fffe:0:0",
+							"doc_count": 14074,
+							"is_ipv6": true,
+							"prefix_length": 95
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", *big.NewInt(32767)),
+				model.NewQueryResultCol("aggr__2__count", 14074),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT intDiv("clientip", 8589934592) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY intDiv("clientip", 8589934592) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [22]
+		TestName: "IP Prefix (Kibana 8.13+), ipv6 field, multiple keys and append_prefix_length=true",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"ip_prefix": {
+						"field": "clientip",
+						"prefix_length": 95,
+						"is_ipv6": true,
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 1,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "::fffe:0:0",
+							"doc_count": 14074,
+							"is_ipv6": true,
+							"prefix_length": 95
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", *big.NewInt(32767)),
+				model.NewQueryResultCol("aggr__2__count", 14074),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT intDiv("clientip", 8589934592) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY intDiv("clientip", 8589934592) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [23]
+		TestName: "IP Prefix (Kibana 8.13+), ipv6 field, multiple keys and append_prefix_length=true",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"ip_prefix": {
+						"field": "clientip",
+						"prefix_length": 97,
+						"is_ipv6": true,
+						"append_prefix_length": true
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 1,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "::/97",
+							"doc_count": 7290,
+							"is_ipv6": true,
+							"prefix_length": 97
+						},
+						{
+							"key": "::8000:0/97",
+							"doc_count": 6784,
+							"is_ipv6": true,
+							"prefix_length": 97
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", *bigInt0),
+				model.NewQueryResultCol("aggr__2__count", 7290),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", *bigInt1),
+				model.NewQueryResultCol("aggr__2__count", 6784),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT intDiv("clientip", 2147483648) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY intDiv("clientip", 2147483648) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
 	},
 }

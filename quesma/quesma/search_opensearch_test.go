@@ -6,17 +6,11 @@ import (
 	"context"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
-	"quesma/ab_testing"
 	"quesma/clickhouse"
-	"quesma/concurrent"
-	"quesma/logger"
 	"quesma/model"
 	"quesma/queryparser"
 	"quesma/quesma/types"
-	"quesma/quesma/ui"
 	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/telemetry"
 	"quesma/testdata"
 	"quesma/util"
 	"strconv"
@@ -36,7 +30,7 @@ func TestSearchOpensearch(t *testing.T) {
 		Created: true,
 	}
 
-	s := &schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
+	s := &schema.StaticRegistry{Tables: map[schema.IndexName]schema.Schema{}}
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
@@ -50,19 +44,9 @@ func TestSearchOpensearch(t *testing.T) {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer db.Close()
-			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-			resolver := table_resolver.NewEmptyTableResolver()
-			resolver.Decisions[tableName] = &table_resolver.Decision{
-				UseConnectors: []table_resolver.ConnectorDecision{
-					&table_resolver.ConnectorDecisionClickhouse{
-						ClickhouseTableName: tableName,
-						ClickhouseTables:    []string{tableName},
-					},
-				},
-			}
 
-			managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
-			cw := queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: s.Tables[tableName], Config: &DefaultConfig}
+			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
+			cw := queryparser.ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: s.Tables[tableName], Config: &DefaultConfig}
 
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
@@ -76,7 +60,7 @@ func TestSearchOpensearch(t *testing.T) {
 			for _, wantedQuery := range tt.WantedQueries {
 				mock.ExpectQuery(wantedQuery).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), resolver)
+
 			_, err2 := queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 			assert.NoError(t, err2)
 
@@ -197,34 +181,22 @@ func TestHighlighter(t *testing.T) {
 		"@timestamp":    {PropertyName: "@timestamp", InternalPropertyName: "_timestamp", Type: schema.QuesmaTypeDate},
 	}
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			tableName: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()
-	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
 
-	resolver := table_resolver.NewEmptyTableResolver()
-	resolver.Decisions[tableName] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{
-			&table_resolver.ConnectorDecisionClickhouse{
-				ClickhouseTableName: tableName,
-				ClickhouseTables:    []string{tableName},
-			},
-		},
-	}
+	// careful, it's not always in this order, order is nondeterministic
+	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"message$*%:;", "host.name", "@timestamp"}).
+		AddRow("abcd", "abcd", "abcd").
+		AddRow("prefix-text-to-highlight", "prefix-text-to-highlight", "prefix-text-to-highlight").
+		AddRow("text-to-highlight-suffix", "text-to-highlight-suffix", "text-to-highlight-suffix").
+		AddRow("text-to-highlight", "text-to-highlight", "text-to-highlight").
+		AddRow("text", "text", "text"))
 
-	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
-
-	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"message$*%:;", "host.name", "@timestamp"}). // careful, it's not always in this order, order is nondeterministic
-															AddRow("abcd", "abcd", "abcd").
-															AddRow("prefix-text-to-highlight", "prefix-text-to-highlight", "prefix-text-to-highlight").
-															AddRow("text-to-highlight-suffix", "text-to-highlight-suffix", "text-to-highlight-suffix").
-															AddRow("text-to-highlight", "text-to-highlight", "text-to-highlight").
-															AddRow("text", "text", "text"))
-
-	queryRunner := NewQueryRunner(lm, &DefaultConfig, nil, managementConsole, s, ab_testing.NewEmptySender(), resolver)
+	queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
 	response, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(query))
 	assert.NoError(t, err)
 	if err != nil {

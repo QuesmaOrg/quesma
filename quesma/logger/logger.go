@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"os"
 	"quesma/stats/errorstats"
-	"quesma/tracing"
+	asyncQueryTracing "quesma/tracing"
+	quesma_v2 "quesma_v2/core"
+
 	"time"
 )
 
@@ -38,10 +40,8 @@ const (
 	bufferSizeChannel = 1024
 )
 
-var logger zerolog.Logger
-
 // InitLogger returns channel where log messages will be sent
-func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asyncQueryTraceLogger *tracing.AsyncTraceLogger) <-chan LogWithLevel {
+func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asyncQueryTraceLogger *asyncQueryTracing.AsyncTraceLogger) <-chan LogWithLevel {
 	zerolog.TimeFieldFormat = time.RFC3339Nano // without this we don't have milliseconds timestamp precision
 	var output io.Writer = zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.StampMilli}
 	if os.Getenv("GO_ENV") == "production" { // ConsoleWriter is slow, disable it in production
@@ -88,7 +88,7 @@ func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asy
 	}
 
 	multi := zerolog.MultiLevelWriter(logWriters...)
-	logger = zerolog.New(multi).
+	l := zerolog.New(multi).
 		Level(cfg.Level).
 		With().
 		Timestamp().
@@ -96,12 +96,15 @@ func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asy
 		Logger()
 
 	globalError := errorstats.GlobalErrorHook{}
-	logger = logger.Hook(&globalError)
+	l = l.Hook(&globalError)
 	if asyncQueryTraceLogger != nil {
-		logger = logger.Hook(asyncQueryTraceLogger)
+		l = l.Hook(asyncQueryTraceLogger)
 	}
 
-	logger.Info().Msgf("Logger initialized with level %s", cfg.Level)
+	l.Info().Msgf("Logger initialized with level %s", cfg.Level)
+
+	logger = quesma_v2.NewQuesmaLogger(l)
+
 	return logChannel
 }
 
@@ -110,7 +113,7 @@ func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asy
 // of the test, and calls to the global logger will start appearing in the console.
 // Without it, they don't.
 func InitSimpleLoggerForTests() {
-	logger = zerolog.New(
+	l := zerolog.New(
 		zerolog.ConsoleWriter{
 			Out:        os.Stderr,
 			TimeFormat: time.StampMilli,
@@ -119,14 +122,48 @@ func InitSimpleLoggerForTests() {
 		With().
 		Timestamp().
 		Logger()
+
+	logger = quesma_v2.NewQuesmaLogger(l)
 }
 
+// InitSimpleLoggerForTestsWarnLevel initializes our global logger (level >= Warn) to the console output.
+// Useful e.g. in debugging failing tests: you can call this function at the beginning
+// of the test, and calls to the global logger will start appearing in the console.
+// Without it, they don't.
+func InitSimpleLoggerForTestsWarnLevel() {
+	l := zerolog.New(
+		zerolog.ConsoleWriter{
+			Out:        os.Stderr,
+			TimeFormat: time.StampMilli,
+		}).
+		Level(zerolog.WarnLevel).
+		With().
+		Timestamp().
+		Logger()
+
+	logger = quesma_v2.NewQuesmaLogger(l)
+}
+
+var testLoggerInitialized bool
+
+const TestConsoleStatsBasedOnLogs = false
+
 func InitOnlyChannelLoggerForTests() <-chan LogWithLevel {
+
+	// We can't reassign global logger, it will lead to "race condition" in tests. It's known issue with zerolog.
+	// https://github.com/rs/zerolog/issues/242
+
+	if testLoggerInitialized {
+		// we do return a fresh channel here, it will break the stats gathering in the console
+		// see TestConsoleStatsBasedOnLogs usage in the tests
+		return make(chan LogWithLevel, 50000)
+	}
+
 	zerolog.TimeFieldFormat = time.RFC3339Nano   // without this we don't have milliseconds timestamp precision
 	logChannel := make(chan LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
 	chanWriter := channelWriter{ch: logChannel}
 
-	logger = zerolog.New(chanWriter).
+	l := zerolog.New(chanWriter).
 		Level(zerolog.DebugLevel).
 		With().
 		Timestamp().
@@ -134,7 +171,11 @@ func InitOnlyChannelLoggerForTests() <-chan LogWithLevel {
 		Logger()
 
 	globalError := errorstats.GlobalErrorHook{}
-	logger = logger.Hook(&globalError)
+	l = l.Hook(&globalError)
+
+	logger = quesma_v2.NewQuesmaLogger(l)
+
+	testLoggerInitialized = true
 	return logChannel
 }
 
@@ -158,38 +199,23 @@ func openLogFiles(logsPath string) {
 	}
 }
 
-func addKnownContextValues(event *zerolog.Event, ctx context.Context) *zerolog.Event {
+// --- legacy API
 
-	if requestId, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
-		event = event.Str(RID, requestId)
-	}
-	if path, ok := ctx.Value(tracing.RequestPath).(string); ok {
-		event = event.Str(Path, path)
-	}
-	if reason, ok := ctx.Value(tracing.ReasonCtxKey).(string); ok {
-		event = event.Str(Reason, reason)
-	}
-	if asyncId, ok := ctx.Value(tracing.AsyncIdCtxKey).(string); ok {
-		if asyncId != "" {
-			event = event.Str(AsyncId, asyncId)
-		}
-	}
+// global logger, TODO  this should be removed
+var logger = quesma_v2.EmptyQuesmaLogger()
 
-	if requestId, ok := ctx.Value(tracing.OpaqueIdCtxKey).(string); ok {
-		event = event.Str(OpaqueId, requestId)
-	}
-
-	return event
+func GlobalLogger() quesma_v2.QuesmaLogger {
+	return logger
 }
+
+// global logger delegates
 
 func Debug() *zerolog.Event {
 	return logger.Debug()
 }
 
 func DebugWithCtx(ctx context.Context) *zerolog.Event {
-	event := logger.Debug().Ctx(ctx)
-	event = addKnownContextValues(event, ctx)
-	return event
+	return logger.DebugWithCtx(ctx)
 }
 
 func Info() *zerolog.Event {
@@ -197,19 +223,13 @@ func Info() *zerolog.Event {
 }
 
 func InfoWithCtx(ctx context.Context) *zerolog.Event {
-	event := logger.Info().Ctx(ctx)
-	event = addKnownContextValues(event, ctx)
-	return event
+	return logger.InfoWithCtx(ctx)
 }
 
 // MarkTraceEndWithCtx marks the end of a trace with the given context.
 // Calling this functions at end of a trace is crucial from the transactional logging perspective.
 func MarkTraceEndWithCtx(ctx context.Context) *zerolog.Event {
-	event := logger.Info().Ctx(ctx)
-	event = addKnownContextValues(event, ctx)
-	ctx = context.WithValue(ctx, tracing.TraceEndCtxKey, true)
-	event = event.Ctx(ctx)
-	return event
+	return logger.MarkTraceEndWithCtx(ctx)
 }
 
 func Warn() *zerolog.Event {
@@ -217,13 +237,11 @@ func Warn() *zerolog.Event {
 }
 
 func WarnWithCtx(ctx context.Context) *zerolog.Event {
-	event := logger.Warn().Ctx(ctx)
-	event = addKnownContextValues(event, ctx)
-	return event
+	return logger.WarnWithCtx(ctx)
 }
 
 func WarnWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
-	return WarnWithCtx(context.WithValue(ctx, tracing.ReasonCtxKey, reason))
+	return logger.WarnWithCtxAndReason(ctx, reason)
 }
 
 func Error() *zerolog.Event {
@@ -231,13 +249,11 @@ func Error() *zerolog.Event {
 }
 
 func ErrorWithCtx(ctx context.Context) *zerolog.Event {
-	event := logger.Error().Ctx(ctx)
-	event = addKnownContextValues(event, ctx)
-	return event
+	return logger.ErrorWithCtx(ctx)
 }
 
 func ErrorWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
-	return ErrorWithCtx(context.WithValue(ctx, tracing.ReasonCtxKey, reason))
+	return logger.ErrorWithCtxAndReason(ctx, reason)
 }
 
 func Fatal() *zerolog.Event {

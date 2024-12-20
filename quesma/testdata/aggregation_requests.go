@@ -329,10 +329,6 @@ var AggregationTests = []AggregationTestCase{
 					"aggs": {
 						"1": {
 							"date_histogram": {
-								"extended_bounds": {
-									"max": 1707486436029,
-									"min": 1706881636029
-								},
 								"field": "timestamp",
 								"fixed_interval": "3h",
 								"time_zone": "Europe/Warsaw"
@@ -1844,7 +1840,7 @@ var AggregationTests = []AggregationTestCase{
 				  "@timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count"
 				FROM __quesma_table_name
-				WHERE ("host.name" iLIKE '%prometheus%' AND ("@timestamp">=
+				WHERE (("host.name" __quesma_match 'prometheus') AND ("@timestamp">=
 				  fromUnixTimestamp64Milli(1706891809940) AND "@timestamp"<=
 				  fromUnixTimestamp64Milli(1707496609940)))
 				GROUP BY "severity" AS "aggr__0__key_0",
@@ -2631,7 +2627,8 @@ var AggregationTests = []AggregationTestCase{
 						"series": {
 							"date_histogram": {
 								"field": "@timestamp",
-								"fixed_interval": "60s"
+								"fixed_interval": "60s",
+								"min_doc_count": 12
 							}
 						}
 					}
@@ -2848,8 +2845,8 @@ var AggregationTests = []AggregationTestCase{
 			  "@timestamp") AS "metric__earliest_timestamp_col_0", maxOrNull("@timestamp")
 			  AS "metric__latest_timestamp_col_0"
 			FROM ` + TableName + `
-			WHERE ((` + fullTextFieldName + ` iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND
-			  "host.name" iLIKE '%poseidon%')`,
+			WHERE ((` + fullTextFieldName + ` iLIKE '%posei%' AND ("message" __quesma_match 'User logged out')) AND
+			  ("host.name" __quesma_match 'poseidon'))`,
 	},
 	{ // [15]
 		TestName: "date_histogram: regression test",
@@ -2869,10 +2866,6 @@ var AggregationTests = []AggregationTestCase{
 					},
 					"date_histogram": {
 						"calendar_interval": "1d",
-						"extended_bounds": {
-							"max": 1708969256351,
-							"min": 1708364456351
-						},
 						"field": "order_date"
 					}
 				}
@@ -3106,7 +3099,7 @@ var AggregationTests = []AggregationTestCase{
 						"fixed_interval": "12h",
 						"extended_bounds": {
 							"min": 1708627654149,
-							"max": 1709232454149
+							"max": 1708782454149
 						}
 					},
 					"aggs": {
@@ -3215,6 +3208,26 @@ var AggregationTests = []AggregationTestCase{
 								"doc_count": 83,
 								"key": 1708689600000,
 								"key_as_string": "2024-02-23T12:00:00.000"
+							},
+							{
+								"1-bucket": {
+									"1-metric": {
+										"value": null
+									}
+								},
+								"doc_count": 0,
+								"key": 1708732800000,
+								"key_as_string": "2024-02-24T00:00:00.000"
+							},
+							{
+								"1-bucket": {
+									"1-metric": {
+										"value": null
+									}
+								},
+								"doc_count": 0,
+								"key": 1708776000000,
+								"key_as_string": "2024-02-24T12:00:00.000"
 							}
 						]
 					}
@@ -6195,7 +6208,7 @@ var AggregationTests = []AggregationTestCase{
 				  "aggr__0__1__parent_count", "message" AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count"
 				FROM __quesma_table_name
-				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
+				WHERE ("message" IS NOT NULL AND NOT (("message" __quesma_match 'US')))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0"))
 			WHERE ("aggr__0__order_1_rank"<=11 AND "aggr__0__1__order_1_rank"<=4)
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
@@ -6311,7 +6324,7 @@ var AggregationTests = []AggregationTestCase{
 				  "aggr__0__1__2__parent_count", "message" AS "aggr__0__1__2__key_0",
 				  count(*) AS "aggr__0__1__2__count"
 				FROM __quesma_table_name
-				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
+				WHERE ("message" IS NOT NULL AND NOT (("message" __quesma_match 'US')))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0",
 				  "message" AS "aggr__0__1__2__key_0"))
 			WHERE (("aggr__0__order_1_rank"<=11 AND "aggr__0__1__order_1_rank"<=4) AND
@@ -6403,7 +6416,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
 				FROM ` + TableName + `
-				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
+				WHERE ("message" IS NOT NULL AND NOT (("message" __quesma_match 'US')))
 				GROUP BY "host.name" AS "aggr__0__key_0",
 				  "FlightDelayMin" AS "aggr__0__1__key_0"))
 			WHERE "aggr__0__order_1_rank"<=9
@@ -6513,7 +6526,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
 				FROM ` + TableName + `
-				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
+				WHERE ("message" IS NOT NULL AND NOT (("message" __quesma_match 'US')))
 				GROUP BY "host.name" AS "aggr__0__key_0",
 				  "FlightDelayMin" AS "aggr__0__1__key_0"))
 			WHERE "aggr__0__order_1_rank"<=11
@@ -6610,7 +6623,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
 				FROM __quesma_table_name
-				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
+				WHERE ("message" IS NOT NULL AND NOT (("message" __quesma_match 'US')))
 				GROUP BY "host.name" AS "aggr__0__key_0",
 				  "FlightDelayMin" AS "aggr__0__1__key_0"))
 			WHERE "aggr__0__order_1_rank"<=11
@@ -6826,7 +6839,7 @@ var AggregationTests = []AggregationTestCase{
 			  count(*) AS "aggr__2__count",
   			  sumOrNull("total") AS "metric__2__1_col_0"
 			FROM ` + TableName + `
-			WHERE NOT ((("abc">=0 AND "abc"<600) OR "type" iLIKE '%def%'))
+			WHERE NOT ((("abc">=0 AND "abc"<600) OR ("type" __quesma_match 'def')))
 			GROUP BY "name" AS "aggr__2__key_0"
 			ORDER BY "metric__2__1_col_0" DESC, "aggr__2__key_0" ASC
 			LIMIT 11`,

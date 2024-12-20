@@ -11,13 +11,15 @@ import (
 
 func runIntegrationTest(t *testing.T, testCase testcases.TestCase) {
 	ctx := context.Background()
+	t.Cleanup(func() {
+		testCase.Cleanup(ctx, t)
+	})
 	if err := testCase.SetupContainers(ctx); err != nil {
 		t.Fatalf("Failed to setup containers: %s", err)
 	}
 	if err := testCase.RunTests(ctx, t); err != nil {
 		t.Fatalf("Failed to run tests: %s", err)
 	}
-	testCase.Cleanup(ctx)
 }
 
 func TestTransparentProxy(t *testing.T) {
@@ -47,5 +49,15 @@ func TestWildcardDisabledTestcase(t *testing.T) {
 
 func TestWildcardClickhouseTestcase(t *testing.T) {
 	testCase := testcases.NewWildcardClickhouseTestcase()
+	runIntegrationTest(t, testCase)
+}
+
+func TestIngestTestcase(t *testing.T) {
+	testCase := testcases.NewIngestTestcase()
+	runIntegrationTest(t, testCase)
+}
+
+func TestABTestcase(t *testing.T) {
+	testCase := testcases.NewABTestcase()
 	runIntegrationTest(t, testCase)
 }

@@ -15,7 +15,8 @@ import (
 	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
-	"quesma/telemetry"
+	mux "quesma_v2/core"
+	"quesma_v2/core/diag"
 	"testing"
 )
 
@@ -179,9 +180,12 @@ func TestSearchCommonTable(t *testing.T) {
 	}
 
 	schemaRegistry := schema.StaticRegistry{
-		Tables: make(map[schema.TableName]schema.Schema),
+		Tables: make(map[schema.IndexName]schema.Schema),
 	}
 	tableMap := clickhouse.NewTableMap()
+
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tableMap
 
 	schemaRegistry.Tables["logs-1"] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
@@ -250,49 +254,49 @@ func TestSearchCommonTable(t *testing.T) {
 
 	resolver := table_resolver.NewEmptyTableResolver()
 
-	resolver.Decisions["logs-1"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-1"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1"},
+			ClickhouseIndexes:   []string{"logs-1"},
 			IsCommonTable:       true,
 		}},
 	}
 
-	resolver.Decisions["logs-2"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-2"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-2"},
+			ClickhouseIndexes:   []string{"logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
 
-	resolver.Decisions["logs-3"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-3"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: "logs-3",
-			ClickhouseTables:    []string{"logs-3"},
+			ClickhouseIndexes:   []string{"logs-3"},
 			IsCommonTable:       false,
 		}},
 	}
 
-	resolver.Decisions["logs-1,logs-2"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-1,logs-2"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
 
-	resolver.Decisions["logs-*"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-*"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
-	resolver.Decisions["*"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["*"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
@@ -310,7 +314,7 @@ func TestSearchCommonTable(t *testing.T) {
 			indexManagement := elasticsearch.NewFixedIndexManagement()
 			lm := clickhouse.NewLogManagerWithConnection(db, tableMap)
 
-			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
+			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
 
 			for i, query := range tt.WantedSql {
 
@@ -321,7 +325,8 @@ func TestSearchCommonTable(t *testing.T) {
 
 				mock.ExpectQuery(query).WillReturnRows(rows)
 			}
-			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver)
+
+			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
 			queryRunner.maxParallelQueries = 0
 
 			_, err = queryRunner.handleSearch(ctx, tt.IndexPattern, types.MustJSON(tt.QueryJson))

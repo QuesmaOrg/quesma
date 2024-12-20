@@ -8,10 +8,10 @@ import (
 )
 
 func selectCnt(limit int) string {
-	return fmt.Sprintf(`SELECT count(*) FROM (SELECT 1 FROM %s LIMIT %d)`, TableName, limit)
+	return fmt.Sprintf(`SELECT count(*) AS "column_0" FROM (SELECT 1 FROM %s LIMIT %d)`, TableName, limit)
 }
 func selectTotalCnt() string {
-	return fmt.Sprintf("SELECT count(*) FROM %s", TableName)
+	return fmt.Sprintf(`SELECT count(*) AS "column_0" FROM %s`, TableName)
 }
 func selectStar(limit int) string {
 	return fmt.Sprintf("SELECT \"message\" FROM %s LIMIT %d", TableName, limit)

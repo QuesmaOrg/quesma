@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/queryprocessor"
 	"quesma/util"
 )
 
@@ -47,7 +46,7 @@ func (query MaxBucket) CalculateResultWhenMissing(parentRows []model.QueryResult
 	if len(parentRows) == 0 {
 		return resultRows // maybe null?
 	}
-	qp := queryprocessor.NewQueryProcessor(query.ctx)
+	qp := model.NewQueryProcessor(query.ctx)
 	parentFieldsCnt := len(parentRows[0].Cols) - 2 // -2, because row is [parent_cols..., current_key, current_value]
 	// in calculateSingleAvgBucket we calculate avg all current_keys with the same parent_cols
 	// so we need to split into buckets based on parent_cols

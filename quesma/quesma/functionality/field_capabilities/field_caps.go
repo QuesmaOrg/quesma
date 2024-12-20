@@ -4,8 +4,8 @@ package field_capabilities
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/elasticsearch/elasticsearch_field_types"
@@ -48,7 +48,7 @@ func handleFieldCapsIndex(cfg *config.QuesmaConfiguration, schemaRegistry schema
 			continue
 		}
 
-		if schemaDefinition, found := schemaRegistry.FindSchema(schema.TableName(resolvedIndex)); found {
+		if schemaDefinition, found := schemaRegistry.FindSchema(schema.IndexName(resolvedIndex)); found {
 			indexConfig, configured := cfg.IndexConfig[resolvedIndex]
 			if configured && !indexConfig.IsClickhouseQueryEnabled() {
 				continue
@@ -101,10 +101,7 @@ func EmptyFieldCapsResponse() []byte {
 }
 
 func HandleFieldCaps(ctx context.Context, cfg *config.QuesmaConfiguration, schemaRegistry schema.Registry, index string, lm *clickhouse.LogManager) ([]byte, error) {
-	if len(cfg.IndexConfig[index].Override) > 0 {
-		index = cfg.IndexConfig[index].Override
-	}
-	indexes, err := lm.ResolveIndexPattern(ctx, index)
+	indexes, err := lm.ResolveIndexPattern(ctx, schemaRegistry, index)
 	if err != nil {
 		return nil, err
 	}

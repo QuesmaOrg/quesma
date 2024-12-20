@@ -69,23 +69,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [4]
-		TestName:  "bucket aggregation: composite",
-		QueryType: "composite",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"my_buckets": {
-					"composite": {
-						"sources": [
-							{ "product": { "terms": { "field": "product" } } }
-						]
-					}
-				}
-			}
-		}`,
-	},
 	{ // [5]
 		TestName:  "bucket aggregation: diversified_sampler",
 		QueryType: "diversified_sampler",
@@ -214,22 +197,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 					}
 				},
 				"t_shirts": { "avg": { "field": "price" } }
-			}
-		}`,
-	},
-	{ // [12]
-		TestName:  "bucket aggregation: ip_prefix",
-		QueryType: "ip_prefix",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"ipv4-subnets": {
-					"ip_prefix": {
-						"field": "ipv4",
-						"prefix_length": 24
-					}
-				}
 			}
 		}`,
 	},

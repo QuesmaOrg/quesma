@@ -5,9 +5,9 @@ package clickhouse
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/goccy/go-json"
 	"quesma/common_table"
 	"quesma/end_user_errors"
 	"quesma/logger"
@@ -45,7 +45,6 @@ type TableDiscovery interface {
 type tableDiscovery struct {
 	cfg                               *config.QuesmaConfiguration
 	dbConnPool                        *sql.DB
-	tableVerifier                     tableVerifier
 	tableDefinitions                  *atomic.Pointer[TableMap]
 	tableDefinitionsAccessUnixSec     atomic.Int64
 	tableDefinitionsLastReloadUnixSec atomic.Int64
@@ -81,11 +80,25 @@ type TableDiscoveryTableProviderAdapter struct {
 }
 
 func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema.Table {
+
+	// here we filter out our internal columns
+
+	internalColumn := make(map[string]bool)
+	internalColumn[AttributesValuesColumn] = true
+	internalColumn[AttributesMetadataColumn] = true
+	internalColumn[DeprecatedAttributesKeyColumn] = true
+	internalColumn[DeprecatedAttributesValueColumn] = true
+	internalColumn[DeprecatedAttributesValueType] = true
+
 	tableMap := t.TableDiscovery.TableDefinitions()
 	tables := make(map[string]schema.Table)
 	tableMap.Range(func(tableName string, value *Table) bool {
 		table := schema.Table{Columns: make(map[string]schema.Column)}
 		for _, column := range value.Cols {
+			if internalColumn[column.Name] {
+				continue
+			}
+
 			table.Columns[column.Name] = schema.Column{
 				Name:    column.Name,
 				Type:    column.Type.String(),
@@ -164,7 +177,6 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 	configuredTables = td.readVirtualTables(configuredTables)
 
 	td.ReloadTablesError = nil
-	td.verify(configuredTables)
 	td.populateTableDefinitions(configuredTables, databaseName, td.cfg)
 }
 
@@ -295,6 +307,7 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]colum
 }
 
 func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg *config.QuesmaConfiguration) {
+
 	tableMap := NewTableMap()
 	for tableName, resTable := range configuredTables {
 		var columnsMap = make(map[string]*Column)
@@ -306,16 +319,16 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 					continue
 				}
 			}
-			if col != AttributesValuesColumn && col != AttributesMetadataColumn {
-				column := resolveColumn(col, columnMeta.colType)
-				if column != nil {
-					column.Comment = columnMeta.comment
-					columnsMap[col] = column
-				} else {
-					logger.Warn().Msgf("column '%s.%s' type: '%s' not resolved. table will be skipped", tableName, col, columnMeta.colType)
-					partiallyResolved = true
-				}
+
+			column := resolveColumn(col, columnMeta.colType)
+			if column != nil {
+				column.Comment = columnMeta.comment
+				columnsMap[col] = column
+			} else {
+				logger.Warn().Msgf("column '%s.%s' type: '%s' not resolved. table will be skipped", tableName, col, columnMeta.colType)
+				partiallyResolved = true
 			}
+
 		}
 
 		var timestampFieldName *string
@@ -387,17 +400,6 @@ func (td *tableDiscovery) TableDefinitions() *TableMap {
 		<-doneCh
 	}
 	return td.tableDefinitions.Load()
-}
-
-func (td *tableDiscovery) verify(tables map[string]discoveredTable) {
-	for _, table := range tables {
-		logger.Info().Msgf("verifying table %s", table.name)
-		if correct, violations := td.tableVerifier.verify(table); correct {
-			logger.Debug().Msgf("table %s verified", table.name)
-		} else {
-			logger.Warn().Msgf("table %s verification failed: %s", table.name, violations)
-		}
-	}
 }
 
 func resolveColumn(colName, colType string) *Column {

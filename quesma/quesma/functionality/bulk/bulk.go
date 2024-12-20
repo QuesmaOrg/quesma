@@ -4,8 +4,8 @@ package bulk
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"io"
 	"net/http"
 	"quesma/clickhouse"
@@ -19,7 +19,8 @@ import (
 	"quesma/quesma/types"
 	"quesma/stats"
 	"quesma/table_resolver"
-	"quesma/telemetry"
+	"quesma_v2/core"
+	"quesma_v2/core/diag"
 	"sort"
 	"strings"
 	"sync"
@@ -68,7 +69,7 @@ type (
 )
 
 func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor,
-	cfg *config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent, tableResolver table_resolver.TableResolver) (results []BulkItem, err error) {
+	cfg *config.QuesmaConfiguration, phoneHomeAgent diag.PhoneHomeClient, tableResolver table_resolver.TableResolver) (results []BulkItem, err error) {
 	defer recovery.LogPanic()
 
 	bulkSize := len(bulk) / 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
@@ -138,7 +139,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 			}
 		}
 
-		decision := tableResolver.Resolve(table_resolver.IngestPipeline, index)
+		decision := tableResolver.Resolve(quesma_api.IngestPipeline, index)
 
 		if decision.Err != nil {
 			return decision.Err
@@ -180,7 +181,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 
 			switch connector.(type) {
 
-			case *table_resolver.ConnectorDecisionElastic:
+			case *quesma_api.ConnectorDecisionElastic:
 				// Bulk entry for Elastic - forward the request as-is
 				opBytes, err := rawOp.Bytes()
 				if err != nil {
@@ -198,7 +199,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 
 				elasticBulkEntries = append(elasticBulkEntries, entryWithResponse)
 
-			case *table_resolver.ConnectorDecisionClickhouse:
+			case *quesma_api.ConnectorDecisionClickhouse:
 
 				// Bulk entry for Clickhouse
 				if operation != "create" && operation != "index" {
@@ -256,16 +257,12 @@ func sendToElastic(elasticRequestBody []byte, cfg *config.QuesmaConfiguration, e
 	return nil
 }
 
-func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, phoneHomeAgent telemetry.PhoneHomeAgent, cfg *config.QuesmaConfiguration, ip *ingest.IngestProcessor) {
+func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, phoneHomeAgent diag.PhoneHomeClient, cfg *config.QuesmaConfiguration, ip *ingest.IngestProcessor) {
 	for indexName, documents := range clickhouseDocumentsToInsert {
 		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 
 		for _, document := range documents {
 			stats.GlobalStatistics.Process(cfg, indexName, document.document, clickhouse.NestedSeparator)
-		}
-		// if the index is mapped to specified database table in the configuration, use that table
-		if len(cfg.IndexConfig[indexName].Override) > 0 {
-			indexName = cfg.IndexConfig[indexName].Override
 		}
 
 		inserts := make([]types.JSON, len(documents))

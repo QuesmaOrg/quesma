@@ -6,21 +6,21 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"quesma/concurrent"
 	"quesma/logger"
 	"quesma/quesma/recovery"
 	"quesma/tracing"
+	"quesma/util"
 	"strings"
 	"time"
 )
 
 type AsyncRequestResultStorageInMemory struct {
-	idToResult *concurrent.Map[string, *AsyncRequestResult]
+	idToResult *util.SyncMap[string, *AsyncRequestResult]
 }
 
 func NewAsyncRequestResultStorageInMemory() AsyncRequestResultStorage { // change result type to AsyncRequestResultStorage interface
 	return AsyncRequestResultStorageInMemory{
-		idToResult: concurrent.NewMap[string, *AsyncRequestResult](),
+		idToResult: util.NewSyncMap[string, *AsyncRequestResult](),
 	}
 }
 
@@ -75,12 +75,12 @@ func (s AsyncRequestResultStorageInMemory) evict(evictOlderThan time.Duration) {
 }
 
 type AsyncQueryContextStorageInMemory struct {
-	idToContext *concurrent.Map[string, *AsyncQueryContext]
+	idToContext *util.SyncMap[string, *AsyncQueryContext]
 }
 
 func NewAsyncQueryContextStorageInMemory() AsyncQueryContextStorage {
 	return AsyncQueryContextStorageInMemory{
-		idToContext: concurrent.NewMap[string, *AsyncQueryContext](),
+		idToContext: util.NewSyncMap[string, *AsyncQueryContext](),
 	}
 }
 
@@ -116,7 +116,7 @@ func elapsedTime(t time.Time) time.Duration {
 }
 
 type AsyncQueryTraceLoggerEvictor struct {
-	AsyncQueryTrace *concurrent.Map[string, tracing.TraceCtx]
+	AsyncQueryTrace *util.SyncMap[string, tracing.TraceCtx]
 	ctx             context.Context
 	cancel          context.CancelFunc
 }
@@ -151,7 +151,7 @@ func (e *AsyncQueryTraceLoggerEvictor) TryFlushHangingAsyncQueryTrace(timeFun fu
 
 func (e *AsyncQueryTraceLoggerEvictor) FlushHangingAsyncQueryTrace(timeFun func(time.Time) time.Duration) {
 	go func() {
-		recovery.LogPanic()
+		defer recovery.LogPanic()
 		for {
 			select {
 			case <-time.After(GCInterval):

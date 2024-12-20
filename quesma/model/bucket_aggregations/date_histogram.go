@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"quesma/clickhouse"
-	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
@@ -18,7 +17,6 @@ import (
 type DateHistogramIntervalType bool
 
 const (
-	DefaultMinDocCount                                      = -1
 	DateHistogramFixedInterval    DateHistogramIntervalType = true
 	DateHistogramCalendarInterval DateHistogramIntervalType = false
 	defaultDateTimeType                                     = clickhouse.DateTime64
@@ -94,7 +92,11 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 	var response []model.JsonMap
 	for _, row := range rows {
 		docCount := row.LastColValue()
-		if util.ExtractInt64(docCount) < int64(query.minDocCount) {
+		docCountAsInt, err := util.ExtractInt64(docCount)
+		if err != nil {
+			logger.ErrorWithCtx(query.ctx).Msgf("error parsing doc_count: %v", docCount)
+		}
+		if docCountAsInt < int64(query.minDocCount) {
 			continue
 		}
 		originalKey := query.getKey(row)
@@ -150,7 +152,7 @@ func (query *DateHistogram) GenerateSQL() model.Expr {
 }
 
 func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
-	interval, err := kibana.ParseInterval(query.interval)
+	interval, err := util.ParseInterval(query.interval)
 	if err != nil {
 		logger.ErrorWithCtx(query.ctx).Msg(err.Error())
 	}
@@ -253,7 +255,7 @@ func (query *DateHistogram) SetMinDocCountToZero() {
 }
 
 func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
-	duration, err := kibana.ParseInterval(query.interval)
+	duration, err := util.ParseInterval(query.interval)
 	var differenceBetweenTwoNextKeys int64
 	if err == nil {
 		differenceBetweenTwoNextKeys = duration.Milliseconds()

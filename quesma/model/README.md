@@ -15,7 +15,7 @@ More info: https://www.elastic.co/guide/en/elasticsearch/reference/current/searc
  Cardinality               |   :white_check_mark:   | Auto-interval date histogram |    :wavy_dash:     | Bucket script          |     :wavy_dash:    |
  Extended Stats            | :white_check_mark:[^1] | Categorize text              |        :x:         | Bucket count K-S test  |        :x:         |
  Avg                       |   :white_check_mark:   | Children                     |        :x:         | Bucket correlation     |        :x:         |
- Boxplot                   |          :x:           | Composite                    |        :x:         | Bucket selector        |        :x:         |
+ Boxplot                   |          :x:           | Composite                    | :white_check_mark: | Bucket selector        |        :x:         |
  Cardinality               |   :white_check_mark:   | Date histogram               | :white_check_mark: | Bucket sort            |        :x:         |
  Extended stats            | :white_check_mark:[^1] | Date range                   | :white_check_mark: | Change point           |        :x:         |
  Geo-bounds                |          :x:           | Diversified sampler          |        :x:         | Cumulative cardinality |        :x:         |
@@ -27,7 +27,7 @@ More info: https://www.elastic.co/guide/en/elasticsearch/reference/current/searc
  Max                       |   :white_check_mark:   | Geotile grid                 |        :x:         | Min bucket             | :white_check_mark: |
  Median absolute deviation |          :x:           | Global                       |        :x:         | Moving function        |    :wavy_dash:     |
  Min                       |   :white_check_mark:   | Histogram                    | :white_check_mark: | Moving percentiles     |        :x:         |
- Percentile ranks          |   :white_check_mark:   | IP prefix                    |        :x:         | Normalize              |        :x:         |
+ Percentile ranks          |   :white_check_mark:   | IP prefix                    | :white_check_mark: | Normalize              |        :x:         |
  Percentiles               |   :white_check_mark:   | IP range                     |        :x:         | Percentiles bucket     |        :x:         |
  Rate                      |          :x:           | Missing                      |        :x:         | Serial differencing    | :white_check_mark: |
  Scripted metric           |          :x:           | Multi-terms                  | :white_check_mark: | Stats bucket           |        :x:         |

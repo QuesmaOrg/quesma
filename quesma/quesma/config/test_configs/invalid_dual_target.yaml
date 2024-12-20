@@ -26,21 +26,27 @@ processors:
     config:
       indexes:
         invalid:
-          target: [ E,C  ]
+          target:
+            - E
+            - C
         "*":
-          target: [ E ]
+          target:
+            - E
 
   - name: IP
     type: quesma-v1-processor-ingest
     config:
       indexes:
         invalid:
-          target: [ C, E ]
+          target:
+            - C
+            - E
         "*":
-          target: [ E ]
+          target:
+            - E
         logs-5:
           useCommonTable: true
-          target: [  ]
+          target:
 
 pipelines:
   - name: my-elasticsearch-proxy-read

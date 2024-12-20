@@ -17,8 +17,6 @@ import (
 type JsonMap = map[string]interface{}
 
 type ClickhouseQueryTranslator struct {
-	ClickhouseLM *clickhouse.LogManager
-
 	Schema schema.Schema
 	Ctx    context.Context
 
@@ -66,6 +64,11 @@ func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) (
 	return asyncSearchResp.Marshal() // error should never ever happen here
 }
 
+func EmptyAsyncSearchStatusResponse(id string, isPartial, isRunning bool, completionStatus int) ([]byte, error) {
+	asyncSearchResp := AsyncSearchStatusResponse(id, isPartial, isRunning, completionStatus)
+	return asyncSearchResp.Marshal()
+}
+
 func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, query *model.Query, asyncId string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
 	searchResponse := cw.MakeSearchResponse([]*model.Query{query}, [][]model.QueryResultRow{ResultSet})
 	id := new(string)
@@ -95,7 +98,9 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 				return nil, err
 			}
 
-			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation)
+			if aggregations, err = util.MergeMaps(aggregations, aggregation); err != nil {
+				logger.ErrorWithCtx(cw.Ctx).Msgf("failed to merge aggregations: %v", err)
+			}
 		}
 	}
 	return aggregations, nil
@@ -272,6 +277,18 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncId strin
 	return &response
 }
 
+func AsyncSearchStatusResponse(asyncId string, isPartial, isRunning bool, completionStatus int) *model.AsyncSearchEntireResp {
+	response := model.AsyncSearchEntireResp{
+		ID:        &asyncId,
+		IsPartial: isPartial,
+		IsRunning: isRunning,
+	}
+	if completionStatus == 200 || completionStatus == 503 {
+		response.CompletionStatus = &completionStatus
+	}
+	return &response
+}
+
 func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sampleLimit int) *model.Query {
 	return &model.Query{
 		SelectCommand: *model.NewSelectCommand(
@@ -292,21 +309,4 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 
 func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldNames []string, query *model.SimpleQuery, limit int) *model.Query {
 	return query_util.BuildHitsQuery(cw.Ctx, model.SingleTableNamePlaceHolder, fieldNames, query, limit)
-}
-
-func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, tableName string, whereClause model.Expr, limit int) *model.Query {
-	return &model.Query{
-		SelectCommand: *model.NewSelectCommand(
-			[]model.Expr{model.NewColumnRef(fieldName)},
-			nil,
-			nil,
-			model.NewTableRef(tableName),
-			whereClause,
-			[]model.Expr{},
-			limit,
-			0,
-			true,
-			nil,
-		),
-	}
 }

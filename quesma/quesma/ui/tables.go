@@ -435,10 +435,10 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 
 	buffer.Html(`</tr>`)
 
-	for _, cfg := range qmc.cfg.IndexConfig {
+	for indexName, cfg := range qmc.cfg.IndexConfig {
 		buffer.Html(`<tr>`)
 		buffer.Html(`<td>`)
-		buffer.Text(cfg.Name)
+		buffer.Text(indexName)
 		buffer.Html(`</td>`)
 
 		// TODO: these are not the backend connector names, but config.ElasticsearchTarget and config.ClickhouseTarget

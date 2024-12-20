@@ -8,4 +8,5 @@ const (
 	TimestampFieldName           = "@timestamp"
 
 	DateHourFunction = "__quesma_date_hour"
+	MatchOperator    = "__quesma_match"
 )

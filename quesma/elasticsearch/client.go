@@ -13,7 +13,11 @@ import (
 	"time"
 )
 
-const esRequestTimeout = 5 * time.Second
+const (
+	esRequestTimeout              = 5 * time.Second
+	elasticsearchSecurityEndpoint = "_security/_authenticate"
+	openSearchSecurityEndpoint    = "_plugins/_security/api/account"
+)
 
 type SimpleClient struct {
 	client *http.Client
@@ -53,7 +57,22 @@ func (es *SimpleClient) DoRequestCheckResponseStatusOK(ctx context.Context, meth
 }
 
 func (es *SimpleClient) Authenticate(ctx context.Context, authHeader string) bool {
-	resp, err := es.doRequest(ctx, "GET", "_security/_authenticate", nil, http.Header{"Authorization": {authHeader}})
+	var authEndpoint string
+	// This is really suboptimal, and we should find a better way to set this systematically (config perhaps?)
+	// OTOH, since we have auth cache in place, I am not concerned about this additional backend call - at least for the time being.
+	r, err := es.doRequest(ctx, "GET", "/", nil, http.Header{"Authorization": {authHeader}})
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("error sending request: %v", err)
+		return false
+	}
+	defer r.Body.Close()
+
+	if isResponseFromElasticsearch(r) {
+		authEndpoint = elasticsearchSecurityEndpoint
+	} else {
+		authEndpoint = openSearchSecurityEndpoint
+	}
+	resp, err := es.doRequest(ctx, "GET", authEndpoint, nil, http.Header{"Authorization": {authHeader}})
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("error sending request: %v", err)
 		return false
@@ -77,4 +96,8 @@ func (es *SimpleClient) doRequest(ctx context.Context, method, endpoint string, 
 		}
 	}
 	return es.client.Do(req)
+}
+
+func isResponseFromElasticsearch(resp *http.Response) bool {
+	return resp.Header.Get("X-Elastic-Product") != ""
 }

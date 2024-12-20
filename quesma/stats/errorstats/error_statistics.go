@@ -4,7 +4,7 @@ package errorstats
 
 import (
 	"github.com/rs/zerolog"
-	"quesma/tracing"
+	tracing "quesma_v2/core/tracing"
 	"sort"
 	"sync"
 	"time"
@@ -107,7 +107,12 @@ func (e *ErrorStatisticsStore) ReturnTopErrors(count int) []ErrorStatistics {
 
 	// Sort by count
 	sort.Slice(errorStatistics, func(i, j int) bool {
-		return errorStatistics[i].Count > errorStatistics[j].Count
+		if errorStatistics[i].Count == errorStatistics[j].Count {
+			// We need stable ordering if we have exact match on count
+			return errorStatistics[i].Reason < errorStatistics[j].Reason
+		} else {
+			return errorStatistics[i].Count > errorStatistics[j].Count
+		}
 	})
 
 	// Return top 5

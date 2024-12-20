@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package model
 
-import "encoding/json"
+import "github.com/goccy/go-json"
 
 type JsonMap = map[string]interface{}
 
@@ -81,7 +81,7 @@ type AsyncSearchEntireResp struct {
 	// For example, 200 indicates that the async search was successfully completed.
 	// 503 indicates that the async search was completed with an error.
 	CompletionStatus *int       `json:"completion_status,omitempty"`
-	Response         SearchResp `json:"response"`
+	Response         SearchResp `json:"response,omitempty"`
 }
 
 func (response *AsyncSearchEntireResp) Marshal() ([]byte, error) {

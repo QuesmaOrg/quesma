@@ -10,7 +10,7 @@ import (
 	"github.com/knadh/koanf/v2"
 	"github.com/rs/zerolog"
 	"log"
-	"quesma/network"
+	"quesma/util"
 	"reflect"
 	"slices"
 	"strings"
@@ -55,6 +55,7 @@ type LoggingConfiguration struct {
 	Level             *zerolog.Level `koanf:"level"`
 	FileLogging       bool           `koanf:"fileLogging"`
 	RemoteLogDrainUrl *Url
+	EnableSQLTracing  bool `koanf:"enableSQLTracing"`
 }
 
 type Pipeline struct {
@@ -71,8 +72,8 @@ type FrontendConnector struct {
 }
 
 type FrontendConnectorConfiguration struct {
-	ListenPort  network.Port `koanf:"listenPort"`
-	DisableAuth bool         `koanf:"disableAuth"`
+	ListenPort  util.Port `koanf:"listenPort"`
+	DisableAuth bool      `koanf:"disableAuth"`
 }
 
 type BackendConnector struct {
@@ -280,9 +281,9 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		if ingestProcessor.Type != QuesmaV1ProcessorIngest && ingestProcessor.Type != QuesmaV1ProcessorNoOp {
 			return fmt.Errorf("ingest pipeline must have ingest-type or noop processor")
 		}
-		for _, indexConf := range ingestProcessor.Config.IndexConfig {
+		for indexName, indexConf := range ingestProcessor.Config.IndexConfig {
 			if len(indexConf.Optimizers) != 0 {
-				return fmt.Errorf("configuration of index '%s' in '%s' processor cannot have any optimizers, this is only a feature of query processor", ingestPipeline.Processors[0], indexConf.Name)
+				return fmt.Errorf("configuration of index '%s' in '%s' processor cannot have any optimizers, this is only a feature of query processor", ingestPipeline.Processors[0], indexName)
 			}
 		}
 		queryProcessor := c.getProcessorByName(queryPipeline.Processors[0])
@@ -316,7 +317,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 					continue
 				}
 				if queryIndexConf.Override != ingestIndexConf.Override {
-					return fmt.Errorf("ingest and query processors must have the same configuration of 'override' for index '%s' due to current limitations", indexName)
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'Override' for index '%s' due to current limitations", indexName)
 				}
 				if queryIndexConf.UseCommonTable != ingestIndexConf.UseCommonTable {
 					return fmt.Errorf("ingest and query processors must have the same configuration of 'useCommonTable' for index '%s' due to current limitations", indexName)
@@ -595,7 +596,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 				processedConfig := indexConfig
-				processedConfig.Name = indexName
 				targets, errTarget := c.getTargetsExtendedConfig(indexConfig.Target)
 				if errTarget != nil {
 					errAcc = multierror.Append(errAcc, errTarget)
@@ -625,7 +625,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 				if len(processedConfig.QueryTarget) == 2 {
 					// Turn on A/B testing
-					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+					if processedConfig.Optimizers == nil {
+						processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+					}
 					processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
 						Disabled:   false,
 						Properties: map[string]string{},
@@ -734,7 +736,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 			processedConfig := indexConfig
-			processedConfig.Name = indexName
 
 			processedConfig.IngestTarget = defaultConfig.IngestTarget
 			targets, errTarget = c.getTargetsExtendedConfig(indexConfig.Target)
@@ -765,7 +766,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			if len(processedConfig.QueryTarget) == 2 {
 				// Turn on A/B testing
-				processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+				if processedConfig.Optimizers == nil {
+					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+				}
 				processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
 					Disabled:   false,
 					Properties: map[string]string{},
@@ -784,7 +787,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				// Index is only configured in ingest processor, not in query processor,
 				// use the ingest processor's configuration as the base (similarly as in the previous loop)
 				processedConfig = indexConfig
-				processedConfig.Name = indexName
 				processedConfig.QueryTarget = defaultConfig.QueryTarget
 			}
 
@@ -848,7 +850,7 @@ END:
 	return conf
 }
 
-func (c *QuesmaNewConfiguration) getPublicTcpPort() (network.Port, error) {
+func (c *QuesmaNewConfiguration) getPublicTcpPort() (util.Port, error) {
 	// per validation, there's always at least one frontend connector,
 	// even if there's a second one, it has to listen on the same port
 	return c.FrontendConnectors[0].Config.ListenPort, nil

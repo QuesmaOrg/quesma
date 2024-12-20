@@ -18,30 +18,40 @@ backendConnectors:
     type: clickhouse-os
     config:
       url: clickhouse://{{ .clickhouse_host }}:{{ .clickhouse_port }}
-ingestStatistics: true
+logging:
+  path: "logs"
+  level: "info"
+  disableFileLogging: false
+  enableSQLTracing: true
 processors:
   - name: my-query-processor
     type: quesma-v1-processor-query
     config:
       indexes:
         siem:
-          target: [my-hydrolix-instance]
+          target:
+            - my-hydrolix-instance
         logs:
-          target: [my-hydrolix-instance]
+          target:
+            - my-hydrolix-instance
         test_index:
-          target: [my-minimal-elasticsearch]
+          target:
+            - my-minimal-elasticsearch
         "*":
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
       indexes:
         test_index:
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
         logs_disabled:
-          target: [  ]
+          target:
         "*":
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
 pipelines:
   - name: my-elasticsearch-proxy-read
     frontendConnectors: [ elastic-query ]
@@ -51,4 +61,3 @@ pipelines:
     frontendConnectors: [ elastic-ingest ]
     processors: [ my-ingest-processor ]
     backendConnectors: [ my-minimal-elasticsearch, my-hydrolix-instance ]
-

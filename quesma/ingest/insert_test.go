@@ -8,7 +8,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
-	"quesma/concurrent"
 	"quesma/jsonprocessor"
 	"quesma/persistence"
 	"quesma/quesma/config"
@@ -16,6 +15,7 @@ import (
 	"quesma/schema"
 	"quesma/table_resolver"
 	"quesma/util"
+	mux "quesma_v2/core"
 	"slices"
 	"strconv"
 	"strings"
@@ -142,7 +142,7 @@ func (*IngestTransformer) Transform(document types.JSON) (types.JSON, error) {
 func ingestProcessorsNonEmpty(cfg *clickhouse.ChTableConfig) []ingestProcessorHelper {
 	lms := make([]ingestProcessorHelper, 0, 4)
 	for _, created := range []bool{true, false} {
-		full := concurrent.NewMapWith(tableName, &clickhouse.Table{
+		full := util.NewSyncMapWith(tableName, &clickhouse.Table{
 			Name:   tableName,
 			Config: cfg,
 			Cols: map[string]*clickhouse.Column{
@@ -171,9 +171,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
 					ip.ip.schemaRegistry = &schema.StaticRegistry{}
 					encodings := populateFieldEncodings([]types.JSON{types.MustJSON(tt.insertJson)}, tableName)
-					ignoredFields := ip.ip.getIgnoredFields(tableName)
-					columnsFromJson := JsonToColumns("", types.MustJSON(tt.insertJson), 1,
-						tableConfig, &columNameFormatter{separator: "::"}, ignoredFields)
+					columnsFromJson := JsonToColumns(types.MustJSON(tt.insertJson), tableConfig)
 					columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.ip.schemaRegistry, tableName), &columNameFormatter{separator: "::"}, tableName, encodings)
 					columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(types.MustJSON(tt.insertJson)))
 					query := createTableQuery(tableName, columns, tableConfig)
@@ -242,8 +240,8 @@ func TestProcessInsertQuery(t *testing.T) {
 					db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 					ip.ip.chDb = db
 					resolver := table_resolver.NewEmptyTableResolver()
-					decision := &table_resolver.Decision{
-						UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+					decision := &mux.Decision{
+						UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 							ClickhouseTableName: "test_table",
 						}}}
 					resolver.Decisions["test_table"] = decision
@@ -310,7 +308,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	}
 
 	// big integer as an attribute field
-	tableMapNoSchemaFields := concurrent.NewMapWith(tableName, &clickhouse.Table{
+	tableMapNoSchemaFields := util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:    tableName,
 		Config:  NewChTableConfigFourAttrs(),
 		Cols:    map[string]*clickhouse.Column{},
@@ -385,7 +383,7 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 				{"new_field": "bar"},
 			},
 			expectedStatements: []string{
-				`CREATE TABLE IF NOT EXISTS "test_index" ( "@timestamp" DateTime64(3) DEFAULT now64(), "attributes_values" Map(String,String), "attributes_metadata" Map(String,String), "new_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=new_field', "schema_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=schema_field', ) ENGINE = MergeTree ORDER BY ("@timestamp") COMMENT 'created by Quesma'`,
+				`CREATE TABLE IF NOT EXISTS "test_index" ( "@timestamp" DateTime64(3) DEFAULT now64(), "attributes_values" Map(String,String), "attributes_metadata" Map(String,String), "new_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=new_field', "nested_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=nested.field', ) ENGINE = MergeTree ORDER BY ("@timestamp") COMMENT 'created by Quesma'`,
 				`INSERT INTO "test_index" FORMAT JSONEachRow {"new_field":"bar"}`,
 			},
 		},
@@ -405,9 +403,9 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			indexSchema := schema.Schema{
 				ExistsInDataSource: false,
 				Fields: map[schema.FieldName]schema.Field{
-					"schema_field": {
-						PropertyName:         "schema_field",
-						InternalPropertyName: "schema_field",
+					"nested.field": {
+						PropertyName:         "nested.field",
+						InternalPropertyName: "nested_field",
 						InternalPropertyType: "String",
 						Type:                 schema.QuesmaTypeKeyword},
 				},
@@ -422,19 +420,19 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 
 			virtualTableStorage := persistence.NewStaticJSONDatabase()
 			schemaRegistry := &schema.StaticRegistry{
-				Tables: make(map[schema.TableName]schema.Schema),
+				Tables: make(map[schema.IndexName]schema.Schema),
 			}
-			schemaRegistry.Tables[schema.TableName(indexName)] = indexSchema
+			schemaRegistry.Tables[schema.IndexName(indexName)] = indexSchema
 
 			resolver := table_resolver.NewEmptyTableResolver()
-			decision := &table_resolver.Decision{
-				UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+			decision := &mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "test_index",
 				}}}
 			resolver.Decisions["test_index"] = decision
 
 			schemaRegistry.FieldEncodings = make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
-			schemaRegistry.FieldEncodings[schema.FieldEncodingKey{TableName: indexName, FieldName: "schema_field"}] = "schema_field"
+			schemaRegistry.FieldEncodings[schema.FieldEncodingKey{TableName: indexName, FieldName: "nested.field"}] = "nested_field"
 
 			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db

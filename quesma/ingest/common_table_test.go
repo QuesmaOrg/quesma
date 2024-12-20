@@ -4,8 +4,8 @@ package ingest
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/common_table"
@@ -15,6 +15,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/table_resolver"
+	mux "quesma_v2/core"
 	"testing"
 )
 
@@ -191,11 +192,11 @@ func TestIngestToCommonTable(t *testing.T) {
 
 			resolver := table_resolver.NewEmptyTableResolver()
 
-			decision := &table_resolver.Decision{
-				UseConnectors: []table_resolver.ConnectorDecision{
-					&table_resolver.ConnectorDecisionClickhouse{
+			decision := &mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{
+					&mux.ConnectorDecisionClickhouse{
 						ClickhouseTableName: common_table.TableName,
-						ClickhouseTables:    []string{indexName},
+						ClickhouseIndexes:   []string{indexName},
 						IsCommonTable:       true,
 					},
 				},

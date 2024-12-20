@@ -3,11 +3,18 @@
 package quesma
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
+	"quesma/clickhouse"
+	"quesma/ingest"
 	"quesma/quesma/config"
-	"quesma/quesma/mux"
+	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
+	"quesma/telemetry"
+	mux "quesma_v2/core"
+	"quesma_v2/core/routes"
+	"strings"
 	"testing"
 )
 
@@ -165,7 +172,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 			pattern:       "my_index",
 			configuration: withAutodiscovery(indexConfig("another-index", false)),
 			registry: &schema.StaticRegistry{
-				Tables: map[schema.TableName]schema.Schema{
+				Tables: map[schema.IndexName]schema.Schema{
 					"my_index": {ExistsInDataSource: true},
 				},
 			},
@@ -176,7 +183,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 			pattern:       "my_index*",
 			configuration: withAutodiscovery(indexConfig("another-index", false)),
 			registry: &schema.StaticRegistry{
-				Tables: map[schema.TableName]schema.Schema{
+				Tables: map[schema.IndexName]schema.Schema{
 					"my_index8": {ExistsInDataSource: true},
 				},
 			},
@@ -202,7 +209,7 @@ func indexConfig(name string, elastic bool) config.QuesmaConfiguration {
 	} else {
 		targets = []string{config.ClickhouseTarget}
 	}
-	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {Name: name, QueryTarget: targets, IngestTarget: targets}}}
+	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {QueryTarget: targets, IngestTarget: targets}}}
 }
 
 func withAutodiscovery(cfg config.QuesmaConfiguration) config.QuesmaConfiguration {
@@ -262,4 +269,111 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 			assert.Equalf(t, tt.want, matchedAgainstBulkBody(&tt.config, resolver).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
 		})
 	}
+}
+
+const testIndexName = "indexName"
+
+func TestConfigureRouter(t *testing.T) {
+	cfg := &config.QuesmaConfiguration{
+		IndexConfig: map[string]config.IndexConfiguration{
+			testIndexName: {},
+		},
+	}
+	tr := TestTableResolver{}
+	testRouter := ConfigureRouter(cfg, schema.NewSchemaRegistry(fixedTableProvider{}, cfg, clickhouse.SchemaTypeAdapter{}), &clickhouse.LogManager{}, &ingest.IngestProcessor{}, &ui.QuesmaManagementConsole{}, telemetry.NewPhoneHomeAgent(cfg, nil, ""), &QueryRunner{}, tr)
+
+	tests := []struct {
+		path                string
+		method              string
+		shouldReturnHandler bool
+	}{
+		// Routes explicitly registered in the router code
+		{routes.ClusterHealthPath, "GET", true},
+		// {routes.BulkPath, "POST", true}, // TODO later on, it requires body parsing
+		{routes.IndexRefreshPath, "POST", true},
+		{routes.IndexDocPath, "POST", true},
+		{routes.IndexBulkPath, "POST", true},
+		{routes.IndexBulkPath, "PUT", true},
+		{routes.ResolveIndexPath, "GET", true},
+		{routes.IndexCountPath, "GET", true},
+		{routes.GlobalSearchPath, "GET", false},
+		{routes.GlobalSearchPath, "POST", false},
+		{routes.GlobalSearchPath, "PUT", false},
+		{routes.IndexSearchPath, "GET", true},
+		{routes.IndexSearchPath, "POST", true},
+		{routes.IndexAsyncSearchPath, "POST", true},
+		{routes.IndexMappingPath, "PUT", true},
+		{routes.IndexMappingPath, "GET", true},
+		{routes.AsyncSearchStatusPath, "GET", true},
+		{routes.AsyncSearchIdPath, "GET", true},
+		{routes.AsyncSearchIdPath, "DELETE", true},
+		{routes.FieldCapsPath, "GET", true},
+		{routes.FieldCapsPath, "POST", true},
+		{routes.TermsEnumPath, "POST", true},
+		{routes.EQLSearch, "GET", true},
+		{routes.EQLSearch, "POST", true},
+		{routes.IndexPath, "PUT", true},
+		{routes.IndexPath, "GET", true},
+		{routes.QuesmaTableResolverPath, "GET", true},
+		// Few cases where the router should not match
+		{"/invalid/path", "GET", false},
+		{routes.ClusterHealthPath, "POST", false},
+		//{routes.BulkPath, "GET", false}, // TODO later on, it requires body parsing
+		{routes.IndexRefreshPath, "GET", false},
+		{routes.IndexDocPath, "GET", false},
+		{routes.IndexBulkPath, "DELETE", false},
+		{routes.ResolveIndexPath, "POST", false},
+		{routes.IndexCountPath, "POST", false},
+		{routes.IndexSearchPath, "DELETE", false},
+		{routes.IndexAsyncSearchPath, "GET", false},
+		{routes.IndexMappingPath, "POST", false},
+		{routes.AsyncSearchStatusPath, "POST", false},
+		{routes.AsyncSearchIdPath, "PUT", false},
+		{routes.FieldCapsPath, "DELETE", false},
+		{routes.TermsEnumPath, "GET", false},
+		{routes.EQLSearch, "DELETE", false},
+		{routes.IndexPath, "POST", false},
+		{routes.QuesmaTableResolverPath, "POST", false},
+		{routes.QuesmaTableResolverPath, "PUT", false},
+		{routes.QuesmaTableResolverPath, "DELETE", false},
+	}
+
+	for _, tt := range tests {
+		tt.path = strings.Replace(tt.path, ":id", "quesma_async_absurd_test_id", -1)
+		tt.path = strings.Replace(tt.path, ":index", testIndexName, -1)
+		t.Run(tt.method+"-at-"+tt.path, func(t *testing.T) {
+			req := &mux.Request{Path: tt.path, Method: tt.method}
+			reqHandler, _ := testRouter.Matches(req)
+			assert.Equal(t, tt.shouldReturnHandler, reqHandler != nil, "Expected route match result for path: %s and method: %s", tt.path, tt.method)
+		})
+	}
+}
+
+// TestTableResolver should be used only within tests
+type TestTableResolver struct{}
+
+func (t TestTableResolver) Start() {}
+
+func (t TestTableResolver) Stop() {}
+
+func (t TestTableResolver) Resolve(_ string, indexPattern string) *mux.Decision {
+	if indexPattern == testIndexName {
+		return &mux.Decision{
+			UseConnectors: []mux.ConnectorDecision{
+				&mux.ConnectorDecisionClickhouse{},
+			},
+		}
+	} else {
+		return &mux.Decision{
+			Err:          fmt.Errorf("TestTableResolver err"),
+			Reason:       "TestTableResolver reason",
+			ResolverName: "TestTableResolver",
+		}
+	}
+}
+
+func (t TestTableResolver) Pipelines() []string { return []string{} }
+
+func (t TestTableResolver) RecentDecisions() []mux.PatternDecisions {
+	return []mux.PatternDecisions{}
 }

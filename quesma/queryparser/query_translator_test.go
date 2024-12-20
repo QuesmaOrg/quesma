@@ -4,7 +4,7 @@ package queryparser
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,7 +61,7 @@ const (
 func TestSearchResponse(t *testing.T) {
 	row := []model.QueryResultRow{{}}
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"test": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -160,7 +160,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 		},
 	}
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"test": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -437,7 +437,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 // tests MakeSearchResponse, in particular if JSON we return is a proper JSON.
 // used to fail before we fixed field quoting.
 func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
-	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
+	cw := ClickhouseQueryTranslator{Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
 	const limit = 1000
 	queries := []*model.Query{
 		cw.BuildNRowsQuery([]string{"*"}, &model.SimpleQuery{}, limit),

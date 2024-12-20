@@ -12,7 +12,6 @@ import (
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/logger"
-	"quesma/network"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/stats"
@@ -27,7 +26,7 @@ const (
 )
 
 type TcpProxy struct {
-	From                 network.Port
+	From                 util.Port
 	To                   string
 	inspect              bool
 	inspectHttpServer    *http.Server
@@ -35,7 +34,7 @@ type TcpProxy struct {
 	acceptingConnections atomic.Bool
 }
 
-func NewTcpProxy(From network.Port, To string, inspect bool) *TcpProxy {
+func NewTcpProxy(From util.Port, To string, inspect bool) *TcpProxy {
 	return &TcpProxy{
 		From:              From,
 		To:                To,
@@ -57,7 +56,7 @@ func resolveHttpServer(inspect bool) *http.Server {
 
 func configureRouting() *http.ServeMux {
 	router := http.NewServeMux()
-	configuration := &config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"_all": {Name: "_all", QueryTarget: []string{config.ElasticsearchTarget}, IngestTarget: []string{config.ElasticsearchTarget}}}}
+	configuration := &config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"_all": {QueryTarget: []string{config.ElasticsearchTarget}, IngestTarget: []string{config.ElasticsearchTarget}}}}
 	router.HandleFunc("POST /{index}/_doc", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		index := r.PathValue("index")
 

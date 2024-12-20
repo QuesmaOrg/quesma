@@ -77,9 +77,9 @@ func (v *BaseExprVisitor) VisitNestedProperty(e NestedProperty) interface{} {
 	if v.OverrideVisitNestedProperty != nil {
 		return v.OverrideVisitNestedProperty(v, e)
 	}
-	ColumnRef := e.ColumnRef.Accept(v).(ColumnRef)
+	expr := e.ObjectExpr.Accept(v).(Expr)
 	Property := e.PropertyName.Accept(v).(LiteralExpr)
-	return NewNestedProperty(ColumnRef, Property)
+	return NewNestedProperty(expr, Property)
 }
 
 func (v *BaseExprVisitor) VisitArrayAccess(e ArrayAccess) interface{} {

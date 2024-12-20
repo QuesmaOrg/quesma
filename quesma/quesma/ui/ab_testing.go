@@ -4,12 +4,13 @@ package ui
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"io"
 	"quesma/elasticsearch"
 	"quesma/jsondiff"
 	"quesma/logger"
+	"quesma/quesma/config"
 	"quesma/quesma/ui/internal/builder"
 	"strings"
 	"time"
@@ -75,7 +76,6 @@ If the performance gain is positive, it means that the second backend connector 
 		buffer.Html(`<select id="order_by" name="order_by">`)
 		buffer.Html(`<option value="default">Default</option>`)
 		buffer.Html(`<option value="response_similarity">Response similarity</option>`)
-		buffer.Html(`<option value="performance_gain">Performance gain</option>`)
 		buffer.Html(`<option value="count">Count</option>`)
 		buffer.Html(`</select>`)
 		buffer.Html(`<br>`)
@@ -86,7 +86,7 @@ If the performance gain is positive, it means that the second backend connector 
 		buffer.Html(`<div class="menu">`)
 		buffer.Html("\n</div>")
 	} else {
-		buffer.Html(`<p>A/B Testing results are not available.</p>`)
+		buffer.Html(`<p>CR results are not available.</p>`)
 	}
 
 	buffer.Html("\n</main>\n\n")
@@ -258,17 +258,19 @@ func formatJSON(in *string) string {
 }
 
 type abTestingReportRow struct {
-	dashboardId     string
-	panelId         string
-	dashboardUrl    string
-	detailsUrl      string
-	dashboardName   string
-	panelName       string
-	aName           string
-	bName           string
-	successRate     *float64
-	performanceGain *float64
-	count           int
+	dashboardId       string
+	panelId           string
+	dashboardUrl      string
+	detailsUrl        string
+	dashboardName     string
+	panelName         string
+	aName             string
+	bName             string
+	aTime             *float64
+	bTime             *float64
+	successRate       *float64
+	responseTimeDelta *float64
+	count             int
 }
 
 func (qmc *QuesmaManagementConsole) abTestingReadReport(kibanaUrl, orderBy string) ([]abTestingReportRow, error) {
@@ -281,7 +283,6 @@ func (qmc *QuesmaManagementConsole) abTestingReadReport(kibanaUrl, orderBy strin
 	orderByToSQL := map[string]string{
 		"default":             "dashboard_id, panel_id, a_name, b_name",
 		"response_similarity": "response_similarity DESC, dashboard_id, panel_id, a_name, b_name",
-		"performance_gain":    "performance_gain DESC,dashboard_id, panel_id, a_name, b_name",
 		"count":               "count DESC,dashboard_id, panel_id, a_name, b_name",
 	}
 
@@ -311,8 +312,10 @@ SELECT
   a_name,
   b_name,
   (sumIf(c,ok)/ sum(c)) * 100 as response_similarity,
-  ((avgIf(a_time,ok)- avgIf(b_time,ok))/avgIf(a_time,ok))*100.0  as performance_gain,
-  sum(c) as count
+ 
+  sum(c) as count,
+  avgIf(a_time,ok) as a_time,
+	avgIf(b_time,ok) as b_time
 FROM
   subresults 
 GROUP BY  
@@ -331,7 +334,7 @@ GROUP BY
 
 	for rows.Next() {
 		row := abTestingReportRow{}
-		err := rows.Scan(&row.dashboardId, &row.panelId, &row.aName, &row.bName, &row.successRate, &row.performanceGain, &row.count)
+		err := rows.Scan(&row.dashboardId, &row.panelId, &row.aName, &row.bName, &row.successRate, &row.count, &row.aTime, &row.bTime)
 		if err != nil {
 			return nil, err
 		}
@@ -340,6 +343,26 @@ GROUP BY
 		row.detailsUrl = fmt.Sprintf("%s/panel?dashboard_id=%s&panel_id=%s", abTestingPath, row.dashboardId, row.panelId)
 		row.dashboardName = kibanaDashboards.dashboardName(row.dashboardId)
 		row.panelName = kibanaDashboards.panelName(row.dashboardId, row.panelId)
+
+		if row.aTime != nil && row.bTime != nil {
+
+			var clickhouseTime, elasticTime float64
+
+			if row.aName == config.ElasticsearchTarget {
+				elasticTime = *row.aTime
+				clickhouseTime = *row.bTime
+			} else {
+				elasticTime = *row.bTime
+				clickhouseTime = *row.aTime
+			}
+
+			if elasticTime == 0 {
+				row.responseTimeDelta = nil
+			} else {
+				delta := (elasticTime - clickhouseTime) / elasticTime * 100
+				row.responseTimeDelta = &delta
+			}
+		}
 
 		result = append(result, row)
 	}
@@ -361,7 +384,7 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl, orderBy s
 	buffer.Html(`<th class="key">Panel</th>` + "\n")
 	buffer.Html(`<th class="key">Count <br> <small>(since start)</small></th>` + "\n")
 	buffer.Html(`<th class="key">Response similarity</th>` + "\n")
-	buffer.Html(`<th class="key">Performance gain</th>` + "\n")
+	buffer.Html(`<th class="key">Response time delta</th>` + "\n")
 	buffer.Html(`<th class="key"></th>` + "\n")
 	buffer.Html("</tr>\n")
 	buffer.Html("</thead>\n")
@@ -405,8 +428,36 @@ func (qmc *QuesmaManagementConsole) generateABTestingReport(kibanaUrl, orderBy s
 		buffer.Html(`</td>`)
 
 		buffer.Html(`<td>`)
-		if row.performanceGain != nil {
-			buffer.Text(fmt.Sprintf("%.01f%%", *row.performanceGain))
+
+		const minTime = 0.05 // 50ms, we don't show performance gain for queries faster than this
+		const maxTime = 5.0  // if a query takes longer than this, we show the name of the slowest backend
+
+		if row.responseTimeDelta != nil {
+			buffer.Html(`<span title="`)
+			buffer.Html(fmt.Sprintf("%s=%.03fs, %s=%.03fs", row.aName, *row.aTime, row.bName, *row.bTime))
+			buffer.Html(`">`)
+
+			switch {
+
+			case *row.aTime < minTime && *row.bTime < minTime:
+				buffer.Text("both < 50ms")
+
+			case *row.aTime > maxTime && *row.bTime < maxTime:
+				buffer.Text(fmt.Sprintf("%s is over %0.02fs", row.aName, *row.aTime))
+
+			case *row.bTime > maxTime && *row.aTime < maxTime:
+				buffer.Text(fmt.Sprintf("%s is over %0.02fs", row.bName, *row.bTime))
+
+			default:
+
+				if *row.responseTimeDelta > 0 {
+					buffer.Text(fmt.Sprintf("%.01f%% faster", *row.responseTimeDelta))
+				} else {
+					buffer.Text(fmt.Sprintf("%.01f%% slower", -(*row.responseTimeDelta)))
+				}
+
+			}
+			buffer.Html(`</span>`)
 		} else {
 			buffer.Text("n/a")
 		}
@@ -536,7 +587,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
-	buffer.Html(`<h2>A/B Testing - Panel Details</h2>`)
+	buffer.Html(`<h2>Compatibility report - Panel Details</h2>`)
 	buffer.Html(`<h3>`)
 	buffer.Text(fmt.Sprintf("Dashboard: %s", dashboardName))
 	buffer.Html(`</h3>`)
@@ -671,7 +722,7 @@ func (qmc *QuesmaManagementConsole) generateABMismatchDetails(dashboardId, panel
 
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
-	buffer.Html(`<h2>A/B Testing - Panel requests</h2>`)
+	buffer.Html(`<h2>Compatibility report - Panel requests</h2>`)
 
 	buffer.Html(`<h3>`)
 	buffer.Text(fmt.Sprintf("Dashboard: %s", dashboardName))
@@ -796,7 +847,7 @@ func (qmc *QuesmaManagementConsole) generateABSingleRequest(requestId string) []
 	buffer := newBufferWithHead()
 	buffer.Html(`<main id="ab_testing_dashboard">`)
 
-	buffer.Html(`<h2>A/B Testing - Request Results </h2>`)
+	buffer.Html(`<h2>Compatibility report - Request Results </h2>`)
 
 	fmtAny := func(value any) string {
 		if value == nil {
