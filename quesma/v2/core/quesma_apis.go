@@ -35,9 +35,9 @@ type HTTPFrontendConnector interface {
 	// AddRouter adds a router to the HTTPFrontendConnector
 	AddRouter(router Router)
 	GetRouter() Router
-	// AddMiddleware adds a middleware to the HTTPFrontendConnector
-	// The middleware chain is executed in the order they are added
-	// and before the router is executed
+	// AddMiddleware adds a middleware to the HTTPFrontendConnector.
+	// The middleware chain is executed in the order it is added
+	// and before the router is executed.
 	AddMiddleware(middleware http.Handler)
 }
 
