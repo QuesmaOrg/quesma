@@ -28,11 +28,8 @@ func NewIngestTestcase() *IngestTestcase {
 
 func (a *IngestTestcase) SetupContainers(ctx context.Context) error {
 	containers, err := setupAllContainersWithCh(ctx, a.ConfigTemplate)
-	if err != nil {
-		return err
-	}
 	a.Containers = containers
-	return nil
+	return err
 }
 
 func (a *IngestTestcase) RunTests(ctx context.Context, t *testing.T) error {

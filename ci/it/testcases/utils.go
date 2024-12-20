@@ -10,10 +10,12 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 	"text/template"
 	"time"
 )
@@ -34,19 +36,101 @@ type Containers struct {
 	ClickHouse    *testcontainers.Container
 }
 
-func (c *Containers) Cleanup(ctx context.Context) {
-	if c.Elasticsearch != nil {
-		(*c.Elasticsearch).Terminate(ctx)
+// Read the last X bytes from the reader and return the last N lines from that
+// Requires two readers because io.Reader doesn't support seeking
+func tail(reader io.Reader, readerCopy io.Reader) ([]string, error) {
+	// Size of chunk to read from the end (1MB)
+	const chunkSize = 1024 * 1024
+	// Maximum number of lines to return
+	const maxLines = 1000
+
+	totalSize, err := io.Copy(io.Discard, reader)
+	if err != nil {
+		return nil, err
 	}
-	if c.Quesma != nil {
-		(*c.Quesma).Terminate(ctx)
+
+	skip := totalSize - chunkSize
+	if skip > 0 {
+		_, err = io.CopyN(io.Discard, readerCopy, skip)
+		if err != nil && err != io.EOF {
+			return nil, err
+		}
 	}
-	if c.Kibana != nil {
-		(*c.Kibana).Terminate(ctx)
+
+	output, err := io.ReadAll(readerCopy)
+	if err != nil {
+		return nil, err
 	}
-	if c.ClickHouse != nil {
-		(*c.ClickHouse).Terminate(ctx)
+
+	lines := strings.Split(string(output), "\n")
+
+	if len(lines) > maxLines {
+		lines = lines[len(lines)-maxLines:]
 	}
+
+	// The chunk could have started in the middle of a line, so we skip the first line
+	if len(lines) > 0 {
+		lines = lines[1:]
+	}
+
+	return lines, nil
+}
+
+func printContainerLogs(ctx context.Context, container *testcontainers.Container, name string) {
+	if container == nil {
+		return
+	}
+
+	reader, err := (*container).Logs(ctx)
+	if err != nil {
+		log.Printf("Failed to get logs for container '%s': %v", name, err)
+		return
+	}
+	defer reader.Close()
+
+	readerCopy, err := (*container).Logs(ctx)
+	if err != nil {
+		log.Printf("Failed to get logs for container '%s': %v", name, err)
+		return
+	}
+	defer readerCopy.Close()
+
+	lines, err := tail(reader, readerCopy)
+	if err != nil {
+		log.Printf("Failed to read logs for container '%s': %v", name, err)
+		return
+	}
+
+	log.Printf("Logs for container '%s':", name)
+	for _, line := range lines {
+		log.Printf("[%s]: %s", name, line)
+	}
+}
+
+func terminateContainer(ctx context.Context, container *testcontainers.Container, name string) {
+	if container == nil {
+		log.Printf("Container '%s' is nil", name)
+		return
+	}
+
+	err := (*container).Terminate(ctx)
+	if err != nil {
+		log.Printf("Failed to terminate container '%s': %v", name, err)
+	}
+}
+
+func (c *Containers) Cleanup(ctx context.Context, t *testing.T) {
+	if t.Failed() {
+		printContainerLogs(ctx, c.Elasticsearch, "Elasticsearch")
+		printContainerLogs(ctx, c.Quesma, "Quesma")
+		printContainerLogs(ctx, c.Kibana, "Kibana")
+		printContainerLogs(ctx, c.ClickHouse, "ClickHouse")
+	}
+
+	terminateContainer(ctx, c.Elasticsearch, "Elasticsearch")
+	terminateContainer(ctx, c.Quesma, "Quesma")
+	terminateContainer(ctx, c.Kibana, "Kibana")
+	terminateContainer(ctx, c.ClickHouse, "ClickHouse")
 }
 
 func setupElasticsearch(ctx context.Context) (testcontainers.Container, error) {
@@ -74,7 +158,7 @@ func setupElasticsearch(ctx context.Context) (testcontainers.Container, error) {
 		Started:          true,
 	})
 	if err != nil {
-		return nil, err
+		return elasticsearch, err
 	}
 
 	// Set password to Kibana system user
@@ -82,7 +166,7 @@ func setupElasticsearch(ctx context.Context) (testcontainers.Container, error) {
 		output := new(bytes.Buffer)
 		output.ReadFrom(reader)
 		log.Printf("Command output: %s", output.String())
-		panic(fmt.Sprintf("Failed to set password for kibana_system: returned=[%d] err=[%v]", retCode, errCmd))
+		return elasticsearch, fmt.Errorf("Failed to set password for kibana_system: returned=[%d] err=[%v]", retCode, errCmd)
 	}
 
 	return elasticsearch, nil
@@ -119,14 +203,10 @@ func setupQuesma(ctx context.Context, quesmaConfig string) (testcontainers.Conta
 		},
 	}
 
-	quesma, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: quesmaReq,
 		Started:          true,
 	})
-	if err != nil {
-		return nil, err
-	}
-	return quesma, nil
 }
 
 func setupKibana(ctx context.Context, quesmaContainer testcontainers.Container) (testcontainers.Container, error) {
@@ -152,14 +232,10 @@ func setupKibana(ctx context.Context, quesmaContainer testcontainers.Container) 
 		},
 		WaitingFor: wait.ForLog("http server running at").WithStartupTimeout(4 * time.Minute),
 	}
-	kibana, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
 	})
-	if err != nil {
-		return nil, err
-	}
-	return kibana, nil
 }
 
 func setupClickHouse(ctx context.Context) (testcontainers.Container, error) {
@@ -171,14 +247,10 @@ func setupClickHouse(ctx context.Context) (testcontainers.Container, error) {
 		},
 		WaitingFor: wait.ForExposedPort().WithStartupTimeout(2 * time.Minute),
 	}
-	clickhouse, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
 	})
-	if err != nil {
-		return nil, err
-	}
-	return clickhouse, nil
 }
 
 func RenderQuesmaConfig(configTemplate string, data map[string]string) error {
@@ -204,49 +276,55 @@ func RenderQuesmaConfig(configTemplate string, data map[string]string) error {
 }
 
 func setupContainersForTransparentProxy(ctx context.Context, quesmaConfigTemplate string) (*Containers, error) {
-	elasticsearch, err := setupElasticsearch(ctx)
-	if err != nil {
-		log.Fatalf("Failed to start Elasticsearch container: %s", err)
-	}
+	containers := Containers{}
 
+	elasticsearch, err := setupElasticsearch(ctx)
+	containers.Elasticsearch = &elasticsearch
+	if err != nil {
+		return &containers, fmt.Errorf("failed to start Elasticsearch container: %s", err)
+	}
 	esPort, _ := elasticsearch.MappedPort(ctx, "9200/tcp")
+
 	data := map[string]string{
 		"elasticsearch_host": GetInternalDockerHost(),
 		"elasticsearch_port": esPort.Port(),
 	}
 	if err := RenderQuesmaConfig(quesmaConfigTemplate, data); err != nil {
-		log.Fatalf("Failed to render Quesma config: %s", err)
+		return &containers, fmt.Errorf("failed to render Quesma config: %v", err)
 	}
 
 	quesma, err := setupQuesma(ctx, quesmaConfigTemplate)
+	containers.Quesma = &quesma
 	if err != nil {
-		println(err)
+		return &containers, fmt.Errorf("failed to start Quesma, %v", err)
 	}
 
 	kibana, err := setupKibana(ctx, quesma)
+	containers.Kibana = &kibana
 	if err != nil {
-		log.Fatalf("Failed to start Kibana container: %s", err)
+		return &containers, fmt.Errorf("failed to start Kibana container: %v", err)
 	}
 
-	return &Containers{
-		Elasticsearch: &elasticsearch,
-		Quesma:        &quesma,
-		Kibana:        &kibana,
-		ClickHouse:    nil,
-	}, nil
+	return &containers, nil
 }
 
 func setupAllContainersWithCh(ctx context.Context, quesmaConfigTemplate string) (*Containers, error) {
+	containers := Containers{}
+
 	elasticsearch, err := setupElasticsearch(ctx)
+	containers.Elasticsearch = &elasticsearch
 	if err != nil {
-		log.Fatalf("Failed to start Elasticsearch container: %s", err)
+		return &containers, fmt.Errorf("failed to start Elasticsearch container: %s", err)
 	}
+
 	esPort, _ := elasticsearch.MappedPort(ctx, "9200/tcp")
 
 	clickhouse, err := setupClickHouse(ctx)
+	containers.ClickHouse = &clickhouse
 	if err != nil {
-		log.Fatalf("Failed to start ClickHouse container: %s", err)
+		return &containers, fmt.Errorf("failed to start ClickHouse container: %s", err)
 	}
+
 	chPort, _ := clickhouse.MappedPort(ctx, "9000/tcp")
 
 	data := map[string]string{
@@ -256,23 +334,20 @@ func setupAllContainersWithCh(ctx context.Context, quesmaConfigTemplate string) 
 		"clickhouse_port":    chPort.Port(),
 	}
 	if err := RenderQuesmaConfig(quesmaConfigTemplate, data); err != nil {
-		log.Fatalf("Failed to render Quesma config: %v", err)
+		return &containers, fmt.Errorf("failed to render Quesma config: %v", err)
 	}
 
 	quesma, err := setupQuesma(ctx, quesmaConfigTemplate)
+	containers.Quesma = &quesma
 	if err != nil {
-		log.Fatalf("Failed to start Quesma, %v", err)
+		return &containers, fmt.Errorf("failed to start Quesma, %v", err)
 	}
 
 	kibana, err := setupKibana(ctx, quesma)
+	containers.Kibana = &kibana
 	if err != nil {
-		log.Fatalf("Failed to start Kibana container: %v", err)
+		return &containers, fmt.Errorf("failed to start Kibana container: %v", err)
 	}
 
-	return &Containers{
-		Elasticsearch: &elasticsearch,
-		Quesma:        &quesma,
-		Kibana:        &kibana,
-		ClickHouse:    &clickhouse,
-	}, nil
+	return &containers, nil
 }
