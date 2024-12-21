@@ -331,10 +331,6 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		}
 	}
 
-	if len(ids) == 0 {
-		return model.NewSimpleQuery(model.FalseExpr, true) // parsing went fine, but x IN [] <=> false
-	}
-
 	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
 
 	// when our generated ID appears in query looks like this: `1d<TRUNCATED>0b8q1`
@@ -374,9 +370,12 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	}
 
 	var whereStmt model.Expr
-	if len(ids) == 1 {
+	switch len(ids) {
+	case 0:
+		whereStmt = model.FalseExpr // timestamp IN [] <=> false
+	case 1:
 		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", idToSql(ids[0]))
-	} else {
+	default:
 		idsAsExprs := make([]model.Expr, len(ids))
 		for i, id := range ids {
 			idsAsExprs[i] = idToSql(id)
