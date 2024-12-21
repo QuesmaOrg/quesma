@@ -2320,6 +2320,29 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
+	{ // [40]
+		"ids",
+		`{
+			"query": {
+				"ids": {
+					 "values": [
+						"323032342d31322d32312030373a32393a30332e333637202b3030303020555443q1",
+						"323032342d31322d32312030373a32393a30322e393932202b3030303020555443q3"
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"field" REGEXP 'a?'`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE "field" REGEXP 'a\?' ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
 }
 
 var TestSearchRuntimeMappings = []SearchTestCase{
