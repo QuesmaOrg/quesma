@@ -12,6 +12,7 @@ type Expr interface {
 var (
 	InvalidExpr = Expr(nil)
 	TrueExpr    = NewLiteral(true)
+	FalseExpr   = NewLiteral(false)
 )
 
 // ColumnRef is a reference to a column in a table, we can enrich it with more information (e.g. type used) as we go
@@ -84,6 +85,18 @@ type LiteralExpr struct {
 
 func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLiteral(e)
+}
+
+type TupleExpr struct {
+	Exprs []Expr
+}
+
+func NewTupleExpr(exprs ...Expr) TupleExpr {
+	return TupleExpr{Exprs: exprs}
+}
+
+func (e TupleExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitTuple(e)
 }
 
 type InfixExpr struct {
@@ -278,6 +291,7 @@ func (e CTE) Accept(v ExprVisitor) interface{} {
 type ExprVisitor interface {
 	VisitFunction(e FunctionExpr) interface{}
 	VisitLiteral(l LiteralExpr) interface{}
+	VisitTuple(t TupleExpr) interface{}
 	VisitInfix(e InfixExpr) interface{}
 	VisitColumnRef(e ColumnRef) interface{}
 	VisitPrefixExpr(e PrefixExpr) interface{}

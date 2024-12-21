@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"quesma/clickhouse"
+	"quesma/logger"
 	"quesma/model"
 	"quesma/model/typical_queries"
 	"quesma/persistence"
@@ -27,6 +28,7 @@ import (
 //     what should be? According to docs, I think so... Maybe test in Kibana?
 //     OK, Kibana disagrees, it is indeed wrong.
 func TestQueryParserStringAttrConfig(t *testing.T) {
+	logger.InitSimpleLoggerForTestsWarnLevel()
 	tableName := "logs-generic-default"
 	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "@timestamp" DateTime64(3, 'UTC'), "attributes_values" Map(String,String))
