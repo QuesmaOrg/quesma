@@ -1006,7 +1006,7 @@ var TestsSearch = []SearchTestCase{
 						},
 						{
 							"terms": {
-								"task.enabled": [true, 54]
+								"task.enabled": [true, 54, "abc", "abc's"]
 							}
 						}
 					]
@@ -2318,6 +2318,30 @@ var TestsSearch = []SearchTestCase{
 				`WHERE "field" REGEXP 'a\?' ` +
 				`LIMIT 10`,
 		},
+		[]string{},
+	},
+	{ // [40]
+		`Escaping of ', \, \t and \n`,
+		`	
+		{
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"match_phrase": {
+								"message": "\nMen's Clothing \\ \t"
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`("message" __quesma_match '
+Men\'s Clothing \\ 	')`},
+		model.ListAllFields,
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%
+Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{},
 	},
 }

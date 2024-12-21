@@ -4,7 +4,9 @@ package model
 
 import (
 	"fmt"
+	"quesma/logger"
 	"quesma/quesma/types"
+	"quesma/util"
 	"regexp"
 	"sort"
 	"strconv"
@@ -66,6 +68,22 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 	return fmt.Sprintf("%v", l.Value)
+}
+
+func (v *renderer) VisitTuple(t TupleExpr) interface{} {
+	switch len(t.Exprs) {
+	case 0:
+		logger.WarnWithThrottling("VisitTuple", "TupleExpr with no expressions")
+		return "()"
+	case 1:
+		return t.Exprs[0].Accept(v)
+	default:
+		args := make([]string, len(t.Exprs))
+		for i, arg := range t.Exprs {
+			args[i] = arg.Accept(v).(string)
+		}
+		return fmt.Sprintf("(%s)", strings.Join(args, ","))
+	}
 }
 
 func (v *renderer) VisitInfix(e InfixExpr) interface{} {
@@ -331,4 +349,15 @@ func (v *renderer) VisitJoinExpr(j JoinExpr) interface{} {
 
 func (v *renderer) VisitCTE(c CTE) interface{} {
 	return fmt.Sprintf("%s AS (%s) ", c.Name, AsString(c.SelectCommand))
+}
+
+// EscapeString escapes the given string so that it can be used in a SQL Clickhouse query.
+// It escapes ' and \ characters: ' -> \', \ -> \\.
+func EscapeString(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	if len(s) > 0 && s[0] == '\'' && s[len(s)-1] == '\'' {
+		// don't escape the first and last '
+		return util.SingleQuote(strings.ReplaceAll(s[1:len(s)-1], `'`, `\'`))
+	}
+	return strings.ReplaceAll(s, `'`, `\'`)
 }

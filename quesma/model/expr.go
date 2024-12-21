@@ -86,6 +86,18 @@ func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLiteral(e)
 }
 
+type TupleExpr struct {
+	Exprs []Expr
+}
+
+func NewTupleExpr(exprs ...Expr) TupleExpr {
+	return TupleExpr{Exprs: exprs}
+}
+
+func (e TupleExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitTuple(e)
+}
+
 type InfixExpr struct {
 	Left  Expr
 	Op    string
@@ -278,6 +290,7 @@ func (e CTE) Accept(v ExprVisitor) interface{} {
 type ExprVisitor interface {
 	VisitFunction(e FunctionExpr) interface{}
 	VisitLiteral(l LiteralExpr) interface{}
+	VisitTuple(e TupleExpr) interface{}
 	VisitInfix(e InfixExpr) interface{}
 	VisitColumnRef(e ColumnRef) interface{}
 	VisitPrefixExpr(e PrefixExpr) interface{}
