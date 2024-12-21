@@ -90,9 +90,6 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 
 	queryPipeline := quesma_api.NewPipeline()
 	queryPipeline.AddFrontendConnector(elasticHttpQueryFrontendConnector)
-	// TODO the order of pipelines is important
-	// that's due current bug/limitation in quesma.Build() method
-	// listener in the case of the same tcp port has to be shared
 	quesmaBuilder.AddPipeline(queryPipeline)
 	quesmaBuilder.AddPipeline(ingestPipeline)
 

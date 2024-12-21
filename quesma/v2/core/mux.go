@@ -206,13 +206,19 @@ func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
 func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
 	newHandlers := make(map[string]HandlersPipe, 0)
 	for path, handler := range handlers {
-		for index := range p.mappings {
+		var index int
+		var found bool
+		for index = range p.mappings {
 			if p.mappings[index].pattern == path {
-				p.mappings[index].handler.Processors = handler.Processors
-				p.mappings[index].handler.Predicate = handler.Predicate
-			} else {
-				newHandlers[path] = handler
+				found = true
+				break
 			}
+		}
+		if found {
+			p.mappings[index].handler.Processors = handler.Processors
+			p.mappings[index].handler.Predicate = handler.Predicate
+		} else {
+			newHandlers[path] = handler
 		}
 	}
 	for path, handler := range newHandlers {
