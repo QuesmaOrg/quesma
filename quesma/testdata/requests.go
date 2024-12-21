@@ -1014,10 +1014,10 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": true
 		}`,
-		[]string{`("type"='task' AND "task.enabled" IN (true,54))`},
+		[]string{`("type"='task' AND "task.enabled" IN (true,54,'abc','abc\'s'))`},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` WHERE ("type"='task' AND "task.enabled" IN (true,54)) LIMIT 10`,
+			`SELECT "message" FROM ` + TableName + ` WHERE ("type"='task' AND "task.enabled" IN (true,54,'abc','abc\\'s')) LIMIT 10`,
 			`SELECT count(*) AS "column_0" FROM ` + TableName,
 		},
 		[]string{},

@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// throttleMap: (reason name -> last logged time)
 var throttleMap = util.SyncMap[string, time.Time]{}
 
 const throttleDuration = 30 * time.Minute
@@ -28,11 +29,11 @@ func WarnWithCtxAndThrottling(ctx context.Context, aggrName, paramName, format s
 
 // WarnWithThrottling - logs a warning message with throttling.
 // We only log once per throttleDuration for each warnName, so that we don't spam the logs.
-func WarnWithThrottling(warnName, format string, v ...any) {
-	timestamp, ok := throttleMap.Load(warnName)
+func WarnWithThrottling(reasonName, format string, v ...any) {
+	timestamp, ok := throttleMap.Load(reasonName)
 	weThrottle := ok && time.Since(timestamp) < throttleDuration
 	if !weThrottle {
 		Warn().Msgf(format, v...)
-		throttleMap.Store(warnName, time.Now())
+		throttleMap.Store(reasonName, time.Now())
 	}
 }
