@@ -108,9 +108,14 @@ func (query *HistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB
 	return postprocessedRows
 }
 
-// we're sure key is float64
+// we're sure key is either float64, or in rare cases nil
 func (query *HistogramRowsTransformer) getKeyFloat64(row model.QueryResultRow) (float64, bool) {
-	return row.Cols[len(row.Cols)-2].Value.(float64), true
+	switch val := row.Cols[len(row.Cols)-2].Value.(type) {
+	case float64:
+		return val, true
+	default:
+		return -1, false
+	}
 }
 
 // we don't know the type

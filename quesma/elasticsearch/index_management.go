@@ -100,7 +100,7 @@ func (im *indexManagement) Start() {
 	im.ctx, im.cancel = context.WithCancel(context.Background())
 
 	go func() {
-		recovery.LogPanic()
+		defer recovery.LogPanic()
 		for {
 			select {
 			case <-im.ctx.Done():

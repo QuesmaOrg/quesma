@@ -22,9 +22,9 @@ import (
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
 	"quesma/schema"
-	"quesma/telemetry"
 	"quesma/util"
 	quesma_api "quesma_v2/core"
+	"quesma_v2/core/diag"
 	"quesma_v2/core/routes"
 	"quesma_v2/core/tracing"
 	"strings"
@@ -33,8 +33,9 @@ import (
 )
 
 func responseFromElasticV2(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter) {
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
-	logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
+	if id, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
+		logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
+	}
 
 	copyHeadersV2(w, elkResponse)
 	w.Header().Set(QuesmaSourceHeader, QuesmaSourceElastic)
@@ -53,7 +54,9 @@ func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseW
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 
 	for key, value := range quesmaResponse.Meta {
-		w.Header().Set(key, value.(string))
+		if headerStringValue, ok := value.(string); ok {
+			w.Header().Set(key, headerStringValue)
+		}
 	}
 	if zip {
 		w.Header().Set("Content-Encoding", "gzip")
@@ -72,15 +75,21 @@ func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseW
 }
 
 type RouterV2 struct {
-	Config                  *config.QuesmaConfiguration
-	RequestPreprocessors    quesma_api.ProcessorChain
-	QuesmaManagementConsole *ui.QuesmaManagementConsole
-	PhoneHomeAgent          telemetry.PhoneHomeAgent
-	HttpClient              *http.Client
-	FailedRequests          atomic.Int64
+	Config               *config.QuesmaConfiguration
+	RequestPreprocessors quesma_api.ProcessorChain
+
+	HttpClient     *http.Client
+	FailedRequests atomic.Int64
+
+	debugInfoCollector diag.DebugInfoCollector
+	phoneHomeAgent     diag.PhoneHomeClient
 }
 
-func NewRouterV2(config *config.QuesmaConfiguration, qmc *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent) *RouterV2 {
+func (r *RouterV2) SetDependencies(deps quesma_api.Dependencies) {
+	r.debugInfoCollector = deps.DebugInfoCollector()
+	r.phoneHomeAgent = deps.PhoneHomeAgent()
+}
+func NewRouterV2(config *config.QuesmaConfiguration) *RouterV2 {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -90,12 +99,11 @@ func NewRouterV2(config *config.QuesmaConfiguration, qmc *ui.QuesmaManagementCon
 	}
 	requestProcessors := quesma_api.ProcessorChain{}
 	requestProcessors = append(requestProcessors, quesma_api.NewTraceIdPreprocessor())
+
 	return &RouterV2{
-		Config:                  config,
-		RequestPreprocessors:    requestProcessors,
-		QuesmaManagementConsole: qmc,
-		PhoneHomeAgent:          agent,
-		HttpClient:              client,
+		Config:               config,
+		RequestPreprocessors: requestProcessors,
+		HttpClient:           client,
 	}
 }
 
@@ -161,7 +169,7 @@ func (*RouterV2) closedIndexResponse(ctx context.Context, w http.ResponseWriter,
 
 }
 
-func (r *RouterV2) elasticFallback(decision *quesma_api.Decision,
+func (r *RouterV2) ElasticFallback(decision *quesma_api.Decision,
 	ctx context.Context, w http.ResponseWriter,
 	req *http.Request, reqBody []byte, logManager *clickhouse.LogManager, schemaRegistry schema.Registry) {
 
@@ -235,12 +243,13 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	})
 
 	quesmaRequest, ctx, err := preprocessRequest(ctx, &quesma_api.Request{
-		Method:      req.Method,
-		Path:        strings.TrimSuffix(req.URL.Path, "/"),
-		Params:      map[string]string{},
-		Headers:     req.Header,
-		QueryParams: req.URL.Query(),
-		Body:        string(reqBody),
+		Method:          req.Method,
+		Path:            strings.TrimSuffix(req.URL.Path, "/"),
+		Params:          map[string]string{},
+		Headers:         req.Header,
+		QueryParams:     req.URL.Query(),
+		Body:            string(reqBody),
+		OriginalRequest: req,
 	}, r.RequestPreprocessors)
 
 	if err != nil {
@@ -251,6 +260,8 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 
 	handlersPipe, decision := router.Matches(quesmaRequest)
 
+	quesmaRequest.Decision = decision
+
 	if decision != nil {
 		w.Header().Set(QuesmaTableResolverHeader, decision.String())
 	} else {
@@ -258,9 +269,9 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 	}
 	dispatcher := &quesma_api.Dispatcher{}
 	if handlersPipe != nil {
-		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.QuesmaManagementConsole, func() (*quesma_api.Result, error) {
+		quesmaResponse, err := recordRequestToClickhouseV2(req.URL.Path, r.debugInfoCollector, func() (*quesma_api.Result, error) {
 			var result *quesma_api.Result
-			result, err = handlersPipe.Handler(ctx, quesmaRequest)
+			result, err = handlersPipe.Handler(ctx, quesmaRequest, w)
 
 			if result == nil {
 				return result, err
@@ -295,7 +306,17 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 			r.errorResponseV2(ctx, err, w)
 		}
 	} else {
-		r.elasticFallback(decision, ctx, w, req, reqBody, logManager, schemaRegistry)
+		if router.GetFallbackHandler() != nil {
+			handler := router.GetFallbackHandler()
+			result, _ := handler(ctx, quesmaRequest, w)
+			if result == nil {
+				return
+			}
+			_, err = w.Write(result.GenericResult.([]byte))
+			if err != nil {
+				fmt.Printf("Error writing response: %s\n", err)
+			}
+		}
 	}
 }
 
@@ -338,22 +359,24 @@ func (r *RouterV2) sendHttpRequestToElastic(ctx context.Context, req *http.Reque
 	}
 
 	go func() {
-		elkResponseChan <- recordRequestToElasticV2(req.URL.Path, r.QuesmaManagementConsole, func() elasticResultV2 {
+		elkResponseChan <- recordRequestToElasticV2(req.URL.Path, r.debugInfoCollector, func() elasticResultV2 {
 
 			isWrite := elasticsearch.IsWriteRequest(req)
 
-			var span telemetry.Span
+			phoneHome := r.phoneHomeAgent
+
+			var span diag.Span
 			if isManagement {
 				if isWrite {
-					span = r.PhoneHomeAgent.ElasticBypassedWriteRequestsDuration().Begin()
+					span = phoneHome.ElasticBypassedWriteRequestsDuration().Begin()
 				} else {
-					span = r.PhoneHomeAgent.ElasticBypassedReadRequestsDuration().Begin()
+					span = phoneHome.ElasticBypassedReadRequestsDuration().Begin()
 				}
 			} else {
 				if isWrite {
-					span = r.PhoneHomeAgent.ElasticWriteRequestsDuration().Begin()
+					span = phoneHome.ElasticWriteRequestsDuration().Begin()
 				} else {
-					span = r.PhoneHomeAgent.ElasticReadRequestsDuration().Begin()
+					span = phoneHome.ElasticReadRequestsDuration().Begin()
 				}
 			}
 
@@ -373,25 +396,29 @@ func isIngestV2(path string) bool {
 	return strings.HasSuffix(path, routes.BulkPath) // We may add more methods in future such as `_put` or `_create`
 }
 
-func recordRequestToClickhouseV2(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() (*quesma_api.Result, error)) (*quesma_api.Result, error) {
+func recordRequestToClickhouseV2(path string, qmc diag.DebugInfoCollector, requestFunc func() (*quesma_api.Result, error)) (*quesma_api.Result, error) {
 	statName := ui.RequestStatisticKibana2Clickhouse
 	if isIngestV2(path) {
 		statName = ui.RequestStatisticIngest2Clickhouse
 	}
 	now := time.Now()
 	response, err := requestFunc()
-	qmc.RecordRequest(statName, time.Since(now), err != nil)
+	if qmc != nil {
+		qmc.RecordRequest(statName, time.Since(now), err != nil)
+	}
 	return response, err
 }
 
-func recordRequestToElasticV2(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() elasticResultV2) elasticResultV2 {
+func recordRequestToElasticV2(path string, qmc diag.DebugInfoCollector, requestFunc func() elasticResultV2) elasticResultV2 {
 	statName := ui.RequestStatisticKibana2Elasticsearch
 	if isIngestV2(path) {
 		statName = ui.RequestStatisticIngest2Elasticsearch
 	}
 	now := time.Now()
 	response := requestFunc()
-	qmc.RecordRequest(statName, time.Since(now), !isResponseOkV2(response.response))
+	if qmc != nil {
+		qmc.RecordRequest(statName, time.Since(now), !isResponseOkV2(response.response))
+	}
 	return response
 }
 

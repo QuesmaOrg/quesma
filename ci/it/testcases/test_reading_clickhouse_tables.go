@@ -26,11 +26,8 @@ func NewReadingClickHouseTablesIntegrationTestcase() *ReadingClickHouseTablesInt
 
 func (a *ReadingClickHouseTablesIntegrationTestcase) SetupContainers(ctx context.Context) error {
 	containers, err := setupAllContainersWithCh(ctx, a.ConfigTemplate)
-	if err != nil {
-		return err
-	}
 	a.Containers = containers
-	return nil
+	return err
 }
 
 func (a *ReadingClickHouseTablesIntegrationTestcase) RunTests(ctx context.Context, t *testing.T) error {

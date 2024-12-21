@@ -41,6 +41,10 @@ func NewElasticsearchBackendConnector(cfg config.ElasticsearchConfiguration) *El
 	return conn
 }
 
+func (e *ElasticsearchBackendConnector) InstanceName() string {
+	return "elasticsearch" // TODO return name from config
+}
+
 func (e *ElasticsearchBackendConnector) GetConfig() config.ElasticsearchConfiguration {
 	return e.config
 }

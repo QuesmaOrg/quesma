@@ -25,6 +25,7 @@ import (
 	"quesma/telemetry"
 	"quesma/util"
 	"quesma_v2/core"
+	"quesma_v2/core/diag"
 	"slices"
 	"sort"
 	"strings"
@@ -61,7 +62,7 @@ type (
 		chDb                      *sql.DB
 		tableDiscovery            chLib.TableDiscovery
 		cfg                       *config.QuesmaConfiguration
-		phoneHomeAgent            telemetry.PhoneHomeAgent
+		phoneHomeAgent            diag.PhoneHomeClient
 		schemaRegistry            schema.Registry
 		ingestCounter             int64
 		ingestFieldStatistics     IngestFieldStatistics
@@ -98,7 +99,7 @@ func (ip *IngestProcessor) Start() {
 	forceReloadCh := ip.tableDiscovery.ForceReloadCh()
 
 	go func() {
-		recovery.LogPanic()
+		defer recovery.LogPanic()
 		for {
 			select {
 			case <-ip.ctx.Done():

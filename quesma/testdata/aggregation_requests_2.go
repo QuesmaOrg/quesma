@@ -3378,6 +3378,11 @@ var AggregationTests2 = []AggregationTestCase{
 									"key_as_string": "2024-01-23T14:54:00.000"
 								},
 								{
+									"doc_count": 0,
+									"key": 1706021670000,
+									"key_as_string": "2024-01-23T14:54:30.000"
+								},
+								{
 									"doc_count": 17,
 									"key": 1706021700000,
 									"key_as_string": "2024-01-23T14:55:00.000"
@@ -3633,9 +3638,19 @@ var AggregationTests2 = []AggregationTestCase{
 								}
 							},
 							{
+								"doc_count": 0,
+								"key": 1706021670000,
+								"key_as_string": "2024-01-23T14:54:30.000"
+							},
+							{
 								"doc_count": 17,
 								"key": 1706021700000,
 								"key_as_string": "2024-01-23T14:55:00.000"
+							},
+							{
+								"doc_count": 0,
+								"key": 1706021730000,
+								"key_as_string": "2024-01-23T14:55:30.000"
 							},
 							{
 								"doc_count": 15,

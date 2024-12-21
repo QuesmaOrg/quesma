@@ -30,6 +30,7 @@ import (
 	"quesma/telemetry"
 	"quesma/util"
 	quesma_api "quesma_v2/core"
+	"quesma_v2/core/diag"
 	"quesma_v2/core/routes"
 	tracing "quesma_v2/core/tracing"
 	"strconv"
@@ -318,7 +319,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 	if handlersPipe != nil {
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*quesma_api.Result, error) {
-			return handlersPipe.Handler(ctx, quesmaRequest)
+			return handlersPipe.Handler(ctx, quesmaRequest, w)
 		})
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
@@ -447,7 +448,7 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 
 			isWrite := elasticsearch.IsWriteRequest(req)
 
-			var span telemetry.Span
+			var span diag.Span
 			if isManagement {
 				if isWrite {
 					span = r.phoneHomeAgent.ElasticBypassedWriteRequestsDuration().Begin()
