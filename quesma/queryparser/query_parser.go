@@ -302,7 +302,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) model.Simp
 		unparsedQuery = string(prettyMarshal)
 	}
 	logger.Error().Msgf("can't parse query: %s", unparsedQuery)
-	return model.NewSimpleQuery(nil, false)
+	return model.NewSimpleQueryInvalid()
 }
 
 // `constant_score` query is just a wrapper for filter query which returns constant relevance score, which we ignore anyway
@@ -311,7 +311,7 @@ func (cw *ClickhouseQueryTranslator) parseConstantScore(queryMap QueryMap) model
 		return cw.parseBool(queryMap)
 	} else {
 		logger.Error().Msgf("parsing error: `constant_score` needs to wrap `filter` query")
-		return model.NewSimpleQuery(nil, false)
+		return model.NewSimpleQueryInvalid()
 	}
 }
 
@@ -488,14 +488,14 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) model.SimpleQu
 		}
 	}
 	logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 term, got: %d. value: %v", len(queryMap), queryMap)
-	return model.NewSimpleQuery(nil, false)
+	return model.NewSimpleQueryInvalid()
 }
 
 // TODO remove optional parameters like boost
 func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQuery {
 	if len(queryMap) != 1 {
 		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 term, got: %d. value: %v", len(queryMap), queryMap)
-		return model.NewSimpleQuery(nil, false)
+		return model.NewSimpleQueryInvalid()
 	}
 
 	for k, v := range queryMap {
@@ -507,7 +507,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 		vAsArray, ok := v.([]interface{})
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid terms type: %T, value: %v", v, v)
-			return model.NewSimpleQuery(nil, false)
+			return model.NewSimpleQueryInvalid()
 		}
 		if len(vAsArray) == 1 {
 			simpleStatement := model.NewInfixExpr(model.NewColumnRef(k), "=", model.NewLiteral(sprint(vAsArray[0])))
@@ -524,7 +524,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 
 	// unreachable unless something really weird happens
 	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
-	return model.NewSimpleQuery(nil, false)
+	return model.NewSimpleQueryInvalid()
 }
 
 func (cw *ClickhouseQueryTranslator) parseMatchAll(_ QueryMap) model.SimpleQuery {
@@ -544,7 +544,7 @@ func (cw *ClickhouseQueryTranslator) parseMatchAll(_ QueryMap) model.SimpleQuery
 func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase bool) model.SimpleQuery {
 	if len(queryMap) != 1 {
 		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 match, got: %d. value: %v", len(queryMap), queryMap)
-		return model.NewSimpleQuery(nil, false)
+		return model.NewSimpleQueryInvalid()
 	}
 
 	for fieldName, v := range queryMap {
@@ -582,7 +582,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 
 	// unreachable unless something really weird happens
 	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
-	return model.NewSimpleQuery(nil, false)
+	return model.NewSimpleQueryInvalid()
 }
 
 func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.SimpleQuery {
@@ -593,25 +593,25 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.Si
 			fields = cw.extractFields(fieldsAsArray)
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("invalid fields type: %T, value: %v", fieldsAsInterface, fieldsAsInterface)
-			return model.NewSimpleQuery(nil, false)
+			return model.NewSimpleQueryInvalid()
 		}
 	} else {
 		fields = []string{model.FullTextFieldNamePlaceHolder}
 	}
-	alwaysFalseStmt := model.NewLiteral("false")
+
 	if len(fields) == 0 {
-		return model.NewSimpleQuery(alwaysFalseStmt, true)
+		return model.NewSimpleQuery(model.FalseExpr, true)
 	}
 
 	query, ok := queryMap["query"]
 	if !ok {
 		logger.WarnWithCtx(cw.Ctx).Msgf("no query in multi_match query: %v", queryMap)
-		return model.NewSimpleQuery(alwaysFalseStmt, false)
+		return model.NewSimpleQueryInvalid()
 	}
 	queryAsString, ok := query.(string)
 	if !ok {
 		logger.WarnWithCtx(cw.Ctx).Msgf("invalid query type: %T, value: %v", query, query)
-		return model.NewSimpleQuery(alwaysFalseStmt, false)
+		return model.NewSimpleQueryInvalid()
 	}
 	var subQueries []string
 	wereDone := false
@@ -644,7 +644,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.Si
 func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.SimpleQuery {
 	if len(queryMap) != 1 {
 		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 prefix, got: %d. value: %v", len(queryMap), queryMap)
-		return model.NewSimpleQuery(nil, false)
+		return model.NewSimpleQueryInvalid()
 	}
 
 	for fieldName, v := range queryMap {
@@ -659,13 +659,13 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.Simple
 			return model.NewSimpleQuery(simpleStat, true)
 		default:
 			logger.WarnWithCtx(cw.Ctx).Msgf("unsupported prefix type: %T, value: %v", v, v)
-			return model.NewSimpleQuery(nil, false)
+			return model.NewSimpleQueryInvalid()
 		}
 	}
 
 	// unreachable unless something really weird happens
 	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
-	return model.NewSimpleQuery(nil, false)
+	return model.NewSimpleQueryInvalid()
 }
 
 // Not supporting 'case_insensitive' (optional)
@@ -674,7 +674,7 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.Simple
 func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) model.SimpleQuery {
 	if len(queryMap) != 1 {
 		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 wildcard, got: %d. value: %v", len(queryMap), queryMap)
-		return model.NewSimpleQuery(nil, false)
+		return model.NewSimpleQueryInvalid()
 	}
 
 	for fieldName, v := range queryMap {
@@ -686,21 +686,21 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) model.Simp
 					return model.NewSimpleQuery(whereStatement, true)
 				} else {
 					logger.WarnWithCtx(cw.Ctx).Msgf("invalid value type: %T, value: %v", value, value)
-					return model.NewSimpleQuery(nil, false)
+					return model.NewSimpleQueryInvalid()
 				}
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("no value in wildcard query: %v", queryMap)
-				return model.NewSimpleQuery(nil, false)
+				return model.NewSimpleQueryInvalid()
 			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid wildcard type: %T, value: %v", v, v)
-			return model.NewSimpleQuery(nil, false)
+			return model.NewSimpleQueryInvalid()
 		}
 	}
 
 	// unreachable unless something really weird happens
 	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
-	return model.NewSimpleQuery(nil, false)
+	return model.NewSimpleQueryInvalid()
 }
 
 // This one is really complicated (https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html)
@@ -726,12 +726,12 @@ func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) model.Simple
 			return cw.parseQueryMap(queryAsMap)
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid nested query type: %T, value: %v", query, query)
-			return model.NewSimpleQuery(nil, false)
+			return model.NewSimpleQueryInvalid()
 		}
 	}
 
 	logger.WarnWithCtx(cw.Ctx).Msgf("no query in nested query: %v", queryMap)
-	return model.NewSimpleQuery(nil, false)
+	return model.NewSimpleQueryInvalid()
 }
 
 func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (string, error) {
@@ -762,7 +762,7 @@ func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (strin
 func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQuery {
 	if len(queryMap) != 1 {
 		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 range, got: %d. value: %v", len(queryMap), queryMap)
-		return model.NewSimpleQuery(nil, false)
+		return model.NewSimpleQueryInvalid()
 	}
 
 	// Maybe change to false if numeric fields exist.
@@ -855,7 +855,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 
 	// unreachable unless something really weird happens
 	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
-	return model.NewSimpleQuery(nil, false)
+	return model.NewSimpleQueryInvalid()
 }
 
 // TODO: not supported:
@@ -869,7 +869,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 		fieldName, ok := v.(string)
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid exists type: %T, value: %v", v, v)
-			return model.NewSimpleQuery(nil, false)
+			return model.NewSimpleQueryInvalid()
 		}
 
 		sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
@@ -884,7 +884,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 func (cw *ClickhouseQueryTranslator) parseRegexp(queryMap QueryMap) (result model.SimpleQuery) {
 	if len(queryMap) != 1 {
 		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 regexp, got: %d. value: %v", len(queryMap), queryMap)
-		return
+		return model.NewSimpleQueryInvalid()
 	}
 
 	// really simple == (out of all special characters, only . and .* may be present)
@@ -906,17 +906,17 @@ func (cw *ClickhouseQueryTranslator) parseRegexp(queryMap QueryMap) (result mode
 		parameters, ok := parametersRaw.(QueryMap)
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid regexp parameters type: %T, value: %v", parametersRaw, parametersRaw)
-			return
+			return model.NewSimpleQueryInvalid()
 		}
 		patternRaw, exists := parameters["value"]
 		if !exists {
 			logger.WarnWithCtx(cw.Ctx).Msgf("no value in regexp query: %v", queryMap)
-			return
+			return model.NewSimpleQueryInvalid()
 		}
 		pattern, ok := patternRaw.(string)
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid pattern type: %T, value: %v", patternRaw, patternRaw)
-			return
+			return model.NewSimpleQueryInvalid()
 		}
 
 		if len(parameters) > 1 {
@@ -937,7 +937,7 @@ func (cw *ClickhouseQueryTranslator) parseRegexp(queryMap QueryMap) (result mode
 	}
 
 	logger.ErrorWithCtx(cw.Ctx).Msg("parseRegexp: theoretically unreachable code")
-	return
+	return model.NewSimpleQueryInvalid()
 }
 
 func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []string {
@@ -1253,7 +1253,7 @@ func (cw *ClickhouseQueryTranslator) parseGeoBoundingBox(queryMap QueryMap) mode
 			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("no bottom_right in geo_bounding_box query: %v", queryMap)
-			return model.NewSimpleQuery(nil, false)
+			return model.NewSimpleQueryInvalid()
 		}
 		if topLeft, ok := v.(QueryMap)["top_left"]; ok {
 			if topLeftCornerAsArray, ok := topLeft.([]interface{}); ok {
@@ -1262,7 +1262,7 @@ func (cw *ClickhouseQueryTranslator) parseGeoBoundingBox(queryMap QueryMap) mode
 			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("no top_left in geo_bounding_box query: %v", queryMap)
-			return model.NewSimpleQuery(nil, false)
+			return model.NewSimpleQueryInvalid()
 		}
 		args := make([]model.Expr, 0)
 		args = append(args, model.NewColumnRef(field))
