@@ -2321,7 +2321,47 @@ var TestsSearch = []SearchTestCase{
 		[]string{},
 	},
 	{ // [40]
-		"ids",
+		"ids, 0 values",
+		`{
+			"query": {
+				"ids": {
+					 "values": []
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`false`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE false ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [41]
+		"ids, 1 value",
+		`{
+			"query": {
+				"ids": {
+					 "values": ["323032342d31322d32312030373a32393a30332e333637202b3030303020555443q1"]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3)`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3) ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [42]
+		"ids, 2+ values",
 		`{
 			"query": {
 				"ids": {
@@ -2333,12 +2373,12 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"field" REGEXP 'a?'`},
+		[]string{`"@timestamp" IN tuple(toDateTime64('2024-12-21 07:29:03.367',3), toDateTime64('2024-12-21 07:29:02.992',3))`},
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE "field" REGEXP 'a\?' ` +
+				`WHERE "@timestamp" IN tuple(toDateTime64('2024-12-21 07:29:03.367',3), toDateTime64('2024-12-21 07:29:02.992',3)) ` +
 				`LIMIT 10`,
 		},
 		[]string{},

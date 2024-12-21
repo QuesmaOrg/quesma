@@ -316,25 +316,26 @@ func (cw *ClickhouseQueryTranslator) parseConstantScore(queryMap QueryMap) model
 }
 
 func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQuery {
-	var ids, finalIds []string
-	if val, ok := queryMap["values"]; ok {
-		if values, ok := val.([]interface{}); ok {
-			for _, id := range values {
-				ids = append(ids, id.(string))
-			}
-		}
-	} else {
-		logger.Error().Msgf("parsing error: missing mandatory `values` field")
-		return model.NewSimpleQuery(nil, false)
+	idsRaw, err := cw.parseArrayField(queryMap, "values")
+	if err != nil {
+		logger.ErrorWithCtx(cw.Ctx).Msgf("parsing error: %v", err)
+		return model.NewSimpleQueryInvalid()
 	}
-	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
-
-	timestampColumnName := model.TimestampFieldName
+	ids := make([]string, 0, len(idsRaw))
+	for _, id := range idsRaw {
+		if idAsString, ok := id.(string); ok {
+			ids = append(ids, idAsString)
+		} else {
+			logger.ErrorWithCtx(cw.Ctx).Msgf("invalid id format, id value: %v type: %T", id, id)
+			return model.NewSimpleQueryInvalid()
+		}
+	}
 
 	if len(ids) == 0 {
-		logger.Warn().Msgf("parsing error: empty _id array")
-		return model.NewSimpleQuery(nil, false)
+		return model.NewSimpleQuery(model.FalseExpr, true) // parsing went fine, but x IN [] <=> false
 	}
+
+	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
 
 	// when our generated ID appears in query looks like this: `1d<TRUNCATED>0b8q1`
 	// therefore we need to strip the hex part (before `q`) and convert it to decimal
@@ -343,39 +344,45 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		idInHex := strings.Split(id, "q")[0]
 		if idAsStr, err := hex.DecodeString(idInHex); err != nil {
 			logger.Error().Msgf("error parsing document id %s: %v", id, err)
-			return model.NewSimpleQuery(nil, true)
+			return model.NewSimpleQueryInvalid()
 		} else {
 			tsWithoutTZ := strings.TrimSuffix(string(idAsStr), " +0000 UTC")
 			ids[i] = fmt.Sprintf("'%s'", tsWithoutTZ)
 		}
 	}
 
-	var whereStmt model.Expr
 	// TODO replace with cw.Schema
-	if v, ok := cw.Table.Cols[timestampColumnName]; ok {
-		switch v.Type.String() {
+	var idToSql func(string) model.Expr
+	timestampColumnName := model.TimestampFieldName
+	if column, ok := cw.Table.Cols[timestampColumnName]; ok {
+		switch column.Type.String() {
 		case clickhouse.DateTime64.String():
-			for _, id := range ids {
-				finalIds = append(finalIds, fmt.Sprintf("toDateTime64(%s,3)", id))
-			}
-			if len(finalIds) == 1 {
-				whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", model.NewFunction("toDateTime64", model.NewLiteral(ids[0]), model.NewLiteral("3")))
-			} else {
-				whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " IN ", model.NewFunction("toDateTime64", model.NewLiteral(strings.Join(ids, ",")), model.NewLiteral("3")))
+			idToSql = func(id string) model.Expr {
+				return model.NewFunction("toDateTime64", model.NewLiteral(id), model.NewLiteral(3))
 			}
 		case clickhouse.DateTime.String():
-			for _, id := range ids {
-				finalIds = append(finalIds, fmt.Sprintf("toDateTime(%s)", id))
-			}
-			if len(finalIds) == 1 {
-				whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", model.NewFunction("toDateTime", model.NewLiteral(finalIds[0])))
-			} else {
-				whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " IN ", model.NewFunction("toDateTime", model.NewLiteral(strings.Join(ids, ","))))
+			idToSql = func(id string) model.Expr {
+				return model.NewFunction("toDateTime", model.NewLiteral(id))
 			}
 		default:
-			logger.Warn().Msgf("timestamp field of unsupported type %s", v.Type.String())
-			return model.NewSimpleQuery(nil, true)
+			logger.ErrorWithCtx(cw.Ctx).Msgf("timestamp field of unsupported type %s", column.Type.String())
+			return model.NewSimpleQueryInvalid()
 		}
+	} else {
+		logger.ErrorWithCtx(cw.Ctx).Msgf("timestamp field %s not found in schema", timestampColumnName)
+		return model.NewSimpleQueryInvalid()
+	}
+
+	var whereStmt model.Expr
+	if len(ids) == 1 {
+		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", idToSql(ids[0]))
+	} else {
+		idsAsExprs := make([]model.Expr, len(ids))
+		for i, id := range ids {
+			idsAsExprs[i] = idToSql(id)
+		}
+		idsTuple := model.NewTupleExpr(idsAsExprs...)
+		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " IN ", idsTuple)
 	}
 	return model.NewSimpleQuery(whereStmt, true)
 }
