@@ -4,6 +4,7 @@ package model
 
 import (
 	"fmt"
+	"quesma/logger"
 	"quesma/quesma/types"
 	"quesma/util"
 	"regexp"
@@ -65,17 +66,24 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 	return e.Name + "(" + strings.Join(args, ",") + ")"
 }
 
-// VisitLiteral escapes string values, as e.g. ' can come inside string in a query,
-// but Clickhouse requires it to be escaped as \' or ”
-// See more https://clickhouse.com/docs/en/sql-reference/syntax > String
-// Also tested "\n" and "\t" in the strings, and the way we render them works for Clickhouse.
-// Not 100% sure about the other special characters (e.g. \r and \b), but they shouldn't be used very often.
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
-	valueStr, isStr := l.Value.(string)
-	if isStr && !l.LiteralAlreadyEscaped {
-		return EscapeString(valueStr)
-	}
 	return fmt.Sprintf("%v", l.Value)
+}
+
+func (v *renderer) VisitTuple(t TupleExpr) interface{} {
+	switch len(t.Exprs) {
+	case 0:
+		logger.WarnWithThrottling("VisitTuple", "TupleExpr with no expressions")
+		return "()"
+	case 1:
+		return t.Exprs[0].Accept(v)
+	default:
+		args := make([]string, len(t.Exprs))
+		for i, arg := range t.Exprs {
+			args[i] = arg.Accept(v).(string)
+		}
+		return fmt.Sprintf("(%s)", strings.Join(args, ","))
+	}
 }
 
 func (v *renderer) VisitInfix(e InfixExpr) interface{} {

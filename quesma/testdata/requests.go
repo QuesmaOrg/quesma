@@ -1006,7 +1006,7 @@ var TestsSearch = []SearchTestCase{
 						},
 						{
 							"terms": {
-								"task.enabled": [true, 54]
+								"task.enabled": [true, 54, "abc", "abc's"]
 							}
 						}
 					]

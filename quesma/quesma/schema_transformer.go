@@ -35,10 +35,10 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query
 			if strings.Contains(boolLiteral, "true") || strings.Contains(boolLiteral, "false") {
 				boolLiteral = strings.TrimLeft(boolLiteral, "'")
 				boolLiteral = strings.TrimRight(boolLiteral, "'")
-				return model.NewLiteralWithEscape(boolLiteral, e.LiteralAlreadyEscaped)
+				return model.NewLiteral(boolLiteral)
 			}
 		}
-		return model.NewLiteralWithEscape(e.Value, e.LiteralAlreadyEscaped)
+		return model.NewLiteral(e.Value)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
@@ -973,9 +973,9 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeBoolean.Name:
-				return model.NewInfixExpr(lhs, "=", model.NewLiteralWithEscape(rhsValue, rhs.LiteralAlreadyEscaped))
+				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
 			default:
-				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteralWithEscape("'%"+rhsValue+"%'", rhs.LiteralAlreadyEscaped))
+				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteral("'%"+rhsValue+"%'"))
 			}
 		}
 

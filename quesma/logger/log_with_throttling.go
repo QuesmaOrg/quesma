@@ -25,3 +25,14 @@ func WarnWithCtxAndThrottling(ctx context.Context, aggrName, paramName, format s
 		throttleMap.Store(mapKey, time.Now())
 	}
 }
+
+// WarnWithThrottling - logs a warning message with throttling.
+// We only log once per throttleDuration for each warnName, so that we don't spam the logs.
+func WarnWithThrottling(warnName, format string, v ...any) {
+	timestamp, ok := throttleMap.Load(warnName)
+	weThrottle := ok && time.Since(timestamp) < throttleDuration
+	if !weThrottle {
+		Warn().Msgf(format, v...)
+		throttleMap.Store(warnName, time.Now())
+	}
+}
