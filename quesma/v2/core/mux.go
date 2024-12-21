@@ -6,6 +6,7 @@ import (
 	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 )
 
@@ -222,4 +223,9 @@ func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
 				Predicate:  handler.Predicate,
 				Processors: handler.Processors}})
 	}
+	// mappings needs to be sorted as literal paths should be matched first
+	// for instance /_search should be matched before /:index
+	sort.Slice(p.mappings, func(i, j int) bool {
+		return p.mappings[i].pattern > p.mappings[j].pattern
+	})
 }
