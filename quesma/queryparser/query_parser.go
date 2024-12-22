@@ -506,12 +506,12 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			simpleStatement := model.NewInfixExpr(model.NewColumnRef(k), "=", model.NewLiteral(sprint(vAsArray[0])))
 			return model.NewSimpleQuery(simpleStatement, true)
 		}
-		values := make([]string, len(vAsArray))
+		values := make([]model.Expr, len(vAsArray))
 		for i, v := range vAsArray {
-			values[i] = sprint(v)
+			values[i] = model.NewLiteral(sprint(v))
 		}
-		combinedValues := "(" + strings.Join(values, ",") + ")"
-		compoundStatement := model.NewInfixExpr(model.NewColumnRef(k), "IN", model.NewLiteral(combinedValues))
+		tuple := model.NewTupleExpr(values...)
+		compoundStatement := model.NewInfixExpr(model.NewColumnRef(k), "IN", tuple)
 		return model.NewSimpleQuery(compoundStatement, true)
 	}
 
@@ -918,6 +918,8 @@ func (cw *ClickhouseQueryTranslator) parseRegexp(queryMap QueryMap) (result mode
 
 		var funcName string
 		if isPatternReallySimple(pattern) {
+			// We'll escape this _ twice (first one here, second one in renderer, where we escape all \)
+			// But it's not a problem for Clickhouse! So it seems fine.
 			pattern = strings.ReplaceAll(pattern, "_", `\_`)
 			pattern = strings.ReplaceAll(pattern, ".*", "%")
 			pattern = strings.ReplaceAll(pattern, ".", "_")
@@ -926,7 +928,7 @@ func (cw *ClickhouseQueryTranslator) parseRegexp(queryMap QueryMap) (result mode
 			funcName = "REGEXP"
 		}
 		return model.NewSimpleQuery(
-			model.NewInfixExpr(model.NewColumnRef(fieldName), funcName, model.NewLiteral("'"+pattern+"'")), true)
+			model.NewInfixExpr(model.NewColumnRef(fieldName), funcName, model.NewLiteral(util.SingleQuote(pattern))), true)
 	}
 
 	logger.ErrorWithCtx(cw.Ctx).Msg("parseRegexp: theoretically unreachable code")
