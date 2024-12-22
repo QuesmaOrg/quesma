@@ -65,9 +65,6 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	for i, tt := range testdata.TestsSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
-			if i == 37 {
-				t.Skip("Regexp seems to be broken because of some transformations")
-			}
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
 			plan, errQuery := cw.ParseQuery(body)

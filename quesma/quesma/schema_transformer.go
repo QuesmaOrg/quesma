@@ -958,9 +958,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 		lhs, ok := e.Left.(model.ColumnRef)
 		rhs, ok2 := e.Right.(model.LiteralExpr)
-		if e.Op == model.MatchOperator {
-			fmt.Println("KKKKK", e.Left, lhs, rhs, ok, ok2)
-		}
+
 		if ok && ok2 && e.Op == model.MatchOperator {
 			field, found := indexSchema.ResolveFieldByInternalName(lhs.ColumnName)
 			if !found {

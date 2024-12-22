@@ -2254,7 +2254,7 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"field" LIKE '%\___'`},
+		[]string{`"field" LIKE '%\\___'`}, // escaping _ twice ("\\_") seemed wrong, but it actually works in Clickhouse!
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" ` +

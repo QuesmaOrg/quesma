@@ -918,6 +918,8 @@ func (cw *ClickhouseQueryTranslator) parseRegexp(queryMap QueryMap) (result mode
 
 		var funcName string
 		if isPatternReallySimple(pattern) {
+			// We'll escape this _ twice (first one here, second one in renderer, where we escape all \)
+			// But it's not a problem for Clickhouse! So it seems fine.
 			pattern = strings.ReplaceAll(pattern, "_", `\_`)
 			pattern = strings.ReplaceAll(pattern, ".*", "%")
 			pattern = strings.ReplaceAll(pattern, ".", "_")
@@ -926,7 +928,7 @@ func (cw *ClickhouseQueryTranslator) parseRegexp(queryMap QueryMap) (result mode
 			funcName = "REGEXP"
 		}
 		return model.NewSimpleQuery(
-			model.NewInfixExpr(model.NewColumnRef(fieldName), funcName, model.NewLiteral("'"+pattern+"'")), true)
+			model.NewInfixExpr(model.NewColumnRef(fieldName), funcName, model.NewLiteral(util.SingleQuote(pattern))), true)
 	}
 
 	logger.ErrorWithCtx(cw.Ctx).Msg("parseRegexp: theoretically unreachable code")

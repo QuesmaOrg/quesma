@@ -45,11 +45,11 @@ func (v *BaseExprVisitor) VisitLiteral(e LiteralExpr) interface{} {
 	return NewLiteral(e.Value)
 }
 
-func (v *BaseExprVisitor) VisitTuple(e TupleExpr) interface{} {
+func (v *BaseExprVisitor) VisitTuple(t TupleExpr) interface{} {
 	if v.OverrideVisitTuple != nil {
-		return v.OverrideVisitTuple(v, e)
+		return v.OverrideVisitTuple(v, t)
 	}
-	return NewTupleExpr(v.VisitChildren(e.Exprs)...)
+	return NewTupleExpr(v.VisitChildren(t.Exprs)...)
 }
 
 func (v *BaseExprVisitor) VisitInfix(e InfixExpr) interface{} {
