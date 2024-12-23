@@ -278,10 +278,19 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 			}
 			metadata, message := dispatcher.Dispatch(handlersPipe.Processors, result.Meta, result.GenericResult)
 
+			if res, ok := message.(*quesma_api.Result); ok {
+				return res, nil
+			}
+
+			messageAsBytes, ok := message.([]byte)
+			if !ok {
+				return result, fmt.Errorf("invalid message type: %T", message)
+			}
+
 			result = &quesma_api.Result{
-				Body:          result.Body,
+				Body:          string(messageAsBytes),
 				Meta:          metadata,
-				StatusCode:    result.StatusCode,
+				StatusCode:    http.StatusOK,
 				GenericResult: message,
 			}
 			return result, err
