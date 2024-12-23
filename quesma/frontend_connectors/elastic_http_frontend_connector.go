@@ -1,13 +1,12 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
 
-package quesma
+package frontend_connectors
 
 import (
 	"context"
 	"net/http"
 	"quesma/clickhouse"
-	"quesma/frontend_connectors"
 	"quesma/quesma/config"
 	"quesma/schema"
 	quesma_api "quesma_v2/core"
@@ -15,7 +14,7 @@ import (
 )
 
 type ElasticHttpIngestFrontendConnector struct {
-	*frontend_connectors.BasicHTTPFrontendConnector
+	*BasicHTTPFrontendConnector
 
 	Config *config.QuesmaConfiguration
 
@@ -28,7 +27,7 @@ func NewElasticHttpIngestFrontendConnector(endpoint string,
 	config *config.QuesmaConfiguration, router quesma_api.Router) *ElasticHttpIngestFrontendConnector {
 
 	fc := &ElasticHttpIngestFrontendConnector{
-		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
+		BasicHTTPFrontendConnector: NewBasicHTTPFrontendConnector(endpoint, config),
 	}
 	fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		fc.BasicHTTPFrontendConnector.GetRouterInstance().ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
@@ -55,7 +54,7 @@ func (h *ElasticHttpIngestFrontendConnector) SetDependencies(deps quesma_api.Dep
 }
 
 type ElasticHttpQueryFrontendConnector struct {
-	*frontend_connectors.BasicHTTPFrontendConnector
+	*BasicHTTPFrontendConnector
 
 	phoneHomeClient diag.PhoneHomeClient
 }
@@ -66,7 +65,7 @@ func NewElasticHttpQueryFrontendConnector(endpoint string,
 	config *config.QuesmaConfiguration, router quesma_api.Router) *ElasticHttpIngestFrontendConnector {
 
 	fc := &ElasticHttpIngestFrontendConnector{
-		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
+		BasicHTTPFrontendConnector: NewBasicHTTPFrontendConnector(endpoint, config),
 	}
 	fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		fc.BasicHTTPFrontendConnector.GetRouterInstance().ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)

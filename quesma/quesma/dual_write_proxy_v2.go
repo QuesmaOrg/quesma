@@ -8,6 +8,7 @@ import (
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
+	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/logger"
 	"quesma/queryparser"
@@ -78,10 +79,10 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver)
 	searchRouter := ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
 
-	elasticHttpIngestFrontendConnector := NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
+	elasticHttpIngestFrontendConnector := frontend_connectors.NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
 		logManager, registry, config, ingestRouter)
 
-	elasticHttpQueryFrontendConnector := NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
+	elasticHttpQueryFrontendConnector := frontend_connectors.NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
 		logManager, registry, config, searchRouter)
 
 	quesmaBuilder := quesma_api.NewQuesma(dependencies)
