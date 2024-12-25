@@ -4690,31 +4690,16 @@ var AggregationTests2 = []AggregationTestCase{
 			LIMIT 4`,
 	},
 	{ // [70]
-		TestName: "2x terms with exclude",
+		TestName: "simplest terms with exclude (array of values)",
+		// TODO add ' somewhere in exclude after the merge!
 		QueryRequestJson: `
 		{
 			"aggs": {
-				"a": {
+				"1": {
 					"terms": {
-						"field": "Carrier", 
+						"field": "chess_goat", 
 						"size": 2,
-						"exclude": [".'*"]
-					},
-					"aggs": {
-						"1": {
-							"terms": {
-								"field": "Carrier",
-								"size": 2,
-								"exclude": ".*"
-							}
-						}
-					}
-				},
-				"b": {
-					"terms": {
-						"field": "DestCityName", 
-						"size": 2,
-						"exclude": "ab*"
+						"exclude": ["Carlsen", "Kasparov", "Fis._er*"]
 					}
 				}
 			},
@@ -4723,7 +4708,7 @@ var AggregationTests2 = []AggregationTestCase{
 		}`,
 		ExpectedResponse: `
 		{
-			"took": 15,
+			"took": 11,
 			"timed_out": false,
 			"_shards": {
 				"total": 1,
@@ -4733,7 +4718,148 @@ var AggregationTests2 = []AggregationTestCase{
 			},
 			"hits": {
 				"total": {
-					"value": 13014,
+					"value": 10000,
+					"relation": "gte"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"1": {
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 7416,
+					"buckets": [
+						{
+							"key": "My dad",
+							"doc_count": 3323
+						},
+						{
+							"key": "Barack Obama",
+							"doc_count": 3261
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__parent_count", int64(14000)),
+				model.NewQueryResultCol("aggr__1__key_0", "My dad"),
+				model.NewQueryResultCol("aggr__1__count", int64(3323)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__parent_count", int64(14000)),
+				model.NewQueryResultCol("aggr__1__key_0", "Barack Obama"),
+				model.NewQueryResultCol("aggr__1__count", int64(3261)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__1__parent_count",
+			  if("chess_goat" NOT IN tuple(Carlsen, Kasparov, Fis._er*), "chess_goat", NULL)
+			  AS "aggr__1__key_0", count(*) AS "aggr__1__count"
+			FROM __quesma_table_name
+			GROUP BY if("chess_goat" NOT IN tuple(Carlsen, Kasparov, Fis._er*), "chess_goat"
+			  , NULL) AS "aggr__1__key_0"
+			ORDER BY "aggr__1__count" DESC, "aggr__1__key_0" ASC
+			LIMIT 3`,
+	},
+	{ // [71]
+		TestName: "simplest terms with exclude (single value, no regex)",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"1": {
+					"terms": {
+						"field": "agi_birth_year", 
+						"size": 1,
+						"exclude": 2025
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 11,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 10000,
+					"relation": "gte"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"1": {
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 10700,
+					"buckets": [
+						{
+							"key": 2024,
+							"doc_count": 3300
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__parent_count", int64(14000)),
+				model.NewQueryResultCol("aggr__1__key_0", nil),
+				model.NewQueryResultCol("aggr__1__count", int64(10000)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__parent_count", int64(14000)),
+				model.NewQueryResultCol("aggr__1__key_0", 2024),
+				model.NewQueryResultCol("aggr__1__count", int64(3300)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__1__parent_count",
+			  if("agi_birth_year"!=2025, "agi_birth_year", NULL) AS "aggr__1__key_0",
+			  count(*) AS "aggr__1__count"
+			FROM __quesma_table_name
+			GROUP BY if("agi_birth_year"!=2025, "agi_birth_year", NULL) AS "aggr__1__key_0"
+			ORDER BY "aggr__1__count" DESC, "aggr__1__key_0" ASC
+			LIMIT 2`,
+	},
+	{ // [72]
+		TestName: "simplest terms with exclude (empty array)",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"1": {
+					"terms": {
+						"field": "agi_birth_year", 
+						"size": 1,
+						"exclude": []
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 11,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 1000,
 					"relation": "eq"
 				},
 				"max_score": null,
@@ -4742,29 +4868,11 @@ var AggregationTests2 = []AggregationTestCase{
 			"aggregations": {
 				"1": {
 					"doc_count_error_upper_bound": 0,
-					"sum_other_doc_count": 6430,
+					"sum_other_doc_count": 700,
 					"buckets": [
 						{
-							"key": "Logstash Airways",
-							"doc_count": 3323
-						},
-						{
-							"key": "JetBeats",
-							"doc_count": 3261
-						}
-					]
-				},
-				"2": {
-					"doc_count_error_upper_bound": 0,
-					"sum_other_doc_count": 11804,
-					"buckets": [
-						{
-							"key": "Zurich",
-							"doc_count": 687
-						},
-						{
-							"key": "Xi'an",
-							"doc_count": 523
+							"key": 2024,
+							"doc_count": 300
 						}
 					]
 				}
@@ -4772,25 +4880,91 @@ var AggregationTests2 = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1730678400000/86400000)),
-				model.NewQueryResultCol("aggr__my_buckets__count", int64(339)),
+				model.NewQueryResultCol("aggr__1__parent_count", int64(1000)),
+				model.NewQueryResultCol("aggr__1__key_0", nil),
+				model.NewQueryResultCol("aggr__1__count", int64(600)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1730764800000/86400000)),
-				model.NewQueryResultCol("aggr__my_buckets__count", int64(297)),
-			}},
-			{Cols: []model.QueryResultCol{ // should be erased by us because of size=2
-				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1830764800000/86400000)),
-				model.NewQueryResultCol("aggr__my_buckets__count", int64(567)),
+				model.NewQueryResultCol("aggr__1__parent_count", int64(1000)),
+				model.NewQueryResultCol("aggr__1__key_0", 2024),
+				model.NewQueryResultCol("aggr__1__count", int64(300)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 86400000) AS
-			  "aggr__my_buckets__key_0", count(*) AS "aggr__my_buckets__count"
+			SELECT sum(count(*)) OVER () AS "aggr__1__parent_count",
+			  "agi_birth_year" AS "aggr__1__key_0", count(*) AS "aggr__1__count"
 			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 86400000) AS
-			  "aggr__my_buckets__key_0"
-			ORDER BY "aggr__my_buckets__key_0" ASC
-			LIMIT 3`,
+			GROUP BY "agi_birth_year" AS "aggr__1__key_0"
+			ORDER BY "aggr__1__count" DESC, "aggr__1__key_0" ASC
+			LIMIT 2`,
+	},
+	{ // [73]
+		TestName: "terms with exclude (more complex, string field with exclude regex)",
+		// One simple test, for more regex tests see util/regex unit tests
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"1": {
+					"terms": {
+						"field": "chess_goat", 
+						"size": 1,
+						"exclude": "K.*"
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 11,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 10000,
+					"relation": "gte"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"1": {
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 1,
+					"buckets": [
+						{
+							"key": "Paul Morphy",
+							"doc_count": 13999
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__parent_count", int64(14000)),
+				model.NewQueryResultCol("aggr__1__key_0", "Paul Morphy"),
+				model.NewQueryResultCol("aggr__1__count", int64(13999)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__parent_count", int64(14000)),
+				model.NewQueryResultCol("aggr__1__key_0", nil),
+				model.NewQueryResultCol("aggr__1__count", int64(1)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__1__parent_count",
+			  if("chess_goat" LIKE 'K%', "chess_goat", NULL) AS "aggr__1__key_0",
+			  count(*) AS "aggr__1__count"
+			FROM __quesma_table_name
+			GROUP BY if("chess_goat" LIKE 'K%', "chess_goat", NULL) AS "aggr__1__key_0"
+			ORDER BY "aggr__1__count" DESC, "aggr__1__key_0" ASC
+			LIMIT 2`,
 	},
 }

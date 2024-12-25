@@ -147,19 +147,22 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 
 // aggrName - "terms" or "significant_terms"
 func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeAggregationTreeNode, params QueryMap, aggrName string) error {
+	terms := bucket_aggregations.NewTerms(
+		cw.Ctx, aggrName == "significant_terms", params["include"], params["exclude"],
+	)
+
+	var didWeAddMissing, didWeUpdate bool
 	field := cw.parseFieldField(params, aggrName)
-	field, didWeAddMissing := cw.addMissingParameterIfPresent(field, params)
-	if !didWeAddMissing {
+	field, didWeAddMissing = cw.addMissingParameterIfPresent(field, params)
+	field, didWeUpdate = terms.UpdateFieldForIncludeAndExclude(field)
+
+	// If we updated above, we change our select to if(condition, field, NULL), so we also need to filter out those NULLs later
+	if !didWeAddMissing || didWeUpdate {
 		aggregation.filterOutEmptyKeyBucket = true
 	}
 
 	const defaultSize = 10
 	size := cw.parseSize(params, defaultSize)
-	
-	terms := bucket_aggregations.NewTerms(
-		cw.Ctx, aggrName == "significant_terms", params["include"], params["exclude"],
-	)
-	field = terms.UpdateFieldForIncludeAndExclude(field)
 
 	orderBy, err := cw.parseOrder(params, []model.Expr{field})
 	if err != nil {

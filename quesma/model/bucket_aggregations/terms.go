@@ -119,7 +119,7 @@ func (query Terms) parentCount(row model.QueryResultRow) any {
 	return row.Cols[len(row.Cols)-3].Value
 }
 
-func (query Terms) UpdateFieldForIncludeAndExclude(field model.Expr) model.Expr {
+func (query Terms) UpdateFieldForIncludeAndExclude(field model.Expr) (updatedField model.Expr, didWeUpdate bool) {
 	// We'll use here everywhere Clickhouse 'if' function: if(condition, then, else)
 	// In our case: if(condition that field is not excluded, field, NULL)
 	ifOrNull := func(condition model.Expr) model.FunctionExpr {
@@ -130,7 +130,7 @@ func (query Terms) UpdateFieldForIncludeAndExclude(field model.Expr) model.Expr 
 	switch {
 	case hasExclude && excludeIsArray:
 		if len(excludeArr) == 0 {
-			return field
+			return field, false
 		}
 
 		// Select expr will be: if(field NOT IN (excludeArr[0], excludeArr[1], ...), field, NULL)
@@ -138,18 +138,18 @@ func (query Terms) UpdateFieldForIncludeAndExclude(field model.Expr) model.Expr 
 		for _, excludeVal := range excludeArr {
 			exprs = append(exprs, model.NewLiteral(excludeVal))
 		}
-		return ifOrNull(model.NewInfixExpr(field, "NOT IN", model.NewTupleExpr(exprs...)))
+		return ifOrNull(model.NewInfixExpr(field, "NOT IN", model.NewTupleExpr(exprs...))), true
 	case hasExclude:
 		switch exclude := query.exclude.(type) {
 		case string: // hard case, might be regex
 			funcName, patternExpr := regex.ToClickhouseExpr(exclude)
-			return ifOrNull(model.NewInfixExpr(field, funcName, patternExpr))
+			return ifOrNull(model.NewInfixExpr(field, funcName, patternExpr)), true
 		default: // easy case, never regex
-			return ifOrNull(model.NewInfixExpr(field, "!=", model.NewLiteral(query.exclude)))
+			return ifOrNull(model.NewInfixExpr(field, "!=", model.NewLiteral(query.exclude))), true
 		}
 
 	default:
-		return field // TODO implement support for include this in next PR
+		return field, false // TODO implement support for include this in next PR
 	}
 }
 
