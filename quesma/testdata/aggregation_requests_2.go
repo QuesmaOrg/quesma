@@ -4689,4 +4689,108 @@ var AggregationTests2 = []AggregationTestCase{
 			  "aggr__my_buckets__key_1" ASC
 			LIMIT 4`,
 	},
+	{ // [70]
+		TestName: "2x terms with exclude",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"a": {
+					"terms": {
+						"field": "Carrier", 
+						"size": 2,
+						"exclude": [".'*"]
+					},
+					"aggs": {
+						"1": {
+							"terms": {
+								"field": "Carrier",
+								"size": 2,
+								"exclude": ".*"
+							}
+						}
+					}
+				},
+				"b": {
+					"terms": {
+						"field": "DestCityName", 
+						"size": 2,
+						"exclude": "ab*"
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 15,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 13014,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"1": {
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 6430,
+					"buckets": [
+						{
+							"key": "Logstash Airways",
+							"doc_count": 3323
+						},
+						{
+							"key": "JetBeats",
+							"doc_count": 3261
+						}
+					]
+				},
+				"2": {
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 11804,
+					"buckets": [
+						{
+							"key": "Zurich",
+							"doc_count": 687
+						},
+						{
+							"key": "Xi'an",
+							"doc_count": 523
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1730678400000/86400000)),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(339)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1730764800000/86400000)),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(297)),
+			}},
+			{Cols: []model.QueryResultCol{ // should be erased by us because of size=2
+				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1830764800000/86400000)),
+				model.NewQueryResultCol("aggr__my_buckets__count", int64(567)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 86400000) AS
+			  "aggr__my_buckets__key_0", count(*) AS "aggr__my_buckets__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 86400000) AS
+			  "aggr__my_buckets__key_0"
+			ORDER BY "aggr__my_buckets__key_0" ASC
+			LIMIT 3`,
+	},
 }

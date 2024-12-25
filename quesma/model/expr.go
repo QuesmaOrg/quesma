@@ -13,6 +13,7 @@ var (
 	InvalidExpr = Expr(nil)
 	TrueExpr    = NewLiteral(true)
 	FalseExpr   = NewLiteral(false)
+	NullExpr    = NewLiteral("NULL")
 )
 
 // ColumnRef is a reference to a column in a table, we can enrich it with more information (e.g. type used) as we go

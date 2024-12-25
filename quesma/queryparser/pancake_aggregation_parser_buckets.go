@@ -155,12 +155,18 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 
 	const defaultSize = 10
 	size := cw.parseSize(params, defaultSize)
+	
+	terms := bucket_aggregations.NewTerms(
+		cw.Ctx, aggrName == "significant_terms", params["include"], params["exclude"],
+	)
+	field = terms.UpdateFieldForIncludeAndExclude(field)
+
 	orderBy, err := cw.parseOrder(params, []model.Expr{field})
 	if err != nil {
 		return err
 	}
 
-	aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, aggrName == "significant_terms", orderBy[0]) // TODO probably full, not [0]
+	aggregation.queryType = terms
 	aggregation.selectedColumns = append(aggregation.selectedColumns, field)
 	aggregation.limit = size
 	aggregation.orderBy = orderBy
