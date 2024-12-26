@@ -1564,11 +1564,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/jackc/pgx/v5
-Version : v5.7.1
-Time    : 2024-09-10T12:25:07Z
+Version : v5.7.2
+Time    : 2024-12-21T15:25:36Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/jackc/pgx/v5@v5.7.1/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/jackc/pgx/v5@v5.7.2/LICENSE:
 
 Copyright (c) 2013-2021 Jack Christensen
 

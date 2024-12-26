@@ -78,11 +78,11 @@ func (v *renderer) VisitTuple(t TupleExpr) interface{} {
 	switch len(exprs) {
 	case 0:
 		logger.WarnWithCtxAndThrottling(context.Background(), "visit", "tuple", "tuple with 0 length") // hacky way to log this
-		return "()"
+		return "tuple()"
 	case 1:
 		return exprs[0]
 	default:
-		return fmt.Sprintf("(%s)", strings.Join(exprs, ", "))
+		return fmt.Sprintf("tuple(%s)", strings.Join(exprs, ", "))
 	}
 }
 

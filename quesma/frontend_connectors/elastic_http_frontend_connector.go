@@ -1,25 +1,19 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
 
-package quesma
+package frontend_connectors
 
 import (
 	"context"
 	"net/http"
 	"quesma/clickhouse"
-	"quesma/frontend_connectors"
 	"quesma/quesma/config"
 	"quesma/schema"
 	quesma_api "quesma_v2/core"
-	"quesma_v2/core/diag"
 )
 
 type ElasticHttpIngestFrontendConnector struct {
-	*frontend_connectors.BasicHTTPFrontendConnector
-
-	Config *config.QuesmaConfiguration
-
-	phoneHomeClient diag.PhoneHomeClient
+	*BasicHTTPFrontendConnector
 }
 
 func NewElasticHttpIngestFrontendConnector(endpoint string,
@@ -28,7 +22,7 @@ func NewElasticHttpIngestFrontendConnector(endpoint string,
 	config *config.QuesmaConfiguration, router quesma_api.Router) *ElasticHttpIngestFrontendConnector {
 
 	fc := &ElasticHttpIngestFrontendConnector{
-		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
+		BasicHTTPFrontendConnector: NewBasicHTTPFrontendConnector(endpoint, config),
 	}
 	fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		fc.BasicHTTPFrontendConnector.GetRouterInstance().ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
@@ -41,23 +35,8 @@ func NewElasticHttpIngestFrontendConnector(endpoint string,
 	return fc
 }
 
-func (h *ElasticHttpIngestFrontendConnector) GetChildComponents() []interface{} {
-	components := make([]interface{}, 0)
-	if h.BasicHTTPFrontendConnector != nil {
-		components = append(components, h.BasicHTTPFrontendConnector)
-	}
-
-	return components
-}
-
-func (h *ElasticHttpIngestFrontendConnector) SetDependencies(deps quesma_api.Dependencies) {
-	h.phoneHomeClient = deps.PhoneHomeAgent()
-}
-
 type ElasticHttpQueryFrontendConnector struct {
-	*frontend_connectors.BasicHTTPFrontendConnector
-
-	phoneHomeClient diag.PhoneHomeClient
+	*BasicHTTPFrontendConnector
 }
 
 func NewElasticHttpQueryFrontendConnector(endpoint string,
@@ -66,7 +45,7 @@ func NewElasticHttpQueryFrontendConnector(endpoint string,
 	config *config.QuesmaConfiguration, router quesma_api.Router) *ElasticHttpIngestFrontendConnector {
 
 	fc := &ElasticHttpIngestFrontendConnector{
-		BasicHTTPFrontendConnector: frontend_connectors.NewBasicHTTPFrontendConnector(endpoint, config),
+		BasicHTTPFrontendConnector: NewBasicHTTPFrontendConnector(endpoint, config),
 	}
 	fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		fc.BasicHTTPFrontendConnector.GetRouterInstance().ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
@@ -75,16 +54,4 @@ func NewElasticHttpQueryFrontendConnector(endpoint string,
 	router.AddFallbackHandler(fallback)
 	fc.AddRouter(router)
 	return fc
-}
-
-func (h *ElasticHttpQueryFrontendConnector) GetChildComponents() []interface{} {
-	components := make([]interface{}, 0)
-	if h.BasicHTTPFrontendConnector != nil {
-		components = append(components, h.BasicHTTPFrontendConnector)
-	}
-	return components
-}
-
-func (h *ElasticHttpQueryFrontendConnector) SetDependencies(deps quesma_api.Dependencies) {
-	h.phoneHomeClient = deps.PhoneHomeAgent()
 }
