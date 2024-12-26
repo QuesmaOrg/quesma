@@ -1345,7 +1345,7 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 		},
 		{
 			request:     `{"search_after": [1706551896491, "m3", 3], "size": 3, "track_total_hits": false,  "sort": [{"@timestamp": {"order": "desc"}}, {"message": {"order": "asc"}}, {"bicep_size": {"order": "desc"}}]}`,
-			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name WHERE (fromUnixTimestamp64Milli(1706551896491), "message", 3)>("@timestamp", 'm3', "bicep_size") ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
+			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name WHERE tuple(fromUnixTimestamp64Milli(1706551896491), "message", 3)>tuple("@timestamp", 'm3', "bicep_size") ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
 			resultRowsFromDB: [][]any{
 				{someTime, int64(4), "m4"},
 				{someTime, int64(5), "m5"},
@@ -1359,7 +1359,7 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 		},
 		{
 			request:     `{"search_after": [1706551896491, "m5", 0], "size": 3, "track_total_hits": false,  "sort": [{"@timestamp": {"order": "desc"}}, {"message": {"order": "asc"}}, {"bicep_size": {"order": "desc"}}]}`,
-			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name WHERE (fromUnixTimestamp64Milli(1706551896491), "message", 0)>("@timestamp", 'm5', "bicep_size") ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
+			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name WHERE tuple(fromUnixTimestamp64Milli(1706551896491), "message", 0)>tuple("@timestamp", 'm5', "bicep_size") ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
 			resultRowsFromDB: [][]any{
 				{sub(1), int64(0), "m6"},
 				{sub(1), int64(0), "m7"},
@@ -1373,7 +1373,7 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 		},
 		{
 			request:     `{"search_after": [1706551896491, "m8", 0], "size": 3, "track_total_hits": false,  "sort": [{"@timestamp": {"order": "desc"}}, {"message": {"order": "asc"}}, {"bicep_size": {"order": "desc"}}]}`,
-			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name WHERE (fromUnixTimestamp64Milli(1706551896491), "message", 0)>("@timestamp", 'm8', "bicep_size") ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
+			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name WHERE tuple(fromUnixTimestamp64Milli(1706551896491), "message", 0)>tuple("@timestamp", 'm8', "bicep_size") ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
 			resultRowsFromDB: [][]any{
 				{sub(1), int64(0), "m9"},
 				{sub(2), int64(0), "m10"},

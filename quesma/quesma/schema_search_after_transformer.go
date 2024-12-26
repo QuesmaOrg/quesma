@@ -178,8 +178,8 @@ func (s searchAfterStrategyBasicAndFast) transform(query *model.Query, searchAft
 	// But because some fields might be ASC, we need to swap those values in the tuple.
 	fmt.Println("searchAfterParsed", searchAfterParsed)
 	tupleLen := len(searchAfterParsed)
-	lhs := model.NewTupleExpr(make([]model.Expr, tupleLen))
-	rhs := model.NewTupleExpr(make([]model.Expr, tupleLen))
+	lhs := model.NewTupleExpr(make([]model.Expr, tupleLen)...)
+	rhs := model.NewTupleExpr(make([]model.Expr, tupleLen)...)
 	for i, searchAfterValue := range searchAfterParsed {
 		lhs.Exprs[i] = searchAfterValue
 		rhs.Exprs[i] = query.SelectCommand.OrderBy[i].Expr

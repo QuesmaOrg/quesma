@@ -49,7 +49,7 @@ func (v *BaseExprVisitor) VisitTuple(t TupleExpr) interface{} {
 	if v.OverrideVisitTuple != nil {
 		return v.OverrideVisitTuple(v, t)
 	}
-	return NewTupleExpr(v.VisitChildren(t.Exprs))
+	return NewTupleExpr(v.VisitChildren(t.Exprs)...)
 }
 
 func (v *BaseExprVisitor) VisitInfix(e InfixExpr) interface{} {
