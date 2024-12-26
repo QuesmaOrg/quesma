@@ -21,11 +21,11 @@ type SchemaCheckPass struct {
 	searchAfterStrategy searchAfterStrategy
 }
 
-func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery clickhouse.TableDiscovery, searchAfterStrategy searchAfterStrategyType) *SchemaCheckPass {
+func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery clickhouse.TableDiscovery, strategyType searchAfterStrategyType) *SchemaCheckPass {
 	return &SchemaCheckPass{
 		cfg:                 cfg,
 		tableDiscovery:      tableDiscovery,
-		searchAfterStrategy: searchAfterStrategyFactory(searchAfterStrategy),
+		searchAfterStrategy: searchAfterStrategyFactory(strategyType),
 	}
 }
 
@@ -890,6 +890,7 @@ func (s *SchemaCheckPass) applyAliasColumns(indexSchema schema.Schema, query *mo
 }
 
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
+
 	transformationChain := []struct {
 		TransformationName string
 		Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
@@ -941,7 +942,6 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 
 			query, err = transformation.Transformation(query.Schema, query)
 			if err != nil {
-				fmt.Println("SchemaCheckPass.Transform", err)
 				return nil, err
 			}
 

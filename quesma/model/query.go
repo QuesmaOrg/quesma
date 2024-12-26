@@ -64,7 +64,7 @@ type (
 		Schema schema.Schema
 
 		Highlighter Highlighter
-		SearchAfter any // value of query's "search_after" param. Used for pagination of hits. SearchAfterEmpty means no pagination
+		SearchAfter any // Value of query's "search_after" param. Used for pagination of hits. SearchAfterEmpty means no pagination
 
 		RuntimeMappings map[string]RuntimeMapping
 
@@ -162,7 +162,7 @@ type HitsCountInfo struct {
 	RequestedFields []string
 	Size            int // how many hits to return
 	TrackTotalHits  int // >= 0: we want this nr of total hits, TrackTotalHitsTrue: it was "true", TrackTotalHitsFalse: it was "false", in the request
-	SearchAfter     any // used for pagination of hits. EmptySearchAfter means no pagination
+	SearchAfter     any // Value of query's "search_after" param. Used for pagination of hits. SearchAfterEmpty means no pagination
 }
 
 func NewEmptyHitsCountInfo() HitsCountInfo {

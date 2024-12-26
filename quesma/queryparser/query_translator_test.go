@@ -182,7 +182,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
 			hitQuery := query_util.BuildHitsQuery(
 				context.Background(), "test", []string{"*"},
-				&model.SimpleQuery{}, model.WeNeedUnlimitedCount, nil,
+				&model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty,
 			)
 			highlighter := NewEmptyHighlighter()
 			queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, hitQuery.SelectCommand.OrderByFieldNames(), true, false, false, []string{cw.Table.Name})

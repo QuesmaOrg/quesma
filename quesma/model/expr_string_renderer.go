@@ -3,7 +3,6 @@
 package model
 
 import (
-	"context"
 	"fmt"
 	"quesma/logger"
 	"quesma/quesma/types"
@@ -71,18 +70,18 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 }
 
 func (v *renderer) VisitTuple(t TupleExpr) interface{} {
-	exprs := make([]string, 0)
+	exprs := make([]string, 0, len(t.Exprs))
 	for _, expr := range t.Exprs {
 		exprs = append(exprs, expr.Accept(v).(string))
 	}
 	switch len(exprs) {
 	case 0:
-		logger.WarnWithCtxAndThrottling(context.Background(), "visit", "tuple", "tuple with 0 length") // hacky way to log this
+		logger.WarnWithThrottling("visitTuple", "tupleExpr with no expressions") // hacky way to log this
 		return "tuple()"
 	case 1:
-		return exprs[0]
+		return t.Exprs[0]
 	default:
-		return fmt.Sprintf("tuple(%s)", strings.Join(exprs, ", "))
+		return fmt.Sprintf("tuple(%s)", strings.Join(exprs, ", ")) // can omit "tuple", but I think SQL's more readable with it
 	}
 }
 
