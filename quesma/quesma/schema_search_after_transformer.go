@@ -54,6 +54,7 @@ func (s searchAfterStrategyType) String() string {
 
 type searchAfterStrategyBulletproof struct{} // TODO, don't look!
 
+// validateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
 func (s searchAfterStrategyBulletproof) validateAndParse(query *model.Query, indexSchema schema.Schema) (searchAfterParameterParsed []model.Expr, err error) {
 	logger.Debug().Msgf("searchAfter: %v", query.SearchAfter)
 	if query.SearchAfter == nil {
@@ -103,6 +104,7 @@ func (s searchAfterStrategyBulletproof) transform(query *model.Query, searchAfte
 
 type searchAfterStrategyJustDiscardTheParameter struct{}
 
+// validateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
 func (s searchAfterStrategyJustDiscardTheParameter) validateAndParse(*model.Query, schema.Schema) (searchAfterParameterParsed []model.Expr, err error) {
 	return nil, nil
 }
@@ -111,12 +113,13 @@ func (s searchAfterStrategyJustDiscardTheParameter) transform(query *model.Query
 	return query, nil
 }
 
-// -------------------------------------------------------------------
-// | First, simple strategy: BasicAndFast (default for just a second |
-// -------------------------------------------------------------------
+// ----------------------------------------------------------------------------------
+// | First, simple strategy: BasicAndFast (default until Bulletproof is implemented |
+// ----------------------------------------------------------------------------------
 
 type searchAfterStrategyBasicAndFast struct{}
 
+// validateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
 func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, indexSchema schema.Schema) (searchAfterParsed []model.Expr, err error) {
 	if query.SearchAfter == nil {
 		return nil, nil

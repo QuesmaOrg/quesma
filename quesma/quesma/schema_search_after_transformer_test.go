@@ -151,11 +151,10 @@ func Test_applySearchAfterParameter(t *testing.T) {
 	for _, strategy := range strategies {
 		for i, tc := range testcases {
 			t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
+				// apply search_after parameter, easier to do here than in all the testcases
 				tc.query.SearchAfter = tc.searchAfter
 				tc.transformedQueryExpected.SearchAfter = tc.searchAfter
-				if i > 8 {
-					t.Skip()
-				}
+
 				transformer := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, strategy)
 				actual, err := transformer.applySearchAfterParameter(Schema, tc.query)
 				assert.Equal(t, tc.errorExpected, err != nil, "Expected error: %v, got: %v", tc.errorExpected, err)
