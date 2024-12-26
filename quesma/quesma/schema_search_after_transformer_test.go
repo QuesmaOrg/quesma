@@ -4,7 +4,10 @@ package quesma
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/assert"
+	"quesma/clickhouse"
 	"quesma/model"
+	"quesma/quesma/config"
 	"quesma/schema"
 	"strconv"
 	"testing"
@@ -32,27 +35,46 @@ func Test_validateAndParse(t *testing.T) {
 		{"string is bad", false, false},
 	}
 
-	strategy := searchAfterStrategyFactory(basicAndFast)
-	for i, tc := range testcases {
-		t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
-			query := &model.Query{}
-			query.SelectCommand.OrderBy = []model.OrderByExpr{model.NewOrderByExprWithoutOrder(model.NewColumnRef("@timestamp"))}
-			if arr, ok := tc.searchAfter.([]any); ok && len(arr) == 2 {
-				query.SelectCommand.OrderBy = append(query.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(model.NewColumnRef("message")))
-			}
-			query.SearchAfter = tc.searchAfter
-			_, err := strategy.validateAndParse(query, Schema)
-			if (err == nil) != tc.isInputFineBasicAndFastStrategy {
-				t.Errorf("BasicAndFast strategy failed to validate the input: %v, err: %v", tc.searchAfter, err)
-			}
-		})
+	strategies := []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)}
+	for _, strategy := range strategies {
+		for i, tc := range testcases {
+			t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
+				query := &model.Query{}
+				query.SelectCommand.OrderBy = []model.OrderByExpr{model.NewOrderByExprWithoutOrder(model.NewColumnRef("@timestamp"))}
+				if arr, ok := tc.searchAfter.([]any); ok && len(arr) == 2 {
+					query.SelectCommand.OrderBy = append(query.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(model.NewColumnRef("message")))
+				}
+				query.SearchAfter = tc.searchAfter
+				_, err := strategy.validateAndParse(query, Schema)
+				if (err == nil) != tc.isInputFineBasicAndFastStrategy {
+					t.Errorf("BasicAndFast strategy failed to validate the input: %v, err: %v", tc.searchAfter, err)
+				}
+			})
+		}
 	}
 }
 
-func TestApplyStrategyAndTransformQuery(t *testing.T) {
-	emptyQuery := func() *model.Query { return &model.Query{} }
+func Test_applySearchAfterParameter(t *testing.T) {
+	fields := map[schema.FieldName]schema.Field{
+		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+		"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+	}
+	Schema := schema.NewSchema(fields, true, "")
+
+	indexConfig := map[string]config.IndexConfiguration{"kibana_sample_data_ecommerce": {}}
+
+	tableMap := clickhouse.NewTableMap()
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tableMap
+	for indexName := range indexConfig {
+		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
+	}
+
+	singleOrderBy := []model.OrderByExpr{model.NewOrderByExpr(model.NewColumnRef("@timestamp"), model.DescOrder)}
+	selectJustOrderBy := model.SelectCommand{OrderBy: singleOrderBy}
+	emptyQuery := func() *model.Query { return &model.Query{SelectCommand: selectJustOrderBy} }
 	withWhere := func(query *model.Query, timestamp any) *model.Query {
-		additionalWhere := model.NewInfixExpr(model.ColumnRef{}, "<", model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(timestamp)))
+		additionalWhere := model.NewInfixExpr(model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(1)), ">", model.NewColumnRef("@timestamp"))
 		query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause, additionalWhere})
 		return query
 	}
@@ -62,6 +84,7 @@ func TestApplyStrategyAndTransformQuery(t *testing.T) {
 			SelectCommand: model.SelectCommand{
 				FromClause: model.NewTableRef("kibana_sample_data_logs"),
 				Columns:    []model.Expr{model.NewColumnRef("message")},
+				OrderBy:    singleOrderBy,
 				WhereClause: &model.InfixExpr{
 					Left: &model.InfixExpr{
 						Left: &model.InfixExpr{
@@ -108,26 +131,42 @@ func TestApplyStrategyAndTransformQuery(t *testing.T) {
 	}
 
 	var testcases = []struct {
-		searchAfter      any
-		query            *model.Query
-		transformedQuery *model.Query
+		searchAfter              any
+		query                    *model.Query
+		transformedQueryExpected *model.Query
+		errorExpected            bool
 	}{
-		{nil, emptyQuery(), emptyQuery()},
-		{[]any{}, emptyQuery(), emptyQuery()},
-		{[]any{1}, emptyQuery(), withWhere(emptyQuery(), 1)},
-		{[]any{1.0}, emptyQuery(), withWhere(emptyQuery(), 1)},
-		{[]any{1.1}, emptyQuery(), emptyQuery()},
-		{[]any{5, 10}, emptyQuery(), emptyQuery()},
-		{[]any{-1}, emptyQuery(), emptyQuery()},
-		{"string is bad", emptyQuery(), emptyQuery()},
-		{[]any{int64(1)}, oneRealQuery(), withWhere(oneRealQuery(), 1)},
+		{nil, emptyQuery(), emptyQuery(), false},
+		{[]any{}, emptyQuery(), emptyQuery(), true},
+		{[]any{1}, emptyQuery(), withWhere(emptyQuery(), 1), false},
+		{[]any{1.0}, emptyQuery(), withWhere(emptyQuery(), 1), false},
+		{[]any{1.1}, emptyQuery(), emptyQuery(), true},
+		{[]any{5, 10}, emptyQuery(), emptyQuery(), true},
+		{[]any{-1}, emptyQuery(), emptyQuery(), true},
+		{"string is bad", emptyQuery(), emptyQuery(), true},
+		{[]any{int64(1)}, oneRealQuery(), withWhere(oneRealQuery(), 1), false},
 	}
 
-	//strategy := searchAfterStrategyFactory(basicAndFast)
-	for i, tc := range testcases {
-		t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
-			//basicAndFast.transform(tc.query, tc.searchAfter)
-			//assert.Equal(t, AsString(tc.query.SelectCommand), AsString(tc.transformedQuery.SelectCommand))
-		})
+	strategies := []searchAfterStrategyType{basicAndFast}
+	for _, strategy := range strategies {
+		for i, tc := range testcases {
+			t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
+				tc.query.SearchAfter = tc.searchAfter
+				tc.transformedQueryExpected.SearchAfter = tc.searchAfter
+				if i > 8 {
+					t.Skip()
+				}
+				transformer := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, strategy)
+				actual, err := transformer.applySearchAfterParameter(Schema, tc.query)
+				assert.Equal(t, tc.errorExpected, err != nil, "Expected error: %v, got: %v", tc.errorExpected, err)
+				if err == nil {
+					assert.Equal(t,
+						model.AsString(tc.transformedQueryExpected.SelectCommand),
+						model.AsString(actual.SelectCommand),
+						"Expected:\n%v,\ngot:\n%v", tc.transformedQueryExpected, actual,
+					)
+				}
+			})
+		}
 	}
 }

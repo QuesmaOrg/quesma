@@ -4,7 +4,6 @@ package quesma
 
 import (
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/schema"
@@ -13,15 +12,13 @@ import (
 
 type (
 	searchAfterStrategy interface {
-		// Validate validates the 'searchAfter', which is what came from the request's search_after field.
+		// validateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
 		validateAndParse(query *model.Query, indexSchema schema.Schema) (searchAfterParameterParsed []model.Expr, err error)
 		transform(query *model.Query, searchAfterParameterParsed []model.Expr) (*model.Query, error)
-		doSomethingWithHitsResult(hitsResult *model.SearchHits) // TODO change name
 	}
 	searchAfterStrategyType int
 )
 
-// , sortFields []model.OrderByExpr, searchAfter any
 func searchAfterStrategyFactory(strategy searchAfterStrategyType) searchAfterStrategy {
 	switch strategy {
 	case bulletproof:
@@ -31,13 +28,13 @@ func searchAfterStrategyFactory(strategy searchAfterStrategyType) searchAfterStr
 	case basicAndFast:
 		return searchAfterStrategyBasicAndFast{}
 	default:
-		logger.Error().Msgf("Unknown search_after strategy: %d. Using Bulletproof.", strategy)
-		return searchAfterStrategyBulletproof{}
+		logger.Error().Msgf("Unknown search_after strategy: %d. Using default (basicAndFast).", strategy)
+		return searchAfterStrategyBasicAndFast{}
 	}
 }
 
 const (
-	basicAndFast searchAfterStrategyType = iota // default for a second
+	basicAndFast searchAfterStrategyType = iota // default until bulletproof is implemented
 	bulletproof
 	justDiscardTheParameter
 	defaultSearchAfterStrategy = basicAndFast
@@ -48,14 +45,14 @@ func (s searchAfterStrategyType) String() string {
 }
 
 // ---------------------------------------------------------------------------------
-// | Bulletproof, but might be a bit slower for gigantic datasets                    |
+// | Bulletproof, but might be a bit slower for gigantic datasets                  |
 // ---------------------------------------------------------------------------------
 
 // sortFields  []model.OrderByExpr
 //	pkHashes    []string // md5 for now, should be improved to shorten hashes lengths
 //	searchAfter any
 
-type searchAfterStrategyBulletproof struct{}
+type searchAfterStrategyBulletproof struct{} // TODO, don't look!
 
 func (s searchAfterStrategyBulletproof) validateAndParse(query *model.Query, indexSchema schema.Schema) (searchAfterParameterParsed []model.Expr, err error) {
 	logger.Debug().Msgf("searchAfter: %v", query.SearchAfter)
@@ -100,10 +97,6 @@ func (s searchAfterStrategyBulletproof) transform(query *model.Query, searchAfte
 	return query, nil
 }
 
-func (s searchAfterStrategyBulletproof) doSomethingWithHitsResult(*model.SearchHits) {
-	// no-op
-}
-
 // -------------------------------------------------------------------------------------------------------------------------------
 // | JustDiscardTheParameter: probably only good for tests or when you don't need this functionality and want better performance |
 // -------------------------------------------------------------------------------------------------------------------------------
@@ -116,10 +109,6 @@ func (s searchAfterStrategyJustDiscardTheParameter) validateAndParse(*model.Quer
 
 func (s searchAfterStrategyJustDiscardTheParameter) transform(query *model.Query, _ []model.Expr) (*model.Query, error) {
 	return query, nil
-}
-
-func (s searchAfterStrategyJustDiscardTheParameter) doSomethingWithHitsResult(*model.SearchHits) {
-	// no-op
 }
 
 // -------------------------------------------------------------------
@@ -146,23 +135,24 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 	for i, searchAfterValue := range asArray {
 		column, ok := query.SelectCommand.OrderBy[i].Expr.(model.ColumnRef)
 		if !ok {
-			return nil, fmt.Errorf("for basic_and_fast strategy, order by must be a column reference")
+			return nil, fmt.Errorf("for basicAndFast strategy, order by must be a column reference")
 		}
+
 		field, resolved := indexSchema.ResolveField(column.ColumnName)
-		// logger.Info().Msgf("search_after: %v, field: %v, resolved: %v", searchAfterValue, field, resolved)
 		if !resolved {
 			return nil, fmt.Errorf("could not resolve field: %v", model.AsString(query.SelectCommand.OrderBy[i].Expr))
 		}
-		// TODO: fix error msgs below
+
 		if field.Type.Name == "date" || field.Type.Name == "timestamp" {
 			if number, isNumber := util.ExtractNumeric64Maybe(searchAfterValue); isNumber {
 				if number >= 0 && util.IsFloat64AnInt64(number) {
+					// this param will always be timestamp in milliseconds, as we create it like this while rendering hits
 					searchAfterParsed[i] = model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number)))
 				} else {
-					return nil, fmt.Errorf("for basic_and_fast strategy, search_after must be a unix timestamp in milliseconds")
+					return nil, fmt.Errorf("for basicAndFast strategy, search_after must be a unix timestamp in milliseconds")
 				}
 			} else {
-				return nil, fmt.Errorf("for basic_and_fast strategy, search_after must be an integer")
+				return nil, fmt.Errorf("for basicAndFast strategy, search_after must be a number")
 			}
 		} else {
 			searchAfterParsed[i] = model.NewLiteral(util.SingleQuoteIfString(searchAfterValue))
@@ -175,11 +165,10 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 func (s searchAfterStrategyBasicAndFast) transform(query *model.Query, searchAfterParsed []model.Expr) (*model.Query, error) {
 	// If all order by's would be DESC, we would add to the where clause:
 	// tuple(sortField1, sortField2, ...) > tuple(searchAfter1, searchAfter2, ...)
-	// But because some fields might be ASC, we need to swap those values in the tuple.
-	fmt.Println("searchAfterParsed", searchAfterParsed)
-	tupleLen := len(searchAfterParsed)
-	lhs := model.NewTupleExpr(make([]model.Expr, tupleLen)...)
-	rhs := model.NewTupleExpr(make([]model.Expr, tupleLen)...)
+	// But because some fields might be ASC, we need to swap sortField_i with searchAfter_i
+	sortFieldsNr := len(searchAfterParsed)
+	lhs := model.NewTupleExpr(make([]model.Expr, sortFieldsNr)...)
+	rhs := model.NewTupleExpr(make([]model.Expr, sortFieldsNr)...)
 	for i, searchAfterValue := range searchAfterParsed {
 		lhs.Exprs[i] = searchAfterValue
 		rhs.Exprs[i] = query.SelectCommand.OrderBy[i].Expr
@@ -189,15 +178,8 @@ func (s searchAfterStrategyBasicAndFast) transform(query *model.Query, searchAft
 	}
 
 	newWhereClause := model.NewInfixExpr(lhs, ">", rhs)
-	pp.Println("newWhereClause", newWhereClause, query.SelectCommand.WhereClause)
-	// logger.Debug().Msgf("search_after_ts: %d, query before: %v", searchAfterTs, AsString(query.SelectCommand))
 	query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause, newWhereClause})
-	// logger.Debug().Msgf("query after search_after transformation: %v", AsString(query.SelectCommand))
 	return query, nil
-}
-
-func (s searchAfterStrategyBasicAndFast) doSomethingWithHitsResult(*model.SearchHits) {
-	// no-op
 }
 
 func (s *SchemaCheckPass) applySearchAfterParameter(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {

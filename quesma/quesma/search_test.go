@@ -924,7 +924,7 @@ func TestFullQueryTestWIP(t *testing.T) {
 }
 
 // TestSearchAfterParameter_sortByJustTimestamp simulates user viewing hits in Discover view in Kibana.
-// For simplicity nr of hits is vastly reduced, from e.g. 500 to 3, but that shouldn't change the logic at all.
+// For simplicity nr of hits is vastly reduced, from e.g. usual 500 to 3, but that shouldn't change the logic at all.
 // Rows in DB are as follows (sorted by @timestamp DESC):
 // (t, m1); (t, m2); (t, m3); (t, m4); (t, m5); (t, m6); (t, m7) (7 rows with same timestamp 't')
 // (t-1s, m8); (t-1s, m9); (t-1s, m10) (3 rows with same timestamp 't-1s')
@@ -1034,7 +1034,6 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 				responsePart = responseMap["response"].(model.JsonMap)
 			}
 
-			pp.Println(responsePart)
 			hits := responsePart["hits"].(model.JsonMap)["hits"].([]any)
 			assert.Len(t, hits, len(iteration.resultRowsFromDB))
 			for i, hit := range hits {
@@ -1060,12 +1059,13 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 }
 
 // TestSearchAfterParameter_sortByJustOneStringField simulates user viewing hits in Discover view in Kibana.
-// For simplicity nr of hits is vastly reduced, from e.g. 500 to 3, but that shouldn't change the logic at all.
+// For simplicity nr of hits is vastly reduced, from e.g. usual 500 to 3, but that shouldn't change the logic at all.
 // Rows in DB are as follows (sorted by message ASC):
 // - 5x "m1",
 // - 2x "m2",
 // - 1x "m3's", (TODO add some special character, so m3 -> m3's after https://github.com/QuesmaOrg/quesma/pull/1114)
 // - 1x "m4", "m5", ...
+//
 // We send 4 requests, simulating user scrolling through hits.
 func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 	fields := map[schema.FieldName]schema.Field{
@@ -1102,7 +1102,7 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 			resultRowsFromDB: []any{"m2", "m2", "m3"},
 		},
 		{
-			request:          `{"search_after": ["m3"], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "desc"}}]}`,
+			request:          `{"search_after": ["m3"], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
 			expectedSQL:      `SELECT "message" FROM __quesma_table_name WHERE "message">'m3' ORDER BY "message" ASC LIMIT 3`,
 			resultRowsFromDB: []any{"m4", "m5", "m6"},
 		},
@@ -1118,7 +1118,7 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 		defer db.Close()
 		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
 
-		for _, iteration := range iterations[:2] {
+		for _, iteration := range iterations {
 			rows := sqlmock.NewRows([]string{"message"})
 			for _, row := range iteration.resultRowsFromDB {
 				rows.AddRow(row)
@@ -1147,7 +1147,6 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 				responsePart = responseMap["response"].(model.JsonMap)
 			}
 
-			pp.Println(responsePart)
 			hits := responsePart["hits"].(model.JsonMap)["hits"].([]any)
 			assert.Len(t, hits, len(iteration.resultRowsFromDB))
 			for i, hit := range hits {
@@ -1173,7 +1172,7 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 }
 
 // TestSearchAfterParameter_sortByMultipleFields simulates user viewing hits in Discover view in Kibana.
-// For simplicity nr of hits is vastly reduced, from e.g. 500 to 3, but that shouldn't change the logic at all.
+// For simplicity nr of hits is vastly reduced, from e.g. usual 500 to 3, but that shouldn't change the logic at all.
 // Rows in DB are as follows (properly sorted)
 // (@timestamp, message, bicep_size):
 // (t, m1, 1); (t, m2, 2); (t, m3, 3);
@@ -1307,7 +1306,6 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 				responsePart = responseMap["response"].(model.JsonMap)
 			}
 
-			pp.Println(responsePart)
 			hits := responsePart["hits"].(model.JsonMap)["hits"].([]any)
 			assert.Len(t, hits, len(iteration.resultRowsFromDB))
 			for i, hit := range hits {
@@ -1335,7 +1333,7 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 }
 
 // TestSearchAfterParameter_sortByNoField simulates user viewing hits in Discover view in Kibana.
-// For simplicity nr of hits is vastly reduced, from e.g. 500 to 3, but that shouldn't change the logic at all.
+// For simplicity nr of hits is vastly reduced, from e.g. usual 500 to 3, but that shouldn't change the logic at all.
 //
 // When data view has no timestamp field, by default Kibana will send sort: [{"_score": {"order": "desc"}}] request.
 // And hits response will have no sort field.
