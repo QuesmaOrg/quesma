@@ -143,7 +143,7 @@ func (query Terms) UpdateFieldForIncludeAndExclude(field model.Expr) (updatedFie
 		switch exclude := query.exclude.(type) {
 		case string: // hard case, might be regex
 			funcName, patternExpr := regex.ToClickhouseExpr(exclude)
-			return ifOrNull(model.NewInfixExpr(field, funcName, patternExpr)), true
+			return ifOrNull(model.NewInfixExpr(field, "NOT "+funcName, patternExpr)), true
 		default: // easy case, never regex
 			return ifOrNull(model.NewInfixExpr(field, "!=", model.NewLiteral(query.exclude))), true
 		}

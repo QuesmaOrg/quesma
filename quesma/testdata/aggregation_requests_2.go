@@ -4853,6 +4853,58 @@ var AggregationTests2 = []AggregationTestCase{
 			LIMIT 2`,
 	},
 	{ // [73]
+		TestName: "simplest terms with exclude (of strings), regression test",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"1": {
+					"terms": {
+						"field": "agi_birth_year", 
+						"size": 1,
+						"exclude": ["abc"]
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		// I omit "took", "timed_out", "_shards", and "hits" from the response for brevity (they can also be easily unit-tested)
+		ExpectedResponse: `
+		{
+			"aggregations": {
+				"1": {
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 700,
+					"buckets": [
+						{
+							"key": 2024,
+							"doc_count": 300
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__parent_count", int64(1000)),
+				model.NewQueryResultCol("aggr__1__key_0", nil),
+				model.NewQueryResultCol("aggr__1__count", int64(600)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__parent_count", int64(1000)),
+				model.NewQueryResultCol("aggr__1__key_0", 2024),
+				model.NewQueryResultCol("aggr__1__count", int64(300)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__1__parent_count",
+			  "agi_birth_year" AS "aggr__1__key_0", count(*) AS "aggr__1__count"
+			FROM __quesma_table_name
+			GROUP BY "agi_birth_year" AS "aggr__1__key_0"
+			ORDER BY "aggr__1__count" DESC, "aggr__1__key_0" ASC
+			LIMIT 2`,
+	},
+	{ // [74]
 		TestName: "terms with exclude (more complex, string field with exclude regex)",
 		// One simple test, for more regex tests see util/regex unit tests
 		QueryRequestJson: `
@@ -4906,7 +4958,7 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__1__count" DESC, "aggr__1__key_0" ASC
 			LIMIT 2`,
 	},
-	{ // [74]
+	{ // [75]
 		TestName: "complex terms with exclude: nested terms + 2 metrics",
 		QueryRequestJson: `
 		{
@@ -5084,7 +5136,7 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__terms1__order_1_rank" ASC,
 			  "aggr__terms1__terms2__order_1_rank" ASC`,
 	},
-	{ // [75]
+	{ // [76]
 		TestName: "terms with exclude, but with branched off aggregation tree",
 		// One simple test, for more regex tests see util/regex unit tests
 		QueryRequestJson: `
