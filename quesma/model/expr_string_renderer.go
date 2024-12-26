@@ -79,7 +79,7 @@ func (v *renderer) VisitTuple(t TupleExpr) interface{} {
 		logger.WarnWithThrottling("visitTuple", "tupleExpr with no expressions") // hacky way to log this
 		return "tuple()"
 	case 1:
-		return t.Exprs[0]
+		return exprs[0]
 	default:
 		return fmt.Sprintf("tuple(%s)", strings.Join(exprs, ", ")) // can omit "tuple", but I think SQL's more readable with it
 	}

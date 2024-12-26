@@ -28,7 +28,7 @@ func Test_validateAndParse(t *testing.T) {
 		{[]any{1.0}, true, true},
 		{[]any{1.1}, false, false},
 		{[]any{-1}, false, false},
-		{[]any{1, 3}, true, false},
+		{[]any{1, "abc"}, true, true},
 		{"string is bad", false, false},
 	}
 
@@ -37,6 +37,9 @@ func Test_validateAndParse(t *testing.T) {
 		t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
 			query := &model.Query{}
 			query.SelectCommand.OrderBy = []model.OrderByExpr{model.NewOrderByExprWithoutOrder(model.NewColumnRef("@timestamp"))}
+			if arr, ok := tc.searchAfter.([]any); ok && len(arr) == 2 {
+				query.SelectCommand.OrderBy = append(query.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(model.NewColumnRef("message")))
+			}
 			query.SearchAfter = tc.searchAfter
 			_, err := strategy.validateAndParse(query, Schema)
 			if (err == nil) != tc.isInputFineBasicAndFastStrategy {
