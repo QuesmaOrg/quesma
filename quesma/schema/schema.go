@@ -18,6 +18,7 @@ type (
 	Schema struct {
 		Fields             map[FieldName]Field
 		Aliases            map[FieldName]FieldName
+		primaryKey         *FieldName // nil if no primary key
 		ExistsInDataSource bool
 
 		// DatabaseName is the name of the database/schema in the data source,
@@ -80,4 +81,8 @@ func (s Schema) ResolveField(fieldName string) (Field, bool) {
 	}
 	field, exists := s.Fields[FieldName(fieldName)]
 	return field, exists
+}
+
+func (s Schema) GetPrimaryKey() *FieldName {
+	return s.primaryKey
 }
