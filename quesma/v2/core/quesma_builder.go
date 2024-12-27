@@ -87,7 +87,7 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 		}
 		for pipelineIndex, _ := range quesma.pipelines {
 			for frontendConnectorIndex := range quesma.pipelines[pipelineIndex].GetFrontendConnectors() {
-				quesma.pipelines[pipelineIndex].GetFrontendConnectors()[frontendConnectorIndex].SetListener(quesma.pipelines[0].GetFrontendConnectors()[0])
+				quesma.pipelines[pipelineIndex].GetFrontendConnectors()[frontendConnectorIndex].SetConnector(quesma.pipelines[0].GetFrontendConnectors()[0])
 			}
 		}
 	}

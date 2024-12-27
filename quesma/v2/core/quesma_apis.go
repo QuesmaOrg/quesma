@@ -25,8 +25,16 @@ type Router interface {
 
 type FrontendConnector interface {
 	InstanceNamer
-	SetListener(listener FrontendConnector)
-	Listener() FrontendConnector
+	// SetConnector sets the connector
+	// Connectors are the components that listen for incoming requests
+	// They can be shared for instance in the case when
+	// the same tcp port is used
+	// SetConnector and Connector are used to set and get the connector
+	// and merge the connectors
+	SetConnector(listener FrontendConnector)
+	// Connector returns the connector
+	Connector() FrontendConnector
+	// Listen starts listening on the endpoint
 	Listen() error // Start listening on the endpoint
 	GetEndpoint() string
 	Stop(ctx context.Context) error // Stop listening

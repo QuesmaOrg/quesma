@@ -71,7 +71,12 @@ func (p *Pipeline) Start() {
 	// however, bind error remains
 	for _, conn := range p.FrontendConnectors {
 		p.logger.Info().Msgf("Starting frontend connector %s", conn)
-		go conn.Listener().Listen()
+		go func() {
+			err := conn.Connector().Listen()
+			if err != nil {
+				p.logger.Error().Err(err).Msgf("Failed to start frontend connector %s", conn)
+			}
+		}()
 	}
 }
 
