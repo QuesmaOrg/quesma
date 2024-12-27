@@ -23,14 +23,11 @@ type Router interface {
 	Matches(req *Request) (*HandlersPipe, *Decision)
 }
 
+// FrontendConnector is the components that listen for incoming requests
+// They can be shared between multiple pipelines
 type FrontendConnector interface {
 	InstanceNamer
 	// SetConnector sets the connector
-	// Connectors are the components that listen for incoming requests
-	// They can be shared for instance in the case when
-	// the same tcp port is used
-	// SetConnector and Connector are used to set and get the connector
-	// and merge the connectors
 	SetConnector(listener FrontendConnector)
 	// Connector returns the connector
 	Connector() FrontendConnector
