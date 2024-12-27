@@ -487,7 +487,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewFunction("sumOrNull", model.NewFunction("arrayJoin", model.NewColumnRef("products_quantity"))),
+						model.NewAliasedExpr(model.NewFunction("sumOrNull", model.NewFunction("arrayJoin", model.NewColumnRef("products_quantity"))), "column_1"),
 					},
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
 				},
@@ -521,7 +521,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewCountFunc(),
+						model.NewAliasedExpr(model.NewCountFunc(), "column_1"),
 					},
 					WhereClause: model.NewFunction(
 						"arrayExists",
@@ -559,7 +559,7 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewCountFunc(),
+						model.NewAliasedExpr(model.NewCountFunc(), "column_1"),
 					},
 					WhereClause: model.NewFunction(
 						"has",

@@ -38,6 +38,10 @@ type MySqlBackendConnector struct {
 	connection *sql.DB
 }
 
+func (p *MySqlBackendConnector) InstanceName() string {
+	return "mysql"
+}
+
 func (p *MySqlBackendConnector) GetId() quesma_api.BackendConnectorType {
 	return quesma_api.MySQLBackend
 }

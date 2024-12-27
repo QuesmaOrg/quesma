@@ -4,7 +4,6 @@ package quesma
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"quesma/ab_testing"
 	"quesma/clickhouse"
@@ -15,10 +14,8 @@ import (
 	"quesma/queryparser"
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
-	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
-	"quesma/telemetry"
 	"quesma/util"
 	quesma_api "quesma_v2/core"
 	"strconv"
@@ -29,14 +26,12 @@ const concurrentClientsLimitV2 = 100 // FIXME this should be configurable
 
 type simultaneousClientsLimiterV2 struct {
 	counter atomic.Int64
-	handler http.Handler
 	limit   int64
 }
 
-func newSimultaneousClientsLimiterV2(handler http.Handler, limit int64) *simultaneousClientsLimiterV2 {
+func newSimultaneousClientsLimiterV2(limit int64) *simultaneousClientsLimiterV2 {
 	return &simultaneousClientsLimiterV2{
-		handler: handler,
-		limit:   limit,
+		limit: limit,
 	}
 }
 
@@ -52,11 +47,10 @@ func (c *simultaneousClientsLimiterV2) ServeHTTP(w http.ResponseWriter, r *http.
 
 	c.counter.Add(1)
 	defer c.counter.Add(-1)
-	c.handler.ServeHTTP(w, r)
 }
 
 type dualWriteHttpProxyV2 struct {
-	routingHttpServer   *http.Server
+	quesmaV2            quesma_api.QuesmaBuilder
 	indexManagement     elasticsearch.IndexManagement
 	logManager          *clickhouse.LogManager
 	publicPort          util.Port
@@ -70,8 +64,9 @@ func (q *dualWriteHttpProxyV2) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
-	queryProcessor := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, registry, abResultsRepository, resolver, schemaLoader)
+func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
+
+	queryProcessor := NewQueryRunner(logManager, config, indexManager, dependencies.DebugInfoCollector(), registry, abResultsRepository, resolver, schemaLoader)
 
 	// not sure how we should configure our query translator ???
 	// is this a config option??
@@ -81,51 +76,42 @@ func newDualWriteProxyV2(schemaLoader clickhouse.TableDiscovery, logManager *cli
 	// tests should not be run with optimization enabled by default
 	queryProcessor.EnableQueryOptimization(config)
 
-	routerInstance := frontend_connectors.NewRouterV2(config,
-		quesmaManagementConsole, agent)
+	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver)
+	searchRouter := ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
 
-	agent.FailedRequestsCollector(func() int64 {
-		return routerInstance.FailedRequests.Load()
-	})
+	elasticHttpIngestFrontendConnector := frontend_connectors.NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
+		logManager, registry, config, ingestRouter)
 
-	ingestRouter := ConfigureIngestRouterV2(config, ingestProcessor, agent, resolver)
-	searchRouter := ConfigureSearchRouterV2(config, registry, logManager, quesmaManagementConsole, queryProcessor, resolver)
+	elasticHttpQueryFrontendConnector := frontend_connectors.NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
+		logManager, registry, config, searchRouter)
 
-	elasticHttpIngestFrontendConnector := NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		routerInstance, logManager, registry, agent)
-	elasticHttpIngestFrontendConnector.AddRouter(ingestRouter)
-
-	elasticHttpQueryFrontendConnector := NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
-		routerInstance, logManager, registry, agent)
-	elasticHttpQueryFrontendConnector.AddRouter(searchRouter)
-
-	quesmaBuilder := quesma_api.NewQuesma()
+	quesmaBuilder := quesma_api.NewQuesma(dependencies)
 	ingestPipeline := quesma_api.NewPipeline()
 	ingestPipeline.AddFrontendConnector(elasticHttpIngestFrontendConnector)
 
 	queryPipeline := quesma_api.NewPipeline()
 	queryPipeline.AddFrontendConnector(elasticHttpQueryFrontendConnector)
-	quesmaBuilder.AddPipeline(ingestPipeline)
 	quesmaBuilder.AddPipeline(queryPipeline)
-	_, err := quesmaBuilder.Build()
+	quesmaBuilder.AddPipeline(ingestPipeline)
+
+	quesmaV2, err := quesmaBuilder.Build()
 	if err != nil {
 		logger.Fatal().Msgf("Error building Quesma: %v", err)
 	}
-
-	var limitedHandler http.Handler
 	if config.DisableAuth {
-		limitedHandler = newSimultaneousClientsLimiterV2(elasticHttpIngestFrontendConnector, concurrentClientsLimitV2)
+		elasticHttpIngestFrontendConnector.AddMiddleware(newSimultaneousClientsLimiterV2(concurrentClientsLimitV2))
+		elasticHttpQueryFrontendConnector.AddMiddleware(newSimultaneousClientsLimiterV2(concurrentClientsLimitV2))
 	} else {
-		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(elasticHttpIngestFrontendConnector, config.Elasticsearch), concurrentClientsLimitV2)
+		elasticHttpQueryFrontendConnector.AddMiddleware(newSimultaneousClientsLimiterV2(concurrentClientsLimitV2))
+		elasticHttpQueryFrontendConnector.AddMiddleware(NewAuthMiddlewareV2(config.Elasticsearch))
+		elasticHttpIngestFrontendConnector.AddMiddleware(newSimultaneousClientsLimiterV2(concurrentClientsLimitV2))
+		elasticHttpIngestFrontendConnector.AddMiddleware(NewAuthMiddlewareV2(config.Elasticsearch))
 	}
 
 	return &dualWriteHttpProxyV2{
-		schemaRegistry: registry,
-		schemaLoader:   schemaLoader,
-		routingHttpServer: &http.Server{
-			Addr:    ":" + strconv.Itoa(int(config.PublicTcpPort)),
-			Handler: limitedHandler,
-		},
+		schemaRegistry:  registry,
+		schemaLoader:    schemaLoader,
+		quesmaV2:        quesmaV2,
 		indexManagement: indexManager,
 		logManager:      logManager,
 		publicPort:      config.PublicTcpPort,
@@ -147,9 +133,7 @@ func (q *dualWriteHttpProxyV2) Close(ctx context.Context) {
 	if q.asyncQueriesEvictor != nil {
 		q.asyncQueriesEvictor.Close()
 	}
-	if err := q.routingHttpServer.Shutdown(ctx); err != nil {
-		logger.Fatal().Msgf("Error during server shutdown: %v", err)
-	}
+	q.quesmaV2.Stop(ctx)
 }
 
 func (q *dualWriteHttpProxyV2) Ingest() {
@@ -157,10 +141,5 @@ func (q *dualWriteHttpProxyV2) Ingest() {
 	q.logManager.Start()
 	q.indexManagement.Start()
 	go q.asyncQueriesEvictor.AsyncQueriesGC()
-	go func() {
-		if err := q.routingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Fatal().Msgf("Error starting http server: %v", err)
-		}
-		logger.Info().Msgf("Accepting HTTP at :%d", q.publicPort)
-	}()
+	q.quesmaV2.Start()
 }

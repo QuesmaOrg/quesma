@@ -5,7 +5,12 @@ package quesma_api
 import (
 	"context"
 	"net"
+	"net/http"
 )
+
+type InstanceNamer interface {
+	InstanceName() string
+}
 
 type Router interface {
 	Cloner
@@ -19,6 +24,7 @@ type Router interface {
 }
 
 type FrontendConnector interface {
+	InstanceNamer
 	Listen() error // Start listening on the endpoint
 	GetEndpoint() string
 	Stop(ctx context.Context) error // Stop listening
@@ -26,8 +32,13 @@ type FrontendConnector interface {
 
 type HTTPFrontendConnector interface {
 	FrontendConnector
+	// AddRouter adds a router to the HTTPFrontendConnector
 	AddRouter(router Router)
 	GetRouter() Router
+	// AddMiddleware adds a middleware to the HTTPFrontendConnector.
+	// The middleware chain is executed in the order it is added
+	// and before the router is executed.
+	AddMiddleware(middleware http.Handler)
 }
 
 type TCPFrontendConnector interface {
@@ -65,6 +76,7 @@ type QuesmaBuilder interface {
 }
 
 type Processor interface {
+	InstanceNamer
 	CompoundProcessor
 	GetId() string
 	Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error)
@@ -82,6 +94,7 @@ type Rows interface {
 }
 
 type BackendConnector interface {
+	InstanceNamer
 	GetId() BackendConnectorType
 	Open() error
 	// Query executes a query that returns rows, typically a SELECT.

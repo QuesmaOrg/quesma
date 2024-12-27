@@ -18,8 +18,8 @@ import (
 	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/table_resolver"
-	"quesma/telemetry"
 	"quesma/util"
+	"quesma_v2/core/diag"
 	tracing "quesma_v2/core/tracing"
 	"regexp"
 	"testing"
@@ -94,7 +94,7 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 		Created: true,
 	}
 	tableResolver := table_resolver.NewEmptyTableResolver()
-	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, tableResolver)
+	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, tableResolver)
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, util.NewSyncMapWith(testTableName, table))
@@ -119,7 +119,7 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 			},
 		},
 	}
-	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(testTableName)]}
+	qt := &queryparser.ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(testTableName)]}
 	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
 	expectedQuery1 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`
 	expectedQuery2 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`
@@ -128,7 +128,7 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 	mock.ExpectQuery(fmt.Sprintf("%s|%s", regexp.QuoteMeta(expectedQuery1), regexp.QuoteMeta(expectedQuery2))).
 		WillReturnRows(sqlmock.NewRows([]string{"client_name"}).AddRow("client_a").AddRow("client_b"))
 
-	resp, err := handleTermsEnumRequest(ctx, types.MustJSON(string(requestBody)), qt, managementConsole)
+	resp, err := handleTermsEnumRequest(ctx, types.MustJSON(string(requestBody)), lm, qt, managementConsole)
 	assert.NoError(t, err)
 
 	var responseModel model.TermsEnumResponse

@@ -310,7 +310,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 			  AND "message" iLIKE '%user%') AND "message" IS NOT NULL)
 			ORDER BY "@timestamp" DESC
 			LIMIT 100`,
-			`SELECT count(*)
+			`SELECT count(*) AS "column_0"
 			FROM __quesma_table_name
 			WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)) 
 			  AND "message" iLIKE '%user%') AND "message" IS NOT NULL)`,
@@ -988,7 +988,7 @@ var TestsSearch = []SearchTestCase{
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" FROM ` + TableName + ` WHERE "type"='task' LIMIT 10`,
-			`SELECT count(*) FROM ` + TableName,
+			`SELECT count(*) AS "column_0" FROM ` + TableName,
 		},
 		[]string{},
 	},
@@ -1018,7 +1018,7 @@ var TestsSearch = []SearchTestCase{
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" FROM ` + TableName + ` WHERE ("type"='task' AND "task.enabled" IN (true,54)) LIMIT 10`,
-			`SELECT count(*) FROM ` + TableName,
+			`SELECT count(*) AS "column_0" FROM ` + TableName,
 		},
 		[]string{},
 	},
@@ -1060,7 +1060,7 @@ var TestsSearch = []SearchTestCase{
 			`SELECT "message" FROM ` + TableName + ` WHERE ("message" iLIKE '%user%' ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1705487298815) AND "@timestamp"<=fromUnixTimestamp64Milli(1705488198815))) ` +
 				`LIMIT 10`,
-			`SELECT count(*) FROM ` + TableName,
+			`SELECT count(*) AS "column_0" FROM ` + TableName,
 		},
 		[]string{},
 	},
@@ -1099,7 +1099,7 @@ var TestsSearch = []SearchTestCase{
 			`SELECT "message" FROM ` + TableName + ` WHERE ((("user.id"='kimchy' AND "tags"='production') ` +
 				`AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age".=.0 AND "age".=.0))) ` +
 				`LIMIT 10`,
-			`SELECT count(*) FROM ` + TableName + ` ` +
+			`SELECT count(*) AS "column_0" FROM ` + TableName + ` ` +
 				`WHERE ((("user.id"='kimchy' AND "tags"='production') ` +
 				`AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age".=.0 AND "age".=.0)))`,
 		},
@@ -1384,7 +1384,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{""},
 		model.ListAllFields,
 		[]string{
-			`SELECT count(*) FROM ` + TableName,
+			`SELECT count(*) AS "column_0" FROM ` + TableName,
 			`SELECT "message" FROM ` + TableName,
 		},
 		[]string{},
@@ -1974,7 +1974,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{""},
 		model.ListByField,
 		[]string{
-			`SELECT count(*) FROM ` + TableName,
+			`SELECT count(*) AS "column_0" FROM ` + TableName,
 			`SELECT "message" FROM ` + TableName + ` LIMIT 500`,
 		},
 		[]string{},
@@ -1993,7 +1993,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{``},
 		model.ListAllFields,
 		[]string{
-			`SELECT count(*) FROM ` + TableName,
+			`SELECT count(*) AS "column_0" FROM ` + TableName,
 			`SELECT "message" FROM ` + TableName + ` LIMIT 10`,
 		},
 		[]string{},
@@ -2049,7 +2049,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{``},
 		model.ListAllFields,
 		[]string{
-			`SELECT count(*) FROM ` + TableName,
+			`SELECT count(*) AS "column_0" FROM ` + TableName,
 			`SELECT "message" FROM ` + TableName,
 		},
 		[]string{},
@@ -2094,7 +2094,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{""},
 		model.ListAllFields,
 		[]string{
-			`SELECT count(*) FROM (SELECT 1 FROM ` + TableName + ` LIMIT 10000)`,
+			`SELECT count(*) AS "column_0" FROM (SELECT 1 FROM ` + TableName + ` LIMIT 10000)`,
 			`SELECT "message" FROM __quesma_table_name LIMIT 10`,
 		},
 		[]string{},
@@ -2316,6 +2316,69 @@ var TestsSearch = []SearchTestCase{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE "field" REGEXP 'a\?' ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [40]
+		"ids, 0 values",
+		`{
+			"query": {
+				"ids": {
+					 "values": []
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`false`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE false ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [41]
+		"ids, 1 value",
+		`{
+			"query": {
+				"ids": {
+					 "values": ["323032342d31322d32312030373a32393a30332e333637202b3030303020555443q1"]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3)`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3) ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [42]
+		"ids, 2+ values",
+		`{
+			"query": {
+				"ids": {
+					 "values": [
+						"323032342d31322d32312030373a32393a30332e333637202b3030303020555443q1",
+						"323032342d31322d32312030373a32393a30322e393932202b3030303020555443q3"
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"@timestamp" IN tuple(toDateTime64('2024-12-21 07:29:03.367',3), toDateTime64('2024-12-21 07:29:02.992',3))`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE "@timestamp" IN tuple(toDateTime64('2024-12-21 07:29:03.367',3), toDateTime64('2024-12-21 07:29:02.992',3)) ` +
 				`LIMIT 10`,
 		},
 		[]string{},
