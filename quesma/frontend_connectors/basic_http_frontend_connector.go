@@ -6,6 +6,7 @@ package frontend_connectors
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"quesma/clickhouse"
@@ -135,8 +136,7 @@ func (h *BasicHTTPFrontendConnector) Listen() error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 	if h.listener != nil {
-		// TODO handle this gracefully and return correct error
-		return nil
+		return errors.New("listener already started")
 	}
 	h.listener = &http.Server{}
 	h.listener.Addr = h.endpoint
