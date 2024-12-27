@@ -16,8 +16,17 @@ import (
 )
 
 type SchemaCheckPass struct {
-	cfg            *config.QuesmaConfiguration
-	tableDiscovery clickhouse.TableDiscovery
+	cfg                 *config.QuesmaConfiguration
+	tableDiscovery      clickhouse.TableDiscovery
+	searchAfterStrategy searchAfterStrategy
+}
+
+func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery clickhouse.TableDiscovery, strategyType searchAfterStrategyType) *SchemaCheckPass {
+	return &SchemaCheckPass{
+		cfg:                 cfg,
+		tableDiscovery:      tableDiscovery,
+		searchAfterStrategy: searchAfterStrategyFactory(strategyType),
+	}
 }
 
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
@@ -901,6 +910,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
+		{TransformationName: "ApplySearchAfterParameter", Transformation: s.applySearchAfterParameter},
 
 		// Section 3: clickhouse specific transformations
 		{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse},

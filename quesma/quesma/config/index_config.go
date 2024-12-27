@@ -19,6 +19,7 @@ type IndexConfiguration struct {
 	Override        string                            `koanf:"tableName"` // use method TableName()
 	UseCommonTable  bool                              `koanf:"useCommonTable"`
 	Target          any                               `koanf:"target"`
+	PrimaryKey      *string                           `koanf:"primaryKey"`
 
 	// Computed based on the overall configuration
 	QueryTarget  []string
@@ -51,6 +52,10 @@ func (c IndexConfiguration) String(indexName string) string {
 		builder.WriteString(c.SchemaOverrides.String())
 		builder.WriteString("\n\t\t\t")
 	} else {
+		builder.WriteString("\n\t\t\t")
+	}
+	if c.PrimaryKey != nil {
+		builder.WriteString("primaryKey: " + *c.PrimaryKey)
 		builder.WriteString("\n\t\t\t")
 	}
 	if len(c.Override) > 0 {
