@@ -18,7 +18,8 @@ func ToClickhouseExpr(pattern string) (clickhouseFuncName string, patternExpr mo
 		}
 		// .* allowed, but [any other char]* - not
 		for i, char := range pattern[1:] {
-			if char == '*' && pattern[i] != '.' {
+			prevChar := pattern[i]
+			if char == '*' && prevChar != '.' {
 				return false
 			}
 		}

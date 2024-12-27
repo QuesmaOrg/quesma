@@ -4859,7 +4859,7 @@ var AggregationTests2 = []AggregationTestCase{
 			"aggs": {
 				"1": {
 					"terms": {
-						"field": "agi_birth_year", 
+						"field": "chess_goat", 
 						"size": 1,
 						"exclude": ["abc"]
 					}
@@ -4898,9 +4898,10 @@ var AggregationTests2 = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__1__parent_count",
-			  "agi_birth_year" AS "aggr__1__key_0", count(*) AS "aggr__1__count"
+			  if("chess_goat" NOT IN 'abc', "chess_goat", NULL) AS "aggr__1__key_0",
+			  count(*) AS "aggr__1__count"
 			FROM __quesma_table_name
-			GROUP BY "agi_birth_year" AS "aggr__1__key_0"
+			GROUP BY if("chess_goat" NOT IN 'abc', "chess_goat", NULL) AS "aggr__1__key_0"
 			ORDER BY "aggr__1__count" DESC, "aggr__1__key_0" ASC
 			LIMIT 2`,
 	},
@@ -4951,10 +4952,10 @@ var AggregationTests2 = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__1__parent_count",
-			  if("chess_goat" LIKE 'K%', "chess_goat", NULL) AS "aggr__1__key_0",
+			  if("chess_goat" NOT LIKE 'K%', "chess_goat", NULL) AS "aggr__1__key_0",
 			  count(*) AS "aggr__1__count"
 			FROM __quesma_table_name
-			GROUP BY if("chess_goat" LIKE 'K%', "chess_goat", NULL) AS "aggr__1__key_0"
+			GROUP BY if("chess_goat" NOT LIKE 'K%', "chess_goat", NULL) AS "aggr__1__key_0"
 			ORDER BY "aggr__1__count" DESC, "aggr__1__key_0" ASC
 			LIMIT 2`,
 	},
@@ -5060,7 +5061,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__terms1__terms2__count", int64(173)),
 				model.NewQueryResultCol("metric__terms1__terms2__metric2_col_0", 102370.42402648926),
 			}},
-			{Cols: []model.QueryResultCol{ // should be discarded by us because of size=1§
+			{Cols: []model.QueryResultCol{ // should be discarded by us because of terms2's size=1
 				model.NewQueryResultCol("aggr__terms1__parent_count", int64(13014)),
 				model.NewQueryResultCol("aggr__terms1__key_0", "Logstash Airways"),
 				model.NewQueryResultCol("aggr__terms1__count", int64(3323)),
@@ -5080,7 +5081,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__terms1__terms2__count", int64(167)),
 				model.NewQueryResultCol("metric__terms1__terms2__metric2_col_0", 92215.763779),
 			}},
-			{Cols: []model.QueryResultCol{ // should be discarded by us because of size=1
+			{Cols: []model.QueryResultCol{ // should be discarded by us because of terms2's size=1
 				model.NewQueryResultCol("aggr__terms1__parent_count", int64(13014)),
 				model.NewQueryResultCol("aggr__terms1__key_0", "JetBeats"),
 				model.NewQueryResultCol("aggr__terms1__count", int64(3261)),
@@ -5090,7 +5091,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__terms1__terms2__count", int64(147)),
 				model.NewQueryResultCol("metric__terms1__terms2__metric2_col_0", 90242.31663285477),
 			}},
-			{Cols: []model.QueryResultCol{ // should be discarded by us because of size=2
+			{Cols: []model.QueryResultCol{ // should be discarded by us because of terms1's size=2
 				model.NewQueryResultCol("aggr__terms1__parent_count", int64(13014)),
 				model.NewQueryResultCol("aggr__terms1__key_0", "Kibana Airlines"),
 				model.NewQueryResultCol("aggr__terms1__count", int64(3219)),
@@ -5138,7 +5139,6 @@ var AggregationTests2 = []AggregationTestCase{
 	},
 	{ // [76]
 		TestName: "terms with exclude, but with branched off aggregation tree",
-		// One simple test, for more regex tests see util/regex unit tests
 		QueryRequestJson: `
 		{
 			"aggs": {

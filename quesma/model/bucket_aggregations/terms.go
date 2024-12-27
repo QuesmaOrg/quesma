@@ -15,12 +15,12 @@ import (
 type Terms struct {
 	ctx         context.Context
 	significant bool // true <=> significant_terms, false <=> terms
-	// Either:
+	// include is either:
 	//   - single value: then for strings, it can be a regex.
 	//   - array: then field must match exactly one of the values (never a regex)
 	// Nil if missing in request.
 	include any
-	// Either:
+	// exclude is either:
 	//   - single value: then for strings, it can be a regex.
 	//   - array: then field must match exactly one of the values (never a regex)
 	// Nil if missing in request.
@@ -119,12 +119,13 @@ func (query Terms) parentCount(row model.QueryResultRow) any {
 	return row.Cols[len(row.Cols)-3].Value
 }
 
-func (query Terms) UpdateFieldForIncludeAndExclude(field model.Expr) (updatedField model.Expr, didWeUpdate bool) {
+func (query Terms) UpdateFieldForIncludeAndExclude(field model.Expr) (updatedField model.Expr, didWeUpdateField bool) {
 	// We'll use here everywhere Clickhouse 'if' function: if(condition, then, else)
-	// In our case: if(condition that field is not excluded, field, NULL)
+	// In our case field becomes: if(condition that field is not excluded, field, NULL)
 	ifOrNull := func(condition model.Expr) model.FunctionExpr {
 		return model.NewFunction("if", condition, field, model.NullExpr)
 	}
+
 	hasExclude := query.exclude != nil
 	excludeArr, excludeIsArray := query.exclude.([]any)
 	switch {
@@ -149,7 +150,7 @@ func (query Terms) UpdateFieldForIncludeAndExclude(field model.Expr) (updatedFie
 		}
 
 	default:
-		return field, false // TODO implement support for include this in next PR
+		return field, false // TODO implement similar support for 'include' in next PR
 	}
 }
 
@@ -159,14 +160,14 @@ func (query Terms) UpdateFieldForIncludeAndExclude(field model.Expr) (updatedFie
 func CheckParamsTerms(ctx context.Context, paramsRaw any) error {
 	requiredParams := map[string]string{"field": "string"}
 	optionalParams := map[string]string{
-		"size":                      "float64", // TODO should be int, will be fixed
-		"shard_size":                "float64", // TODO should be int, will be fixed
-		"order":                     "order",   // TODO add order type
-		"min_doc_count":             "float64", // TODO should be int, will be fixed
-		"shard_min_doc_count":       "float64", // TODO should be int, will be fixed
+		"size":                      "float64|string", // TODO should be int|string, will be fixed
+		"shard_size":                "float64",        // TODO should be int, will be fixed
+		"order":                     "order",          // TODO add order type
+		"min_doc_count":             "float64",        // TODO should be int, will be fixed
+		"shard_min_doc_count":       "float64",        // TODO should be int, will be fixed
 		"show_term_doc_count_error": "bool",
-		"exclude":                   "not-checking-type-rn-complicated",
-		"include":                   "not-checking-type-rn-complicated",
+		"exclude":                   "not-checking-type-now-complicated",
+		"include":                   "not-checking-type-now-complicated",
 		"collect_mode":              "string",
 		"execution_hint":            "string",
 		"missing":                   "string",
@@ -200,7 +201,7 @@ func CheckParamsTerms(ctx context.Context, paramsRaw any) error {
 			if !isOptional {
 				return fmt.Errorf("unexpected parameter %s found in Terms params %v", paramName, params)
 			}
-			if wantedType == "not-checking-type-rn-complicated" || wantedType == "order" {
+			if wantedType == "not-checking-type-now-complicated" || wantedType == "order" || wantedType == "float64|string" {
 				continue // TODO: add that later
 			}
 			if reflect.TypeOf(params[paramName]).Name() != wantedType { // TODO I'll make a small rewrite to not use reflect here

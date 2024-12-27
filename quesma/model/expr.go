@@ -130,6 +130,7 @@ func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value}
 }
 
+// NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else
 func NewLiteralSingleQuoteString(value any) LiteralExpr {
 	switch v := value.(type) {
 	case string:
