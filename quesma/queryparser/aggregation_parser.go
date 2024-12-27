@@ -160,26 +160,17 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		}, true
 	}
 
-	if rateRaw, exists := queryMap["rate"]; exists {
-		rate, ok := rateRaw.(QueryMap)
-		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("rate is not a map, but %T, value: %v. Skipping.", rate, rate)
+	if rate, exists := queryMap["rate"]; exists {
+		if err := metrics_aggregations.CheckParamsRate(cw.Ctx, rate); err != nil {
+			logger.WarnWithCtx(cw.Ctx).Msgf("rate aggregation has invalid parameters: %v. Skipping.", rate)
 			return metricsAggregation{}, false
 		}
-
-		unit := cw.parseStringField(rate, "unit", "")
-		if metrics_aggregations.NewRateUnit(unit) == metrics_aggregations.Invalid {
-			logger.WarnWithCtx(cw.Ctx).Msgf("unit in rate aggregation is not a valid unit: %s. Skipping.", unit)
-			return metricsAggregation{}, false
-		}
-
-		var fields []model.Expr
-		if field := cw.parseFieldField(rate, "rate"); field != nil {
-			fields = append(fields, field)
-			return metricsAggregation{AggrType: "rate", Fields: fields, unit: unit}, true
-		} else {
-			return metricsAggregation{}, false
-		}
+		return metricsAggregation{
+			AggrType: "rate",
+			Fields:   []model.Expr{cw.parseFieldField(rate, "rate")},
+			// default unit doesn't matter, it's checked in CheckParamsRate, it will never be empty here
+			unit: cw.parseStringField(rate.(JsonMap), "unit", ""),
+		}, true
 	}
 
 	return metricsAggregation{}, false
