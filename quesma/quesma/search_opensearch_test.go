@@ -182,7 +182,7 @@ func TestHighlighter(t *testing.T) {
 	}
 	s := &schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
-			tableName: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
+			tableName: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, "", nil),
 		},
 	}
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)

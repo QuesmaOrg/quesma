@@ -18,7 +18,7 @@ func Test_validateAndParse(t *testing.T) {
 		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 		"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
 	}
-	Schema := schema.NewSchema(fields, true, "")
+	Schema := schema.NewSchema(fields, true, "", nil) // TODO nil?
 
 	var testcases = []struct {
 		searchAfter                     any
@@ -59,7 +59,7 @@ func Test_applySearchAfterParameter(t *testing.T) {
 		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 		"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
 	}
-	Schema := schema.NewSchema(fields, true, "")
+	Schema := schema.NewSchema(fields, true, "", nil) // TODO nil?
 
 	indexConfig := map[string]config.IndexConfiguration{"kibana_sample_data_ecommerce": {}}
 

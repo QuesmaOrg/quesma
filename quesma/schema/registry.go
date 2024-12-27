@@ -45,8 +45,10 @@ type (
 		TableDefinitions() map[string]Table
 		AutodiscoveryEnabled() bool
 	}
+	// TUTAJ
 	Table struct {
 		Columns      map[string]Column
+		PrimaryKey   *string // nil if no primary key
 		DatabaseName string
 	}
 	Column struct {
@@ -83,7 +85,7 @@ func (s *schemaRegistry) loadSchemas() (map[IndexName]Schema, error) {
 			fields := make(map[FieldName]Field)
 			internalToPublicFieldsEncodings := s.getInternalToPublicFieldEncodings(tableName)
 			existsInDataSource := s.populateSchemaFromTableDefinition(definitions, tableName, fields, internalToPublicFieldsEncodings)
-			schemas[IndexName(tableName)] = NewSchema(fields, existsInDataSource, table.DatabaseName)
+			schemas[IndexName(tableName)] = NewSchema(fields, existsInDataSource, table.DatabaseName, nil)
 		}
 	}
 
@@ -99,10 +101,15 @@ func (s *schemaRegistry) loadSchemas() (map[IndexName]Schema, error) {
 		s.removeIgnoredFields(indexConfiguration, fields, aliases)
 		s.removeGeoPhysicalFields(fields)
 		s.populateFieldsOrigins(indexName, fields)
+		var primaryKey *FieldName
+		if indexConfiguration.PrimaryKey != nil {
+			primaryKey = new(FieldName)
+			*primaryKey = FieldName(*indexConfiguration.PrimaryKey)
+		}
 		if tableDefinition, ok := definitions[indexName]; ok {
-			schemas[IndexName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource, tableDefinition.DatabaseName)
+			schemas[IndexName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource, tableDefinition.DatabaseName, primaryKey)
 		} else {
-			schemas[IndexName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource, "")
+			schemas[IndexName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource, "", primaryKey)
 		}
 	}
 

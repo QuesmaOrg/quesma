@@ -38,18 +38,23 @@ type (
 	FieldName string
 )
 
-func NewSchemaWithAliases(fields map[FieldName]Field, aliases map[FieldName]FieldName, existsInDataSource bool, databaseName string) Schema {
-
+func NewSchemaWithAliases(fields map[FieldName]Field, aliases map[FieldName]FieldName, existsInDataSource bool, databaseName string, primaryKey *FieldName) Schema {
 	return Schema{
 		Fields:             fields,
 		Aliases:            aliases,
 		ExistsInDataSource: existsInDataSource,
 		DatabaseName:       databaseName,
+		primaryKey:         primaryKey,
 	}
 }
 
-func NewSchema(fields map[FieldName]Field, existsInDataSource bool, databaseName string) Schema {
-	return NewSchemaWithAliases(fields, map[FieldName]FieldName{}, existsInDataSource, databaseName)
+func NewSchema(fields map[FieldName]Field, existsInDataSource bool, databaseName string, primaryKey *FieldName) Schema {
+	return NewSchemaWithAliases(fields, map[FieldName]FieldName{}, existsInDataSource, databaseName, primaryKey)
+}
+
+func NewPrimaryKey(fieldName string) *FieldName {
+	pk := FieldName(fieldName)
+	return &pk
 }
 
 func (f FieldName) AsString() string {
