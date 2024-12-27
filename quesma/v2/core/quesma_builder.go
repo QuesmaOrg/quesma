@@ -46,7 +46,7 @@ func (quesma *Quesma) Start(ctx context.Context) {
 		activeFrontendConnectors = append(activeFrontendConnectors, fc)
 	}
 	for _, pipeline := range quesma.pipelines {
-		newCtx := context.WithValue(context.Background(), "activeFrontendConnectors", activeFrontendConnectors)
+		newCtx := context.WithValue(ctx, "activeFrontendConnectors", activeFrontendConnectors)
 		quesma.dependencies.Logger().Info().Msgf("Starting pipeline %v", pipeline)
 		pipeline.Start(newCtx)
 		activeFrontendConnectors = make([]FrontendConnector, 0)
