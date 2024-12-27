@@ -148,7 +148,8 @@ func fallbackScenario() quesma_api.QuesmaBuilder {
 func Test_fallbackScenario(t *testing.T) {
 	qBuilder := fallbackScenario()
 	q1, _ := qBuilder.Build()
-	q1.Start()
+	ctx := context.Background()
+	q1.Start(ctx)
 	stop := make(chan os.Signal, 1)
 	testData := []struct {
 		url              string
@@ -161,14 +162,15 @@ func Test_fallbackScenario(t *testing.T) {
 	}
 	emitRequests(stop, t, testData)
 	<-stop
-	q1.Stop(context.Background())
+	q1.Stop(ctx)
 	atomic.LoadInt32(&fallbackCalled)
 	assert.Equal(t, int32(4), fallbackCalled)
 }
 
 func Test_scenario1(t *testing.T) {
 	q1 := ab_testing_scenario()
-	q1.Start()
+	ctx := context.Background()
+	q1.Start(ctx)
 	stop := make(chan os.Signal, 1)
 	testData := []struct {
 		url              string
@@ -185,7 +187,7 @@ doc->IngestProcessor->InnerIngestProcessor2->0ABIngestTestProcessor
 	}
 	emitRequests(stop, t, testData)
 	<-stop
-	q1.Stop(context.Background())
+	q1.Stop(ctx)
 }
 
 var middlewareCallCount int32 = 0
@@ -241,7 +243,8 @@ func Test_middleware(t *testing.T) {
 	{
 		quesmaBuilder := createMiddleWareScenario(true, cfg)
 		quesmaBuilder.Build()
-		quesmaBuilder.Start()
+		ctx := context.Background()
+		quesmaBuilder.Start(ctx)
 		stop := make(chan os.Signal, 1)
 		testData := []struct {
 			url              string
@@ -263,7 +266,8 @@ func Test_middleware(t *testing.T) {
 	{
 		quesmaBuilder := createMiddleWareScenario(false, cfg)
 		quesmaBuilder.Build()
-		quesmaBuilder.Start()
+		ctx := context.Background()
+		quesmaBuilder.Start(ctx)
 		stop := make(chan os.Signal, 1)
 		testData := []struct {
 			url              string

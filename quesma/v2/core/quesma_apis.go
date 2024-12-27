@@ -27,10 +27,6 @@ type Router interface {
 // They can be shared between multiple pipelines
 type FrontendConnector interface {
 	InstanceNamer
-	// SetConnector sets the connector
-	SetConnector(listener FrontendConnector)
-	// Connector returns the connector
-	Connector() FrontendConnector
 	// Listen starts listening on the endpoint
 	Listen() error // Start listening on the endpoint
 	GetEndpoint() string
@@ -71,14 +67,14 @@ type PipelineBuilder interface {
 	GetBackendConnectors() map[BackendConnectorType]BackendConnector
 	CompoundProcessor
 	Build() PipelineBuilder
-	Start()
+	Start(ctx context.Context)
 }
 
 type QuesmaBuilder interface {
 	AddPipeline(pipeline PipelineBuilder)
 	GetPipelines() []PipelineBuilder
 	Build() (QuesmaBuilder, error)
-	Start()
+	Start(ctx context.Context)
 	Stop(ctx context.Context)
 }
 

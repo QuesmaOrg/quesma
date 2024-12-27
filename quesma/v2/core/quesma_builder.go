@@ -9,8 +9,9 @@ import (
 )
 
 type Quesma struct {
-	pipelines    []PipelineBuilder
-	dependencies Dependencies
+	pipelines                []PipelineBuilder
+	dependencies             Dependencies
+	activeFrontendConnectors []FrontendConnector
 }
 
 func NewQuesma(deps Dependencies) *Quesma {
@@ -39,10 +40,16 @@ func (quesma *Quesma) GetPipelines() []PipelineBuilder {
 	return quesma.pipelines
 }
 
-func (quesma *Quesma) Start() {
+func (quesma *Quesma) Start(ctx context.Context) {
+	activeFrontendConnectors := make([]FrontendConnector, 0)
+	for _, fc := range quesma.activeFrontendConnectors {
+		activeFrontendConnectors = append(activeFrontendConnectors, fc)
+	}
 	for _, pipeline := range quesma.pipelines {
+		newCtx := context.WithValue(context.Background(), "activeFrontendConnectors", activeFrontendConnectors)
 		quesma.dependencies.Logger().Info().Msgf("Starting pipeline %v", pipeline)
-		pipeline.Start()
+		pipeline.Start(newCtx)
+		activeFrontendConnectors = make([]FrontendConnector, 0)
 	}
 }
 
@@ -85,11 +92,9 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 				}
 			}
 		}
-		for pipelineIndex, _ := range quesma.pipelines {
-			for frontendConnectorIndex := range quesma.pipelines[pipelineIndex].GetFrontendConnectors() {
-				quesma.pipelines[pipelineIndex].GetFrontendConnectors()[frontendConnectorIndex].SetConnector(quesma.pipelines[0].GetFrontendConnectors()[0])
-			}
-		}
+		quesma.activeFrontendConnectors = make([]FrontendConnector, 0)
+		quesma.activeFrontendConnectors = append(quesma.activeFrontendConnectors, quesma.pipelines[0].GetFrontendConnectors()[0])
+
 	}
 
 	for _, pipeline := range quesma.pipelines {

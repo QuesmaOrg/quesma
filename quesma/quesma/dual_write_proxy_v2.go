@@ -141,5 +141,5 @@ func (q *dualWriteHttpProxyV2) Ingest() {
 	q.logManager.Start()
 	q.indexManagement.Start()
 	go q.asyncQueriesEvictor.AsyncQueriesGC()
-	q.quesmaV2.Start()
+	q.quesmaV2.Start(context.Background())
 }

@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Elastic-2.0
 package quesma_api
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 type Pipeline struct {
 	FrontendConnectors []FrontendConnector
@@ -61,18 +64,12 @@ func (p *Pipeline) Build() PipelineBuilder {
 	return p
 }
 
-func (p *Pipeline) Start() {
-	// TODO connectors for the same endpoint should be sharing the same listener
-	// This is a temporary solution to start all connectors
-	// some of them will fail to start
-	// because the port is already in use
-	// This works well from application perspective
-	// because we are copying routing table from all connectors
-	// however, bind error remains
-	for _, conn := range p.FrontendConnectors {
+func (p *Pipeline) Start(ctx context.Context) {
+	activeFrontendConnectors := ctx.Value("activeFrontendConnectors").([]FrontendConnector)
+	for _, conn := range activeFrontendConnectors {
 		p.logger.Info().Msgf("Starting frontend connector %s", conn)
 		go func() {
-			err := conn.Connector().Listen()
+			err := conn.Listen()
 			if err != nil {
 				p.logger.Error().Err(err).Msgf("Failed to start frontend connector %s", conn)
 			}
