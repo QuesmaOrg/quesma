@@ -5,11 +5,15 @@ package queryparser
 
 import (
 	"fmt"
+	"github.com/H0llyW00dzZ/cidr"
 	"github.com/pkg/errors"
+	"math"
+	"net"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"quesma/util"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,6 +41,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}},
 		{"multi_terms", cw.parseMultiTerms},
 		{"composite", cw.parseComposite},
+		{"ip_range", cw.parseIpRange},
 		{"ip_prefix", cw.parseIpPrefix},
 	}
 
@@ -379,6 +384,48 @@ func (cw *ClickhouseQueryTranslator) parseComposite(aggregation *pancakeAggregat
 	size := cw.parseIntField(params, "size", defaultSize)
 	aggregation.limit = size
 	aggregation.queryType = bucket_aggregations.NewComposite(cw.Ctx, size, baseAggrs)
+	return nil
+}
+
+func (cw *ClickhouseQueryTranslator) parseIpRange(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
+	const defaultKeyed = false
+
+	if err := bucket_aggregations.CheckParamsIpRange(cw.Ctx, params); err != nil {
+		return err
+	}
+
+	rangesRaw := params["ranges"].([]any)
+	ranges := make([]bucket_aggregations.IpInterval, 0, len(rangesRaw))
+	for _, rangeRaw := range rangesRaw {
+		var key *string
+		if keyIfPresent, exists := cw.parseStringFieldExistCheck(rangeRaw.(QueryMap), "key"); exists {
+			key = &keyIfPresent
+		}
+		var begin, end string
+		if maskIfExists, exists := cw.parseStringFieldExistCheck(rangeRaw.(QueryMap), "mask"); exists {
+			_, ipNet, err := net.ParseCIDR(maskIfExists)
+			if err != nil {
+				return err
+			}
+			beginAsInt, endAsInt := cidr.IPv4ToRange(ipNet)
+			begin = util.IntToIpv4(beginAsInt)
+			// endAsInt is inclusive, we do +1, because we need it exclusive
+			if endAsInt != math.MaxUint32 {
+				end = util.IntToIpv4(endAsInt + 1)
+			} else {
+				end = bucket_aggregations.BiggestIpv4 // "255.255.255.255 + 1", so to say (value in compliance with Elastic)
+			}
+			if key == nil {
+				key = &maskIfExists
+			}
+		} else {
+			begin = cw.parseStringField(rangeRaw.(QueryMap), "from", bucket_aggregations.UnboundedInterval)
+			end = cw.parseStringField(rangeRaw.(QueryMap), "to", bucket_aggregations.UnboundedInterval)
+		}
+		ranges = append(ranges, bucket_aggregations.NewIpInterval(begin, end, key))
+	}
+	aggregation.isKeyed = cw.parseBoolField(params, "keyed", defaultKeyed)
+	aggregation.queryType = bucket_aggregations.NewIpRange(cw.Ctx, ranges, cw.parseFieldField(params, "ip_range"), aggregation.isKeyed)
 	return nil
 }
 
