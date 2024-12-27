@@ -6,11 +6,13 @@ package main
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"net/http"
 	"os"
 	"os/signal"
 	"quesma/backend_connectors"
 	"quesma/frontend_connectors"
 	"quesma/processors"
+	"quesma/quesma/config"
 	quesma_api "quesma_v2/core"
 	"sync/atomic"
 	"syscall"
@@ -40,7 +42,8 @@ func Test_backendConnectorValidation(t *testing.T) {
 	var tcpProcessor quesma_api.Processor = processors.NewPostgresToMySqlProcessor()
 	var postgressPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	postgressPipeline.AddProcessor(tcpProcessor)
-	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+
 	const endpoint = "root:password@tcp(127.0.0.1:3306)/test"
 	var mySqlBackendConnector quesma_api.BackendConnector = &backend_connectors.MySqlBackendConnector{
 		Endpoint: endpoint,
@@ -53,7 +56,7 @@ func Test_backendConnectorValidation(t *testing.T) {
 
 var fallbackCalled int32 = 0
 
-func fallback(_ context.Context, _ *quesma_api.Request) (*quesma_api.Result, error) {
+func fallback(_ context.Context, _ *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 	metadata := quesma_api.MakeNewMetadata()
 	atomic.AddInt32(&fallbackCalled, 1)
 	resp := []byte("unknown\n")
@@ -61,9 +64,18 @@ func fallback(_ context.Context, _ *quesma_api.Request) (*quesma_api.Result, err
 }
 
 func ab_testing_scenario() quesma_api.QuesmaBuilder {
-	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
 
-	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
+	cfg := &config.QuesmaConfiguration{
+		DisableAuth: true,
+		Elasticsearch: config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     "",
+			Password: "",
+		},
+	}
+
+	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
 	ingestHTTPRouter := quesma_api.NewPathRouter()
 	ingestHTTPRouter.AddRoute("/_bulk", bulk)
 	ingestHTTPRouter.AddRoute("/_doc", doc)
@@ -81,7 +93,7 @@ func ab_testing_scenario() quesma_api.QuesmaBuilder {
 	ingestPipeline.AddProcessor(ingestProcessor)
 	ingestPipeline.AddProcessor(abIngestTestProcessor)
 
-	queryFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
+	queryFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
 	queryHTTPRouter := quesma_api.NewPathRouter()
 	queryHTTPRouter.AddRoute("/_search", search)
 	queryFrontendConnector.AddRouter(queryHTTPRouter)
@@ -104,9 +116,18 @@ func ab_testing_scenario() quesma_api.QuesmaBuilder {
 }
 
 func fallbackScenario() quesma_api.QuesmaBuilder {
-	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma()
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
 
-	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888")
+	cfg := &config.QuesmaConfiguration{
+		DisableAuth: true,
+		Elasticsearch: config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     "",
+			Password: "",
+		},
+	}
+	ingestFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
+
 	ingestHTTPRouter := quesma_api.NewPathRouter()
 	var fallback quesma_api.HTTPFrontendHandler = fallback
 	ingestHTTPRouter.AddFallbackHandler(fallback)
@@ -114,13 +135,13 @@ func fallbackScenario() quesma_api.QuesmaBuilder {
 	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
 	quesmaBuilder.AddPipeline(ingestPipeline)
-	quesma, _ := quesmaBuilder.Build()
-	quesma.Start()
-	return quesma
+
+	return quesmaBuilder
 }
 
 func Test_fallbackScenario(t *testing.T) {
-	q1 := fallbackScenario()
+	qBuilder := fallbackScenario()
+	q1, _ := qBuilder.Build()
 	q1.Start()
 	stop := make(chan os.Signal, 1)
 	emitRequests(stop)
@@ -137,4 +158,79 @@ func Test_scenario1(t *testing.T) {
 	emitRequests(stop)
 	<-stop
 	q1.Stop(context.Background())
+}
+
+var middlewareCallCount int32 = 0
+
+type Middleware struct {
+	emitError bool
+}
+
+func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	atomic.AddInt32(&middlewareCallCount, 1)
+	if m.emitError {
+		http.Error(w, "middleware", http.StatusInternalServerError)
+	}
+}
+
+type Middleware2 struct {
+}
+
+func (m *Middleware2) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	atomic.AddInt32(&middlewareCallCount, 1)
+	w.WriteHeader(200)
+}
+
+func createMiddleWareScenario(emitError bool, cfg *config.QuesmaConfiguration) quesma_api.QuesmaBuilder {
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+
+	frontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
+	HTTPRouter := quesma_api.NewPathRouter()
+	var fallback quesma_api.HTTPFrontendHandler = fallback
+	HTTPRouter.AddFallbackHandler(fallback)
+	frontendConnector.AddRouter(HTTPRouter)
+	frontendConnector.AddMiddleware(&Middleware{emitError: emitError})
+	frontendConnector.AddMiddleware(&Middleware2{})
+
+	var pipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	pipeline.AddFrontendConnector(frontendConnector)
+	var ingestProcessor quesma_api.Processor = NewIngestProcessor()
+	pipeline.AddProcessor(ingestProcessor)
+	quesmaBuilder.AddPipeline(pipeline)
+	return quesmaBuilder
+}
+
+func Test_middleware(t *testing.T) {
+
+	cfg := &config.QuesmaConfiguration{
+		DisableAuth: true,
+		Elasticsearch: config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     "",
+			Password: "",
+		},
+	}
+	{
+		quesmaBuilder := createMiddleWareScenario(true, cfg)
+		quesmaBuilder.Build()
+		quesmaBuilder.Start()
+		stop := make(chan os.Signal, 1)
+		emitRequests(stop)
+		<-stop
+		quesmaBuilder.Stop(context.Background())
+		atomic.LoadInt32(&middlewareCallCount)
+		assert.Equal(t, int32(4), middlewareCallCount)
+	}
+	atomic.StoreInt32(&middlewareCallCount, 0)
+	{
+		quesmaBuilder := createMiddleWareScenario(false, cfg)
+		quesmaBuilder.Build()
+		quesmaBuilder.Start()
+		stop := make(chan os.Signal, 1)
+		emitRequests(stop)
+		<-stop
+		quesmaBuilder.Stop(context.Background())
+		atomic.LoadInt32(&middlewareCallCount)
+		assert.Equal(t, int32(8), middlewareCallCount)
+	}
 }

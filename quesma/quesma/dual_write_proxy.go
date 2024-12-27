@@ -30,6 +30,7 @@ import (
 	"quesma/telemetry"
 	"quesma/util"
 	quesma_api "quesma_v2/core"
+	"quesma_v2/core/diag"
 	"quesma_v2/core/routes"
 	tracing "quesma_v2/core/tracing"
 	"strconv"
@@ -84,7 +85,7 @@ func (q *dualWriteHttpProxy) Stop(ctx context.Context) {
 }
 
 func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, processor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxy {
-	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, registry, abResultsRepository, resolver)
+	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, registry, abResultsRepository, resolver, schemaLoader)
 	// not sure how we should configure our query translator ???
 	// is this a config option??
 
@@ -121,7 +122,7 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 		ua := req.Header.Get("User-Agent")
 		agent.UserAgentCounters().Add(ua, 1)
 
-		routerInstance.reroute(req.Context(), w, req, reqBody, pathRouter, logManager)
+		routerInstance.reroute(req.Context(), w, req, reqBody, pathRouter, logManager, registry)
 	})
 	var limitedHandler http.Handler
 	if config.DisableAuth {
@@ -287,7 +288,7 @@ func (*router) closedIndexResponse(ctx context.Context, w http.ResponseWriter, p
 
 }
 
-func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *quesma_api.PathRouter, logManager *clickhouse.LogManager) {
+func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *quesma_api.PathRouter, logManager *clickhouse.LogManager, schemaRegistry schema.Registry) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
@@ -318,7 +319,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 	if handlersPipe != nil {
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*quesma_api.Result, error) {
-			return handlersPipe.Handler(ctx, quesmaRequest)
+			return handlersPipe.Handler(ctx, quesmaRequest, w)
 		})
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
@@ -382,7 +383,10 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		}
 
 		if sendToElastic {
-			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(frontend_connectors.OpaqueIdHeaderKey), logManager.ResolveIndexPattern)
+			resolveIndexPattern := func(ctx context.Context, pattern string) ([]string, error) {
+				return logManager.ResolveIndexPattern(ctx, schemaRegistry, pattern)
+			}
+			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(frontend_connectors.OpaqueIdHeaderKey), resolveIndexPattern)
 
 			rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 			response := rawResponse.response
@@ -444,7 +448,7 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 
 			isWrite := elasticsearch.IsWriteRequest(req)
 
-			var span telemetry.Span
+			var span diag.Span
 			if isManagement {
 				if isWrite {
 					span = r.phoneHomeAgent.ElasticBypassedWriteRequestsDuration().Begin()

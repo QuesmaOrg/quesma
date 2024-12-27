@@ -172,7 +172,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 			pattern:       "my_index",
 			configuration: withAutodiscovery(indexConfig("another-index", false)),
 			registry: &schema.StaticRegistry{
-				Tables: map[schema.TableName]schema.Schema{
+				Tables: map[schema.IndexName]schema.Schema{
 					"my_index": {ExistsInDataSource: true},
 				},
 			},
@@ -183,7 +183,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 			pattern:       "my_index*",
 			configuration: withAutodiscovery(indexConfig("another-index", false)),
 			registry: &schema.StaticRegistry{
-				Tables: map[schema.TableName]schema.Schema{
+				Tables: map[schema.IndexName]schema.Schema{
 					"my_index8": {ExistsInDataSource: true},
 				},
 			},
@@ -209,7 +209,7 @@ func indexConfig(name string, elastic bool) config.QuesmaConfiguration {
 	} else {
 		targets = []string{config.ClickhouseTarget}
 	}
-	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {Name: name, QueryTarget: targets, IngestTarget: targets}}}
+	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {QueryTarget: targets, IngestTarget: targets}}}
 }
 
 func withAutodiscovery(cfg config.QuesmaConfiguration) config.QuesmaConfiguration {
@@ -276,9 +276,7 @@ const testIndexName = "indexName"
 func TestConfigureRouter(t *testing.T) {
 	cfg := &config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
-			testIndexName: {
-				Name: testIndexName,
-			},
+			testIndexName: {},
 		},
 	}
 	tr := TestTableResolver{}

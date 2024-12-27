@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/model"
-	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/testdata"
@@ -34,10 +33,9 @@ func Test3AggregationParserNewLogic(t *testing.T) {
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
-	lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, &table), &config.QuesmaConfiguration{})
 
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -54,7 +52,7 @@ func Test3AggregationParserNewLogic(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), Schema: s.Tables[schema.TableName(tableName)]}
+	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(tableName)]}
 
 	for i, test := range testdata.NewLogicTestCases {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {

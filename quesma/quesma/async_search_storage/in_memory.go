@@ -167,7 +167,7 @@ func (e *AsyncQueryTraceLoggerEvictor) TryFlushHangingAsyncQueryTrace(timeFun fu
 
 func (e *AsyncQueryTraceLoggerEvictor) FlushHangingAsyncQueryTrace(timeFun func(time.Time) time.Duration) {
 	go func() {
-		recovery.LogPanic()
+		defer recovery.LogPanic()
 		for {
 			select {
 			case <-time.After(GCInterval):

@@ -30,7 +30,7 @@ func TestSearchOpensearch(t *testing.T) {
 		Created: true,
 	}
 
-	s := &schema.StaticRegistry{Tables: map[schema.TableName]schema.Schema{}}
+	s := &schema.StaticRegistry{Tables: map[schema.IndexName]schema.Schema{}}
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
@@ -46,7 +46,7 @@ func TestSearchOpensearch(t *testing.T) {
 			defer db.Close()
 
 			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
-			cw := queryparser.ClickhouseQueryTranslator{ClickhouseLM: queryRunner.logManager, Table: &table, Ctx: context.Background(), Schema: s.Tables[tableName], Config: &DefaultConfig}
+			cw := queryparser.ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: s.Tables[tableName], Config: &DefaultConfig}
 
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
@@ -181,7 +181,7 @@ func TestHighlighter(t *testing.T) {
 		"@timestamp":    {PropertyName: "@timestamp", InternalPropertyName: "_timestamp", Type: schema.QuesmaTypeDate},
 	}
 	s := &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			tableName: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}

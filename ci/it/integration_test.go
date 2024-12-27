@@ -11,13 +11,15 @@ import (
 
 func runIntegrationTest(t *testing.T, testCase testcases.TestCase) {
 	ctx := context.Background()
+	t.Cleanup(func() {
+		testCase.Cleanup(ctx, t)
+	})
 	if err := testCase.SetupContainers(ctx); err != nil {
 		t.Fatalf("Failed to setup containers: %s", err)
 	}
 	if err := testCase.RunTests(ctx, t); err != nil {
 		t.Fatalf("Failed to run tests: %s", err)
 	}
-	testCase.Cleanup(ctx)
 }
 
 func TestTransparentProxy(t *testing.T) {

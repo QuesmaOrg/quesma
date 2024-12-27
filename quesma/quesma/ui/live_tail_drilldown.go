@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"github.com/goccy/go-json"
 	"gopkg.in/yaml.v3"
-	"quesma/quesma/types"
 	"quesma/quesma/ui/internal/builder"
 	"quesma/util"
+	"quesma_v2/core/diag"
 	tracing "quesma_v2/core/tracing"
 	"strings"
 )
@@ -60,7 +60,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 		buffer.Html(`<div class="query-body-translated">` + "\n")
 		buffer.Html("<p class=\"title\">Translated SQL:</p>\n")
 
-		printQueries := func(queries []types.TranslatedSQLQuery) {
+		printQueries := func(queries []diag.TranslatedSQLQuery) {
 
 			for _, queryBody := range queries {
 				prettyQueryBody := util.SqlPrettyPrint(queryBody.Query)

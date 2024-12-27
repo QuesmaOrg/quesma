@@ -165,7 +165,7 @@ func TestTableResolver(t *testing.T) {
 			expected: mux.Decision{
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "index1",
-					ClickhouseTables:    []string{"index1"}},
+					ClickhouseIndexes:   []string{"index1"}},
 				},
 			},
 			indexConf: indexConf,
@@ -178,7 +178,7 @@ func TestTableResolver(t *testing.T) {
 			expected: mux.Decision{
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "index1",
-					ClickhouseTables:    []string{"index1"}},
+					ClickhouseIndexes:   []string{"index1"}},
 				},
 			},
 			indexConf: indexConf,
@@ -191,7 +191,7 @@ func TestTableResolver(t *testing.T) {
 			expected: mux.Decision{
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					ClickhouseTables:    []string{"index2"},
+					ClickhouseIndexes:   []string{"index2"},
 					IsCommonTable:       true,
 				}},
 			},
@@ -205,7 +205,7 @@ func TestTableResolver(t *testing.T) {
 			expected: mux.Decision{
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					ClickhouseTables:    []string{"index2"},
+					ClickhouseIndexes:   []string{"index2"},
 					IsCommonTable:       true,
 				}},
 			},
@@ -260,7 +260,7 @@ func TestTableResolver(t *testing.T) {
 			expected: mux.Decision{
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					ClickhouseTables:    []string{"index2"},
+					ClickhouseIndexes:   []string{"index2"},
 					IsCommonTable:       true,
 				}},
 			},
@@ -300,7 +300,7 @@ func TestTableResolver(t *testing.T) {
 			expected: mux.Decision{
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "logs",
-					ClickhouseTables:    []string{"logs"},
+					ClickhouseIndexes:   []string{"logs"},
 				},
 					&mux.ConnectorDecisionElastic{}},
 			},
@@ -314,7 +314,7 @@ func TestTableResolver(t *testing.T) {
 				EnableABTesting: true,
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "logs",
-					ClickhouseTables:    []string{"logs"},
+					ClickhouseIndexes:   []string{"logs"},
 				},
 					&mux.ConnectorDecisionElastic{}},
 			},
@@ -328,7 +328,7 @@ func TestTableResolver(t *testing.T) {
 				EnableABTesting: true,
 				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "logs",
-					ClickhouseTables:    []string{"logs"},
+					ClickhouseIndexes:   []string{"logs"},
 				},
 					&mux.ConnectorDecisionElastic{}},
 			},

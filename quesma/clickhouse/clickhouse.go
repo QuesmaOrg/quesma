@@ -11,8 +11,9 @@ import (
 	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
-	"quesma/telemetry"
+	"quesma/schema"
 	"quesma/util"
+	"quesma_v2/core/diag"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -31,7 +32,7 @@ type (
 		chDb           *sql.DB
 		tableDiscovery TableDiscovery
 		cfg            *config.QuesmaConfiguration
-		phoneHomeAgent telemetry.PhoneHomeAgent
+		phoneHomeAgent diag.PhoneHomeClient
 	}
 	TableMap  = util.SyncMap[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -83,7 +84,7 @@ func (lm *LogManager) Start() {
 	forceReloadCh := lm.tableDiscovery.ForceReloadCh()
 
 	go func() {
-		recovery.LogPanic()
+		defer recovery.LogPanic()
 		for {
 			select {
 			case <-lm.ctx.Done():
@@ -134,7 +135,7 @@ func (lm *LogManager) Close() {
 // and returns all matching indexes. Empty pattern means all indexes, "_all" index name means all indexes
 //
 //	Note: Empty pattern means all indexes, "_all" index name means all indexes
-func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (results []string, err error) {
+func (lm *LogManager) ResolveIndexPattern(ctx context.Context, schema schema.Registry, pattern string) (results []string, err error) {
 	if err = lm.tableDiscovery.TableDefinitionsFetchError(); err != nil {
 		return nil, err
 	}
@@ -143,11 +144,13 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (
 	if strings.Contains(pattern, ",") {
 		for _, pattern := range strings.Split(pattern, ",") {
 			if pattern == allElasticsearchIndicesPattern || pattern == "" {
-				results = lm.tableDiscovery.TableDefinitions().Keys()
+				for k := range schema.AllSchemas() {
+					results = append(results, k.AsString())
+				}
 				slices.Sort(results)
 				return results, nil
 			} else {
-				indexes, err := lm.ResolveIndexPattern(ctx, pattern)
+				indexes, err := lm.ResolveIndexPattern(ctx, schema, pattern)
 				if err != nil {
 					return nil, err
 				}
@@ -156,21 +159,21 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, pattern string) (
 		}
 	} else {
 		if pattern == allElasticsearchIndicesPattern || len(pattern) == 0 {
-			results = lm.tableDiscovery.TableDefinitions().Keys()
+			for k := range schema.AllSchemas() {
+				results = append(results, k.AsString())
+			}
 			slices.Sort(results)
 			return results, nil
 		} else {
-			lm.tableDiscovery.TableDefinitions().
-				Range(func(tableName string, v *Table) bool {
-					matches, err := util.IndexPatternMatches(pattern, tableName)
-					if err != nil {
-						logger.Error().Msgf("error matching index pattern: %v", err)
-					}
-					if matches {
-						results = append(results, tableName)
-					}
-					return true
-				})
+			for schemaName := range schema.AllSchemas() {
+				matches, err := util.IndexPatternMatches(pattern, schemaName.AsString())
+				if err != nil {
+					logger.Error().Msgf("error matching index pattern: %v", err)
+				}
+				if matches {
+					results = append(results, schemaName.AsString())
+				}
+			}
 		}
 	}
 
@@ -314,7 +317,7 @@ func (lm *LogManager) Ping() error {
 	return lm.chDb.Ping()
 }
 
-func NewEmptyLogManager(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery) *LogManager {
+func NewEmptyLogManager(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent diag.PhoneHomeClient, loader TableDiscovery) *LogManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent}
 }
@@ -323,14 +326,14 @@ func NewLogManager(tables *TableMap, cfg *config.QuesmaConfiguration) *LogManage
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
 	return &LogManager{chDb: nil, tableDiscovery: NewTableDiscoveryWith(cfg, nil, *tables),
-		cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(),
+		cfg: cfg, phoneHomeAgent: diag.NewPhoneHomeEmptyAgent(),
 	}
 }
 
 // right now only for tests purposes
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
 	return &LogManager{chDb: db, tableDiscovery: NewTableDiscoveryWith(&config.QuesmaConfiguration{}, db, *tables),
-		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+		phoneHomeAgent: diag.NewPhoneHomeEmptyAgent()}
 }
 
 func NewLogManagerEmpty() *LogManager {
@@ -338,7 +341,7 @@ func NewLogManagerEmpty() *LogManager {
 	tableDefinitions.Store(NewTableMap())
 	cfg := &config.QuesmaConfiguration{}
 	return &LogManager{tableDiscovery: NewTableDiscovery(cfg, nil, persistence.NewStaticJSONDatabase()), cfg: cfg,
-		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+		phoneHomeAgent: diag.NewPhoneHomeEmptyAgent()}
 }
 
 func NewDefaultCHConfig() *ChTableConfig {

@@ -45,14 +45,14 @@ func setContentType(w http.ResponseWriter) http.ResponseWriter {
 	return w
 }
 
-func bulk(_ context.Context, request *quesma_api.Request) (*quesma_api.Result, error) {
+func bulk(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 	metadata := quesma_api.MakeNewMetadata()
 	metadata[IngestAction] = BulkIndexAction
 	metadata[IngestTargetKey] = getIndexFromRequest(request.OriginalRequest)
 	return &quesma_api.Result{Meta: metadata, GenericResult: request}, nil
 }
 
-func doc(_ context.Context, request *quesma_api.Request) (*quesma_api.Result, error) {
+func doc(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 	metadata := quesma_api.MakeNewMetadata()
 	metadata[IngestAction] = DocIndexAction
 	metadata[IngestTargetKey] = getIndexFromRequest(request.OriginalRequest)

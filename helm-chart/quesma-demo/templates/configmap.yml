@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quesma-first-config
+  labels:
+    app: {{ .Release.Name }}-quesma
+data:
+  quesma-config.yaml: |
+    # Quesma configuration file is rendered here based on `values.yaml` file
+    {{ .Values.config.quesmaConfigurationYaml | toYaml | nindent 6 }}
