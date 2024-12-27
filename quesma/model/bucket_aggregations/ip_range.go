@@ -98,8 +98,8 @@ func (interval IpInterval) ToWhereClause(field model.Expr) model.Expr {
 	isBegin := interval.begin != UnboundedInterval
 	isEnd := interval.end != UnboundedInterval && interval.end != BiggestIpv4
 
-	begin := model.TrueExpr //model.NewInfixExpr(field, ">=", model.NewLiteralSingleQuoted(interval.begin))
-	end := model.TrueExpr   //model.NewInfixExpr(field, "<", model.NewLiteralSingleQuoted(interval.end))
+	begin := model.NewInfixExpr(field, ">=", model.NewLiteralSingleQuoted(interval.begin))
+	end := model.NewInfixExpr(field, "<", model.NewLiteralSingleQuoted(interval.end))
 
 	if isBegin && isEnd {
 		return model.NewInfixExpr(begin, "AND", end)
@@ -125,7 +125,6 @@ func (query *IpRange) AggregationType() model.AggregationType {
 }
 
 func (query *IpRange) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	fmt.Println("DUPA", rows)
 	return nil
 }
 
@@ -156,7 +155,6 @@ func (query *IpRange) CombinatorGroups() (result []CombinatorGroup) {
 // bad requests: both to/from and mask
 
 func (query *IpRange) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGroup, rows []model.QueryResultRow) model.JsonMap {
-	fmt.Println("SB", subGroup, "ROWS", rows)
 	if len(rows) == 0 || len(rows[0].Cols) == 0 {
 		logger.ErrorWithCtx(query.ctx).Msgf("need at least one row and column in ip_range aggregation response, rows: %d, cols: %d", len(rows), len(rows[0].Cols))
 		return model.JsonMap{}
