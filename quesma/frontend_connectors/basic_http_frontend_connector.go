@@ -31,6 +31,7 @@ type BasicHTTPFrontendConnector struct {
 	debugInfoCollector diag.DebugInfoCollector
 	logger             quesma_api.QuesmaLogger
 	middlewares        []http.Handler
+	currentListener    quesma_api.FrontendConnector
 }
 
 func (h *BasicHTTPFrontendConnector) GetChildComponents() []interface{} {
@@ -181,4 +182,12 @@ func (h *BasicHTTPFrontendConnector) GetRouterInstance() *RouterV2 {
 
 func (h *BasicHTTPFrontendConnector) AddMiddleware(middleware http.Handler) {
 	h.middlewares = append(h.middlewares, middleware)
+}
+
+func (h *BasicHTTPFrontendConnector) SetListener(listener quesma_api.FrontendConnector) {
+	h.currentListener = listener
+}
+
+func (h *BasicHTTPFrontendConnector) Listener() quesma_api.FrontendConnector {
+	return h.currentListener
 }

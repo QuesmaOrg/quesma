@@ -80,12 +80,14 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 			for _, conn := range pipeline.GetFrontendConnectors() {
 				if httpConn, ok := conn.(HTTPFrontendConnector); ok {
 					router := httpConn.GetRouter().Clone().(Router)
-					if len(endpoints) == 1 {
-						router.SetHandlers(handlers)
-					}
+					router.SetHandlers(handlers)
 					httpConn.AddRouter(router)
-
 				}
+			}
+		}
+		for pipelineIndex, _ := range quesma.pipelines {
+			for frontendConnectorIndex := range quesma.pipelines[pipelineIndex].GetFrontendConnectors() {
+				quesma.pipelines[pipelineIndex].GetFrontendConnectors()[frontendConnectorIndex].SetListener(quesma.pipelines[0].GetFrontendConnectors()[0])
 			}
 		}
 	}

@@ -25,6 +25,8 @@ type Router interface {
 
 type FrontendConnector interface {
 	InstanceNamer
+	SetListener(listener FrontendConnector)
+	Listener() FrontendConnector
 	Listen() error // Start listening on the endpoint
 	GetEndpoint() string
 	Stop(ctx context.Context) error // Stop listening
