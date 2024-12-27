@@ -9,7 +9,6 @@ import (
 	"quesma/frontend_connectors"
 	"quesma/processors"
 	quesma_api "quesma_v2/core"
-	"strconv"
 	"sync/atomic"
 )
 
@@ -86,7 +85,7 @@ func bulk(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter)
 	}
 	metadata := quesma_api.MakeNewMetadata()
 	metadata["level"] = 0
-	resp := []byte("bulk\n")
+	resp := []byte("bulk->")
 	atomic.AddInt64(&correlationId, 1)
 	quesma_api.SetCorrelationId(metadata, correlationId)
 	return &quesma_api.Result{Meta: metadata, GenericResult: resp, StatusCode: 200}, nil
@@ -101,7 +100,7 @@ func doc(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) 
 	metadata["level"] = 0
 	atomic.AddInt64(&correlationId, 1)
 	quesma_api.SetCorrelationId(metadata, correlationId)
-	resp := []byte("doc\n")
+	resp := []byte("doc->")
 
 	return &quesma_api.Result{Meta: metadata, GenericResult: resp, StatusCode: 200}, nil
 }
@@ -149,10 +148,8 @@ func (p *IngestProcessor) Handle(metadata map[string]interface{}, message ...any
 			panic("IngestProcessor: invalid message type")
 		}
 
-		level := metadata["level"].(int)
-		data = append(data, strconv.Itoa(level)...)
 		data = append(data, []byte(p.GetId())...)
-		data = append(data, []byte("\n")...)
+		data = append(data, []byte("->")...)
 	}
 	return metadata, data, nil
 }
@@ -262,10 +259,8 @@ func (p *InnerIngestProcessor2) Handle(metadata map[string]interface{}, message 
 		if err != nil {
 			panic("InnerIngestProcessor2: invalid message type")
 		}
-		level := metadata["level"].(int)
-		data = append(data, strconv.Itoa(level)...)
 		data = append(data, []byte(p.GetId())...)
-		data = append(data, []byte("\n")...)
+		data = append(data, []byte("->")...)
 	}
 	return metadata, data, nil
 }
@@ -296,10 +291,8 @@ func (p *InnerIngestProcessor1) Handle(metadata map[string]interface{}, message 
 		if err != nil {
 			panic("InnerIngestProcessor1: invalid message type")
 		}
-		level := metadata["level"].(int)
-		data = append(data, strconv.Itoa(level)...)
 		data = append(data, []byte(p.GetId())...)
-		data = append(data, []byte("\n")...)
+		data = append(data, []byte("->")...)
 	}
 	return metadata, data, nil
 }
