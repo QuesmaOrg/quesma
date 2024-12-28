@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"quesma/logger"
 	"quesma/quesma/types"
+	"quesma/util"
 	"regexp"
 	"sort"
 	"strconv"
@@ -66,7 +67,12 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 }
 
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
-	return fmt.Sprintf("%v", l.Value)
+	switch val := l.Value.(type) {
+	case string:
+		return escapeString(val)
+	default:
+		return fmt.Sprintf("%v", val)
+	}
 }
 
 func (v *renderer) VisitTuple(t TupleExpr) interface{} {
@@ -348,4 +354,15 @@ func (v *renderer) VisitJoinExpr(j JoinExpr) interface{} {
 
 func (v *renderer) VisitCTE(c CTE) interface{} {
 	return fmt.Sprintf("%s AS (%s) ", c.Name, AsString(c.SelectCommand))
+}
+
+// escapeString escapes the given string so that it can be used in a SQL Clickhouse query.
+// It escapes ' and \ characters: ' -> \', \ -> \\.
+func escapeString(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`) // \ should be escaped with no exceptions
+	if len(s) >= 2 && s[0] == '\'' && s[len(s)-1] == '\'' {
+		// don't escape the first and last '
+		return util.SingleQuote(strings.ReplaceAll(s[1:len(s)-1], `'`, `\'`))
+	}
+	return strings.ReplaceAll(s, `'`, `\'`)
 }
