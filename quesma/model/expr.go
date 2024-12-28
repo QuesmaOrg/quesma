@@ -16,6 +16,7 @@ var (
 	InvalidExpr = Expr(nil)
 	TrueExpr    = NewLiteral(true)
 	FalseExpr   = NewLiteral(false)
+	NullExpr    = NewLiteral("NULL")
 )
 
 // ColumnRef is a reference to a column in a table, we can enrich it with more information (e.g. type used) as we go
@@ -129,8 +130,14 @@ func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value}
 }
 
-func NewLiteralSingleQuoted(value string) LiteralExpr {
-	return LiteralExpr{Value: fmt.Sprintf("'%s'", value)}
+// NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else
+func NewLiteralSingleQuoteString(value any) LiteralExpr {
+	switch v := value.(type) {
+	case string:
+		return LiteralExpr{Value: fmt.Sprintf("'%s'", v)}
+	default:
+		return LiteralExpr{Value: v}
+	}
 }
 
 // DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`
