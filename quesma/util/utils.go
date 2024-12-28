@@ -737,9 +737,15 @@ func ExtractNumeric64(value any) float64 {
 	return asFloat64
 }
 
+// SingleQuote is a simple helper function: str -> 'str'
+func SingleQuote(value string) string {
+	return "'" + value + "'"
+}
+
+// SingleQuoteIfString is a simple helper function: (str -> 'str', other -> other)
 func SingleQuoteIfString(value any) any {
 	if str, ok := value.(string); ok {
-		return fmt.Sprintf("'%s'", str)
+		return SingleQuote(str)
 	}
 	return value
 }
@@ -854,7 +860,7 @@ func stringifyHelper(v interface{}, isInsideArray bool) string {
 
 // This functions returns a string from an interface{}.
 func Stringify(v interface{}) string {
-	isInsideArray := false
+	const isInsideArray = false
 	return stringifyHelper(v, isInsideArray)
 }
 
