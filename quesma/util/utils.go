@@ -737,6 +737,20 @@ func ExtractNumeric64(value any) float64 {
 	return asFloat64
 }
 
+func BoolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+func BoolToString(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
 // SingleQuote is a simple helper function: str -> 'str'
 func SingleQuote(value string) string {
 	return "'" + value + "'"
