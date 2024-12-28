@@ -10,7 +10,7 @@ import (
 
 // throttleMap: (reason name -> last logged time)
 // We log only once per throttleDuration for each reason name, so that we don't spam the logs.
-var throttleMap = util.SyncMap[string, time.Time]{}
+var throttleMap = util.NewSyncMap[string, time.Time]()
 
 const throttleDuration = 30 * time.Minute
 

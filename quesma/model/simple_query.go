@@ -28,6 +28,10 @@ func NewSimpleQuery(whereClause Expr, canParse bool) SimpleQuery {
 	return SimpleQuery{WhereClause: whereClause, CanParse: canParse}
 }
 
+func NewSimpleQueryInvalid() SimpleQuery {
+	return SimpleQuery{CanParse: false}
+}
+
 // LimitForCount returns (limit, true) if we need count(*) with limit,
 // (not-important, false) if we don't need count/limit
 func (s *SimpleQuery) LimitForCount() (limit int, doWeNeedLimit bool) {

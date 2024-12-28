@@ -4,20 +4,32 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
+	"quesma/util/regex"
+	"reflect"
 )
 
 // TODO when adding include/exclude, check escaping of ' and \ in those fields
 type Terms struct {
 	ctx         context.Context
 	significant bool // true <=> significant_terms, false <=> terms
-	OrderByExpr model.Expr
+	// include is either:
+	//   - single value: then for strings, it can be a regex.
+	//   - array: then field must match exactly one of the values (never a regex)
+	// Nil if missing in request.
+	include any
+	// exclude is either:
+	//   - single value: then for strings, it can be a regex.
+	//   - array: then field must match exactly one of the values (never a regex)
+	// Nil if missing in request.
+	exclude any
 }
 
-func NewTerms(ctx context.Context, significant bool, orderByExpr model.Expr) Terms {
-	return Terms{ctx: ctx, significant: significant, OrderByExpr: orderByExpr}
+func NewTerms(ctx context.Context, significant bool, include, exclude any) Terms {
+	return Terms{ctx: ctx, significant: significant, include: include, exclude: exclude}
 }
 
 func (query Terms) AggregationType() model.AggregationType {
@@ -106,4 +118,105 @@ func (query Terms) key(row model.QueryResultRow) any {
 
 func (query Terms) parentCount(row model.QueryResultRow) any {
 	return row.Cols[len(row.Cols)-3].Value
+}
+
+func (query Terms) UpdateFieldForIncludeAndExclude(field model.Expr) (updatedField model.Expr, didWeUpdateField bool) {
+	// We'll use here everywhere Clickhouse 'if' function: if(condition, then, else)
+	// In our case field becomes: if(condition that field is not excluded, field, NULL)
+	ifOrNull := func(condition model.Expr) model.FunctionExpr {
+		return model.NewFunction("if", condition, field, model.NullExpr)
+	}
+
+	hasExclude := query.exclude != nil
+	excludeArr, excludeIsArray := query.exclude.([]any)
+	switch {
+	case hasExclude && excludeIsArray:
+		if len(excludeArr) == 0 {
+			return field, false
+		}
+
+		// Select expr will be: if(field NOT IN (excludeArr[0], excludeArr[1], ...), field, NULL)
+		exprs := make([]model.Expr, 0, len(excludeArr))
+		for _, excludeVal := range excludeArr {
+			exprs = append(exprs, model.NewLiteralSingleQuoteString(excludeVal))
+		}
+		return ifOrNull(model.NewInfixExpr(field, "NOT IN", model.NewTupleExpr(exprs...))), true
+	case hasExclude:
+		switch exclude := query.exclude.(type) {
+		case string: // hard case, might be regex
+			funcName, patternExpr := regex.ToClickhouseExpr(exclude)
+			return ifOrNull(model.NewInfixExpr(field, "NOT "+funcName, patternExpr)), true
+		default: // easy case, never regex
+			return ifOrNull(model.NewInfixExpr(field, "!=", model.NewLiteral(query.exclude))), true
+		}
+
+	default:
+		return field, false // TODO implement similar support for 'include' in next PR
+	}
+}
+
+// TODO make part of QueryType interface and implement for all aggregations
+// TODO add bad requests to tests
+// Doing so will ensure we see 100% of what we're interested in in our logs (now we see ~95%)
+func CheckParamsTerms(ctx context.Context, paramsRaw any) error {
+	requiredParams := map[string]string{"field": "string"}
+	optionalParams := map[string]string{
+		"size":                      "float64|string", // TODO should be int|string, will be fixed
+		"shard_size":                "float64",        // TODO should be int, will be fixed
+		"order":                     "order",          // TODO add order type
+		"min_doc_count":             "float64",        // TODO should be int, will be fixed
+		"shard_min_doc_count":       "float64",        // TODO should be int, will be fixed
+		"show_term_doc_count_error": "bool",
+		"exclude":                   "not-checking-type-now-complicated",
+		"include":                   "not-checking-type-now-complicated",
+		"collect_mode":              "string",
+		"execution_hint":            "string",
+		"missing":                   "string",
+		"value_type":                "string",
+	}
+	logIfYouSeeThemParams := []string{
+		"shard_size", "min_doc_count", "shard_min_doc_count",
+		"show_term_doc_count_error", "collect_mode", "execution_hint", "value_type",
+	}
+
+	params, ok := paramsRaw.(model.JsonMap)
+	if !ok {
+		return fmt.Errorf("params is not a map, but %+v", paramsRaw)
+	}
+
+	// check if required are present
+	for paramName, paramType := range requiredParams {
+		paramVal, exists := params[paramName]
+		if !exists {
+			return fmt.Errorf("required parameter %s not found in Terms params", paramName)
+		}
+		if reflect.TypeOf(paramVal).Name() != paramType { // TODO I'll make a small rewrite to not use reflect here
+			return fmt.Errorf("required parameter %s is not of type %s, but %T", paramName, paramType, paramVal)
+		}
+	}
+
+	// check if only required/optional are present
+	for paramName := range params {
+		if _, isRequired := requiredParams[paramName]; !isRequired {
+			wantedType, isOptional := optionalParams[paramName]
+			if !isOptional {
+				return fmt.Errorf("unexpected parameter %s found in Terms params %v", paramName, params)
+			}
+			if wantedType == "not-checking-type-now-complicated" || wantedType == "order" || wantedType == "float64|string" {
+				continue // TODO: add that later
+			}
+			if reflect.TypeOf(params[paramName]).Name() != wantedType { // TODO I'll make a small rewrite to not use reflect here
+				return fmt.Errorf("optional parameter %s is not of type %s, but %T", paramName, wantedType, params[paramName])
+			}
+		}
+	}
+
+	// log if you see them
+	for _, warnParam := range logIfYouSeeThemParams {
+		if _, exists := params[warnParam]; exists {
+			logger.WarnWithCtxAndThrottling(ctx, "terms", warnParam, "we didn't expect %s in Terms params %v", warnParam, params)
+		}
+	}
+
+	return nil
 }
