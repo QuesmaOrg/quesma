@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+var randomTrueVariableUsedBelow = true
+
 // Goland lags a lot when you edit aggregation_requests.go file, so let's add new tests to this one.
 
 var AggregationTests2 = []AggregationTestCase{
@@ -5340,7 +5342,7 @@ var AggregationTests2 = []AggregationTestCase{
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__terms__parent_count", int64(50000)),
-				model.NewQueryResultCol("aggr__terms__key_0", &someTrue),
+				model.NewQueryResultCol("aggr__terms__key_0", &randomTrueVariableUsedBelow), // used here
 				model.NewQueryResultCol("aggr__terms__count", int64(2)),
 			}},
 		},
