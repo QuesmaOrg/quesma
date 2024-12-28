@@ -10,6 +10,8 @@ import (
 
 // Goland lags a lot when you edit aggregation_requests.go file, so let's add new tests to this one.
 
+var someTrue = true
+
 var AggregationTests2 = []AggregationTestCase{
 	{ // [42]
 		TestName: "histogram with all possible calendar_intervals",
@@ -4688,5 +4690,66 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__my_buckets__count" DESC, "aggr__my_buckets__key_0" ASC,
 			  "aggr__my_buckets__key_1" ASC
 			LIMIT 4`,
+	},
+	{ // [70]
+		TestName: "terms with bool field",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"terms": {
+					"terms": {
+						"field": "Cancelled",
+						"size": 2
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"aggregations": {
+				"terms": {
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 38654,
+					"buckets": [
+						{
+							"key": 0,
+							"key_as_string": "false",
+							"doc_count": 11344
+						},
+						{
+							"key": 1,
+							"key_as_string": "true",
+							"doc_count": 2
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__terms__parent_count", int64(50000)),
+				model.NewQueryResultCol("aggr__terms__key_0", nil),
+				model.NewQueryResultCol("aggr__terms__count", int64(12000)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__terms__parent_count", int64(50000)),
+				model.NewQueryResultCol("aggr__terms__key_0", false),
+				model.NewQueryResultCol("aggr__terms__count", int64(11344)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__terms__parent_count", int64(50000)),
+				model.NewQueryResultCol("aggr__terms__key_0", &someTrue),
+				model.NewQueryResultCol("aggr__terms__count", int64(2)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__terms__parent_count",
+			  "Cancelled" AS "aggr__terms__key_0", count(*) AS "aggr__terms__count"
+			FROM __quesma_table_name
+			GROUP BY "Cancelled" AS "aggr__terms__key_0"
+			ORDER BY "aggr__terms__count" DESC, "aggr__terms__key_0" ASC
+			LIMIT 3`,
 	},
 }

@@ -4,6 +4,7 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
@@ -32,18 +33,63 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 		return model.JsonMap{}
 	}
 
-	var response []model.JsonMap
+	fmt.Println(rows)
+
+	var keyIsBool bool
 	for _, row := range rows {
-		docCount := query.docCount(row)
-		bucket := model.JsonMap{
-			"key":       query.key(row),
-			"doc_count": docCount,
+		switch query.key(row).(type) {
+		case bool, *bool:
+			keyIsBool = true
+			break
+		case nil:
+			continue
+		default:
+			keyIsBool = false
+			break
 		}
-		if query.significant {
-			bucket["score"] = docCount
-			bucket["bg_count"] = docCount
+	}
+
+	var response []model.JsonMap
+	if !keyIsBool {
+		for _, row := range rows {
+			docCount := query.docCount(row)
+			bucket := model.JsonMap{
+				"key":       query.key(row),
+				"doc_count": docCount,
+			}
+			if query.significant {
+				bucket["score"] = docCount
+				bucket["bg_count"] = docCount
+			}
+			response = append(response, bucket)
 		}
-		response = append(response, bucket)
+	} else { // key is bool
+		for _, row := range rows {
+			var (
+				key         any
+				keyAsString string
+			)
+			if val, err := util.ExtractBool(query.key(row)); err == nil {
+				if val {
+					key = 1
+					keyAsString = "true"
+				} else {
+					key = 0
+					keyAsString = "false"
+				}
+			}
+			docCount := query.docCount(row)
+			bucket := model.JsonMap{
+				"key":           key,
+				"key_as_string": keyAsString,
+				"doc_count":     docCount,
+			}
+			if query.significant {
+				bucket["score"] = docCount
+				bucket["bg_count"] = docCount
+			}
+			response = append(response, bucket)
+		}
 	}
 
 	if !query.significant {
