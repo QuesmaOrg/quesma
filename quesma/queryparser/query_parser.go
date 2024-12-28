@@ -513,12 +513,12 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			simpleStatement := model.NewInfixExpr(model.NewColumnRef(k), "=", model.NewLiteral(sprint(vAsArray[0])))
 			return model.NewSimpleQuery(simpleStatement, true)
 		}
-		values := make([]string, len(vAsArray))
+		values := make([]model.Expr, len(vAsArray))
 		for i, v := range vAsArray {
-			values[i] = sprint(v)
+			values[i] = model.NewLiteral(sprint(v))
 		}
-		combinedValues := "(" + strings.Join(values, ",") + ")"
-		compoundStatement := model.NewInfixExpr(model.NewColumnRef(k), "IN", model.NewLiteral(combinedValues))
+		tuple := model.NewTupleExpr(values...)
+		compoundStatement := model.NewInfixExpr(model.NewColumnRef(k), "IN", tuple)
 		return model.NewSimpleQuery(compoundStatement, true)
 	}
 
