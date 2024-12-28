@@ -1014,10 +1014,10 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": true
 		}`,
-		[]string{`("type"='task' AND "task.enabled" IN (true,54,'abc','abc\'s'))`},
+		[]string{`("type"='task' AND "task.enabled" IN tuple(true, 54, 'abc', 'abc\'s'))`},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` WHERE ("type"='task' AND "task.enabled" IN (true,54,'abc','abc\\'s')) LIMIT 10`,
+			`SELECT "message" FROM ` + TableName + ` WHERE ("type"='task' AND "task.enabled" IN tuple(true, 54, 'abc', 'abc\\'s')) LIMIT 10`,
 			`SELECT count(*) AS "column_0" FROM ` + TableName,
 		},
 		[]string{},
@@ -2196,13 +2196,13 @@ var TestsSearch = []SearchTestCase{
 		  },
 		  "track_total_hits": false
 		}`,
-		[]string{`("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=fromUnixTimestamp64Milli(1715817600000) AND "@timestamp"<=fromUnixTimestamp64Milli(1715990399000)))`},
+		[]string{`("cliIP" IN tuple('2601:204:c503:c240:9c41:5531:ad94:4d90', '50.116.43.98', '75.246.0.64') AND ("@timestamp">=fromUnixTimestamp64Milli(1715817600000) AND "@timestamp"<=fromUnixTimestamp64Milli(1715990399000)))`},
 		model.ListAllFields,
 		//[]model.Query{withLimit(justSimplestWhere(`("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59')))`), 1)},
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE ("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') ` +
+				`WHERE ("cliIP" IN tuple('2601:204:c503:c240:9c41:5531:ad94:4d90', '50.116.43.98', '75.246.0.64') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1715817600000) AND "@timestamp"<=fromUnixTimestamp64Milli(1715990399000))) ` +
 				`LIMIT 1`,
 		},

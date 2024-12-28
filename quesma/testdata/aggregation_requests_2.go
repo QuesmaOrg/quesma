@@ -4691,7 +4691,6 @@ var AggregationTests2 = []AggregationTestCase{
 	},
 	{ // [70]
 		TestName: "simplest terms with exclude (array of values)",
-		// TODO add ' somewhere in exclude after the merge!
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -4699,7 +4698,7 @@ var AggregationTests2 = []AggregationTestCase{
 					"terms": {
 						"field": "chess_goat", 
 						"size": 2,
-						"exclude": ["Carlsen", "Kasparov", "Fis._er*"]
+						"exclude": ["Carlsen", "Kasparov", "Fis._er'*"]
 					}
 				}
 			},
@@ -4740,10 +4739,10 @@ var AggregationTests2 = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__1__parent_count",
-			  if("chess_goat" NOT IN tuple('Carlsen', 'Kasparov', 'Fis._er*'), "chess_goat", NULL)
+			  if("chess_goat" NOT IN tuple('Carlsen', 'Kasparov', 'Fis._er\'*'), "chess_goat", NULL)
 			  AS "aggr__1__key_0", count(*) AS "aggr__1__count"
 			FROM __quesma_table_name
-			GROUP BY if("chess_goat" NOT IN tuple('Carlsen', 'Kasparov', 'Fis._er*'), "chess_goat", NULL) AS "aggr__1__key_0"
+			GROUP BY if("chess_goat" NOT IN tuple('Carlsen', 'Kasparov', 'Fis._er\'*'), "chess_goat", NULL) AS "aggr__1__key_0"
 			ORDER BY "aggr__1__count" DESC, "aggr__1__key_0" ASC
 			LIMIT 3`,
 	},
