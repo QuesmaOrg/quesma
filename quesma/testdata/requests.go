@@ -2254,12 +2254,14 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"field" LIKE '%\\___'`}, // escaping _ twice ("\\_") seemed wrong, but it actually works in Clickhouse!
+		// Escaping _ twice ("\\_") seemed wrong, but it actually works in Clickhouse!
+		// \\\\ means 2 escaped backslashes, actual returned string is "\\"
+		[]string{`"field" LIKE '%\\___'`},
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE "field" LIKE '%\\___' ` +
+				`WHERE "field" LIKE '%\\\\___' ` +
 				`LIMIT 10`,
 		},
 		[]string{},
