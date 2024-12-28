@@ -7,6 +7,8 @@ github.com/ClickHouse/clickhouse-go/v2 v2.30.0 h1:AG4D/hW39qa58+JHQIFOSnxyL46H6h
 github.com/ClickHouse/clickhouse-go/v2 v2.30.0/go.mod h1:i9ZQAojcayW3RsdCb3YR+n+wC2h65eJsZCscZ1Z1wyo=
 github.com/DATA-DOG/go-sqlmock v1.5.2 h1:OcvFkGmslmlZibjAjaHm3L//6LiuBgolP7OputlJIzU=
 github.com/DATA-DOG/go-sqlmock v1.5.2/go.mod h1:88MAG/4G7SMwSE3CeA0ZKzrT5CiOU3OJ+JlNzwDqpNU=
+github.com/H0llyW00dzZ/cidr v1.2.1 h1:DfRHX+RqVVKZijQGO1aJSaWvN9Saan8sycK/4wrfY5g=
+github.com/H0llyW00dzZ/cidr v1.2.1/go.mod h1:S+EgYkMandSAN27mGNG/CB3jeoXDAyalsvvVFpWdnXc=
 github.com/DataDog/go-sqllexer v0.0.18 h1:ErBvoO7/srJLdA2ebwd+HPqD4g1kN++BP64A8qvmh9U=
 github.com/DataDog/go-sqllexer v0.0.18/go.mod h1:KwkYhpFEVIq+BfobkTC1vfqm4gTi65skV/DpDBXtexc=
 github.com/Masterminds/semver/v3 v3.1.1/go.mod h1:VPu/7SZ7ePZ3QOrcuXROw5FAcLl4a0cBrbBpGY/8hQs=

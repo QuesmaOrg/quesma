@@ -25,14 +25,20 @@ func Test_Main(m *testing.T) {
 	_ = buildIngestOnlyQuesma()
 }
 
-func emitRequests(stop chan os.Signal) {
+func emitRequests(stop chan os.Signal, t *testing.T, testData []struct {
+	url              string
+	expectedResponse string
+}) {
 	go func() {
 		time.Sleep(1 * time.Second)
 		requestBody := []byte(`{"query": {"match_all": {}}}`)
-		sendRequest("http://localhost:8888/_bulk", requestBody)
-		sendRequest("http://localhost:8888/_doc", requestBody)
-		sendRequest("http://localhost:8888/_search", requestBody)
-		sendRequest("http://localhost:8888/_search", requestBody)
+		var resp string
+		var err error
+		for _, test := range testData {
+			resp, err = sendRequest(test.url, requestBody)
+			assert.NoError(t, err)
+			assert.Contains(t, test.expectedResponse, resp)
+		}
 		signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 		close(stop)
 	}()
@@ -144,7 +150,16 @@ func Test_fallbackScenario(t *testing.T) {
 	q1, _ := qBuilder.Build()
 	q1.Start()
 	stop := make(chan os.Signal, 1)
-	emitRequests(stop)
+	testData := []struct {
+		url              string
+		expectedResponse string
+	}{
+		{"http://localhost:8888/_bulk", "unknown\n"},
+		{"http://localhost:8888/_doc", "unknown\n"},
+		{"http://localhost:8888/_search", "unknown\n"},
+		{"http://localhost:8888/_search", "unknown\n"},
+	}
+	emitRequests(stop, t, testData)
 	<-stop
 	q1.Stop(context.Background())
 	atomic.LoadInt32(&fallbackCalled)
@@ -155,7 +170,20 @@ func Test_scenario1(t *testing.T) {
 	q1 := ab_testing_scenario()
 	q1.Start()
 	stop := make(chan os.Signal, 1)
-	emitRequests(stop)
+	testData := []struct {
+		url              string
+		expectedResponse string
+	}{
+		{"http://localhost:8888/_bulk", `bulk->IngestProcessor->InnerIngestProcessor1->0ABIngestTestProcessor
+bulk->IngestProcessor->InnerIngestProcessor2->0ABIngestTestProcessor
+`},
+		{"http://localhost:8888/_doc", `doc->IngestProcessor->InnerIngestProcessor1->0ABIngestTestProcessor
+doc->IngestProcessor->InnerIngestProcessor2->0ABIngestTestProcessor
+`},
+		{"http://localhost:8888/_search", "ABTestProcessor processor: Responses are equal\n"},
+		{"http://localhost:8888/_search", "ABTestProcessor processor: Responses are not equal\n"},
+	}
+	emitRequests(stop, t, testData)
 	<-stop
 	q1.Stop(context.Background())
 }
@@ -215,7 +243,17 @@ func Test_middleware(t *testing.T) {
 		quesmaBuilder.Build()
 		quesmaBuilder.Start()
 		stop := make(chan os.Signal, 1)
-		emitRequests(stop)
+		testData := []struct {
+			url              string
+			expectedResponse string
+		}{
+			{"http://localhost:8888/_bulk", "middleware\n"},
+			{"http://localhost:8888/_doc", "middleware\n"},
+			{"http://localhost:8888/_search", "middleware\n"},
+			{"http://localhost:8888/_search", "middleware\n"},
+		}
+		emitRequests(stop, t, testData)
+
 		<-stop
 		quesmaBuilder.Stop(context.Background())
 		atomic.LoadInt32(&middlewareCallCount)
@@ -227,7 +265,16 @@ func Test_middleware(t *testing.T) {
 		quesmaBuilder.Build()
 		quesmaBuilder.Start()
 		stop := make(chan os.Signal, 1)
-		emitRequests(stop)
+		testData := []struct {
+			url              string
+			expectedResponse string
+		}{
+			{"http://localhost:8888/_bulk", "middleware\n"},
+			{"http://localhost:8888/_doc", "middleware\n"},
+			{"http://localhost:8888/_search", "middleware\n"},
+			{"http://localhost:8888/_search", "middleware\n"},
+		}
+		emitRequests(stop, t, testData)
 		<-stop
 		quesmaBuilder.Stop(context.Background())
 		atomic.LoadInt32(&middlewareCallCount)
