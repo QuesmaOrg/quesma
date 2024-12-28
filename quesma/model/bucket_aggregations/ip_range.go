@@ -98,8 +98,8 @@ func (interval IpInterval) ToWhereClause(field model.Expr) model.Expr {
 	isBegin := interval.begin != UnboundedInterval
 	isEnd := interval.end != UnboundedInterval && interval.end != BiggestIpv4
 
-	begin := model.NewInfixExpr(field, ">=", model.NewLiteralSingleQuoted(interval.begin))
-	end := model.NewInfixExpr(field, "<", model.NewLiteralSingleQuoted(interval.end))
+	begin := model.NewInfixExpr(field, ">=", model.NewLiteralSingleQuoteString(interval.begin))
+	end := model.NewInfixExpr(field, "<", model.NewLiteralSingleQuoteString(interval.end))
 
 	if isBegin && isEnd {
 		return model.NewInfixExpr(begin, "AND", end)

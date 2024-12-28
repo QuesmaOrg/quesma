@@ -18,6 +18,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/util"
+	"quesma/util/regex"
 	"strconv"
 	"strings"
 	"unicode"
@@ -886,28 +887,13 @@ func (cw *ClickhouseQueryTranslator) parseRegexp(queryMap QueryMap) (result mode
 		return model.NewSimpleQueryInvalid()
 	}
 
-	// really simple == (out of all special characters, only . and .* may be present)
-	isPatternReallySimple := func(pattern string) bool {
-		// any special characters excluding . and * not allowed. Also (not the most important check) * can't be first character.
-		if strings.ContainsAny(pattern, `?+|{}[]()"\`) || (len(pattern) > 0 && pattern[0] == '*') {
-			return false
-		}
-		// .* allowed, but [any other char]* - not
-		for i, char := range pattern[1:] {
-			if char == '*' && pattern[i] != '.' {
-				return false
-			}
-		}
-		return true
-	}
-
-	for fieldName, parametersRaw := range queryMap {
-		parameters, ok := parametersRaw.(QueryMap)
+	for fieldName, paramsRaw := range queryMap {
+		params, ok := paramsRaw.(QueryMap)
 		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("invalid regexp parameters type: %T, value: %v", parametersRaw, parametersRaw)
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid regexp parameters type: %T, value: %v", paramsRaw, paramsRaw)
 			return model.NewSimpleQueryInvalid()
 		}
-		patternRaw, exists := parameters["value"]
+		patternRaw, exists := params["value"]
 		if !exists {
 			logger.WarnWithCtx(cw.Ctx).Msgf("no value in regexp query: %v", queryMap)
 			return model.NewSimpleQueryInvalid()
@@ -918,21 +904,13 @@ func (cw *ClickhouseQueryTranslator) parseRegexp(queryMap QueryMap) (result mode
 			return model.NewSimpleQueryInvalid()
 		}
 
-		if len(parameters) > 1 {
-			logger.WarnWithCtx(cw.Ctx).Msgf("unsupported regexp parameters: %v", parameters)
+		if len(params) > 1 {
+			logger.WarnWithCtx(cw.Ctx).Msgf("unsupported regexp parameters: %v", params)
 		}
 
-		var funcName string
-		if isPatternReallySimple(pattern) {
-			pattern = strings.ReplaceAll(pattern, "_", `\_`)
-			pattern = strings.ReplaceAll(pattern, ".*", "%")
-			pattern = strings.ReplaceAll(pattern, ".", "_")
-			funcName = "LIKE"
-		} else { // this Clickhouse function is much slower, so we use it only for complex regexps
-			funcName = "REGEXP"
-		}
-		return model.NewSimpleQuery(
-			model.NewInfixExpr(model.NewColumnRef(fieldName), funcName, model.NewLiteral("'"+pattern+"'")), true)
+		clickhouseFuncName, patternExpr := regex.ToClickhouseExpr(pattern)
+		clickhouseExpr := model.NewInfixExpr(model.NewColumnRef(fieldName), clickhouseFuncName, patternExpr)
+		return model.NewSimpleQuery(clickhouseExpr, true)
 	}
 
 	logger.ErrorWithCtx(cw.Ctx).Msg("parseRegexp: theoretically unreachable code")
