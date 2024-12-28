@@ -84,13 +84,12 @@ func (p *ABTestProcessor) Handle(metadata map[string]interface{}, message ...any
 	resp := make([]byte, 0)
 	for _, messages := range p.messageStorage {
 		if len(messages) == 2 {
-			equal, diff := p.compare(string(messages[0]), string(messages[1]))
+			equal, _ := p.compare(string(messages[0]), string(messages[1]))
 			if equal {
 				resp = append(resp, []byte("ABTestProcessor processor: Responses are equal\n")...)
 
 			} else {
 				resp = append(resp, []byte("ABTestProcessor processor: Responses are not equal\n")...)
-				fmt.Println(diff)
 			}
 			// clean storage
 			p.messageStorage = make(map[string][][]byte)
