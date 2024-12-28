@@ -737,17 +737,18 @@ func ExtractNumeric64(value any) float64 {
 	return asFloat64
 }
 
-// ExtractBool returns:
-// * (value as bool, nil), if value is either bool or *bool
-// * (false, err), otherwise
-func ExtractBool(value any) (bool, error) {
-	switch valueTyped := value.(type) {
-	case bool:
-		return valueTyped, nil
-	case *bool:
-		return *valueTyped, nil
+func BoolToInt(b bool) int {
+	if b {
+		return 1
 	}
-	return false, fmt.Errorf("ExtractBool, value of incorrect type. Expected (*)bool, received: %v; type: %T", value, value)
+	return 0
+}
+
+func BoolToString(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
 }
 
 type sqlMockMismatchSql struct {

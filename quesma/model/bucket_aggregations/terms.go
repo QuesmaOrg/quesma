@@ -4,7 +4,6 @@ package bucket_aggregations
 
 import (
 	"context"
-	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
@@ -33,65 +32,30 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 		return model.JsonMap{}
 	}
 
-	fmt.Println(rows)
-
-	var keyIsBool bool
-	for _, row := range rows {
-		key := query.key(row)
-		if key == nil {
-			continue
-		}
-
-		switch query.key(row).(type) {
-		case bool, *bool:
-			keyIsBool = true
-		default:
-			keyIsBool = false
-		}
-		break
-	}
-
 	var response []model.JsonMap
-	if !keyIsBool {
-		for _, row := range rows {
-			docCount := query.docCount(row)
-			bucket := model.JsonMap{
-				"key":       query.key(row),
-				"doc_count": docCount,
-			}
-			if query.significant {
-				bucket["score"] = docCount
-				bucket["bg_count"] = docCount
-			}
-			response = append(response, bucket)
+	for _, row := range rows {
+		docCount := query.docCount(row)
+		bucket := model.JsonMap{
+			"doc_count": docCount,
 		}
-	} else { // key is bool
-		for _, row := range rows {
-			var (
-				key         any
-				keyAsString string
-			)
-			if val, err := util.ExtractBool(query.key(row)); err == nil {
-				if val {
-					key = 1
-					keyAsString = "true"
-				} else {
-					key = 0
-					keyAsString = "false"
-				}
-			}
-			docCount := query.docCount(row)
-			bucket := model.JsonMap{
-				"key":           key,
-				"key_as_string": keyAsString,
-				"doc_count":     docCount,
-			}
-			if query.significant {
-				bucket["score"] = docCount
-				bucket["bg_count"] = docCount
-			}
-			response = append(response, bucket)
+		if query.significant {
+			bucket["score"] = docCount
+			bucket["bg_count"] = docCount
 		}
+
+		// response for bool keys is different
+		key := query.key(row)
+		if boolPtr, isBoolPtr := key.(*bool); isBoolPtr {
+			key = *boolPtr
+		}
+		if keyAsBool, ok := key.(bool); ok {
+			bucket["key"] = util.BoolToInt(keyAsBool)
+			bucket["key_as_string"] = util.BoolToString(keyAsBool)
+		} else {
+			bucket["key"] = key
+		}
+
+		response = append(response, bucket)
 	}
 
 	if !query.significant {
