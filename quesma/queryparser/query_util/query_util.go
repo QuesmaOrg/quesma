@@ -42,7 +42,7 @@ func FilterAggregationQueries(queries []*model.Query) []*model.Query {
 }
 */
 
-func BuildHitsQuery(ctx context.Context, tableName string, fieldNames []string, query *model.SimpleQuery, limit int) *model.Query {
+func BuildHitsQuery(ctx context.Context, tableName string, fieldNames []string, query *model.SimpleQuery, limit int, searchAfter any) *model.Query {
 	var columns []model.Expr
 	for _, fieldName := range fieldNames {
 		if fieldName == "*" {
@@ -55,6 +55,7 @@ func BuildHitsQuery(ctx context.Context, tableName string, fieldNames []string, 
 	return &model.Query{
 		SelectCommand: *model.NewSelectCommand(columns, nil, query.OrderBy, model.NewTableRef(tableName),
 			query.WhereClause, []model.Expr{}, applySizeLimit(ctx, limit), 0, false, []*model.CTE{}),
+		SearchAfter: searchAfter,
 	}
 }
 
