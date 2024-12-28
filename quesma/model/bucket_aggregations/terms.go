@@ -37,16 +37,18 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 
 	var keyIsBool bool
 	for _, row := range rows {
+		key := query.key(row)
+		if key == nil {
+			continue
+		}
+
 		switch query.key(row).(type) {
 		case bool, *bool:
 			keyIsBool = true
-			break
-		case nil:
-			continue
 		default:
 			keyIsBool = false
-			break
 		}
+		break
 	}
 
 	var response []model.JsonMap
