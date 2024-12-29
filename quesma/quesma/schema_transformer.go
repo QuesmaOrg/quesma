@@ -18,10 +18,10 @@ import (
 type SchemaCheckPass struct {
 	cfg                 *config.QuesmaConfiguration
 	tableDiscovery      clickhouse.TableDiscovery
-	searchAfterStrategy searchAfterStrategy
+	searchAfterStrategy model.SearchAfterStrategy
 }
 
-func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery clickhouse.TableDiscovery, strategyType searchAfterStrategyType) *SchemaCheckPass {
+func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery clickhouse.TableDiscovery, strategyType model.SearchAfterStrategyType) *SchemaCheckPass {
 	return &SchemaCheckPass{
 		cfg:                 cfg,
 		tableDiscovery:      tableDiscovery,

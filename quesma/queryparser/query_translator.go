@@ -20,7 +20,8 @@ type ClickhouseQueryTranslator struct {
 	Schema schema.Schema
 	Ctx    context.Context
 
-	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	DateMathRenderer    string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	SearchAfterStrategy model.SearchAfterStrategyType
 
 	Indexes []string
 

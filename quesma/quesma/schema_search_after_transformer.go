@@ -10,38 +10,18 @@ import (
 	"quesma/util"
 )
 
-type (
-	searchAfterStrategy interface {
-		// validateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
-		validateAndParse(query *model.Query, indexSchema schema.Schema) (searchAfterParamParsed []model.Expr, err error)
-		transform(query *model.Query, searchAfterParameterParsed []model.Expr) (*model.Query, error)
-	}
-	searchAfterStrategyType int
-)
-
-func searchAfterStrategyFactory(strategy searchAfterStrategyType) searchAfterStrategy {
+func searchAfterStrategyFactory(strategy model.SearchAfterStrategyType) model.SearchAfterStrategy {
 	switch strategy {
-	case bulletproof:
+	case model.Bulletproof:
 		return searchAfterStrategyBulletproof{}
-	case justDiscardTheParameter:
+	case model.JustDiscardTheParameter:
 		return searchAfterStrategyJustDiscardTheParameter{}
-	case basicAndFast:
+	case model.BasicAndFast:
 		return searchAfterStrategyBasicAndFast{}
 	default:
 		logger.Error().Msgf("Unknown search_after strategy: %d. Using default (basicAndFast).", strategy)
 		return searchAfterStrategyBasicAndFast{}
 	}
-}
-
-const (
-	basicAndFast searchAfterStrategyType = iota // default until bulletproof is implemented
-	bulletproof
-	justDiscardTheParameter
-	defaultSearchAfterStrategy = basicAndFast
-)
-
-func (s searchAfterStrategyType) String() string {
-	return []string{"BasicAndFast", "Bulletproof", "JustDiscardTheParameter"}[s]
 }
 
 // ---------------------------------------------------------------------------------
@@ -55,8 +35,8 @@ func (s searchAfterStrategyType) String() string {
 type searchAfterStrategyBulletproof struct {
 }
 
-// validateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
-func (s searchAfterStrategyBulletproof) validateAndParse(query *model.Query, indexSchema schema.Schema) (searchAfterParamsParsed []model.Expr, err error) {
+// ValidateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
+func (s searchAfterStrategyBulletproof) ValidateAndParse(query *model.Query, indexSchema schema.Schema) (searchAfterParamsParsed []model.Expr, err error) {
 	sortParamsParsed, err := validateAndParseCommonOnlySortParams(query, indexSchema)
 	if err != nil {
 		return sortParamsParsed, err
@@ -77,7 +57,7 @@ func (s searchAfterStrategyBulletproof) validateAndParse(query *model.Query, ind
 	return searchAfterParamsParsed, nil
 }
 
-func (s searchAfterStrategyBulletproof) transform(query *model.Query, searchAfterParsed []model.Expr) (*model.Query, error) {
+func (s searchAfterStrategyBulletproof) TransformQuery(query *model.Query, searchAfterParsed []model.Expr) (*model.Query, error) {
 	// If all order by's would be DESC, we would add to the where clause:
 	// tuple(sortField1, sortField2, ...) > tuple(searchAfter1, searchAfter2, ...)
 	// OR (tuple(sortField1, sortField2, ...) == tuple(searchAfter1, searchAfter2, ...)
@@ -98,12 +78,13 @@ func (s searchAfterStrategyBulletproof) transform(query *model.Query, searchAfte
 
 	newWhereClause1 := model.NewInfixExpr(lhs, ">", rhs)
 	pkField := query.Schema.GetPrimaryKey()
-	if len(searchAfterParsed) == sortFieldsNr || pkField == nil {
+	if len(searchAfterParsed) != sortFieldsNr || pkField == nil {
 		// It means we have 0 primary keys -> we just imitate basicAndFast strategy
 		query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause, newWhereClause1})
 		return query, nil
 	}
 
+	fmt.Println("pkField", pkField, "searchAfterParsed", searchAfterParsed, "sortFieldsNr", sortFieldsNr, query.SelectCommand.OrderBy)
 	notInTuple := model.NewTupleExpr(searchAfterParsed[sortFieldsNr:]...)
 	newWhereClause2_1 := model.NewInfixExpr(lhs, "=", rhs)
 	newWhereClause2_2 := model.NewInfixExpr(model.NewColumnRef(pkField.AsString()), "NOT IN", notInTuple)
@@ -113,19 +94,27 @@ func (s searchAfterStrategyBulletproof) transform(query *model.Query, searchAfte
 	return query, nil
 }
 
+func (s searchAfterStrategyBulletproof) TransformHit(hit model.SearchHit) (model.SearchHit, error) {
+	return hit, nil
+}
+
 // -------------------------------------------------------------------------------------------------------------------------------
 // | JustDiscardTheParameter: probably only good for tests or when you don't need this functionality and want better performance |
 // -------------------------------------------------------------------------------------------------------------------------------
 
 type searchAfterStrategyJustDiscardTheParameter struct{}
 
-// validateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
-func (s searchAfterStrategyJustDiscardTheParameter) validateAndParse(*model.Query, schema.Schema) (searchAfterParamParsed []model.Expr, err error) {
+// ValidateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
+func (s searchAfterStrategyJustDiscardTheParameter) ValidateAndParse(*model.Query, schema.Schema) (searchAfterParamParsed []model.Expr, err error) {
 	return nil, nil
 }
 
-func (s searchAfterStrategyJustDiscardTheParameter) transform(query *model.Query, _ []model.Expr) (*model.Query, error) {
+func (s searchAfterStrategyJustDiscardTheParameter) TransformQuery(query *model.Query, _ []model.Expr) (*model.Query, error) {
 	return query, nil
+}
+
+func (s searchAfterStrategyJustDiscardTheParameter) TransformHit(hit model.SearchHit) (model.SearchHit, error) {
+	return hit, nil
 }
 
 // ----------------------------------------------------------------------------------
@@ -134,12 +123,12 @@ func (s searchAfterStrategyJustDiscardTheParameter) transform(query *model.Query
 
 type searchAfterStrategyBasicAndFast struct{}
 
-// validateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
-func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, indexSchema schema.Schema) (searchAfterParamParsed []model.Expr, err error) {
+// ValidateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
+func (s searchAfterStrategyBasicAndFast) ValidateAndParse(query *model.Query, indexSchema schema.Schema) (searchAfterParamParsed []model.Expr, err error) {
 	return validateAndParseCommonOnlySortParams(query, indexSchema)
 }
 
-func (s searchAfterStrategyBasicAndFast) transform(query *model.Query, searchAfterParsed []model.Expr) (*model.Query, error) {
+func (s searchAfterStrategyBasicAndFast) TransformQuery(query *model.Query, searchAfterParsed []model.Expr) (*model.Query, error) {
 	// If all order by's would be DESC, we would add to the where clause:
 	// tuple(sortField1, sortField2, ...) > tuple(searchAfter1, searchAfter2, ...)
 	// But because some fields might be ASC, we need to swap sortField_i with searchAfter_i
@@ -158,6 +147,10 @@ func (s searchAfterStrategyBasicAndFast) transform(query *model.Query, searchAft
 	newWhereClause := model.NewInfixExpr(lhs, ">", rhs)
 	query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause, newWhereClause})
 	return query, nil
+}
+
+func (s searchAfterStrategyBasicAndFast) TransformHit(hit model.SearchHit) (model.SearchHit, error) {
+	return hit, nil
 }
 
 func validateAndParseCommonOnlySortParams(query *model.Query, indexSchema schema.Schema) (searchAfterParamParsed []model.Expr, err error) {
@@ -206,7 +199,7 @@ func validateAndParseCommonOnlySortParams(query *model.Query, indexSchema schema
 }
 
 func (s *SchemaCheckPass) applySearchAfterParameter(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
-	searchAfterParsed, err := s.searchAfterStrategy.validateAndParse(query, indexSchema)
+	searchAfterParsed, err := s.searchAfterStrategy.ValidateAndParse(query, indexSchema)
 	if err != nil {
 		return nil, err
 	}
@@ -214,5 +207,5 @@ func (s *SchemaCheckPass) applySearchAfterParameter(indexSchema schema.Schema, q
 		return query, nil
 	}
 
-	return s.searchAfterStrategy.transform(query, searchAfterParsed)
+	return s.searchAfterStrategy.TransformQuery(query, searchAfterParsed)
 }

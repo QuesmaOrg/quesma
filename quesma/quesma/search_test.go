@@ -945,6 +945,7 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 		map[string]schema.Table{},
 		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 	)
+	pk := "message"
 	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
@@ -952,7 +953,8 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
 			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
-		Created: true,
+		Created:    true,
+		PrimaryKey: &pk,
 	})
 
 	someTime := time.Date(2024, 1, 29, 18, 11, 36, 491000000, time.UTC) // 1706551896491 in UnixMilli
@@ -1004,7 +1006,7 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 		},
 	}
 
-	test := func(strategy searchAfterStrategy, dateTimeType string, handlerName string) {
+	test := func(strategy model.SearchAfterStrategy, dateTimeType string, handlerName string) {
 		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 		defer db.Close()
 		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
@@ -1067,7 +1069,7 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 		}
 	}
 
-	strategies := []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast), searchAfterStrategyFactory(bulletproof)}
+	strategies := []model.SearchAfterStrategy{searchAfterStrategyFactory(model.BasicAndFast), searchAfterStrategyFactory(model.Bulletproof)}
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for _, strategy := range strategies {
 		for _, handlerName := range handlers {
@@ -1133,7 +1135,7 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 		},
 	}
 
-	test := func(strategy searchAfterStrategy, dateTimeType string, handlerName string) {
+	test := func(strategy model.SearchAfterStrategy, dateTimeType string, handlerName string) {
 		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 		defer db.Close()
 		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
@@ -1182,7 +1184,7 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 	}
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
-	for _, strategy := range []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)} {
+	for _, strategy := range []model.SearchAfterStrategy{searchAfterStrategyFactory(model.BasicAndFast)} {
 		for _, handlerName := range handlers {
 			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
 				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
@@ -1292,7 +1294,7 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 		},
 	}
 
-	test := func(strategy searchAfterStrategy, dateTimeType string, handlerName string) {
+	test := func(strategy model.SearchAfterStrategy, dateTimeType string, handlerName string) {
 		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 		defer db.Close()
 		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
@@ -1343,7 +1345,7 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 	}
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
-	for _, strategy := range []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)} {
+	for _, strategy := range []model.SearchAfterStrategy{searchAfterStrategyFactory(model.BasicAndFast)} {
 		for _, handlerName := range handlers {
 			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
 				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
@@ -1398,7 +1400,7 @@ func TestSearchAfterParameter_sortByNoField(t *testing.T) {
 		},
 	}
 
-	test := func(strategy searchAfterStrategy, dateTimeType string, handlerName string) {
+	test := func(strategy model.SearchAfterStrategy, dateTimeType string, handlerName string) {
 		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 		defer db.Close()
 		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
@@ -1446,7 +1448,7 @@ func TestSearchAfterParameter_sortByNoField(t *testing.T) {
 	}
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
-	for _, strategy := range []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)} {
+	for _, strategy := range []model.SearchAfterStrategy{searchAfterStrategyFactory(model.BasicAndFast)} {
 		for _, handlerName := range handlers {
 			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
 				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)

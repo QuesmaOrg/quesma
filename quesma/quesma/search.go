@@ -56,6 +56,7 @@ type QueryRunner struct {
 
 	// this is passed to the QueryTranslator to render date math expressions
 	DateMathRenderer         string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	SearchAfterStrategy      model.SearchAfterStrategyType
 	currentParallelQueryJobs atomic.Int64
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
@@ -85,13 +86,14 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemory(),
 		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
 		transformationPipeline: TransformationPipeline{
-			transformers: []model.QueryTransformer{NewSchemaCheckPass(cfg, tableDiscovery, defaultSearchAfterStrategy)},
+			transformers: []model.QueryTransformer{NewSchemaCheckPass(cfg, tableDiscovery, model.DefaultSearchAfterStrategy)},
 		},
-		schemaRegistry:     schemaRegistry,
-		ABResultsSender:    abResultsRepository,
-		tableResolver:      resolver,
-		tableDiscovery:     tableDiscovery,
-		maxParallelQueries: maxParallelQueries,
+		schemaRegistry:      schemaRegistry,
+		ABResultsSender:     abResultsRepository,
+		tableResolver:       resolver,
+		tableDiscovery:      tableDiscovery,
+		maxParallelQueries:  maxParallelQueries,
+		SearchAfterStrategy: model.DefaultSearchAfterStrategy,
 	}
 }
 

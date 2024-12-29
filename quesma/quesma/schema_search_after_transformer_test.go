@@ -35,7 +35,7 @@ func Test_validateAndParse(t *testing.T) {
 		{"string is bad", false, false},
 	}
 
-	strategies := []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)}
+	strategies := []model.SearchAfterStrategy{searchAfterStrategyFactory(model.BasicAndFast)}
 	for _, strategy := range strategies {
 		for i, tc := range testcases {
 			t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
@@ -45,7 +45,7 @@ func Test_validateAndParse(t *testing.T) {
 					query.SelectCommand.OrderBy = append(query.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(model.NewColumnRef("message")))
 				}
 				query.SearchAfter = tc.searchAfter
-				_, err := strategy.validateAndParse(query, Schema)
+				_, err := strategy.ValidateAndParse(query, Schema)
 				if (err == nil) != tc.isInputFineBasicAndFastStrategy {
 					t.Errorf("BasicAndFast strategy failed to validate the input: %v, err: %v", tc.searchAfter, err)
 				}
@@ -147,7 +147,7 @@ func Test_applySearchAfterParameter(t *testing.T) {
 		{[]any{int64(1)}, oneRealQuery(), withWhere(oneRealQuery(), 1), false},
 	}
 
-	strategies := []searchAfterStrategyType{basicAndFast}
+	strategies := []model.SearchAfterStrategyType{model.BasicAndFast}
 	for _, strategy := range strategies {
 		for i, tc := range testcases {
 			t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
