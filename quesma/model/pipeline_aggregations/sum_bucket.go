@@ -60,13 +60,7 @@ func (query SumBucket) CalculateResultWhenMissing(parentRows []model.QueryResult
 func (query SumBucket) calculateSingleSumBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
 	var resultValue any
 
-	firstNonNilIndex := -1
-	for i, row := range parentRows {
-		if row.LastColValue() != nil {
-			firstNonNilIndex = i
-			break
-		}
-	}
+	firstNonNilIndex := model.FirstNonNilIndex(parentRows)
 	if firstNonNilIndex == -1 {
 		resultRow := parentRows[0].Copy()
 		resultRow.Cols[len(resultRow.Cols)-1].Value = model.JsonMap{

@@ -18,7 +18,11 @@ backendConnectors:
     type: clickhouse-os
     config:
       url: clickhouse://{{ .clickhouse_host }}:{{ .clickhouse_port }}
-ingestStatistics: true
+logging:
+  path: "logs"
+  level: "info"
+  disableFileLogging: false
+  enableSQLTracing: true
 processors:
   - name: QP
     type: quesma-v1-processor-query

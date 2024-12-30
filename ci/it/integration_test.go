@@ -11,7 +11,9 @@ import (
 
 func runIntegrationTest(t *testing.T, testCase testcases.TestCase) {
 	ctx := context.Background()
-	defer testCase.Cleanup(ctx, t)
+	t.Cleanup(func() {
+		testCase.Cleanup(ctx, t)
+	})
 	if err := testCase.SetupContainers(ctx); err != nil {
 		t.Fatalf("Failed to setup containers: %s", err)
 	}

@@ -25,14 +25,20 @@ func Test_Main(m *testing.T) {
 	_ = buildIngestOnlyQuesma()
 }
 
-func emitRequests(stop chan os.Signal) {
+func emitRequests(stop chan os.Signal, t *testing.T, testData []struct {
+	url              string
+	expectedResponse string
+}) {
 	go func() {
 		time.Sleep(1 * time.Second)
 		requestBody := []byte(`{"query": {"match_all": {}}}`)
-		sendRequest("http://localhost:8888/_bulk", requestBody)
-		sendRequest("http://localhost:8888/_doc", requestBody)
-		sendRequest("http://localhost:8888/_search", requestBody)
-		sendRequest("http://localhost:8888/_search", requestBody)
+		var resp string
+		var err error
+		for _, test := range testData {
+			resp, err = sendRequest(test.url, requestBody)
+			assert.NoError(t, err)
+			assert.Contains(t, test.expectedResponse, resp)
+		}
 		signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 		close(stop)
 	}()
@@ -135,16 +141,25 @@ func fallbackScenario() quesma_api.QuesmaBuilder {
 	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
 	quesmaBuilder.AddPipeline(ingestPipeline)
-	quesma, _ := quesmaBuilder.Build()
-	quesma.Start()
-	return quesma
+
+	return quesmaBuilder
 }
 
 func Test_fallbackScenario(t *testing.T) {
-	q1 := fallbackScenario()
+	qBuilder := fallbackScenario()
+	q1, _ := qBuilder.Build()
 	q1.Start()
 	stop := make(chan os.Signal, 1)
-	emitRequests(stop)
+	testData := []struct {
+		url              string
+		expectedResponse string
+	}{
+		{"http://localhost:8888/_bulk", "unknown\n"},
+		{"http://localhost:8888/_doc", "unknown\n"},
+		{"http://localhost:8888/_search", "unknown\n"},
+		{"http://localhost:8888/_search", "unknown\n"},
+	}
+	emitRequests(stop, t, testData)
 	<-stop
 	q1.Stop(context.Background())
 	atomic.LoadInt32(&fallbackCalled)
@@ -155,7 +170,114 @@ func Test_scenario1(t *testing.T) {
 	q1 := ab_testing_scenario()
 	q1.Start()
 	stop := make(chan os.Signal, 1)
-	emitRequests(stop)
+	testData := []struct {
+		url              string
+		expectedResponse string
+	}{
+		{"http://localhost:8888/_bulk", `bulk->IngestProcessor->InnerIngestProcessor1->0ABIngestTestProcessor
+bulk->IngestProcessor->InnerIngestProcessor2->0ABIngestTestProcessor
+`},
+		{"http://localhost:8888/_doc", `doc->IngestProcessor->InnerIngestProcessor1->0ABIngestTestProcessor
+doc->IngestProcessor->InnerIngestProcessor2->0ABIngestTestProcessor
+`},
+		{"http://localhost:8888/_search", "ABTestProcessor processor: Responses are equal\n"},
+		{"http://localhost:8888/_search", "ABTestProcessor processor: Responses are not equal\n"},
+	}
+	emitRequests(stop, t, testData)
 	<-stop
 	q1.Stop(context.Background())
+}
+
+var middlewareCallCount int32 = 0
+
+type Middleware struct {
+	emitError bool
+}
+
+func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	atomic.AddInt32(&middlewareCallCount, 1)
+	if m.emitError {
+		http.Error(w, "middleware", http.StatusInternalServerError)
+	}
+}
+
+type Middleware2 struct {
+}
+
+func (m *Middleware2) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	atomic.AddInt32(&middlewareCallCount, 1)
+	w.WriteHeader(200)
+}
+
+func createMiddleWareScenario(emitError bool, cfg *config.QuesmaConfiguration) quesma_api.QuesmaBuilder {
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+
+	frontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
+	HTTPRouter := quesma_api.NewPathRouter()
+	var fallback quesma_api.HTTPFrontendHandler = fallback
+	HTTPRouter.AddFallbackHandler(fallback)
+	frontendConnector.AddRouter(HTTPRouter)
+	frontendConnector.AddMiddleware(&Middleware{emitError: emitError})
+	frontendConnector.AddMiddleware(&Middleware2{})
+
+	var pipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	pipeline.AddFrontendConnector(frontendConnector)
+	var ingestProcessor quesma_api.Processor = NewIngestProcessor()
+	pipeline.AddProcessor(ingestProcessor)
+	quesmaBuilder.AddPipeline(pipeline)
+	return quesmaBuilder
+}
+
+func Test_middleware(t *testing.T) {
+
+	cfg := &config.QuesmaConfiguration{
+		DisableAuth: true,
+		Elasticsearch: config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     "",
+			Password: "",
+		},
+	}
+	{
+		quesmaBuilder := createMiddleWareScenario(true, cfg)
+		quesmaBuilder.Build()
+		quesmaBuilder.Start()
+		stop := make(chan os.Signal, 1)
+		testData := []struct {
+			url              string
+			expectedResponse string
+		}{
+			{"http://localhost:8888/_bulk", "middleware\n"},
+			{"http://localhost:8888/_doc", "middleware\n"},
+			{"http://localhost:8888/_search", "middleware\n"},
+			{"http://localhost:8888/_search", "middleware\n"},
+		}
+		emitRequests(stop, t, testData)
+
+		<-stop
+		quesmaBuilder.Stop(context.Background())
+		atomic.LoadInt32(&middlewareCallCount)
+		assert.Equal(t, int32(4), middlewareCallCount)
+	}
+	atomic.StoreInt32(&middlewareCallCount, 0)
+	{
+		quesmaBuilder := createMiddleWareScenario(false, cfg)
+		quesmaBuilder.Build()
+		quesmaBuilder.Start()
+		stop := make(chan os.Signal, 1)
+		testData := []struct {
+			url              string
+			expectedResponse string
+		}{
+			{"http://localhost:8888/_bulk", "middleware\n"},
+			{"http://localhost:8888/_doc", "middleware\n"},
+			{"http://localhost:8888/_search", "middleware\n"},
+			{"http://localhost:8888/_search", "middleware\n"},
+		}
+		emitRequests(stop, t, testData)
+		<-stop
+		quesmaBuilder.Stop(context.Background())
+		atomic.LoadInt32(&middlewareCallCount)
+		assert.Equal(t, int32(8), middlewareCallCount)
+	}
 }
