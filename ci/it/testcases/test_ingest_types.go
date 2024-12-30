@@ -75,19 +75,6 @@ func ParseResponse(t *testing.T, body []byte) map[string]any {
 
 func (a *IngestTypesTestcase) testSupportedTypesInDefaultSetup(ctx context.Context, t *testing.T) {
 
-	// Struct to parse only the `fields` tree
-	type Hit struct {
-		Fields map[string][]string `json:"fields"`
-	}
-
-	type HitsWrapper struct {
-		Hits []Hit `json:"hits"`
-	}
-
-	type Response struct {
-		Hits HitsWrapper `json:"hits"`
-	}
-
 	types := []struct {
 		name        string
 		ingestValue string
@@ -343,6 +330,7 @@ func (a *IngestTypesTestcase) testSupportedTypesInDefaultSetup(ctx context.Conte
 
 				fieldValue, ok := source[fieldName]
 				if !ok {
+					r.querySuccess = false
 
 					prefix := fieldName + "."
 					var fields []string
@@ -351,13 +339,11 @@ func (a *IngestTypesTestcase) testSupportedTypesInDefaultSetup(ctx context.Conte
 							fields = append(fields, k)
 						}
 					}
-
 					if len(fields) > 0 {
-						r.querySuccess = false
 						addError(fmt.Sprintf("field %s not found in response, but found fields: %v", fieldName, fields))
 					} else {
 						addError(fmt.Sprintf("field %s not found in response", fieldName))
-						r.querySuccess = false
+
 					}
 				} else {
 
@@ -372,7 +358,7 @@ func (a *IngestTypesTestcase) testSupportedTypesInDefaultSetup(ctx context.Conte
 					default:
 						data, err := json.Marshal(v)
 						if err != nil {
-
+							t.Fatalf("failed to marshal field value: %v", err)
 						}
 						fieldValueAsString = string(data)
 					}
@@ -381,7 +367,6 @@ func (a *IngestTypesTestcase) testSupportedTypesInDefaultSetup(ctx context.Conte
 						r.querySuccess = false
 						addError(fmt.Sprintf("field %s has unexpected value %v", fieldName, fieldValueAsString))
 					}
-
 				}
 			}
 
@@ -451,13 +436,7 @@ func (a *IngestTypesTestcase) testSupportedTypesInDefaultSetup(ctx context.Conte
 
 	fmt.Println("")
 
-	var failedTypes []string
-
 	for _, r := range results {
-
-		if r.claimedSupport && !r.currentSupport {
-			failedTypes = append(failedTypes, r.name)
-		}
 		if len(r.errors) > 0 {
 			fmt.Println("Type: ", r.name)
 			fmt.Println("Errors: ", strings.Join(r.errors, ", "))
