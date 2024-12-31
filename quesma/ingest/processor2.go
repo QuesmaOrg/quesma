@@ -430,7 +430,7 @@ func (ip *IngestProcessor2) processInsertQuery(ctx context.Context,
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
 
-	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
+	return generateSqlStatements(createTableCmd, "", alterCmd, insert), nil
 }
 
 func (lm *IngestProcessor2) Ingest(ctx context.Context, tableName string, jsonData []types.JSON) error {

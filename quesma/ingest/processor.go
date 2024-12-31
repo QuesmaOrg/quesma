@@ -548,10 +548,13 @@ func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), err
 }
 
-func generateSqlStatements(createTableCmd string, alterCmd []string, insert string) []string {
+func generateSqlStatements(createTableCmd string, creatBufferCmd string, alterCmd []string, insert string) []string {
 	var statements []string
 	if createTableCmd != "" {
 		statements = append(statements, createTableCmd)
+	}
+	if creatBufferCmd != "" {
+		statements = append(statements, creatBufferCmd)
 	}
 	statements = append(statements, alterCmd...)
 	statements = append(statements, insert)
@@ -622,6 +625,9 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	table := ip.FindTable(tableName)
 	var tableConfig *chLib.ChTableConfig
 	var createTableCmd string
+	bufferName := fmt.Sprintf("quesma_buffer_%s", tableName)
+	var createBufferCmd string
+
 	if table == nil {
 		tableConfig = NewOnlySchemaFieldsCHConfig()
 		columnsFromJson := JsonToColumns(transformedJsons[0], tableConfig)
@@ -645,10 +651,16 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 			logger.ErrorWithCtx(ctx).Msgf("error createTableObjectAndAttributes, can't create table: %v", err)
 			return nil, err
 		}
+
+		createBufferCmd = fmt.Sprintf(`CREATE TABLE %s AS %s ENGINE = Buffer(currentDatabase(), %s, 1, 10, 100, 10000, 1000000, 10000000, 100000000)`, bufferName, tableName, tableName)
+
 		// Set pointer to table after creating it
 		table = ip.FindTable(tableName)
 	} else if !table.Created {
 		createTableCmd = table.CreateTableString()
+
+		createBufferCmd = fmt.Sprintf(`CREATE TABLE %s AS %s ENGINE = Buffer(currentDatabase(), %s, 1, 10, 100, 10000, 1000000, 10000000, 100000000)`, bufferName, tableName, tableName)
+
 	}
 	if table == nil {
 		return nil, fmt.Errorf("table %s not found", tableName)
@@ -681,9 +693,9 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	}
 
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
-	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
+	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", bufferName, insertValues)
 
-	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
+	return generateSqlStatements(createTableCmd, createBufferCmd, alterCmd, insert), nil
 }
 
 func (lm *IngestProcessor) Ingest(ctx context.Context, indexName string, jsonData []types.JSON) error {
