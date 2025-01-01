@@ -5,6 +5,7 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -197,12 +198,16 @@ func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
 		query.intervalType = DateHistogramFixedInterval
 		return query.generateSQLForFixedInterval()
 	case "week", "1w":
+		query.interval = "1w"
 		return exprForBiggerIntervals("toStartOfWeek")
 	case "month", "1M":
+		query.interval = "1M"
 		return exprForBiggerIntervals("toStartOfMonth")
 	case "quarter", "1q":
+		query.interval = "1q"
 		return exprForBiggerIntervals("toStartOfQuarter")
 	case "year", "1y":
+		query.interval = "1y"
 		return exprForBiggerIntervals("toStartOfYear")
 	}
 
@@ -255,6 +260,7 @@ func (query *DateHistogram) SetMinDocCountToZero() {
 }
 
 func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
+	fmt.Println("query min doc count", query.minDocCount, query.interval, query.intervalType.String(query.ctx))
 	duration, err := util.ParseInterval(query.interval)
 	var differenceBetweenTwoNextKeys int64
 	if err == nil {
@@ -294,6 +300,8 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		return rowsFromDB
 	}
 
+	pp.Println(qt)
+
 	emptyRowsAdded := 0
 	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
 	if len(rowsFromDB) > 0 {
@@ -315,7 +323,7 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		// ugly, but works, will do for now
 		doWeDivide := (currentKey/qt.getKey(rowsFromDB[i])) >= 100 || (float64(currentKey)/float64(qt.getKey(rowsFromDB[i]))) <= 0.01
 
-		for midKey := lastKey + qt.differenceBetweenTwoNextKeys; midKey < currentKey && emptyRowsAdded < maxEmptyBucketsAdded; midKey += qt.differenceBetweenTwoNextKeys {
+		for midKey := qt.nextKey(lastKey); midKey < currentKey && emptyRowsAdded < maxEmptyBucketsAdded; midKey = qt.nextKey(midKey) {
 			midRow := rowsFromDB[i-1].Copy()
 			divideBy := int64(1)
 			if doWeDivide {
@@ -397,4 +405,30 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 
 func (qt *DateHistogramRowsTransformer) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
+}
+
+func (qt *DateHistogramRowsTransformer) nextKey(key int64) int64 {
+	if qt.dateHistogram.intervalType == DateHistogramFixedInterval {
+		return key + qt.differenceBetweenTwoNextKeys
+	}
+	if qt.dateHistogram.interval != "1M" && qt.dateHistogram.interval != "1q" && qt.dateHistogram.interval != "1y" {
+		// intervals < month are the same as fixed_interval here
+		return key + qt.differenceBetweenTwoNextKeys
+	}
+
+	addNMonthsHacky := func(key int64, N int) int64 {
+		ts := time.UnixMilli(key).UTC()
+		return ts.AddDate(0, N, 2).UnixMilli() - ts.AddDate(0, 0, 2).UnixMilli()
+	}
+	var monthsNr int
+	switch qt.dateHistogram.interval {
+	case "1M":
+		monthsNr = 1
+	case "1q":
+		monthsNr = 3
+	case "1y":
+		monthsNr = 12
+	}
+	deltaInMs := addNMonthsHacky(key, monthsNr)
+	return key + deltaInMs
 }
