@@ -23,6 +23,7 @@ import (
 	"quesma/logger"
 	"quesma/persistence"
 	"quesma/processors/es_to_ch_ingest"
+	"quesma/processors/es_to_ch_query"
 	"quesma/quesma"
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
@@ -95,16 +96,74 @@ func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
 	return quesmaInstance
 }
 
-// Example of how to use the v2 module api in main function
-//func main() {
-//	q1 := buildIngestOnlyQuesma()
-//	q1.Start()
-//	stop := make(chan os.Signal, 1)
-//	<-stop
-//	q1.Stop(context.Background())
-//}
+// buildQueryOnlyQuesma is for now a helper function to help establishing the way of v2 module api import
+func buildQueryOnlyQuesma() quesma_api.QuesmaBuilder {
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+	queryFrontendConnector := frontend_connectors.NewElasticsearchQueryFrontendConnector(
+		":8080",
+		&config.QuesmaConfiguration{
+			DisableAuth: true,
+			Elasticsearch: config.ElasticsearchConfiguration{
+				Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+				User:     "",
+				Password: "",
+			},
+		})
 
+	var queryPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	queryPipeline.AddFrontendConnector(queryFrontendConnector)
+
+	queryProcessor := es_to_ch_query.NewElasticsearchToClickHouseQueryProcessor(
+		config.QuesmaProcessorConfig{
+			UseCommonTable: false,
+			IndexConfig: map[string]config.IndexConfiguration{
+				"test_index":   {},
+				"test_index_2": {},
+				"tab1": {
+					UseCommonTable: true,
+				},
+				"tab2": {
+					UseCommonTable: true,
+				},
+				"kibana_sample_data_ecommerce": {
+					QueryTarget: []string{config.ClickhouseTarget}, // table_discovery2.go:230 explains why this is needed
+				},
+				"*": {
+					QueryTarget: []string{config.ElasticsearchTarget},
+				},
+			},
+		},
+	)
+	queryPipeline.AddProcessor(queryProcessor)
+	quesmaBuilder.AddPipeline(queryPipeline)
+
+	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector("clickhouse://localhost:9000")
+	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector(
+		config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     "elastic",
+			Password: "quesmaquesma",
+		})
+	queryPipeline.AddBackendConnector(clickHouseBackendConnector)
+	queryPipeline.AddBackendConnector(elasticsearchBackendConnector)
+
+	quesmaInstance, err := quesmaBuilder.Build()
+	if err != nil {
+		log.Fatalf("error building quesma instance: %v", err)
+	}
+	return quesmaInstance
+}
+
+// Example of how to use the v2 module api in main function
 func main() {
+	q1 := buildQueryOnlyQuesma()
+	q1.Start()
+	stop := make(chan os.Signal, 1)
+	<-stop
+	q1.Stop(context.Background())
+}
+
+func main2() {
 	if EnableConcurrencyProfiling {
 		runtime.SetBlockProfileRate(1)
 		runtime.SetMutexProfileFraction(1)
