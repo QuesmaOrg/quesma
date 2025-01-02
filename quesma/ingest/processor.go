@@ -11,6 +11,7 @@ import (
 	chLib "quesma/clickhouse"
 	"quesma/comment_metadata"
 	"quesma/common_table"
+	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/jsonprocessor"
 	"quesma/logger"
@@ -687,6 +688,11 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 }
 
 func (lm *IngestProcessor) Ingest(ctx context.Context, indexName string, jsonData []types.JSON) error {
+
+	err := elasticsearch.IsValidIndexName(indexName)
+	if err != nil {
+		return err
+	}
 
 	nameFormatter := DefaultColumnNameFormatter()
 	transformer := jsonprocessor.IngestTransformerFor(indexName, lm.cfg)

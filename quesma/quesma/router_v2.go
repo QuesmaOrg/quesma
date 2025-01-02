@@ -242,6 +242,11 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		case "PUT":
 			index := req.Params["index"]
 
+			err := elasticsearch.IsValidIndexName(index)
+			if err != nil {
+				return nil, err
+			}
+
 			body, err := types.ExpectJSON(req.ParsedBody)
 			if err != nil {
 				return nil, err
@@ -338,6 +343,11 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 			if req.Body == "" {
 				logger.Warn().Msgf("empty body in PUT /%s request, Quesma is not doing anything", index)
 				return putIndexResult(index)
+			}
+
+			err := elasticsearch.IsValidIndexName(index)
+			if err != nil {
+				return nil, err
 			}
 
 			body, err := types.ExpectJSON(req.ParsedBody)

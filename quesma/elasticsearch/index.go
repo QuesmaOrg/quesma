@@ -3,6 +3,8 @@
 package elasticsearch
 
 import (
+	"fmt"
+	"quesma/end_user_errors"
 	"strings"
 )
 
@@ -20,3 +22,15 @@ func IsInternalIndex(index string) bool {
 
 // InternalPaths is a list of paths that are considered internal and should not handled by Quesma
 var InternalPaths = []string{"/_nodes", "/_xpack"}
+
+func IsValidIndexName(name string) error {
+	const maxIndexNameLength = 256
+
+	if len(name) > maxIndexNameLength {
+		return end_user_errors.ErrIndexNameTooLong.New(fmt.Errorf("index name is too long: %d, max length: %d", len(name), maxIndexNameLength))
+	}
+
+	// TODO add more checks, elasticsearch is quite strict about index names
+
+	return nil
+}

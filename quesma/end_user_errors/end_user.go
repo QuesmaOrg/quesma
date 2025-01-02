@@ -96,6 +96,7 @@ var ErrNoSuchTable = errorType(2002, "Missing table.")
 var ErrNoSuchSchema = errorType(2003, "Missing schema.")
 var ErrNoIngest = errorType(2004, "Ingest is not enabled.")
 var ErrNoConnector = errorType(2005, "No connector found.")
+var ErrIndexNameTooLong = errorType(2006, "Index name is too long.")
 
 var ErrDatabaseTableNotFound = errorType(3001, "Table not found in database.")
 var ErrDatabaseFieldNotFound = errorType(3002, "Field not found in database.")
@@ -106,3 +107,4 @@ var ErrDatabaseOtherError = errorType(3006, "Database query has failed. You may 
 var ErrDatabaseInvalidProtocol = errorType(3007, "Invalid database protocol. Check your connection settings. ")
 var ErrDatabaseTLS = errorType(3008, "Error establishing TLS connection with database. Check your connection settings.")
 var ErrDatabaseTLSVerify = errorType(3009, "Error verifying TLS certificate with database. Check your connection settings.")
+var ErrDatabaseStorageError = errorType(3010, "Error storing data in database. Check your database settings.")
