@@ -156,7 +156,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	})
 
 	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		sources, err := resolve.HandleResolve(req.Params["index"], sr, cfg)
+		sources, err := resolve.HandleResolve(req.Params["index"], sr, queryRunner.im)
 		if err != nil {
 			return nil, err
 		}
@@ -330,7 +330,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 
-		responseBody, err := field_capabilities.HandleFieldCaps(ctx, cfg, sr, req.Params["index"], lm)
+		responseBody, err := field_capabilities.HandleFieldCaps(ctx, cfg.IndexConfig, sr, req.Params["index"], lm)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				if req.QueryParams.Get("allow_no_indices") == "true" || req.QueryParams.Get("ignore_unavailable") == "true" {
