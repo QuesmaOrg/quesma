@@ -776,6 +776,14 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.EnableIngest = true
 		conf.IngestStatistics = c.IngestStatistics
 
+		if defaultIngestConfig, ok := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
+			conf.DefaultIngestOptimizers = defaultIngestConfig.Optimizers
+		} else {
+			conf.DefaultIngestOptimizers = nil
+		}
+
+		delete(ingestProcessor.Config.IndexConfig, DefaultWildcardIndexName)
+
 		for indexName, indexConfig := range ingestProcessor.Config.IndexConfig {
 			processedConfig, found := conf.IndexConfig[indexName]
 			if !found {
@@ -820,13 +828,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			conf.IndexConfig[indexName] = processedConfig
 		}
 
-		if defaultIngestConfig, ok := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
-			conf.DefaultIngestOptimizers = defaultIngestConfig.Optimizers
-		} else {
-			conf.DefaultIngestOptimizers = nil
-		}
-
-		delete(ingestProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 	}
 
 END:
