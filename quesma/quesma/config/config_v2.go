@@ -779,7 +779,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 
 		conf.EnableIngest = true
-		conf.IngestStatistics = true
+		conf.IngestStatistics = c.IngestStatistics
 
 		for indexName, indexConfig := range ingestProcessor.Config.IndexConfig {
 			processedConfig, found := conf.IndexConfig[indexName]
