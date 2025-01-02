@@ -769,11 +769,9 @@ func (ip *IngestProcessor) applyAsyncInsertOptimizer(tableName string, clickhous
 
 	idxCfg, ok := ip.cfg.IndexConfig[tableName]
 	if ok {
-		if properties, disabled := idxCfg.GetOptimizerConfiguration(asyncInsertOptimizerName); !disabled {
-			enableAsyncInsert = true
-			asyncInsertProps = properties
-		} else {
-			enableAsyncInsert = false
+		if optimizer, ok := idxCfg.Optimizers[asyncInsertOptimizerName]; ok {
+			enableAsyncInsert = !optimizer.Disabled
+			asyncInsertProps = optimizer.Properties
 		}
 	}
 

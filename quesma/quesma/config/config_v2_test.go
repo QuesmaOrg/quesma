@@ -4,7 +4,6 @@ package config
 
 import (
 	"fmt"
-	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"strings"
@@ -332,17 +331,11 @@ func TestIngestOptimizers(t *testing.T) {
 	logs1, ok := legacyConf.IndexConfig["logs-1"]
 
 	assert.True(t, ok)
-
 	assert.Equal(t, 2, len(logs1.Optimizers))
-
 	assert.NotNil(t, legacyConf.DefaultIngestOptimizers)
 	assert.Equal(t, 1, len(legacyConf.DefaultIngestOptimizers))
-
-	pp.Print(legacyConf.DefaultIngestOptimizers)
-
 	assert.NotNil(t, legacyConf.DefaultIngestOptimizers["ingest_only"])
 
 	_, ok = legacyConf.DefaultIngestOptimizers["query_only"]
 	assert.False(t, ok)
-
 }
