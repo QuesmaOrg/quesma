@@ -156,7 +156,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	})
 
 	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		sources, err := resolve.HandleResolve(req.Params["index"], sr, cfg)
+		sources, err := resolve.HandleResolve(req.Params["index"], sr, queryRunner.im)
 		if err != nil {
 			return nil, err
 		}
@@ -164,7 +164,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	})
 
 	router.Register(routes.IndexCountPath, and(method("GET"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		cnt, err := queryRunner.handleCount(ctx, req.Params["index"])
+		cnt, err := queryRunner.HandleCount(ctx, req.Params["index"])
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
@@ -191,7 +191,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		}
 
 		// TODO we should pass JSON here instead of []byte
-		responseBody, err := queryRunner.handleSearch(ctx, "*", body)
+		responseBody, err := queryRunner.HandleSearch(ctx, "*", body)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
@@ -209,7 +209,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			return nil, err
 		}
 
-		responseBody, err := queryRunner.handleSearch(ctx, req.Params["index"], body)
+		responseBody, err := queryRunner.HandleSearch(ctx, req.Params["index"], body)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
@@ -246,7 +246,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			return nil, err
 		}
 
-		responseBody, err := queryRunner.handleAsyncSearch(ctx, req.Params["index"], body, waitForResultsMs, keepOnCompletion)
+		responseBody, err := queryRunner.HandleAsyncSearch(ctx, req.Params["index"], body, waitForResultsMs, keepOnCompletion)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
@@ -298,7 +298,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	})
 
 	router.Register(routes.AsyncSearchStatusPath, and(method("GET"), matchedAgainstAsyncId()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		responseBody, err := queryRunner.handleAsyncSearchStatus(ctx, req.Params["id"])
+		responseBody, err := queryRunner.HandleAsyncSearchStatus(ctx, req.Params["id"])
 		if err != nil {
 			return nil, err
 		}
@@ -311,14 +311,14 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 		case "GET":
 			ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, req.Params["id"])
-			responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, req.Params["id"])
+			responseBody, err := queryRunner.HandlePartialAsyncSearch(ctx, req.Params["id"])
 			if err != nil {
 				return nil, err
 			}
 			return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 
 		case "DELETE":
-			responseBody, err := queryRunner.deleteAsyncSearch(req.Params["id"])
+			responseBody, err := queryRunner.DeleteAsyncSearch(req.Params["id"])
 			if err != nil {
 				return nil, err
 			}
@@ -330,7 +330,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 
-		responseBody, err := field_capabilities.HandleFieldCaps(ctx, cfg, sr, req.Params["index"], lm)
+		responseBody, err := field_capabilities.HandleFieldCaps(ctx, cfg.IndexConfig, sr, req.Params["index"], lm)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				if req.QueryParams.Get("allow_no_indices") == "true" || req.QueryParams.Get("ignore_unavailable") == "true" {
