@@ -281,11 +281,6 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		if ingestProcessor.Type != QuesmaV1ProcessorIngest && ingestProcessor.Type != QuesmaV1ProcessorNoOp {
 			return fmt.Errorf("ingest pipeline must have ingest-type or noop processor")
 		}
-		for indexName, indexConf := range ingestProcessor.Config.IndexConfig {
-			if len(indexConf.Optimizers) != 0 {
-				return fmt.Errorf("configuration of index '%s' in '%s' processor cannot have any optimizers, this is only a feature of query processor", ingestPipeline.Processors[0], indexName)
-			}
-		}
 		queryProcessor := c.getProcessorByName(queryPipeline.Processors[0])
 		if queryProcessor == nil {
 			return fmt.Errorf("query processor named [%s] not found in configuration", ingestPipeline.Processors[0])
@@ -731,8 +726,8 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.DefaultIngestTarget = defaultConfig.IngestTarget
 		conf.DefaultQueryTarget = defaultConfig.QueryTarget
 		conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
+
 		delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
-		delete(ingestProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 			processedConfig := indexConfig
@@ -811,8 +806,27 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					processedConfig.Override = val.(string)
 				}
 			}
+
+			// copy ingest optimizers to the destination
+			if indexConfig.Optimizers != nil {
+				if processedConfig.Optimizers == nil {
+					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+				}
+				for optName, optConf := range indexConfig.Optimizers {
+					processedConfig.Optimizers[optName] = optConf
+				}
+			}
+
 			conf.IndexConfig[indexName] = processedConfig
 		}
+
+		if defaultIngestConfig, ok := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
+			conf.DefaultIngestOptimizers = defaultIngestConfig.Optimizers
+		} else {
+			conf.DefaultIngestOptimizers = nil
+		}
+
+		delete(ingestProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 	}
 
 END:
