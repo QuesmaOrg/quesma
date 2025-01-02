@@ -50,8 +50,13 @@ func responseFromElasticV2(ctx context.Context, elkResponse *http.Response, w ht
 }
 
 func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseWriter, quesmaResponse *quesma_api.Result, zip bool) {
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
-	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
+	var reqIdFromContext string
+	if id := ctx.Value(tracing.RequestIdCtxKey); id != nil {
+		reqIdFromContext = id.(string)
+	} else {
+		reqIdFromContext = "EMPTY_REQUEST_ID_IN_CONTEXT"
+	}
+	logger.Debug().Str(logger.RID, reqIdFromContext).Msg("responding from Quesma")
 
 	for key, value := range quesmaResponse.Meta {
 		if headerStringValue, ok := value.(string); ok {
