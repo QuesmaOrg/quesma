@@ -102,5 +102,5 @@ type BackendConnector interface {
 
 	// Exec executes a command that doesn't return rows, typically an INSERT, UPDATE, or DELETE.
 	Exec(ctx context.Context, query string, args ...interface{}) error
-	Close() error
+	Close() error // TODO we should revisit returning error here
 }
