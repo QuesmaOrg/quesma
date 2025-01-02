@@ -754,6 +754,44 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	return nil
 }
 
+func (ip *IngestProcessor) applyAsyncInsertOptimizer(tableName string, clickhouseSettings clickhouse.Settings) clickhouse.Settings {
+
+	const asyncInsertOptimizerName = "async_insert"
+	enableAsyncInsert := false
+	var asyncInsertProps map[string]string
+
+	if optimizer, ok := ip.cfg.DefaultIngestOptimizers[asyncInsertOptimizerName]; ok {
+		if !optimizer.Disabled {
+			enableAsyncInsert = true
+			asyncInsertProps = optimizer.Properties
+		}
+	}
+
+	idxCfg, ok := ip.cfg.IndexConfig[tableName]
+	if ok {
+		if optimizer, ok := idxCfg.Optimizers[asyncInsertOptimizerName]; ok {
+			enableAsyncInsert = !optimizer.Disabled
+			asyncInsertProps = optimizer.Properties
+		}
+	}
+
+	if enableAsyncInsert {
+		clickhouseSettings["async_insert"] = 1
+
+		// some sane defaults
+		clickhouseSettings["wait_for_async_insert"] = 1
+		clickhouseSettings["async_insert_busy_timeout_ms"] = 1000
+		clickhouseSettings["async_insert_max_data_size"] = 1000000
+		clickhouseSettings["async_insert_max_query_number"] = 10000
+
+		for k, v := range asyncInsertProps {
+			clickhouseSettings[k] = v
+		}
+	}
+
+	return clickhouseSettings
+}
+
 func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter, isVirtualTable bool) error {
@@ -776,10 +814,14 @@ func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, table
 		return nil
 	}
 
-	// We expect to have date format set to `best_effort`
-	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
+	clickhouseSettings := clickhouse.Settings{
 		"date_time_input_format": "best_effort",
-	}))
+	}
+
+	clickhouseSettings = ip.applyAsyncInsertOptimizer(tableName, clickhouseSettings)
+
+	// We expect to have date format set to `best_effort`
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouseSettings))
 
 	return ip.executeStatements(ctx, statements)
 }
