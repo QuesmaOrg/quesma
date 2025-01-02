@@ -761,7 +761,7 @@ func (ip *IngestProcessor) applyAsyncInsertOptimizer(tableName string, clickhous
 	var asyncInsertProps map[string]string
 
 	if optimizer, ok := ip.cfg.DefaultIngestOptimizers[asyncInsertOptimizerName]; ok {
-		if optimizer.Disabled == false {
+		if !optimizer.Disabled {
 			enableAsyncInsert = true
 			asyncInsertProps = optimizer.Properties
 		}
