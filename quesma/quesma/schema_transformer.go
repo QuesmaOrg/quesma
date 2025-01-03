@@ -294,15 +294,7 @@ func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, q
 		return query, nil
 	}
 
-	var visitor model.ExprVisitor
-
-	if checkIfGroupingByArrayColumn(query.SelectCommand, arrayTypeResolver) {
-		visitor = NewArrayJoinVisitor(arrayTypeResolver)
-	} else {
-		visitor = NewArrayTypeVisitor(arrayTypeResolver)
-	}
-
-	expr := query.SelectCommand.Accept(visitor)
+	expr := query.SelectCommand.Accept(NewArrayTypeVisitor(arrayTypeResolver))
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
