@@ -283,13 +283,21 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 			}
 			metadata, message := dispatcher.Dispatch(handlersPipe.Processors, result.Meta, result.GenericResult)
 
-			result = &quesma_api.Result{
-				Body:          result.Body,
-				Meta:          metadata,
-				StatusCode:    result.StatusCode,
-				GenericResult: message,
+			if res, ok := message.(*quesma_api.Result); ok {
+				return res, nil
 			}
-			return result, err
+
+			if msgBytes, ok := message.([]byte); !ok {
+				return result, fmt.Errorf("invalid message type: %T")
+			} else {
+				result = &quesma_api.Result{
+					Body:          string(msgBytes),
+					Meta:          metadata,
+					StatusCode:    http.StatusOK,
+					GenericResult: message,
+				}
+				return result, err
+			}
 		})
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
@@ -298,7 +306,11 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 			logger.Debug().Ctx(ctx).Msg("responding from quesma")
 			unzipped := []byte{}
 			if quesmaResponse != nil {
-				unzipped = quesmaResponse.GenericResult.([]byte)
+				if v, ok := quesmaResponse.GenericResult.([]byte); ok {
+					unzipped = v
+				} else {
+					fmt.Printf("FAILED GETTING GENERIC. RESULT  AS BYTES")
+				}
 			}
 			if len(unzipped) == 0 {
 				logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
