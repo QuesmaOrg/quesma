@@ -98,18 +98,19 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 	// and should store only shared handlers
 	// which is not true for now
 	sharedHandlers := make(map[string]HandlersPipe)
-	for _, pipeline := range quesma.pipelines {
-		for _, conn := range pipeline.GetFrontendConnectors() {
-			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
-				router := httpConn.GetRouter()
-				for path, handlerWrapper := range router.GetHandlers() {
-					handlerWrapper.Processors = append(handlerWrapper.Processors, pipeline.GetProcessors()...)
-					sharedHandlers[path] = handlerWrapper
+	if len(endpoints) == 1 {
+		for _, pipeline := range quesma.pipelines {
+			for _, conn := range pipeline.GetFrontendConnectors() {
+				if httpConn, ok := conn.(HTTPFrontendConnector); ok {
+					router := httpConn.GetRouter()
+					for path, handlerWrapper := range router.GetHandlers() {
+						handlerWrapper.Processors = append(handlerWrapper.Processors, pipeline.GetProcessors()...)
+						sharedHandlers[path] = handlerWrapper
+					}
 				}
 			}
 		}
 	}
-
 	// That's special case for shared frontend connectors
 	// This condition is not fully generic, yet
 	// We should share frontend connectors only if they use the same endpoint
