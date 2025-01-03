@@ -80,8 +80,8 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 		pipelineIndex int
 		connIndex     int
 	})
-	// This pass collects information about shared endpoints
-	// e.g. multiple frontend connectors that use the same endpoint
+	// This pass collects information about endpoints
+	// e.g. multiple frontend connectors can use the same endpoint
 	for pipelineIndex, pipeline := range quesma.pipelines {
 		for connIndex, conn := range pipeline.GetFrontendConnectors() {
 			endpoints[conn.GetEndpoint()] = append(endpoints[conn.GetEndpoint()], struct {
@@ -98,6 +98,8 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 		}
 	}
 
+	// Second pass is about connecting routers with processors
+	// and merge them if they are the same properties
 	handlersPerEndpoint := make(map[string]map[string]HandlersPipe)
 	for _, pipeline := range quesma.pipelines {
 		for _, conn := range pipeline.GetFrontendConnectors() {
@@ -120,6 +122,7 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 
 	quesma.dependencies.Logger().Debug().Msg(dumpEndpoints(endpoints))
 
+	// This pass sets the routers with the handlers
 	for _, pipeline := range quesma.pipelines {
 		for _, conn := range pipeline.GetFrontendConnectors() {
 			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
@@ -130,6 +133,7 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 		}
 	}
 
+	// This pass is about sharing frontend connectors
 	for endpoint, endpointInfo := range endpoints {
 		sharedFc := quesma.pipelines[endpointInfo[0].pipelineIndex].GetFrontendConnectors()[endpointInfo[0].connIndex]
 		for _, info := range endpointInfo {
@@ -147,6 +151,8 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 		}
 	}
 
+	// This pass is about connecting processors with tcp connectors
+	// and doing some validation
 	for _, pipeline := range quesma.pipelines {
 		backendConnectorTypesPerPipeline := make(map[BackendConnectorType]struct{})
 		for _, conn := range pipeline.GetFrontendConnectors() {
@@ -174,7 +180,6 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 			}
 		}
 	}
-
 	return quesma, nil
 }
 
