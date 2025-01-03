@@ -17,7 +17,6 @@ import (
 	"quesma/quesma/errors"
 	"quesma/quesma/functionality/bulk"
 	"quesma/quesma/functionality/doc"
-	"quesma/quesma/functionality/terms_enum"
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/table_resolver"
@@ -154,11 +153,11 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 	// This is current limitation of the router.
 
 	router.Register(routes.ClusterHealthPath, method("GET"), func(_ context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, http.StatusOK), nil
+		return HandleClusterHealth()
 	})
 
 	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExactQueryPath(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		return elasticsearchInsertResult(`{"_shards":{"total":1,"successful":1,"failed":0}}`, http.StatusOK), nil
+		return HandleIndexRefresh()
 	})
 
 	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
@@ -223,42 +222,18 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 	})
 
 	router.Register(routes.IndexMappingPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-
+		index := req.Params["index"]
 		switch req.Method {
-
 		case "GET":
-			index := req.Params["index"]
-
-			foundSchema, found := sr.FindSchema(schema.IndexName(index))
-			if !found {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
-			}
-
-			hierarchicalSchema := schema.SchemaToHierarchicalSchema(&foundSchema)
-			mappings := elasticsearch.GenerateMappings(hierarchicalSchema)
-
-			return getIndexMappingResult(index, mappings)
-
+			return HandleGetIndexMapping(sr, index)
 		case "PUT":
-			index := req.Params["index"]
-
-			err := elasticsearch.IsValidIndexName(index)
-			if err != nil {
+			if body, err := types.ExpectJSON(req.ParsedBody); err != nil {
 				return nil, err
+			} else {
+				return HandlePutIndex(index, body, sr)
 			}
-
-			body, err := types.ExpectJSON(req.ParsedBody)
-			if err != nil {
-				return nil, err
-			}
-
-			columns := elasticsearch.ParseMappings("", body)
-			sr.UpdateDynamicConfiguration(schema.IndexName(index), schema.Table{Columns: columns})
-			return putIndexResult(index)
 		}
-
 		return nil, errors.New("unsupported method")
-
 	})
 
 	router.Register(routes.AsyncSearchStatusPath, and(method("GET"), matchedAgainstAsyncId()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
@@ -282,25 +257,15 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 			cfg.IndexConfig, sr, lm)
 	})
 	router.Register(routes.TermsEnumPath, and(method("POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-
-		if strings.Contains(req.Params["index"], ",") {
+		indexPattern := req.Params["index"]
+		if strings.Contains(indexPattern, ",") {
 			return nil, errors.New("multi index terms enum is not yet supported")
-		} else {
-
-			var body types.JSON
-			switch b := req.ParsedBody.(type) {
-			case types.JSON:
-				body = b
-			default:
-				return nil, errors.New("invalid request body, expecting JSON")
-			}
-
-			if responseBody, err := terms_enum.HandleTermsEnum(ctx, req.Params["index"], body, lm, sr, dependencies.DebugInfoCollector()); err != nil {
-				return nil, err
-			} else {
-				return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
-			}
 		}
+		body, err := types.ExpectJSON(req.ParsedBody)
+		if err != nil {
+			return nil, errors.New("invalid request body, expecting JSON")
+		}
+		return HandleTermsEnum(ctx, indexPattern, body, lm, sr, dependencies)
 	})
 
 	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
@@ -321,52 +286,20 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 	})
 
 	router.Register(routes.IndexPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-
+		index := req.Params["index"]
 		switch req.Method {
-
 		case "GET":
-			index := req.Params["index"]
-
-			foundSchema, found := sr.FindSchema(schema.IndexName(index))
-			if !found {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
-			}
-
-			hierarchicalSchema := schema.SchemaToHierarchicalSchema(&foundSchema)
-			mappings := elasticsearch.GenerateMappings(hierarchicalSchema)
-
-			return getIndexResult(index, mappings)
-
+			return HandleGetIndex(sr, index)
 		case "PUT":
-
-			index := req.Params["index"]
 			if req.Body == "" {
-				logger.Warn().Msgf("empty body in PUT /%s request, Quesma is not doing anything", index)
-				return putIndexResult(index)
+				return HandlePutIndex(index, types.JSON{}, sr)
 			}
-
-			err := elasticsearch.IsValidIndexName(index)
-			if err != nil {
+			if body, err := types.ExpectJSON(req.ParsedBody); err != nil {
 				return nil, err
+			} else {
+				return HandlePutIndex(index, body, sr)
 			}
-
-			body, err := types.ExpectJSON(req.ParsedBody)
-			if err != nil {
-				return nil, err
-			}
-
-			mappings, ok := body["mappings"]
-			if !ok {
-				logger.Warn().Msgf("no mappings found in PUT /%s request, ignoring that request. Full content: %s", index, req.Body)
-				return putIndexResult(index)
-			}
-			columns := elasticsearch.ParseMappings("", mappings.(map[string]interface{}))
-
-			sr.UpdateDynamicConfiguration(schema.IndexName(index), schema.Table{Columns: columns})
-
-			return putIndexResult(index)
 		}
-
 		return nil, errors.New("unsupported method")
 	})
 

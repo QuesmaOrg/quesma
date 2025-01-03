@@ -505,6 +505,11 @@ type countResult struct {
 	Count int64 `json:"count"`
 }
 
+// ElasticsearchQueryResult is a low-effort way to export widely used func without too much refactoring
+func ElasticsearchQueryResult(body string, statusCode int) *quesma_api.Result {
+	return elasticsearchQueryResult(body, statusCode)
+}
+
 func elasticsearchQueryResult(body string, statusCode int) *quesma_api.Result {
 	return &quesma_api.Result{Body: body, Meta: map[string]any{
 		// TODO copy paste from the original request
@@ -576,6 +581,11 @@ func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*que
 	}
 
 	return elasticsearchInsertResult(string(body), http.StatusOK), nil
+}
+
+// ElasticsearchInsertResult is a low-effort way to export widely used func without too much refactoring
+func ElasticsearchInsertResult(body string, statusCode int) *quesma_api.Result {
+	return elasticsearchInsertResult(body, statusCode)
 }
 
 func elasticsearchInsertResult(body string, statusCode int) *quesma_api.Result {
