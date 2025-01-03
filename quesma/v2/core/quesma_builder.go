@@ -80,25 +80,36 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 		pipelineIndex int
 		connIndex     int
 	})
-	handlers := make(map[string]HandlersPipe)
+	// This pass collects information about shared endpoints
+	// e.g. multiple frontend connectors that use the same endpoint
 	for pipelineIndex, pipeline := range quesma.pipelines {
 		for connIndex, conn := range pipeline.GetFrontendConnectors() {
+			endpoints[conn.GetEndpoint()] = append(endpoints[conn.GetEndpoint()], struct {
+				pipelineIndex int
+				connIndex     int
+			}{
+				pipelineIndex: pipelineIndex,
+				connIndex:     connIndex,
+			})
+		}
+	}
+	// This pass is about sharing handlers between frontend connectors
+	// that have the same endpoint
+	// and should store only shared handlers
+	// which is not true for now
+	sharedHandlers := make(map[string]HandlersPipe)
+	for _, pipeline := range quesma.pipelines {
+		for _, conn := range pipeline.GetFrontendConnectors() {
 			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
-				endpoints[conn.GetEndpoint()] = append(endpoints[conn.GetEndpoint()], struct {
-					pipelineIndex int
-					connIndex     int
-				}{
-					pipelineIndex: pipelineIndex,
-					connIndex:     connIndex,
-				})
 				router := httpConn.GetRouter()
 				for path, handlerWrapper := range router.GetHandlers() {
 					handlerWrapper.Processors = append(handlerWrapper.Processors, pipeline.GetProcessors()...)
-					handlers[path] = handlerWrapper
+					sharedHandlers[path] = handlerWrapper
 				}
 			}
 		}
 	}
+
 	// That's special case for shared frontend connectors
 	// This condition is not fully generic, yet
 	// We should share frontend connectors only if they use the same endpoint
@@ -108,7 +119,7 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 			for connIndex, conn := range pipeline.GetFrontendConnectors() {
 				if httpConn, ok := conn.(HTTPFrontendConnector); ok {
 					router := httpConn.GetRouter().Clone().(Router)
-					router.SetHandlers(handlers)
+					router.SetHandlers(sharedHandlers)
 					httpConn.AddRouter(router)
 				}
 				quesma.dependencies.Logger().Info().Msg(conn.InstanceName() +
