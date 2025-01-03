@@ -99,6 +99,9 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 			}
 		}
 	}
+	// That's special case for shared frontend connectors
+	// This condition is not fully generic, yet
+	// We should share frontend connectors only if they use the same endpoint
 	if len(endpoints) == 1 {
 		quesma.dependencies.Logger().Debug().Msg(dumpEndpoints(endpoints))
 		for pipelineIndex, pipeline := range quesma.pipelines {
@@ -135,6 +138,7 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 		backendConnectorTypesPerPipeline := make(map[BackendConnectorType]struct{})
 		for _, conn := range pipeline.GetFrontendConnectors() {
 			if tcpConn, ok := conn.(TCPFrontendConnector); ok {
+				// Inject processors set on pipeline level into connection handler
 				if len(pipeline.GetProcessors()) > 0 {
 					tcpConn.GetConnectionHandler().SetHandlers(pipeline.GetProcessors())
 				}
