@@ -9,6 +9,8 @@ import (
 )
 
 const ElasticFieldName = "fieldName"
+const CreatedAt = "createdAt"
+const CreatedBy = "createdBy"
 
 const metadataVersion = "1"
 const metadataPrefix = "quesmaMetadata"
