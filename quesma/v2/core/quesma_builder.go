@@ -97,38 +97,45 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 	// that have the same endpoint
 	// and should store only shared handlers
 	// which is not true for now
-	sharedHandlers := make(map[string]HandlersPipe)
-	if len(endpoints) == 1 {
-		for _, pipeline := range quesma.pipelines {
-			for _, conn := range pipeline.GetFrontendConnectors() {
-				if httpConn, ok := conn.(HTTPFrontendConnector); ok {
-					router := httpConn.GetRouter()
-					for path, handlerWrapper := range router.GetHandlers() {
-						handlerWrapper.Processors = append(handlerWrapper.Processors, pipeline.GetProcessors()...)
-						sharedHandlers[path] = handlerWrapper
+	sharedHandlersPerEndpoint := make(map[string]map[string]HandlersPipe)
+	for _, pipeline := range quesma.pipelines {
+		for _, conn := range pipeline.GetFrontendConnectors() {
+			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
+				router := httpConn.GetRouter()
+				for path, handlerWrapper := range router.GetHandlers() {
+					handlerWrapper.Processors = append(handlerWrapper.Processors, pipeline.GetProcessors()...)
+					sharedWrappers := make(map[string]HandlersPipe)
+					sharedWrappers[path] = handlerWrapper
+					if _, ok := sharedHandlersPerEndpoint[conn.GetEndpoint()]; ok {
+						for path, handlerWrapper := range sharedHandlersPerEndpoint[conn.GetEndpoint()] {
+							sharedWrappers[path] = handlerWrapper
+						}
 					}
+					sharedHandlersPerEndpoint[conn.GetEndpoint()] = sharedWrappers
 				}
 			}
 		}
 	}
+
 	// That's special case for shared frontend connectors
 	// This condition is not fully generic, yet
 	// We should share frontend connectors only if they use the same endpoint
-	if len(endpoints) == 1 {
-		quesma.dependencies.Logger().Debug().Msg(dumpEndpoints(endpoints))
-		for pipelineIndex, pipeline := range quesma.pipelines {
-			for connIndex, conn := range pipeline.GetFrontendConnectors() {
-				if httpConn, ok := conn.(HTTPFrontendConnector); ok {
-					router := httpConn.GetRouter().Clone().(Router)
-					router.SetHandlers(sharedHandlers)
-					httpConn.AddRouter(router)
-				}
-				quesma.dependencies.Logger().Info().Msg(conn.InstanceName() +
-					":" + conn.GetEndpoint() +
-					",index:" + strconv.FormatInt(int64(connIndex), 10) +
-					",pipeline:" + strconv.FormatInt(int64(pipelineIndex), 10))
+
+	quesma.dependencies.Logger().Debug().Msg(dumpEndpoints(endpoints))
+	for pipelineIndex, pipeline := range quesma.pipelines {
+		for connIndex, conn := range pipeline.GetFrontendConnectors() {
+			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
+				router := httpConn.GetRouter().Clone().(Router)
+				router.SetHandlers(sharedHandlersPerEndpoint[conn.GetEndpoint()])
+				httpConn.AddRouter(router)
 			}
+			quesma.dependencies.Logger().Info().Msg(conn.InstanceName() +
+				":" + conn.GetEndpoint() +
+				",index:" + strconv.FormatInt(int64(connIndex), 10) +
+				",pipeline:" + strconv.FormatInt(int64(pipelineIndex), 10))
 		}
+	}
+	if len(endpoints) == 1 {
 		// TODO this fixes the problem of sharing the same frontend connector
 		// in the case of having only one endpoint
 		// however it's not fully generic yet as only subset of connectors might be shared
