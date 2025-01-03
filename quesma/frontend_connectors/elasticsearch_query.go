@@ -23,13 +23,11 @@ const ( // taken from `router.go`
 	IndexMappingPath      = "/:index/_mapping"
 	FieldCapsPath         = "/:index/_field_caps"
 	TermsEnumPath         = "/:index/_terms_enum"
-	EQLSearch             = "/:index/_eql/search"
 	ResolveIndexPath      = "/_resolve/index/:index"
 	ClusterHealthPath     = "/_cluster/health"
-	BulkPath              = "/_bulk"
-	AsyncSearchIdPrefix   = "/_async_search/"
 	AsyncSearchIdPath     = "/_async_search/:id"
 	AsyncSearchStatusPath = "/_async_search/status/:id"
+	IndexPath             = "/:index"
 	/*
 		section on metadata/headers below
 	*/
@@ -89,13 +87,42 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 		metadata[PathPattern] = ResolveIndexPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
-
 	// TODO
-	//		router.Register(ClusterHealthPath, )
-	//		router.Register(IndexRefreshPath:
-	//		router.Register(IndexMappingPath: // only GET in this processor
-	//		router.Register(TermsEnumPath:
-	//		router.Register(IndexPath: // only GET in this processor
+	router.Register(ClusterHealthPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		metadata := quesma_api.MakeNewMetadata()
+		metadata[PathPattern] = ClusterHealthPath
+		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
+	})
+	router.Register(IndexRefreshPath, quesma_api.IsHTTPMethod("POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		metadata := quesma_api.MakeNewMetadata()
+		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, IndexRefreshPath)
+		metadata[PathPattern] = IndexRefreshPath
+		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
+	})
+	router.Register(IndexMappingPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		metadata := quesma_api.MakeNewMetadata()
+		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, IndexRefreshPath)
+		metadata[PathPattern] = IndexMappingPath
+		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
+	})
+	router.Register(TermsEnumPath, quesma_api.IsHTTPMethod("POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		metadata := quesma_api.MakeNewMetadata()
+		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, TermsEnumPath)
+		metadata[PathPattern] = TermsEnumPath
+		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
+	})
+	router.Register(IndexPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		metadata := quesma_api.MakeNewMetadata()
+		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, IndexPath)
+		metadata[PathPattern] = IndexPath
+		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
+	})
+	router.Register(IndexCountPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		metadata := quesma_api.MakeNewMetadata()
+		metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, IndexCountPath)
+		metadata[PathPattern] = IndexCountPath
+		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
+	})
 
 	//fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 	//	metadata := quesma_api.MakeNewMetadata()
