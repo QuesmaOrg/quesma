@@ -281,3 +281,73 @@ func Test_middleware(t *testing.T) {
 		assert.Equal(t, int32(8), middlewareCallCount)
 	}
 }
+
+func Test_QuesmaBuild(t *testing.T) {
+
+	cfg := &config.QuesmaConfiguration{
+		DisableAuth: true,
+		Elasticsearch: config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     "",
+			Password: "",
+		},
+	}
+	{
+		var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+		firstFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
+		firstHTTPRouter := quesma_api.NewPathRouter()
+		firstHTTPRouter.AddRoute("/_bulk", bulk)
+		firstFrontendConnector.AddRouter(firstHTTPRouter)
+		var firstPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+		firstPipeline.AddFrontendConnector(firstFrontendConnector)
+
+		secondFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8889", cfg)
+		secondHTTPRouter := quesma_api.NewPathRouter()
+		secondHTTPRouter.AddRoute("/_search", search)
+		secondFrontendConnector.AddRouter(secondHTTPRouter)
+		var secondPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+		secondPipeline.AddFrontendConnector(secondFrontendConnector)
+
+		quesmaBuilder.AddPipeline(firstPipeline)
+		quesmaBuilder.AddPipeline(secondPipeline)
+		quesma, err := quesmaBuilder.Build()
+		assert.NotNil(t, quesma)
+		assert.Equal(t, 2, len(quesma.GetPipelines()))
+		assert.Equal(t, 1, len(quesma.GetPipelines()[0].GetFrontendConnectors()))
+		assert.Equal(t, 1, len(quesma.GetPipelines()[1].GetFrontendConnectors()))
+		assert.Equal(t, 1, len(quesma.GetPipelines()[0].GetFrontendConnectors()[0].(quesma_api.HTTPFrontendConnector).GetRouter().GetHandlers()))
+		assert.Equal(t, 1, len(quesma.GetPipelines()[1].GetFrontendConnectors()[0].(quesma_api.HTTPFrontendConnector).GetRouter().GetHandlers()))
+		assert.NotEqual(t, quesma.GetPipelines()[1].GetFrontendConnectors()[0], quesma.GetPipelines()[0].GetFrontendConnectors()[0])
+
+		assert.NoError(t, err)
+
+	}
+	{
+		var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+		firstFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
+		firstHTTPRouter := quesma_api.NewPathRouter()
+		firstHTTPRouter.AddRoute("/_bulk", bulk)
+		firstFrontendConnector.AddRouter(firstHTTPRouter)
+		var firstPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+		firstPipeline.AddFrontendConnector(firstFrontendConnector)
+
+		secondFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
+		secondHTTPRouter := quesma_api.NewPathRouter()
+		secondHTTPRouter.AddRoute("/_search", search)
+		secondFrontendConnector.AddRouter(secondHTTPRouter)
+		var secondPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+		secondPipeline.AddFrontendConnector(secondFrontendConnector)
+
+		quesmaBuilder.AddPipeline(firstPipeline)
+		quesmaBuilder.AddPipeline(secondPipeline)
+		quesma, err := quesmaBuilder.Build()
+		assert.NotNil(t, quesma)
+		assert.Equal(t, 2, len(quesma.GetPipelines()))
+		assert.Equal(t, 1, len(quesma.GetPipelines()[0].GetFrontendConnectors()))
+		assert.Equal(t, 1, len(quesma.GetPipelines()[1].GetFrontendConnectors()))
+		assert.Equal(t, 2, len(quesma.GetPipelines()[0].GetFrontendConnectors()[0].(quesma_api.HTTPFrontendConnector).GetRouter().GetHandlers()))
+		assert.Equal(t, 2, len(quesma.GetPipelines()[1].GetFrontendConnectors()[0].(quesma_api.HTTPFrontendConnector).GetRouter().GetHandlers()))
+		assert.Equal(t, quesma.GetPipelines()[1].GetFrontendConnectors()[0], quesma.GetPipelines()[0].GetFrontendConnectors()[0])
+		assert.NoError(t, err)
+	}
+}
