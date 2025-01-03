@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strconv"
 )
 
 type Quesma struct {
@@ -59,14 +60,37 @@ func (quesma *Quesma) Stop(ctx context.Context) {
 	}
 }
 
-func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
+func dumpEndpoints(endpoints map[string][]struct {
+	pipelineIndex int
+	connIndex     int
+}) string {
+	var buff bytes.Buffer
+	_, _ = fmt.Fprintln(&buff, "Endpoints:")
+	for endpoint, pipelines := range endpoints {
+		_, _ = fmt.Fprintf(&buff, "  %v:\n", endpoint)
+		for _, pipeline := range pipelines {
+			_, _ = fmt.Fprintf(&buff, "    pipeline %v, connector %v\n", pipeline.pipelineIndex, pipeline.connIndex)
+		}
+	}
+	return buff.String()
+}
 
-	endpoints := make(map[string]struct{})
+func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
+	endpoints := make(map[string][]struct {
+		pipelineIndex int
+		connIndex     int
+	})
 	handlers := make(map[string]HandlersPipe)
-	for _, pipeline := range quesma.pipelines {
-		for _, conn := range pipeline.GetFrontendConnectors() {
+	for pipelineIndex, pipeline := range quesma.pipelines {
+		for connIndex, conn := range pipeline.GetFrontendConnectors() {
 			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
-				endpoints[conn.GetEndpoint()] = struct{}{}
+				endpoints[conn.GetEndpoint()] = append(endpoints[conn.GetEndpoint()], struct {
+					pipelineIndex int
+					connIndex     int
+				}{
+					pipelineIndex: pipelineIndex,
+					connIndex:     connIndex,
+				})
 				router := httpConn.GetRouter()
 				for path, handlerWrapper := range router.GetHandlers() {
 					handlerWrapper.Processors = append(handlerWrapper.Processors, pipeline.GetProcessors()...)
@@ -76,13 +100,18 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 		}
 	}
 	if len(endpoints) == 1 {
-		for _, pipeline := range quesma.pipelines {
-			for _, conn := range pipeline.GetFrontendConnectors() {
+		quesma.dependencies.Logger().Debug().Msg(dumpEndpoints(endpoints))
+		for pipelineIndex, pipeline := range quesma.pipelines {
+			for connIndex, conn := range pipeline.GetFrontendConnectors() {
 				if httpConn, ok := conn.(HTTPFrontendConnector); ok {
 					router := httpConn.GetRouter().Clone().(Router)
 					router.SetHandlers(handlers)
 					httpConn.AddRouter(router)
 				}
+				quesma.dependencies.Logger().Info().Msg(conn.InstanceName() +
+					":" + conn.GetEndpoint() +
+					",index:" + strconv.FormatInt(int64(connIndex), 10) +
+					",pipeline:" + strconv.FormatInt(int64(pipelineIndex), 10))
 			}
 		}
 		// TODO this fixes the problem of sharing the same frontend connector
@@ -92,7 +121,8 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 			if len(quesma.pipelines[0].GetFrontendConnectors()) == 0 {
 				return nil, fmt.Errorf("no frontend connectors provided")
 			}
-			sharedFc := quesma.pipelines[0].GetFrontendConnectors()[0]
+			var sharedFc FrontendConnector
+			sharedFc = quesma.pipelines[0].GetFrontendConnectors()[0]
 			for index := 1; index < len(quesma.pipelines); index++ {
 				for indexFc := range quesma.pipelines[index].GetFrontendConnectors() {
 					quesma.pipelines[index].GetFrontendConnectors()[indexFc] = sharedFc
@@ -126,7 +156,6 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 				return nil, fmt.Errorf("processor %v failed to initialize: %v", proc.GetId(), err)
 			}
 		}
-
 	}
 
 	return quesma, nil
