@@ -737,6 +737,26 @@ func ExtractNumeric64(value any) float64 {
 	return asFloat64
 }
 
+func BoolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+func BoolToString(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+// SingleQuote is a simple helper function: str -> 'str'
+func SingleQuote(value string) string {
+	return "'" + value + "'"
+}
+
+// SingleQuoteIfString is a simple helper function: str -> 'str'; other -> other
 func SingleQuoteIfString(value any) any {
 	if str, ok := value.(string); ok {
 		return fmt.Sprintf("'%s'", str)
@@ -854,7 +874,7 @@ func stringifyHelper(v interface{}, isInsideArray bool) string {
 
 // This functions returns a string from an interface{}.
 func Stringify(v interface{}) string {
-	isInsideArray := false
+	const isInsideArray = false
 	return stringifyHelper(v, isInsideArray)
 }
 
@@ -898,6 +918,20 @@ func FieldToColumnEncoder(field string) string {
 	if isDigit(newField[0]) {
 		newField = "_" + newField
 	}
+
+	const maxFieldLength = 256
+
+	if len(newField) > maxFieldLength {
+		// TODO maybe we should return error here or truncate the field name
+		// for now we just log a warning
+		//
+		// importing logger causes the circular dependency
+		//logger.Warn().Msgf("Field name %s is too long.", newField)
+
+		// TODO So we use log package. We can configure the zerolog logger as a backend for log package.
+		log.Println("Field name", newField, "is too long.")
+	}
+
 	return newField
 }
 

@@ -10,23 +10,20 @@ import (
 	"net/http"
 )
 
-func sendRequest(url string, requestBody []byte) {
+func sendRequest(url string, requestBody []byte) (string, error) {
 	// Send POST request
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
 		fmt.Println("Error sending request:", err)
-		return
+		return "", err
 	}
 	defer resp.Body.Close()
+	respBody, err := io.ReadAll(resp.Body)
+	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		respBody, err := io.ReadAll(resp.Body)
-		resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			fmt.Println(string(respBody))
-		}
+		fmt.Println(string(respBody))
 	}
+	return string(respBody), nil
 }

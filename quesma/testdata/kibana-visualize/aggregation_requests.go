@@ -960,7 +960,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 										"95.0": 15480.335426897316
 									}
 								},
-								"key": false,
+								"key": 0,
+								"key_as_string": "false",
 								"doc_count": 2974
 							},
 							{
@@ -991,7 +992,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 										"95.0": 14463.254101562497
 									}
 								},
-								"key": true,
+								"key": 1,
+								"key_as_string": "true",
 								"doc_count": 419
 							}
 						]

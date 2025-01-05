@@ -483,6 +483,43 @@ func (lm *IngestProcessor2) ProcessInsertQuery(ctx context.Context, tableName st
 	return nil
 }
 
+func (ip *IngestProcessor2) applyAsyncInsertOptimizer(tableName string, clickhouseSettings clickhouse.Settings) clickhouse.Settings {
+
+	const asyncInsertOptimizerName = "async_insert"
+	enableAsyncInsert := true // enabled by default
+	var asyncInsertProps map[string]string
+
+	if optimizer, ok := ip.cfg.DefaultIngestOptimizers[asyncInsertOptimizerName]; ok {
+		enableAsyncInsert = !optimizer.Disabled
+		asyncInsertProps = optimizer.Properties
+	}
+
+	idxCfg, ok := ip.cfg.IndexConfig[tableName]
+	if ok {
+		if optimizer, ok := idxCfg.Optimizers[asyncInsertOptimizerName]; ok {
+			enableAsyncInsert = !optimizer.Disabled
+			asyncInsertProps = optimizer.Properties
+		}
+	}
+
+	if enableAsyncInsert {
+		clickhouseSettings["async_insert"] = 1
+
+		// some sane defaults
+		clickhouseSettings["wait_for_async_insert"] = 1
+
+		clickhouseSettings["async_insert_busy_timeout_ms"] = 100      // default is 1000ms
+		clickhouseSettings["async_insert_max_data_size"] = 50_000_000 // default is 10MB
+		clickhouseSettings["async_insert_max_query_number"] = 10000   // default is 450
+
+		for k, v := range asyncInsertProps {
+			clickhouseSettings[k] = v
+		}
+	}
+
+	return clickhouseSettings
+}
+
 func (ip *IngestProcessor2) processInsertQueryInternal(ctx context.Context, tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter, isVirtualTable bool) error {
@@ -505,10 +542,14 @@ func (ip *IngestProcessor2) processInsertQueryInternal(ctx context.Context, tabl
 		return nil
 	}
 
-	// We expect to have date format set to `best_effort`
-	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
+	clickhouseSettings := clickhouse.Settings{
 		"date_time_input_format": "best_effort",
-	}))
+	}
+
+	clickhouseSettings = ip.applyAsyncInsertOptimizer(tableName, clickhouseSettings)
+
+	// We expect to have date format set to `best_effort`
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouseSettings))
 
 	return ip.executeStatements(ctx, statements)
 }
