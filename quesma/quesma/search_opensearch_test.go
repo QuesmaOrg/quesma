@@ -61,7 +61,7 @@ func TestSearchOpensearch(t *testing.T) {
 				mock.ExpectQuery(wantedQuery).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 
-			_, err2 := queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
+			_, err2 := queryRunner.HandleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 			assert.NoError(t, err2)
 
 			if err = mock.ExpectationsWereMet(); err != nil {
@@ -197,7 +197,7 @@ func TestHighlighter(t *testing.T) {
 		AddRow("text", "text", "text"))
 
 	queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
-	response, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(query))
+	response, err := queryRunner.HandleSearch(ctx, tableName, types.MustJSON(query))
 	assert.NoError(t, err)
 	if err != nil {
 		t.Fatal(err)

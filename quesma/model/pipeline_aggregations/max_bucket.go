@@ -61,13 +61,7 @@ func (query MaxBucket) calculateSingleMaxBucket(parentRows []model.QueryResultRo
 	var resultValue any
 	var resultKeys []any
 
-	firstNonNilIndex := -1
-	for i, row := range parentRows {
-		if row.LastColValue() != nil {
-			firstNonNilIndex = i
-			break
-		}
-	}
+	firstNonNilIndex := model.FirstNonNilIndex(parentRows)
 	if firstNonNilIndex == -1 {
 		resultRow := parentRows[0].Copy()
 		resultRow.Cols[len(resultRow.Cols)-1].Value = model.JsonMap{
