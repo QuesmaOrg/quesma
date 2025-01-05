@@ -5,7 +5,6 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -260,7 +259,6 @@ func (query *DateHistogram) SetMinDocCountToZero() {
 }
 
 func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
-	fmt.Println("query min doc count", query.minDocCount, query.interval, query.intervalType.String(query.ctx))
 	duration, err := util.ParseInterval(query.interval)
 	var differenceBetweenTwoNextKeys int64
 	if err == nil {
@@ -299,8 +297,6 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		logger.WarnWithCtx(ctx).Msgf("unexpected negative MinDocCount: %d. Skipping postprocess", qt.MinDocCount)
 		return rowsFromDB
 	}
-
-	pp.Println(qt)
 
 	emptyRowsAdded := 0
 	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
@@ -416,8 +412,9 @@ func (qt *DateHistogramRowsTransformer) nextKey(key int64) int64 {
 		return key + qt.differenceBetweenTwoNextKeys
 	}
 
-	addNMonthsHacky := func(key int64, N int) int64 {
+	addNMonths := func(key int64, N int) int64 {
 		ts := time.UnixMilli(key).UTC()
+		// adding 2 days below isn't exactly necessary, it's only a quick way to make sure we're in the same month, even for weird timezones
 		return ts.AddDate(0, N, 2).UnixMilli() - ts.AddDate(0, 0, 2).UnixMilli()
 	}
 	var monthsNr int
@@ -429,6 +426,6 @@ func (qt *DateHistogramRowsTransformer) nextKey(key int64) int64 {
 	case "1y":
 		monthsNr = 12
 	}
-	deltaInMs := addNMonthsHacky(key, monthsNr)
+	deltaInMs := addNMonths(key, monthsNr)
 	return key + deltaInMs
 }

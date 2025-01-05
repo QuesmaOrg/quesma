@@ -3,7 +3,6 @@
 package util
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +28,6 @@ func ParseInterval(fixedInterval string) (time.Duration, error) {
 		return time.Hour * 24 * 365, nil
 	}
 
-	fmt.Println(fixedInterval)
 	switch {
 	case strings.HasSuffix(fixedInterval, "d"):
 		unit = 24 * time.Hour
