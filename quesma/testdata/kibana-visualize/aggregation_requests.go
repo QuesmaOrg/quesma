@@ -3309,7 +3309,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"track_total_hits": true
 		}`,
-
 		ExpectedResponse: `
 		{
 			"took": 14,
@@ -3449,7 +3448,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf("clientip">='255.255.255.252') AS "range_0__aggr__2__count",
+			SELECT countIf(("clientip">='255.255.255.252' AND "clientip"<'::1:0:0:0')) AS "range_0__aggr__2__count",
 			  countIf("clientip">='128.129.130.131') AS "range_1__aggr__2__count",
 			  countIf(("clientip">='10.0.7.96' AND "clientip"<'10.0.7.128')) AS
 			  "range_2__aggr__2__count"
@@ -3530,7 +3529,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf("clientip">='255.255.255.254') AS "range_0__aggr__2__count",
+			SELECT countIf(("clientip">='255.255.255.254' AND "clientip"<'::1:0:0:0')) AS "range_0__aggr__2__count",
 			  countIf("clientip">='128.129.130.131') AS "range_1__aggr__2__count",
 			  countIf(("clientip">='10.0.7.96' AND "clientip"<'10.0.7.128')) AS
 			  "range_2__aggr__2__count"
@@ -3550,6 +3549,9 @@ var AggregationTests = []testdata.AggregationTestCase{
 							},
 							{
 								"to": "1::132:13:21:23:122:22"
+							},
+							{
+								"to": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
 							}
 						]
 					}
@@ -3572,6 +3574,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"key": "*-1::132:13:21:23:122:22",
 							"to": "1::132:13:21:23:122:22",
 							"doc_count": 6784
+						},
+						{
+							"key": "*-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+							"to": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+							"doc_count": 999999
 						}
 					]
 				}
@@ -3581,12 +3588,15 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("range_0__aggr__2__count", int64(7290)),
 				model.NewQueryResultCol("range_1__aggr__2__count", int64(6784)),
+				model.NewQueryResultCol("range_2__aggr__2__count", int64(999999)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT countIf("clientip">='1::132:13:21:23:122:22') AS
 			  "range_0__aggr__2__count",
-			  countIf("clientip"<'1::132:13:21:23:122:22') AS "range_1__aggr__2__count"
+			  countIf("clientip"<'1::132:13:21:23:122:22') AS "range_1__aggr__2__count",
+			  countIf("clientip"<'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff') AS
+			  "range_2__aggr__2__count"
 			FROM __quesma_table_name`,
 	},
 	{ // [28]

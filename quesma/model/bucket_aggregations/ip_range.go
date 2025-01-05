@@ -14,9 +14,6 @@ import (
 // BiggestIpv4 is "255.255.255.255 + 1", so to say. Used in Elastic, because it always uses exclusive upper bounds.
 // So instead of "<= 255.255.255.255", it uses "< ::1:0:0:0"
 const BiggestIpv4 = "::1:0:0:0"
-const BiggestIpv6 = "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
-
-// Current limitation: we expect Clickhouse field to be IPv4 (and not IPv6)
 
 // Clickhouse table to test SQLs:
 // CREATE TABLE __quesma_table_name (clientip IPv4) ENGINE=Log
@@ -77,10 +74,9 @@ type (
 		keyed     bool
 	}
 	IpInterval struct {
-		begin  string
-		end    string
-		isIpv6 bool    // important (and valid) only when 'mask' was in the request
-		key    *string // when nil, key is not present
+		begin string
+		end   string
+		key   *string // when nil, key is not present
 	}
 )
 
@@ -93,8 +89,8 @@ func NewIpRange(ctx context.Context, intervals []IpInterval, field model.Expr, k
 	}
 }
 
-func NewIpInterval(begin, end string, key *string, isIpv6 bool) IpInterval {
-	return IpInterval{begin: begin, end: end, key: key, isIpv6: isIpv6}
+func NewIpInterval(begin, end string, key *string) IpInterval {
+	return IpInterval{begin: begin, end: end, key: key}
 }
 
 func (interval IpInterval) ToWhereClause(field model.Expr) model.Expr {
@@ -104,7 +100,6 @@ func (interval IpInterval) ToWhereClause(field model.Expr) model.Expr {
 	begin := model.NewInfixExpr(field, ">=", model.NewLiteralSingleQuoteString(interval.begin))
 	end := model.NewInfixExpr(field, "<", model.NewLiteralSingleQuoteString(interval.end))
 
-	fmt.Println("end", end, hasEnd)
 	if hasBegin && hasEnd {
 		return model.NewInfixExpr(begin, "AND", end)
 	} else if hasBegin {
@@ -116,19 +111,15 @@ func (interval IpInterval) ToWhereClause(field model.Expr) model.Expr {
 	}
 }
 
+// hasBeginInResponse returns true if we should add 'from' field to the response.
+// We do that <=> begin is not 0.0.0.0 (unbounded)
 func (interval IpInterval) hasBeginInResponse() bool {
 	return interval.begin != UnboundedInterval && netip.MustParseAddr(interval.begin) != netip.MustParseAddr("::")
 }
 
+// hasEndInResponse returns true if we should add 'to' field to the response.
 func (interval IpInterval) hasEndInResponse() bool {
-	if interval.end == UnboundedInterval {
-		return false
-	}
-
-	if interval.isIpv6 {
-		return interval.end != BiggestIpv6
-	}
-	return interval.end != BiggestIpv4
+	return interval.end != UnboundedInterval
 }
 
 // String returns key part of the response, e.g. "1.0-2.0", or "*-6.55"
