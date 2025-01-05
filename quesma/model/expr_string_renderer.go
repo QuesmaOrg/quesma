@@ -61,6 +61,7 @@ func (v *renderer) VisitArrayAccess(e ArrayAccess) interface{} {
 func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 	args := make([]string, 0)
 	for _, arg := range e.Args {
+		fmt.Println("nil??", arg)
 		args = append(args, arg.Accept(v).(string))
 	}
 	return e.Name + "(" + strings.Join(args, ",") + ")"

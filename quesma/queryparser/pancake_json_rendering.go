@@ -5,12 +5,14 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"math/big"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/model/metrics_aggregations"
 	"quesma/util"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -32,6 +34,21 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 		newRow := model.QueryResultRow{Index: rows[0].Index}
 		for _, col := range rows[0].Cols {
 			if strings.HasPrefix(col.ColName, metricName) {
+				newRow.Cols = append(newRow.Cols, col)
+			}
+		}
+		return []model.QueryResultRow{newRow}
+	}
+	return
+}
+
+func (p *pancakeJSONRenderer) selectMetricRowsMultipleNames(rows []model.QueryResultRow, metricNames []string) (result []model.QueryResultRow) {
+	if len(rows) > 0 {
+		newRow := model.QueryResultRow{Index: rows[0].Index}
+		for _, col := range rows[0].Cols {
+			if slices.ContainsFunc(metricNames, func(name string) bool {
+				return strings.HasPrefix(col.ColName, name)
+			}) {
 				newRow.Cols = append(newRow.Cols, col)
 			}
 		}
@@ -243,13 +260,34 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 	}
 
 	layer := remainingLayers[0]
-
+	fmt.Println("kk model:", rows)
 	for _, metric := range layer.currentMetricAggregations {
 		var metricRows []model.QueryResultRow
 		switch metric.queryType.(type) {
 		case *metrics_aggregations.TopMetrics, *metrics_aggregations.TopHits:
 			metricRows = p.selectTopHitsRows(metric, rows)
+		case *metrics_aggregations.Rate:
+			// 2 lines below: e.g. metric__2__year -> aggr__2
+			fmt.Println("metric.InternalNamePrefix(): ", metric, metric.InternalNamePrefix(), metric.internalName)
+			pp.Println(metric)
+			parentHistogramColName := fmt.Sprintf("aggr%s", strings.TrimPrefix(metric.internalName, "metric"))
+			parentHistogramColName = strings.TrimSuffix(parentHistogramColName, metric.name)
+
+			var (
+				parentHistogramKey = fmt.Sprintf("%skey_0", parentHistogramColName)
+				metricValue        string
+			)
+			rate, _ := metric.queryType.(*metrics_aggregations.Rate)
+			if rate.FieldPresent() {
+				metricValue = metric.InternalNamePrefix()
+			} else {
+				metricValue = fmt.Sprintf("%scount", parentHistogramColName)
+			}
+			fmt.Println("parentHistogramColName: ", parentHistogramColName)
+			metricRows = p.selectMetricRowsMultipleNames(rows, []string{parentHistogramKey, metricValue})
+
 		default:
+			fmt.Println("metric.InternalNamePrefix(): ", metric, metric.InternalNamePrefix())
 			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
 		}
 		if metric.name != PancakeTotalCountMetricName {

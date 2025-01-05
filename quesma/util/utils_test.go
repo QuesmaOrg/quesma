@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 )
 
 func TestJsonPrettifyShortenArrays(t *testing.T) {
@@ -934,6 +935,28 @@ func TestTableNamePatternRegexp(t *testing.T) {
 		t.Run(fmt.Sprintf("%s into %s", tt.input, tt.output), func(t *testing.T) {
 			if got := TableNamePatternRegexp(tt.input); !reflect.DeepEqual(got.String(), tt.output) {
 				t.Errorf("TableNamePatternRegexp() = %v, want %v", got, tt.output)
+			}
+		})
+	}
+}
+
+func TestDaysInMonth(t *testing.T) {
+	paris, _ := time.LoadLocation("Europe/Paris")
+	tests := []struct {
+		time     time.Time
+		expected int
+	}{
+		{time.Date(2024, time.February, 1, 0, 0, 0, 0, time.UTC), 29},
+		{time.Date(2024, time.March, 1, 0, 0, 0, 0, time.UTC), 31},
+		{time.Date(2024, time.April, 1, 0, 0, 0, 0, time.UTC), 30},
+		{time.Date(2024, time.May, 1, 0, 0, 0, 0, paris), 31},
+		{time.Date(2022, time.February, 1, 0, 0, 0, 0, time.UTC), 28},
+		{time.Date(2022, time.February, 5, 0, 0, 0, 0, time.UTC), 28},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%d-%d", tt.time.Year(), tt.time.Month()), func(t *testing.T) {
+			if got := DaysInMonth(tt.time); got != tt.expected {
+				t.Errorf("DaysInMonth() = %v, want %v", got, tt.expected)
 			}
 		})
 	}

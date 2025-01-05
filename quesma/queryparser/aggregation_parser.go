@@ -29,6 +29,7 @@ type metricsAggregation struct {
 	IsFieldNameCompound bool                    // Only for a few aggregations, where we have only 1 field. It's a compound, so e.g. toHour(timestamp), not just "timestamp"
 	sigma               float64                 // only for standard deviation
 	unit                string                  // only for rate
+	mode                string                  // only for rate
 }
 
 type aggregationParser = func(queryMap QueryMap) (model.QueryType, error)
@@ -165,11 +166,18 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			logger.WarnWithCtx(cw.Ctx).Msgf("rate aggregation has invalid parameters: %v. Skipping.", rate)
 			return metricsAggregation{}, false
 		}
+		field := cw.parseFieldField(rate, "rate")
+		var fields []model.Expr
+		if field != nil {
+			fields = append(fields, field)
+		}
+		const defaultMode = "sum"
 		return metricsAggregation{
 			AggrType: "rate",
-			Fields:   []model.Expr{cw.parseFieldField(rate, "rate")},
+			Fields:   fields,
 			// default unit doesn't matter, it's checked in CheckParamsRate, it will never be empty here
 			unit: cw.parseStringField(rate.(JsonMap), "unit", ""),
+			mode: cw.parseStringField(rate.(JsonMap), "mode", defaultMode),
 		}, true
 	}
 
