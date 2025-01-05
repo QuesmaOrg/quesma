@@ -37,7 +37,7 @@ const (
 )
 const (
 	RateModeSum        RateMode = "sum"
-	RateModeValueCount          = "value_count"
+	RateModeValueCount RateMode = "value_count"
 )
 
 // NewRate creates a new Rate aggregation, during parsing.
