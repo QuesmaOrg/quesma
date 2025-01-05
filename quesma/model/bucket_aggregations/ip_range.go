@@ -5,6 +5,7 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"quesma/logger"
 	"quesma/model"
 	"reflect"
@@ -13,6 +14,7 @@ import (
 // BiggestIpv4 is "255.255.255.255 + 1", so to say. Used in Elastic, because it always uses exclusive upper bounds.
 // So instead of "<= 255.255.255.255", it uses "< ::1:0:0:0"
 const BiggestIpv4 = "::1:0:0:0"
+const BiggestIpv6 = "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
 
 // Current limitation: we expect Clickhouse field to be IPv4 (and not IPv6)
 
@@ -75,9 +77,10 @@ type (
 		keyed     bool
 	}
 	IpInterval struct {
-		begin string
-		end   string
-		key   *string // when nil, key is not present
+		begin  string
+		end    string
+		isIpv6 bool    // important (and valid) only when 'mask' was in the request
+		key    *string // when nil, key is not present
 	}
 )
 
@@ -90,26 +93,42 @@ func NewIpRange(ctx context.Context, intervals []IpInterval, field model.Expr, k
 	}
 }
 
-func NewIpInterval(begin, end string, key *string) IpInterval {
-	return IpInterval{begin: begin, end: end, key: key}
+func NewIpInterval(begin, end string, key *string, isIpv6 bool) IpInterval {
+	return IpInterval{begin: begin, end: end, key: key, isIpv6: isIpv6}
 }
 
 func (interval IpInterval) ToWhereClause(field model.Expr) model.Expr {
-	isBegin := interval.begin != UnboundedInterval
-	isEnd := interval.end != UnboundedInterval && interval.end != BiggestIpv4
+	hasBegin := interval.hasBeginInResponse()
+	hasEnd := interval.hasEndInResponse()
 
 	begin := model.NewInfixExpr(field, ">=", model.NewLiteralSingleQuoteString(interval.begin))
 	end := model.NewInfixExpr(field, "<", model.NewLiteralSingleQuoteString(interval.end))
 
-	if isBegin && isEnd {
+	fmt.Println("end", end, hasEnd)
+	if hasBegin && hasEnd {
 		return model.NewInfixExpr(begin, "AND", end)
-	} else if isBegin {
+	} else if hasBegin {
 		return begin
-	} else if isEnd {
+	} else if hasEnd {
 		return end
 	} else {
 		return model.TrueExpr
 	}
+}
+
+func (interval IpInterval) hasBeginInResponse() bool {
+	return interval.begin != UnboundedInterval && netip.MustParseAddr(interval.begin) != netip.MustParseAddr("::")
+}
+
+func (interval IpInterval) hasEndInResponse() bool {
+	if interval.end == UnboundedInterval {
+		return false
+	}
+
+	if interval.isIpv6 {
+		return interval.end != BiggestIpv6
+	}
+	return interval.end != BiggestIpv4
 }
 
 // String returns key part of the response, e.g. "1.0-2.0", or "*-6.55"
@@ -166,10 +185,10 @@ func (query *IpRange) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGr
 	}
 
 	interval := query.intervals[subGroup.idx]
-	if interval.begin != UnboundedInterval {
+	if interval.hasBeginInResponse() {
 		response["from"] = interval.begin
 	}
-	if interval.end != UnboundedInterval {
+	if interval.hasEndInResponse() {
 		response["to"] = interval.end
 	}
 

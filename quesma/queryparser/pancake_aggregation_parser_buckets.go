@@ -6,9 +6,11 @@ package queryparser
 import (
 	"fmt"
 	"github.com/H0llyW00dzZ/cidr"
+	cidr2 "github.com/apparentlymart/go-cidr/cidr"
 	"github.com/pkg/errors"
 	"math"
 	"net"
+	"net/netip"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -415,18 +417,37 @@ func (cw *ClickhouseQueryTranslator) parseIpRange(aggregation *pancakeAggregatio
 			key = &keyIfPresent
 		}
 		var begin, end string
+		var isIpv6 bool
 		if maskIfExists, exists := cw.parseStringFieldExistCheck(rangeRaw.(QueryMap), "mask"); exists {
 			_, ipNet, err := net.ParseCIDR(maskIfExists)
 			if err != nil {
 				return err
 			}
-			beginAsInt, endAsInt := cidr.IPv4ToRange(ipNet)
-			begin = util.IntToIpv4(beginAsInt)
-			// endAsInt is inclusive, we do +1, because we need it exclusive
-			if endAsInt != math.MaxUint32 {
-				end = util.IntToIpv4(endAsInt + 1)
+			if ipNet.IP.To4() != nil {
+				// it's ipv4
+				isIpv6 = false
+				beginAsInt, endAsInt := cidr.IPv4ToRange(ipNet)
+				begin = util.IntToIpv4(beginAsInt)
+				// endAsInt is inclusive, we do +1, because we need it exclusive
+				if endAsInt != math.MaxUint32 {
+					end = util.IntToIpv4(endAsInt + 1)
+				} else {
+					end = bucket_aggregations.BiggestIpv4 // "255.255.255.255 + 1", so to say (value in compliance with Elastic)
+				}
+			} else if ipNet.IP.To16() != nil {
+				// it's ipv6
+				isIpv6 = true
+				beginInclusive, endInclusive := cidr2.AddressRange(ipNet)
+				begin = beginInclusive.String()
+				// we do +1 (.Next()), because we need end to be exclusive
+				endExclusive := netip.MustParseAddr(endInclusive.String()).Next()
+				if endExclusive.IsValid() {
+					end = endExclusive.String()
+				} else {
+					end = bucket_aggregations.BiggestIpv6 // Elastic uses ff...ff anyway, unlike with ipv4
+				}
 			} else {
-				end = bucket_aggregations.BiggestIpv4 // "255.255.255.255 + 1", so to say (value in compliance with Elastic)
+				return fmt.Errorf("invalid mask: %s", maskIfExists)
 			}
 			if key == nil {
 				key = &maskIfExists
@@ -435,7 +456,7 @@ func (cw *ClickhouseQueryTranslator) parseIpRange(aggregation *pancakeAggregatio
 			begin = cw.parseStringField(rangeRaw.(QueryMap), "from", bucket_aggregations.UnboundedInterval)
 			end = cw.parseStringField(rangeRaw.(QueryMap), "to", bucket_aggregations.UnboundedInterval)
 		}
-		ranges = append(ranges, bucket_aggregations.NewIpInterval(begin, end, key))
+		ranges = append(ranges, bucket_aggregations.NewIpInterval(begin, end, key, isIpv6))
 	}
 	aggregation.isKeyed = cw.parseBoolField(params, "keyed", defaultKeyed)
 	aggregation.queryType = bucket_aggregations.NewIpRange(cw.Ctx, ranges, cw.parseFieldField(params, "ip_range"), aggregation.isKeyed)
