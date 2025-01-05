@@ -1019,9 +1019,9 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 			)
 			switch handlerName {
 			case "handleSearch":
-				response, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(iteration.request))
+				response, err = queryRunner.HandleSearch(ctx, tableName, types.MustJSON(iteration.request))
 			case "handleAsyncSearch":
-				response, err = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(iteration.request), defaultAsyncSearchTimeout, true)
+				response, err = queryRunner.HandleAsyncSearch(ctx, tableName, types.MustJSON(iteration.request), defaultAsyncSearchTimeout, true)
 			default:
 				t.Fatalf("Unknown handler name: %s", handlerName)
 			}
@@ -1132,9 +1132,9 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 			)
 			switch handlerName {
 			case "handleSearch":
-				response, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(iteration.request))
+				response, err = queryRunner.HandleSearch(ctx, tableName, types.MustJSON(iteration.request))
 			case "handleAsyncSearch":
-				response, err = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(iteration.request), defaultAsyncSearchTimeout, true)
+				response, err = queryRunner.HandleAsyncSearch(ctx, tableName, types.MustJSON(iteration.request), defaultAsyncSearchTimeout, true)
 			default:
 				t.Fatalf("Unknown handler name: %s", handlerName)
 			}
@@ -1291,9 +1291,9 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 			)
 			switch handlerName {
 			case "handleSearch":
-				response, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(iteration.request))
+				response, err = queryRunner.HandleSearch(ctx, tableName, types.MustJSON(iteration.request))
 			case "handleAsyncSearch":
-				response, err = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(iteration.request), defaultAsyncSearchTimeout, true)
+				response, err = queryRunner.HandleAsyncSearch(ctx, tableName, types.MustJSON(iteration.request), defaultAsyncSearchTimeout, true)
 			default:
 				t.Fatalf("Unknown handler name: %s", handlerName)
 			}
@@ -1397,9 +1397,9 @@ func TestSearchAfterParameter_sortByNoField(t *testing.T) {
 			)
 			switch handlerName {
 			case "handleSearch":
-				response, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(iteration.request))
+				response, err = queryRunner.HandleSearch(ctx, tableName, types.MustJSON(iteration.request))
 			case "handleAsyncSearch":
-				response, err = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(iteration.request), defaultAsyncSearchTimeout, true)
+				response, err = queryRunner.HandleAsyncSearch(ctx, tableName, types.MustJSON(iteration.request), defaultAsyncSearchTimeout, true)
 			default:
 				t.Fatalf("Unknown handler name: %s", handlerName)
 			}
