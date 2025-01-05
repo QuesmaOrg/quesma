@@ -80,11 +80,22 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 			for _, conn := range pipeline.GetFrontendConnectors() {
 				if httpConn, ok := conn.(HTTPFrontendConnector); ok {
 					router := httpConn.GetRouter().Clone().(Router)
-					if len(endpoints) == 1 {
-						router.SetHandlers(handlers)
-					}
+					router.SetHandlers(handlers)
 					httpConn.AddRouter(router)
-
+				}
+			}
+		}
+		// TODO this fixes the problem of sharing the same frontend connector
+		// in the case of having only one endpoint
+		// however it's not fully generic yet as only subset of connectors might be shared
+		if len(quesma.pipelines) > 1 {
+			if len(quesma.pipelines[0].GetFrontendConnectors()) == 0 {
+				return nil, fmt.Errorf("no frontend connectors provided")
+			}
+			sharedFc := quesma.pipelines[0].GetFrontendConnectors()[0]
+			for index := 1; index < len(quesma.pipelines); index++ {
+				for indexFc := range quesma.pipelines[index].GetFrontendConnectors() {
+					quesma.pipelines[index].GetFrontendConnectors()[indexFc] = sharedFc
 				}
 			}
 		}
