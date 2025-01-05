@@ -64,8 +64,8 @@ func (s searchAfterStrategyBulletproof) TransformQuery(query *model.Query, searc
 	//   AND primary_key NOT IN (searchAfterPrimaryKey1, searchAfterPrimaryKey2, ...))
 
 	// Because some fields might be ASC, we need to swap sortField_i with searchAfter_i
-	fmt.Println("searchAfterParsed", searchAfterParsed)
 	sortFieldsNr := len(query.SelectCommand.OrderBy)
+	fmt.Println("searchAfterParsed", searchAfterParsed, sortFieldsNr)
 	lhs := model.NewTupleExpr(make([]model.Expr, sortFieldsNr)...)
 	rhs := model.NewTupleExpr(make([]model.Expr, sortFieldsNr)...)
 	for i, searchAfterValue := range searchAfterParsed {
@@ -80,7 +80,9 @@ func (s searchAfterStrategyBulletproof) TransformQuery(query *model.Query, searc
 	pkField := query.Schema.GetPrimaryKey()
 	if len(searchAfterParsed) != sortFieldsNr || pkField == nil {
 		// It means we have 0 primary keys -> we just imitate basicAndFast strategy
-		query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause, newWhereClause1})
+		if len(searchAfterParsed) != 0 {
+			query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause, newWhereClause1})
+		}
 		return query, nil
 	}
 
@@ -94,8 +96,39 @@ func (s searchAfterStrategyBulletproof) TransformQuery(query *model.Query, searc
 	return query, nil
 }
 
-func (s searchAfterStrategyBulletproof) TransformHit(hit model.SearchHit) (model.SearchHit, error) {
-	return hit, nil
+func (s searchAfterStrategyBulletproof) TransformHit(hit model.SearchHit, pkFieldName *string, rows []model.QueryResultRow) model.SearchHit {
+	if pkFieldName == nil {
+		return hit
+	}
+	if len(rows) == 0 { // sanity check
+		logger.Warn().Msg("searchAfterStrategyBulletproof.TransformHit: rows is empty")
+	}
+
+	pkColIdx := -1
+	for i, col := range rows[0].Cols {
+		if col.ColName == *pkFieldName {
+			pkColIdx = i
+			break
+		}
+	}
+	if pkColIdx == -1 {
+		logger.Warn().Msgf("searchAfterStrategyBulletproof.TransformHit: primary key column %s not found in rows", *pkFieldName)
+		return hit
+	}
+
+	rowIdx := len(rows) - 1
+	hit.Sort = append(hit.Sort, rows[rowIdx].Cols[pkColIdx].Value)
+	for
+	for pkColIdx = range
+	pkField := hit.Fields[*pkFieldName]
+	if pkField == nil {
+		return hit
+	}
+
+	// We need to add the primary key to the hit
+	pkField = append(pkField, rows[0].Cols[0].Value)
+	hit.Fields[*pkFieldName] = pkField
+	return hit
 }
 
 // -------------------------------------------------------------------------------------------------------------------------------
@@ -113,8 +146,8 @@ func (s searchAfterStrategyJustDiscardTheParameter) TransformQuery(query *model.
 	return query, nil
 }
 
-func (s searchAfterStrategyJustDiscardTheParameter) TransformHit(hit model.SearchHit) (model.SearchHit, error) {
-	return hit, nil
+func (s searchAfterStrategyJustDiscardTheParameter) TransformHit(hit model.SearchHit, _ *string, _ []model.QueryResultRow) model.SearchHit {
+	return hit
 }
 
 // ----------------------------------------------------------------------------------
@@ -149,8 +182,8 @@ func (s searchAfterStrategyBasicAndFast) TransformQuery(query *model.Query, sear
 	return query, nil
 }
 
-func (s searchAfterStrategyBasicAndFast) TransformHit(hit model.SearchHit) (model.SearchHit, error) {
-	return hit, nil
+func (s searchAfterStrategyBasicAndFast) TransformHit(hit model.SearchHit, _ *string, _ []model.QueryResultRow) model.SearchHit {
+	return hit
 }
 
 func validateAndParseCommonOnlySortParams(query *model.Query, indexSchema schema.Schema) (searchAfterParamParsed []model.Expr, err error) {

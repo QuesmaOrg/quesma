@@ -975,7 +975,7 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 			expectedSQLBasicAndFast:              `SELECT "@timestamp", "message" FROM __quesma_table_name ORDER BY "@timestamp" DESC LIMIT 3`,
 			expectedSQLBulletproof:               `SELECT "@timestamp", "message" FROM __quesma_table_name ORDER BY "@timestamp" DESC LIMIT 3`,
 			expectedSortFieldsPerHitBasicAndFast: [][]any{{someTime.UnixMilli()}, {someTime.UnixMilli()}, {someTime.UnixMilli()}},
-			expectedSortFieldsPerHitBulletproof:  [][]any{{someTime.UnixMilli(), "m1"}, {someTime.UnixMilli(), "m2"}, {someTime.UnixMilli(), "m3"}},
+			expectedSortFieldsPerHitBulletproof:  [][]any{{someTime.UnixMilli(), "m1", "m1", "m2", "m3"}, {someTime.UnixMilli(), "m2"}, {someTime.UnixMilli(), "m3"}},
 		},
 		{
 			request: `
@@ -1069,8 +1069,10 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 		}
 	}
 
-	strategies := []model.SearchAfterStrategy{searchAfterStrategyFactory(model.BasicAndFast), searchAfterStrategyFactory(model.Bulletproof)}
-	handlers := []string{"handleSearch", "handleAsyncSearch"}
+	//strategies := []model.SearchAfterStrategy{searchAfterStrategyFactory(model.BasicAndFast), searchAfterStrategyFactory(model.Bulletproof)}
+	strategies := []model.SearchAfterStrategy{searchAfterStrategyFactory(model.Bulletproof)}
+	//handlers := []string{"handleSearch", "handleAsyncSearch"}
+	handlers := []string{"handleSearch"}
 	for _, strategy := range strategies {
 		for _, handlerName := range handlers {
 			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {

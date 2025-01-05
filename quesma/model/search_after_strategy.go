@@ -9,7 +9,7 @@ type (
 		// ValidateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
 		ValidateAndParse(query *Query, indexSchema schema.Schema) (searchAfterParamParsed []Expr, err error)
 		TransformQuery(query *Query, searchAfterParameterParsed []Expr) (*Query, error)
-		TransformHit(hit SearchHit) (SearchHit, error)
+		TransformHit(hit SearchHit, pkFieldName *string, rows []QueryResultRow) SearchHit
 	}
 	SearchAfterStrategyType int
 )

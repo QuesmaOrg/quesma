@@ -24,15 +24,16 @@ import (
 // We treat it here as if it was a normal aggregation, even though it's technically not completely correct.
 // But it works, and because of that we can unify response creation part of Quesma, so it's very useful.
 type Hits struct {
-	ctx                context.Context
-	table              *clickhouse.Table
-	highlighter        *model.Highlighter
-	sortFieldNames     []string
-	addSource          bool // true <=> we add hit.Source field to the response
-	addScore           bool // true <=> we add hit.Score field to the response (whose value is always 1)
-	addVersion         bool // true <=> we add hit.Version field to the response (whose value is always 1)
-	indexes            []string
-	timestampFieldName string
+	ctx                 context.Context
+	table               *clickhouse.Table
+	highlighter         *model.Highlighter
+	searchAfterStrategy model.SearchAfterStrategy
+	sortFieldNames      []string
+	addSource           bool // true <=> we add hit.Source field to the response
+	addScore            bool // true <=> we add hit.Score field to the response (whose value is always 1)
+	addVersion          bool // true <=> we add hit.Version field to the response (whose value is always 1)
+	indexes             []string
+	timestampFieldName  string
 }
 
 func NewHits(ctx context.Context, table *clickhouse.Table, highlighter *model.Highlighter,
@@ -56,6 +57,7 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 	hits := make([]model.SearchHit, 0, len(rows))
 
 	lookForCommonTableIndexColumn := true
+	lastNRowsSameSortValues := 0
 
 	for i, row := range rows {
 
@@ -98,6 +100,9 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 				logger.WarnWithCtx(query.ctx).Msgf("field %s not found in fields", fieldName)
 			}
 		}
+
+		hit, lastNRowsSameSortValues = query.searchAfterStrategy.TransformHit(hit, rows[:i], query.table.PrimaryKey, lastNRowsSameSortValues)
+
 		hits = append(hits, hit)
 	}
 
