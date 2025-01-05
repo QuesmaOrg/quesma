@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+var randomTrueVariableUsedBelow = true
+
 // Goland lags a lot when you edit aggregation_requests.go file, so let's add new tests to this one.
 
 var AggregationTests2 = []AggregationTestCase{
@@ -5290,6 +5292,68 @@ var AggregationTests2 = []AggregationTestCase{
 			LIMIT 3`},
 	},
 	{ // [77]
+		TestName: "terms with bool field",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"terms": {
+					"terms": {
+						"field": "Cancelled",
+						"size": 2
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		// I omit "took", "timed_out", "_shards", and "hits" from the response for brevity (they can also be easily unit-tested)
+		ExpectedResponse: `
+		{
+			"aggregations": {
+				"terms": {
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 38654,
+					"buckets": [
+						{
+							"key": 0,
+							"key_as_string": "false",
+							"doc_count": 11344
+						},
+						{
+							"key": 1,
+							"key_as_string": "true",
+							"doc_count": 2
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__terms__parent_count", int64(50000)),
+				model.NewQueryResultCol("aggr__terms__key_0", nil),
+				model.NewQueryResultCol("aggr__terms__count", int64(12000)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__terms__parent_count", int64(50000)),
+				model.NewQueryResultCol("aggr__terms__key_0", false),
+				model.NewQueryResultCol("aggr__terms__count", int64(11344)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__terms__parent_count", int64(50000)),
+				model.NewQueryResultCol("aggr__terms__key_0", &randomTrueVariableUsedBelow), // used here
+				model.NewQueryResultCol("aggr__terms__count", int64(2)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__terms__parent_count",
+			  "Cancelled" AS "aggr__terms__key_0", count(*) AS "aggr__terms__count"
+			FROM __quesma_table_name
+			GROUP BY "Cancelled" AS "aggr__terms__key_0"
+			ORDER BY "aggr__terms__count" DESC, "aggr__terms__key_0" ASC
+			LIMIT 3`,
+	},
+	{ // [78]
 		TestName: `Escaping of ', \, \n, and \t in some example aggregations. No tests for other escape characters, e.g. \r or 'b. Add if needed.`,
 		QueryRequestJson: `
 		{

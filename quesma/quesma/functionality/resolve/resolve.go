@@ -11,12 +11,12 @@ import (
 
 // HandleResolve combines results from both schema.Registry (ClickHouse) and Elasticsearch,
 // This endpoint is used in Kibana/OSD when creating Data Views/Index Patterns.
-func HandleResolve(pattern string, sr schema.Registry, cfg *config.QuesmaConfiguration) (elasticsearch.Sources, error) {
+func HandleResolve(pattern string, sr schema.Registry, ir elasticsearch.IndexResolver) (elasticsearch.Sources, error) {
 	sourcesToShow := &elasticsearch.Sources{}
 
 	normalizedPattern := elasticsearch.NormalizePattern(pattern) // changes `_all` to `*`
 
-	sourcesFromElasticsearch, _, err := elasticsearch.NewIndexResolver(cfg.Elasticsearch).Resolve(normalizedPattern)
+	sourcesFromElasticsearch, _, err := ir.Resolve(normalizedPattern)
 	if err != nil {
 		logger.Warn().Msgf("Failed fetching resolving sources matching `%s`: %v", pattern, err)
 	} else {

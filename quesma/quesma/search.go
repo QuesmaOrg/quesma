@@ -65,6 +65,20 @@ type QueryRunner struct {
 	maxParallelQueries int // if set to 0, we run queries in sequence, it's fine for testing purposes
 }
 
+// QueryRunnerIFace is a temporary interface to bridge gap between QueryRunner and QueryRunner2 in `router_v2.go`.
+// moving forwards as we remove two implementations we might look at making all these methods private again.
+type QueryRunnerIFace interface {
+	HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error)
+	HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON, waitForResultsMs int, keepOnCompletion bool) ([]byte, error)
+	HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error)
+	HandleCount(ctx context.Context, indexPattern string) (int64, error)
+	// Todo: consider removing this getters for these two below, this was required for temporary Field Caps impl in v2 api
+	GetSchemaRegistry() schema.Registry
+	GetLogManager() clickhouse.LogManagerIFace
+	DeleteAsyncSearch(id string) ([]byte, error)
+	HandlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error)
+}
+
 func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
 	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
 }
@@ -95,6 +109,14 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 	}
 }
 
+func (q *QueryRunner) GetSchemaRegistry() schema.Registry {
+	return q.schemaRegistry
+}
+
+func (q *QueryRunner) GetLogManager() clickhouse.LogManagerIFace {
+	return q.logManager
+}
+
 func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
 	tableName string, tables *clickhouse.TableMap, staticRegistry *schema.StaticRegistry) *QueryRunner {
 
@@ -121,8 +143,8 @@ func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
 	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
 }
 
-// returns -1 when table name could not be resolved
-func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int64, error) {
+// HandleCount returns -1 when table name could not be resolved
+func (q *QueryRunner) HandleCount(ctx context.Context, indexPattern string) (int64, error) {
 	indexes, err := q.logManager.ResolveIndexPattern(ctx, q.schemaRegistry, indexPattern)
 	if err != nil {
 		return 0, err
@@ -143,7 +165,7 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int
 	}
 }
 
-func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
+func (q *QueryRunner) HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
 	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageDefault)
 }
 
@@ -151,7 +173,7 @@ func (q *QueryRunner) handleEQLSearch(ctx context.Context, indexPattern string, 
 	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageEQL)
 }
 
-func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
+func (q *QueryRunner) HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
 	waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	async := AsyncQuery{
 		asyncId:          tracing.GetAsyncId(),
@@ -268,7 +290,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 				responseBody, err = q.storeAsyncSearch(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, body, res, true, opaqueId)
 				sendMainPlanResult(responseBody, err)
 			}()
-			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
+			return q.HandlePartialAsyncSearch(ctx, optAsync.asyncId)
 		case res := <-doneCh:
 			responseBody, err = q.storeAsyncSearch(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, body, res,
 				optAsync.keepOnCompletion, opaqueId)
@@ -499,7 +521,7 @@ func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
 	return size
 }
 
-func (q *QueryRunner) handleAsyncSearchStatus(_ context.Context, id string) ([]byte, error) {
+func (q *QueryRunner) HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error) {
 	if _, ok := q.AsyncRequestStorage.Load(id); ok { // there IS a result in storage, so query is completed/no longer running,
 		return queryparser.EmptyAsyncSearchStatusResponse(id, false, false, 200)
 	} else { // there is no result so query is might be(*) running
@@ -509,7 +531,7 @@ func (q *QueryRunner) handleAsyncSearchStatus(_ context.Context, id string) ([]b
 	// However since you're referring to async ID given from Quesma, we naively assume it *does* exist.
 }
 
-func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
+func (q *QueryRunner) HandlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
 	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		logger.ErrorWithCtx(ctx).Msgf("non quesma async id: %v", id)
 		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
@@ -544,7 +566,7 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 	}
 }
 
-func (q *QueryRunner) deleteAsyncSearch(id string) ([]byte, error) {
+func (q *QueryRunner) DeleteAsyncSearch(id string) ([]byte, error) {
 	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		return nil, errors.New("invalid quesma async search id : " + id)
 	}

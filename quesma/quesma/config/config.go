@@ -48,6 +48,7 @@ type QuesmaConfiguration struct {
 	UseCommonTableForWildcard bool //the meaning of this is to use a common table for wildcard (default) indexes
 	DefaultIngestTarget       []string
 	DefaultQueryTarget        []string
+	DefaultIngestOptimizers   map[string]OptimizerConfiguration
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
