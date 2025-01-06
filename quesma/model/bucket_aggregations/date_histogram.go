@@ -39,11 +39,10 @@ type DateHistogram struct {
 	extendedBoundsMax int64
 	minDocCount       int
 	intervalType      DateHistogramIntervalType
-	fieldDateTimeType clickhouse.DateTimeType
 }
 
 func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone string, minDocCount int,
-	extendedBoundsMin, extendedBoundsMax int64, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
+	extendedBoundsMin, extendedBoundsMax int64, intervalType DateHistogramIntervalType) *DateHistogram {
 
 	wantedTimezone, err := time.LoadLocation(timezone)
 	if err != nil {
@@ -52,8 +51,7 @@ func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone 
 	}
 
 	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone, wantedTimezone: wantedTimezone,
-		minDocCount: minDocCount, extendedBoundsMin: extendedBoundsMin, extendedBoundsMax: extendedBoundsMax,
-		intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
+		minDocCount: minDocCount, extendedBoundsMin: extendedBoundsMin, extendedBoundsMax: extendedBoundsMax, intervalType: intervalType}
 }
 
 func (typ DateHistogramIntervalType) String(ctx context.Context) string {
@@ -156,12 +154,7 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 	if err != nil {
 		logger.ErrorWithCtx(query.ctx).Msg(err.Error())
 	}
-	dateTimeType := query.fieldDateTimeType
-	if query.fieldDateTimeType == clickhouse.Invalid {
-		logger.ErrorWithCtx(query.ctx).Msgf("invalid date type for DateHistogram %+v. Using DateTime64 as default.", query)
-		dateTimeType = defaultDateTimeType
-	}
-	return clickhouse.TimestampGroupByWithTimezone(query.field, dateTimeType, interval, query.timezone)
+	return clickhouse.TimestampGroupByWithTimezone(query.field, interval, query.timezone)
 }
 
 func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {

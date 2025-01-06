@@ -5,7 +5,7 @@ package model
 import "context"
 
 type QueryTransformer interface {
-	Transform(query []*Query) ([]*Query, error)
+	Transform(ctx context.Context, query []*Query) ([]*Query, error)
 }
 
 type ResultTransformer interface {

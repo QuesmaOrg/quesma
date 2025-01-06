@@ -5,6 +5,7 @@ package queryparser
 import (
 	"errors"
 	"fmt"
+	"quesma/model"
 	"strconv"
 	"strings"
 	"time"
@@ -99,7 +100,7 @@ func ParseDateMathExpression(input string) (*DateMathExpression, error) {
 }
 
 type DateMathExpressionRenderer interface {
-	RenderSQL(expression *DateMathExpression) (string, error)
+	RenderSQL(expression *DateMathExpression) (model.Expr, error)
 }
 
 const DateMathExpressionFormatLiteral = "literal"
@@ -123,11 +124,9 @@ func DateMathExpressionRendererFactory(format string) DateMathExpressionRenderer
 
 type DateMathAsClickhouseIntervals struct{}
 
-func (b *DateMathAsClickhouseIntervals) RenderSQL(expression *DateMathExpression) (string, error) {
+func (b *DateMathAsClickhouseIntervals) RenderSQL(expression *DateMathExpression) (model.Expr, error) {
 
-	var result string
-
-	result = "now()"
+	result := model.NewFunction("now")
 
 	for _, interval := range expression.intervals {
 
@@ -147,10 +146,10 @@ func (b *DateMathAsClickhouseIntervals) RenderSQL(expression *DateMathExpression
 
 		unit, err := b.parseTimeUnit(interval.unit)
 		if err != nil {
-			return "", fmt.Errorf("invalid time unit: %s", interval.unit)
+			return nil, fmt.Errorf("invalid time unit: %s", interval.unit)
 		}
 
-		result = fmt.Sprintf("%s(%s, INTERVAL %d %s)", op, result, amount, unit)
+		result = model.NewFunction(op, result, model.NewLiteral(fmt.Sprintf("INTERVAL %d %s", amount, unit)))
 	}
 
 	var roundingFunction = map[string]string{
@@ -163,9 +162,9 @@ func (b *DateMathAsClickhouseIntervals) RenderSQL(expression *DateMathExpression
 	if expression.rounding != "" {
 
 		if function, ok := roundingFunction[string(expression.rounding)]; ok {
-			result = fmt.Sprintf("%s(%s)", function, result)
+			result = model.NewFunction(function, result)
 		} else {
-			return "", fmt.Errorf("invalid rounding unit: %s", expression.rounding)
+			return nil, fmt.Errorf("invalid rounding unit: %s", expression.rounding)
 		}
 
 	}
@@ -197,7 +196,7 @@ type DateMathExpressionAsLiteral struct {
 	now time.Time
 }
 
-func (b *DateMathExpressionAsLiteral) RenderSQL(expression *DateMathExpression) (string, error) {
+func (b *DateMathExpressionAsLiteral) RenderSQL(expression *DateMathExpression) (model.Expr, error) {
 
 	const format = "2006-01-02 15:04:05"
 
@@ -234,7 +233,7 @@ func (b *DateMathExpressionAsLiteral) RenderSQL(expression *DateMathExpression) 
 			result = result.AddDate(amount, 0, 0)
 
 		default:
-			return "", fmt.Errorf("unsupported time unit: %s", interval.unit)
+			return nil, fmt.Errorf("unsupported time unit: %s", interval.unit)
 		}
 
 	}
@@ -254,8 +253,8 @@ func (b *DateMathExpressionAsLiteral) RenderSQL(expression *DateMathExpression) 
 		result = time.Date(result.Year(), 1, 1, 0, 0, 0, 0, result.Location())
 
 	default:
-		return "", fmt.Errorf("unsupported rounding unit: %s", expression.rounding)
+		return nil, fmt.Errorf("unsupported rounding unit: %s", expression.rounding)
 	}
 
-	return fmt.Sprintf("'%s'", result.Format(format)), nil
+	return model.NewLiteralSingleQuoteString(result.Format(format)), nil
 }

@@ -95,8 +95,8 @@ func NewIpInterval(begin, end string, key *string) IpInterval {
 }
 
 func (interval IpInterval) ToWhereClause(field model.Expr) model.Expr {
-	isBegin := interval.begin != UnboundedInterval
-	isEnd := interval.end != UnboundedInterval && interval.end != BiggestIpv4
+	isBegin := interval.begin != UnboundedIntervalString
+	isEnd := interval.end != UnboundedIntervalString && interval.end != BiggestIpv4
 
 	begin := model.NewInfixExpr(field, ">=", model.NewLiteralSingleQuoteString(interval.begin))
 	end := model.NewInfixExpr(field, "<", model.NewLiteralSingleQuoteString(interval.end))
@@ -166,10 +166,10 @@ func (query *IpRange) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGr
 	}
 
 	interval := query.intervals[subGroup.idx]
-	if interval.begin != UnboundedInterval {
+	if interval.begin != UnboundedIntervalString {
 		response["from"] = interval.begin
 	}
-	if interval.end != UnboundedInterval {
+	if interval.end != UnboundedIntervalString {
 		response["to"] = interval.end
 	}
 

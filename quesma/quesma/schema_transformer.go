@@ -3,6 +3,7 @@
 package quesma
 
 import (
+	"context"
 	"fmt"
 	"quesma/clickhouse"
 	"quesma/common_table"
@@ -11,6 +12,7 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/quesma/config"
 	"quesma/schema"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -20,7 +22,7 @@ type SchemaCheckPass struct {
 	tableDiscovery clickhouse.TableDiscovery
 }
 
-func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyBooleanLiteralLowering(ctx context.Context, index schema.Schema, query *model.Query) (*model.Query, error) {
 
 	visitor := model.NewBaseVisitor()
 
@@ -56,7 +58,7 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(COALESCE(lhs,'0.0.0.0') AS "String"),rhs) - COALESCE is used to handle NULL values
 //
 //	e.g.: isIPAddressInRange(CAST(COALESCE(IP_ADDR_COLUMN_NAME,'0.0.0.0') AS "String"),'10.10.10.0/24')
-func (s *SchemaCheckPass) applyIpTransformations(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyIpTransformations(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	fromTable := query.TableName
 
@@ -102,7 +104,7 @@ func (s *SchemaCheckPass) applyIpTransformations(indexSchema schema.Schema, quer
 
 		field, found := indexSchema.ResolveFieldByInternalName(lhsValue)
 		if !found {
-			logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsValue, fromTable)
+			logger.ErrorWithCtx(ctx).Msgf("Field %s not found in schema for table %s, should never happen here", lhsValue, fromTable)
 		}
 		if !field.Type.Equal(schema.QuesmaTypeIp) {
 			return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
@@ -154,7 +156,7 @@ func (s *SchemaCheckPass) applyIpTransformations(indexSchema schema.Schema, quer
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyGeoTransformations(ctx context.Context, schemaInstance schema.Schema, query *model.Query) (*model.Query, error) {
 
 	replace := make(map[string]model.Expr)
 
@@ -273,7 +275,7 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyArrayTransformations(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	arrayTypeResolver := arrayTypeResolver{indexSchema: indexSchema}
 
@@ -309,7 +311,7 @@ func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, q
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyMapTransformations(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyMapTransformations(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	mapResolver := mapTypeResolver{indexSchema: indexSchema}
 
@@ -347,7 +349,7 @@ func (s *SchemaCheckPass) applyMapTransformations(indexSchema schema.Schema, que
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyPhysicalFromExpression(ctx context.Context, currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	if query.TableName == model.SingleTableNamePlaceHolder {
 		logger.Warn().Msg("applyPhysicalFromExpression: physical table name is not set")
@@ -448,7 +450,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 }
 
-func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyWildcardExpansion(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	var newColumns []model.Expr
 	var hasWildcard bool
@@ -500,7 +502,7 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyFullTextField(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	var fullTextFields []string
 
@@ -568,7 +570,7 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 
 }
 
-func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyTimestampField(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	var timestampColumnName string
 
@@ -631,7 +633,83 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 }
 
-func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	visitor := model.NewBaseVisitor()
+	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
+		// we look for: timestamp_field OP from/toUnixTimestamp...
+
+		table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+		if !ok {
+			logger.WarnWithCtx(ctx).Msgf("table %s not found", query.TableName)
+			return e
+		}
+		
+		// check if timestamp_field is ok
+		col, ok := e.Left.(model.ColumnRef)
+		if !ok {
+			return e
+		}
+		field, ok := indexSchema.ResolveField(col.ColumnName)
+		if !ok {
+			logger.WarnWithCtx(ctx).Msgf("field %s not found in schema for table %s", col.ColumnName, query.TableName)
+			return e
+		}
+		isDatetime := table.Cols[field.InternalPropertyName.AsString()].IsDatetime()
+		isDateTime64 := table.Cols[field.InternalPropertyName.AsString()].IsDatetime64()
+		if !isDatetime && !isDateTime64 {
+			return e
+		}
+
+		// check if operator is ok
+		op := strings.TrimSpace(e.Op)
+		if !slices.Contains([]string{"=", "!=", ">", "<", ">=", "<="}, op) {
+			return e
+		}
+
+		// check if right side is a function we want
+		tsFunc, ok := e.Right.(model.FunctionExpr)
+		if !ok {
+			return e
+		}
+		if tsFunc.Name != model.FromUnixTimestampMsToDatetimeFunction && tsFunc.Name != model.FromUnixTimestampMsToDatetime64Function {
+			return e
+		}
+		if len(tsFunc.Args) != 1 {
+			logger.WarnWithCtx(ctx).Msgf("invalid number of arguments for %s function", tsFunc.Name)
+			return e
+		}
+
+		if tsFunc.Name == model.FromUnixTimestampMsToDatetimeFunction {
+			return model.NewInfixExpr(col, e.Op,
+				model.NewFunction(
+					model.FromUnixTimestampMsToDatetimeFunction,
+					tsFunc.Args[0].Accept(b).(model.Expr),
+				),
+			)
+		} else if tsFunc.Name == model.FromUnixTimestampMsToDatetime64Function {
+			return model.NewInfixExpr(col, e.Op,
+				model.NewFunction(model.FromUnixTimestampMsToDatetimeFunction,
+					model.NewInfixExpr(
+						tsFunc.Args[0].Accept(b).(model.Expr),
+						"/",
+						model.NewLiteral(1000),
+					),
+				),
+			)
+		}
+
+		return e // unreachable
+	}
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
+}
+
+func (s *SchemaCheckPass) applyFieldEncoding(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
 	if !ok {
 		return nil, fmt.Errorf("table %s not found", query.TableName)
@@ -650,7 +728,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 		// This is workaround.
 		// Our query parse resolves columns sometimes. Here we detect it and skip the resolution.
 		if _, ok := indexSchema.ResolveFieldByInternalName(e.ColumnName); ok {
-			logger.Warn().Msgf("Got field already resolved %s", e.ColumnName)
+			logger.WarnWithCtx(ctx).Msgf("Got field already resolved %s", e.ColumnName)
 			return e
 		}
 
@@ -725,7 +803,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyRuntimeMappings(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyRuntimeMappings(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	if query.RuntimeMappings == nil {
 		return query, nil
@@ -762,7 +840,7 @@ func (s *SchemaCheckPass) applyRuntimeMappings(indexSchema schema.Schema, query 
 }
 
 // it convers out internal date time related fuction to clickhouse functions
-func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	visitor := model.NewBaseVisitor()
 
@@ -793,7 +871,7 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema s
 
 }
 
-func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) checkAggOverUnsupportedType(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	aggFunctionPrefixes := []string{"sum", "avg", "quantiles"}
 
@@ -812,7 +890,7 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 						if col, ok := indexSchema.ResolveFieldByInternalName(columnRef.ColumnName); ok {
 							for _, dbTypePrefix := range dbTypePrefixes {
 								if strings.HasPrefix(col.InternalPropertyType, dbTypePrefix) {
-									logger.Warn().Msgf("Aggregation '%s' over unsupported type '%s' in column '%s'", e.Name, dbTypePrefix, col.InternalPropertyName.AsString())
+									logger.WarnWithCtx(ctx).Msgf("Aggregation '%s' over unsupported type '%s' in column '%s'", e.Name, dbTypePrefix, col.InternalPropertyName.AsString())
 									args := b.VisitChildren(e.Args)
 									args[0] = model.NewLiteral("NULL")
 									return model.NewFunction(e.Name, args...)
@@ -823,7 +901,7 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 					// attributes values are always string,
 					if access, ok := e.Args[0].(model.ArrayAccess); ok {
 						if access.ColumnRef.ColumnName == clickhouse.AttributesValuesColumn {
-							logger.Warn().Msgf("Unsupported case. Aggregation '%s' over attribute named: '%s'", e.Name, access.Index)
+							logger.WarnWithCtx(ctx).Msgf("Unsupported case. Aggregation '%s' over attribute named: '%s'", e.Name, access.Index)
 							args := b.VisitChildren(e.Args)
 							args[0] = model.NewLiteral("NULL")
 							return model.NewFunction(e.Name, args...)
@@ -875,16 +953,16 @@ func columnsToAliasedColumns(columns []model.Expr) []model.Expr {
 	return aliasedColumns
 }
 
-func (s *SchemaCheckPass) applyAliasColumns(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyAliasColumns(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 	query.SelectCommand.Columns = columnsToAliasedColumns(query.SelectCommand.Columns)
 	return query, nil
 }
 
-func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
+func (s *SchemaCheckPass) Transform(ctx context.Context, queries []*model.Query) ([]*model.Query, error) {
 
 	transformationChain := []struct {
 		TransformationName string
-		Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
+		Transformation     func(context.Context, schema.Schema, *model.Query) (*model.Query, error)
 	}{
 		// Section 1: from logical to physical
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
@@ -901,6 +979,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
+		{TransformationName: "UnixTimestampToDateTimeTransformation", Transformation: s.applyTimestampFieldd},
 
 		// Section 3: clickhouse specific transformations
 		{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse},
@@ -930,7 +1009,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 				inputQuery = query.SelectCommand.String()
 			}
 
-			query, err = transformation.Transformation(query.Schema, query)
+			query, err = transformation.Transformation(ctx, query.Schema, query)
 			if err != nil {
 				return nil, err
 			}
@@ -949,7 +1028,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 	return queries, nil
 }
 
-func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyMatchOperator(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	visitor := model.NewBaseVisitor()
 

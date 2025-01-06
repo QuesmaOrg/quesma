@@ -5,57 +5,40 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"time"
 )
 
-const UnboundedInterval = "*"
+var UnboundedInterval model.Expr = nil
+
+const UnboundedIntervalString = "*"
 
 // DateTimeInterval represents a date range. Both Begin and End are either:
 // 1) in Clickhouse's proper format, e.g. toStartOfDay(subDate(now(), INTERVAL 3 week))
 // 2) * (UnboundedInterval), which means no bound
 type DateTimeInterval struct {
-	begin string
-	end   string
+	begin model.Expr
+	end   model.Expr
 }
 
-func NewDateTimeInterval(begin, end string) DateTimeInterval {
+func NewDateTimeInterval(begin, end model.Expr) DateTimeInterval {
 	return DateTimeInterval{
 		begin: begin,
 		end:   end,
 	}
 }
 
-// BeginTimestampToSQL returns SQL select for the begin timestamp, and a boolean indicating if the select is needed
-// We query Clickhouse for this timestamp, as it's defined in Clickhouse's format, e.g. now()-1d.
-// It's only 1 more field to our SELECT query, so it shouldn't be a performance issue.
-func (interval DateTimeInterval) BeginTimestampToSQL() (sqlSelect model.Expr, selectNeeded bool) {
-	if interval.begin != UnboundedInterval {
-		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewLiteral(interval.begin))), true
-	}
-	return nil, false
-}
-
-// EndTimestampToSQL returns SQL select for the end timestamp, and a boolean indicating if the select is needed
-// We query Clickhouse for this timestamp, as it's defined in Clickhouse's format, e.g. now()-1d.
-// It's only 1 more field to our SELECT query, so it isn't a performance issue.
-func (interval DateTimeInterval) EndTimestampToSQL() (sqlSelect model.Expr, selectNeeded bool) {
-	if interval.end != UnboundedInterval {
-		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewLiteral(interval.end))), true
-	}
-	return nil, false
-}
-
 func (interval DateTimeInterval) ToWhereClause(field model.Expr) model.Expr {
-	begin, isBegin := interval.BeginTimestampToSQL()
-	end, isEnd := interval.EndTimestampToSQL()
-
+	var begin, end model.Expr
+	isBegin := interval.begin != UnboundedInterval
+	isEnd := interval.end != UnboundedInterval
 	if isBegin {
-		begin = model.NewInfixExpr(field, ">=", begin)
+		begin = model.NewInfixExpr(field, ">=", interval.begin)
 	}
 	if isEnd {
-		end = model.NewInfixExpr(field, "<", end)
+		end = model.NewInfixExpr(field, "<", interval.end)
 	}
 
 	if isBegin && isEnd {
@@ -102,6 +85,7 @@ func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow) m
 	}
 	for intervalIdx, columnIdx := 0, startIteration; intervalIdx < len(query.intervals); intervalIdx++ {
 		responseForInterval, nextColumnIdx := query.responseForInterval(&rows[0], intervalIdx, columnIdx)
+		fmt.Println("responseForInterval", responseForInterval)
 		response = append(response, responseForInterval)
 		columnIdx = nextColumnIdx
 	}
@@ -124,7 +108,7 @@ func (query DateRange) responseForInterval(row *model.QueryResultRow, intervalId
 	var from, to int64
 	var fromString, toString string
 	if query.intervals[intervalIdx].begin == UnboundedInterval {
-		fromString = UnboundedInterval
+		fromString = UnboundedIntervalString
 	} else {
 		if columnIdx >= len(row.Cols) {
 			logger.ErrorWithCtx(query.ctx).Msgf("trying to read column after columns length, query: %v, row: %v", query, row)
@@ -138,7 +122,7 @@ func (query DateRange) responseForInterval(row *model.QueryResultRow, intervalId
 	}
 
 	if query.intervals[intervalIdx].end == UnboundedInterval {
-		toString = UnboundedInterval
+		toString = UnboundedIntervalString
 	} else {
 		if columnIdx >= len(row.Cols) {
 			logger.ErrorWithCtx(query.ctx).Msgf("trying to read column after columns length, query: %v, row: %v", query, row)
@@ -200,8 +184,9 @@ func (query DateRange) CombinatorTranslateSqlResponseToJson(subGroup CombinatorG
 
 	// TODO: we need translate relative to real time
 	interval := query.intervals[subGroup.idx]
+	pp.Println(interval, model.AsString(interval.begin), model.AsString(interval.end))
 	if interval.begin != UnboundedInterval {
-		response["from"] = interval.begin
+		response["from"] = model.AsString(interval.begin)
 		response["from_as_string"] = interval.begin
 	}
 	if interval.end != UnboundedInterval {

@@ -634,4 +634,65 @@ var AggregationTestsWithDates = []AggregationTestCase{
 			  ("@timestamp", 'Europe/Warsaw'))*1000) / 86400000) AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 	},
+	{ // [4]
+		TestName: "simplest date_range",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"date_range": {
+						"field": "@timestamp",
+						"ranges": [
+							{},{"from": "now-2d/d", "to": "2024-12"},{"from": "now-3M/w"}
+						]
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key": "*-*",
+							"doc_count": 14074
+						},
+						{
+							"key": "2024-09-23T00:00:00.000Z-*",
+							"from": 1727049600000,
+							"from_as_string": "2024-09-23T00:00:00.000Z",
+							"doc_count": 14074
+						},
+						{
+							"key": "2024-12-26T00:00:00.000Z-2024-12-01T00:00:00.000Z",
+							"from": 1735171200000,
+							"from_as_string": "2024-12-26T00:00:00.000Z",
+							"to": 1733011200000,
+							"to_as_string": "2024-12-01T00:00:00.000Z",
+							"doc_count": 0
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{{
+			Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("range_0__aggr__2__count", int64(14074)),
+				model.NewQueryResultCol("range_1__aggr__2__count", int64(0)),
+				model.NewQueryResultCol("range_2__aggr__2__count", int64(14074)),
+				model.NewQueryResultCol("aggr__timeseries__count", int64(1)),
+			},
+		}},
+		ExpectedPancakeSQL: `
+			SELECT countIf(true) AS "range_0__aggr__2__count",
+			  countIf(("@timestamp">=toStartOfDay(subDate(now(), INTERVAL 2 day)) AND
+			  "@timestamp"<fromUnixTimestamp64Milli(1733011200000))) AS
+			  "range_1__aggr__2__count",
+			  countIf("@timestamp">=toStartOfWeek(subDate(now(), INTERVAL 3 month))) AS
+			  "range_2__aggr__2__count"
+			FROM __quesma_table_name`,
+	},
 }

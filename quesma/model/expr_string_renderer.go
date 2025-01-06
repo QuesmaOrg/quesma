@@ -75,6 +75,15 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 	}
 }
 
+func (v *renderer) VisitLiteralDontQuote(l LiteralExprDontQuote) interface{} {
+	switch val := l.Value.(type) {
+	case string:
+		return escapeString(val)
+	default:
+		return fmt.Sprintf("%v", val)
+	}
+}
+
 func (v *renderer) VisitTuple(t TupleExpr) interface{} {
 	switch len(t.Exprs) {
 	case 0:

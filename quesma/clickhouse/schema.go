@@ -66,10 +66,6 @@ const (
 	Invalid
 )
 
-func (c *Column) String() string {
-	return fmt.Sprintf("%s %s", c.Name, c.Type.String())
-}
-
 func (t BaseType) String() string {
 	return t.Name
 }
@@ -291,7 +287,21 @@ func NewEmptyTable(tableName string) *Table {
 	return &Table{Name: tableName, Config: NewChTableConfigNoAttrs()}
 }
 
-func (col *Column) isArray() bool {
+func (col *Column) String() string {
+	return fmt.Sprintf("%s %s", col.Name, col.Type.String())
+}
+
+func (col *Column) IsDatetime() bool {
+	isDatetime := strings.HasPrefix(col.Type.String(), "DateTime") || strings.HasPrefix(col.Type.String(), "Date")
+	isDatetime64 := strings.HasPrefix(col.Type.String(), "DateTime64")
+	return isDatetime && !isDatetime64
+}
+
+func (col *Column) IsDatetime64() bool {
+	return strings.HasPrefix(col.Type.String(), "DateTime64")
+}
+
+func (col *Column) IsArray() bool {
 	return col.Type.isArray()
 }
 

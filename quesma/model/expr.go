@@ -91,6 +91,14 @@ func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLiteral(e)
 }
 
+type LiteralExprDontQuote struct {
+	Value any
+}
+
+func (e LiteralExprDontQuote) Accept(v ExprVisitor) interface{} {
+	return v.VisitLiteralDontQuote(e)
+}
+
 type TupleExpr struct {
 	Exprs []Expr
 }
@@ -128,6 +136,10 @@ var NewWildcardExpr = LiteralExpr{Value: "*"}
 
 func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value}
+}
+
+func NewLiteralDontQuote(value any) LiteralExprDontQuote {
+	return LiteralExprDontQuote{Value: value}
 }
 
 // NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else
@@ -305,6 +317,7 @@ func (e CTE) Accept(v ExprVisitor) interface{} {
 type ExprVisitor interface {
 	VisitFunction(e FunctionExpr) interface{}
 	VisitLiteral(l LiteralExpr) interface{}
+	VisitLiteralDontQuote(l LiteralExprDontQuote) interface{}
 	VisitTuple(t TupleExpr) interface{}
 	VisitInfix(e InfixExpr) interface{}
 	VisitColumnRef(e ColumnRef) interface{}

@@ -3,24 +3,25 @@
 package model
 
 type BaseExprVisitor struct {
-	OverrideVisitFunction       func(b *BaseExprVisitor, e FunctionExpr) interface{}
-	OverrideVisitLiteral        func(b *BaseExprVisitor, l LiteralExpr) interface{}
-	OverrideVisitTuple          func(b *BaseExprVisitor, t TupleExpr) interface{}
-	OverrideVisitInfix          func(b *BaseExprVisitor, e InfixExpr) interface{}
-	OverrideVisitColumnRef      func(b *BaseExprVisitor, e ColumnRef) interface{}
-	OverrideVisitPrefixExpr     func(b *BaseExprVisitor, e PrefixExpr) interface{}
-	OverrideVisitNestedProperty func(b *BaseExprVisitor, e NestedProperty) interface{}
-	OverrideVisitArrayAccess    func(b *BaseExprVisitor, e ArrayAccess) interface{}
-	OverrideVisitOrderByExpr    func(b *BaseExprVisitor, e OrderByExpr) interface{}
-	OverrideVisitDistinctExpr   func(b *BaseExprVisitor, e DistinctExpr) interface{}
-	OverrideVisitTableRef       func(b *BaseExprVisitor, e TableRef) interface{}
-	OverrideVisitAliasedExpr    func(b *BaseExprVisitor, e AliasedExpr) interface{}
-	OverrideVisitSelectCommand  func(b *BaseExprVisitor, e SelectCommand) interface{}
-	OverrideVisitWindowFunction func(b *BaseExprVisitor, f WindowFunction) interface{}
-	OverrideVisitParenExpr      func(b *BaseExprVisitor, e ParenExpr) interface{}
-	OverrideVisitLambdaExpr     func(b *BaseExprVisitor, e LambdaExpr) interface{}
-	OverrideVisitJoinExpr       func(b *BaseExprVisitor, e JoinExpr) interface{}
-	OverrideVisitCTE            func(b *BaseExprVisitor, e CTE) interface{}
+	OverrideVisitFunction         func(b *BaseExprVisitor, e FunctionExpr) interface{}
+	OverrideVisitLiteral          func(b *BaseExprVisitor, l LiteralExpr) interface{}
+	OverrideVisitLiteralDontQuote func(b *BaseExprVisitor, l LiteralExprDontQuote) interface{}
+	OverrideVisitTuple            func(b *BaseExprVisitor, t TupleExpr) interface{}
+	OverrideVisitInfix            func(b *BaseExprVisitor, e InfixExpr) interface{}
+	OverrideVisitColumnRef        func(b *BaseExprVisitor, e ColumnRef) interface{}
+	OverrideVisitPrefixExpr       func(b *BaseExprVisitor, e PrefixExpr) interface{}
+	OverrideVisitNestedProperty   func(b *BaseExprVisitor, e NestedProperty) interface{}
+	OverrideVisitArrayAccess      func(b *BaseExprVisitor, e ArrayAccess) interface{}
+	OverrideVisitOrderByExpr      func(b *BaseExprVisitor, e OrderByExpr) interface{}
+	OverrideVisitDistinctExpr     func(b *BaseExprVisitor, e DistinctExpr) interface{}
+	OverrideVisitTableRef         func(b *BaseExprVisitor, e TableRef) interface{}
+	OverrideVisitAliasedExpr      func(b *BaseExprVisitor, e AliasedExpr) interface{}
+	OverrideVisitSelectCommand    func(b *BaseExprVisitor, e SelectCommand) interface{}
+	OverrideVisitWindowFunction   func(b *BaseExprVisitor, f WindowFunction) interface{}
+	OverrideVisitParenExpr        func(b *BaseExprVisitor, e ParenExpr) interface{}
+	OverrideVisitLambdaExpr       func(b *BaseExprVisitor, e LambdaExpr) interface{}
+	OverrideVisitJoinExpr         func(b *BaseExprVisitor, e JoinExpr) interface{}
+	OverrideVisitCTE              func(b *BaseExprVisitor, e CTE) interface{}
 }
 
 func NewBaseVisitor() *BaseExprVisitor {
@@ -43,6 +44,14 @@ func (v *BaseExprVisitor) VisitLiteral(e LiteralExpr) interface{} {
 	}
 
 	return NewLiteral(e.Value)
+}
+
+func (v *BaseExprVisitor) VisitLiteralDontQuote(e LiteralExprDontQuote) interface{} {
+	if v.OverrideVisitLiteral != nil {
+		return v.OverrideVisitLiteralDontQuote(v, e)
+	}
+
+	return NewLiteralDontQuote(e.Value)
 }
 
 func (v *BaseExprVisitor) VisitTuple(t TupleExpr) interface{} {

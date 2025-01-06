@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 	"math"
 	"net"
-	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -104,14 +103,13 @@ func (cw *ClickhouseQueryTranslator) parseHistogram(aggregation *pancakeAggregat
 
 func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggregationTreeNode, params QueryMap) (err error) {
 	field := cw.parseFieldField(params, "date_histogram")
-	dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 
 	weAddedMissing := false
 	if missingRaw, exists := params["missing"]; exists {
 		if missing, ok := missingRaw.(string); ok {
 			dateManager := NewDateManager(cw.Ctx)
-			if missingExpr, parsingOk := dateManager.ParseDateUsualFormat(missing, dateTimeType); parsingOk {
-				field = model.NewFunction("COALESCE", field, missingExpr)
+			if funcName, missingExpr := dateManager.ParseDateUsualFormat(missing); missingExpr != nil {
+				field = model.NewFunction("COALESCE", field, model.NewFunction(funcName, missingExpr))
 				weAddedMissing = true
 			} else {
 				logger.ErrorWithCtx(cw.Ctx).Msgf("unknown format of missing in date_histogram: %v. Skipping it.", missing)
@@ -136,12 +134,7 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 	interval, intervalType := cw.extractInterval(params)
 	// TODO  GetDateTimeTypeFromExpr can be moved and it should take cw.Schema as an argument
 
-	if dateTimeType == clickhouse.Invalid {
-		logger.WarnWithCtx(cw.Ctx).Msgf("invalid date time type for field %s", field)
-	}
-
-	dateHistogram := bucket_aggregations.NewDateHistogram(cw.Ctx,
-		field, interval, timezone, minDocCount, ebMin, ebMax, intervalType, dateTimeType)
+	dateHistogram := bucket_aggregations.NewDateHistogram(cw.Ctx, field, interval, timezone, minDocCount, ebMin, ebMax, intervalType)
 	aggregation.queryType = dateHistogram
 
 	columnSql := dateHistogram.GenerateSQL()
@@ -432,8 +425,8 @@ func (cw *ClickhouseQueryTranslator) parseIpRange(aggregation *pancakeAggregatio
 				key = &maskIfExists
 			}
 		} else {
-			begin = cw.parseStringField(rangeRaw.(QueryMap), "from", bucket_aggregations.UnboundedInterval)
-			end = cw.parseStringField(rangeRaw.(QueryMap), "to", bucket_aggregations.UnboundedInterval)
+			begin = cw.parseStringField(rangeRaw.(QueryMap), "from", bucket_aggregations.UnboundedIntervalString)
+			end = cw.parseStringField(rangeRaw.(QueryMap), "to", bucket_aggregations.UnboundedIntervalString)
 		}
 		ranges = append(ranges, bucket_aggregations.NewIpInterval(begin, end, key))
 	}
