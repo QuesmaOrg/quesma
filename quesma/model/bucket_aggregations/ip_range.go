@@ -5,6 +5,7 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"quesma/logger"
 	"quesma/model"
 	"reflect"
@@ -13,8 +14,6 @@ import (
 // BiggestIpv4 is "255.255.255.255 + 1", so to say. Used in Elastic, because it always uses exclusive upper bounds.
 // So instead of "<= 255.255.255.255", it uses "< ::1:0:0:0"
 const BiggestIpv4 = "::1:0:0:0"
-
-// Current limitation: we expect Clickhouse field to be IPv4 (and not IPv6)
 
 // Clickhouse table to test SQLs:
 // CREATE TABLE __quesma_table_name (clientip IPv4) ENGINE=Log
@@ -95,21 +94,32 @@ func NewIpInterval(begin, end string, key *string) IpInterval {
 }
 
 func (interval IpInterval) ToWhereClause(field model.Expr) model.Expr {
-	isBegin := interval.begin != UnboundedIntervalString
-	isEnd := interval.end != UnboundedIntervalString && interval.end != BiggestIpv4
+	hasBegin := interval.hasBeginInResponse()
+	hasEnd := interval.hasEndInResponse()
 
 	begin := model.NewInfixExpr(field, ">=", model.NewLiteralSingleQuoteString(interval.begin))
 	end := model.NewInfixExpr(field, "<", model.NewLiteralSingleQuoteString(interval.end))
 
-	if isBegin && isEnd {
+	if hasBegin && hasEnd {
 		return model.NewInfixExpr(begin, "AND", end)
-	} else if isBegin {
+	} else if hasBegin {
 		return begin
-	} else if isEnd {
+	} else if hasEnd {
 		return end
 	} else {
 		return model.TrueExpr
 	}
+}
+
+// hasBeginInResponse returns true if we should add 'from' field to the response.
+// We do that <=> begin is not 0.0.0.0 (unbounded)
+func (interval IpInterval) hasBeginInResponse() bool {
+	return interval.begin != UnboundedIntervalString && netip.MustParseAddr(interval.begin) != netip.MustParseAddr("::")
+}
+
+// hasEndInResponse returns true if we should add 'to' field to the response.
+func (interval IpInterval) hasEndInResponse() bool {
+	return interval.end != UnboundedIntervalString
 }
 
 // String returns key part of the response, e.g. "1.0-2.0", or "*-6.55"
@@ -166,10 +176,10 @@ func (query *IpRange) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGr
 	}
 
 	interval := query.intervals[subGroup.idx]
-	if interval.begin != UnboundedIntervalString {
+	if interval.hasBeginInResponse() {
 		response["from"] = interval.begin
 	}
-	if interval.end != UnboundedIntervalString {
+	if interval.hasEndInResponse() {
 		response["to"] = interval.end
 	}
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"quesma/end_user_errors"
 	"quesma/logger"
+	"quesma/model"
 	"quesma/persistence"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
@@ -66,6 +67,12 @@ type (
 		PreferCastingToOthers                 bool // we'll put non-schema field in [String, String] attrs map instead of others, if we have both options
 	}
 )
+
+type LogManagerIFace interface {
+	ResolveIndexPattern(ctx context.Context, schema schema.Registry, pattern string) (results []string, err error)
+	FindTable(tableName string) (result *Table)
+	ProcessQuery(ctx context.Context, table *Table, query *model.Query) (rows []model.QueryResultRow, performanceResult PerformanceResult, err error)
+}
 
 func NewTableMap() *TableMap {
 	return util.NewSyncMap[string, *Table]()

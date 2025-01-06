@@ -49,13 +49,25 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 	for _, row := range rows {
 		docCount := query.docCount(row)
 		bucket := model.JsonMap{
-			"key":       query.key(row),
 			"doc_count": docCount,
 		}
 		if query.significant {
 			bucket["score"] = docCount
 			bucket["bg_count"] = docCount
 		}
+
+		// response for bool keys is different
+		key := query.key(row)
+		if boolPtr, isBoolPtr := key.(*bool); isBoolPtr {
+			key = *boolPtr
+		}
+		if keyAsBool, ok := key.(bool); ok {
+			bucket["key"] = util.BoolToInt(keyAsBool)
+			bucket["key_as_string"] = util.BoolToString(keyAsBool)
+		} else {
+			bucket["key"] = key
+		}
+
 		response = append(response, bucket)
 	}
 
