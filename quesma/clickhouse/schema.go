@@ -301,7 +301,7 @@ func (col *Column) IsDatetime64() bool {
 	return strings.HasPrefix(col.Type.String(), "DateTime64")
 }
 
-func (col *Column) IsArray() bool {
+func (col *Column) isArray() bool {
 	return col.Type.isArray()
 }
 

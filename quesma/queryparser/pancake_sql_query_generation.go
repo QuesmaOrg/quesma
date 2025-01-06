@@ -451,36 +451,3 @@ func (p *pancakeSqlQueryGenerator) generateQuery(aggregation *pancakeModel) (*mo
 
 	return resultQuery, nil
 }
-
-func (cw *ClickhouseQueryTranslator) convertQueryDateTimeFunctionToClickhouse(query *model.Query) (*model.Query, error) {
-
-	visitor := model.NewBaseVisitor()
-
-	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
-
-		switch e.Name {
-
-		case model.FromUnixTimestampMs:
-			if len(e.Args) != 1 {
-				return e
-			}
-			fmt.Println(e.Args)
-			return model.NewFunction("fromUnixTimestamp64Milli", e.Args[0].Accept(b).(model.Expr))
-
-			// TODO this is a place for over date/time related functions
-			// add more
-
-		default:
-			fmt.Println("Function not found: ", e.Name)
-			return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
-		}
-	}
-
-	expr := query.SelectCommand.Accept(visitor)
-
-	if _, ok := expr.(*model.SelectCommand); ok {
-		query.SelectCommand = *expr.(*model.SelectCommand)
-	}
-	return query, nil
-
-}

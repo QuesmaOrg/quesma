@@ -33,11 +33,13 @@ const (
 	QueryLanguageEQL     = "eql"
 )
 
-func NewQueryTranslator(ctx context.Context, language QueryLanguage, schema schema.Schema, table *clickhouse.Table, logManager *clickhouse.LogManager, dateMathRenderer string, indexes []string, configuration *config.QuesmaConfiguration) (queryTranslator IQueryTranslator) {
+func NewQueryTranslator(ctx context.Context, language QueryLanguage, schema schema.Schema, table *clickhouse.Table,
+	logManager *clickhouse.LogManager, dateMathRenderer string, indexes []string, configuration *config.QuesmaConfiguration) (queryTranslator IQueryTranslator) {
 	switch language {
 	case QueryLanguageEQL:
 		return &eql.ClickhouseEQLQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx}
 	default:
-		return &queryparser.ClickhouseQueryTranslator{Table: table, Ctx: ctx, DateMathRenderer: dateMathRenderer, Indexes: indexes, Config: configuration, Schema: schema}
+		return &queryparser.ClickhouseQueryTranslator{Table: table, Ctx: ctx, DateMathRenderer: dateMathRenderer,
+			Indexes: indexes, Config: configuration, Schema: schema}
 	}
 }

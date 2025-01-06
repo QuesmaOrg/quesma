@@ -52,6 +52,7 @@ func (interval DateTimeInterval) ToWhereClause(field model.Expr) model.Expr {
 	}
 }
 
+// TODO support time_zone
 type DateRange struct {
 	ctx             context.Context
 	field           model.Expr

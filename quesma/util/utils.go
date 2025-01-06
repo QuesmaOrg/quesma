@@ -782,6 +782,7 @@ func InitSqlMockWithPrettyPrint(t *testing.T, matchExpectationsInOrder bool) (*s
 			lock.Lock()
 			defer lock.Unlock()
 			for _, mismatch := range mismatchedSqls {
+				fmt.Println("ACTUAL:", mismatch.actual)
 				pp.Printf("-- %s Expected:\n", t.Name())
 				fmt.Printf("%s\n", SqlPrettyPrint([]byte(mismatch.expected)))
 				fmt.Printf("RAW: '%s'\n", mismatch.expected)

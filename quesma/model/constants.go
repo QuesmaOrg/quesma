@@ -7,11 +7,13 @@ const (
 	FullTextFieldNamePlaceHolder = "__quesma_fulltext_field_name"
 	TimestampFieldName           = "@timestamp"
 
-	DateHourFunction                      = "__quesma_date_hour"
-	MatchOperator                         = "__quesma_match"
-	FromUnixTimestampMsToDateTimeFunction = "__quesma_from_unix_timestamp_ms"
-	ToUnixTimestampMs                     = "__quesma_to_unix_timestamp_ms"
+	DateHourFunction = "__quesma_date_hour"
+	MatchOperator    = "__quesma_match"
 
-	FromUnixTimestampMsToDatetime64Function = "fromUnixTimestamp64Milli"
-	FromUnixTimestampMsToDatetimeFunction   = "fromUnixTimestamp"
+	FromUnixTimestampMs                               = "__quesma_from_unix_timestamp_ms"
+	ToUnixTimestampMs                                 = "__quesma_to_unix_timestamp_ms"
+	ClickhouseFromUnixTimestampMsToDatetime64Function = "fromUnixTimestamp64Milli"
+	ClickhouseFromUnixTimestampMsToDatetimeFunction   = "fromUnixTimestamp"
+	ClickhouseToUnixTimestampMsFromDatetime64Function = "toUnixTimestamp64Milli"
+	ClickhouseToUnixTimestampMsFromDatetimeFunction   = "toUnixTimestamp"
 )

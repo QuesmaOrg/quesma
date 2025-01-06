@@ -33,7 +33,7 @@ func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm clic
 			return []byte{}, end_user_errors.ErrNoSuchSchema.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
-		return handleTermsEnumRequest(ctx, body, lm, &queryparser.ClickhouseQueryTranslator{Table: lm.FindTable(indices[0]), Ctx: context.Background(), Schema: resolvedSchema}, qmc)
+		return handleTermsEnumRequest(ctx, body, lm, &queryparser.ClickhouseQueryTranslator{Table: lm.FindTable(indices[0]), Ctx: ctx, Schema: resolvedSchema}, qmc)
 	}
 }
 
@@ -92,6 +92,11 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.
 
 	where := qt.ParseAutocomplete(indexFilter, field, prefixString, caseInsensitive)
 	selectQuery := buildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
+	selectQuery, err = applyNecessaryTransformations(ctx, lm, qt.Table.Name, qt.Schema, selectQuery)
+	if err != nil {
+		return json.Marshal(emptyTermsEnumResponse())
+	}
+
 	dbQueryCtx, cancel := context.WithCancel(ctx)
 	// TODO this will be used to cancel goroutine that is executing the query
 	_ = cancel
