@@ -374,6 +374,8 @@ func Test_QuesmaBuild(t *testing.T) {
 		assert.Equal(t, 2, len(quesma.GetPipelines()[0].GetFrontendConnectors()))
 		assert.Equal(t, 2, len(quesma.GetPipelines()[0].GetFrontendConnectors()[0].(quesma_api.HTTPFrontendConnector).GetRouter().GetHandlers()))
 		assert.Equal(t, 2, len(quesma.GetPipelines()[0].GetFrontendConnectors()[1].(quesma_api.HTTPFrontendConnector).GetRouter().GetHandlers()))
+		assert.Equal(t, quesma.GetPipelines()[0].GetFrontendConnectors()[0], quesma.GetPipelines()[0].GetFrontendConnectors()[1])
+
 		assert.NoError(t, err)
 	}
 }
