@@ -46,7 +46,7 @@ type QueryRunner struct {
 	cancel               context.CancelFunc
 	AsyncRequestStorage  async_search_storage.AsyncRequestResultStorage
 	AsyncQueriesContexts async_search_storage.AsyncQueryContextStorage
-	logManager           *clickhouse.LogManager
+	logManager           clickhouse.LogManagerIFace
 	cfg                  *config.QuesmaConfiguration
 	im                   elasticsearch.IndexManagement
 	debugInfoCollector   diag.DebugInfoCollector
@@ -83,7 +83,7 @@ func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
 	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
 }
 
-func NewQueryRunner(lm *clickhouse.LogManager,
+func NewQueryRunner(lm clickhouse.LogManagerIFace,
 	cfg *config.QuesmaConfiguration,
 	im elasticsearch.IndexManagement,
 	qmc diag.DebugInfoCollector,
@@ -360,7 +360,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	var responseBody []byte
 
 	startTime := time.Now()
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
+	id := "FAKE_ID"
+	if val := ctx.Value(tracing.RequestIdCtxKey); val != nil {
+		id = val.(string)
+	}
 	path := ""
 	if value := ctx.Value(tracing.RequestPath); value != nil {
 		if str, ok := value.(string); ok {
@@ -480,8 +483,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 func (q *QueryRunner) storeAsyncSearch(qmc diag.DebugInfoCollector, id, asyncId string,
 	startTime time.Time, path string, body types.JSON, result asyncSearchWithError, keep bool, opaqueId string) (responseBody []byte, err error) {
 
-	took := time.Since(startTime)
-	bodyAsBytes, _ := body.Bytes()
 	if result.err == nil {
 		okStatus := 200
 		asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncId, false, &okStatus)
@@ -491,16 +492,20 @@ func (q *QueryRunner) storeAsyncSearch(qmc diag.DebugInfoCollector, id, asyncId 
 		err = result.err
 	}
 
-	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
-		Id:                     id,
-		AsyncId:                asyncId,
-		OpaqueId:               opaqueId,
-		Path:                   path,
-		IncomingQueryBody:      bodyAsBytes,
-		QueryBodyTranslated:    result.translatedQueryBody,
-		QueryTranslatedResults: responseBody,
-		SecondaryTook:          took,
-	})
+	if qmc != nil {
+		took := time.Since(startTime)
+		bodyAsBytes, _ := body.Bytes()
+		qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
+			Id:                     id,
+			AsyncId:                asyncId,
+			OpaqueId:               opaqueId,
+			Path:                   path,
+			IncomingQueryBody:      bodyAsBytes,
+			QueryBodyTranslated:    result.translatedQueryBody,
+			QueryTranslatedResults: responseBody,
+			SecondaryTook:          took,
+		})
+	}
 
 	if keep {
 		compressedBody := responseBody

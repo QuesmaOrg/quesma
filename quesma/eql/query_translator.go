@@ -21,7 +21,7 @@ import (
 // It implements quesma.IQueryTranslator for EQL queries.
 
 type ClickhouseEQLQueryTranslator struct {
-	ClickhouseLM *clickhouse.LogManager
+	ClickhouseLM clickhouse.LogManagerIFace
 	Table        *clickhouse.Table
 	Ctx          context.Context
 }
