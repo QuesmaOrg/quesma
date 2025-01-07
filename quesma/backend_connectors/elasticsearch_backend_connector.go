@@ -108,3 +108,7 @@ func (e *ElasticsearchBackendConnector) Exec(ctx context.Context, query string, 
 func (e *ElasticsearchBackendConnector) Close() error {
 	return nil
 }
+
+func (e *ElasticsearchBackendConnector) Ping() error {
+	return nil
+}

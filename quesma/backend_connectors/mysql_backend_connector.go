@@ -22,11 +22,8 @@ func (p *MySqlRows) Scan(dest ...interface{}) error {
 	return p.rows.Scan(dest...)
 }
 
-func (p *MySqlRows) Close() {
-	err := p.rows.Close()
-	if err != nil {
-		panic(err)
-	}
+func (p *MySqlRows) Close() error {
+	return p.rows.Close()
 }
 
 func (p *MySqlRows) Err() error {
@@ -81,4 +78,8 @@ func (p *MySqlBackendConnector) Exec(ctx context.Context, query string, args ...
 	}
 	_, err := p.connection.ExecContext(context.Background(), query, args...)
 	return err
+}
+
+func (p *MySqlBackendConnector) Ping() error {
+	return nil
 }

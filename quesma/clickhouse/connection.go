@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"net"
+	"quesma/backend_connectors"
 	"quesma/buildinfo"
 	"quesma/logger"
 	"quesma/quesma/config"
+	quesma_api "quesma_v2/core"
 	"strings"
 	"time"
 )
@@ -51,7 +53,7 @@ func initDBConnection(c *config.QuesmaConfiguration, tlsConfig *tls.Config) *sql
 
 }
 
-func InitDBConnectionPool(c *config.QuesmaConfiguration) *sql.DB {
+func InitDBConnectionPool(c *config.QuesmaConfiguration) quesma_api.BackendConnector {
 	if c.ClickHouse.Url == nil {
 		return nil
 	}
@@ -94,7 +96,7 @@ func InitDBConnectionPool(c *config.QuesmaConfiguration) *sql.DB {
 	// clean up connections after 5 minutes, before that they may be killed by the firewall
 	db.SetConnMaxLifetime(time.Duration(5) * time.Minute) // default is 1h
 
-	return db
+	return backend_connectors.NewClickHouseBackendConnectorWithConnection(c.ClickHouse.Url.String(), db)
 }
 
 // RunClickHouseConnectionDoctor is very blunt and verbose function which aims to print some helpful information

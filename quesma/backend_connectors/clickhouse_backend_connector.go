@@ -28,11 +28,8 @@ func (p *ClickHouseRows) Scan(dest ...interface{}) error {
 	return p.rows.Scan(dest...)
 }
 
-func (p *ClickHouseRows) Close() {
-	err := p.rows.Close()
-	if err != nil {
-		panic(err)
-	}
+func (p *ClickHouseRows) Close() error {
+	return p.rows.Close()
 }
 
 func (p *ClickHouseRows) Err() error {
@@ -57,6 +54,10 @@ func (p *ClickHouseBackendConnector) Close() error {
 		return nil
 	}
 	return p.connection.Close()
+}
+
+func (p *ClickHouseBackendConnector) Ping() error {
+	return p.connection.Ping()
 }
 
 func (p *ClickHouseBackendConnector) Query(ctx context.Context, query string, args ...interface{}) (quesma_api.Rows, error) {
@@ -94,6 +95,15 @@ func initDBConnection() (*sql.DB, error) {
 func NewClickHouseBackendConnector(endpoint string) *ClickHouseBackendConnector {
 	return &ClickHouseBackendConnector{
 		Endpoint: endpoint,
+	}
+}
+
+// NewClickHouseBackendConnectorWithConnection bridges the gap between the ClickHouseBackendConnector and the sql.DB
+// so that it is can be used in pre-v2 code. Should be removed when moving forwards.
+func NewClickHouseBackendConnectorWithConnection(endpoint string, conn *sql.DB) *ClickHouseBackendConnector {
+	return &ClickHouseBackendConnector{
+		Endpoint:   endpoint,
+		connection: conn,
 	}
 }
 

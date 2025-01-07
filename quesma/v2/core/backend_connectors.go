@@ -55,3 +55,7 @@ func (p *NoopBackendConnector) Query(ctx context.Context, query string, args ...
 func (p *NoopBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
 	return nil
 }
+
+func (p *NoopBackendConnector) Ping() error {
+	return nil
+}
