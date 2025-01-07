@@ -3,6 +3,7 @@
 package quesma
 
 import (
+	"context"
 	"fmt"
 	"quesma/logger"
 	"quesma/model"
@@ -96,14 +97,19 @@ func (s searchAfterStrategyBulletproof) TransformQuery(query *model.Query, searc
 	return query, nil
 }
 
-func (s searchAfterStrategyBulletproof) TransformHit(hit model.SearchHit, pkFieldName *string, rows []model.QueryResultRow) model.SearchHit {
+func (s searchAfterStrategyBulletproof) TransformHit(ctx context.Context, hit *model.SearchHit, pkFieldName *string, sortFieldNames []string,
+	rows []model.QueryResultRow, lastNRowsSameSortValues int) (hitTransformed *model.SearchHit, lastNRowsSameSortValuesNew int) {
+
+	hitTransformed, lastNRowsSameSortValuesNew = hit, 1 // default values, when returning early
 	if pkFieldName == nil {
-		return hit
+		return
 	}
 	if len(rows) == 0 { // sanity check
 		logger.Warn().Msg("searchAfterStrategyBulletproof.TransformHit: rows is empty")
+		return
 	}
 
+	// find the primary key column
 	pkColIdx := -1
 	for i, col := range rows[0].Cols {
 		if col.ColName == *pkFieldName {
@@ -113,22 +119,22 @@ func (s searchAfterStrategyBulletproof) TransformHit(hit model.SearchHit, pkFiel
 	}
 	if pkColIdx == -1 {
 		logger.Warn().Msgf("searchAfterStrategyBulletproof.TransformHit: primary key column %s not found in rows", *pkFieldName)
-		return hit
+		return
 	}
 
-	rowIdx := len(rows) - 1
-	hit.Sort = append(hit.Sort, rows[rowIdx].Cols[pkColIdx].Value)
-	for
-	for pkColIdx = range
-	pkField := hit.Fields[*pkFieldName]
-	if pkField == nil {
-		return hit
+	queryProcessor := model.NewQueryProcessor(ctx)
+	hitTransformed.Sort = append(hitTransformed.Sort, rows[len(rows)-1].Cols[pkColIdx].Value)
+
+	// if current_row != last_row (we check only 'sortFieldNames' columns), we have only one "result" row added above
+	if len(rows) == 1 || !queryProcessor.SameSubsetOfColumns(rows[len(rows)-2], rows[len(rows)-1], sortFieldNames) {
+		return hitTransformed, 1
 	}
 
-	// We need to add the primary key to the hit
-	pkField = append(pkField, rows[0].Cols[0].Value)
-	hit.Fields[*pkFieldName] = pkField
-	return hit
+	// else we have lastNRowsSameSortValues+1 "result" rows
+	for i, cnt := len(rows)-2, 0; cnt < lastNRowsSameSortValues; i, cnt = i-1, cnt+1 {
+		hit.Sort = append(hit.Sort, rows[i].Cols[pkColIdx].Value)
+	}
+	return hitTransformed, lastNRowsSameSortValues + 1
 }
 
 // -------------------------------------------------------------------------------------------------------------------------------
@@ -146,8 +152,9 @@ func (s searchAfterStrategyJustDiscardTheParameter) TransformQuery(query *model.
 	return query, nil
 }
 
-func (s searchAfterStrategyJustDiscardTheParameter) TransformHit(hit model.SearchHit, _ *string, _ []model.QueryResultRow) model.SearchHit {
-	return hit
+func (s searchAfterStrategyJustDiscardTheParameter) TransformHit(ctx context.Context, hit *model.SearchHit, pkFieldName *string, sortFieldNames []string,
+	rows []model.QueryResultRow, lastNRowsSameSortValues int) (hitTransformed *model.SearchHit, lastNRowsSameSortValuesNew int) {
+	return hit, 0 // lastNRowsSameSortValues doesn't matter
 }
 
 // ----------------------------------------------------------------------------------
@@ -182,8 +189,9 @@ func (s searchAfterStrategyBasicAndFast) TransformQuery(query *model.Query, sear
 	return query, nil
 }
 
-func (s searchAfterStrategyBasicAndFast) TransformHit(hit model.SearchHit, _ *string, _ []model.QueryResultRow) model.SearchHit {
-	return hit
+func (s searchAfterStrategyBasicAndFast) TransformHit(ctx context.Context, hit *model.SearchHit, pkFieldName *string, sortFieldNames []string,
+	rows []model.QueryResultRow, lastNRowsSameSortValues int) (hitTransformed *model.SearchHit, lastNRowsSameSortValuesNew int) {
+	return hit, 0 // lastNRowsSameSortValues doesn't matter
 }
 
 func validateAndParseCommonOnlySortParams(query *model.Query, indexSchema schema.Schema) (searchAfterParamParsed []model.Expr, err error) {

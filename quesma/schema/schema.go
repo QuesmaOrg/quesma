@@ -18,7 +18,7 @@ type (
 	Schema struct {
 		Fields             map[FieldName]Field
 		Aliases            map[FieldName]FieldName
-		primaryKey         *FieldName // nil if no primary key
+		primaryKey         *FieldName // nil if no primary key. Only used in handling of search_after query parameter.
 		ExistsInDataSource bool
 
 		// DatabaseName is the name of the database/schema in the data source,

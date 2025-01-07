@@ -57,7 +57,7 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 	hits := make([]model.SearchHit, 0, len(rows))
 
 	lookForCommonTableIndexColumn := true
-	lastNRowsSameSortValues := 0
+	lastNRowsSameSortValues := 1
 
 	for i, row := range rows {
 
@@ -90,7 +90,7 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 		if query.addSource {
 			hit.Source = []byte(rows[i].String(query.ctx))
 		}
-		query.addAndHighlightHit(&hit, &row)
+		query.addAndHighlightHit(hit, &row)
 
 		hit.ID = query.computeIdForDocument(hit, strconv.Itoa(i+1))
 		for _, fieldName := range query.sortFieldNames {
@@ -101,9 +101,10 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 			}
 		}
 
-		hit, lastNRowsSameSortValues = query.searchAfterStrategy.TransformHit(hit, rows[:i], query.table.PrimaryKey, lastNRowsSameSortValues)
+		hit, lastNRowsSameSortValues = query.searchAfterStrategy.TransformHit(query.ctx, hit,
+			query.table.PrimaryKey, query.sortFieldNames, rows[:i], lastNRowsSameSortValues)
 
-		hits = append(hits, hit)
+		hits = append(hits, *hit)
 	}
 
 	return model.JsonMap{
@@ -181,7 +182,7 @@ func (query Hits) WithTimestampField(fieldName string) Hits {
 	return query
 }
 
-func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) string {
+func (query Hits) computeIdForDocument(doc *model.SearchHit, defaultID string) string {
 
 	if query.timestampFieldName == "" {
 		return defaultID

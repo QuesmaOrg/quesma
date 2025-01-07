@@ -39,8 +39,8 @@ type SearchHit struct {
 	Sort []any  `json:"sort,omitempty"`
 }
 
-func NewSearchHit(index string) SearchHit {
-	return SearchHit{Index: index, Fields: make(map[string][]interface{}), Highlight: make(map[string][]string)}
+func NewSearchHit(index string) *SearchHit {
+	return &SearchHit{Index: index, Fields: make(map[string][]interface{}), Highlight: make(map[string][]string)}
 }
 
 type SearchHits struct {
