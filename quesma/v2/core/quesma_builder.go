@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strconv"
 )
 
 type Quesma struct {
@@ -91,10 +90,10 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 				pipelineIndex: pipelineIndex,
 				connIndex:     connIndex,
 			})
-			quesma.dependencies.Logger().Info().Msg(conn.InstanceName() +
-				":" + conn.GetEndpoint() +
-				",index:" + strconv.FormatInt(int64(connIndex), 10) +
-				",pipeline:" + strconv.FormatInt(int64(pipelineIndex), 10))
+			quesma.dependencies.Logger().Info().Msgf("%s:%s, index: %d, pipeline:%d", conn.InstanceName(),
+				conn.GetEndpoint(),
+				connIndex,
+				pipelineIndex)
 		}
 	}
 
