@@ -175,9 +175,8 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		return metricsAggregation{
 			AggrType: "rate",
 			Fields:   fields,
-			// default unit doesn't matter, it's checked in CheckParamsRate, it will never be empty here
-			unit: cw.parseStringField(rate.(JsonMap), "unit", ""),
-			mode: cw.parseStringField(rate.(JsonMap), "mode", defaultMode),
+			unit:     cw.parseStringField(rate.(JsonMap), "unit", ""), // default doesn't matter, it's checked in CheckParamsRate, it will never be empty here
+			mode:     cw.parseStringField(rate.(JsonMap), "mode", defaultMode),
 		}, true
 	}
 

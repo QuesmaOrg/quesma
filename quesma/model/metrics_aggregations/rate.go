@@ -26,7 +26,10 @@ type (
 )
 
 const (
-	second RateUnit = iota
+	RateModeSum        RateMode = "sum"
+	RateModeValueCount RateMode = "value_count"
+	RateModeInvalid    RateMode = "invalid"
+	second             RateUnit = iota
 	minute
 	hour
 	day
@@ -34,14 +37,11 @@ const (
 	month
 	quarter
 	year
-)
-const (
-	RateModeSum        RateMode = "sum"
-	RateModeValueCount RateMode = "value_count"
+	invalidRateUnit
 )
 
 // NewRate creates a new Rate aggregation, during parsing.
-// 'multiplier' is set later, during pancake transformation.
+// 'multiplier' and 'parentIntervalInMs' are set later, during pancake transformation.
 func NewRate(ctx context.Context, unit string, fieldPresent bool) *Rate {
 	return &Rate{ctx: ctx, unit: newRateUnit(ctx, unit), fieldPresent: fieldPresent}
 }
@@ -151,9 +151,8 @@ func newRateUnit(ctx context.Context, unit string) RateUnit {
 	case "year":
 		return year
 	default:
-		// theoretically unreachable, as this is checked during parsing
-		logger.ErrorWithCtx(ctx).Msgf("invalid rate unit: %s", unit)
-		return second
+		logger.WarnWithCtxAndThrottling(ctx, "rate", "unit", "invalid rate unit: %s", unit)
+		return invalidRateUnit
 	}
 }
 
@@ -175,9 +174,11 @@ func (u RateUnit) String() string {
 		return "quarter"
 	case year:
 		return "year"
+	case invalidRateUnit:
+		return "invalid"
 	default:
 		// theoretically unreachable
-		return "invalid"
+		return "invalid, but not invalidRateUnit"
 	}
 }
 
@@ -212,8 +213,8 @@ func NewRateMode(ctx context.Context, mode string) RateMode {
 	case "value_count":
 		return RateModeValueCount
 	default:
-		logger.ErrorWithCtx(ctx).Msgf("unknown rate mode: %s. using default sum", mode)
-		return RateModeSum
+		logger.WarnWithCtxAndThrottling(ctx, "rate", "mode", "invalid rate mode: %s", mode)
+		return RateModeInvalid
 	}
 }
 
@@ -223,12 +224,12 @@ func (m RateMode) String() string {
 		return "sum"
 	case RateModeValueCount:
 		return "value_count"
+	case RateModeInvalid:
+		return "invalid"
 	default:
-		return "unknown"
+		return "invalid, but not RateModeInvalid"
 	}
 }
-
-// mode: sum or value_count (sum default)
 
 // TODO make part of QueryType interface and implement for all aggregations
 // TODO add bad requests to tests
@@ -257,9 +258,11 @@ func CheckParamsRate(ctx context.Context, paramsRaw any) error {
 			return fmt.Errorf("required parameter %s is not of type %s, but %T", paramName, paramType, paramVal)
 		}
 	}
-	// TODO additional check for unit
+	if newRateUnit(ctx, params["unit"].(string)) == invalidRateUnit {
+		return fmt.Errorf("invalid rate unit: %v", params["unit"])
+	}
 
-	// check if only required/optional are present
+	// check if only required/optional are present, and if present - that they have correct types
 	for paramName := range params {
 		if _, isRequired := requiredParams[paramName]; !isRequired {
 			wantedType, isOptional := optionalParams[paramName]
@@ -271,7 +274,9 @@ func CheckParamsRate(ctx context.Context, paramsRaw any) error {
 			}
 		}
 	}
-	// TODO additional check for field (resolve) + mode (one of 2 values)
+	if NewRateMode(ctx, params["mode"].(string)) == RateModeInvalid {
+		return fmt.Errorf("invalid rate mode: %v", params["mode"])
+	}
 
 	return nil
 }
