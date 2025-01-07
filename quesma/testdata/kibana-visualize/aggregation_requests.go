@@ -3542,7 +3542,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			FROM __quesma_table_name`,
 	},
 	{ // [27]
-		TestName: "Simplest Rate aggregation: only 'unit' present",
+		TestName: `Simplest Rate aggregation: only 'unit' present (all possible units).
+			You can notice slightly different results in 2 buckets, because of different nr of days in a month`,
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -3608,6 +3609,35 @@ var AggregationTests = []testdata.AggregationTestCase{
 					"buckets": [
 						{
 							"doc_count": 5011,
+							"key": 1727733600000,
+							"key_as_string": "2024-09-30T22:00:00.000",
+							"second": {
+								"value": 0.001871
+							},
+							"minute": {
+								"value": 0.112254
+							},
+							"hour": {
+								"value": 6.735215
+							},
+							"day": {
+								"value": 161.645161
+							},
+							"week": {
+								"value": 1131.516129
+							},
+							"month": {
+								"value": 5011
+							},
+							"quarter": {
+								"value": 15033
+							},
+							"year": {
+								"value": 60132
+							}
+						},
+						{
+							"doc_count": 5011,
 							"key": 1730415600000,
 							"key_as_string": "2024-10-31T23:00:00.000",
 							"second": {
@@ -3640,6 +3670,10 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1727740800000)),
+				model.NewQueryResultCol("aggr__2__count", 5011),
+			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", int64(1730419200000)),
 				model.NewQueryResultCol("aggr__2__count", 5011),

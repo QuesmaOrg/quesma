@@ -274,7 +274,7 @@ func CheckParamsRate(ctx context.Context, paramsRaw any) error {
 			}
 		}
 	}
-	if NewRateMode(ctx, params["mode"].(string)) == RateModeInvalid {
+	if mode, exists := params["mode"]; exists && NewRateMode(ctx, mode.(string)) == RateModeInvalid {
 		return fmt.Errorf("invalid rate mode: %v", params["mode"])
 	}
 
