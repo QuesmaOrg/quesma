@@ -135,6 +135,9 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 
 	// This pass is about sharing frontend connectors
 	for endpoint, endpointInfo := range endpoints {
+		if len(endpointInfo) < 1 {
+			continue
+		}
 		sharedFc := quesma.pipelines[endpointInfo[0].pipelineIndex].GetFrontendConnectors()[endpointInfo[0].connIndex]
 		for _, info := range endpointInfo {
 			for pipelineIndex, pipeline := range quesma.pipelines {
