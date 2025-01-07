@@ -48,10 +48,6 @@ func (s searchAfterStrategyType) String() string {
 // | Bulletproof, but might be a bit slower for gigantic datasets                  |
 // ---------------------------------------------------------------------------------
 
-// sortFields  []model.OrderByExpr
-//	pkHashes    []string // md5 for now, should be improved to shorten hashes lengths
-//	searchAfter any
-
 type searchAfterStrategyBulletproof struct{} // TODO, don't look!
 
 // validateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
@@ -71,30 +67,9 @@ func (s searchAfterStrategyBulletproof) validateAndParse(query *model.Query, ind
 	}
 
 	return nil, nil
-	/*
-
-		var timestampMs int64
-		if shouldBeTimestamp, ok := util.ExtractNumeric64Maybe(asArray[0]); ok {
-			if shouldBeTimestamp >= 0 && util.IsFloat64AnInt64(shouldBeTimestamp) {
-				timestampMs = int64(shouldBeTimestamp)
-			} else {
-				return empty, fmt.Errorf("for Bulletproof strategy, search_after[0] must be a unix timestamp in milliseconds")
-			}
-		} else {
-			return empty, fmt.Errorf("for Bulletproof strategy, search_after must be an integer")
-		}
-
-		return searchAfterParsedBulletproof{timestampMs: timestampMs, pkHashes: make([]string, 0)}, nil // TODO add parsing pk hashes
-
-	*/
 }
 
 func (s searchAfterStrategyBulletproof) transform(query *model.Query, searchAfterParsed []model.Expr) (*model.Query, error) {
-	//timestampRangeClause := NewInfixExpr(s.timestampField, "<=", NewFunction("fromUnixTimestamp64Milli", NewLiteral(searchAfter.timestampMs))) // TODO fix this for Hydrolix...
-	logger.Debug().Msgf("search_after: %v, query before: %v", query.SearchAfter, model.AsString(query.SelectCommand))
-	//query.SelectCommand.WhereClause = And([]Expr{query.SelectCommand.WhereClause, timestampRangeClause})
-	//query.SelectCommand.Limit += len(s.pkHashes)
-	logger.Debug().Msgf("query after: %v", model.AsString(query.SelectCommand))
 	return query, nil
 }
 
