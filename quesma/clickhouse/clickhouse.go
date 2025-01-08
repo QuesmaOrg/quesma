@@ -205,24 +205,31 @@ func (lm *LogManager) CountMultiple(ctx context.Context, tables ...string) (int6
 	for _, t := range tables {
 		anyTables = append(anyTables, t)
 	}
-	rows, err := lm.chDb.Query(ctx, fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL ")), anyTables...)
+	rows, err := lm.chDb.Query(ctx, fmt.Sprintf("SELECT sum(count) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL ")), anyTables...)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
-	if errScan := rows.Scan(&count); errScan != nil {
-		return 0, fmt.Errorf("clickhouse: scan failed: %v", errScan)
+	defer rows.Close()
+	if rows.Next() {
+		if errScan := rows.Scan(&count); errScan != nil {
+			return 0, fmt.Errorf("clickhouse: scan failed: %v", errScan)
+		}
 	}
 	return count, nil
 }
 
 func (lm *LogManager) Count(ctx context.Context, table string) (int64, error) {
 	var count int64
-	rows, err := lm.chDb.Query(ctx, "SELECT count(*) FROM ?", table)
+	query := fmt.Sprintf("SELECT count(*) FROM %s", table)
+	rows, err := lm.chDb.Query(ctx, query)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
-	if errScan := rows.Scan(&count); errScan != nil {
-		return 0, fmt.Errorf("clickhouse: scan failed: %v", errScan)
+	defer rows.Close()
+	if rows.Next() {
+		if errScan := rows.Scan(&count); errScan != nil {
+			return 0, fmt.Errorf("clickhouse: scan failed: %v", errScan)
+		}
 	}
 	return count, nil
 }
