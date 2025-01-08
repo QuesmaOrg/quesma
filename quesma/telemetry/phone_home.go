@@ -7,7 +7,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
-	"database/sql"
 	"fmt"
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
@@ -20,6 +19,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/health"
 	telemetry_headers "quesma/telemetry/headers"
+	quesma_api "quesma_v2/core"
 	"quesma_v2/core/diag"
 	"sort"
 
@@ -64,7 +64,7 @@ type agent struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	clickHouseDb *sql.DB
+	clickHouseDb quesma_api.BackendConnector
 	config       *config.QuesmaConfiguration
 	clientId     string
 
@@ -110,7 +110,7 @@ func hostname() string {
 	return name
 }
 
-func NewPhoneHomeAgent(configuration *config.QuesmaConfiguration, clickHouseDb *sql.DB, clientId string) PhoneHomeAgent {
+func NewPhoneHomeAgent(configuration *config.QuesmaConfiguration, clickHouseDb quesma_api.BackendConnector, clientId string) PhoneHomeAgent {
 
 	// TODO
 	// this is a question, maybe we should inherit context from the caller
@@ -198,7 +198,7 @@ where active
 	ctx, cancel := context.WithTimeout(ctx, clickhouseTimeout)
 	defer cancel()
 
-	rows, err := a.clickHouseDb.QueryContext(ctx, totalSummaryQuery)
+	rows, err := a.clickHouseDb.Query(ctx, totalSummaryQuery)
 
 	if err != nil {
 
@@ -267,7 +267,7 @@ WHERE active = 1 AND database = ?
 GROUP BY table
 ORDER BY total_size DESC;`
 
-	rows, err := a.clickHouseDb.QueryContext(ctx, query, dbName)
+	rows, err := a.clickHouseDb.Query(ctx, query, dbName)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -319,7 +319,7 @@ func (a *agent) collectClickHouseVersion(ctx context.Context, stats *diag.ClickH
 	ctx, cancel := context.WithTimeout(ctx, clickhouseTimeout)
 	defer cancel()
 
-	rows, err := a.clickHouseDb.QueryContext(ctx, totalSummaryQuery)
+	rows, err := a.clickHouseDb.Query(ctx, totalSummaryQuery)
 
 	if err != nil {
 		logger.Error().Err(err).Msg("Error getting version from clickhouse.")

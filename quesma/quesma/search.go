@@ -4,7 +4,6 @@ package quesma
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"quesma/ab_testing"
@@ -117,7 +116,7 @@ func (q *QueryRunner) GetLogManager() clickhouse.LogManagerIFace {
 	return q.logManager
 }
 
-func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
+func NewQueryRunnerDefaultForTests(db quesma_api.BackendConnector, cfg *config.QuesmaConfiguration,
 	tableName string, tables *clickhouse.TableMap, staticRegistry *schema.StaticRegistry) *QueryRunner {
 
 	lm := clickhouse.NewLogManagerWithConnection(db, tables)

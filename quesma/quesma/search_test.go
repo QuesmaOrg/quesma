@@ -11,6 +11,7 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
+	"quesma/backend_connectors"
 	"quesma/clickhouse"
 	"quesma/model"
 	"quesma/quesma/config"
@@ -85,8 +86,9 @@ func TestAsyncSearchHandler(t *testing.T) {
 
 	for i, tt := range testdata.TestsAsyncSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
-			defer db.Close()
+			conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
+			defer conn.Close()
 
 			for _, query := range tt.WantedQuery {
 				mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
@@ -138,8 +140,9 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 
 	for i, tt := range testdata.AggregationTestsWithSpecialCharactersInFieldNames {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
-			defer db.Close()
+			conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+			defer conn.Close()
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 			mock.ExpectQuery(tt.ExpectedPancakeSQL).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 
@@ -300,14 +303,15 @@ func TestSearchHandler(t *testing.T) {
 
 	for i, tt := range testdata.TestsSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
-			var db *sql.DB
+			var conn *sql.DB
 			var mock sqlmock.Sqlmock
 			if len(tt.WantedRegexes) > 0 {
-				db, mock = util.InitSqlMockWithPrettyPrint(t, false)
+				conn, mock = util.InitSqlMockWithPrettyPrint(t, false)
 			} else {
-				db, mock = util.InitSqlMockWithPrettySqlAndPrint(t, false)
+				conn, mock = util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			}
-			defer db.Close()
+			defer conn.Close()
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 			if len(tt.WantedRegexes) > 0 {
 				for _, wantedRegex := range tt.WantedRegexes {
@@ -374,14 +378,15 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 	}
 	for i, tt := range testdata.TestSearchRuntimeMappings {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
-			var db *sql.DB
+			var conn *sql.DB
 			var mock sqlmock.Sqlmock
 			if len(tt.WantedRegexes) > 0 {
-				db, mock = util.InitSqlMockWithPrettyPrint(t, false)
+				conn, mock = util.InitSqlMockWithPrettyPrint(t, false)
 			} else {
-				db, mock = util.InitSqlMockWithPrettySqlAndPrint(t, false)
+				conn, mock = util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			}
-			defer db.Close()
+			defer conn.Close()
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 			if len(tt.WantedRegexes) > 0 {
 				for _, wantedRegex := range tt.WantedRegexes {
@@ -431,8 +436,9 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
-			defer db.Close()
+			conn, mock := util.InitSqlMockWithPrettyPrint(t, false)
+			defer conn.Close()
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
@@ -480,14 +486,15 @@ func TestAsyncSearchFilter(t *testing.T) {
 	}
 	for _, tt := range testdata.TestSearchFilter {
 		t.Run(tt.Name, func(t *testing.T) {
-			var db *sql.DB
+			var conn *sql.DB
 			var mock sqlmock.Sqlmock
 			if len(tt.WantedRegexes) > 0 {
-				db, mock = util.InitSqlMockWithPrettyPrint(t, false)
+				conn, mock = util.InitSqlMockWithPrettyPrint(t, false)
 			} else {
-				db, mock = util.InitSqlMockWithPrettySqlAndPrint(t, false)
+				conn, mock = util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			}
-			defer db.Close()
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
+			defer conn.Close()
 
 			if len(tt.WantedRegexes) > 0 {
 				for _, wantedRegex := range tt.WantedRegexes {
@@ -613,8 +620,9 @@ func TestHandlingDateTimeFields(t *testing.T) {
 									ORDER BY "aggr__0__key_0" ASC`,
 	}
 
-	db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
-	defer db.Close()
+	conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+	defer conn.Close()
+	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 	for _, fieldName := range []string{dateTimeTimestampField, dateTime64TimestampField, dateTime64OurTimestampField} {
 
@@ -678,8 +686,9 @@ func TestNumericFacetsQueries(t *testing.T) {
 	for i, tt := range testdata.TestsNumericFacets {
 		for _, handlerName := range handlers {
 			t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-				db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
-				defer db.Close()
+				conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+				defer conn.Close()
+				db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 				colNames := make([]string, 0, len(tt.NewResultRows[0].Cols))
 				for _, col := range tt.NewResultRows[0].Cols {
@@ -767,8 +776,9 @@ func TestSearchTrackTotalCount(t *testing.T) {
 	})
 
 	test := func(handlerName string, testcase testdata.FullSearchTestCase) {
-		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
-		defer db.Close()
+		conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+		defer conn.Close()
+		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 		for i, expectedSQL := range testcase.ExpectedSQLs {
 			rows := sqlmock.NewRows([]string{testcase.ExpectedSQLResults[i][0].Cols[0].ColName})
@@ -856,8 +866,9 @@ func TestFullQueryTestWIP(t *testing.T) {
 	})
 
 	test := func(handlerName string, testcase testdata.FullSearchTestCase) {
-		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
-		defer db.Close()
+		conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+		defer conn.Close()
+		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 		for i, expectedSQL := range testcase.ExpectedSQLs {
 			rows := sqlmock.NewRows([]string{testcase.ExpectedSQLResults[i][0].Cols[0].ColName})
@@ -1001,8 +1012,9 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 	}
 
 	test := func(strategy searchAfterStrategy, dateTimeType string, handlerName string) {
-		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
-		defer db.Close()
+		conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+		defer conn.Close()
+		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
 
 		for _, iteration := range iterations {
@@ -1114,8 +1126,9 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 	}
 
 	test := func(strategy searchAfterStrategy, dateTimeType string, handlerName string) {
-		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
-		defer db.Close()
+		conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+		defer conn.Close()
+		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
 
 		for _, iteration := range iterations {
@@ -1273,8 +1286,9 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 	}
 
 	test := func(strategy searchAfterStrategy, dateTimeType string, handlerName string) {
-		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
-		defer db.Close()
+		conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+		defer conn.Close()
+		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
 
 		for _, iteration := range iterations {
@@ -1379,8 +1393,9 @@ func TestSearchAfterParameter_sortByNoField(t *testing.T) {
 	}
 
 	test := func(strategy searchAfterStrategy, dateTimeType string, handlerName string) {
-		db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
-		defer db.Close()
+		conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+		defer conn.Close()
+		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
 
 		for _, iteration := range iterations {

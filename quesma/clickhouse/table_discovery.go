@@ -4,7 +4,6 @@ package clickhouse
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/goccy/go-json"
@@ -15,6 +14,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/schema"
 	"quesma/util"
+	quesma_api "quesma_v2/core"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -44,7 +44,7 @@ type TableDiscovery interface {
 
 type tableDiscovery struct {
 	cfg                               *config.QuesmaConfiguration
-	dbConnPool                        *sql.DB
+	dbConnPool                        quesma_api.BackendConnector
 	tableDefinitions                  *atomic.Pointer[TableMap]
 	tableDefinitionsAccessUnixSec     atomic.Int64
 	tableDefinitionsLastReloadUnixSec atomic.Int64
@@ -61,7 +61,7 @@ type columnMetadata struct {
 	comment string
 }
 
-func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB, virtualTablesDB persistence.JSONDatabase) TableDiscovery {
+func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool quesma_api.BackendConnector, virtualTablesDB persistence.JSONDatabase) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
 	result := &tableDiscovery{
@@ -112,7 +112,7 @@ func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema
 	return tables
 }
 
-func NewTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB, tables TableMap) TableDiscovery {
+func NewTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool quesma_api.BackendConnector, tables TableMap) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(&tables)
 	result := &tableDiscovery{
@@ -542,7 +542,7 @@ func (td *tableDiscovery) readTables(database string) (map[string]map[string]col
 	if td.dbConnPool == nil {
 		return map[string]map[string]columnMetadata{}, fmt.Errorf("database connection pool is nil, cannot describe tables")
 	}
-	rows, err := td.dbConnPool.Query("SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
+	rows, err := td.dbConnPool.Query(context.Background(), "SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
 	if err != nil {
 		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
 		return map[string]map[string]columnMetadata{}, err
@@ -576,8 +576,12 @@ func (td *tableDiscovery) tableTimestampField(database, table string, dbKind DbK
 func (td *tableDiscovery) getTimestampFieldForHydrolix(database, table string) (timestampField string) {
 	// In Hydrolix, there's always only one column in a table set as a primary timestamp
 	// Ref: https://docs.hydrolix.io/docs/transforms-and-write-schema#primary-timestamp
-	if err := td.dbConnPool.QueryRow("SELECT primary_key FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&timestampField); err != nil {
+	rows, err := td.dbConnPool.Query(context.Background(), "SELECT primary_key FROM system.tables WHERE database = ? and table = ?", database, table)
+	if err != nil {
 		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
+	}
+	if scanErr := rows.Scan(&timestampField); scanErr != nil {
+		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
 	}
 	return timestampField
 }
@@ -585,8 +589,13 @@ func (td *tableDiscovery) getTimestampFieldForHydrolix(database, table string) (
 func (td *tableDiscovery) getTimestampFieldForClickHouse(database, table string) (timestampField string) {
 	// In ClickHouse, there's no concept of a primary timestamp field, primary keys are often composite,
 	// hence we have to use following heuristic to determine the timestamp field (also just picking the first column if there are multiple)
-	if err := td.dbConnPool.QueryRow("SELECT name FROM system.columns WHERE database = ? AND table = ? AND is_in_primary_key = 1 AND type iLIKE 'DateTime%'", database, table).Scan(&timestampField); err != nil {
+	rows, err := td.dbConnPool.Query(context.Background(), "SELECT name FROM system.columns WHERE database = ? AND table = ? AND is_in_primary_key = 1 AND type iLIKE 'DateTime%'", database, table)
+	if err != nil {
 		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
+		return
+	}
+	if scanErr := rows.Scan(&timestampField); scanErr != nil {
+		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
 		return
 	}
 	return timestampField
@@ -594,19 +603,24 @@ func (td *tableDiscovery) getTimestampFieldForClickHouse(database, table string)
 
 func (td *tableDiscovery) tableComment(database, table string) (comment string) {
 
-	err := td.dbConnPool.QueryRow("SELECT comment FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&comment)
+	rows, err := td.dbConnPool.Query(context.Background(), "SELECT comment FROM system.tables WHERE database = ? and table = ?", database, table)
 
 	if err != nil {
 		logger.Error().Msgf("could not get table comment: %v", err)
+	}
+	if scanErr := rows.Scan(&comment); scanErr != nil {
+		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
 	}
 	return comment
 }
 
 func (td *tableDiscovery) createTableQuery(database, table string) (ddl string) {
-	err := td.dbConnPool.QueryRow("SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&ddl)
-
+	rows, err := td.dbConnPool.Query(context.Background(), "SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table)
 	if err != nil {
 		logger.Error().Msgf("could not get table comment: %v", err)
+	}
+	if scanErr := rows.Scan(&ddl); scanErr != nil {
+		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
 	}
 	return ddl
 }
