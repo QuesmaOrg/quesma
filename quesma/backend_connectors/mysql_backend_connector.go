@@ -84,6 +84,14 @@ func (p *MySqlBackendConnector) Exec(ctx context.Context, query string, args ...
 	return err
 }
 
+func (p *MySqlBackendConnector) Stats() quesma_api.DBStats {
+	stats := p.connection.Stats()
+	return quesma_api.DBStats{
+		MaxOpenConnections: stats.MaxOpenConnections,
+		OpenConnections:    stats.OpenConnections,
+	}
+}
+
 func (p *MySqlBackendConnector) Ping() error {
 	return nil
 }

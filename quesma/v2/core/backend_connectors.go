@@ -56,6 +56,10 @@ func (p *NoopBackendConnector) QueryRow(ctx context.Context, query string, args 
 	return nil
 }
 
+func (p *NoopBackendConnector) Stats() DBStats {
+	return DBStats{}
+}
+
 func (p *NoopBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
 	return nil
 }

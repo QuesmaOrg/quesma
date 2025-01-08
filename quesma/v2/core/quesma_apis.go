@@ -106,6 +106,14 @@ type BackendConnector interface {
 	QueryRow(ctx context.Context, query string, args ...interface{}) Row
 	// Exec executes a command that doesn't return rows, typically an INSERT, UPDATE, or DELETE.
 	Exec(ctx context.Context, query string, args ...interface{}) error
+	Stats() DBStats // smaller version of sql.DBStats
 	Close() error
 	Ping() error
+}
+
+// DBStats is a smaller version of sql.DBStats,
+// used (at least for now) to provide backwards compat with `sql.DB` interface primarily used in Quesma v1
+type DBStats struct {
+	MaxOpenConnections int
+	OpenConnections    int
 }

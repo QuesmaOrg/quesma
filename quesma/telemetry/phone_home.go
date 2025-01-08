@@ -348,10 +348,10 @@ func (a *agent) CollectClickHouse(ctx context.Context) (stats diag.ClickHouseSta
 	// https://gist.github.com/sanchezzzhak/511fd140e8809857f8f1d84ddb937015
 	stats.Status = statusNotOk
 
-	//dbStats := a.clickHouseDb.Stats(). TODO: after moving to generic impl (quesma_api.BackendConnector) we lost this driver-specific call
+	dbStats := a.clickHouseDb.Stats()
 
-	//stats.MaxOpenConnection = dbStats.MaxOpenConnections
-	//stats.OpenConnection = dbStats.OpenConnections
+	stats.MaxOpenConnection = dbStats.MaxOpenConnections
+	stats.OpenConnection = dbStats.OpenConnections
 
 	if err := a.collectClickHouseUsage(ctx, &stats); err != nil {
 		return stats

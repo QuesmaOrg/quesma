@@ -91,6 +91,14 @@ func (p *ClickHouseBackendConnector) Exec(ctx context.Context, query string, arg
 	return err
 }
 
+func (p *ClickHouseBackendConnector) Stats() quesma_api.DBStats {
+	stats := p.connection.Stats()
+	return quesma_api.DBStats{
+		MaxOpenConnections: stats.MaxOpenConnections,
+		OpenConnections:    stats.OpenConnections,
+	}
+}
+
 // func initDBConnection(c *config.QuesmaConfiguration, tlsConfig *tls.Config) *sql.DB {
 func initDBConnection() (*sql.DB, error) {
 	options := clickhouse.Options{Addr: []string{"localhost:9000"}}

@@ -55,6 +55,10 @@ func (p *PostgresBackendConnector) Exec(ctx context.Context, query string, args 
 	return err
 }
 
+func (p *PostgresBackendConnector) Stats() quesma_api.DBStats {
+	return quesma_api.DBStats{}
+}
+
 type PgRows struct {
 	rows pgx.Rows
 }
