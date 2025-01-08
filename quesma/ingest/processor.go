@@ -763,14 +763,12 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 func (ip *IngestProcessor) applyAsyncInsertOptimizer(tableName string, clickhouseSettings clickhouse.Settings) clickhouse.Settings {
 
 	const asyncInsertOptimizerName = "async_insert"
-	enableAsyncInsert := false
+	enableAsyncInsert := true // enabled by default
 	var asyncInsertProps map[string]string
 
 	if optimizer, ok := ip.cfg.DefaultIngestOptimizers[asyncInsertOptimizerName]; ok {
-		if !optimizer.Disabled {
-			enableAsyncInsert = true
-			asyncInsertProps = optimizer.Properties
-		}
+		enableAsyncInsert = !optimizer.Disabled
+		asyncInsertProps = optimizer.Properties
 	}
 
 	idxCfg, ok := ip.cfg.IndexConfig[tableName]
@@ -786,9 +784,10 @@ func (ip *IngestProcessor) applyAsyncInsertOptimizer(tableName string, clickhous
 
 		// some sane defaults
 		clickhouseSettings["wait_for_async_insert"] = 1
-		clickhouseSettings["async_insert_busy_timeout_ms"] = 1000
-		clickhouseSettings["async_insert_max_data_size"] = 1000000
-		clickhouseSettings["async_insert_max_query_number"] = 10000
+
+		clickhouseSettings["async_insert_busy_timeout_ms"] = 100      // default is 1000ms
+		clickhouseSettings["async_insert_max_data_size"] = 50_000_000 // default is 10MB
+		clickhouseSettings["async_insert_max_query_number"] = 10000   // default is 450
 
 		for k, v := range asyncInsertProps {
 			clickhouseSettings[k] = v

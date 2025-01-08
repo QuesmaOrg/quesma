@@ -756,6 +756,14 @@ func SingleQuote(value string) string {
 	return "'" + value + "'"
 }
 
+// SingleQuoteIfString is a simple helper function: (str -> 'str', other -> other)
+func SingleQuoteIfString(value any) any {
+	if str, ok := value.(string); ok {
+		return SingleQuote(str)
+	}
+	return value
+}
+
 type sqlMockMismatchSql struct {
 	expected string
 	actual   string
