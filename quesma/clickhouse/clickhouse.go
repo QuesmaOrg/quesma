@@ -205,7 +205,7 @@ func (lm *LogManager) CountMultiple(ctx context.Context, tables ...string) (int6
 	for _, t := range tables {
 		anyTables = append(anyTables, t)
 	}
-	rows, err := lm.chDb.Query(ctx, fmt.Sprintf("SELECT sum(count) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL ")), anyTables...)
+	rows, err := lm.chDb.Query(ctx, fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL ")), anyTables...)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
@@ -220,8 +220,7 @@ func (lm *LogManager) CountMultiple(ctx context.Context, tables ...string) (int6
 
 func (lm *LogManager) Count(ctx context.Context, table string) (int64, error) {
 	var count int64
-	query := fmt.Sprintf("SELECT count(*) FROM %s", table)
-	rows, err := lm.chDb.Query(ctx, query)
+	rows, err := lm.chDb.Query(ctx, "SELECT count(*) FROM ?", table)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
