@@ -101,6 +101,14 @@ func (e *ElasticsearchBackendConnector) Query(ctx context.Context, query string,
 	panic("not implemented")
 }
 
+func (e *ElasticsearchBackendConnector) QueryRow(ctx context.Context, query string, args ...interface{}) quesma_api.Row {
+	panic("not implemented")
+}
+
+func (e *ElasticsearchBackendConnector) Stats() quesma_api.DBStats {
+	return quesma_api.DBStats{}
+}
+
 func (e *ElasticsearchBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
 	panic("not implemented")
 }
