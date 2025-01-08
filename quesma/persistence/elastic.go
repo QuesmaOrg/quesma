@@ -109,9 +109,13 @@ func (p *ElasticJSONDatabase) List() ([]string, error) {
 	elasticsearchURL := fmt.Sprintf("%s/_search", p.indexName)
 
 	// Build the query to get only document IDs
+
+	// We can have more than 10000 indexes.
+	// 10000 is the maximum number of documents we can get in a single query. Elasticsearch limitation.
+	// TODO:  We need to implement pagination.
 	query := `{
 		"_source": false,
-		"size": 100,
+		"size": 10000, 
 		"query": {
 			"match_all": {}
 		}
