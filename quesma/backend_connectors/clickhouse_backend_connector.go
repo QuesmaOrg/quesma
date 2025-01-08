@@ -19,6 +19,16 @@ type ClickHouseBackendConnector struct {
 type ClickHouseRows struct {
 	rows *sql.Rows
 }
+type ClickHouseRow struct {
+	row *sql.Row
+}
+
+func (p *ClickHouseRow) Scan(dest ...interface{}) error {
+	if p.row == nil {
+		return sql.ErrNoRows
+	}
+	return p.row.Scan(dest...)
+}
 
 func (p *ClickHouseRows) Next() bool {
 	return p.rows.Next()
@@ -66,6 +76,10 @@ func (p *ClickHouseBackendConnector) Query(ctx context.Context, query string, ar
 		return nil, err
 	}
 	return &ClickHouseRows{rows: rows}, nil
+}
+
+func (p *ClickHouseBackendConnector) QueryRow(ctx context.Context, query string, args ...interface{}) quesma_api.Row {
+	return p.connection.QueryRowContext(ctx, query, args...)
 }
 
 func (p *ClickHouseBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {

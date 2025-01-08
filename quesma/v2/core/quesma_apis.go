@@ -93,13 +93,17 @@ type Rows interface {
 	Err() error
 }
 
+type Row interface {
+	Scan(dest ...interface{}) error
+}
+
 type BackendConnector interface {
 	InstanceNamer
 	GetId() BackendConnectorType
 	Open() error
 	// Query executes a query that returns rows, typically a SELECT.
 	Query(ctx context.Context, query string, args ...interface{}) (Rows, error)
-
+	QueryRow(ctx context.Context, query string, args ...interface{}) Row
 	// Exec executes a command that doesn't return rows, typically an INSERT, UPDATE, or DELETE.
 	Exec(ctx context.Context, query string, args ...interface{}) error
 	Close() error

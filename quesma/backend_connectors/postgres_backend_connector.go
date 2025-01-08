@@ -42,6 +42,10 @@ func (p *PostgresBackendConnector) Query(ctx context.Context, query string, args
 	return &PgRows{rows: pgRows}, nil
 }
 
+func (p *PostgresBackendConnector) QueryRow(ctx context.Context, query string, args ...interface{}) quesma_api.Row {
+	return p.connection.QueryRow(ctx, query, args...)
+}
+
 func (p *PostgresBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
 	if len(args) == 0 {
 		_, err := p.connection.Exec(ctx, query)

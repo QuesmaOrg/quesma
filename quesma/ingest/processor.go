@@ -172,15 +172,9 @@ func addOurFieldsToCreateTableQuery(q string, config *chLib.ChTableConfig, table
 
 func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, error) {
 	var count int64
-	rows, err := ip.chDb.Query(ctx, "SELECT count(*) FROM ?", table)
+	err := ip.chDb.QueryRow(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
-	}
-	defer rows.Close()
-	if rows.Next() {
-		if errScan := rows.Scan(&count); errScan != nil {
-			return 0, fmt.Errorf("clickhouse: scan row failed: %v", errScan)
-		}
 	}
 	return count, nil
 }

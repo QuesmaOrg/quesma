@@ -71,6 +71,10 @@ func (p *MySqlBackendConnector) Query(ctx context.Context, query string, args ..
 	return &MySqlRows{rows: rows}, nil
 }
 
+func (p *MySqlBackendConnector) QueryRow(ctx context.Context, query string, args ...interface{}) quesma_api.Row {
+	return p.connection.QueryRowContext(ctx, query, args...)
+}
+
 func (p *MySqlBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
 	if len(args) == 0 {
 		_, err := p.connection.ExecContext(context.Background(), query)
