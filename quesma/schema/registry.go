@@ -172,6 +172,10 @@ func (s *schemaRegistry) UpdateDynamicConfiguration(name IndexName, table Table)
 }
 
 func (s *schemaRegistry) UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName) {
+	s.cacheMutex.Lock()
+	defer s.cacheMutex.Unlock()
+	s.cachedSchemas = nil
+
 	s.fieldEncodingsLock.Lock()
 	defer s.fieldEncodingsLock.Unlock()
 	for key, value := range encodings {
