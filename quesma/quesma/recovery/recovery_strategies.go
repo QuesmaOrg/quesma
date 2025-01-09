@@ -5,8 +5,8 @@ package recovery
 import (
 	"context"
 	"errors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/rs/zerolog"
-	"quesma/logger"
 	"runtime/debug"
 	"sync/atomic"
 )

@@ -4,8 +4,8 @@
 package es_to_ch_ingest
 
 import (
-	"quesma/quesma/functionality/bulk"
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/bulk"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 )
 
 type (

@@ -5,9 +5,9 @@ package collector
 import (
 	"crypto/sha1"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/jsondiff"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/goccy/go-json"
-	"quesma/jsondiff"
-	"quesma/quesma/types"
 )
 
 type diffTransformer struct {

@@ -4,9 +4,9 @@ package bucket_aggregations
 
 import (
 	"context"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 )
 
 type Histogram struct {

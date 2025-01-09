@@ -5,10 +5,10 @@ package ingest
 import (
 	"errors"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"math"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/quesma/types"
 	"reflect"
 )
 

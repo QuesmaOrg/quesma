@@ -5,12 +5,12 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/model/metrics_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"math/big"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
-	"quesma/model/metrics_aggregations"
-	"quesma/util"
 	"strconv"
 	"strings"
 )

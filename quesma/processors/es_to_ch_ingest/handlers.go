@@ -7,14 +7,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	bulkmodel "github.com/QuesmaOrg/quesma/quesma/quesma/functionality/bulk"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"io"
 	"net/http"
-	"quesma/logger"
-	"quesma/queryparser"
-	"quesma/quesma/config"
-	bulkmodel "quesma/quesma/functionality/bulk"
-	"quesma/quesma/recovery"
-	"quesma/quesma/types"
 )
 
 // handleDocIndex assembles the payload into bulk format to reusing existing logic of bulk ingest

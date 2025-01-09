@@ -5,17 +5,17 @@ package field_capabilities
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch/elasticsearch_field_types"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/errors"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/goccy/go-json"
-	"quesma/clickhouse"
-	"quesma/elasticsearch"
-	"quesma/elasticsearch/elasticsearch_field_types"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/quesma/config"
-	"quesma/quesma/errors"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/util"
 )
 
 func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, fieldType schema.QuesmaType, index string) {

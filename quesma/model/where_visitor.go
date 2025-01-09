@@ -3,8 +3,8 @@
 package model
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"math"
-	"quesma/util"
 )
 
 // FindTimestampLowerBound returns y if there is "x>=y" or "x>y" in the WHERE clause, but only as a single top-level expression.

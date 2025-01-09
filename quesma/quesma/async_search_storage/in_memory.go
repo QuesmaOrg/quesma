@@ -4,10 +4,10 @@ package async_search_storage
 
 import (
 	"context"
-	"quesma/logger"
-	"quesma/quesma/recovery"
-	"quesma/tracing"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/tracing"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 	"time"
 )

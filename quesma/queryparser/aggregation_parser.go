@@ -4,9 +4,9 @@ package queryparser
 
 import (
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"regexp"
 	"slices"
 	"strconv"

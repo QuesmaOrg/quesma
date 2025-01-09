@@ -10,13 +10,13 @@ package quesma
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"math/rand"
-	"quesma/backend_connectors"
-	"quesma/logger"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/testdata"
-	"quesma/util"
 	tracing "quesma_v2/core/tracing"
 	"testing"
 )

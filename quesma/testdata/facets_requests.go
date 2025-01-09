@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package testdata
 
-import "quesma/model"
+import "github.com/QuesmaOrg/quesma/quesma/model"
 
 // Tests for numeric facets (int64, float64).
 // Tests for string facets are already covered in "standard" queries (see testdata/requests.go, testdata/aggregation_requests.go),

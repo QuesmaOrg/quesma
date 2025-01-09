@@ -4,15 +4,15 @@ package ui
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/stats"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/stats"
-	"quesma/table_resolver"
-	"quesma/util"
 	"quesma_v2/core/diag"
 	"testing"
 )

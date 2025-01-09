@@ -4,12 +4,12 @@ package table_resolver
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/elasticsearch"
-	"quesma/quesma/config"
 	mux "quesma_v2/core"
 	"reflect"
 	"strings"

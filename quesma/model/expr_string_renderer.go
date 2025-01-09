@@ -4,9 +4,9 @@ package model
 
 import (
 	"fmt"
-	"quesma/logger"
-	"quesma/quesma/types"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"regexp"
 	"sort"
 	"strconv"

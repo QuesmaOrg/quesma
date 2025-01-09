@@ -3,7 +3,7 @@
 package regex
 
 import (
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"strings"
 )
 

@@ -3,8 +3,8 @@
 package eql
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/eql/transform"
 	"github.com/stretchr/testify/assert"
-	"quesma/eql/transform"
 	"strings"
 	"testing"
 )

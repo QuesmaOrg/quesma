@@ -3,11 +3,11 @@
 package schema_test
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/quesma/config"
-	"quesma/schema"
 	"reflect"
 	"testing"
 )

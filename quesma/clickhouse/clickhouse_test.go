@@ -4,10 +4,10 @@ package clickhouse
 
 import (
 	"context"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	schema2 "quesma/schema"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	schema2 "github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 	"sync/atomic"
 	"testing"

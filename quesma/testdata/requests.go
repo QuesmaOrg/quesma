@@ -3,7 +3,7 @@
 package testdata
 
 import (
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 )
 
 var TestsAsyncSearch = []AsyncSearchTestCase{

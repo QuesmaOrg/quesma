@@ -4,11 +4,11 @@ package doc
 
 import (
 	"context"
-	"quesma/ingest"
-	"quesma/quesma/config"
-	"quesma/quesma/functionality/bulk"
-	"quesma/quesma/types"
-	"quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/bulk"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"quesma_v2/core/diag"
 )
 

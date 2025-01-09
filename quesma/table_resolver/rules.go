@@ -4,11 +4,11 @@ package table_resolver
 
 import (
 	"fmt"
-	"quesma/common_table"
-	"quesma/elasticsearch"
-	"quesma/end_user_errors"
-	"quesma/quesma/config"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"quesma_v2/core"
 	"reflect"
 	"strings"

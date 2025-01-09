@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package testdata
 
-import "quesma/model"
+import "github.com/QuesmaOrg/quesma/quesma/model"
 
 var AggregationTestsWithSpecialCharactersInFieldNames = []AggregationTestCase{
 	{

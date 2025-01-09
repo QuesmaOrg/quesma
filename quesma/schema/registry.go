@@ -3,10 +3,10 @@
 package schema
 
 import (
-	"quesma/comment_metadata"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/comment_metadata"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"sync"
 )
 
