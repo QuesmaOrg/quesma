@@ -393,6 +393,10 @@ func (td *tableDiscovery2) readTables(database string) (map[string]map[string]co
 		columnsPerTable[table][colName] = columnMetadata{colType: colType, comment: comment}
 	}
 
+	if err := rows.Err(); err != nil {
+		return map[string]map[string]columnMetadata{}, err
+	}
+
 	return columnsPerTable, nil
 }
 
@@ -427,6 +431,8 @@ func (td *tableDiscovery2) getTimestampFieldForClickHouse(database, table string
 	if err != nil {
 		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
 	}
+	defer rows.Close()
+
 	if err2 := rows.Scan(&timestampField); err2 != nil {
 		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err2)
 	}
@@ -439,6 +445,7 @@ func (td *tableDiscovery2) tableComment(database, table string) (comment string)
 	if err != nil {
 		logger.Error().Msgf("could not get table comment: %v", err)
 	}
+	defer rows.Close()
 	if err2 := rows.Scan(&comment); err2 != nil {
 		logger.Error().Msgf("could not get table comment: %v", err2)
 	}
@@ -450,6 +457,7 @@ func (td *tableDiscovery2) createTableQuery(database, table string) (ddl string)
 	if err != nil {
 		logger.Error().Msgf("could not get table comment: %v", err)
 	}
+	defer rows.Close()
 	if err2 := rows.Scan(&ddl); err2 != nil {
 		logger.Error().Msgf("could not get table comment: %v", err2)
 	}

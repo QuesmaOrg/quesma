@@ -536,18 +536,20 @@ func removePrecision(str string) string {
 }
 
 func (td *tableDiscovery) readTables(database string) (map[string]map[string]columnMetadata, error) {
-
 	logger.Debug().Msgf("describing tables: %s", database)
 
 	if td.dbConnPool == nil {
 		return map[string]map[string]columnMetadata{}, fmt.Errorf("database connection pool is nil, cannot describe tables")
 	}
+
 	rows, err := td.dbConnPool.Query(context.Background(), "SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
+
 	if err != nil {
 		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
 		return map[string]map[string]columnMetadata{}, err
 	}
 	defer rows.Close()
+
 	columnsPerTable := make(map[string]map[string]columnMetadata)
 	for rows.Next() {
 		var table, colName, colType, comment string
@@ -558,6 +560,10 @@ func (td *tableDiscovery) readTables(database string) (map[string]map[string]col
 			columnsPerTable[table] = make(map[string]columnMetadata)
 		}
 		columnsPerTable[table][colName] = columnMetadata{colType: colType, comment: comment}
+	}
+
+	if err := rows.Err(); err != nil {
+		return map[string]map[string]columnMetadata{}, err
 	}
 
 	return columnsPerTable, nil
@@ -583,6 +589,9 @@ func (td *tableDiscovery) getTimestampFieldForHydrolix(database, table string) (
 	if scanErr := rows.Scan(&timestampField); scanErr != nil {
 		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
 	}
+
+	defer rows.Close()
+
 	return timestampField
 }
 
@@ -594,6 +603,9 @@ func (td *tableDiscovery) getTimestampFieldForClickHouse(database, table string)
 		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
 		return
 	}
+
+	defer rows.Close()
+
 	if scanErr := rows.Scan(&timestampField); scanErr != nil {
 		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
 		return
@@ -608,9 +620,13 @@ func (td *tableDiscovery) tableComment(database, table string) (comment string) 
 	if err != nil {
 		logger.Error().Msgf("could not get table comment: %v", err)
 	}
+
+	defer rows.Close()
+
 	if scanErr := rows.Scan(&comment); scanErr != nil {
 		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
 	}
+
 	return comment
 }
 
@@ -619,9 +635,12 @@ func (td *tableDiscovery) createTableQuery(database, table string) (ddl string) 
 	if err != nil {
 		logger.Error().Msgf("could not get table comment: %v", err)
 	}
+
+	defer rows.Close()
 	if scanErr := rows.Scan(&ddl); scanErr != nil {
 		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
 	}
+
 	return ddl
 }
 

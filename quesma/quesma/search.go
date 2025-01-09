@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/goccy/go-json"
+	"net/http"
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/common_table"
@@ -162,6 +164,110 @@ func (q *QueryRunner) HandleCount(ctx context.Context, indexPattern string) (int
 	} else {
 		return q.logManager.CountMultiple(ctx, indexes...)
 	}
+}
+
+func (q *QueryRunner) HandleMultiSearch(ctx context.Context, indexPattern string, body types.NDJSON) ([]byte, error) {
+
+	type msearchQuery struct {
+		index string
+		query types.JSON
+	}
+
+	var queries []msearchQuery
+
+	var currentQuery *msearchQuery
+
+	header := make(map[string]any)
+	header["index"] = indexPattern
+
+	for _, line := range body {
+		if currentQuery == nil {
+			currentQuery = &msearchQuery{}
+
+			for key, value := range line {
+				header[key] = value
+			}
+
+			if v, ok := header["index"].(string); ok {
+				currentQuery.index = v
+			} else {
+				return nil, fmt.Errorf("index parameter is not a string: '%v'", header["index"])
+			}
+		} else {
+
+			q := types.JSON{}
+			q["query"] = line["query"]
+
+			if aggs, ok := line["aggs"]; ok {
+				q["aggs"] = aggs
+			}
+			if size, ok := line["size"]; ok {
+				q["size"] = size
+			}
+			if from, ok := line["from"]; ok {
+				q["from"] = from
+			}
+
+			currentQuery.query = q
+			queries = append(queries, *currentQuery)
+			currentQuery = nil
+		}
+	}
+
+	var responses []any
+
+	for _, query := range queries {
+
+		// TODO ask table resolver here and go to the right connector
+
+		responseBody, err := q.HandleSearch(ctx, query.index, query.query)
+
+		if err != nil {
+
+			var wrappedErr any
+
+			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
+				wrappedErr = &quesma_api.Result{StatusCode: http.StatusNotFound}
+			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
+				wrappedErr = &quesma_api.Result{
+					Body:          string(queryparser.BadRequestParseError(err)),
+					StatusCode:    http.StatusBadRequest,
+					GenericResult: queryparser.BadRequestParseError(err),
+				}
+			} else {
+				logger.ErrorWithCtx(ctx).Msgf("error handling multisearch: %v", err)
+				wrappedErr = &quesma_api.Result{
+					Body:          "Internal error",
+					StatusCode:    http.StatusInternalServerError,
+					GenericResult: queryparser.BadRequestParseError(err),
+				}
+				return nil, err
+			}
+
+			responses = append(responses, wrappedErr)
+		} else {
+
+			parsedResponseBody, err := types.ParseJSON(string(responseBody))
+			if err != nil {
+				return nil, err
+			}
+			responses = append(responses, parsedResponseBody)
+		}
+
+	}
+
+	type msearchResponse struct {
+		Responses []any `json:"responses"`
+	}
+
+	resp := msearchResponse{Responses: responses}
+
+	responseBody, err := json.Marshal(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return responseBody, nil
 }
 
 func (q *QueryRunner) HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
