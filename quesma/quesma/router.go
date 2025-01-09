@@ -5,6 +5,7 @@ package quesma
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/goccy/go-json"
 	"net/http"
 	"quesma/clickhouse"
@@ -263,7 +264,118 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
 
-	router.Register(routes.IndexMappingPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+	handle := func(ctx context.Context, req *quesma_api.Request, index string, _ http.ResponseWriter) (*quesma_api.Result, error) {
+		fmt.Println("handle msearch")
+
+		body, err := types.ExpectNDJSON(req.ParsedBody)
+		if err != nil {
+			return nil, err
+		}
+
+		type msearchQuery struct {
+			index string
+			query types.JSON
+		}
+
+		var queries []msearchQuery
+
+		var count int
+		var currentQuery *msearchQuery
+
+		header := make(map[string]any)
+		header["index"] = index
+
+		for _, line := range body {
+
+			if currentQuery == nil {
+				currentQuery = &msearchQuery{}
+
+				for key, value := range line {
+					header[key] = value
+				}
+
+				if v, ok := header["index"].(string); ok {
+					currentQuery.index = v
+				} else {
+					return nil, fmt.Errorf("index parameter is not a string: '%v'", header["index"])
+				}
+			} else {
+
+				q := types.JSON{}
+				q["query"] = line["query"]
+				q["aggs"] = line["aggregation"]
+				q["size"] = line["size"]
+				q["from"] = line["from"]
+
+				currentQuery.query = q
+				queries = append(queries, *currentQuery)
+				currentQuery = nil
+			}
+
+			count++
+		}
+
+		fmt.Println("handle msearch", queries)
+
+		var responses []types.JSON
+
+		for _, q := range queries {
+
+			// TODO ask table resolver here ?
+			responseBody, err := queryRunner.HandleSearch(ctx, q.index, q.query)
+
+			if err != nil {
+				return nil, err
+			}
+
+			parsedResponseBody, err := types.ParseJSON(string(responseBody))
+			if err != nil {
+				return nil, err
+			}
+
+			//			if err != nil {
+			//				if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
+			//					return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
+			//				} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
+			//					return &quesma_api.Result{
+			//						Body:          string(queryparser.BadRequestParseError(err)),
+			//						StatusCode:    http.StatusBadRequest,
+			//						GenericResult: queryparser.BadRequestParseError(err),
+			//					}, nil
+			//				} else {
+			//					return nil, err
+			//				}
+			//			}
+			//return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+
+			responses = append(responses, parsedResponseBody)
+
+		}
+
+		type msearchResponse struct {
+			Responses []types.JSON `json:"responses"`
+		}
+
+		resp := msearchResponse{Responses: responses}
+
+		responseBody, err := json.Marshal(resp)
+		if err != nil {
+			return nil, err
+		}
+
+		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+
+	}
+
+	router.Register(routes.IndexMsearchPath, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+		return handle(ctx, req, req.Params["index"], nil)
+	})
+
+	router.Register(routes.GlobalMsearchPath, and(method("GET", "POST"), quesma_api.Always()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+		return handle(ctx, req, "", nil)
+	})
+
+	router.Register(routes.IndexMappingPath, and(method("GET", "PUT"), quesma_api.Always()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 
 		switch req.Method {
 

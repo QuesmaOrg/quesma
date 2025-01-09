@@ -294,6 +294,8 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
 
+	fmt.Println("XXX reroute", req.URL.Path)
+
 	quesmaRequest, ctx, err := r.preprocessRequest(ctx, &quesma_api.Request{
 		Method:      req.Method,
 		Path:        strings.TrimSuffix(req.URL.Path, "/"),
