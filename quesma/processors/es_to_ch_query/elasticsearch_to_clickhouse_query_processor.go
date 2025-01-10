@@ -14,10 +14,10 @@ import (
 	"quesma/clickhouse"
 	"quesma/common_table"
 	"quesma/elasticsearch"
-	"quesma/frontend_connectors"
 	"quesma/logger"
 	"quesma/persistence"
 	"quesma/processors"
+	"quesma/processors/es_to_ch_common"
 	"quesma/queryparser"
 	quesm "quesma/quesma"
 	"quesma/quesma/config"
@@ -29,47 +29,6 @@ import (
 	"quesma_v2/core/tracing"
 	"strings"
 	"time"
-)
-
-const ( // taken from `router.go`
-	GlobalSearchPath     = "/_search" // TODO decide what to do here
-	IndexSearchPath      = "/:index/_search"
-	IndexAsyncSearchPath = "/:index/_async_search"
-	IndexCountPath       = "/:index/_count"
-	//IndexDocPath              = "/:index/_doc" // irrelevant for this processor
-	IndexRefreshPath = "/:index/_refresh"
-	//IndexBulkPath             = "/:index/_bulk" // irrelevant for this processor
-	IndexMappingPath = "/:index/_mapping"
-	FieldCapsPath    = "/:index/_field_caps"
-	TermsEnumPath    = "/:index/_terms_enum"
-	//EQLSearch                 = "/:index/_eql/search" // irrelevant for this processor
-	ResolveIndexPath  = "/_resolve/index/:index"
-	ClusterHealthPath = "/_cluster/health"
-	//BulkPath                  = "/_bulk"	// irrelevant for this processor
-	//AsyncSearchIdPrefix       = "/_async_search/" // TODO -> it's not used as route so just skip
-	AsyncSearchIdPath         = "/_async_search/:id"
-	AsyncSearchStatusPath     = "/_async_search/status/:id"
-	KibanaInternalPrefix      = "/.kibana_"
-	IndexPath                 = "/:index"
-	ExecutePainlessScriptPath = "/_scripts/painless/_execute" // This path is used on the Kibana side to evaluate painless scripts when adding a new scripted field.
-
-	// Quesma internal paths
-
-	QuesmaTableResolverPath = "/:index/_quesma_table_resolver" // irrelevant for this processor we might ditch this concept entirely or rethink
-	/*
-		section on metadata/headers below
-	*/
-	//SearchIndexTargetKey = "search_index_target"
-	IndexPattern = "index_pattern"
-	PathPattern  = "path_pattern"
-	Id           = "id"
-
-	// RealSourceHeader is a header to determine what exactly processor has calld
-	RealSourceHeader        = "X-Backend-Called"
-	RealSourceClickHouse    = "CLICKHOUSE"
-	RealSourceElasticsearch = "ELASTICSEARCH"
-	RealSourceQuesma        = "NONE"  // if response is just processor's own rendered content, no DB is called
-	RealSourceMixed         = "MIXED" // e.g. in case of _resolve API
 )
 
 type ElasticsearchToClickHouseQueryProcessor struct {
@@ -162,14 +121,14 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 		}
 
 		indexPattern, id := "", ""
-		if val, ok := metadata[IndexPattern]; ok {
+		if val, ok := metadata[es_to_ch_common.IndexPattern]; ok {
 			indexPattern = val.(string)
 		}
-		if val, ok := metadata[Id]; ok {
+		if val, ok := metadata[es_to_ch_common.Id]; ok {
 			id = val.(string)
 		}
 
-		routerOrderedToBypass := metadata[frontend_connectors.Bypass] == true
+		routerOrderedToBypass := metadata[es_to_ch_common.Bypass] == true
 		indexNotInConfig := findQueryTarget(indexPattern, p.config) != config.ClickhouseTarget
 		if routerOrderedToBypass {
 			logger.Info().Msgf("%s - BYPASSED per frontend connector decision", req.URL)
@@ -177,23 +136,23 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 		}
 		logger.Info().Msgf("Maybe processing %s", req.URL)
 		ctx := context.Background()
-		switch metadata[PathPattern] { // TODO well, this IS http routing TBH
-		case ClusterHealthPath:
+		switch metadata[es_to_ch_common.PathPattern] { // TODO well, this IS http routing TBH
+		case es_to_ch_common.ClusterHealthPath:
 			res, err := quesm.HandleClusterHealth()
-			metadata[RealSourceHeader] = RealSourceQuesma
+			metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceQuesma
 			return metadata, res, err
-		case IndexRefreshPath:
+		case es_to_ch_common.IndexRefreshPath:
 			res, err := quesm.HandleIndexRefresh()
-			metadata[RealSourceHeader] = RealSourceQuesma
+			metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceQuesma
 			return metadata, res, err
-		case IndexMappingPath:
+		case es_to_ch_common.IndexMappingPath:
 			res, err := quesm.HandleGetIndexMapping(p.queryRunner.GetSchemaRegistry(), indexPattern)
 			if err != nil {
 				return metadata, nil, err
 			}
-			metadata[RealSourceHeader] = RealSourceQuesma
+			metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceQuesma
 			return metadata, res, nil
-		case TermsEnumPath:
+		case es_to_ch_common.TermsEnumPath:
 			if indexNotInConfig {
 				return p.routeToElasticsearch(metadata, req)
 			}
@@ -203,15 +162,15 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 			}
 			res, err := quesm.HandleTermsEnum(ctx, indexPattern, query, p.queryRunner.GetLogManager(), p.queryRunner.GetSchemaRegistry(), nil) // TODO dependencies are nil for now
 			return metadata, res, err
-		case IndexPath:
+		case es_to_ch_common.IndexPath:
 			logger.Warn().Msgf("PROBLEMATIC INDEXPATH CALLED FOR %s", indexPattern)
 			if indexNotInConfig {
 				return p.routeToElasticsearch(metadata, req)
 			}
-			metadata[RealSourceHeader] = RealSourceClickHouse
+			metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceClickHouse
 			res, err := quesm.HandleGetIndex(p.queryRunner.GetSchemaRegistry(), indexPattern)
 			return metadata, res, err
-		case IndexSearchPath:
+		case es_to_ch_common.IndexSearchPath:
 			if indexNotInConfig {
 				return p.routeToElasticsearch(metadata, req)
 			}
@@ -220,9 +179,9 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 				return metadata, nil, err
 			}
 			res, _ := quesm.HandleIndexSearch(ctx, indexPattern, query, p.queryRunner)
-			metadata[RealSourceHeader] = RealSourceClickHouse
+			metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceClickHouse
 			return metadata, res, nil
-		case IndexAsyncSearchPath:
+		case es_to_ch_common.IndexAsyncSearchPath:
 			if indexNotInConfig {
 				return p.routeToElasticsearch(metadata, req)
 			}
@@ -245,14 +204,14 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 					keepOnCompletion = true
 				}
 			}
-			metadata[RealSourceHeader] = RealSourceClickHouse
+			metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceClickHouse
 			res, _ := quesm.HandleIndexAsyncSearch(ctx, indexPattern, query, waitForResultsMs, keepOnCompletion, p.queryRunner)
 			return metadata, res, nil
-		case AsyncSearchIdPath:
+		case es_to_ch_common.AsyncSearchIdPath:
 			if !strings.Contains(id, tracing.AsyncIdPrefix) {
 				return p.routeToElasticsearch(metadata, req)
 			}
-			metadata[RealSourceHeader] = RealSourceClickHouse
+			metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceClickHouse
 			var res *quesma_api.Result
 			switch req.Method {
 			case "GET":
@@ -264,33 +223,33 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 				return metadata, nil, fmt.Errorf("failed to handle async search id")
 			}
 			return metadata, res, nil
-		case AsyncSearchStatusPath:
+		case es_to_ch_common.AsyncSearchStatusPath:
 			if !strings.Contains(id, tracing.AsyncIdPrefix) {
 				return p.routeToElasticsearch(metadata, req)
 			}
 			res, _ := quesm.HandleAsyncSearchStatus(ctx, id, p.queryRunner)
-			metadata[RealSourceHeader] = RealSourceClickHouse
+			metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceClickHouse
 			return metadata, res, nil
-		case ResolveIndexPath:
+		case es_to_ch_common.ResolveIndexPath:
 			esConn, err := p.getElasticsearchBackendConnector()
 			if err != nil {
 				return nil, nil, err
 			}
 			res, _ := quesm.HandleResolveIndex(ctx, indexPattern, p.queryRunner.GetSchemaRegistry(), esConn.GetConfig())
-			metadata[RealSourceHeader] = RealSourceMixed
+			metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceMixed
 			return metadata, res, nil
-		case IndexCountPath:
+		case es_to_ch_common.IndexCountPath:
 			if indexNotInConfig {
 				return p.routeToElasticsearch(metadata, req)
 			}
-			metadata[RealSourceHeader] = RealSourceClickHouse
+			metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceClickHouse
 			res, _ := quesm.HandleIndexCount(ctx, indexPattern, p.queryRunner)
 			return metadata, res, nil
-		case FieldCapsPath:
+		case es_to_ch_common.FieldCapsPath:
 			if !elasticsearch.IsIndexPattern(indexPattern) && indexNotInConfig { // TODO this is a bit of a hack, you can see patterns in this endpoint but or now that's how it is
 				return p.routeToElasticsearch(metadata, req)
 			}
-			metadata[RealSourceHeader] = RealSourceClickHouse
+			metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceClickHouse
 			res, _ := quesm.HandleFieldCaps(ctx, indexPattern,
 				req.URL.Query().Get("allow_no_indices") == "true",
 				req.URL.Query().Get("ignore_unavailable") == "true",
@@ -305,7 +264,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 }
 
 func (p *ElasticsearchToClickHouseQueryProcessor) routeToElasticsearch(metadata map[string]interface{}, req *http.Request) (map[string]interface{}, *quesma_api.Result, error) {
-	metadata[RealSourceHeader] = RealSourceElasticsearch
+	metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceElasticsearch
 	esConn, err := p.getElasticsearchBackendConnector()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch Elasticsearch backend connector")
