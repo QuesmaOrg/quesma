@@ -190,25 +190,25 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 			continue
 		}
 
-		q := types.JSON{}
+		newQuery := types.JSON{}
 
 		if query, ok := line["query"]; ok {
-			q["query"] = query
+			newQuery["query"] = query
 		} else {
 			return nil, fmt.Errorf("query parameter not found")
 		}
 
 		if aggs, ok := line["aggs"]; ok {
-			q["aggs"] = aggs
+			newQuery["aggs"] = aggs
 		}
 		if size, ok := line["size"]; ok {
-			q["size"] = size
+			newQuery["size"] = size
 		}
 		if from, ok := line["from"]; ok {
-			q["from"] = from
+			newQuery["from"] = from
 		}
 
-		currentQuery.query = q
+		currentQuery.query = newQuery
 		queries = append(queries, *currentQuery)
 		currentQuery = nil
 
