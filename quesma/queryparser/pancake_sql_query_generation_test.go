@@ -53,7 +53,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 
 			if i != 147 {
-				t.Skip()
+				//t.Skip()
 			}
 
 			if test.TestName == "Line, Y-axis: Min, Buckets: Date Range, X-Axis: Terms, Split Chart: Date Histogram(file:kibana-visualize/agg_req,nr:9)" {

@@ -5,6 +5,7 @@ package metrics_aggregations
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
@@ -68,7 +69,10 @@ func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 
 	fix := 1.0
 	thirtyDaysInMs := int64(30 * 24 * 60 * 60 * 1000)
-	needToCountDaysNr := query.parentIntervalInMs%thirtyDaysInMs == 0
+	pp.Println(query)
+	//
+	needToCountDaysNr := query.parentIntervalInMs%thirtyDaysInMs == 0 &&
+		(query.unit == second || query.unit == minute || query.unit == hour || query.unit == day || query.unit == week)
 	weHaveParentDateHistogramKey := len(rows[0].Cols) == 2
 	if needToCountDaysNr && weHaveParentDateHistogramKey {
 		// we need to count days of every month, as it can be 28, 29, 30 or 31...
