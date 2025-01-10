@@ -879,8 +879,9 @@ func (ip *IngestProcessor) preprocessJsons(ctx context.Context,
 			return nil, nil, fmt.Errorf("error validation: %v", err)
 		}
 		invalidJsons = append(invalidJsons, inValidJson)
-		stats.GlobalStatistics.UpdateNonSchemaValues(ip.cfg, tableName,
-			inValidJson, NestedSeparator)
+		if ip.cfg != nil {
+			stats.GlobalStatistics.UpdateNonSchemaValues(ip.cfg.IngestStatistics, tableName, inValidJson, NestedSeparator)
+		}
 		// Remove invalid fields from the input JSON
 		jsonValue = subtractInputJson(jsonValue, inValidJson)
 		validatedJsons = append(validatedJsons, jsonValue)
@@ -967,6 +968,14 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 	wasntCreated := !t.Created
 	t.Created = true
 	return wasntCreated
+}
+
+func (ip *IngestProcessor) GetSchemaRegistry() schema.Registry {
+	return ip.schemaRegistry
+}
+
+func (ip *IngestProcessor) GetTableResolver() table_resolver.TableResolver {
+	return ip.tableResolver
 }
 
 func (ip *IngestProcessor) Ping() error {

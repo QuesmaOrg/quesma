@@ -181,3 +181,26 @@ func HandleGetIndexMapping(sr schema.Registry, index string) (*quesma_api.Result
 
 	return getIndexMappingResult(index, mappings)
 }
+
+func HandleBulkIndex(ctx context.Context, index string, body types.NDJSON, ip *ingest.IngestProcessor, ingestStatsEnabled bool, esConn *backend_connectors.ElasticsearchBackendConnector, dependencies quesma_api.Dependencies, tableResolver table_resolver.TableResolver) (*quesma_api.Result, error) {
+	results, err := bulk.Write(ctx, &index, body, ip, ingestStatsEnabled, esConn, dependencies.PhoneHomeAgent(), tableResolver)
+	return bulkInsertResult(ctx, results, err)
+}
+
+func HandleIndexDoc(ctx context.Context, index string, body types.JSON, ip *ingest.IngestProcessor, ingestStatsEnabled bool, esConn *backend_connectors.ElasticsearchBackendConnector, dependencies quesma_api.Dependencies, tableResolver table_resolver.TableResolver) (*quesma_api.Result, error) {
+	result, err := doc.Write(ctx, &index, body, ip, ingestStatsEnabled, dependencies.PhoneHomeAgent(), tableResolver, esConn)
+	if err != nil {
+		return &quesma_api.Result{
+			Body:          string(queryparser.BadRequestParseError(err)),
+			StatusCode:    http.StatusBadRequest,
+			GenericResult: queryparser.BadRequestParseError(err),
+		}, nil
+	}
+
+	return indexDocResult(result)
+}
+
+func HandleBulk(ctx context.Context, body types.NDJSON, ip *ingest.IngestProcessor, ingestStatsEnabled bool, esConn *backend_connectors.ElasticsearchBackendConnector, dependencies quesma_api.Dependencies, tableResolver table_resolver.TableResolver) (*quesma_api.Result, error) {
+	results, err := bulk.Write(ctx, nil, body, ip, ingestStatsEnabled, esConn, dependencies.PhoneHomeAgent(), tableResolver)
+	return bulkInsertResult(ctx, results, err)
+}

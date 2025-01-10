@@ -59,7 +59,7 @@ func TestHtmlPages(t *testing.T) {
 	})
 
 	t.Run("statistics got no XSS", func(t *testing.T) {
-		stats.GlobalStatistics.Process(&config.QuesmaConfiguration{}, xss, types.MustJSON("{}"), clickhouse.NestedSeparator)
+		stats.GlobalStatistics.Process(false, xss, types.MustJSON("{}"), clickhouse.NestedSeparator)
 		response := string(qmc.generateStatistics())
 		assert.NotContains(t, response, xss)
 	})

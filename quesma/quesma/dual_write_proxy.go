@@ -94,7 +94,8 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 	// tests should not be run with optimization enabled by default
 	queryRunner.EnableQueryOptimization(config)
 
-	pathRouter := ConfigureRouter(config, registry, logManager, processor, quesmaManagementConsole, agent, queryRunner, resolver)
+	esBackendConnector := backend_connectors.NewElasticsearchBackendConnector(config.Elasticsearch)
+	pathRouter := ConfigureRouter(config, registry, logManager, processor, quesmaManagementConsole, agent, queryRunner, resolver, esBackendConnector)
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
