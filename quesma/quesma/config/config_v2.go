@@ -587,6 +587,13 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			conf.DefaultIngestTarget = []string{}
 			conf.DefaultQueryTarget = defaultConfig.QueryTarget
 			conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
+
+			if defaultIngestConfig, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
+				conf.DefaultQueryOptimizers = defaultIngestConfig.Optimizers
+			} else {
+				conf.DefaultQueryOptimizers = nil
+			}
+
 			delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 
 			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
@@ -727,6 +734,12 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.DefaultQueryTarget = defaultConfig.QueryTarget
 		conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
 
+		if defaultIngestConfig, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
+			conf.DefaultQueryOptimizers = defaultIngestConfig.Optimizers
+		} else {
+			conf.DefaultQueryOptimizers = nil
+		}
+
 		delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
@@ -831,7 +844,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	}
 
 END:
-
 	for _, idxCfg := range conf.IndexConfig {
 		if idxCfg.UseCommonTable {
 			conf.CreateCommonTable = true

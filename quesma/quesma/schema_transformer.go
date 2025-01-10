@@ -423,10 +423,46 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 		// add filter for common table, if needed
 		if useCommonTable && from == physicalFromExpression {
 
-			var indexWhere []model.Expr
+			orExpression := make(map[string]model.Expr)
+
+			const groupByCommonTableIndexes = "group_common_table_indexes"
+
+			var groupIndexesPrefix []string
+			if s.cfg.DefaultQueryOptimizers != nil {
+				if opt, ok := s.cfg.DefaultQueryOptimizers[groupByCommonTableIndexes]; ok {
+					if opt.Disabled == false {
+						for k, v := range opt.Properties {
+							if v != "false" {
+								groupIndexesPrefix = append(groupIndexesPrefix, k)
+							}
+						}
+					}
+				}
+			}
 
 			for _, indexName := range query.Indexes {
-				indexWhere = append(indexWhere, model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", indexName))))
+
+				var added bool
+				if len(groupIndexesPrefix) > 0 {
+
+					for _, prefix := range groupIndexesPrefix {
+						if strings.HasPrefix(indexName, prefix) {
+							added = true
+							if _, ok := orExpression[prefix]; !ok {
+								orExpression[prefix] = model.NewFunction("startsWith", model.NewColumnRef(common_table.IndexNameColumn), model.NewLiteral(fmt.Sprintf("'%s'", prefix)))
+							}
+						}
+					}
+				}
+
+				if !added {
+					orExpression[indexName] = model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", indexName)))
+				}
+			}
+
+			var indexWhere []model.Expr
+			for _, expr := range orExpression {
+				indexWhere = append(indexWhere, expr)
 			}
 
 			indicesWhere := model.Or(indexWhere)
