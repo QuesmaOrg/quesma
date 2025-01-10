@@ -13,7 +13,7 @@ import (
 )
 
 type ElasticsearchQueryFrontendConnector struct {
-	BasicHTTPFrontendConnector
+	*BasicHTTPFrontendConnector
 }
 
 const (
@@ -29,7 +29,7 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 		return w
 	}
 	fc := &ElasticsearchQueryFrontendConnector{
-		BasicHTTPFrontendConnector: *basicHttpFrontendConnector,
+		BasicHTTPFrontendConnector: basicHttpFrontendConnector,
 	}
 	router := quesma_api.NewPathRouter()
 
