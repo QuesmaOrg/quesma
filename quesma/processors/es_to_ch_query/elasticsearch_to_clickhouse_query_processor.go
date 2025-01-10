@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/ucarion/urlpath"
 	"io"
 	"net/http"
 	"net/url"
@@ -120,13 +121,14 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 			return nil, data, err
 		}
 
-		indexPattern, id := "", ""
-		if val, ok := metadata[es_to_ch_common.IndexPattern]; ok {
-			indexPattern = val.(string)
+		pathPattern, indexPattern, id := "", "", ""
+		if val, ok := metadata[es_to_ch_common.PathPattern]; ok {
+			pathPattern = val.(string)
+		} else {
+			panic("PathPattern not found in metadata!!!") //TODO remove later
 		}
-		if val, ok := metadata[es_to_ch_common.Id]; ok {
-			id = val.(string)
-		}
+		indexPattern = getParamFromRequestURI(req, pathPattern, "index")
+		id = getParamFromRequestURI(req, pathPattern, "id")
 
 		routerOrderedToBypass := metadata[es_to_ch_common.Bypass] == true
 		indexNotInConfig := findQueryTarget(indexPattern, p.config) != config.ClickhouseTarget
@@ -326,4 +328,16 @@ func GetQueryFromRequest(req *http.Request) (types.JSON, error) {
 		return nil, err
 	}
 	return bodyJson, nil
+}
+
+func getParamFromRequestURI(request *http.Request, path string, param string) string {
+	if request.URL == nil {
+		return ""
+	}
+	expectedUrl := urlpath.New(path)
+	if match, ok := expectedUrl.Match(request.URL.Path); !ok {
+		return ""
+	} else {
+		return match.Params[param]
+	}
 }
