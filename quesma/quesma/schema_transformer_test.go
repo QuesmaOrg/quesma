@@ -5,6 +5,7 @@ package quesma
 import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
+	"quesma/common_table"
 	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/schema"
@@ -670,11 +671,18 @@ func TestApplyWildCard(t *testing.T) {
 func TestApplyPhysicalFromExpression(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{
-		"test": {},
+		"test":  {},
+		"test2": {UseCommonTable: true},
+		"test3": {UseCommonTable: true},
 	}
 	cfg := config.QuesmaConfiguration{
 		IndexConfig: indexConfig,
-	}
+		DefaultQueryOptimizers: map[string]config.OptimizerConfiguration{
+			"group_common_table_indexes": {
+				Disabled: false,
+				Properties: map[string]string{
+					"daily-": "true",
+				}}}}
 
 	lm := clickhouse.NewLogManagerEmpty()
 
@@ -704,23 +712,24 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 	td.Store(tableDefinition.Name, &tableDefinition)
 
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, nil, defaultSearchAfterStrategy)
+	transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
 
 	tests := []struct {
 		name     string
+		indexes  []string // default is []string{"test"}
 		input    model.SelectCommand
 		expected model.SelectCommand
 	}{
 		{
-			"single table",
-			model.SelectCommand{
+			name: "single table",
+			input: model.SelectCommand{
 				FromClause: model.NewTableRef(model.SingleTableNamePlaceHolder),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
 					model.NewCountFunc(),
 				},
 			},
-			model.SelectCommand{
+			expected: model.SelectCommand{
 				FromClause: model.NewTableRef("test"),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
@@ -730,8 +739,69 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 		},
 
 		{
-			"cte with fixed table name",
-			model.SelectCommand{
+			name:    "single table with common table",
+			indexes: []string{"test2"},
+			input: model.SelectCommand{
+				FromClause: model.NewTableRef(model.SingleTableNamePlaceHolder),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewCountFunc(),
+				},
+			},
+			expected: model.SelectCommand{
+				FromClause: model.NewTableRef(common_table.TableName),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewCountFunc(),
+				},
+				WhereClause: model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral("'test2'")),
+			},
+		},
+
+		{
+			name:    "two tables  with common table",
+			indexes: []string{"test2", "test3"},
+			input: model.SelectCommand{
+				FromClause: model.NewTableRef(model.SingleTableNamePlaceHolder),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewCountFunc(),
+				},
+			},
+			expected: model.SelectCommand{
+				FromClause: model.NewTableRef(common_table.TableName),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewCountFunc(),
+				},
+				WhereClause: model.Or([]model.Expr{model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral("'test2'")),
+					model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral("'test3'"))}),
+			},
+		},
+
+		{
+			name:    "two daily tables tables  with common table (group_common_table_indexes optimizer)",
+			indexes: []string{"daily-1", "daily-2"},
+			input: model.SelectCommand{
+				FromClause: model.NewTableRef(model.SingleTableNamePlaceHolder),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewCountFunc(),
+				},
+			},
+			expected: model.SelectCommand{
+				FromClause: model.NewTableRef(common_table.TableName),
+				Columns: []model.Expr{
+					model.NewColumnRef("a"),
+					model.NewCountFunc(),
+				},
+				WhereClause: model.NewFunction("startsWith", model.NewColumnRef(common_table.IndexNameColumn), model.NewLiteral("'daily-'")),
+			},
+		},
+
+		{
+			name: "cte with fixed table name",
+			input: model.SelectCommand{
 				FromClause: model.NewTableRef(model.SingleTableNamePlaceHolder),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
@@ -749,7 +819,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 					},
 				},
 			},
-			model.SelectCommand{
+			expected: model.SelectCommand{
 				FromClause: model.NewTableRef("test"),
 				Columns: []model.Expr{
 					model.NewColumnRef("a"),
@@ -770,8 +840,8 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 		},
 
 		{
-			"cte with  table name",
-			model.SelectCommand{
+			name: "cte with  table name",
+			input: model.SelectCommand{
 				FromClause: model.NewTableRef(model.SingleTableNamePlaceHolder),
 				Columns: []model.Expr{
 					model.NewColumnRef("order_date"),
@@ -789,7 +859,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 					},
 				},
 			},
-			model.SelectCommand{
+			expected: model.SelectCommand{
 				FromClause: model.NewTableRef("test"),
 				Columns: []model.Expr{
 					model.NewColumnRef("order_date"),
@@ -817,11 +887,17 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
+			indexes := tt.indexes
+			if len(indexes) == 0 {
+				indexes = []string{"test"}
+			}
+
 			query := &model.Query{
 				TableName:     "test",
 				SelectCommand: tt.input,
 				Schema:        indexSchema,
-				Indexes:       []string{"test"},
+				Indexes:       indexes,
 			}
 
 			expectedAsString := model.AsString(tt.expected)
