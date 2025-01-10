@@ -430,7 +430,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 			var groupIndexesPrefix []string
 			if s.cfg.DefaultQueryOptimizers != nil {
 				if opt, ok := s.cfg.DefaultQueryOptimizers[groupByCommonTableIndexes]; ok {
-					if opt.Disabled == false {
+					if !opt.Disabled {
 						for k, v := range opt.Properties {
 							if v != "false" {
 								groupIndexesPrefix = append(groupIndexesPrefix, k)
