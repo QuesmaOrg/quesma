@@ -582,51 +582,29 @@ func (td *tableDiscovery) tableTimestampField(database, table string, dbKind DbK
 func (td *tableDiscovery) getTimestampFieldForHydrolix(database, table string) (timestampField string) {
 	// In Hydrolix, there's always only one column in a table set as a primary timestamp
 	// Ref: https://docs.hydrolix.io/docs/transforms-and-write-schema#primary-timestamp
-	rows, err := td.dbConnPool.Query(context.Background(), "SELECT primary_key FROM system.tables WHERE database = ? and table = ?", database, table)
+	err := td.dbConnPool.QueryRow(context.Background(), "SELECT primary_key FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&timestampField)
 	if err != nil {
 		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
 	}
-	if scanErr := rows.Scan(&timestampField); scanErr != nil {
-		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
-	}
-
-	defer rows.Close()
-
 	return timestampField
 }
 
 func (td *tableDiscovery) getTimestampFieldForClickHouse(database, table string) (timestampField string) {
 	// In ClickHouse, there's no concept of a primary timestamp field, primary keys are often composite,
 	// hence we have to use following heuristic to determine the timestamp field (also just picking the first column if there are multiple)
-	rows, err := td.dbConnPool.Query(context.Background(), "SELECT name FROM system.columns WHERE database = ? AND table = ? AND is_in_primary_key = 1 AND type iLIKE 'DateTime%'", database, table)
+	err := td.dbConnPool.QueryRow(context.Background(), "SELECT name FROM system.columns WHERE database = ? AND table = ? AND is_in_primary_key = 1 AND type iLIKE 'DateTime%'", database, table).Scan(&timestampField)
 	if err != nil {
 		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
-		return
-	}
-
-	defer rows.Close()
-
-	if scanErr := rows.Scan(&timestampField); scanErr != nil {
-		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
 		return
 	}
 	return timestampField
 }
 
 func (td *tableDiscovery) tableComment(database, table string) (comment string) {
-
-	rows, err := td.dbConnPool.Query(context.Background(), "SELECT comment FROM system.tables WHERE database = ? and table = ?", database, table)
-
+	err := td.dbConnPool.QueryRow(context.Background(), "SELECT comment FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&comment)
 	if err != nil {
 		logger.Error().Msgf("could not get table comment: %v", err)
 	}
-
-	defer rows.Close()
-
-	if scanErr := rows.Scan(&comment); scanErr != nil {
-		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
-	}
-
 	return comment
 }
 
