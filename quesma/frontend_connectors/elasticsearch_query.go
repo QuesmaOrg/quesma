@@ -17,6 +17,11 @@ type ElasticsearchQueryFrontendConnector struct {
 	BasicHTTPFrontendConnector
 }
 
+const (
+	IndexURLParam = "index"
+	IdURLParam    = "id"
+)
+
 func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaConfiguration) *ElasticsearchQueryFrontendConnector {
 
 	basicHttpFrontendConnector := NewBasicHTTPFrontendConnector(endpoint, cfg)
@@ -41,43 +46,43 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 	// TODO: Somehow this messes up the router, so we need to fix it
 	//router.Register(IndexPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 	//	metadata := quesma_api.MakeNewMetadata()
-	//	metadata[IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, IndexPath)
+	//	metadata[IndexPattern] = getParamFromRequestURI(req.OriginalRequest, IndexPath)
 	//	metadata[PathPattern] = IndexPath
 	//	return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	//})
 	router.Register(es_to_ch_common.IndexSearchPath, quesma_api.IsHTTPMethod("GET", "POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
-		metadata[es_to_ch_common.IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, es_to_ch_common.IndexSearchPath)
+		metadata[es_to_ch_common.IndexPattern] = getParamFromRequestURI(req.OriginalRequest, es_to_ch_common.IndexSearchPath, IndexURLParam)
 		metadata[es_to_ch_common.PathPattern] = es_to_ch_common.IndexSearchPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
 	router.Register(es_to_ch_common.IndexAsyncSearchPath, quesma_api.IsHTTPMethod("POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
-		metadata[es_to_ch_common.IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, es_to_ch_common.IndexAsyncSearchPath)
+		metadata[es_to_ch_common.IndexPattern] = getParamFromRequestURI(req.OriginalRequest, es_to_ch_common.IndexAsyncSearchPath, IndexURLParam)
 		metadata[es_to_ch_common.PathPattern] = es_to_ch_common.IndexAsyncSearchPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
 	router.Register(es_to_ch_common.AsyncSearchIdPath, quesma_api.IsHTTPMethod("GET", "DELETE"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
-		metadata[es_to_ch_common.Id] = getIdFromRequestURI(req.OriginalRequest, es_to_ch_common.AsyncSearchIdPath)
+		metadata[es_to_ch_common.Id] = getParamFromRequestURI(req.OriginalRequest, es_to_ch_common.AsyncSearchIdPath, IdURLParam)
 		metadata[es_to_ch_common.PathPattern] = es_to_ch_common.AsyncSearchIdPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
 	router.Register(es_to_ch_common.AsyncSearchStatusPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
-		metadata[es_to_ch_common.Id] = getIdFromRequestURI(req.OriginalRequest, es_to_ch_common.AsyncSearchStatusPath)
+		metadata[es_to_ch_common.Id] = getParamFromRequestURI(req.OriginalRequest, es_to_ch_common.AsyncSearchStatusPath, IdURLParam)
 		metadata[es_to_ch_common.PathPattern] = es_to_ch_common.AsyncSearchStatusPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
 	router.Register(es_to_ch_common.FieldCapsPath, quesma_api.IsHTTPMethod("GET", "POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
-		metadata[es_to_ch_common.IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, es_to_ch_common.FieldCapsPath)
+		metadata[es_to_ch_common.IndexPattern] = getParamFromRequestURI(req.OriginalRequest, es_to_ch_common.FieldCapsPath, IndexURLParam)
 		metadata[es_to_ch_common.PathPattern] = es_to_ch_common.FieldCapsPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
 	router.Register(es_to_ch_common.ResolveIndexPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
-		metadata[es_to_ch_common.IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, es_to_ch_common.ResolveIndexPath)
+		metadata[es_to_ch_common.IndexPattern] = getParamFromRequestURI(req.OriginalRequest, es_to_ch_common.ResolveIndexPath, IndexURLParam)
 		metadata[es_to_ch_common.PathPattern] = es_to_ch_common.ResolveIndexPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
@@ -88,25 +93,25 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 	})
 	router.Register(es_to_ch_common.IndexRefreshPath, quesma_api.IsHTTPMethod("POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
-		metadata[es_to_ch_common.IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, es_to_ch_common.IndexRefreshPath)
+		metadata[es_to_ch_common.IndexPattern] = getParamFromRequestURI(req.OriginalRequest, es_to_ch_common.IndexRefreshPath, IndexURLParam)
 		metadata[es_to_ch_common.PathPattern] = es_to_ch_common.IndexRefreshPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
 	router.Register(es_to_ch_common.IndexMappingPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
-		metadata[es_to_ch_common.IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, es_to_ch_common.IndexRefreshPath)
+		metadata[es_to_ch_common.IndexPattern] = getParamFromRequestURI(req.OriginalRequest, es_to_ch_common.IndexRefreshPath, IndexURLParam)
 		metadata[es_to_ch_common.PathPattern] = es_to_ch_common.IndexMappingPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
 	router.Register(es_to_ch_common.TermsEnumPath, quesma_api.IsHTTPMethod("POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
-		metadata[es_to_ch_common.IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, es_to_ch_common.TermsEnumPath)
+		metadata[es_to_ch_common.IndexPattern] = getParamFromRequestURI(req.OriginalRequest, es_to_ch_common.TermsEnumPath, IndexURLParam)
 		metadata[es_to_ch_common.PathPattern] = es_to_ch_common.TermsEnumPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
 	router.Register(es_to_ch_common.IndexCountPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		metadata := quesma_api.MakeNewMetadata()
-		metadata[es_to_ch_common.IndexPattern] = getIndexPatternFromRequestURI(req.OriginalRequest, es_to_ch_common.IndexCountPath)
+		metadata[es_to_ch_common.IndexPattern] = getParamFromRequestURI(req.OriginalRequest, es_to_ch_common.IndexCountPath, IndexURLParam)
 		metadata[es_to_ch_common.PathPattern] = es_to_ch_common.IndexCountPath
 		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
@@ -121,14 +126,14 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 	return fc
 }
 
-func getIndexPatternFromRequestURI(request *http.Request, indexPath string) string {
-	expectedUrl := urlpath.New(indexPath)
-	match, _ := expectedUrl.Match(request.URL.Path) // safe to call at this level
-	return match.Params["index"]
-}
-
-func getIdFromRequestURI(request *http.Request, idPath string) string {
-	expectedUrl := urlpath.New(idPath)
-	match, _ := expectedUrl.Match(request.URL.Path) // safe to call at this level
-	return match.Params["id"]
+func getParamFromRequestURI(request *http.Request, path string, param string) string {
+	if request.URL == nil {
+		return ""
+	}
+	expectedUrl := urlpath.New(path)
+	if match, ok := expectedUrl.Match(request.URL.Path); !ok {
+		return ""
+	} else {
+		return match.Params[param]
+	}
 }
