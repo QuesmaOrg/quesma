@@ -5,6 +5,7 @@ package quesma
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/common_table"
 	"quesma/logger"
@@ -657,7 +658,7 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 		if !ok {
 			return visitChildren()
 		}
-		fmt.Println("KK start 2", e)
+		//fmt.Println("KK start 2", e)
 		field, ok := indexSchema.ResolveField(colRef.ColumnName)
 		if !ok {
 			logger.WarnWithCtx(ctx).Msgf("field %s not found in schema for table %s", colRef.ColumnName, query.TableName)
@@ -668,7 +669,7 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 			logger.WarnWithCtx(ctx).Msgf("field %s not found in table %s", field.InternalPropertyName.AsString(), query.TableName)
 			return visitChildren()
 		}
-		fmt.Println("KK start 3", e)
+		//fmt.Println("KK start 3", e)
 		isDatetime := col.IsDatetime()
 		isDateTime64 := col.IsDatetime64()
 		if !isDatetime && !isDateTime64 {
@@ -678,7 +679,7 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 		// check if operator is ok
 		op := strings.TrimSpace(e.Op)
 		fmt.Println(e, op)
-		if !slices.Contains([]string{"=", "!=", ">", "<", ">=", "<="}, op) {
+		if !slices.Contains([]string{"=", "!=", ">", "<", ">=", "<=", "/"}, op) {
 			return visitChildren()
 		}
 
@@ -688,7 +689,7 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 			return visitChildren()
 		}
 		if tsFunc.Name != model.FromUnixTimestampMs && tsFunc.Name != model.ToUnixTimestampMs {
-			fmt.Println("wtf, name:", tsFunc.Name)
+			//fmt.Println("wtf, name:", tsFunc.Name)
 			return visitChildren()
 		}
 		if len(tsFunc.Args) != 1 {
@@ -699,28 +700,22 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 		arg := tsFunc.Args[0].Accept(b).(model.Expr)
 		if isDateTime64 {
 			clickhouseFunc := model.ClickhouseFromUnixTimestampMsToDatetime64Function
-			if tsFunc.Name == model.ToUnixTimestampMs {
-				clickhouseFunc = model.ClickhouseToUnixTimestampMsFromDatetime64Function
-			}
 			return model.NewInfixExpr(colRef, e.Op, model.NewFunction(clickhouseFunc, arg))
 		} else if isDatetime {
-			fmt.Println("KK ", arg)
+			//fmt.Println("KK ", arg)
 			tsAny, isLiteral := arg.(model.LiteralExpr)
 			if !isLiteral {
 				logger.WarnWithCtx(ctx).Msgf("invalid argument for %s function: %v. isn't literal, but %T", tsFunc.Name, arg, arg)
 				return visitChildren()
 			}
-			ts, err := util.ExtractInt64(tsAny.Value)
-			if err != nil {
+			ts, isNumber := util.ExtractNumeric64Maybe(tsAny.Value)
+			if !isNumber {
 				logger.WarnWithCtx(ctx).Msgf("invalid argument for %s function: %v. isn't integer, but %T", tsFunc.Name, arg, arg)
 				return visitChildren()
 			}
 
 			clickhouseFunc := model.ClickhouseFromUnixTimestampMsToDatetimeFunction
-			if tsFunc.Name == model.ToUnixTimestampMs {
-				clickhouseFunc = model.ClickhouseToUnixTimestampMsFromDatetimeFunction
-			}
-			return model.NewInfixExpr(colRef, e.Op, model.NewFunction(clickhouseFunc, model.NewLiteral(ts/1000)))
+			return model.NewInfixExpr(colRef, e.Op, model.NewFunction(clickhouseFunc, model.NewLiteral(int64(ts/1000))))
 		}
 
 		return visitChildren() // unreachable
@@ -763,28 +758,49 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 			return visitChildren()
 		}
 
+		var clickhouseFunc string
 		if isDateTime64 {
-			clickhouseFunc := model.ClickhouseToUnixTimestampMsFromDatetime64Function
-			return model.NewFunction(e.Name, model.NewFunction(clickhouseFunc, colRef))
+			clickhouseFunc = model.ClickhouseToUnixTimestampMsFromDatetime64Function
 		} else if isDatetime {
-			fmt.Println("KK f 4", e.Args[0])
-			tsAny, isLiteral := e.Args[0].(model.LiteralExpr)
-			if !isLiteral {
-				logger.WarnWithCtx(ctx).Msgf("invalid argument for %s function: %v. isn't literal, but %T", e.Name, e.Args[0], e.Args[0])
-				return visitChildren()
-			}
-			ts, err := util.ExtractInt64(tsAny.Value)
-			if err != nil {
-				logger.WarnWithCtx(ctx).Msgf("invalid argument for %s function: %v. isn't integer, but %T", e.Name, e.Args[0], e.Args[0])
-				return visitChildren()
-			}
+			clickhouseFunc = model.ClickhouseToUnixTimestampMsFromDatetimeFunction
+		}
+		return model.NewFunction(clickhouseFunc, colRef)
+	}
 
-			fmt.Println("KK f 4", e.Args[0])
-			clickhouseFunc := model.ClickhouseToUnixTimestampMsFromDatetimeFunction
-			return model.NewFunction(e.Name, model.NewFunction(clickhouseFunc, model.NewLiteral(ts/1000)))
+	// we look for: MillisecondsLiteral
+	visitor.OverrideVisitLiteral = func(b *model.BaseExprVisitor, l model.LiteralExpr) interface{} {
+		pp.Println("literal", l)
+		msLiteral, ok := l.Value.(model.MillisecondsLiteral)
+		if !ok {
+			return model.NewLiteral(l.Value)
 		}
 
-		return visitChildren() // unreachable
+		fmt.Println("LOL", msLiteral)
+
+		field, ok := indexSchema.ResolveField(msLiteral.TimestampField.ColumnName)
+		fmt.Println("1 LOL", msLiteral, field, ok)
+		if !ok {
+			logger.WarnWithCtx(ctx).Msgf("field %v not found in schema for table %s", msLiteral.TimestampField, query.TableName)
+			return model.NewLiteral(l.Value)
+		}
+		col, ok := table.Cols[field.InternalPropertyName.AsString()]
+		fmt.Println("1LOL", msLiteral, col)
+		if !ok {
+			logger.WarnWithCtx(ctx).Msgf("field %s not found in table %s", field.InternalPropertyName.AsString(), query.TableName)
+			return model.NewLiteral(l.Value)
+		}
+
+		fmt.Println("2LOL", msLiteral, col.IsDatetime())
+
+		if col.IsDatetime() {
+			ts, isNumber := util.ExtractNumeric64Maybe(msLiteral.Value)
+			if !isNumber {
+				logger.WarnWithCtx(ctx).Msgf("invalid argument for a timestamp: %v. isn't integer, but %T", msLiteral.Value, msLiteral.Value)
+				return model.NewLiteral(msLiteral.Value)
+			}
+			return model.NewLiteral(int64(ts / 1000))
+		}
+		return model.NewLiteral(msLiteral.Value)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)

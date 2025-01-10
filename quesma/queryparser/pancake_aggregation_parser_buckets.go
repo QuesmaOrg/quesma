@@ -105,6 +105,10 @@ func (cw *ClickhouseQueryTranslator) parseHistogram(aggregation *pancakeAggregat
 
 func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggregationTreeNode, params QueryMap) (err error) {
 	field := cw.parseFieldField(params, "date_histogram")
+	colRef, ok := field.(model.ColumnRef)
+	if !ok {
+		return fmt.Errorf("field is not a column reference, but %T, value: %v", field, field)
+	}
 
 	weAddedMissing := false
 	if missingRaw, exists := params["missing"]; exists {
@@ -136,7 +140,7 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 	interval, intervalType := cw.extractInterval(params)
 	// TODO  GetDateTimeTypeFromExpr can be moved and it should take cw.Schema as an argument
 
-	dateHistogram := bucket_aggregations.NewDateHistogram(cw.Ctx, field, interval, timezone, minDocCount, ebMin, ebMax, intervalType)
+	dateHistogram := bucket_aggregations.NewDateHistogram(cw.Ctx, field, colRef, interval, timezone, minDocCount, ebMin, ebMax, intervalType)
 	aggregation.queryType = dateHistogram
 
 	columnSql := dateHistogram.GenerateSQL()

@@ -31,7 +31,8 @@ const (
 
 type DateHistogram struct {
 	ctx               context.Context
-	field             model.Expr // name of the field, e.g. timestamp
+	field             model.Expr // full expression as in SQL, e.g. toInt64(toUnixTimestamp(timestamp))
+	timestampColumn   model.ColumnRef
 	interval          string
 	timezone          string
 	wantedTimezone    *time.Location // key is in `timezone` time, and we need it to be UTC
@@ -41,7 +42,7 @@ type DateHistogram struct {
 	intervalType      DateHistogramIntervalType
 }
 
-func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone string, minDocCount int,
+func NewDateHistogram(ctx context.Context, field model.Expr, timestampColumn model.ColumnRef, interval, timezone string, minDocCount int,
 	extendedBoundsMin, extendedBoundsMax int64, intervalType DateHistogramIntervalType) *DateHistogram {
 
 	wantedTimezone, err := time.LoadLocation(timezone)
@@ -50,7 +51,7 @@ func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone 
 		wantedTimezone = time.UTC
 	}
 
-	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone, wantedTimezone: wantedTimezone,
+	return &DateHistogram{ctx: ctx, field: field, timestampColumn: timestampColumn, interval: interval, timezone: timezone, wantedTimezone: wantedTimezone,
 		minDocCount: minDocCount, extendedBoundsMin: extendedBoundsMin, extendedBoundsMax: extendedBoundsMax, intervalType: intervalType}
 }
 
@@ -154,7 +155,7 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 	if err != nil {
 		logger.ErrorWithCtx(query.ctx).Msg(err.Error())
 	}
-	return clickhouse.TimestampGroupByWithTimezone(query.field, interval, query.timezone)
+	return clickhouse.TimestampGroupByWithTimezone(query.field, query.timestampColumn, interval, query.timezone)
 }
 
 func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {

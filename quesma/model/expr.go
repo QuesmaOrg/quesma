@@ -138,6 +138,15 @@ func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value}
 }
 
+type MillisecondsLiteral struct {
+	TimestampField ColumnRef
+	Value          int64
+}
+
+func NewMillisecondsLiteral(timestampField ColumnRef, value int64) LiteralExpr {
+	return NewLiteral(MillisecondsLiteral{Value: value, TimestampField: timestampField})
+}
+
 func NewLiteralDontQuote(value any) LiteralExprDontQuote {
 	return LiteralExprDontQuote{Value: value}
 }

@@ -115,46 +115,44 @@ func PrettyJson(jsonStr string) string {
 // e.g.
 // - timestampGroupBy("@timestamp", DateTime64, 30 seconds) --> toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)
 // - timestampGroupBy("@timestamp", DateTime, 30 seconds)   --> toInt64(toUnixTimestamp(`@timestamp`)/30)
-func TimestampGroupBy(timestampField model.Expr, groupByInterval time.Duration) model.Expr {
+func TimestampGroupBy(fullTimestampExpr model.Expr, timestampField model.ColumnRef, groupByInterval time.Duration) model.Expr {
 	toUnixTsFunc := model.NewInfixExpr(
-		model.NewFunction(model.ToUnixTimestampMs, timestampField),
+		model.NewFunction(model.ToUnixTimestampMs, fullTimestampExpr),
 		" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
-		model.NewLiteral(groupByInterval.Milliseconds()),
+		model.NewMillisecondsLiteral(timestampField, groupByInterval.Milliseconds()),
 	)
 	return model.NewFunction("toInt64", toUnixTsFunc)
 }
 
-func TimestampGroupByWithTimezone(timestampField model.Expr, groupByInterval time.Duration, timezone string) model.Expr {
+func TimestampGroupByWithTimezone(fullTimestampExpr model.Expr, timestampField model.ColumnRef, groupByInterval time.Duration, timezone string) model.Expr {
 
 	// If no timezone, or timezone is default (UTC), we just return TimestampGroupBy(...)
 	if timezone == "" {
-		return TimestampGroupBy(timestampField, groupByInterval)
+		return TimestampGroupBy(fullTimestampExpr, timestampField, groupByInterval)
 	}
 
-	createAExp := func(innerFuncName string, interval int64) model.Expr {
-		var offset model.Expr
-		offset = model.NewFunction(
-			"timeZoneOffset",
-			model.NewFunction(
-				"toTimezone",
-				timestampField, model.NewLiteralSingleQuoteString(timezone),
-			),
-		)
+	fmt.Println("QQQ")
 
-		unixTsWithOffset := model.NewInfixExpr(
-			model.NewFunction(innerFuncName, timestampField),
-			"+",
-			offset,
-		)
+	var offset model.Expr
+	offset = model.NewFunction(
+		"timeZoneOffset",
+		model.NewFunction(
+			"toTimezone",
+			fullTimestampExpr, model.NewLiteralSingleQuoteString(timezone),
+		),
+	)
 
-		groupByExpr := model.NewInfixExpr(
-			model.NewParenExpr(unixTsWithOffset),
-			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
-			model.NewLiteral(interval),
-		)
+	unixTsWithOffset := model.NewInfixExpr(
+		model.NewFunction(model.ToUnixTimestampMs, fullTimestampExpr),
+		"+",
+		offset,
+	)
 
-		return model.NewFunction("toInt64", groupByExpr)
-	}
+	groupByExpr := model.NewInfixExpr(
+		model.NewParenExpr(unixTsWithOffset),
+		" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
+		model.NewMillisecondsLiteral(timestampField, groupByInterval.Milliseconds()),
+	)
 
-	return createAExp(model.ToUnixTimestampMs, groupByInterval.Milliseconds())
+	return model.NewFunction("toInt64", groupByExpr)
 }

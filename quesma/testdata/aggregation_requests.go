@@ -10,10 +10,10 @@ import (
 )
 
 var timestampGroupByClause = model.AsString(clickhouse.TimestampGroupBy(
-	model.NewColumnRef("@timestamp"), 30*time.Second))
+	model.NewColumnRef("@timestamp"), model.NewColumnRef("@timestamp"), 30*time.Second))
 
 func groupBySQL(fieldName string, typ clickhouse.DateTimeType, groupByInterval time.Duration) string {
-	return model.AsString(clickhouse.TimestampGroupBy(model.NewColumnRef(fieldName), groupByInterval))
+	return model.AsString(clickhouse.TimestampGroupBy(model.NewColumnRef(fieldName), model.NewColumnRef(fieldName), groupByInterval))
 }
 
 const fullTextFieldName = `"` + model.FullTextFieldNamePlaceHolder + `"`
