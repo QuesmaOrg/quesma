@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
+	"net/url"
 	"quesma/backend_connectors"
 	"quesma/clickhouse"
 	"quesma/common_table"
@@ -76,10 +77,19 @@ func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcess
 
 	oldQuesmaConfig := &config.QuesmaConfiguration{
 		IndexConfig: p.config.IndexConfig,
+		ClickHouse:  config.RelationalDbConfiguration{Url: (*config.Url)(&url.URL{Scheme: "clickhouse", Host: "localhost:9000"})},
+		// Elasticsearch section is here only for the phone home agent not to blow up
+		Elasticsearch: config.ElasticsearchConfiguration{Url: (*config.Url)(&url.URL{Scheme: "http", Host: "localhost:9200"})},
 	}
 
+	connectionPool := clickhouse.InitDBConnectionPool(oldQuesmaConfig)
+
+	// TODO see if we can get away with that
+	//phoneHomeAgent := telemetry.NewPhoneHomeAgent(oldQuesmaConfig, connectionPool, "dummy-id")
+	//phoneHomeAgent.Start()
+
 	virtualTableStorage := persistence.NewElasticJSONDatabase(esBackendConn.GetConfig(), common_table.VirtualTableElasticIndexName)
-	tableDisco := clickhouse.NewTableDiscovery2(oldQuesmaConfig, chBackendConn, virtualTableStorage)
+	tableDisco := clickhouse.NewTableDiscovery(oldQuesmaConfig, connectionPool, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
 
 	ip := ingest.NewIngestProcessor2(oldQuesmaConfig, chBackendConn, nil, tableDisco, schemaRegistry, virtualTableStorage, esBackendConn)
