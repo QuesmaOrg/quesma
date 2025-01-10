@@ -6,6 +6,7 @@ package quesma
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
@@ -324,4 +325,54 @@ func (p *QueryProcessor) Handle(metadata map[string]interface{}, message ...any)
 		panic("QueryProcessor: invalid message type")
 	}
 	return metadata, request, nil
+}
+
+type QueryComplexProcessor struct {
+	processors.BaseProcessor
+}
+
+func NewQueryComplexProcessor() *QueryComplexProcessor {
+	return &QueryComplexProcessor{
+		BaseProcessor: processors.NewBaseProcessor(),
+	}
+}
+
+func (p *QueryComplexProcessor) InstanceName() string {
+	return "QueryProcessor" // TODO return name from config
+}
+
+func (p *QueryComplexProcessor) GetId() string {
+	return "QueryProcessor"
+}
+
+/*
+func (p *QueryComplexProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
+	if len(message) != 1 {
+		panic("QueryProcessor: expect only one message")
+	}
+	_, err := quesma_api.CheckedCast[*http.Request](message[0])
+	if err != nil {
+		panic("QueryProcessor: invalid message type")
+	}
+	resp := []byte("qqq->")
+	return metadata, resp, nil
+}
+*/
+
+type QueryTransformationPipeline struct {
+	*processors.BasicQueryTransformationPipeline
+}
+
+func NewQueryTransformationPipeline() *QueryTransformationPipeline {
+	return &QueryTransformationPipeline{
+		BasicQueryTransformationPipeline: processors.NewBasicQueryTransformationPipeline(),
+	}
+}
+
+func (p *QueryTransformationPipeline) ParseQuery(message any) (*quesma_api.ExecutionPlan, error) {
+	logger.Debug().Msg("SimpleQueryTransformationPipeline: ParseQuery")
+	plan := &quesma_api.ExecutionPlan{}
+	query := "SELECT * FROM users"
+	plan.Queries = append(plan.Queries, &quesma_api.Query{Query: query})
+	return plan, nil
 }

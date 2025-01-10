@@ -3,11 +3,15 @@
 
 package processors
 
-import quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+import (
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+)
 
 type BaseProcessor struct {
-	InnerProcessors   []quesma_api.Processor
-	BackendConnectors map[quesma_api.BackendConnectorType]quesma_api.BackendConnector
+	InnerProcessors             []quesma_api.Processor
+	BackendConnectors           map[quesma_api.BackendConnectorType]quesma_api.BackendConnector
+	QueryTransformationPipeline quesma_api.QueryTransformationPipeline
 }
 
 func NewBaseProcessor() BaseProcessor {
@@ -42,4 +46,47 @@ func (p *BaseProcessor) GetBackendConnector(connectorType quesma_api.BackendConn
 
 func (p *BaseProcessor) GetSupportedBackendConnectors() []quesma_api.BackendConnectorType {
 	return []quesma_api.BackendConnectorType{quesma_api.NoopBackend}
+}
+
+func (p *BaseProcessor) executeQuery(query string) ([]quesma_api.QueryResultRow, error) {
+	logger.Debug().Msg("BaseProcessor: executeQuery")
+	// This will be forwarded to the query execution engine
+	return nil, nil
+}
+
+func (p *BaseProcessor) transformResults(results [][]quesma_api.QueryResultRow) [][]quesma_api.QueryResultRow {
+	logger.Debug().Msg("BaseProcessor: transformResults")
+	// This will be forwarded to the query transformation engine
+	return nil
+}
+
+func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any) (map[string]interface{}, any, error) {
+	logger.Debug().Msg("BaseProcessor: Handle")
+	var resp []byte
+	for _, msg := range messages {
+		executionPlan, err := p.QueryTransformationPipeline.ParseQuery(msg)
+		if err != nil {
+			logger.Error().Err(err).Msg("Error parsing query")
+		}
+		queries, err := p.QueryTransformationPipeline.Transform(executionPlan.Queries)
+		if err != nil {
+			logger.Error().Err(err).Msg("Error transforming queries")
+		}
+		// Execute the queries
+		var results [][]quesma_api.QueryResultRow
+		for _, query := range queries {
+			result, _ := p.executeQuery(query.Query)
+			results = append(results, result)
+		}
+		// Transform the results
+		transformedResults := p.transformResults(results)
+		resp = append(resp, []byte("qqq->")...)
+		messages = append(messages, transformedResults)
+	}
+
+	return metadata, resp, nil
+}
+
+func (p *BaseProcessor) RegisterQueryTransfomationPipeline(pipeline quesma_api.QueryTransformationPipeline) {
+	p.QueryTransformationPipeline = pipeline
 }

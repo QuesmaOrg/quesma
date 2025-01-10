@@ -116,6 +116,36 @@ func ab_testing_scenario() quesma_api.QuesmaBuilder {
 	return quesma
 }
 
+func full_workflow_scenario() quesma_api.QuesmaBuilder {
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+
+	cfg := &config.QuesmaConfiguration{
+		DisableAuth: true,
+		Elasticsearch: config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     "",
+			Password: "",
+		},
+	}
+
+	queryFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
+	queryHTTPRouter := quesma_api.NewPathRouter()
+	queryHTTPRouter.AddRoute("/_search", searchHandler)
+	queryHTTPRouter.AddFallbackHandler(fallback)
+	queryFrontendConnector.AddRouter(queryHTTPRouter)
+	var queryPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	queryPipeline.AddFrontendConnector(queryFrontendConnector)
+	var queryProcessor quesma_api.Processor = NewQueryComplexProcessor()
+
+	queryTransformationPipe := NewQueryTransformationPipeline()
+	queryProcessor.RegisterQueryTransfomationPipeline(queryTransformationPipe)
+	queryPipeline.AddProcessor(queryProcessor)
+	quesmaBuilder.AddPipeline(queryPipeline)
+
+	quesma, _ := quesmaBuilder.Build()
+	return quesma
+}
+
 func fallbackScenario() quesma_api.QuesmaBuilder {
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
 
@@ -373,4 +403,19 @@ func Test_QuesmaBuild(t *testing.T) {
 
 		assert.NoError(t, err)
 	}
+}
+
+func Test_complex_scenario1(t *testing.T) {
+	q1 := full_workflow_scenario()
+	q1.Start()
+	stop := make(chan os.Signal, 1)
+	testData := []struct {
+		url              string
+		expectedResponse string
+	}{
+		{"http://localhost:8888/_search", "qqq->"},
+	}
+	emitRequests(stop, t, testData)
+	<-stop
+	q1.Stop(context.Background())
 }

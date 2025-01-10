@@ -75,6 +75,36 @@ type QuesmaBuilder interface {
 	Stop(ctx context.Context)
 }
 
+type Query struct {
+	Query string
+}
+
+type ExecutionPlan struct {
+	Queries []*Query
+}
+
+type QueryTransformer interface {
+	Transform(query []*Query) ([]*Query, error)
+}
+
+type QueryTransformationPipeline interface {
+	QueryTransformer
+	ParseQuery(message any) (*ExecutionPlan, error)
+	AddTransformer(transformer QueryTransformer)
+	GetTransformers() []QueryTransformer
+}
+
+type QueryResultRow struct {
+}
+
+type QueryExecutor interface {
+	ExecuteQuery(query string) ([]QueryResultRow, error)
+}
+
+type QueryResultTransformer interface {
+	TransformResults(results [][]QueryResultRow) [][]QueryResultRow
+}
+
 type Processor interface {
 	InstanceNamer
 	CompoundProcessor
@@ -83,6 +113,7 @@ type Processor interface {
 	SetBackendConnectors(conns map[BackendConnectorType]BackendConnector)
 	GetBackendConnector(connectorType BackendConnectorType) BackendConnector
 	GetSupportedBackendConnectors() []BackendConnectorType
+	RegisterQueryTransfomationPipeline(pipeline QueryTransformationPipeline)
 	Init() error
 }
 
