@@ -243,7 +243,6 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 					StatusCode:    http.StatusInternalServerError,
 					GenericResult: queryparser.BadRequestParseError(err),
 				}
-				return nil, err
 			}
 
 			responses = append(responses, wrappedErr)
@@ -505,7 +504,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		for _, indexName := range resolvedIndexes {
 			table, _ = tables.Load(q.cfg.IndexConfig[indexName].TableName(indexName))
 			if table == nil {
-				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", indexName)).Details("Table: %s", indexName)
+				continue
 			}
 			if table.VirtualTable {
 				virtualOnlyTables = append(virtualOnlyTables, indexName)

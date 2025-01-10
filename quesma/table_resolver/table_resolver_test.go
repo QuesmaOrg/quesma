@@ -57,6 +57,8 @@ func TestTableResolver(t *testing.T) {
 
 	cfg := config.QuesmaConfiguration{IndexConfig: indexConf, DefaultQueryTarget: []string{config.ElasticsearchTarget}, DefaultIngestTarget: []string{config.ElasticsearchTarget}}
 
+	cfgClickhouseOnlyUseCommonTable := config.QuesmaConfiguration{IndexConfig: indexConf, DefaultQueryTarget: []string{config.ClickhouseTarget}, DefaultIngestTarget: []string{config.ClickhouseTarget}, UseCommonTableForWildcard: true}
+
 	tests := []struct {
 		name              string
 		pipeline          string
@@ -66,6 +68,7 @@ func TestTableResolver(t *testing.T) {
 		virtualTables     []string
 		indexConf         map[string]config.IndexConfiguration
 		expected          mux.Decision
+		quesmaConf        *config.QuesmaConfiguration
 	}{
 		{
 			name:     "elastic fallback",
@@ -267,6 +270,21 @@ func TestTableResolver(t *testing.T) {
 			indexConf: indexConf,
 		},
 		{
+			name:          "query pattern (not existing virtual table)",
+			pipeline:      mux.QueryPipeline,
+			pattern:       "common-index1,common-index2",
+			virtualTables: []string{"common-index1"},
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
+					ClickhouseTableName: common_table.TableName,
+					ClickhouseIndexes:   []string{"common-index1", "common-index2"},
+					IsCommonTable:       true,
+				}},
+			},
+			indexConf:  indexConf,
+			quesmaConf: &cfgClickhouseOnlyUseCommonTable,
+		},
+		{
 			name:     "query kibana internals",
 			pipeline: mux.QueryPipeline,
 			pattern:  ".kibana",
@@ -377,6 +395,12 @@ func TestTableResolver(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
+			currentQuesmaConf := cfg
+			if tt.quesmaConf != nil {
+				currentQuesmaConf = *tt.quesmaConf
+			}
+
 			tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 
 			for _, index := range tt.clickhouseIndexes {
@@ -394,7 +418,7 @@ func TestTableResolver(t *testing.T) {
 
 			elasticResolver := elasticsearch.NewFixedIndexManagement(tt.elasticIndexes...)
 
-			resolver := NewTableResolver(cfg, tableDiscovery, elasticResolver)
+			resolver := NewTableResolver(currentQuesmaConf, tableDiscovery, elasticResolver)
 
 			decision := resolver.Resolve(tt.pipeline, tt.pattern)
 
