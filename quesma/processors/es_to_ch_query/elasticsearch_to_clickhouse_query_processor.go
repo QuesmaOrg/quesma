@@ -124,13 +124,14 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 		pathPattern, indexPattern, id := "", "", ""
 		if val, ok := metadata[es_to_ch_common.PathPattern]; ok {
 			pathPattern = val.(string)
-		} else {
-			panic("PathPattern not found in metadata!!!") //TODO remove later
 		}
 		indexPattern = getParamFromRequestURI(req, pathPattern, "index")
 		id = getParamFromRequestURI(req, pathPattern, "id")
 
 		routerOrderedToBypass := metadata[es_to_ch_common.Bypass] == true
+		if !routerOrderedToBypass && pathPattern == "" {
+			logger.Error().Msgf("PathPattern not found in metadata but request will be processed, url=%s", req.URL)
+		}
 		indexNotInConfig := findQueryTarget(indexPattern, p.config) != config.ClickhouseTarget
 		if routerOrderedToBypass {
 			logger.Info().Msgf("%s - BYPASSED per frontend connector decision", req.URL)

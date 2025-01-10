@@ -76,7 +76,9 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 	})
 
 	router.Register("*", quesma_api.Always(), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		return &quesma_api.Result{Meta: quesma_api.MakeNewMetadata(), GenericResult: req.OriginalRequest}, nil
+		metadata := quesma_api.MakeNewMetadata()
+		metadata[es_to_ch_common.Bypass] = true
+		return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	})
 
 	fc.AddRouter(router)
