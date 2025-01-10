@@ -16,11 +16,6 @@ type ElasticsearchQueryFrontendConnector struct {
 	*BasicHTTPFrontendConnector
 }
 
-const (
-	IndexURLParam = "index"
-	IdURLParam    = "id"
-)
-
 func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaConfiguration) *ElasticsearchQueryFrontendConnector {
 
 	basicHttpFrontendConnector := NewBasicHTTPFrontendConnector(endpoint, cfg)
