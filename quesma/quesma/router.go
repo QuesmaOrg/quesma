@@ -5,7 +5,6 @@ package quesma
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/goccy/go-json"
 	"net/http"
 	"quesma/clickhouse"
@@ -264,18 +263,14 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	})
 
-	handleMultiSearch := func(ctx context.Context, req *quesma_api.Request, index string, _ http.ResponseWriter) (*quesma_api.Result, error) {
-
-		for p, v := range req.Params {
-			fmt.Println("handle msearch params", p, v)
-		}
+	handleMultiSearch := func(ctx context.Context, req *quesma_api.Request, defaultIndexName string, _ http.ResponseWriter) (*quesma_api.Result, error) {
 
 		body, err := types.ExpectNDJSON(req.ParsedBody)
 		if err != nil {
 			return nil, err
 		}
 
-		responseBody, err := queryRunner.HandleMultiSearch(ctx, index, body)
+		responseBody, err := queryRunner.HandleMultiSearch(ctx, defaultIndexName, body)
 
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
@@ -294,7 +289,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 	}
 
-	router.Register(routes.IndexMsearchPath, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+	router.Register(routes.IndexMsearchPath, and(method("GET", "POST"), quesma_api.Always()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 		return handleMultiSearch(ctx, req, req.Params["index"], nil)
 	})
 
@@ -302,7 +297,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return handleMultiSearch(ctx, req, "", nil)
 	})
 
-	router.Register(routes.IndexMappingPath, and(method("GET", "PUT"), quesma_api.Always()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+	router.Register(routes.IndexMappingPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 
 		switch req.Method {
 

@@ -166,32 +166,26 @@ func (q *QueryRunner) HandleCount(ctx context.Context, indexPattern string) (int
 	}
 }
 
-func (q *QueryRunner) HandleMultiSearch(ctx context.Context, indexPattern string, body types.NDJSON) ([]byte, error) {
+func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName string, body types.NDJSON) ([]byte, error) {
 
 	type msearchQuery struct {
-		index string
-		query types.JSON
+		indexName string
+		query     types.JSON
 	}
 
 	var queries []msearchQuery
 
 	var currentQuery *msearchQuery
 
-	header := make(map[string]any)
-	header["index"] = indexPattern
-
 	for _, line := range body {
+
 		if currentQuery == nil {
 			currentQuery = &msearchQuery{}
 
-			for key, value := range line {
-				header[key] = value
-			}
-
-			if v, ok := header["index"].(string); ok {
-				currentQuery.index = v
+			if v, ok := line["index"].(string); ok {
+				currentQuery.indexName = v
 			} else {
-				return nil, fmt.Errorf("index parameter is not a string: '%v'", header["index"])
+				currentQuery.indexName = defaultIndexName
 			}
 		} else {
 
@@ -218,13 +212,15 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, indexPattern string
 
 	for _, query := range queries {
 
-		// TODO ask table resolver here and go to the right connector
+		// TODO ask table resolver here and go to the right connector or connectors
 
-		responseBody, err := q.HandleSearch(ctx, query.index, query.query)
+		responseBody, err := q.HandleSearch(ctx, query.indexName, query.query)
 
 		if err != nil {
 
 			var wrappedErr any
+
+			// TODO check if it's correct implementation
 
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				wrappedErr = &quesma_api.Result{StatusCode: http.StatusNotFound}
