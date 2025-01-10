@@ -11,6 +11,7 @@ package quesma
 import (
 	"context"
 	"math/rand"
+	"quesma/backend_connectors"
 	"quesma/logger"
 	"quesma/quesma/types"
 	"quesma/schema"
@@ -29,7 +30,8 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			if tt.QueryType == "script" {
 				t.Skip("Only 1 test. We can't deal with scripts inside queries yet. It fails very early, during JSON unmarshalling, so we can't even know the type of aggregation.")
 			}
-			db, _ := util.InitSqlMockWithPrettyPrint(t, false)
+			conn, _ := util.InitSqlMockWithPrettyPrint(t, false)
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			defer db.Close()
 
 			s := &schema.StaticRegistry{
@@ -100,7 +102,8 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 		testCounts[randInt]++
 	}
 
-	db, _ := util.InitSqlMockWithPrettyPrint(t, false)
+	conn, _ := util.InitSqlMockWithPrettyPrint(t, false)
+	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 	defer db.Close()
 
 	s := &schema.StaticRegistry{

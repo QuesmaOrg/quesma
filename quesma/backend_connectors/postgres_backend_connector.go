@@ -35,14 +35,47 @@ func (p *PostgresBackendConnector) Close() error {
 }
 
 func (p *PostgresBackendConnector) Query(ctx context.Context, query string, args ...interface{}) (quesma_api.Rows, error) {
-	return p.connection.Query(context.Background(), query, args...)
+	pgRows, err := p.connection.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return &PgRows{rows: pgRows}, nil
+}
+
+func (p *PostgresBackendConnector) QueryRow(ctx context.Context, query string, args ...interface{}) quesma_api.Row {
+	return p.connection.QueryRow(ctx, query, args...)
 }
 
 func (p *PostgresBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
 	if len(args) == 0 {
-		_, err := p.connection.Exec(context.Background(), query)
+		_, err := p.connection.Exec(ctx, query)
 		return err
 	}
-	_, err := p.connection.Exec(context.Background(), query, args...)
+	_, err := p.connection.Exec(ctx, query, args...)
 	return err
+}
+
+func (p *PostgresBackendConnector) Stats() quesma_api.DBStats {
+	return quesma_api.DBStats{}
+}
+
+type PgRows struct {
+	rows pgx.Rows
+}
+
+func (p *PgRows) Next() bool {
+	return p.rows.Next()
+}
+
+func (p *PgRows) Scan(dest ...interface{}) error {
+	return p.rows.Scan(dest...)
+}
+
+func (p *PgRows) Close() error {
+	p.rows.Close()
+	return nil
+}
+
+func (p *PgRows) Err() error {
+	return p.rows.Err()
 }

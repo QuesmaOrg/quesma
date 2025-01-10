@@ -221,6 +221,40 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		return HandleIndexAsyncSearch(ctx, req.Params["index"], query, waitForResultsMs, keepOnCompletion, queryRunner)
 	})
 
+	handleMultiSearch := func(ctx context.Context, req *quesma_api.Request, defaultIndexName string, _ http.ResponseWriter) (*quesma_api.Result, error) {
+
+		body, err := types.ExpectNDJSON(req.ParsedBody)
+		if err != nil {
+			return nil, err
+		}
+
+		responseBody, err := queryRunner.HandleMultiSearch(ctx, defaultIndexName, body)
+
+		if err != nil {
+			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
+				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
+			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
+				return &quesma_api.Result{
+					Body:          string(queryparser.BadRequestParseError(err)),
+					StatusCode:    http.StatusBadRequest,
+					GenericResult: queryparser.BadRequestParseError(err),
+				}, nil
+			} else {
+				return nil, err
+			}
+		}
+
+		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+	}
+
+	router.Register(routes.IndexMsearchPath, and(method("GET", "POST"), quesma_api.Always()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+		return handleMultiSearch(ctx, req, req.Params["index"], nil)
+	})
+
+	router.Register(routes.GlobalMsearchPath, and(method("GET", "POST"), quesma_api.Always()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+		return handleMultiSearch(ctx, req, "", nil)
+	})
+
 	router.Register(routes.IndexMappingPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 		index := req.Params["index"]
 		switch req.Method {

@@ -89,8 +89,12 @@ type Processor interface {
 type Rows interface {
 	Next() bool
 	Scan(dest ...interface{}) error
-	Close()
+	Close() error
 	Err() error
+}
+
+type Row interface {
+	Scan(dest ...interface{}) error
 }
 
 type BackendConnector interface {
@@ -99,8 +103,17 @@ type BackendConnector interface {
 	Open() error
 	// Query executes a query that returns rows, typically a SELECT.
 	Query(ctx context.Context, query string, args ...interface{}) (Rows, error)
-
+	QueryRow(ctx context.Context, query string, args ...interface{}) Row
 	// Exec executes a command that doesn't return rows, typically an INSERT, UPDATE, or DELETE.
 	Exec(ctx context.Context, query string, args ...interface{}) error
-	Close() error // TODO we should revisit returning error here
+	Stats() DBStats // smaller version of sql.DBStats
+	Close() error
+	Ping() error
+}
+
+// DBStats is a smaller version of sql.DBStats,
+// used (at least for now) to provide backwards compat with `sql.DB` interface primarily used in Quesma v1
+type DBStats struct {
+	MaxOpenConnections int
+	OpenConnections    int
 }
