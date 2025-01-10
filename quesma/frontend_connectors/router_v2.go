@@ -288,7 +288,7 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 			}
 
 			if msgBytes, ok := message.([]byte); !ok {
-				return result, fmt.Errorf("invalid message type: %T")
+				return result, fmt.Errorf("invalid message type: %v", message)
 			} else {
 				result = &quesma_api.Result{
 					Body:          string(msgBytes),
