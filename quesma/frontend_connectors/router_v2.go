@@ -15,6 +15,7 @@ import (
 	"quesma/end_user_errors"
 	"quesma/feature"
 	"quesma/logger"
+	"quesma/processors/es_to_ch_query"
 	"quesma/queryparser"
 	"quesma/quesma/config"
 	"quesma/quesma/gzip"
@@ -278,7 +279,7 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 
 			// Very dumb way to see what processor called eventually the handler, should eventually replace
 			// X-Quesma-Source which is no longer true in the V2 API realm
-			if realSource, ok := metadata["X-Real-Source"].(string); ok {
+			if realSource, ok := metadata[es_to_ch_query.RealSourceHeader].(string); ok {
 				logger.Info().Msgf("Request to %s, processor called [%s]", req.URL.Path, realSource)
 			}
 
