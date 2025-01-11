@@ -637,6 +637,7 @@ func (s *SchemaCheckPass) applyTimestampField(ctx context.Context, indexSchema s
 
 func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 	fmt.Println("KK TRANSF")
+	pp.Println(query)
 	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
 	if !ok {
 		logger.WarnWithCtx(ctx).Msgf("table %s not found", query.TableName)
@@ -655,11 +656,12 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 
 		// check if timestamp_field is ok
 		colRef, ok := e.Left.(model.ColumnRef)
+		fmt.Println("KK start 2", colRef, ok)
 		if !ok {
 			return visitChildren()
 		}
-		//fmt.Println("KK start 2", e)
 		field, ok := indexSchema.ResolveField(colRef.ColumnName)
+		fmt.Println("KK start 3", field, ok)
 		if !ok {
 			logger.WarnWithCtx(ctx).Msgf("field %s not found in schema for table %s", colRef.ColumnName, query.TableName)
 			return visitChildren()
@@ -669,7 +671,7 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 			logger.WarnWithCtx(ctx).Msgf("field %s not found in table %s", field.InternalPropertyName.AsString(), query.TableName)
 			return visitChildren()
 		}
-		//fmt.Println("KK start 3", e)
+		fmt.Println("KK start 3", e, col, ok)
 		isDatetime := col.IsDatetime()
 		isDateTime64 := col.IsDatetime64()
 		if !isDatetime && !isDateTime64 {
@@ -740,8 +742,9 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 		if !ok {
 			return visitChildren()
 		}
-		fmt.Println("KK f start 2", e)
+		fmt.Println("KK f start 2", e, colRef)
 		field, ok := indexSchema.ResolveField(colRef.ColumnName)
+		fmt.Println("KK f start 2.5", field, ok)
 		if !ok {
 			logger.WarnWithCtx(ctx).Msgf("field %s not found in schema for table %s", colRef.ColumnName, query.TableName)
 			return visitChildren()
@@ -1072,6 +1075,7 @@ func (s *SchemaCheckPass) Transform(ctx context.Context, queries []*model.Query)
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMappings},
 		{TransformationName: "AliasColumnsTransformation", Transformation: s.applyAliasColumns},
+		{TransformationName: "UnixTimestampToDateTimeTransformation", Transformation: s.applyTimestampFieldd},
 
 		// Section 2: generic schema based transformations
 		//
@@ -1082,7 +1086,6 @@ func (s *SchemaCheckPass) Transform(ctx context.Context, queries []*model.Query)
 		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
-		{TransformationName: "UnixTimestampToDateTimeTransformation", Transformation: s.applyTimestampFieldd},
 
 		// Section 3: clickhouse specific transformations
 		{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse},

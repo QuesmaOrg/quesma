@@ -91,14 +91,6 @@ func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLiteral(e)
 }
 
-type LiteralExprDontQuote struct {
-	Value any
-}
-
-func (e LiteralExprDontQuote) Accept(v ExprVisitor) interface{} {
-	return v.VisitLiteralDontQuote(e)
-}
-
 type TupleExpr struct {
 	Exprs []Expr
 }
@@ -145,10 +137,6 @@ type MillisecondsLiteral struct {
 
 func NewMillisecondsLiteral(timestampField ColumnRef, value int64) LiteralExpr {
 	return NewLiteral(MillisecondsLiteral{Value: value, TimestampField: timestampField})
-}
-
-func NewLiteralDontQuote(value any) LiteralExprDontQuote {
-	return LiteralExprDontQuote{Value: value}
 }
 
 // NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else
@@ -326,7 +314,6 @@ func (e CTE) Accept(v ExprVisitor) interface{} {
 type ExprVisitor interface {
 	VisitFunction(e FunctionExpr) interface{}
 	VisitLiteral(l LiteralExpr) interface{}
-	VisitLiteralDontQuote(l LiteralExprDontQuote) interface{}
 	VisitTuple(t TupleExpr) interface{}
 	VisitInfix(e InfixExpr) interface{}
 	VisitColumnRef(e ColumnRef) interface{}

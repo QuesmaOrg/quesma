@@ -770,8 +770,6 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 	const dateInSchemaExpected = true
 
 	for fieldName, v := range queryMap {
-		fieldName = ResolveField(cw.Ctx, fieldName, cw.Schema)
-
 		fieldType := cw.Table.GetDateTimeType(cw.Ctx, ResolveField(cw.Ctx, fieldName, cw.Schema), dateInSchemaExpected)
 		stmts := make([]model.Expr, 0)
 		if _, ok := v.(QueryMap); !ok {
@@ -806,7 +804,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 				if !areWeDoneParsing() && (op == "gte" || op == "lte" || op == "gt" || op == "lt") { // stage 2
 					parsed, err := cw.parseDateMathExpression(value)
 					if err == nil {
-						finalValue = model.NewLiteral(parsed)
+						finalValue = parsed
 					}
 				}
 				if !areWeDoneParsing() && isQuoted { // stage 3
