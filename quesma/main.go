@@ -10,19 +10,16 @@ import (
 	"os/signal"
 	"quesma/ab_testing"
 	"quesma/ab_testing/sender"
-	"quesma/backend_connectors"
 	"quesma/buildinfo"
 	"quesma/clickhouse"
 	"quesma/common_table"
 	"quesma/connectors"
 	"quesma/elasticsearch"
 	"quesma/feature"
-	"quesma/frontend_connectors"
 	"quesma/ingest"
 	"quesma/licensing"
 	"quesma/logger"
 	"quesma/persistence"
-	"quesma/processors/es_to_ch_ingest"
 	"quesma/quesma"
 	"quesma/quesma/async_search_storage"
 	"quesma/quesma/config"
@@ -31,7 +28,6 @@ import (
 	"quesma/table_resolver"
 	"quesma/telemetry"
 	"quesma/tracing"
-	"quesma_v2/core"
 	"runtime"
 	"syscall"
 	"time"
@@ -48,56 +44,9 @@ const banner = `
 
 const EnableConcurrencyProfiling = false
 
-// buildIngestOnlyQuesma is for now a helper function to help establishing the way of v2 module api import
-func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
-	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
-
-	ingestFrontendConnector := frontend_connectors.NewElasticsearchIngestFrontendConnector(":8080")
-
-	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
-	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
-
-	ingestProcessor := es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor(
-		config.QuesmaProcessorConfig{
-			UseCommonTable: false,
-			IndexConfig: map[string]config.IndexConfiguration{
-				"test_index":   {},
-				"test_index_2": {},
-				"tab1": {
-					UseCommonTable: true,
-				},
-				"tab2": {
-					UseCommonTable: true,
-				},
-				"*": {
-					IngestTarget: []string{config.ElasticsearchTarget},
-				},
-			},
-		},
-	)
-	ingestPipeline.AddProcessor(ingestProcessor)
-	quesmaBuilder.AddPipeline(ingestPipeline)
-
-	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector("clickhouse://localhost:9000")
-	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector(
-		config.ElasticsearchConfiguration{
-			Url:      &config.Url{Host: "localhost:9200", Scheme: "https"},
-			User:     "elastic",
-			Password: "quesmaquesma",
-		})
-	ingestPipeline.AddBackendConnector(clickHouseBackendConnector)
-	ingestPipeline.AddBackendConnector(elasticsearchBackendConnector)
-
-	quesmaInstance, err := quesmaBuilder.Build()
-	if err != nil {
-		log.Fatalf("error building quesma instance: %v", err)
-	}
-	return quesmaInstance
-}
-
 // Example of how to use the v2 module api in main function
 //func main() {
-//	q1 := buildIngestOnlyQuesma()
+//	q1 := buildQueryOnlyQuesma()
 //	q1.Start()
 //	stop := make(chan os.Signal, 1)
 //	<-stop

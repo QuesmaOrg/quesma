@@ -1,7 +1,7 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
 
-package main
+package quesma
 
 import (
 	"context"
@@ -78,7 +78,7 @@ var responses = [][]byte{
 }`),
 }
 
-func bulk(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+func bulkHandler(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 	_, err := frontend_connectors.ReadRequestBody(request.OriginalRequest)
 	if err != nil {
 		return nil, err
@@ -91,7 +91,7 @@ func bulk(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter)
 	return &quesma_api.Result{Meta: metadata, GenericResult: resp, StatusCode: 200}, nil
 }
 
-func doc(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+func docHandler(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 	_, err := frontend_connectors.ReadRequestBody(request.OriginalRequest)
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func doc(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) 
 
 var correlationId int64 = 0
 
-func search(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+func searchHandler(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 	metadata := quesma_api.MakeNewMetadata()
 	metadata["level"] = 0
 	atomic.AddInt64(&correlationId, 1)
