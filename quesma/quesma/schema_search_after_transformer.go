@@ -122,11 +122,10 @@ func (s searchAfterStrategyBulletproof) TransformHit(ctx context.Context, hit *m
 		return
 	}
 
-	queryProcessor := model.NewQueryProcessor(ctx)
 	hitTransformed.Sort = append(hitTransformed.Sort, rows[len(rows)-1].Cols[pkColIdx].Value)
 
 	// if current_row != last_row (we check only 'sortFieldNames' columns), we have only one "result" row added above
-	if len(rows) == 1 || !queryProcessor.SameSubsetOfColumns(rows[len(rows)-2], rows[len(rows)-1], sortFieldNames) {
+	if len(rows) == 1 || rows[len(rows)-1].SameSubsetOfColumns(&rows[len(rows)-2], sortFieldNames) {
 		return hitTransformed, 1
 	}
 
