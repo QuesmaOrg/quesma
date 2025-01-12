@@ -5,6 +5,7 @@ package queryparser
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"quesma/model"
 	"testing"
 )
 
@@ -33,12 +34,12 @@ func TestParseDateMathExpression(t *testing.T) {
 func Test_parseDateTimeInClickhouseMathLanguage(t *testing.T) {
 	exprs := map[string]string{
 		"now":          "now()",
-		"now-15m":      "subDate(now(), INTERVAL 15 minute)",
-		"now-15m+5s":   "addDate(subDate(now(), INTERVAL 15 minute), INTERVAL 5 second)",
+		"now-15m":      "subDate(now(),INTERVAL 15 minute)",
+		"now-15m+5s":   "addDate(subDate(now(),INTERVAL 15 minute),INTERVAL 5 second)",
 		"now-":         "now()",
-		"now-15m+/M":   "toStartOfMonth(subDate(now(), INTERVAL 15 minute))",
-		"now-15m/d":    "toStartOfDay(subDate(now(), INTERVAL 15 minute))",
-		"now-15m+5s/w": "toStartOfWeek(addDate(subDate(now(), INTERVAL 15 minute), INTERVAL 5 second))",
+		"now-15m+/M":   "toStartOfMonth(subDate(now(),INTERVAL 15 minute))",
+		"now-15m/d":    "toStartOfDay(subDate(now(),INTERVAL 15 minute))",
+		"now-15m+5s/w": "toStartOfWeek(addDate(subDate(now(),INTERVAL 15 minute),INTERVAL 5 second))",
 		"now-/Y":       "toStartOfYear(now())",
 	}
 
@@ -61,7 +62,7 @@ func Test_parseDateTimeInClickhouseMathLanguage(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, expected, resultExpr)
+			assert.Equal(t, expected, model.AsString(resultExpr))
 
 		})
 	}
@@ -102,13 +103,14 @@ func Test_DateMathExpressionAsLiteral(t *testing.T) {
 			renderer := DateMathExpressionRendererFactory(DateMathExpressionFormatLiteralTest)
 
 			resultExpr, err := renderer.RenderSQL(dt)
+
 			assert.NoError(t, err)
 
 			if err != nil {
 				return
 			}
 
-			assert.Equal(t, test.expected, resultExpr)
+			assert.Equal(t, test.expected, model.AsString(resultExpr))
 		})
 	}
 }

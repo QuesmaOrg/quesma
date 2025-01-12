@@ -256,5 +256,6 @@ func (b *DateMathExpressionAsLiteral) RenderSQL(expression *DateMathExpression) 
 		return nil, fmt.Errorf("unsupported rounding unit: %s", expression.rounding)
 	}
 
+	fmt.Println("result", result)
 	return model.NewLiteralSingleQuoteString(result.Format(format)), nil
 }

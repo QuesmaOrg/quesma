@@ -134,12 +134,16 @@ func TimestampGroupByWithTimezone(fullTimestampExpr model.Expr, timestampField m
 	fmt.Println("QQQ")
 
 	var offset model.Expr
-	offset = model.NewFunction(
-		"timeZoneOffset",
+	offset = model.NewInfixExpr(
 		model.NewFunction(
-			"toTimezone",
-			fullTimestampExpr, model.NewLiteralSingleQuoteString(timezone),
+			"timeZoneOffset",
+			model.NewFunction(
+				"toTimezone",
+				fullTimestampExpr, model.NewLiteralSingleQuoteString(timezone),
+			),
 		),
+		"*",
+		model.NewMillisecondsLiteral(timestampField, 1000),
 	)
 
 	unixTsWithOffset := model.NewInfixExpr(
