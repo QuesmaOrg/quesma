@@ -9,6 +9,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
+	"quesma/backend_connectors"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -95,7 +96,8 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 	}
 	tableResolver := table_resolver.NewEmptyTableResolver()
 	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, tableResolver)
-	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+	conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, util.NewSyncMapWith(testTableName, table))
 	s := schema.StaticRegistry{

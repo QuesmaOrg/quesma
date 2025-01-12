@@ -635,64 +635,197 @@ var AggregationTestsWithDates = []AggregationTestCase{
 			ORDER BY "aggr__0__key_0" ASC`,
 	},
 	{ // [4]
-		TestName: "simplest date_range",
+		TestName: "date_histogram add in-between rows, calendar_interval: >= month (regression test)",
 		QueryRequestJson: `
 		{
+			"size": 0,
 			"aggs": {
-				"2": {
-					"date_range": {
-						"field": "@timestamp",
-						"ranges": [
-							{},{"from": "now-2d/d", "to": "2024-12"},{"from": "now-3M/w"}
-						]
+				"sales_per_month": {
+					"date_histogram": {
+						"field": "date",
+						"calendar_interval": "month"
 					}
 				}
-			},
-			"size": 0,
-			"track_total_hits": true
+			}
 		}`,
 		ExpectedResponse: `
 		{
 			"aggregations": {
-				"2": {
+				"sales_per_month": {
 					"buckets": [
 						{
-							"key": "*-*",
-							"doc_count": 14074
+							"key_as_string": "2015-01-01T00:00:00.000",
+							"key": 1420070400000,
+							"doc_count": 3
 						},
 						{
-							"key": "2024-09-23T00:00:00.000Z-*",
-							"from": 1727049600000,
-							"from_as_string": "2024-09-23T00:00:00.000Z",
-							"doc_count": 14074
-						},
-						{
-							"key": "2024-12-26T00:00:00.000Z-2024-12-01T00:00:00.000Z",
-							"from": 1735171200000,
-							"from_as_string": "2024-12-26T00:00:00.000Z",
-							"to": 1733011200000,
-							"to_as_string": "2024-12-01T00:00:00.000Z",
+							"key_as_string": "2015-02-01T00:00:00.000",
+							"key": 1422748800000,
 							"doc_count": 0
+						},
+						{
+							"key_as_string": "2015-03-01T00:00:00.000",
+							"key": 1425168000000,
+							"doc_count": 0
+						},
+						{
+							"key_as_string": "2015-04-01T00:00:00.000",
+							"key": 1427846400000,
+							"doc_count": 0
+						},
+						{
+							"key_as_string": "2015-05-01T00:00:00.000",
+							"key": 1430438400000,
+							"doc_count": 0
+						},
+						{
+							"key_as_string": "2015-06-01T00:00:00.000",
+							"key": 1433116800000,
+							"doc_count": 0
+						},
+						{
+							"key_as_string": "2015-07-01T00:00:00.000",
+							"key": 1435708800000,
+							"doc_count": 2
 						}
 					]
 				}
 			}
 		}`,
-		ExpectedPancakeResults: []model.QueryResultRow{{
-			Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("range_0__aggr__2__count", int64(14074)),
-				model.NewQueryResultCol("range_1__aggr__2__count", int64(0)),
-				model.NewQueryResultCol("range_2__aggr__2__count", int64(14074)),
-				model.NewQueryResultCol("aggr__timeseries__count", int64(1)),
-			},
-		}},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sales_per_month__key_0", int64(1420070400000)),
+				model.NewQueryResultCol("aggr__sales_per_month__count", int64(3)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sales_per_month__key_0", int64(1422748800000)),
+				model.NewQueryResultCol("aggr__sales_per_month__count", int64(0)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sales_per_month__key_0", int64(1435708800000)),
+				model.NewQueryResultCol("aggr__sales_per_month__count", int64(2)),
+			}},
+		},
 		ExpectedPancakeSQL: `
-			SELECT countIf(true) AS "range_0__aggr__2__count",
-			  countIf(("@timestamp">=toStartOfDay(subDate(now(), INTERVAL 2 day)) AND
-			  "@timestamp"<fromUnixTimestamp64Milli(1733011200000))) AS
-			  "range_1__aggr__2__count",
-			  countIf("@timestamp">=toStartOfWeek(subDate(now(), INTERVAL 3 month))) AS
-			  "range_2__aggr__2__count"
-			FROM __quesma_table_name`,
+			SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("date", 'UTC'))))*1000
+			  AS "aggr__sales_per_month__key_0", count(*) AS "aggr__sales_per_month__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("date", 'UTC'))))*
+			  1000 AS "aggr__sales_per_month__key_0"
+			ORDER BY "aggr__sales_per_month__key_0" ASC`,
+	},
+	{ // [5]
+		TestName: "date_histogram add in-between rows, calendar_interval: >= month (regression test)",
+		QueryRequestJson: `
+		{
+			"size": 0,
+			"aggs": {
+				"sales_per_quarter": {
+					"date_histogram": {
+						"field": "date",
+						"calendar_interval": "quarter"
+					}
+				}
+			}
+		}`,
+		ExpectedResponse: `
+		{
+			"aggregations": {
+				"sales_per_quarter": {
+					"buckets": [
+						{
+							"key_as_string": "2015-01-01T00:00:00.000",
+							"key": 1420070400000,
+							"doc_count": 3
+						},
+						{
+							"key_as_string": "2015-04-01T00:00:00.000",
+							"key": 1427846400000,
+							"doc_count": 0
+						},
+						{
+							"key_as_string": "2015-07-01T00:00:00.000",
+							"key": 1435708800000,
+							"doc_count": 2
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sales_per_quarter__key_0", int64(1420070400000)),
+				model.NewQueryResultCol("aggr__sales_per_quarter__count", int64(3)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sales_per_quarter__key_0", int64(1435708800000)),
+				model.NewQueryResultCol("aggr__sales_per_quarter__count", int64(2)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("date", 'UTC'))))*
+			  1000 AS "aggr__sales_per_quarter__key_0",
+			  count(*) AS "aggr__sales_per_quarter__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("date", 'UTC'))))*
+			  1000 AS "aggr__sales_per_quarter__key_0"
+			ORDER BY "aggr__sales_per_quarter__key_0" ASC`,
+	},
+	{ // [6]
+		TestName: "date_histogram add in-between rows, calendar_interval: >= month (regression test)",
+		QueryRequestJson: `
+		{
+			"size": 0,
+			"aggs": {
+				"sales_per_year": {
+					"date_histogram": {
+						"field": "date",
+						"calendar_interval": "year"
+					}
+				}
+			}
+		}`,
+		ExpectedResponse: `
+		{
+			"aggregations": {
+				"sales_per_year": {
+					"buckets": [
+						{
+							"key_as_string": "2015-01-01T00:00:00.000",
+							"key": 1420070400000,
+							"doc_count": 3
+						},
+						{
+							"key_as_string": "2016-01-01T00:00:00.000",
+							"key": 1451606400000,
+							"doc_count": 0
+						},
+						{
+							"key_as_string": "2017-01-01T00:00:00.000",
+							"key": 1483228800000,
+							"doc_count": 2
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sales_per_year__key_0", int64(1420070400000)),
+				model.NewQueryResultCol("aggr__sales_per_year__count", int64(3)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sales_per_year__key_0", int64(1483228800000)),
+				model.NewQueryResultCol("aggr__sales_per_year__count", int64(2)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp(toStartOfYear(toTimezone("date", 'UTC'))))*1000
+			  AS "aggr__sales_per_year__key_0",
+			  count(*) AS "aggr__sales_per_year__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("date", 'UTC'))))*1000
+			  AS "aggr__sales_per_year__key_0"
+			ORDER BY "aggr__sales_per_year__key_0" ASC`,
 	},
 }

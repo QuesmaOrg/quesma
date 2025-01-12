@@ -1,11 +1,20 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package routes
 
-import (
-	"strings"
+package es_to_ch_common
+
+// Shared code for Elasticsearch to Clickhouse Query/Ingest processors
+
+const (
+	IndexPattern = "index_pattern"
+	PathPattern  = "path_pattern"
+	Id           = "id"
+
+	// Maybe to be removed, it's a dumb fallback handler
+	Bypass = "true"
 )
 
+// Copied from `quesma/v2/core/routes/paths.go` to temporarily avoid import cycle
 const (
 	GlobalSearchPath          = "/_search"
 	IndexSearchPath           = "/:index/_search"
@@ -28,32 +37,16 @@ const (
 	IndexPath                 = "/:index"
 	ExecutePainlessScriptPath = "/_scripts/painless/_execute" // This path is used on the Kibana side to evaluate painless scripts when adding a new scripted field.
 
-	IndexMsearchPath  = "/:index/_msearch"
-	GlobalMsearchPath = "/_msearch"
-
 	// Quesma internal paths
 
 	QuesmaTableResolverPath = "/:index/_quesma_table_resolver"
 )
 
-var notQueryPaths = []string{
-	"_bulk",
-	"_doc",
-	"_field_caps",
-	"_health",
-	"_resolve",
-	"_refresh",
-}
-
-func IsNotQueryPath(path string) bool {
-	for _, p := range notQueryPaths {
-		if strings.Contains(path, p) {
-			return true
-		}
-	}
-	return false
-}
-
-func IsQueryPath(path string) bool {
-	return !IsNotQueryPath(path)
-}
+const (
+	// RealSourceHeader is a header to determine what exactly processor has calld
+	RealSourceHeader        = "X-Backend-Called"
+	RealSourceClickHouse    = "CLICKHOUSE"
+	RealSourceElasticsearch = "ELASTICSEARCH"
+	RealSourceQuesma        = "NONE"  // if response is just processor's own rendered content, no DB is called
+	RealSourceMixed         = "MIXED" // e.g. in case of _resolve API
+)

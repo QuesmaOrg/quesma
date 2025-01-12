@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"quesma/backend_connectors"
 	"quesma/clickhouse"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -166,7 +167,8 @@ func TestIngestValidation(t *testing.T) {
 		Created: true,
 	})
 	for i := range inputJson {
-		db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+		conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 		ip := newIngestProcessorEmpty()
 		ip.chDb = db
 		ip.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)

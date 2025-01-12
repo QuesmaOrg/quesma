@@ -7,6 +7,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
+	"quesma/backend_connectors"
 	"quesma/clickhouse"
 	"quesma/common_table"
 	"quesma/jsonprocessor"
@@ -180,7 +181,8 @@ func TestIngestToCommonTable(t *testing.T) {
 
 			tables.Store(common_table.TableName, quesmaCommonTable)
 
-			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			conn, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			if err != nil {
 				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 			}

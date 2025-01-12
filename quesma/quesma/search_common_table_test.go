@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"quesma/ab_testing"
+	"quesma/backend_connectors"
 	"quesma/clickhouse"
 	"quesma/common_table"
 	"quesma/elasticsearch"
@@ -313,7 +314,8 @@ func TestSearchCommonTable(t *testing.T) {
 				t.Skip()
 			}
 
-			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			conn, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			if err != nil {
 				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 			}
