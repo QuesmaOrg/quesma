@@ -4,7 +4,6 @@ package clickhouse
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"quesma/end_user_errors"
 	"quesma/logger"
@@ -14,6 +13,7 @@ import (
 	"quesma/quesma/recovery"
 	"quesma/schema"
 	"quesma/util"
+	quesma_api "quesma_v2/core"
 	"quesma_v2/core/diag"
 	"slices"
 	"strings"
@@ -30,7 +30,7 @@ type (
 	LogManager struct {
 		ctx            context.Context
 		cancel         context.CancelFunc
-		chDb           *sql.DB
+		chDb           quesma_api.BackendConnector
 		tableDiscovery TableDiscovery
 		cfg            *config.QuesmaConfiguration
 		phoneHomeAgent diag.PhoneHomeClient
@@ -199,13 +199,12 @@ func (lm *LogManager) CountMultiple(ctx context.Context, tables ...string) (int6
 	for range len(tables) {
 		subCountStatements = append(subCountStatements, subcountStatement)
 	}
-
 	var count int64
 	var anyTables []any
 	for _, t := range tables {
 		anyTables = append(anyTables, t)
 	}
-	err := lm.chDb.QueryRowContext(ctx, fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL ")), anyTables...).Scan(&count)
+	err := lm.chDb.QueryRow(ctx, fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL ")), anyTables...).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
@@ -214,22 +213,22 @@ func (lm *LogManager) CountMultiple(ctx context.Context, tables ...string) (int6
 
 func (lm *LogManager) Count(ctx context.Context, table string) (int64, error) {
 	var count int64
-	err := lm.chDb.QueryRowContext(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
+	err := lm.chDb.QueryRow(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
 	return count, nil
 }
 
-func (lm *LogManager) executeRawQuery(query string) (*sql.Rows, error) {
-	if res, err := lm.chDb.Query(query); err != nil {
+func (lm *LogManager) executeRawQuery(query string) (quesma_api.Rows, error) {
+	if res, err := lm.chDb.Query(context.Background(), query); err != nil {
 		return nil, fmt.Errorf("error in executeRawQuery: query: %s\nerr:%v", query, err)
 	} else {
 		return res, nil
 	}
 }
 
-func (lm *LogManager) GetDB() *sql.DB {
+func (lm *LogManager) GetDB() quesma_api.BackendConnector {
 	return lm.chDb
 }
 
@@ -327,7 +326,7 @@ func (lm *LogManager) Ping() error {
 	return lm.chDb.Ping()
 }
 
-func NewEmptyLogManager(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent diag.PhoneHomeClient, loader TableDiscovery) *LogManager {
+func NewEmptyLogManager(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeAgent diag.PhoneHomeClient, loader TableDiscovery) *LogManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent}
 }
@@ -341,7 +340,7 @@ func NewLogManager(tables *TableMap, cfg *config.QuesmaConfiguration) *LogManage
 }
 
 // right now only for tests purposes
-func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
+func NewLogManagerWithConnection(db quesma_api.BackendConnector, tables *TableMap) *LogManager {
 	return &LogManager{chDb: db, tableDiscovery: NewTableDiscoveryWith(&config.QuesmaConfiguration{}, db, *tables),
 		phoneHomeAgent: diag.NewPhoneHomeEmptyAgent()}
 }

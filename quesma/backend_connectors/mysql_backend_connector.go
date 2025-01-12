@@ -22,11 +22,8 @@ func (p *MySqlRows) Scan(dest ...interface{}) error {
 	return p.rows.Scan(dest...)
 }
 
-func (p *MySqlRows) Close() {
-	err := p.rows.Close()
-	if err != nil {
-		panic(err)
-	}
+func (p *MySqlRows) Close() error {
+	return p.rows.Close()
 }
 
 func (p *MySqlRows) Err() error {
@@ -74,6 +71,10 @@ func (p *MySqlBackendConnector) Query(ctx context.Context, query string, args ..
 	return &MySqlRows{rows: rows}, nil
 }
 
+func (p *MySqlBackendConnector) QueryRow(ctx context.Context, query string, args ...interface{}) quesma_api.Row {
+	return p.connection.QueryRowContext(ctx, query, args...)
+}
+
 func (p *MySqlBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
 	if len(args) == 0 {
 		_, err := p.connection.ExecContext(context.Background(), query)
@@ -81,4 +82,16 @@ func (p *MySqlBackendConnector) Exec(ctx context.Context, query string, args ...
 	}
 	_, err := p.connection.ExecContext(context.Background(), query, args...)
 	return err
+}
+
+func (p *MySqlBackendConnector) Stats() quesma_api.DBStats {
+	stats := p.connection.Stats()
+	return quesma_api.DBStats{
+		MaxOpenConnections: stats.MaxOpenConnections,
+		OpenConnections:    stats.OpenConnections,
+	}
+}
+
+func (p *MySqlBackendConnector) Ping() error {
+	return nil
 }

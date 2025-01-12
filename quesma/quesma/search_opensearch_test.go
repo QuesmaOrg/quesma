@@ -6,6 +6,7 @@ import (
 	"context"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"quesma/backend_connectors"
 	"quesma/clickhouse"
 	"quesma/model"
 	"quesma/queryparser"
@@ -42,8 +43,9 @@ func TestSearchOpensearch(t *testing.T) {
 
 	for i, tt := range testdata.OpensearchSearchTests {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
-			defer db.Close()
+			conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+			defer conn.Close()
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
 			cw := queryparser.ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: s.Tables[tableName], Config: &DefaultConfig}
@@ -185,8 +187,9 @@ func TestHighlighter(t *testing.T) {
 			tableName: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
-	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-	defer db.Close()
+	conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+	defer conn.Close()
+	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 	// careful, it's not always in this order, order is nondeterministic
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"message$*%:;", "host.name", "@timestamp"}).
