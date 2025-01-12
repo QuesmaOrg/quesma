@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/backend_connectors"
 	"quesma/clickhouse"
+	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -552,6 +553,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		Cols: map[string]*clickhouse.Column{
 			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime")},
 			"timestamp64": {Name: "timestamp64", Type: clickhouse.NewBaseType("DateTime64")},
+			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
 	}
 	query := func(fieldName string) string {
@@ -620,6 +622,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 									ORDER BY "aggr__0__key_0" ASC`,
 	}
 
+	logger.InitSimpleLoggerForTestsWarnLevel()
 	conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 	defer conn.Close()
 	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)

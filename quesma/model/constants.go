@@ -9,4 +9,11 @@ const (
 
 	DateHourFunction = "__quesma_date_hour"
 	MatchOperator    = "__quesma_match"
+
+	FromUnixTimestampMs                               = "__quesma_from_unix_timestamp_ms"
+	ToUnixTimestampMs                                 = "__quesma_to_unix_timestamp_ms"
+	ClickhouseFromUnixTimestampMsToDatetime64Function = "fromUnixTimestamp64Milli"
+	ClickhouseFromUnixTimestampMsToDatetimeFunction   = "fromUnixTimestamp"
+	ClickhouseToUnixTimestampMsFromDatetime64Function = "toUnixTimestamp64Milli"
+	ClickhouseToUnixTimestampMsFromDatetimeFunction   = "toUnixTimestamp"
 )

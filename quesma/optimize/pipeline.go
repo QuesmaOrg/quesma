@@ -3,6 +3,7 @@
 package optimize
 
 import (
+	"context"
 	"quesma/model"
 	"quesma/quesma/config"
 	"strings"
@@ -74,7 +75,7 @@ func (s *OptimizePipeline) findConfig(transformer OptimizeTransformer, queries [
 	return !transformer.IsEnabledByDefault(), make(map[string]string)
 }
 
-func (s *OptimizePipeline) Transform(queries []*model.Query) ([]*model.Query, error) {
+func (s *OptimizePipeline) Transform(ctx context.Context, queries []*model.Query) ([]*model.Query, error) {
 
 	if len(queries) == 0 {
 		return queries, nil
