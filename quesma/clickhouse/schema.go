@@ -291,6 +291,7 @@ func (col *Column) String() string {
 	return fmt.Sprintf("%s %s", col.Name, col.Type.String())
 }
 
+// IsDatetime <=> is it DateTime or Date (but NOT DateTime64)
 func (col *Column) IsDatetime() bool {
 	isDatetime := strings.HasPrefix(col.Type.String(), "DateTime") || strings.HasPrefix(col.Type.String(), "Date")
 	isDatetime64 := strings.HasPrefix(col.Type.String(), "DateTime64")
