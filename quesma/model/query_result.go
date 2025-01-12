@@ -11,6 +11,7 @@ import (
 	"quesma/schema"
 	"quesma/util"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 )
@@ -119,33 +120,25 @@ func (r *QueryResultRow) LastColValue() any {
 	return r.Cols[len(r.Cols)-1].Value
 }
 
-// SameSubsetOfColumns returns if row1 and row2 have the same values for columns with names in colNames
-// They are results of the same query, so we can assume that the columns are in the same order (and of the same length)
-func (qp *QueryProcessor) SameSubsetOfColumns(row1, row2 QueryResultRow, colNames []string) bool {
-	isArray := func(val interface{}) bool {
-		if val == nil {
-			return false
-		}
-		v := reflect.ValueOf(val)
-		return v.Kind() == reflect.Slice || v.Kind() == reflect.Array
-	}
+// SameSubsetOfColumns returns if r and other have the same values for columns with names in colNames
+// They are results of the same query, so we can assume that the columns are in the same order.
+func (r *QueryResultRow) SameSubsetOfColumns(other *QueryResultRow, colNames []string) bool {
+	for i := range min(len(r.Cols), len(other.Cols)) {
+		if slices.Contains(colNames, r.Cols[i].ColName) {
+			isArray1 := r.Cols[i].isArray()
+			isArray2 := other.Cols[i].isArray()
 
-	for i := range min(len(row1.Cols), len(row2.Cols)) {
-		val1 := row1.Cols[i].Value
-		val2 := row2.Cols[i].Value
-		isArray1 := isArray(val1)
-		isArray2 := isArray(val2)
-
-		if !isArray1 && !isArray2 {
-			if row1.Cols[i].ExtractValue(qp.ctx) != row2.Cols[i].ExtractValue(qp.ctx) {
+			if !isArray1 && !isArray2 {
+				if r.Cols[i].ExtractValue() != other.Cols[i].ExtractValue() {
+					return false
+				}
+			} else if isArray1 && isArray2 {
+				if !reflect.DeepEqual(r.Cols[i].Value, other.Cols[i].Value) {
+					return false
+				}
+			} else {
 				return false
 			}
-		} else if isArray1 && isArray2 {
-			if !reflect.DeepEqual(val1, val2) {
-				return false
-			}
-		} else {
-			return false
 		}
 	}
 	return true
@@ -183,7 +176,7 @@ func SplitResultSetIntoBuckets(ResultSet []QueryResultRow, N int) [][]QueryResul
 	lastRow := ResultSet[0]
 	buckets := [][]QueryResultRow{{lastRow}}
 	for _, row := range ResultSet[1:] {
-		if row.firstNColumnsHaveSameValues(lastRow, N) {
+		if row.firstNColumnsHaveSameValues(&lastRow, N) {
 			buckets[len(buckets)-1] = append(buckets[len(buckets)-1], row)
 		} else {
 			buckets = append(buckets, []QueryResultRow{row})
