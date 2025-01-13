@@ -37,10 +37,10 @@ type Hits struct {
 }
 
 func NewHits(ctx context.Context, table *clickhouse.Table, highlighter *model.Highlighter,
-	sortFieldNames []string, addSource, addScore, addVersion bool, indexes []string) Hits {
+	searchAfterStrategy model.SearchAfterStrategy, sortFieldNames []string, addSource, addScore, addVersion bool, indexes []string) Hits {
 
-	return Hits{ctx: ctx, table: table, highlighter: highlighter, sortFieldNames: sortFieldNames,
-		addSource: addSource, addScore: addScore, addVersion: addVersion, indexes: indexes}
+	return Hits{ctx: ctx, table: table, highlighter: highlighter, searchAfterStrategy: searchAfterStrategy,
+		sortFieldNames: sortFieldNames, addSource: addSource, addScore: addScore, addVersion: addVersion, indexes: indexes}
 }
 
 const (
@@ -101,10 +101,17 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 			}
 		}
 
+		fmt.Println("QQ", query.ctx, hit, query.table.PrimaryKey, rows[:i], lastNRowsSameSortValues, query.searchAfterStrategy)
+		fmt.Printf("QQ %T\n", query.searchAfterStrategy)
 		hit, lastNRowsSameSortValues = query.searchAfterStrategy.TransformHit(query.ctx, hit,
-			query.table.PrimaryKey, query.sortFieldNames, rows[:i], lastNRowsSameSortValues)
+			query.table.PrimaryKey, query.sortFieldNames, rows[:i+1], lastNRowsSameSortValues)
 
+		fmt.Println("transformed hit, last N:", lastNRowsSameSortValues, hit, "sort:", hit.Sort)
 		hits = append(hits, *hit)
+	}
+	fmt.Println("hits:", len(hits))
+	for i, hit := range hits {
+		fmt.Println("hit", i, hit.Sort)
 	}
 
 	return model.JsonMap{

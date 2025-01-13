@@ -125,8 +125,10 @@ func (r *QueryResultRow) LastColValue() any {
 func (r *QueryResultRow) SameSubsetOfColumns(other *QueryResultRow, colNames []string) bool {
 	for i := range min(len(r.Cols), len(other.Cols)) {
 		if slices.Contains(colNames, r.Cols[i].ColName) {
+			fmt.Println("cols comp:", r.Cols[i].ColName, r.Cols[i].Value, other.Cols[i].Value)
 			isArray1 := r.Cols[i].isArray()
 			isArray2 := other.Cols[i].isArray()
+			fmt.Println(r.Cols[i].ExtractValue(), other.Cols[i].ExtractValue(), r.Cols[i].ExtractValue() == other.Cols[i].ExtractValue(), "isArr:", isArray2, isArray1)
 
 			if !isArray1 && !isArray2 {
 				if r.Cols[i].ExtractValue() != other.Cols[i].ExtractValue() {

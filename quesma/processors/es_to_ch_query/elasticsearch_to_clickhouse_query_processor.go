@@ -16,6 +16,7 @@ import (
 	"quesma/common_table"
 	"quesma/elasticsearch"
 	"quesma/logger"
+	"quesma/model"
 	"quesma/persistence"
 	"quesma/processors"
 	"quesma/processors/es_to_ch_common"
@@ -105,7 +106,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor
 
 	dummyTableResolver := table_resolver.NewDummyTableResolver()
 
-	queryRunner := quesm.NewQueryRunner(logManager, oldQuesmaConfig, nil, nil, schemaRegistry, nil, dummyTableResolver, tableDisco)
+	queryRunner := quesm.NewQueryRunner(logManager, oldQuesmaConfig, nil, nil, schemaRegistry, nil, dummyTableResolver, tableDisco, model.DefaultSearchAfterStrategy)
 	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
 
 	return queryRunner

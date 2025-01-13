@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/backend_connectors"
 	"quesma/clickhouse"
+	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -972,21 +973,20 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 	sub := func(secondsFromSomeTime int) time.Time {
 		return someTime.Add(time.Second * time.Duration(-secondsFromSomeTime))
 	}
-	iterations := []struct {
-		request                              string
-		resultRowsFromDB                     [][]any
-		expectedSQLBasicAndFast              string
-		expectedSQLBulletproof               string
-		expectedSortFieldsPerHitBasicAndFast [][]any
-		expectedSortFieldsPerHitBulletproof  [][]any
-	}{
+
+	type Iteration struct {
+		request                  string
+		expectedSQL              string
+		resultRowsFromDB         [][]any
+		expectedSortFieldsPerHit [][]any
+	}
+
+	iterationsBasicAndFast := []Iteration{
 		{
-			request:                              `{"size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
-			resultRowsFromDB:                     [][]any{{someTime, "m1"}, {someTime, "m2"}, {someTime, "m3"}},
-			expectedSQLBasicAndFast:              `SELECT "@timestamp", "message" FROM __quesma_table_name ORDER BY "@timestamp" DESC LIMIT 3`,
-			expectedSQLBulletproof:               `SELECT "@timestamp", "message" FROM __quesma_table_name ORDER BY "@timestamp" DESC LIMIT 3`,
-			expectedSortFieldsPerHitBasicAndFast: [][]any{{someTime.UnixMilli()}, {someTime.UnixMilli()}, {someTime.UnixMilli()}},
-			expectedSortFieldsPerHitBulletproof:  [][]any{{someTime.UnixMilli(), "m1", "m1", "m2", "m3"}, {someTime.UnixMilli(), "m2"}, {someTime.UnixMilli(), "m3"}},
+			request:                  `{"size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
+			expectedSQL:              `SELECT "@timestamp", "message" FROM __quesma_table_name ORDER BY "@timestamp" DESC LIMIT 3`,
+			resultRowsFromDB:         [][]any{{someTime, "m1"}, {someTime, "m2"}, {someTime, "m3"}},
+			expectedSortFieldsPerHit: [][]any{{someTime.UnixMilli()}, {someTime.UnixMilli()}, {someTime.UnixMilli()}},
 		},
 		{
 			request: `
@@ -999,42 +999,63 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 						{"_doc": {"unmapped_type": "boolean", "order": "desc"}}
 					]
 				}`,
-			expectedSQLBasicAndFast:              `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896491)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
-			resultRowsFromDB:                     [][]any{{sub(1), "m8"}, {sub(2), "m9"}, {sub(3), "m10"}},
-			expectedSortFieldsPerHitBasicAndFast: [][]any{{sub(1).UnixMilli()}, {sub(2).UnixMilli()}, {sub(3).UnixMilli()}},
+			expectedSQL:              `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896491)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
+			resultRowsFromDB:         [][]any{{sub(1), "m8"}, {sub(2), "m9"}, {sub(3), "m10"}},
+			expectedSortFieldsPerHit: [][]any{{sub(1).UnixMilli()}, {sub(2).UnixMilli()}, {sub(3).UnixMilli()}},
 		},
 		{
-			request:                              `{"search_after": [1706551896488], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
-			expectedSQLBasicAndFast:              `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896488)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
-			resultRowsFromDB:                     [][]any{{sub(4), "m11"}, {sub(5), "m12"}, {sub(6), "m13"}},
-			expectedSortFieldsPerHitBasicAndFast: [][]any{{sub(4).UnixMilli()}, {sub(5).UnixMilli()}, {sub(6).UnixMilli()}},
+			request:                  `{"search_after": [1706551896488], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
+			expectedSQL:              `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896488)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
+			resultRowsFromDB:         [][]any{{sub(4), "m11"}, {sub(5), "m12"}, {sub(6), "m13"}},
+			expectedSortFieldsPerHit: [][]any{{sub(4).UnixMilli()}, {sub(5).UnixMilli()}, {sub(6).UnixMilli()}},
 		},
 		{
-			request:                              `{"search_after": [1706551896485], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
-			expectedSQLBasicAndFast:              `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896485)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
-			resultRowsFromDB:                     [][]any{{sub(7), "m14"}, {sub(8), "m15"}, {sub(9), "m16"}},
-			expectedSortFieldsPerHitBasicAndFast: [][]any{{sub(7).UnixMilli()}, {sub(8).UnixMilli()}, {sub(9).UnixMilli()}},
+			request:                  `{"search_after": [1706551896485], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
+			expectedSQL:              `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896485)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
+			resultRowsFromDB:         [][]any{{sub(7), "m14"}, {sub(8), "m15"}, {sub(9), "m16"}},
+			expectedSortFieldsPerHit: [][]any{{sub(7).UnixMilli()}, {sub(8).UnixMilli()}, {sub(9).UnixMilli()}},
 		},
 	}
+	iterationsBulletproof := []Iteration{
+		{
+			request:                  `{"size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
+			expectedSQL:              `SELECT "@timestamp", "message" FROM __quesma_table_name ORDER BY "@timestamp" DESC LIMIT 3`,
+			resultRowsFromDB:         [][]any{{someTime, "m1"}, {someTime, "m2"}, {someTime, "m3"}},
+			expectedSortFieldsPerHit: [][]any{{someTime.UnixMilli(), "m1"}, {someTime.UnixMilli(), "m2", "m1"}, {someTime.UnixMilli(), "m3", "m2", "m1"}},
+		},
+		{
+			request: `
+				{
+					"search_after": [1706551896491, "m3", "m2", "m1"],
+					"size": 3,
+					"track_total_hits": false,
+					"sort": [
+						{"@timestamp": {"order": "desc", "format": "strict_date_optional_time", "unmapped_type": "boolean"}},
+						{"_doc": {"unmapped_type": "boolean", "order": "desc"}}
+					]
+				}`,
+			expectedSQL:              `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE (fromUnixTimestamp64Milli(1706551896491)>"@timestamp" OR (fromUnixTimestamp64Milli(1706551896491)="@timestamp" AND "message" NOT IN tuple('m3', 'm2', 'm1'))) ORDER BY "@timestamp" DESC LIMIT 3`,
+			resultRowsFromDB:         [][]any{{someTime, "m4"}, {someTime, "m5"}, {someTime, "m6"}},
+			expectedSortFieldsPerHit: [][]any{{someTime.UnixMilli(), "m4"}, {someTime.UnixMilli(), "m5", "m4"}, {someTime.UnixMilli(), "m6", "m5", "m4"}},
+		},
+	}
+	_ = iterationsBulletproof
 
-	test := func(strategy model.SearchAfterStrategy, dateTimeType string, handlerName string) {
+	logger.InitSimpleLoggerForTestsWarnLevel()
+	test := func(strategy model.SearchAfterStrategyType, iterations []Iteration, dateTimeType string, handlerName string) {
 		conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 		defer conn.Close()
 		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
-		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
+		queryRunner := NewQueryRunnerDefaultForTestsWithSearchAfter(db, &DefaultConfig, tableName, tab, staticRegistry, strategy)
 
-		for _, iteration := range iterations[:1] {
+		fmt.Printf("Test, strategy: %T\n", strategy)
+
+		for _, iteration := range iterations[:2] {
 			rows := sqlmock.NewRows([]string{"@timestamp", "message"})
 			for _, row := range iteration.resultRowsFromDB {
 				rows.AddRow(row[0], row[1])
 			}
-			expectedSQL := "random string to return error for new strategy"
-			if _, ok := strategy.(searchAfterStrategyBasicAndFast); ok {
-				expectedSQL = iteration.expectedSQLBasicAndFast
-			} else if _, ok = strategy.(searchAfterStrategyBulletproof); ok {
-				expectedSQL = iteration.expectedSQLBulletproof
-			}
-			mock.ExpectQuery(expectedSQL).WillReturnRows(rows)
+			mock.ExpectQuery(iteration.expectedSQL).WillReturnRows(rows)
 
 			var (
 				response                  []byte
@@ -1049,6 +1070,7 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 			default:
 				t.Fatalf("Unknown handler name: %s", handlerName)
 			}
+			fmt.Println("KK", response, err)
 			assert.NoError(t, err)
 			err = json.Unmarshal(response, &responseMap)
 			assert.NoError(t, err)
@@ -1061,17 +1083,16 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 			hits := responsePart["hits"].(model.JsonMap)["hits"].([]any)
 			assert.Len(t, hits, len(iteration.resultRowsFromDB))
 
-			var expectedSortFieldsPerHit [][]any
-			if _, ok := strategy.(searchAfterStrategyBasicAndFast); ok {
-				expectedSortFieldsPerHit = iteration.expectedSortFieldsPerHitBasicAndFast
-			} else if _, ok = strategy.(searchAfterStrategyBulletproof); ok {
-				expectedSortFieldsPerHit = iteration.expectedSortFieldsPerHitBulletproof
-			}
 			for i, hit := range hits {
 				sortFields := hit.(model.JsonMap)["sort"].([]any)
-				assert.Len(t, sortFields, len(expectedSortFieldsPerHit[i]))
+				fmt.Println("sortFields", sortFields, "expected:", iteration.expectedSortFieldsPerHit[i])
+				assert.Len(t, sortFields, len(iteration.expectedSortFieldsPerHit[i]))
 				for j, sortField := range sortFields {
-					assert.Equal(t, float64(expectedSortFieldsPerHit[i][j].(int64)), sortField.(float64))
+					if _, ok := iteration.expectedSortFieldsPerHit[i][j].(int64); ok {
+						assert.Equal(t, float64(iteration.expectedSortFieldsPerHit[i][j].(int64)), sortField.(float64))
+					} else {
+						assert.Equal(t, iteration.expectedSortFieldsPerHit[i][j], sortField)
+					}
 				}
 			}
 		}
@@ -1082,13 +1103,16 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 	}
 
 	//strategies := []model.SearchAfterStrategy{searchAfterStrategyFactory(model.BasicAndFast), searchAfterStrategyFactory(model.Bulletproof)}
-	strategies := []model.SearchAfterStrategy{searchAfterStrategyFactory(model.Bulletproof)}
+	strategies := map[model.SearchAfterStrategyType][]Iteration{
+		model.BasicAndFast: iterationsBasicAndFast,
+		model.Bulletproof:  iterationsBulletproof,
+	}
 	//handlers := []string{"handleSearch", "handleAsyncSearch"}
 	handlers := []string{"handleSearch"}
-	for _, strategy := range strategies {
+	for strategy, iterations := range strategies {
 		for _, handlerName := range handlers {
-			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
-				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
+			t.Run(fmt.Sprintf("TestSearchAfterParameter:%s/%s", handlerName, strategy.String()), func(t *testing.T) {
+				test(strategy, iterations, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
 			})
 		}
 	}

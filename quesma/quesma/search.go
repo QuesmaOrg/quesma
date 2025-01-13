@@ -92,7 +92,8 @@ func NewQueryRunner(lm clickhouse.LogManagerIFace,
 	schemaRegistry schema.Registry,
 	abResultsRepository ab_testing.Sender,
 	resolver table_resolver.TableResolver,
-	tableDiscovery clickhouse.TableDiscovery) *QueryRunner {
+	tableDiscovery clickhouse.TableDiscovery,
+	searchAfterStrategy model.SearchAfterStrategyType) *QueryRunner {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -101,14 +102,14 @@ func NewQueryRunner(lm clickhouse.LogManagerIFace,
 		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemory(),
 		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
 		transformationPipeline: TransformationPipeline{
-			transformers: []model.QueryTransformer{NewSchemaCheckPass(cfg, tableDiscovery, model.DefaultSearchAfterStrategy)},
+			transformers: []model.QueryTransformer{NewSchemaCheckPass(cfg, tableDiscovery, searchAfterStrategy)},
 		},
 		schemaRegistry:      schemaRegistry,
 		ABResultsSender:     abResultsRepository,
 		tableResolver:       resolver,
 		tableDiscovery:      tableDiscovery,
 		maxParallelQueries:  maxParallelQueries,
-		SearchAfterStrategy: model.DefaultSearchAfterStrategy,
+		SearchAfterStrategy: searchAfterStrategy,
 	}
 }
 
@@ -143,7 +144,33 @@ func NewQueryRunnerDefaultForTests(db quesma_api.BackendConnector, cfg *config.Q
 
 	go managementConsole.RunOnlyChannelProcessor()
 
-	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
+	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery, model.DefaultSearchAfterStrategy)
+}
+
+func NewQueryRunnerDefaultForTestsWithSearchAfter(db quesma_api.BackendConnector, cfg *config.QuesmaConfiguration,
+	tableName string, tables *clickhouse.TableMap, staticRegistry *schema.StaticRegistry, searchAfterStrategy model.SearchAfterStrategyType) *QueryRunner {
+
+	lm := clickhouse.NewLogManagerWithConnection(db, tables)
+	logChan := logger.InitOnlyChannelLoggerForTests()
+
+	resolver := table_resolver.NewEmptyTableResolver()
+	resolver.Decisions[tableName] = &quesma_api.Decision{
+		UseConnectors: []quesma_api.ConnectorDecision{
+			&quesma_api.ConnectorDecisionClickhouse{
+				ClickhouseTableName: tableName,
+				ClickhouseIndexes:   []string{tableName},
+			},
+		},
+	}
+
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tables
+
+	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
+
+	go managementConsole.RunOnlyChannelProcessor()
+
+	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery, searchAfterStrategy)
 }
 
 // HandleCount returns -1 when table name could not be resolved
@@ -552,7 +579,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		table = commonTable
 	}
 
-	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes, q.cfg)
+	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer,
+		searchAfterStrategyFactory(q.SearchAfterStrategy), resolvedIndexes, q.cfg)
 
 	plan, err := queryTranslator.ParseQuery(body)
 

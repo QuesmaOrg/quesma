@@ -11,6 +11,7 @@ import (
 	"quesma/common_table"
 	"quesma/elasticsearch"
 	"quesma/logger"
+	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
@@ -328,7 +329,7 @@ func TestSearchCommonTable(t *testing.T) {
 				mock.ExpectQuery(query).WillReturnRows(rows)
 			}
 
-			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
+			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery, model.DefaultSearchAfterStrategy)
 			queryRunner.maxParallelQueries = 0
 
 			_, err = queryRunner.HandleSearch(ctx, tt.IndexPattern, types.MustJSON(tt.QueryJson))
