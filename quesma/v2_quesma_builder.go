@@ -9,8 +9,8 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_ingest"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_query"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
 	"log"
-	quesma_api "quesma_v2/core"
 )
 
 // BuildNewQuesma creates a new quesma instance with both Ingest And Query Processors, unused yet

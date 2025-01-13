@@ -16,8 +16,8 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/testdata"
 	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/v2/core/tracing"
 	"math/rand"
-	tracing "quesma_v2/core/tracing"
 	"testing"
 )
 

@@ -6,8 +6,8 @@ package backend_connectors
 import (
 	"context"
 	"database/sql"
+	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
 	_ "github.com/go-sql-driver/mysql"
-	quesma_api "quesma_v2/core"
 )
 
 type MySqlRows struct {

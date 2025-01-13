@@ -18,10 +18,10 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
-	"quesma_v2/core/diag"
-	tracing "quesma_v2/core/tracing"
 	"regexp"
 	"testing"
 )

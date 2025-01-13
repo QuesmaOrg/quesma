@@ -8,7 +8,7 @@ import (
 	"database/sql"
 	"github.com/ClickHouse/clickhouse-go/v2"
 
-	quesma_api "quesma_v2/core"
+	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
 )
 
 type ClickHouseBackendConnector struct {

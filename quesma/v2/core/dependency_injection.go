@@ -4,7 +4,7 @@ package quesma_api
 
 import (
 	"fmt"
-	"quesma_v2/core/diag"
+	"github.com/QuesmaOrg/quesma/v2/core/diag"
 )
 
 type Dependencies interface {

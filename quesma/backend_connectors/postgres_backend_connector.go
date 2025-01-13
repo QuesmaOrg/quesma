@@ -5,8 +5,8 @@ package backend_connectors
 
 import (
 	"context"
+	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
 	"github.com/jackc/pgx/v4"
-	quesma_api "quesma_v2/core"
 )
 
 type PostgresBackendConnector struct {

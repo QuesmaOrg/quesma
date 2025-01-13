@@ -6,8 +6,8 @@ package processors
 import (
 	"context"
 	"fmt"
+	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
 	"github.com/google/uuid"
-	quesma_api "quesma_v2/core"
 )
 
 type MySqlIngestProcessor struct {

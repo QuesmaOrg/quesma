@@ -9,10 +9,10 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
+	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/v2/core/diag"
 	"io"
 	"net/http"
-	quesma_api "quesma_v2/core"
-	"quesma_v2/core/diag"
 	"sync"
 )
 

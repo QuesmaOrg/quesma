@@ -4,9 +4,9 @@ package quesma_api
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/v2/core/tracing"
 	"github.com/rs/zerolog"
 	"os"
-	"quesma_v2/core/tracing"
 	"time"
 )
 
