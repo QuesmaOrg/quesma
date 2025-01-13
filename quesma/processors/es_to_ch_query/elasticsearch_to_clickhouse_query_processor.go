@@ -22,7 +22,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/telemetry"
-	"github.com/ucarion/urlpath"
 	"io"
 	"net/http"
 	"net/url"

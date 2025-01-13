@@ -5,7 +5,6 @@ package stats
 import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/jsonprocessor"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"sort"
 	"strconv"

@@ -5,6 +5,7 @@ package quesma
 import (
 	"context"
 	"errors"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
@@ -13,8 +14,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/errors"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/bulk"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/doc"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
