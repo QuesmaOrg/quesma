@@ -3,8 +3,8 @@
 package model
 
 import (
-	"quesma/painful"
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/painful"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"time"
 )
 
@@ -64,6 +64,7 @@ type (
 		Schema schema.Schema
 
 		Highlighter Highlighter
+		SearchAfter any // Value of query's "search_after" param. Used for pagination of hits. SearchAfterEmpty means no pagination
 
 		RuntimeMappings map[string]RuntimeMapping
 
@@ -83,6 +84,8 @@ type (
 		String() string
 	}
 )
+
+var SearchAfterEmpty any = nil
 
 // RuntimeMapping is a mapping of a field to a runtime expression
 type RuntimeMapping struct {
@@ -155,12 +158,13 @@ func (queryType HitsInfo) String() string {
 }
 
 type HitsCountInfo struct {
-	Typ             HitsInfo
+	Type            HitsInfo
 	RequestedFields []string
 	Size            int // how many hits to return
 	TrackTotalHits  int // >= 0: we want this nr of total hits, TrackTotalHitsTrue: it was "true", TrackTotalHitsFalse: it was "false", in the request
+	SearchAfter     any // Value of query's "search_after" param. Used for pagination of hits. SearchAfterEmpty means no pagination
 }
 
 func NewEmptyHitsCountInfo() HitsCountInfo {
-	return HitsCountInfo{Typ: Normal}
+	return HitsCountInfo{Type: Normal}
 }

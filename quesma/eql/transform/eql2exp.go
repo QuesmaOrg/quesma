@@ -4,7 +4,7 @@ package transform
 
 import (
 	"fmt"
-	"quesma/eql/parser"
+	"github.com/QuesmaOrg/quesma/quesma/eql/parser"
 	"strconv"
 	"strings"
 )

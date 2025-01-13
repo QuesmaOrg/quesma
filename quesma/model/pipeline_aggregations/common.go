@@ -4,9 +4,9 @@ package pipeline_aggregations
 
 import (
 	"context"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 )
 
 // translateSqlResponseToJsonCommon translates rows from DB (maybe postprocessed later), into JSON's format in which
@@ -43,11 +43,10 @@ func calculateResultWhenMissingCommonForDiffAggregations(ctx context.Context, pa
 		if row.LastColValue() != nil {
 			firstNonNilIndex = i + rowsWithNilValueCnt
 			break
-		} else {
-			resultRow := row.Copy()
-			resultRow.Cols[len(resultRow.Cols)-1].Value = nil
-			resultRows = append(resultRows, resultRow)
 		}
+		resultRow := row.Copy()
+		resultRow.Cols[len(resultRow.Cols)-1].Value = nil
+		resultRows = append(resultRows, resultRow)
 	}
 	if firstNonNilIndex == -1 {
 		return resultRows

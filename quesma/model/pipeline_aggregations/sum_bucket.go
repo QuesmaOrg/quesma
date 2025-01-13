@@ -5,9 +5,9 @@ package pipeline_aggregations
 import (
 	"context"
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"time"
 )
 
@@ -60,13 +60,7 @@ func (query SumBucket) CalculateResultWhenMissing(parentRows []model.QueryResult
 func (query SumBucket) calculateSingleSumBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
 	var resultValue any
 
-	firstNonNilIndex := -1
-	for i, row := range parentRows {
-		if row.LastColValue() != nil {
-			firstNonNilIndex = i
-			break
-		}
-	}
+	firstNonNilIndex := model.FirstNonNilIndex(parentRows)
 	if firstNonNilIndex == -1 {
 		resultRow := parentRows[0].Copy()
 		resultRow.Cols[len(resultRow.Cols)-1].Value = model.JsonMap{

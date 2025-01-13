@@ -4,10 +4,10 @@ package tracing
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"os"
-	"quesma/util"
 	tracing "quesma_v2/core/tracing"
 	"testing"
 	"time"

@@ -3,7 +3,7 @@
 package testdata
 
 import (
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 )
 
 var TestsAsyncSearch = []AsyncSearchTestCase{
@@ -146,7 +146,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
     "start_time_in_millis": 1706010201964
 }`,
 		"no comment yet",
-		model.HitsCountInfo{Typ: model.Normal},
+		model.HitsCountInfo{Type: model.Normal},
 		[]string{
 			`SELECT sum(count(*)) OVER () AS "aggr__sample__count",
 			  sum(count("host_name")) OVER () AS "metric__sample__sample_count_col_0",
@@ -302,7 +302,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
     "start_time_in_millis": 1706021975538
 }
 `, "there should be 97 results, I truncated most of them",
-		model.HitsCountInfo{Typ: model.ListByField, RequestedFields: []string{"message"}, Size: 100},
+		model.HitsCountInfo{Type: model.ListByField, RequestedFields: []string{"message"}, Size: 100},
 		[]string{
 			`SELECT "message"
 			FROM __quesma_table_name
@@ -553,7 +553,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}
 	}`,
 		"Truncated most results. TODO Check what's at the end of response, probably count?",
-		model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: 500},
+		model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: 500},
 		[]string{`
 			SELECT "@timestamp", "event_dataset", "host_name", "message", "properties_isreg"
 			FROM __quesma_table_name
@@ -691,7 +691,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }
 `,
 		"no comment yet",
-		model.HitsCountInfo{Typ: model.ListByField, RequestedFields: []string{"@timestamp"}, Size: 100},
+		model.HitsCountInfo{Type: model.ListByField, RequestedFields: []string{"@timestamp"}, Size: 100},
 		[]string{
 			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
 			  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0",
@@ -741,7 +741,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }`,
 		`{}`,
 		"no comment yet",
-		model.HitsCountInfo{Typ: model.Normal},
+		model.HitsCountInfo{Type: model.Normal},
 		[]string{
 			`SELECT "aggr__stats__parent_count", "aggr__stats__key_0", "aggr__stats__count",
 			  "aggr__stats__series__key_0", "aggr__stats__series__count"
@@ -849,7 +849,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 			"start_time_in_millis": 1706551812665
 		}`,
 		"no comment yet",
-		model.HitsCountInfo{Typ: model.Normal},
+		model.HitsCountInfo{Type: model.Normal},
 		[]string{
 			`SELECT minOrNull("@timestamp") AS "metric__earliest_timestamp_col_0",
 			  maxOrNull("@timestamp") AS "metric__latest_timestamp_col_0",
@@ -871,7 +871,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}`,
 		``,
 		"no comment yet",
-		model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: 50},
+		model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: 50},
 		[]string{
 			`SELECT "@timestamp", "event_dataset", "host_name", "message", "properties_isreg"
 			FROM __quesma_table_name
@@ -937,7 +937,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}`,
 		``,
 		"happens e.g. in Explorer > Field Statistics view",
-		model.HitsCountInfo{Typ: model.ListByField, RequestedFields: []string{"properties::isreg"}, Size: 100},
+		model.HitsCountInfo{Type: model.ListByField, RequestedFields: []string{"properties::isreg"}, Size: 100},
 		[]string{`
 			SELECT "properties_isreg"
 			FROM __quesma_table_name
@@ -1006,7 +1006,7 @@ var TestsSearch = []SearchTestCase{
 						},
 						{
 							"terms": {
-								"task.enabled": [true, 54]
+								"task.enabled": [true, 54, "abc", "abc's"]
 							}
 						}
 					]
@@ -1014,10 +1014,10 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": true
 		}`,
-		[]string{`("type"='task' AND "task.enabled" IN (true,54))`},
+		[]string{`("type"='task' AND "task.enabled" IN tuple(true, 54, 'abc', 'abc\'s'))`},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` WHERE ("type"='task' AND "task.enabled" IN (true,54)) LIMIT 10`,
+			`SELECT "message" FROM ` + TableName + ` WHERE ("type"='task' AND "task.enabled" IN tuple(true, 54, 'abc', 'abc\\'s')) LIMIT 10`,
 			`SELECT count(*) AS "column_0" FROM ` + TableName,
 		},
 		[]string{},
@@ -2196,13 +2196,13 @@ var TestsSearch = []SearchTestCase{
 		  },
 		  "track_total_hits": false
 		}`,
-		[]string{`("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=fromUnixTimestamp64Milli(1715817600000) AND "@timestamp"<=fromUnixTimestamp64Milli(1715990399000)))`},
+		[]string{`("cliIP" IN tuple('2601:204:c503:c240:9c41:5531:ad94:4d90', '50.116.43.98', '75.246.0.64') AND ("@timestamp">=fromUnixTimestamp64Milli(1715817600000) AND "@timestamp"<=fromUnixTimestamp64Milli(1715990399000)))`},
 		model.ListAllFields,
 		//[]model.Query{withLimit(justSimplestWhere(`("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59')))`), 1)},
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE ("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') ` +
+				`WHERE ("cliIP" IN tuple('2601:204:c503:c240:9c41:5531:ad94:4d90', '50.116.43.98', '75.246.0.64') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1715817600000) AND "@timestamp"<=fromUnixTimestamp64Milli(1715990399000))) ` +
 				`LIMIT 1`,
 		},
@@ -2254,12 +2254,14 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"field" LIKE '%\___'`},
+		// Escaping _ twice ("\\_") seemed wrong, but it actually works in Clickhouse!
+		// \\\\ means 2 escaped backslashes, actual returned string is "\\"
+		[]string{`"field" LIKE '%\\___'`},
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE "field" LIKE '%\\___' ` +
+				`WHERE "field" LIKE '%\\\\___' ` +
 				`LIMIT 10`,
 		},
 		[]string{},
@@ -2316,6 +2318,93 @@ var TestsSearch = []SearchTestCase{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE "field" REGEXP 'a\?' ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [40]
+		`Escaping of ', \, \t and \n`,
+		`	
+		{
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"match_phrase": {
+								"message": "\nMen's Clothing \\ \t"
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`("message" __quesma_match '
+Men\'s Clothing \\ 	')`},
+		model.ListAllFields,
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%
+Men\\'s Clothing \\\\ 	%' LIMIT 10`},
+		[]string{},
+	},
+	{ // [41]
+		"ids, 0 values",
+		`{
+			"query": {
+				"ids": {
+					 "values": []
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`false`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE false ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [42]
+		"ids, 1 value",
+		`{
+			"query": {
+				"ids": {
+					 "values": ["323032342d31322d32312030373a32393a30332e333637202b3030303020555443q1"]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3)`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3) ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [43]
+		"ids, 2+ values",
+		`{
+			"query": {
+				"ids": {
+					 "values": [
+						"323032342d31322d32312030373a32393a30332e333637202b3030303020555443q1",
+						"323032342d31322d32312030373a32393a30322e393932202b3030303020555443q3"
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"@timestamp" IN tuple(toDateTime64('2024-12-21 07:29:03.367',3), toDateTime64('2024-12-21 07:29:02.992',3))`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE "@timestamp" IN tuple(toDateTime64('2024-12-21 07:29:03.367',3), toDateTime64('2024-12-21 07:29:02.992',3)) ` +
 				`LIMIT 10`,
 		},
 		[]string{},

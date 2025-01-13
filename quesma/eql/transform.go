@@ -4,7 +4,7 @@ package eql
 
 import (
 	"fmt"
-	"quesma/eql/transform"
+	"github.com/QuesmaOrg/quesma/quesma/eql/transform"
 )
 
 type Transformer struct {

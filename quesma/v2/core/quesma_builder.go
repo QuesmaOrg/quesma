@@ -3,6 +3,7 @@
 package quesma_api
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 )
@@ -12,9 +13,10 @@ type Quesma struct {
 	dependencies Dependencies
 }
 
-func NewQuesma() *Quesma {
+func NewQuesma(deps Dependencies) *Quesma {
 	return &Quesma{
-		pipelines: make([]PipelineBuilder, 0),
+		pipelines:    make([]PipelineBuilder, 0),
+		dependencies: deps,
 	}
 }
 
@@ -29,10 +31,6 @@ func (quesma *Quesma) GetChildComponents() []any {
 	return componentList
 }
 
-func (quesma *Quesma) SetDependencies(dependencies Dependencies) {
-	quesma.dependencies = dependencies
-}
-
 func (quesma *Quesma) AddPipeline(pipeline PipelineBuilder) {
 	quesma.pipelines = append(quesma.pipelines, pipeline)
 }
@@ -43,6 +41,7 @@ func (quesma *Quesma) GetPipelines() []PipelineBuilder {
 
 func (quesma *Quesma) Start() {
 	for _, pipeline := range quesma.pipelines {
+		quesma.dependencies.Logger().Info().Msgf("Starting pipeline %v", pipeline)
 		pipeline.Start()
 	}
 }
@@ -60,41 +59,107 @@ func (quesma *Quesma) Stop(ctx context.Context) {
 	}
 }
 
-func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
+func dumpEndpoints(endpoints map[string][]struct {
+	pipelineIndex int
+	connIndex     int
+}) string {
+	var buff bytes.Buffer
+	_, _ = fmt.Fprintln(&buff, "Endpoints:")
+	for endpoint, pipelines := range endpoints {
+		_, _ = fmt.Fprintf(&buff, "  %v:\n", endpoint)
+		for _, pipeline := range pipelines {
+			_, _ = fmt.Fprintf(&buff, "    pipeline %v, connector %v\n", pipeline.pipelineIndex, pipeline.connIndex)
+		}
+	}
+	return buff.String()
+}
 
-	endpoints := make(map[string]struct{})
-	handlers := make(map[string]HandlersPipe)
+func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
+	endpoints := make(map[string][]struct {
+		pipelineIndex int
+		connIndex     int
+	})
+	// This pass collects information about endpoints
+	// e.g. multiple frontend connectors can use the same endpoint
+	for pipelineIndex, pipeline := range quesma.pipelines {
+		for connIndex, conn := range pipeline.GetFrontendConnectors() {
+			endpoints[conn.GetEndpoint()] = append(endpoints[conn.GetEndpoint()], struct {
+				pipelineIndex int
+				connIndex     int
+			}{
+				pipelineIndex: pipelineIndex,
+				connIndex:     connIndex,
+			})
+			quesma.dependencies.Logger().Info().Msgf("%s:%s, index: %d, pipeline:%d", conn.InstanceName(),
+				conn.GetEndpoint(),
+				connIndex,
+				pipelineIndex)
+		}
+	}
+
+	// Second pass is about connecting routers with processors
+	// and merge them if they are the same properties
+	handlersPerEndpoint := make(map[string]map[string]HandlersPipe)
 	for _, pipeline := range quesma.pipelines {
 		for _, conn := range pipeline.GetFrontendConnectors() {
 			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
-				endpoints[conn.GetEndpoint()] = struct{}{}
 				router := httpConn.GetRouter()
 				for path, handlerWrapper := range router.GetHandlers() {
 					handlerWrapper.Processors = append(handlerWrapper.Processors, pipeline.GetProcessors()...)
-					handlers[path] = handlerWrapper
-				}
-			}
-		}
-	}
-	if len(endpoints) == 1 {
-		for _, pipeline := range quesma.pipelines {
-			for _, conn := range pipeline.GetFrontendConnectors() {
-				if httpConn, ok := conn.(HTTPFrontendConnector); ok {
-					router := httpConn.GetRouter().Clone().(Router)
-					if len(endpoints) == 1 {
-						router.SetHandlers(handlers)
+					sharedWrappers := make(map[string]HandlersPipe)
+					sharedWrappers[path] = handlerWrapper
+					if _, ok := handlersPerEndpoint[conn.GetEndpoint()]; ok {
+						for path, handlerWrapper := range handlersPerEndpoint[conn.GetEndpoint()] {
+							sharedWrappers[path] = handlerWrapper
+						}
 					}
-					httpConn.AddRouter(router)
-
+					handlersPerEndpoint[conn.GetEndpoint()] = sharedWrappers
 				}
 			}
 		}
 	}
 
+	quesma.dependencies.Logger().Debug().Msg(dumpEndpoints(endpoints))
+
+	// This pass sets the routers with the handlers
+	for _, pipeline := range quesma.pipelines {
+		for _, conn := range pipeline.GetFrontendConnectors() {
+			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
+				router := httpConn.GetRouter().Clone().(Router)
+				router.SetHandlers(handlersPerEndpoint[conn.GetEndpoint()])
+				httpConn.AddRouter(router)
+			}
+		}
+	}
+
+	// This pass is about sharing frontend connectors
+	for endpoint, endpointInfo := range endpoints {
+		if len(endpointInfo) < 1 {
+			continue
+		}
+		sharedFc := quesma.pipelines[endpointInfo[0].pipelineIndex].GetFrontendConnectors()[endpointInfo[0].connIndex]
+		for _, info := range endpointInfo {
+			for pipelineIndex, pipeline := range quesma.pipelines {
+				for connIndex, conn := range pipeline.GetFrontendConnectors() {
+					if conn.GetEndpoint() == endpoint {
+						if info.pipelineIndex == pipelineIndex && info.connIndex == connIndex {
+							continue
+						}
+						quesma.dependencies.Logger().Info().Msgf("Sharing frontend connector %v with %v", sharedFc.InstanceName(), conn.InstanceName())
+						pipeline.GetFrontendConnectors()[connIndex] = sharedFc
+					}
+				}
+			}
+		}
+	}
+
+	// This pass is about connecting processors with tcp connectors
+	// and doing some validation
 	for _, pipeline := range quesma.pipelines {
 		backendConnectorTypesPerPipeline := make(map[BackendConnectorType]struct{})
 		for _, conn := range pipeline.GetFrontendConnectors() {
 			if tcpConn, ok := conn.(TCPFrontendConnector); ok {
+				// Inject processors set on pipeline level into connection handler
 				if len(pipeline.GetProcessors()) > 0 {
 					tcpConn.GetConnectionHandler().SetHandlers(pipeline.GetProcessors())
 				}
@@ -116,9 +181,7 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 				return nil, fmt.Errorf("processor %v failed to initialize: %v", proc.GetId(), err)
 			}
 		}
-
 	}
-
 	return quesma, nil
 }
 
@@ -136,16 +199,20 @@ func (quesma *Quesma) injectDependencies(tree *ComponentTreeNode) error {
 
 func (quesma *Quesma) printTree(tree *ComponentTreeNode) {
 
-	fmt.Println("Component tree:\n---")
+	var buff bytes.Buffer
+
+	_, _ = fmt.Fprintln(&buff, "Component tree:")
+
 	tree.walk(func(n *ComponentTreeNode) {
 
 		for i := 0; i < n.Level; i++ {
-			fmt.Print("  ")
+			_, _ = fmt.Fprint(&buff, "  ")
 		}
 
-		fmt.Println(n.Id)
+		_, _ = fmt.Fprintln(&buff, n.Name)
 	})
-	fmt.Println("---")
+
+	quesma.dependencies.Logger().Debug().Msg(buff.String())
 }
 
 func (quesma *Quesma) Build() (QuesmaBuilder, error) {
@@ -168,5 +235,4 @@ func (quesma *Quesma) Build() (QuesmaBuilder, error) {
 	}
 
 	return quesma, nil
-
 }

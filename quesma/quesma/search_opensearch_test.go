@@ -5,14 +5,15 @@ package quesma
 import (
 	"context"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/model"
-	"quesma/queryparser"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/testdata"
-	"quesma/util"
 	"strconv"
 	"testing"
 )
@@ -42,8 +43,9 @@ func TestSearchOpensearch(t *testing.T) {
 
 	for i, tt := range testdata.OpensearchSearchTests {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
-			defer db.Close()
+			conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
+			defer conn.Close()
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
 			cw := queryparser.ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: s.Tables[tableName], Config: &DefaultConfig}
@@ -61,7 +63,7 @@ func TestSearchOpensearch(t *testing.T) {
 				mock.ExpectQuery(wantedQuery).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 
-			_, err2 := queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
+			_, err2 := queryRunner.HandleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 			assert.NoError(t, err2)
 
 			if err = mock.ExpectationsWereMet(); err != nil {
@@ -185,8 +187,9 @@ func TestHighlighter(t *testing.T) {
 			tableName: schema.NewSchemaWithAliases(fields, map[schema.FieldName]schema.FieldName{}, true, ""),
 		},
 	}
-	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-	defer db.Close()
+	conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+	defer conn.Close()
+	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 	// careful, it's not always in this order, order is nondeterministic
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"message$*%:;", "host.name", "@timestamp"}).
@@ -197,7 +200,7 @@ func TestHighlighter(t *testing.T) {
 		AddRow("text", "text", "text"))
 
 	queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
-	response, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(query))
+	response, err := queryRunner.HandleSearch(ctx, tableName, types.MustJSON(query))
 	assert.NoError(t, err)
 	if err != nil {
 		t.Fatal(err)

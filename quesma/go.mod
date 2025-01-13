@@ -1,4 +1,4 @@
-module quesma
+module github.com/QuesmaOrg/quesma/quesma
 
 go 1.23.2
 
@@ -7,7 +7,9 @@ replace quesma_v2 => ./v2
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.30.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/DataDog/go-sqllexer v0.0.18
+	github.com/DataDog/go-sqllexer v0.0.20
+	github.com/H0llyW00dzZ/cidr v1.2.1
+	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/barkimedes/go-deepcopy v0.0.0-20220514131651-17c30cfc62df
 	github.com/coreos/go-semver v0.3.1
 	github.com/go-sql-driver/mysql v1.8.1
@@ -19,7 +21,7 @@ require (
 	github.com/gorilla/sessions v1.4.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jackc/pgx/v4 v4.18.3
-	github.com/jackc/pgx/v5 v5.7.1
+	github.com/jackc/pgx/v5 v5.7.2
 	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/knadh/koanf/parsers/json v0.1.0
 	github.com/knadh/koanf/parsers/yaml v0.1.0

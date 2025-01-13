@@ -6,11 +6,11 @@ package frontend_connectors
 import (
 	"bytes"
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"io"
 	"net/http"
-	"quesma/clickhouse"
-	"quesma/quesma/config"
-	"quesma/schema"
 	quesma_api "quesma_v2/core"
 	"quesma_v2/core/diag"
 	"sync"
@@ -29,6 +29,8 @@ type BasicHTTPFrontendConnector struct {
 
 	phoneHomeClient    diag.PhoneHomeClient
 	debugInfoCollector diag.DebugInfoCollector
+	logger             quesma_api.QuesmaLogger
+	middlewares        []http.Handler
 }
 
 func (h *BasicHTTPFrontendConnector) GetChildComponents() []interface{} {
@@ -47,6 +49,8 @@ func (h *BasicHTTPFrontendConnector) GetChildComponents() []interface{} {
 func (h *BasicHTTPFrontendConnector) SetDependencies(deps quesma_api.Dependencies) {
 	h.phoneHomeClient = deps.PhoneHomeAgent()
 	h.debugInfoCollector = deps.DebugInfoCollector()
+	h.logger = deps.Logger()
+
 	deps.PhoneHomeAgent().FailedRequestsCollector(func() int64 {
 		return h.routerInstance.FailedRequests.Load()
 	})
@@ -63,7 +67,12 @@ func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfigu
 		responseMutator: func(w http.ResponseWriter) http.ResponseWriter {
 			return w
 		},
+		middlewares: make([]http.Handler, 0),
 	}
+}
+
+func (h *BasicHTTPFrontendConnector) InstanceName() string {
+	return "BasicHTTPFrontendConnector" // TODO return name from config
 }
 
 func (h *BasicHTTPFrontendConnector) AddRouter(router quesma_api.Router) {
@@ -74,7 +83,39 @@ func (h *BasicHTTPFrontendConnector) GetRouter() quesma_api.Router {
 	return h.router
 }
 
+type ResponseWriterWithStatusCode struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (w *ResponseWriterWithStatusCode) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
 func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	index := 0
+	var runMiddleware func()
+
+	runMiddleware = func() {
+		if index < len(h.middlewares) {
+			middleware := h.middlewares[index]
+			index++
+			responseWriter := &ResponseWriterWithStatusCode{w, 0}
+			middleware.ServeHTTP(responseWriter, req) // Automatically proceeds to the next middleware
+			// Only if the middleware did not set a status code, we proceed to the next middleware
+			if responseWriter.statusCode == 0 {
+				runMiddleware()
+			}
+
+		} else {
+			h.finalHandler(w, req)
+		}
+	}
+	runMiddleware()
+}
+
+func (h *BasicHTTPFrontendConnector) finalHandler(w http.ResponseWriter, req *http.Request) {
 	reqBody, err := PeekBodyV2(req)
 	if err != nil {
 		http.Error(w, "Error reading request body", http.StatusInternalServerError)
@@ -100,9 +141,9 @@ func (h *BasicHTTPFrontendConnector) Listen() error {
 	h.listener.Addr = h.endpoint
 	h.listener.Handler = h
 	go func() {
+		h.logger.Info().Msgf("HTTP server started on %s", h.endpoint)
 		err := h.listener.ListenAndServe()
-		// TODO: Handle error
-		_ = err
+		h.logger.Error().Err(err).Msg("HTTP server stopped")
 	}()
 
 	return nil
@@ -136,4 +177,8 @@ func ReadRequestBody(request *http.Request) ([]byte, error) {
 
 func (h *BasicHTTPFrontendConnector) GetRouterInstance() *RouterV2 {
 	return h.routerInstance
+}
+
+func (h *BasicHTTPFrontendConnector) AddMiddleware(middleware http.Handler) {
+	h.middlewares = append(h.middlewares, middleware)
 }

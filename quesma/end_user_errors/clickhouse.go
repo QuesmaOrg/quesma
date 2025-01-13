@@ -48,6 +48,10 @@ func GuessClickhouseErrorType(err error) *EndUserError {
 			return ErrDatabaseTLSVerify.New(originalErr)
 		}
 
+		if strings.Contains(s, "code: 76") {
+			return ErrDatabaseStorageError.New(originalErr)
+		}
+
 		err = errors.Unwrap(err)
 		if err == nil {
 			break

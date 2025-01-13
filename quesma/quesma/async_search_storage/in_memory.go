@@ -4,10 +4,10 @@ package async_search_storage
 
 import (
 	"context"
-	"quesma/logger"
-	"quesma/quesma/recovery"
-	"quesma/tracing"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/tracing"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 	"time"
 )
@@ -167,7 +167,7 @@ func (e *AsyncQueryTraceLoggerEvictor) TryFlushHangingAsyncQueryTrace(timeFun fu
 
 func (e *AsyncQueryTraceLoggerEvictor) FlushHangingAsyncQueryTrace(timeFun func(time.Time) time.Duration) {
 	go func() {
-		recovery.LogPanic()
+		defer recovery.LogPanic()
 		for {
 			select {
 			case <-time.After(GCInterval):

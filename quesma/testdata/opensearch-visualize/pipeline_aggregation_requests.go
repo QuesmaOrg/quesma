@@ -3,8 +3,8 @@
 package opensearch_visualize
 
 import (
-	"quesma/model"
-	"quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
 )
 
 var PipelineAggregationTests = []testdata.AggregationTestCase{
@@ -988,7 +988,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 1714871400000,
 							"key_as_string": "2024-05-05T01:10:00.000"
 						},
-{
+						{
 							"1": {
 								"value": 0.0
 							},
@@ -999,7 +999,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 1714872000000,
 							"key_as_string": "2024-05-05T01:20:00.000"
 						},
-{
+						{
 							"1": {
 								"value": 0.0
 							},
@@ -1010,7 +1010,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 1714872600000,
 							"key_as_string": "2024-05-05T01:30:00.000"
 						},
-{
+						{
 							"1": {
 								"value": 0.0
 							},
@@ -1021,7 +1021,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 1714873200000,
 							"key_as_string": "2024-05-05T01:40:00.000"
 						},
-{
+						{
 							"1": {
 								"value": 0.0
 							},
@@ -1032,7 +1032,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 1714873800000,
 							"key_as_string": "2024-05-05T01:50:00.000"
 						},
-{
+						{
 							"1": {
 								"value": 0.0
 							},
@@ -3345,11 +3345,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					"buckets": [
 						{
 							"doc_count": 260,
-							"key": true
+							"key": 1,
+							"key_as_string": "true"
 						},
 						{
 							"doc_count": 1923,
-							"key": false
+							"key": 0,
+							"key_as_string": "false"
 						}
 					],
 					"doc_count_error_upper_bound": 0,

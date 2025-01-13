@@ -4,7 +4,7 @@ package queryparser
 
 import (
 	"fmt"
-	"quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
 	"unicode"
 )
 

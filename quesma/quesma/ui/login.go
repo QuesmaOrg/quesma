@@ -7,9 +7,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"net/http"
-	"quesma/elasticsearch"
-	"quesma/logger"
 )
 
 func (qmc *QuesmaManagementConsole) generateLoginForm() []byte {

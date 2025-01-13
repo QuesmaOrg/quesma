@@ -3,9 +3,9 @@
 package resolve
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/stretchr/testify/assert"
-	"quesma/elasticsearch"
-	"quesma/schema"
 	"testing"
 )
 

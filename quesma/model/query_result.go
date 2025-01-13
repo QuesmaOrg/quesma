@@ -5,11 +5,11 @@ package model
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/goccy/go-json"
-	"quesma/common_table"
-	"quesma/logger"
-	"quesma/schema"
-	"quesma/util"
 	"reflect"
 	"strings"
 	"time"
@@ -110,4 +110,13 @@ func (r *QueryResultRow) Copy() QueryResultRow {
 
 func (r *QueryResultRow) LastColValue() any {
 	return r.Cols[len(r.Cols)-1].Value
+}
+
+func FirstNonNilIndex(rows []QueryResultRow) int {
+	for i, row := range rows {
+		if row.LastColValue() != nil {
+			return i
+		}
+	}
+	return -1
 }

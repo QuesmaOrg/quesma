@@ -4,19 +4,20 @@ package quesma
 
 import (
 	"context"
-	"errors"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"net/http"
-	"quesma/ab_testing"
-	"quesma/clickhouse"
-	"quesma/elasticsearch"
-	"quesma/ingest"
-	"quesma/logger"
-	"quesma/queryparser"
-	"quesma/quesma/async_search_storage"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/util"
 	quesma_api "quesma_v2/core"
 	"strconv"
 	"sync/atomic"
@@ -26,14 +27,12 @@ const concurrentClientsLimitV2 = 100 // FIXME this should be configurable
 
 type simultaneousClientsLimiterV2 struct {
 	counter atomic.Int64
-	handler http.Handler
 	limit   int64
 }
 
-func newSimultaneousClientsLimiterV2(handler http.Handler, limit int64) *simultaneousClientsLimiterV2 {
+func newSimultaneousClientsLimiterV2(limit int64) *simultaneousClientsLimiterV2 {
 	return &simultaneousClientsLimiterV2{
-		handler: handler,
-		limit:   limit,
+		limit: limit,
 	}
 }
 
@@ -49,11 +48,10 @@ func (c *simultaneousClientsLimiterV2) ServeHTTP(w http.ResponseWriter, r *http.
 
 	c.counter.Add(1)
 	defer c.counter.Add(-1)
-	c.handler.ServeHTTP(w, r)
 }
 
 type dualWriteHttpProxyV2 struct {
-	routingHttpServer   *http.Server
+	quesmaV2            quesma_api.QuesmaBuilder
 	indexManagement     elasticsearch.IndexManagement
 	logManager          *clickhouse.LogManager
 	publicPort          util.Port
@@ -78,44 +76,44 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 
 	// tests should not be run with optimization enabled by default
 	queryProcessor.EnableQueryOptimization(config)
+	esConn := backend_connectors.NewElasticsearchBackendConnector(config.Elasticsearch)
 
-	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver)
+	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver, esConn)
 	searchRouter := ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
 
-	elasticHttpIngestFrontendConnector := NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
+	elasticHttpIngestFrontendConnector := frontend_connectors.NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
 		logManager, registry, config, ingestRouter)
 
-	elasticHttpQueryFrontendConnector := NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
+	elasticHttpQueryFrontendConnector := frontend_connectors.NewElasticHttpQueryFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
 		logManager, registry, config, searchRouter)
 
-	quesmaBuilder := quesma_api.NewQuesma()
+	quesmaBuilder := quesma_api.NewQuesma(dependencies)
 	ingestPipeline := quesma_api.NewPipeline()
 	ingestPipeline.AddFrontendConnector(elasticHttpIngestFrontendConnector)
 
 	queryPipeline := quesma_api.NewPipeline()
 	queryPipeline.AddFrontendConnector(elasticHttpQueryFrontendConnector)
-	quesmaBuilder.AddPipeline(ingestPipeline)
 	quesmaBuilder.AddPipeline(queryPipeline)
-	quesmaBuilder.SetDependencies(dependencies)
-	_, err := quesmaBuilder.Build()
+	quesmaBuilder.AddPipeline(ingestPipeline)
+
+	quesmaV2, err := quesmaBuilder.Build()
 	if err != nil {
 		logger.Fatal().Msgf("Error building Quesma: %v", err)
 	}
-
-	var limitedHandler http.Handler
 	if config.DisableAuth {
-		limitedHandler = newSimultaneousClientsLimiterV2(elasticHttpIngestFrontendConnector, concurrentClientsLimitV2)
+		elasticHttpIngestFrontendConnector.AddMiddleware(newSimultaneousClientsLimiterV2(concurrentClientsLimitV2))
+		elasticHttpQueryFrontendConnector.AddMiddleware(newSimultaneousClientsLimiterV2(concurrentClientsLimitV2))
 	} else {
-		limitedHandler = newSimultaneousClientsLimiterV2(NewAuthMiddleware(elasticHttpIngestFrontendConnector, config.Elasticsearch), concurrentClientsLimitV2)
+		elasticHttpQueryFrontendConnector.AddMiddleware(newSimultaneousClientsLimiterV2(concurrentClientsLimitV2))
+		elasticHttpQueryFrontendConnector.AddMiddleware(NewAuthMiddlewareV2(config.Elasticsearch))
+		elasticHttpIngestFrontendConnector.AddMiddleware(newSimultaneousClientsLimiterV2(concurrentClientsLimitV2))
+		elasticHttpIngestFrontendConnector.AddMiddleware(NewAuthMiddlewareV2(config.Elasticsearch))
 	}
 
 	return &dualWriteHttpProxyV2{
-		schemaRegistry: registry,
-		schemaLoader:   schemaLoader,
-		routingHttpServer: &http.Server{
-			Addr:    ":" + strconv.Itoa(int(config.PublicTcpPort)),
-			Handler: limitedHandler,
-		},
+		schemaRegistry:  registry,
+		schemaLoader:    schemaLoader,
+		quesmaV2:        quesmaV2,
 		indexManagement: indexManager,
 		logManager:      logManager,
 		publicPort:      config.PublicTcpPort,
@@ -137,9 +135,7 @@ func (q *dualWriteHttpProxyV2) Close(ctx context.Context) {
 	if q.asyncQueriesEvictor != nil {
 		q.asyncQueriesEvictor.Close()
 	}
-	if err := q.routingHttpServer.Shutdown(ctx); err != nil {
-		logger.Fatal().Msgf("Error during server shutdown: %v", err)
-	}
+	q.quesmaV2.Stop(ctx)
 }
 
 func (q *dualWriteHttpProxyV2) Ingest() {
@@ -147,10 +143,5 @@ func (q *dualWriteHttpProxyV2) Ingest() {
 	q.logManager.Start()
 	q.indexManagement.Start()
 	go q.asyncQueriesEvictor.AsyncQueriesGC()
-	go func() {
-		if err := q.routingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Fatal().Msgf("Error starting http server: %v", err)
-		}
-		logger.Info().Msgf("Accepting HTTP at :%d", q.publicPort)
-	}()
+	q.quesmaV2.Start()
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package testdata
 
-import "quesma/model"
+import "github.com/QuesmaOrg/quesma/quesma/model"
 
 // TestsSearchNoFullTextFields - test cases for search queries for a table with no full text fields
 // Query generator do not check for full text fields, so it can generate queries with full text search

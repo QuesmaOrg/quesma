@@ -1,15 +1,14 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
 
-package main
+package quesma
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/processors"
 	"net/http"
-	"quesma/frontend_connectors"
-	"quesma/processors"
 	quesma_api "quesma_v2/core"
-	"strconv"
 	"sync/atomic"
 )
 
@@ -79,20 +78,20 @@ var responses = [][]byte{
 }`),
 }
 
-func bulk(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+func bulkHandler(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 	_, err := frontend_connectors.ReadRequestBody(request.OriginalRequest)
 	if err != nil {
 		return nil, err
 	}
 	metadata := quesma_api.MakeNewMetadata()
 	metadata["level"] = 0
-	resp := []byte("bulk\n")
+	resp := []byte("bulk->")
 	atomic.AddInt64(&correlationId, 1)
 	quesma_api.SetCorrelationId(metadata, correlationId)
 	return &quesma_api.Result{Meta: metadata, GenericResult: resp, StatusCode: 200}, nil
 }
 
-func doc(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+func docHandler(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 	_, err := frontend_connectors.ReadRequestBody(request.OriginalRequest)
 	if err != nil {
 		return nil, err
@@ -101,14 +100,14 @@ func doc(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) 
 	metadata["level"] = 0
 	atomic.AddInt64(&correlationId, 1)
 	quesma_api.SetCorrelationId(metadata, correlationId)
-	resp := []byte("doc\n")
+	resp := []byte("doc->")
 
 	return &quesma_api.Result{Meta: metadata, GenericResult: resp, StatusCode: 200}, nil
 }
 
 var correlationId int64 = 0
 
-func search(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+func searchHandler(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 	metadata := quesma_api.MakeNewMetadata()
 	metadata["level"] = 0
 	atomic.AddInt64(&correlationId, 1)
@@ -118,10 +117,19 @@ func search(_ context.Context, request *quesma_api.Request, _ http.ResponseWrite
 
 type IngestProcessor struct {
 	processors.BaseProcessor
+	logger quesma_api.QuesmaLogger
 }
 
 func NewIngestProcessor() *IngestProcessor {
 	return &IngestProcessor{BaseProcessor: processors.NewBaseProcessor()}
+}
+
+func (p *IngestProcessor) SetDependencies(deps quesma_api.Dependencies) {
+	p.logger = deps.Logger()
+}
+
+func (p *IngestProcessor) InstanceName() string {
+	return "IngestProcessor" // TODO return name from config
 }
 
 func (p *IngestProcessor) GetId() string {
@@ -129,6 +137,9 @@ func (p *IngestProcessor) GetId() string {
 }
 
 func (p *IngestProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
+
+	p.logger.Info().Msgf("IngestProcessor: handling message %T", message)
+
 	var data []byte
 	for _, m := range message {
 		var err error
@@ -137,10 +148,8 @@ func (p *IngestProcessor) Handle(metadata map[string]interface{}, message ...any
 			panic("IngestProcessor: invalid message type")
 		}
 
-		level := metadata["level"].(int)
-		data = append(data, strconv.Itoa(level)...)
 		data = append(data, []byte(p.GetId())...)
-		data = append(data, []byte("\n")...)
+		data = append(data, []byte("->")...)
 	}
 	return metadata, data, nil
 }
@@ -155,6 +164,10 @@ func NewInnerQueryProcessor2() *InnerQueryProcessor2 {
 		BaseProcessor: processors.NewBaseProcessor(),
 		reqNum:        0,
 	}
+}
+
+func (p *InnerQueryProcessor2) InstanceName() string {
+	return "InnerQueryProcessor2"
 }
 
 func (p *InnerQueryProcessor2) GetId() string {
@@ -192,6 +205,10 @@ func NewInnerQueryProcessor1() *InnerQueryProcessor1 {
 	}
 }
 
+func (p *InnerQueryProcessor1) InstanceName() string {
+	return "InnerQueryProcessor1"
+}
+
 func (p *InnerQueryProcessor1) GetId() string {
 	return "InnerQueryProcessor1"
 }
@@ -226,6 +243,10 @@ func NewInnerIngestProcessor2() *InnerIngestProcessor2 {
 	}
 }
 
+func (p *InnerIngestProcessor2) InstanceName() string {
+	return "InnerIngestProcessor2"
+}
+
 func (p *InnerIngestProcessor2) GetId() string {
 	return "InnerIngestProcessor2"
 }
@@ -238,10 +259,8 @@ func (p *InnerIngestProcessor2) Handle(metadata map[string]interface{}, message 
 		if err != nil {
 			panic("InnerIngestProcessor2: invalid message type")
 		}
-		level := metadata["level"].(int)
-		data = append(data, strconv.Itoa(level)...)
 		data = append(data, []byte(p.GetId())...)
-		data = append(data, []byte("\n")...)
+		data = append(data, []byte("->")...)
 	}
 	return metadata, data, nil
 }
@@ -256,6 +275,10 @@ func NewInnerIngestProcessor1() *InnerIngestProcessor1 {
 	}
 }
 
+func (p *InnerIngestProcessor1) InstanceName() string {
+	return "InnerIngestProcessor1"
+}
+
 func (p *InnerIngestProcessor1) GetId() string {
 	return "InnerIngestProcessor1"
 }
@@ -268,10 +291,8 @@ func (p *InnerIngestProcessor1) Handle(metadata map[string]interface{}, message 
 		if err != nil {
 			panic("InnerIngestProcessor1: invalid message type")
 		}
-		level := metadata["level"].(int)
-		data = append(data, strconv.Itoa(level)...)
 		data = append(data, []byte(p.GetId())...)
-		data = append(data, []byte("\n")...)
+		data = append(data, []byte("->")...)
 	}
 	return metadata, data, nil
 }
@@ -284,6 +305,10 @@ func NewQueryProcessor() *QueryProcessor {
 	return &QueryProcessor{
 		BaseProcessor: processors.NewBaseProcessor(),
 	}
+}
+
+func (p *QueryProcessor) InstanceName() string {
+	return "QueryProcessor" // TODO return name from config
 }
 
 func (p *QueryProcessor) GetId() string {

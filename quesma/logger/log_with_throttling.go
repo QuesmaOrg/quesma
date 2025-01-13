@@ -4,11 +4,13 @@ package logger
 
 import (
 	"context"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"time"
 )
 
-var throttleMap = util.SyncMap[string, time.Time]{}
+// throttleMap: (reason name -> last logged time)
+// We log only once per throttleDuration for each reason name, so that we don't spam the logs.
+var throttleMap = util.NewSyncMap[string, time.Time]()
 
 const throttleDuration = 30 * time.Minute
 
@@ -23,5 +25,16 @@ func WarnWithCtxAndThrottling(ctx context.Context, aggrName, paramName, format s
 	if !weThrottle {
 		WarnWithCtx(ctx).Msgf(format, v...)
 		throttleMap.Store(mapKey, time.Now())
+	}
+}
+
+// WarnWithThrottling - logs a warning message with throttling.
+// We only log once per throttleDuration for each warnName, so that we don't spam the logs.
+func WarnWithThrottling(reasonName, format string, v ...any) {
+	timestamp, ok := throttleMap.Load(reasonName)
+	weThrottle := ok && time.Since(timestamp) < throttleDuration
+	if !weThrottle {
+		Warn().Msgf(format, v...)
+		throttleMap.Store(reasonName, time.Now())
 	}
 }

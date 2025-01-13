@@ -6,21 +6,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/goccy/go-json"
-	"quesma/clickhouse"
-	"quesma/end_user_errors"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/queryparser"
-	"quesma/quesma/types"
-	"quesma/schema"
 	"quesma_v2/core/diag"
 	tracing "quesma_v2/core/tracing"
 	"strconv"
 	"time"
 )
 
-func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *clickhouse.LogManager,
+func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm clickhouse.LogManagerIFace,
 	schemaRegistry schema.Registry, qmc diag.DebugInfoCollector) ([]byte, error) {
 	if indices, err := lm.ResolveIndexPattern(ctx, schemaRegistry, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
@@ -37,7 +37,7 @@ func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *cli
 	}
 }
 
-func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm *clickhouse.LogManager, qt *queryparser.ClickhouseQueryTranslator,
+func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.LogManagerIFace, qt *queryparser.ClickhouseQueryTranslator,
 	qmc diag.DebugInfoCollector) (result []byte, err error) {
 	startTime := time.Now()
 

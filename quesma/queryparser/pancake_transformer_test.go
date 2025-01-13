@@ -4,10 +4,10 @@ package queryparser
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/model/metrics_aggregations"
 	"github.com/stretchr/testify/assert"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
-	"quesma/model/metrics_aggregations"
 	"testing"
 )
 

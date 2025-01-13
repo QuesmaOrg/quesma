@@ -4,14 +4,14 @@ package config
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch/elasticsearch_field_types"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/hashicorp/go-multierror"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
 	"log"
 	"os"
-	"quesma/elasticsearch/elasticsearch_field_types"
-	"quesma/util"
 	"strings"
 )
 
@@ -48,6 +48,7 @@ type QuesmaConfiguration struct {
 	UseCommonTableForWildcard bool //the meaning of this is to use a common table for wildcard (default) indexes
 	DefaultIngestTarget       []string
 	DefaultQueryTarget        []string
+	DefaultIngestOptimizers   map[string]OptimizerConfiguration
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {

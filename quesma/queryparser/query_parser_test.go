@@ -5,15 +5,16 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/model"
-	"quesma/model/typical_queries"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/testdata"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"quesma_v2/core/diag"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ import (
 //     what should be? According to docs, I think so... Maybe test in Kibana?
 //     OK, Kibana disagrees, it is indeed wrong.
 func TestQueryParserStringAttrConfig(t *testing.T) {
+	logger.InitSimpleLoggerForTestsWarnLevel()
 	tableName := "logs-generic-default"
 	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "@timestamp" DateTime64(3, 'UTC'), "attributes_values" Map(String,String))
