@@ -134,8 +134,14 @@ func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string)
 		for _, target := range targets {
 			switch target {
 			case config.ClickhouseTarget:
+				var tableName string
+				if quesmaConf.UseCommonTableForWildcard {
+					tableName = common_table.TableName
+				} else {
+					tableName = resolveTableName(quesmaConf, part)
+				}
 				useConnectors = append(useConnectors, &quesma_api.ConnectorDecisionClickhouse{
-					ClickhouseTableName: resolveTableName(quesmaConf, part),
+					ClickhouseTableName: tableName,
 					IsCommonTable:       quesmaConf.UseCommonTableForWildcard,
 					ClickhouseIndexes:   []string{part},
 				})
