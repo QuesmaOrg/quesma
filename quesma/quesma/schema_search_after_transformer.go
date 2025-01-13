@@ -33,31 +33,21 @@ func searchAfterStrategyFactory(strategy model.SearchAfterStrategyType) model.Se
 type searchAfterStrategyBulletproof struct {
 	sortParamsRaw           []any
 	sortParams              []model.Expr // before ValidateAndParse: nil; after non-error ValidateAndParse: non-nil array
-	primaryKeys             []string     // before ValidateAndParse: nil; after non-error ValidateAndParse: non-nil array
+	primaryKeys             []any        // before ValidateAndParse: nil; after non-error ValidateAndParse: non-nil array
 	lastNRowsSameSortValues int          // 0 for first row, else >= 1 meaning how many last rows have the same sort values
 }
 
 // ValidateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
 // add comment
 func (s *searchAfterStrategyBulletproof) ValidateAndParse(query *model.Query, indexSchema schema.Schema) error {
-	sortParams, otherParams, err := validateAndParseCommon(query, indexSchema)
-	if err != nil || sortParams == nil {
+	var err error
+	s.sortParams, s.primaryKeys, err = validateAndParseCommon(query, indexSchema)
+	if err != nil || s.sortParams == nil {
 		return err
 	}
 
-	primaryKeys := make([]string, 0, len(otherParams))
-	for _, pk := range otherParams {
-		if pkStr, isStr := pk.(string); isStr {
-			primaryKeys = append(primaryKeys, pkStr)
-		} else {
-			return fmt.Errorf("primary key must be a string, got: %v", pk)
-		}
-	}
-
-	s.sortParams = sortParams
-	s.primaryKeys = primaryKeys
-	s.sortParamsRaw = make([]any, len(sortParams))
-	for i, param := range query.SearchAfter.([]any)[:len(sortParams)] { // we're sure it's []any because of validateAndParseCommon above
+	s.sortParamsRaw = make([]any, len(s.sortParams))
+	for i, param := range query.SearchAfter.([]any)[:len(s.sortParams)] { // we're sure it's []any because of validateAndParseCommon above
 		s.sortParamsRaw[i] = param
 	}
 	pp.Println("parse", s)
@@ -101,7 +91,7 @@ func (s *searchAfterStrategyBulletproof) TransformQuery(query *model.Query) (*mo
 	fmt.Println("pkField", pkField, "searchAfterParsed", s.sortParams, "sortFieldsNr", sortFieldsNr, query.SelectCommand.OrderBy)
 	pks := make([]model.Expr, 0, len(s.primaryKeys))
 	for _, pk := range s.primaryKeys {
-		pks = append(pks, model.NewLiteralSingleQuote(pk))
+		pks = append(pks, model.NewLiteralSingleQuoteIfString(pk))
 	}
 	notInTuple := model.NewTupleExpr(pks...)
 	newWhereClause2_1 := model.NewInfixExpr(lhs, "=", rhs)

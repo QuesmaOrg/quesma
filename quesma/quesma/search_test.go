@@ -1167,62 +1167,147 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 //
 // We send 4 requests, simulating user scrolling through hits.
 func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
-	fields := map[schema.FieldName]schema.Field{
-		"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+	pk := "pk"
+	tables := map[string]*util.SyncMap[string, *clickhouse.Table]{
+		"noPK": util.NewSyncMapWith(tableName, &clickhouse.Table{
+			Name:   tableName,
+			Config: clickhouse.NewChTableConfigNoAttrs(),
+			Cols: map[string]*clickhouse.Column{
+				"message": {Name: "message", Type: clickhouse.NewBaseType("String")},
+			},
+			Created: true,
+		}),
+		"withPK": util.NewSyncMapWith(tableName, &clickhouse.Table{
+			Name:   tableName,
+			Config: clickhouse.NewChTableConfigNoAttrs(),
+			Cols: map[string]*clickhouse.Column{
+				"message": {Name: "message", Type: clickhouse.NewBaseType("String")},
+				"pk":      {Name: "pk", Type: clickhouse.NewBaseType("Int")},
+			},
+			Created:    true,
+			PrimaryKey: &pk,
+		}),
 	}
-	Schema := schema.NewSchema(fields, true, "", schema.NewPrimaryKey("message"))
-	staticRegistry := schema.NewStaticRegistry(
-		map[schema.IndexName]schema.Schema{tableName: Schema},
-		map[string]schema.Table{},
-		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
-	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
-		Name:   tableName,
-		Config: clickhouse.NewChTableConfigNoAttrs(),
-		Cols: map[string]*clickhouse.Column{
-			"message": {Name: "message", Type: clickhouse.NewBaseType("String")},
-		},
-		Created: true,
-	})
+	schemas := map[string]schema.Schema{
+		"noPK": schema.NewSchema(map[schema.FieldName]schema.Field{
+			"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+		}, true, "", nil),
+		"withPK": schema.NewSchema(map[schema.FieldName]schema.Field{
+			"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+			"pk":      {PropertyName: "pk", InternalPropertyName: "pk", Type: schema.QuesmaTypeInteger},
+		}, true, "", schema.NewPrimaryKey("pk")),
+	}
 
-	iterations := []struct {
-		request          string
-		expectedSQL      string
-		resultRowsFromDB []any
-	}{
+	type Iteration struct {
+		request                  string
+		expectedSQL              string
+		resultRowsFromDB         [][]any
+		expectedSortFieldsPerHit [][]any // only for bulletproof with pk, other cases can simply use resultRowsFromDB
+	}
+
+	iterationsBasicAndFast := []Iteration{
+		{
+			request:          `{"fields":["message"], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
+			expectedSQL:      `SELECT "message" FROM __quesma_table_name ORDER BY "message" ASC LIMIT 3`,
+			resultRowsFromDB: [][]any{{"m1"}, {"m1"}, {"m1"}},
+		},
+		{
+			request:          `{"fields":["message"], "search_after": ["m1"], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
+			expectedSQL:      `SELECT "message" FROM __quesma_table_name WHERE "message">'m1' ORDER BY "message" ASC LIMIT 3`,
+			resultRowsFromDB: [][]any{{"m2"}, {"m2"}, {"m3"}},
+		},
+		{
+			request:          `{"fields":["message"], "search_after": ["m3"], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
+			expectedSQL:      `SELECT "message" FROM __quesma_table_name WHERE "message">'m3' ORDER BY "message" ASC LIMIT 3`,
+			resultRowsFromDB: [][]any{{"m4"}, {"m5"}, {"m6"}},
+		},
+		{
+			request:          `{"fields":["message"], "search_after": ["m6"], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
+			expectedSQL:      `SELECT "message" FROM __quesma_table_name WHERE "message">'m6' ORDER BY "message" ASC LIMIT 3`,
+			resultRowsFromDB: [][]any{{"m7"}, {"m8"}, {"m9"}},
+		},
+	}
+	_ = iterationsBasicAndFast
+
+	// because of no PK, we lose some hits (return 3 'm1's, not 5)
+	iterationsBulletproofNoPK := []Iteration{
 		{
 			request:          `{"size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
 			expectedSQL:      `SELECT "message" FROM __quesma_table_name ORDER BY "message" ASC LIMIT 3`,
-			resultRowsFromDB: []any{"m1", "m1", "m1"},
+			resultRowsFromDB: [][]any{{"m1"}, {"m1"}, {"m1"}},
 		},
 		{
 			request:          `{"search_after": ["m1"], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
 			expectedSQL:      `SELECT "message" FROM __quesma_table_name WHERE "message">'m1' ORDER BY "message" ASC LIMIT 3`,
-			resultRowsFromDB: []any{"m2", "m2", "m3"},
+			resultRowsFromDB: [][]any{{"m2"}, {"m2"}, {"m3"}},
 		},
 		{
 			request:          `{"search_after": ["m3"], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
 			expectedSQL:      `SELECT "message" FROM __quesma_table_name WHERE "message">'m3' ORDER BY "message" ASC LIMIT 3`,
-			resultRowsFromDB: []any{"m4", "m5", "m6"},
+			resultRowsFromDB: [][]any{{"m4"}, {"m5"}, {"m6"}},
 		},
 		{
 			request:          `{"search_after": ["m6"], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
 			expectedSQL:      `SELECT "message" FROM __quesma_table_name WHERE "message">'m6' ORDER BY "message" ASC LIMIT 3`,
-			resultRowsFromDB: []any{"m7", "m8", "m9"},
+			resultRowsFromDB: [][]any{{"m7"}, {"m8"}, {"m9"}},
 		},
 	}
 
-	test := func(strategy model.SearchAfterStrategy, dateTimeType string, handlerName string) {
+	iterationsBulletproofWithPK := []Iteration{
+		{
+			request:                  `{"size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
+			expectedSQL:              `SELECT "message", "pk" FROM __quesma_table_name ORDER BY "message" ASC LIMIT 3`,
+			resultRowsFromDB:         [][]any{{"m1", 1}, {"m1", 3}, {"m1", 2}}, // pks don't need to be in order
+			expectedSortFieldsPerHit: [][]any{{"m1", 1}, {"m1", 3, 1}, {"m1", 2, 3, 1}},
+		},
+		{
+			request:                  `{"search_after": ["m1", 2, 3, 1], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
+			expectedSQL:              `SELECT "message", "pk" FROM __quesma_table_name WHERE ("message">'m1' OR ("message"='m1' AND "pk" NOT IN tuple(2, 3, 1))) ORDER BY "message" ASC LIMIT 3`,
+			resultRowsFromDB:         [][]any{{"m1", 4}, {"m1", 5}, {"m2", 1}},
+			expectedSortFieldsPerHit: [][]any{{"m1", 4, 2, 3, 1}, {"m1", 5, 4, 2, 3, 1}, {"m2", 1}},
+		},
+		{
+			request:                  `{"search_after": ["m2", 1], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
+			expectedSQL:              `SELECT "message", "pk" FROM __quesma_table_name WHERE ("message">'m2' OR ("message"='m2' AND "pk" NOT IN 1)) ORDER BY "message" ASC LIMIT 3`,
+			resultRowsFromDB:         [][]any{{"m2", 8}, {"m3", 1}, {"m4", -11}},
+			expectedSortFieldsPerHit: [][]any{{"m2", 8, 1}, {"m3", 1}, {"m4", -11}},
+		},
+		{
+			request:                  `{"search_after": ["m4", -11], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
+			expectedSQL:              `SELECT "message", "pk" FROM __quesma_table_name WHERE ("message">'m4' OR ("message"='m4' AND "pk" NOT IN -11)) ORDER BY "message" ASC LIMIT 3`,
+			resultRowsFromDB:         [][]any{{"m5", 8}, {"m6", 1111}, {"m7", -11}},
+			expectedSortFieldsPerHit: [][]any{{"m5", 8}, {"m6", 1111}, {"m7", -11}},
+		},
+	}
+
+	test := func(strategy model.SearchAfterStrategyType, iterations []Iteration, tableMap *clickhouse.TableMap, Schema schema.Schema, dateTimeType string, handlerName string) {
 		conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 		defer conn.Close()
 		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
-		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
+		staticRegistry := schema.NewStaticRegistry(
+			map[schema.IndexName]schema.Schema{tableName: Schema},
+			map[string]schema.Table{},
+			map[schema.FieldEncodingKey]schema.EncodedFieldName{},
+		)
+		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tableMap, staticRegistry)
 
 		for _, iteration := range iterations {
-			rows := sqlmock.NewRows([]string{"message"})
-			for _, row := range iteration.resultRowsFromDB {
-				rows.AddRow(row)
+			var rows *sqlmock.Rows
+			switch len(iteration.resultRowsFromDB[0]) {
+			case 1:
+				rows = sqlmock.NewRows([]string{"message"})
+				for _, row := range iteration.resultRowsFromDB {
+					rows.AddRow(row[0])
+				}
+			case 2:
+				rows = sqlmock.NewRows([]string{"message", "pk"})
+				for _, row := range iteration.resultRowsFromDB {
+					rows.AddRow(row[0], row[1])
+				}
+			default:
+				t.Fatalf("Unexpected number of columns in resultRowsFromDB: %d", len(iteration.resultRowsFromDB[0]))
 			}
+
 			mock.ExpectQuery(iteration.expectedSQL).WillReturnRows(rows)
 
 			var (
@@ -1250,9 +1335,16 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 			hits := responsePart["hits"].(model.JsonMap)["hits"].([]any)
 			assert.Len(t, hits, len(iteration.resultRowsFromDB))
 			for i, hit := range hits {
-				sortField := hit.(model.JsonMap)["sort"].([]any)
-				assert.Len(t, sortField, 1)
-				assert.Equal(t, iteration.resultRowsFromDB[i], sortField[0].(string))
+				sortFields := hit.(model.JsonMap)["sort"].([]any)
+				expectedSortFields := iteration.resultRowsFromDB[i]
+				if iteration.expectedSortFieldsPerHit != nil {
+					expectedSortFields = iteration.expectedSortFieldsPerHit[i]
+				}
+				assert.Len(t, sortFields, len(expectedSortFields))
+				assert.Equal(t, expectedSortFields[0], sortFields[0])
+				for j := range len(sortFields) - 1 {
+					assert.Equal(t, expectedSortFields[j+1], int(sortFields[j+1].(float64))) // jsons will parse numbers to float64
+				}
 			}
 		}
 
@@ -1261,11 +1353,23 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 		}
 	}
 
-	handlers := []string{"handleSearch", "handleAsyncSearch"}
-	for _, strategy := range []model.SearchAfterStrategy{searchAfterStrategyFactory(model.BasicAndFast)} {
+	type testcase struct {
+		strategy   model.SearchAfterStrategyType
+		tableName  string
+		iterations []Iteration
+	}
+
+	testcases := []testcase{
+		{model.BasicAndFast, "noPK", iterationsBasicAndFast},
+		{model.BasicAndFast, "withPK", iterationsBasicAndFast},
+		{model.Bulletproof, "noPK", iterationsBulletproofNoPK},
+		{model.Bulletproof, "withPK", iterationsBulletproofWithPK},
+	}
+	handlers := []string{"handleSearch"} //, "handleAsyncSearch"}
+	for _, tc := range testcases {
 		for _, handlerName := range handlers {
-			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
-				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
+			t.Run(fmt.Sprintf("TestSearchAfterParameter:%s/%s/%s", handlerName, tc.strategy.String(), tc.tableName), func(t *testing.T) {
+				test(tc.strategy, tc.iterations, tables[tc.tableName], schemas[tc.tableName], "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
 			})
 		}
 	}
