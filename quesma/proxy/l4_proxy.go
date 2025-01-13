@@ -8,7 +8,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/stats"
 	"github.com/QuesmaOrg/quesma/quesma/util"
@@ -56,7 +55,6 @@ func resolveHttpServer(inspect bool) *http.Server {
 
 func configureRouting() *http.ServeMux {
 	router := http.NewServeMux()
-	configuration := &config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"_all": {QueryTarget: []string{config.ElasticsearchTarget}, IngestTarget: []string{config.ElasticsearchTarget}}}}
 	router.HandleFunc("POST /{index}/_doc", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		index := r.PathValue("index")
 
@@ -71,7 +69,7 @@ func configureRouting() *http.ServeMux {
 		}
 
 		if !elasticsearch.IsInternalIndex(index) {
-			stats.GlobalStatistics.Process(configuration, index, jsonBody, clickhouse.NestedSeparator)
+			stats.GlobalStatistics.Process(false, index, jsonBody, clickhouse.NestedSeparator)
 		}
 	}))
 
@@ -89,7 +87,7 @@ func configureRouting() *http.ServeMux {
 		}
 
 		if !elasticsearch.IsInternalIndex(index) {
-			stats.GlobalStatistics.Process(configuration, index, jsonBody, clickhouse.NestedSeparator)
+			stats.GlobalStatistics.Process(false, index, jsonBody, clickhouse.NestedSeparator)
 		}
 	}))
 
@@ -114,7 +112,7 @@ func configureRouting() *http.ServeMux {
 			}
 
 			if !elasticsearch.IsInternalIndex(index) {
-				stats.GlobalStatistics.Process(configuration, index, document, clickhouse.NestedSeparator)
+				stats.GlobalStatistics.Process(false, index, document, clickhouse.NestedSeparator)
 			}
 			return nil
 		})

@@ -5,6 +5,7 @@ package quesma
 import (
 	"context"
 	"errors"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
@@ -36,7 +37,7 @@ import (
 	"time"
 )
 
-func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) *quesma_api.PathRouter {
+func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver, elasticsearchConnector *backend_connectors.ElasticsearchBackendConnector) *quesma_api.PathRouter {
 
 	// some syntactic sugar
 	method := quesma_api.IsHTTPMethod
@@ -111,7 +112,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			return nil, err
 		}
 
-		results, err := bulk.Write(ctx, nil, body, ip, cfg, phoneHomeAgent, tableResolver)
+		results, err := bulk.Write(ctx, nil, body, ip, cfg.IngestStatistics, elasticsearchConnector, phoneHomeAgent, tableResolver)
 		return bulkInsertResult(ctx, results, err)
 	})
 
@@ -131,7 +132,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			}, nil
 		}
 
-		result, err := doc.Write(ctx, &index, body, ip, cfg, phoneHomeAgent, tableResolver)
+		result, err := doc.Write(ctx, &index, body, ip, cfg.IngestStatistics, phoneHomeAgent, tableResolver, elasticsearchConnector)
 		if err != nil {
 			return &quesma_api.Result{
 				Body:          string(queryparser.BadRequestParseError(err)),
@@ -151,7 +152,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			return nil, err
 		}
 
-		results, err := bulk.Write(ctx, &index, body, ip, cfg, phoneHomeAgent, tableResolver)
+		results, err := bulk.Write(ctx, &index, body, ip, cfg.IngestStatistics, elasticsearchConnector, phoneHomeAgent, tableResolver)
 		return bulkInsertResult(ctx, results, err)
 	})
 

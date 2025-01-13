@@ -46,7 +46,8 @@ const EnableConcurrencyProfiling = false
 
 // Example of how to use the v2 module api in main function
 //func main() {
-//	q1 := buildQueryOnlyQuesma()
+//	q1 := buildIngestOnlyQuesma() // Back working on ingest for a while
+//	//q1 := buildQueryOnlyQuesma()
 //	q1.Start()
 //	stop := make(chan os.Signal, 1)
 //	<-stop

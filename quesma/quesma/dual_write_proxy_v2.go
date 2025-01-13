@@ -5,6 +5,7 @@ package quesma
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
@@ -75,8 +76,9 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 
 	// tests should not be run with optimization enabled by default
 	queryProcessor.EnableQueryOptimization(config)
+	esConn := backend_connectors.NewElasticsearchBackendConnector(config.Elasticsearch)
 
-	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver)
+	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver, esConn)
 	searchRouter := ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
 
 	elasticHttpIngestFrontendConnector := frontend_connectors.NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),

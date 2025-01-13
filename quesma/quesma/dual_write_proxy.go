@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
@@ -94,7 +95,8 @@ func newDualWriteProxy(schemaLoader clickhouse.TableDiscovery, logManager *click
 	// tests should not be run with optimization enabled by default
 	queryRunner.EnableQueryOptimization(config)
 
-	pathRouter := ConfigureRouter(config, registry, logManager, processor, quesmaManagementConsole, agent, queryRunner, resolver)
+	esBackendConnector := backend_connectors.NewElasticsearchBackendConnector(config.Elasticsearch)
+	pathRouter := ConfigureRouter(config, registry, logManager, processor, quesmaManagementConsole, agent, queryRunner, resolver, esBackendConnector)
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},

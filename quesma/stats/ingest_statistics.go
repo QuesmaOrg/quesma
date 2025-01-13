@@ -5,7 +5,6 @@ package stats
 import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/jsonprocessor"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"sort"
 	"strconv"
@@ -79,12 +78,8 @@ func (s *Statistics) getValueStatisticsPtr(keyStatistics *KeyStatistics, nonSche
 	}
 }
 
-func (s *Statistics) process(cfg *config.QuesmaConfiguration, index string,
+func (s *Statistics) process(index string,
 	jsonData types.JSON, nonSchemaFields bool, nestedSeparator string) {
-	// TODO reading cfg.IngestStatistics is not thread safe
-	if !cfg.IngestStatistics {
-		return
-	}
 
 	flatJson := jsonprocessor.FlattenMap(jsonData, nestedSeparator)
 
@@ -125,15 +120,19 @@ func (s *Statistics) process(cfg *config.QuesmaConfiguration, index string,
 	}
 }
 
-func (s *Statistics) Process(cfg *config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
-	s.process(cfg, index, jsonData, false, nestedSeparator)
+func (s *Statistics) Process(ingestStatsEnabled bool, index string, jsonData types.JSON, nestedSeparator string) {
+	if ingestStatsEnabled {
+		s.process(index, jsonData, false, nestedSeparator)
+	}
 	if statistics, ok := (*s)[index]; ok && statistics.Requests < STATISTICS_LIMIT {
 		statistics.Requests++
 	}
 }
 
-func (s *Statistics) UpdateNonSchemaValues(cfg *config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
-	s.process(cfg, index, jsonData, true, nestedSeparator)
+func (s *Statistics) UpdateNonSchemaValues(ingestStatsEnabled bool, index string, jsonData types.JSON, nestedSeparator string) {
+	if ingestStatsEnabled {
+		s.process(index, jsonData, true, nestedSeparator)
+	}
 }
 
 func (s *Statistics) GetIngestStatistics(indexName string) (*IngestStatistics, error) {

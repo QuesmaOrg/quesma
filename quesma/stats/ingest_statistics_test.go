@@ -3,7 +3,6 @@
 package stats
 
 import (
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
@@ -42,13 +41,10 @@ func TestStatistics_process(t *testing.T) {
 	marshal1, _ := json.Marshal(json1)
 	marshal2, _ := json.Marshal(json2)
 	marshal3, _ := json.Marshal(json3)
-	cfg := config.QuesmaConfiguration{
-		IngestStatistics: true,
-	}
-	stats.Process(&cfg, "index1", types.MustJSON(string(marshal1)), "::")
-	stats.Process(&cfg, "index1", types.MustJSON(string(marshal2)), "::")
-	stats.Process(&cfg, "index1", types.MustJSON(string(marshal3)), "::")
-	stats.Process(&cfg, "index1", types.MustJSON(string(marshal3)), "::")
+	stats.Process(true, "index1", types.MustJSON(string(marshal1)), "::")
+	stats.Process(true, "index1", types.MustJSON(string(marshal2)), "::")
+	stats.Process(true, "index1", types.MustJSON(string(marshal3)), "::")
+	stats.Process(true, "index1", types.MustJSON(string(marshal3)), "::")
 
 	ingestStats := (*stats)["index1"]
 
