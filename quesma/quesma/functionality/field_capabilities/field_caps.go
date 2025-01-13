@@ -44,12 +44,13 @@ func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.Fie
 
 func handleFieldCapsIndex(cfg map[string]config.IndexConfiguration, schemaRegistry schema.Registry, indexes []string) ([]byte, error) {
 	fields := make(map[string]map[string]model.FieldCapability)
+
+	schemas := schemaRegistry.AllSchemas()
+
 	for _, resolvedIndex := range indexes {
 		if len(resolvedIndex) == 0 {
 			continue
 		}
-
-		schemas := schemaRegistry.AllSchemas()
 
 		if schemaDefinition, found := schemas[schema.IndexName(resolvedIndex)]; found {
 			indexConfig, configured := cfg[resolvedIndex]
