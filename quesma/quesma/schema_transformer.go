@@ -356,6 +356,25 @@ func (s *SchemaCheckPass) applyMapTransformations(indexSchema schema.Schema, que
 	return query, nil
 }
 
+func (s *SchemaCheckPass) computeListIndexPrefixesToGroup() []string {
+
+	const groupByCommonTableIndexes = "group_common_table_indexes"
+
+	var groupIndexesPrefix []string
+	if s.cfg.DefaultQueryOptimizers != nil {
+		if opt, ok := s.cfg.DefaultQueryOptimizers[groupByCommonTableIndexes]; ok {
+			if !opt.Disabled {
+				for k, v := range opt.Properties {
+					if v != "false" {
+						groupIndexesPrefix = append(groupIndexesPrefix, k)
+					}
+				}
+			}
+		}
+	}
+	return groupIndexesPrefix
+}
+
 func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	if query.TableName == model.SingleTableNamePlaceHolder {
@@ -425,26 +444,13 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 			orExpression := make(map[string]model.Expr)
 
-			const groupByCommonTableIndexes = "group_common_table_indexes"
-
-			var groupIndexesPrefix []string
-			if s.cfg.DefaultQueryOptimizers != nil {
-				if opt, ok := s.cfg.DefaultQueryOptimizers[groupByCommonTableIndexes]; ok {
-					if !opt.Disabled {
-						for k, v := range opt.Properties {
-							if v != "false" {
-								groupIndexesPrefix = append(groupIndexesPrefix, k)
-							}
-						}
-					}
-				}
-			}
+			groupIndexesPrefix := s.computeListIndexPrefixesToGroup()
 
 			for _, indexName := range query.Indexes {
-
 				var added bool
-				if len(groupIndexesPrefix) > 0 {
 
+				// apply optimization here
+				if len(groupIndexesPrefix) > 0 {
 					for _, prefix := range groupIndexesPrefix {
 						if strings.HasPrefix(indexName, prefix) {
 							added = true
@@ -460,9 +466,16 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 				}
 			}
 
+			// keep in the order
+			var orExpressionOrder []string
+			for k := range orExpression {
+				orExpressionOrder = append(orExpressionOrder, k)
+			}
+			sort.Strings(orExpressionOrder)
+
 			var indexWhere []model.Expr
-			for _, expr := range orExpression {
-				indexWhere = append(indexWhere, expr)
+			for _, name := range orExpressionOrder {
+				indexWhere = append(indexWhere, orExpression[name])
 			}
 
 			indicesWhere := model.Or(indexWhere)
