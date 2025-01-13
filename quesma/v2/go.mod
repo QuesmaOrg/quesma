@@ -1,4 +1,4 @@
-module quesma_v2
+module github.com/QuesmaOrg/quesma/v2
 
 go 1.23.2
 
