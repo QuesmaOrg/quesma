@@ -533,8 +533,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			DatabaseName:       "", // it doesn't matter here, common table will be used
 		}
 
+		schemas := q.schemaRegistry.AllSchemas()
+
 		for _, idx := range resolvedIndexes {
-			scm, ok := q.schemaRegistry.FindSchema(schema.IndexName(idx))
+			scm, ok := schemas[schema.IndexName(idx)]
 			if !ok {
 				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", idx)).Details("Table: %s", idx)
 			}
