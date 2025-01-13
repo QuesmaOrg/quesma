@@ -5,12 +5,12 @@ package config
 import (
 	"errors"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/hashicorp/go-multierror"
 	"github.com/knadh/koanf/parsers/json"
 	"github.com/knadh/koanf/v2"
 	"github.com/rs/zerolog"
 	"log"
-	"quesma/util"
 	"reflect"
 	"slices"
 	"strings"

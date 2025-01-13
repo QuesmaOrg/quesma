@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package bucket_aggregations
 
-import "quesma/model"
+import "github.com/QuesmaOrg/quesma/quesma/model"
 
 // CombinatorAggregationInterface It is a special case of bucket aggregation for: filters, range and dataRange.
 // They are by using combinators such as `countIf` instead of group by.

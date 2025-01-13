@@ -3,13 +3,13 @@
 package ingest
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/goccy/go-json"
-	"quesma/clickhouse"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/util"
 	"quesma_v2/core/diag"
 	"strings"
 	"sync/atomic"

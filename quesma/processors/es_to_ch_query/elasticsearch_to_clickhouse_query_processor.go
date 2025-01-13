@@ -7,25 +7,24 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/ucarion/urlpath"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/processors"
+	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	quesm "github.com/QuesmaOrg/quesma/quesma/quesma"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/telemetry"
 	"io"
 	"net/http"
 	"net/url"
-	"quesma/backend_connectors"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/elasticsearch"
-	"quesma/logger"
-	"quesma/persistence"
-	"quesma/processors"
-	"quesma/processors/es_to_ch_common"
-	"quesma/queryparser"
-	quesm "quesma/quesma"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/telemetry"
 	"quesma_v2/core"
 	"quesma_v2/core/tracing"
 	"strings"
@@ -125,8 +124,8 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 		if val, ok := metadata[es_to_ch_common.PathPattern]; ok {
 			pathPattern = val.(string)
 		}
-		indexPattern = getParamFromRequestURI(req, pathPattern, "index")
-		id = getParamFromRequestURI(req, pathPattern, "id")
+		indexPattern = es_to_ch_common.GetParamFromRequestURI(req, pathPattern, "index")
+		id = es_to_ch_common.GetParamFromRequestURI(req, pathPattern, "id")
 
 		routerOrderedToBypass := metadata[es_to_ch_common.Bypass] == true
 		if !routerOrderedToBypass && pathPattern == "" {
@@ -139,7 +138,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 		}
 		logger.Info().Msgf("Maybe processing %s", req.URL)
 		ctx := context.Background()
-		switch metadata[es_to_ch_common.PathPattern] { // TODO well, this IS http routing TBH
+		switch metadata[es_to_ch_common.PathPattern] {
 		case es_to_ch_common.ClusterHealthPath:
 			res, err := quesm.HandleClusterHealth()
 			metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceQuesma
@@ -329,16 +328,4 @@ func GetQueryFromRequest(req *http.Request) (types.JSON, error) {
 		return nil, err
 	}
 	return bodyJson, nil
-}
-
-func getParamFromRequestURI(request *http.Request, path string, param string) string {
-	if request.URL == nil {
-		return ""
-	}
-	expectedUrl := urlpath.New(path)
-	if match, ok := expectedUrl.Match(request.URL.Path); !ok {
-		return ""
-	} else {
-		return match.Params[param]
-	}
 }

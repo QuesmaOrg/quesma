@@ -4,8 +4,8 @@ package eql
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/eql/parser"
 	"github.com/antlr4-go/antlr/v4"
-	"quesma/eql/parser"
 )
 
 //  antlr -Dlanguage=Go  -package parser quesma/eql/parser/EQL.g4

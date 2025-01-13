@@ -5,9 +5,9 @@ package quesma
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/processors"
 	"net/http"
-	"quesma/frontend_connectors"
-	"quesma/processors"
 	quesma_api "quesma_v2/core"
 	"sync/atomic"
 )

@@ -5,10 +5,10 @@ package metrics_aggregations
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"math"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/util"
 )
 
 type ExtendedStats struct {

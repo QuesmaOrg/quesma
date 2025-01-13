@@ -5,8 +5,8 @@ package tracing
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/rs/zerolog"
-	"quesma/util"
 	tracing "quesma_v2/core/tracing"
 	"strings"
 	"time"

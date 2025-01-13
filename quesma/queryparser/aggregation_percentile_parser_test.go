@@ -5,10 +5,10 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/model"
-	"quesma/schema"
 	"testing"
 )
 

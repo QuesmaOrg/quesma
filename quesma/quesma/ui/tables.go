@@ -5,10 +5,10 @@ package ui
 import (
 	"errors"
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/end_user_errors"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"sort"
 	"strings"
 )

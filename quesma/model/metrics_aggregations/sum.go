@@ -4,8 +4,8 @@ package metrics_aggregations
 
 import (
 	"context"
-	"quesma/clickhouse"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 )
 
 type Sum struct {

@@ -5,12 +5,12 @@ package logger
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/stats/errorstats"
+	asyncQueryTracing "github.com/QuesmaOrg/quesma/quesma/tracing"
 	"github.com/rs/zerolog"
 	"io"
 	"net/http"
 	"os"
-	"quesma/stats/errorstats"
-	asyncQueryTracing "quesma/tracing"
 	quesma_v2 "quesma_v2/core"
 
 	"time"

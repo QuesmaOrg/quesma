@@ -3,6 +3,12 @@
 
 package es_to_ch_common
 
+import (
+	"github.com/ucarion/urlpath"
+	"net/http"
+	quesma_api "quesma_v2/core"
+)
+
 // Shared code for Elasticsearch to Clickhouse Query/Ingest processors
 
 const (
@@ -50,3 +56,26 @@ const (
 	RealSourceQuesma        = "NONE"  // if response is just processor's own rendered content, no DB is called
 	RealSourceMixed         = "MIXED" // e.g. in case of _resolve API
 )
+
+// SetPathPattern sets the path pattern matched at the frontend connector level in the metadata
+// Therefore, the processor doesn't have to iterate again over route list to determine desired action
+func SetPathPattern(req *quesma_api.Request, pathPattern string) *quesma_api.Result {
+	metadata := quesma_api.MakeNewMetadata()
+	metadata[PathPattern] = pathPattern
+	return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}
+}
+
+// GetParamFromRequestURI extracts a parameter from the request URI,
+// e.g. for request URI=`/myIndexName/1337`, path=/:index/:id param=index
+// it will return `myIndexName`
+func GetParamFromRequestURI(request *http.Request, path string, param string) string {
+	if request.URL == nil {
+		return ""
+	}
+	expectedUrl := urlpath.New(path)
+	if match, ok := expectedUrl.Match(request.URL.Path); !ok {
+		return ""
+	} else {
+		return match.Params[param]
+	}
+}

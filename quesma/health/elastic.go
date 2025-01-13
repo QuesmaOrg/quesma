@@ -5,12 +5,12 @@ package health
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/goccy/go-json"
 	"io"
 	"net/http"
-	"quesma/elasticsearch"
-	"quesma/logger"
-	"quesma/quesma/config"
 	"strconv"
 )
 

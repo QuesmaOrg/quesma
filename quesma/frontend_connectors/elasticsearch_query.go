@@ -5,10 +5,10 @@ package frontend_connectors
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"net/http"
-	"quesma/elasticsearch"
-	"quesma/processors/es_to_ch_common"
-	"quesma/quesma/config"
 	quesma_api "quesma_v2/core"
 )
 
@@ -42,37 +42,37 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 	//	return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	//})
 	router.Register(es_to_ch_common.IndexSearchPath, quesma_api.IsHTTPMethod("GET", "POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		return setPathPattern(req, es_to_ch_common.IndexSearchPath), nil
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.IndexSearchPath), nil
 	})
 	router.Register(es_to_ch_common.IndexAsyncSearchPath, quesma_api.IsHTTPMethod("POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		return setPathPattern(req, es_to_ch_common.IndexAsyncSearchPath), nil
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.IndexAsyncSearchPath), nil
 	})
 	router.Register(es_to_ch_common.AsyncSearchIdPath, quesma_api.IsHTTPMethod("GET", "DELETE"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		return setPathPattern(req, es_to_ch_common.AsyncSearchIdPath), nil
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.AsyncSearchIdPath), nil
 	})
 	router.Register(es_to_ch_common.AsyncSearchStatusPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		return setPathPattern(req, es_to_ch_common.AsyncSearchStatusPath), nil
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.AsyncSearchStatusPath), nil
 	})
 	router.Register(es_to_ch_common.FieldCapsPath, quesma_api.IsHTTPMethod("GET", "POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		return setPathPattern(req, es_to_ch_common.FieldCapsPath), nil
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.FieldCapsPath), nil
 	})
 	router.Register(es_to_ch_common.ResolveIndexPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		return setPathPattern(req, es_to_ch_common.ResolveIndexPath), nil
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.ResolveIndexPath), nil
 	})
 	router.Register(es_to_ch_common.ClusterHealthPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		return setPathPattern(req, es_to_ch_common.ClusterHealthPath), nil
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.ClusterHealthPath), nil
 	})
 	router.Register(es_to_ch_common.IndexRefreshPath, quesma_api.IsHTTPMethod("POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		return setPathPattern(req, es_to_ch_common.IndexRefreshPath), nil
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.IndexRefreshPath), nil
 	})
 	router.Register(es_to_ch_common.IndexMappingPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		return setPathPattern(req, es_to_ch_common.IndexMappingPath), nil
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.IndexMappingPath), nil
 	})
 	router.Register(es_to_ch_common.TermsEnumPath, quesma_api.IsHTTPMethod("POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		return setPathPattern(req, es_to_ch_common.TermsEnumPath), nil
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.TermsEnumPath), nil
 	})
 	router.Register(es_to_ch_common.IndexCountPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		return setPathPattern(req, es_to_ch_common.IndexCountPath), nil
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.IndexCountPath), nil
 	})
 
 	router.Register("*", quesma_api.Always(), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
@@ -83,10 +83,4 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 
 	fc.AddRouter(router)
 	return fc
-}
-
-func setPathPattern(req *quesma_api.Request, pathPattern string) *quesma_api.Result {
-	metadata := quesma_api.MakeNewMetadata()
-	metadata[es_to_ch_common.PathPattern] = pathPattern
-	return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}
 }

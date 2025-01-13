@@ -3,7 +3,7 @@
 package ingest
 
 import (
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 )
 
 func transformFieldName(jsonInsert types.JSON, transformer func(field string) string) bool {

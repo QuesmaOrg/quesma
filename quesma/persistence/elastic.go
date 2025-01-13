@@ -5,13 +5,13 @@ package persistence
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/goccy/go-json"
 	"io"
 	"log"
 	"net/http"
-	"quesma/elasticsearch"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
 )
 
 type ElasticJSONDatabase struct {

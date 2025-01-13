@@ -4,14 +4,14 @@ package quesma
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/telemetry"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/ingest"
-	"quesma/quesma/config"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/telemetry"
 	mux "quesma_v2/core"
 	"quesma_v2/core/routes"
 	"strings"
@@ -280,7 +280,7 @@ func TestConfigureRouter(t *testing.T) {
 		},
 	}
 	tr := TestTableResolver{}
-	testRouter := ConfigureRouter(cfg, schema.NewSchemaRegistry(fixedTableProvider{}, cfg, clickhouse.SchemaTypeAdapter{}), &clickhouse.LogManager{}, &ingest.IngestProcessor{}, &ui.QuesmaManagementConsole{}, telemetry.NewPhoneHomeAgent(cfg, nil, ""), &QueryRunner{}, tr)
+	testRouter := ConfigureRouter(cfg, schema.NewSchemaRegistry(fixedTableProvider{}, cfg, clickhouse.SchemaTypeAdapter{}), &clickhouse.LogManager{}, &ingest.IngestProcessor{}, &ui.QuesmaManagementConsole{}, telemetry.NewPhoneHomeAgent(cfg, nil, ""), &QueryRunner{}, tr, nil)
 
 	tests := []struct {
 		path                string

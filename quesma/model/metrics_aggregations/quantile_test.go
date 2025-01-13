@@ -4,9 +4,9 @@ package metrics_aggregations
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"math"
-	"quesma/clickhouse"
-	"quesma/util"
 	"strconv"
 	"testing"
 	"time"

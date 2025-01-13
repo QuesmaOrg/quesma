@@ -3,12 +3,12 @@
 package quesma
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/model"
-	"quesma/quesma/config"
-	"quesma/schema"
 	"strconv"
 	"testing"
 )

@@ -6,24 +6,24 @@ import (
 	"context"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	chLib "github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/comment_metadata"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/jsonprocessor"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/stats"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/telemetry"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/goccy/go-json"
-	chLib "quesma/clickhouse"
-	"quesma/comment_metadata"
-	"quesma/common_table"
-	"quesma/elasticsearch"
-	"quesma/end_user_errors"
-	"quesma/jsonprocessor"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/quesma/recovery"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/stats"
-	"quesma/table_resolver"
-	"quesma/telemetry"
-	"quesma/util"
 	"quesma_v2/core"
 	"quesma_v2/core/diag"
 	"slices"
@@ -879,8 +879,9 @@ func (ip *IngestProcessor) preprocessJsons(ctx context.Context,
 			return nil, nil, fmt.Errorf("error validation: %v", err)
 		}
 		invalidJsons = append(invalidJsons, inValidJson)
-		stats.GlobalStatistics.UpdateNonSchemaValues(ip.cfg, tableName,
-			inValidJson, NestedSeparator)
+		if ip.cfg != nil {
+			stats.GlobalStatistics.UpdateNonSchemaValues(ip.cfg.IngestStatistics, tableName, inValidJson, NestedSeparator)
+		}
 		// Remove invalid fields from the input JSON
 		jsonValue = subtractInputJson(jsonValue, inValidJson)
 		validatedJsons = append(validatedJsons, jsonValue)
@@ -967,6 +968,14 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 	wasntCreated := !t.Created
 	t.Created = true
 	return wasntCreated
+}
+
+func (ip *IngestProcessor) GetSchemaRegistry() schema.Registry {
+	return ip.schemaRegistry
+}
+
+func (ip *IngestProcessor) GetTableResolver() table_resolver.TableResolver {
+	return ip.tableResolver
 }
 
 func (ip *IngestProcessor) Ping() error {
