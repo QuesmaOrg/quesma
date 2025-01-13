@@ -3,10 +3,10 @@
 package kibana_visualize
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"math/big"
-	"quesma/model"
-	"quesma/testdata"
-	"quesma/util"
 )
 
 const TableName = model.SingleTableNamePlaceHolder

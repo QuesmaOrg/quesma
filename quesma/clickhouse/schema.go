@@ -4,9 +4,9 @@ package clickhouse
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"math"
-	"quesma/logger"
-	"quesma/util"
 	"reflect"
 	"strings"
 	"time"

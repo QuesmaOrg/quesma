@@ -3,7 +3,7 @@
 package feature
 
 import (
-	"quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"sync"
 	"time"
 )

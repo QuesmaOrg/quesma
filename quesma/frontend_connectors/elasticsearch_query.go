@@ -5,10 +5,10 @@ package frontend_connectors
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"net/http"
-	"quesma/elasticsearch"
-	"quesma/processors/es_to_ch_common"
-	"quesma/quesma/config"
 	quesma_api "quesma_v2/core"
 )
 

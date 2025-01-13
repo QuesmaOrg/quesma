@@ -4,10 +4,10 @@ package lucene
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"math"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/schema"
 	"slices"
 	"strconv"
 	"strings"

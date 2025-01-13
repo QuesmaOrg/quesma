@@ -4,7 +4,7 @@ package typical_queries
 
 import (
 	"context"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 )
 
 type Count struct {

@@ -4,7 +4,7 @@ package common_table
 
 import (
 	"context"
-	"quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	quesma_api "quesma_v2/core"
 )
 

@@ -5,13 +5,13 @@ package ui
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/jsondiff"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
 	"github.com/goccy/go-json"
 	"io"
-	"quesma/elasticsearch"
-	"quesma/jsondiff"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/ui/internal/builder"
 	"strings"
 	"time"
 )

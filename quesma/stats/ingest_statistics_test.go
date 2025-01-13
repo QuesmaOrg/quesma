@@ -3,10 +3,10 @@
 package stats
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
 	"testing"
 )
 

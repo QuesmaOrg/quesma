@@ -5,7 +5,7 @@ package feature
 import (
 	"context"
 	"fmt"
-	"quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"regexp"
 	"strings"
 )

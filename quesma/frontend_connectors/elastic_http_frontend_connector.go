@@ -5,10 +5,10 @@ package frontend_connectors
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"net/http"
-	"quesma/clickhouse"
-	"quesma/quesma/config"
-	"quesma/schema"
 	quesma_api "quesma_v2/core"
 )
 

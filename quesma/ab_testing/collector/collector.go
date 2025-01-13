@@ -4,11 +4,11 @@ package collector
 
 import (
 	"context"
-	"quesma/ab_testing"
-	"quesma/buildinfo"
-	"quesma/ingest"
-	"quesma/logger"
-	"quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
 	"time"
 )
 
