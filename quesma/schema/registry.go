@@ -8,7 +8,6 @@ import (
 	"quesma/quesma/config"
 	"quesma/util"
 	"sync"
-	"time"
 )
 
 // TODO we should rethink naming and types used in this package
@@ -38,10 +37,6 @@ type (
 		fieldEncodings          map[FieldEncodingKey]EncodedFieldName
 		fieldOriginsLock        sync.RWMutex
 		fieldOrigins            map[IndexName]map[FieldName]FieldSource
-
-		cachedSchemas map[IndexName]Schema
-		cacheTTL      time.Time
-		cacheMutex    sync.Mutex
 	}
 	typeAdapter interface {
 		Convert(string) (QuesmaType, bool)
@@ -80,14 +75,6 @@ func (s *schemaRegistry) getInternalToPublicFieldEncodings(tableName string) map
 }
 
 func (s *schemaRegistry) loadSchemas() (map[IndexName]Schema, error) {
-
-	s.cacheMutex.Lock()
-	defer s.cacheMutex.Unlock()
-
-	if s.cachedSchemas != nil && time.Now().Before(s.cacheTTL) {
-		return s.cachedSchemas, nil
-	}
-
 	definitions := s.dataSourceTableProvider.TableDefinitions()
 	schemas := make(map[IndexName]Schema)
 
@@ -118,9 +105,6 @@ func (s *schemaRegistry) loadSchemas() (map[IndexName]Schema, error) {
 			schemas[IndexName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource, "")
 		}
 	}
-
-	s.cachedSchemas = schemas
-	s.cacheTTL = time.Now().Add(5 * time.Second)
 
 	return schemas, nil
 }
@@ -172,10 +156,6 @@ func (s *schemaRegistry) UpdateDynamicConfiguration(name IndexName, table Table)
 }
 
 func (s *schemaRegistry) UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName) {
-	s.cacheMutex.Lock()
-	defer s.cacheMutex.Unlock()
-	s.cachedSchemas = nil
-
 	s.fieldEncodingsLock.Lock()
 	defer s.fieldEncodingsLock.Unlock()
 	for key, value := range encodings {
