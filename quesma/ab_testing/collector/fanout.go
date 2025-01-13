@@ -5,12 +5,12 @@ package collector
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/goccy/go-json"
 	"net/http"
-	"quesma/ingest"
-	"quesma/logger"
-	"quesma/quesma/types"
 )
 
 type elasticSearchFanout struct {

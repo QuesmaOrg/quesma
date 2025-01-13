@@ -3,8 +3,8 @@
 package clients
 
 import (
-	"quesma/model"
-	"quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
 )
 
 var CloverTests = []testdata.AggregationTestCase{
@@ -765,7 +765,7 @@ var CloverTests = []testdata.AggregationTestCase{
 			  "field" AS "aggr__other-filter__3__key_0",
 			  count(*) AS "aggr__other-filter__3__count"
 			FROM __quesma_table_name
-			WHERE ("a" iLIKE '%b%' AND "c" iLIKE '%d%')
+			WHERE (("a" __quesma_match 'b') AND ("c" __quesma_match 'd'))
 			GROUP BY "field" AS "aggr__other-filter__3__key_0"
 			ORDER BY "aggr__other-filter__3__count" DESC,
 			  "aggr__other-filter__3__key_0" ASC

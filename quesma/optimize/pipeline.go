@@ -3,8 +3,8 @@
 package optimize
 
 import (
-	"quesma/model"
-	"quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"strings"
 	"time"
 )
@@ -31,6 +31,7 @@ func NewOptimizePipeline(config *config.QuesmaConfiguration) model.QueryTransfor
 			&truncateDate{truncateTo: 5 * time.Minute},
 			&cacheQueries{},
 			&materializedViewReplace{},
+			&splitTimeRange{},
 		},
 	}
 }

@@ -18,7 +18,11 @@ backendConnectors:
     type: clickhouse-os
     config:
       url: clickhouse://{{ .clickhouse_host }}:{{ .clickhouse_port }}
-ingestStatistics: true
+logging:
+  path: "logs"
+  level: "info"
+  disableFileLogging: false
+  enableSQLTracing: true
 processors:
   - name: my-query-processor
     type: quesma-v1-processor-query
@@ -92,9 +96,12 @@ processors:
         nested_test:
           target:
             - my-clickhouse-instance
+        encodings_test:
+          target:
+            - my-clickhouse-instance
         "*":
           target:
-            - my-minimal-elasticsearch
+            - my-clickhouse-instance
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
@@ -167,9 +174,13 @@ processors:
         nested_test:
           target:
             - my-clickhouse-instance
+        encodings_test:
+          target:
+            - my-clickhouse-instance
         "*":
           target:
-            - my-minimal-elasticsearch
+            - my-clickhouse-instance
+
 pipelines:
   - name: my-elasticsearch-proxy-read
     frontendConnectors: [ elastic-query ]

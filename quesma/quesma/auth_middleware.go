@@ -3,11 +3,11 @@
 package quesma
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"net/http"
-	"quesma/elasticsearch"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/util"
 	"sync"
 	"time"
 )
@@ -24,11 +24,12 @@ type authMiddleware struct {
 	authHeaderCache   sync.Map
 	cacheWipeInterval time.Duration
 	esClient          elasticsearch.SimpleClient
+	v2                bool
 }
 
 func NewAuthMiddleware(next http.Handler, esConf config.ElasticsearchConfiguration) http.Handler {
 	esClient := elasticsearch.NewSimpleClient(&esConf)
-	middleware := &authMiddleware{nextHttpHandler: next, esClient: *esClient, cacheWipeInterval: cacheWipeInterval}
+	middleware := &authMiddleware{nextHttpHandler: next, esClient: *esClient, cacheWipeInterval: cacheWipeInterval, v2: false}
 	go middleware.startCacheWipeScheduler()
 	return middleware
 }
@@ -49,7 +50,9 @@ func (a *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, ok := a.authHeaderCache.Load(auth); ok {
 		logger.Debug().Msgf("[AUTH] [%s] called by [%s] - credentials loaded from cache", r.URL, userName)
-		a.nextHttpHandler.ServeHTTP(w, r)
+		if !a.v2 {
+			a.nextHttpHandler.ServeHTTP(w, r)
+		}
 		return
 	}
 
@@ -61,8 +64,9 @@ func (a *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-
-	a.nextHttpHandler.ServeHTTP(w, r)
+	if !a.v2 {
+		a.nextHttpHandler.ServeHTTP(w, r)
+	}
 }
 
 func (a *authMiddleware) startCacheWipeScheduler() {
@@ -85,4 +89,11 @@ func (a *authMiddleware) wipeCache() {
 		a.authHeaderCache.Delete(key)
 		return true
 	})
+}
+
+func NewAuthMiddlewareV2(esConf config.ElasticsearchConfiguration) http.Handler {
+	esClient := elasticsearch.NewSimpleClient(&esConf)
+	middleware := &authMiddleware{esClient: *esClient, cacheWipeInterval: cacheWipeInterval, v2: true}
+	go middleware.startCacheWipeScheduler()
+	return middleware
 }

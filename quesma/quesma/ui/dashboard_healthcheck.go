@@ -3,8 +3,8 @@
 package ui
 
 import (
-	"quesma/end_user_errors"
-	"quesma/health"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/health"
 	"sync"
 	"time"
 )

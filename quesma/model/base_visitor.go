@@ -5,6 +5,7 @@ package model
 type BaseExprVisitor struct {
 	OverrideVisitFunction       func(b *BaseExprVisitor, e FunctionExpr) interface{}
 	OverrideVisitLiteral        func(b *BaseExprVisitor, l LiteralExpr) interface{}
+	OverrideVisitTuple          func(b *BaseExprVisitor, t TupleExpr) interface{}
 	OverrideVisitInfix          func(b *BaseExprVisitor, e InfixExpr) interface{}
 	OverrideVisitColumnRef      func(b *BaseExprVisitor, e ColumnRef) interface{}
 	OverrideVisitPrefixExpr     func(b *BaseExprVisitor, e PrefixExpr) interface{}
@@ -43,6 +44,14 @@ func (v *BaseExprVisitor) VisitLiteral(e LiteralExpr) interface{} {
 
 	return NewLiteral(e.Value)
 }
+
+func (v *BaseExprVisitor) VisitTuple(t TupleExpr) interface{} {
+	if v.OverrideVisitTuple != nil {
+		return v.OverrideVisitTuple(v, t)
+	}
+	return NewTupleExpr(v.VisitChildren(t.Exprs)...)
+}
+
 func (v *BaseExprVisitor) VisitInfix(e InfixExpr) interface{} {
 	if v.OverrideVisitInfix != nil {
 		return v.OverrideVisitInfix(v, e)
@@ -77,9 +86,9 @@ func (v *BaseExprVisitor) VisitNestedProperty(e NestedProperty) interface{} {
 	if v.OverrideVisitNestedProperty != nil {
 		return v.OverrideVisitNestedProperty(v, e)
 	}
-	ColumnRef := e.ColumnRef.Accept(v).(ColumnRef)
+	expr := e.ObjectExpr.Accept(v).(Expr)
 	Property := e.PropertyName.Accept(v).(LiteralExpr)
-	return NewNestedProperty(ColumnRef, Property)
+	return NewNestedProperty(expr, Property)
 }
 
 func (v *BaseExprVisitor) VisitArrayAccess(e ArrayAccess) interface{} {

@@ -4,12 +4,13 @@ package table_resolver
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/elasticsearch"
-	"quesma/quesma/config"
+	mux "quesma_v2/core"
 	"reflect"
 	"strings"
 	"testing"
@@ -56,6 +57,8 @@ func TestTableResolver(t *testing.T) {
 
 	cfg := config.QuesmaConfiguration{IndexConfig: indexConf, DefaultQueryTarget: []string{config.ElasticsearchTarget}, DefaultIngestTarget: []string{config.ElasticsearchTarget}}
 
+	cfgClickhouseOnlyUseCommonTable := config.QuesmaConfiguration{IndexConfig: indexConf, DefaultQueryTarget: []string{config.ClickhouseTarget}, DefaultIngestTarget: []string{config.ClickhouseTarget}, UseCommonTableForWildcard: true}
+
 	tests := []struct {
 		name              string
 		pipeline          string
@@ -64,133 +67,134 @@ func TestTableResolver(t *testing.T) {
 		clickhouseIndexes []string
 		virtualTables     []string
 		indexConf         map[string]config.IndexConfiguration
-		expected          Decision
+		expected          mux.Decision
+		quesmaConf        *config.QuesmaConfiguration
 	}{
 		{
 			name:     "elastic fallback",
-			pipeline: IngestPipeline,
+			pipeline: mux.IngestPipeline,
 			pattern:  "some-index",
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionElastic{}},
 			},
 			indexConf: make(map[string]config.IndexConfiguration),
 		},
 		{
 			name:     "all",
-			pipeline: QueryPipeline,
+			pipeline: mux.QueryPipeline,
 			pattern:  "*",
-			expected: Decision{
+			expected: mux.Decision{
 				Err: fmt.Errorf("inconsistent A/B testing configuration"),
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "empty *",
-			pipeline:          QueryPipeline,
+			pipeline:          mux.QueryPipeline,
 			pattern:           "*",
 			clickhouseIndexes: []string{"index1", "index2"},
-			expected: Decision{
+			expected: mux.Decision{
 				Err: fmt.Errorf(""),
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "query all, indices in both connectors",
-			pipeline:          QueryPipeline,
+			pipeline:          mux.QueryPipeline,
 			pattern:           "*",
 			clickhouseIndexes: []string{"index1", "index2"},
 			elasticIndexes:    []string{"index3"},
-			expected: Decision{
+			expected: mux.Decision{
 				Err: fmt.Errorf(""),
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "ingest with a pattern",
-			pipeline:          IngestPipeline,
+			pipeline:          mux.IngestPipeline,
 			pattern:           "*",
 			clickhouseIndexes: []string{"index1", "index2"},
 			elasticIndexes:    []string{"index3"},
-			expected: Decision{
+			expected: mux.Decision{
 				Err: fmt.Errorf("pattern is not allowed"),
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "query closed index",
-			pipeline:          QueryPipeline,
+			pipeline:          mux.QueryPipeline,
 			pattern:           "closed",
 			clickhouseIndexes: []string{"closed"},
-			expected: Decision{
+			expected: mux.Decision{
 				IsClosed: true,
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "ingest closed index",
-			pipeline:          QueryPipeline,
+			pipeline:          mux.QueryPipeline,
 			pattern:           "closed",
 			clickhouseIndexes: []string{"closed"},
-			expected: Decision{
+			expected: mux.Decision{
 				IsClosed: true,
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "ingest closed index",
-			pipeline:          QueryPipeline,
+			pipeline:          mux.QueryPipeline,
 			pattern:           "closed-common-table",
 			clickhouseIndexes: []string{"closed"},
-			expected: Decision{
+			expected: mux.Decision{
 				IsClosed: true,
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "ingest closed index",
-			pipeline:          QueryPipeline,
+			pipeline:          mux.QueryPipeline,
 			pattern:           "unknown-target",
 			clickhouseIndexes: []string{"closed"},
-			expected: Decision{
+			expected: mux.Decision{
 				Err: fmt.Errorf("unsupported target"),
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "ingest to index1",
-			pipeline:          IngestPipeline,
+			pipeline:          mux.IngestPipeline,
 			pattern:           "index1",
 			clickhouseIndexes: []string{"index1"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "index1",
-					ClickhouseTables:    []string{"index1"}},
+					ClickhouseIndexes:   []string{"index1"}},
 				},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "query from index1",
-			pipeline:          QueryPipeline,
+			pipeline:          mux.QueryPipeline,
 			pattern:           "index1",
 			clickhouseIndexes: []string{"index1"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "index1",
-					ClickhouseTables:    []string{"index1"}},
+					ClickhouseIndexes:   []string{"index1"}},
 				},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "ingest to index2",
-			pipeline:          IngestPipeline,
+			pipeline:          mux.IngestPipeline,
 			pattern:           "index2",
 			clickhouseIndexes: []string{"index2"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					ClickhouseTables:    []string{"index2"},
+					ClickhouseIndexes:   []string{"index2"},
 					IsCommonTable:       true,
 				}},
 			},
@@ -198,13 +202,13 @@ func TestTableResolver(t *testing.T) {
 		},
 		{
 			name:              "query from index2",
-			pipeline:          QueryPipeline,
+			pipeline:          mux.QueryPipeline,
 			pattern:           "index2",
 			clickhouseIndexes: []string{"index2"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					ClickhouseTables:    []string{"index2"},
+					ClickhouseIndexes:   []string{"index2"},
 					IsCommonTable:       true,
 				}},
 			},
@@ -212,163 +216,178 @@ func TestTableResolver(t *testing.T) {
 		},
 		{
 			name:           "query from index1,index2",
-			pipeline:       QueryPipeline,
+			pipeline:       mux.QueryPipeline,
 			pattern:        "index1,index2",
 			elasticIndexes: []string{"index3"},
-			expected: Decision{
+			expected: mux.Decision{
 				Err: fmt.Errorf(""),
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:           "query from index1,index-not-existing",
-			pipeline:       QueryPipeline,
+			pipeline:       mux.QueryPipeline,
 			pattern:        "index1,index-not-existing",
 			elasticIndexes: []string{"index1,index-not-existing"},
-			expected: Decision{
+			expected: mux.Decision{
 				Err: fmt.Errorf(""), // index1 in Clickhouse, index-not-existing in Elastic ('*')
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:           "ingest to index3",
-			pipeline:       IngestPipeline,
+			pipeline:       mux.IngestPipeline,
 			pattern:        "index3",
 			elasticIndexes: []string{"index3"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionElastic{}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:           "query from index3",
-			pipeline:       QueryPipeline,
+			pipeline:       mux.QueryPipeline,
 			pattern:        "index3",
 			elasticIndexes: []string{"index3"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionElastic{}},
 			},
 			indexConf: indexConf,
 		},
 
 		{
 			name:          "query pattern",
-			pipeline:      QueryPipeline,
+			pipeline:      mux.QueryPipeline,
 			pattern:       "index2,foo*",
 			virtualTables: []string{"index2"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
-					ClickhouseTables:    []string{"index2"},
+					ClickhouseIndexes:   []string{"index2"},
 					IsCommonTable:       true,
 				}},
 			},
 			indexConf: indexConf,
 		},
 		{
+			name:          "query pattern (not existing virtual table)",
+			pipeline:      mux.QueryPipeline,
+			pattern:       "common-index1,common-index2",
+			virtualTables: []string{"common-index1"},
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
+					ClickhouseTableName: common_table.TableName,
+					ClickhouseIndexes:   []string{"common-index1", "common-index2"},
+					IsCommonTable:       true,
+				}},
+			},
+			indexConf:  indexConf,
+			quesmaConf: &cfgClickhouseOnlyUseCommonTable,
+		},
+		{
 			name:     "query kibana internals",
-			pipeline: QueryPipeline,
+			pipeline: mux.QueryPipeline,
 			pattern:  ".kibana",
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{ManagementCall: true}},
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionElastic{ManagementCall: true}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:     "ingest kibana internals",
-			pipeline: IngestPipeline,
+			pipeline: mux.IngestPipeline,
 			pattern:  ".kibana",
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{ManagementCall: true}},
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionElastic{ManagementCall: true}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:     "ingest not configured index",
-			pipeline: IngestPipeline,
+			pipeline: mux.IngestPipeline,
 			pattern:  "not-configured",
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{}},
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionElastic{}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:     "double write",
-			pipeline: IngestPipeline,
+			pipeline: mux.IngestPipeline,
 			pattern:  "logs",
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "logs",
-					ClickhouseTables:    []string{"logs"},
+					ClickhouseIndexes:   []string{"logs"},
 				},
-					&ConnectorDecisionElastic{}},
+					&mux.ConnectorDecisionElastic{}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:     "A/B testing",
-			pipeline: QueryPipeline,
+			pipeline: mux.QueryPipeline,
 			pattern:  "logs",
-			expected: Decision{
+			expected: mux.Decision{
 				EnableABTesting: true,
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "logs",
-					ClickhouseTables:    []string{"logs"},
+					ClickhouseIndexes:   []string{"logs"},
 				},
-					&ConnectorDecisionElastic{}},
+					&mux.ConnectorDecisionElastic{}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:     "A/B testing (pattern)",
-			pipeline: QueryPipeline,
+			pipeline: mux.QueryPipeline,
 			pattern:  "logs*",
-			expected: Decision{
+			expected: mux.Decision{
 				EnableABTesting: true,
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionClickhouse{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "logs",
-					ClickhouseTables:    []string{"logs"},
+					ClickhouseIndexes:   []string{"logs"},
 				},
-					&ConnectorDecisionElastic{}},
+					&mux.ConnectorDecisionElastic{}},
 			},
 			indexConf: indexConf,
 		},
 		{
 			name:              "query both connectors",
-			pipeline:          QueryPipeline,
+			pipeline:          mux.QueryPipeline,
 			pattern:           "logs,index1",
 			indexConf:         indexConf,
 			clickhouseIndexes: []string{"index1"},
 			elasticIndexes:    []string{"logs"},
-			expected: Decision{
+			expected: mux.Decision{
 				Err: fmt.Errorf(""),
 			},
 		},
 		{
 			name:           "query elastic with pattern",
-			pipeline:       QueryPipeline,
+			pipeline:       mux.QueryPipeline,
 			pattern:        "some-elastic-logs*",
 			elasticIndexes: []string{"logs"},
-			expected: Decision{
-				UseConnectors: []ConnectorDecision{&ConnectorDecisionElastic{
+			expected: mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionElastic{
 					ManagementCall: false,
 				}},
 			},
 		},
 		{
 			name:           "non matching pattern",
-			pipeline:       QueryPipeline,
+			pipeline:       mux.QueryPipeline,
 			pattern:        "some-non-matching-pattern*",
 			elasticIndexes: []string{"logs"},
-			expected: Decision{
+			expected: mux.Decision{
 				IsEmpty: true,
 			},
 		},
 		{
 			name:     "query internal index",
-			pipeline: QueryPipeline,
+			pipeline: mux.QueryPipeline,
 			pattern:  "quesma_common_table",
-			expected: Decision{
+			expected: mux.Decision{
 				Err: fmt.Errorf("common table"),
 			},
 		},
@@ -376,6 +395,12 @@ func TestTableResolver(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
+			currentQuesmaConf := cfg
+			if tt.quesmaConf != nil {
+				currentQuesmaConf = *tt.quesmaConf
+			}
+
 			tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 
 			for _, index := range tt.clickhouseIndexes {
@@ -393,7 +418,7 @@ func TestTableResolver(t *testing.T) {
 
 			elasticResolver := elasticsearch.NewFixedIndexManagement(tt.elasticIndexes...)
 
-			resolver := NewTableResolver(cfg, tableDiscovery, elasticResolver)
+			resolver := NewTableResolver(currentQuesmaConf, tableDiscovery, elasticResolver)
 
 			decision := resolver.Resolve(tt.pipeline, tt.pattern)
 

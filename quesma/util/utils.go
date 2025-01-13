@@ -6,9 +6,9 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
 	"github.com/k0kubun/pp"
 	"io"
@@ -737,6 +737,33 @@ func ExtractNumeric64(value any) float64 {
 	return asFloat64
 }
 
+func BoolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+func BoolToString(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+// SingleQuote is a simple helper function: str -> 'str'
+func SingleQuote(value string) string {
+	return "'" + value + "'"
+}
+
+// SingleQuoteIfString is a simple helper function: (str -> 'str', other -> other)
+func SingleQuoteIfString(value any) any {
+	if str, ok := value.(string); ok {
+		return SingleQuote(str)
+	}
+	return value
+}
+
 type sqlMockMismatchSql struct {
 	expected string
 	actual   string
@@ -847,7 +874,7 @@ func stringifyHelper(v interface{}, isInsideArray bool) string {
 
 // This functions returns a string from an interface{}.
 func Stringify(v interface{}) string {
-	isInsideArray := false
+	const isInsideArray = false
 	return stringifyHelper(v, isInsideArray)
 }
 
@@ -891,6 +918,20 @@ func FieldToColumnEncoder(field string) string {
 	if isDigit(newField[0]) {
 		newField = "_" + newField
 	}
+
+	const maxFieldLength = 256
+
+	if len(newField) > maxFieldLength {
+		// TODO maybe we should return error here or truncate the field name
+		// for now we just log a warning
+		//
+		// importing logger causes the circular dependency
+		//logger.Warn().Msgf("Field name %s is too long.", newField)
+
+		// TODO So we use log package. We can configure the zerolog logger as a backend for log package.
+		log.Println("Field name", newField, "is too long.")
+	}
+
 	return newField
 }
 
@@ -914,7 +955,29 @@ func ExtractUsernameFromBasicAuthHeader(authHeader string) (string, error) {
 	return pair[0], nil
 }
 
+var patternCache = make(map[string]*regexp.Regexp)
+var patternCacheLock = sync.RWMutex{}
+
 func TableNamePatternRegexp(indexPattern string) *regexp.Regexp {
+
+	patternCacheLock.RLock()
+
+	pattern, ok := patternCache[indexPattern]
+	if ok {
+		patternCacheLock.RUnlock()
+		return pattern
+	}
+
+	patternCacheLock.RUnlock()
+	patternCacheLock.Lock()
+	defer patternCacheLock.Unlock()
+
+	// Clear cache if it's too big
+	const maxPatternCacheSize = 1000
+	if len(patternCache) > maxPatternCacheSize {
+		patternCache = make(map[string]*regexp.Regexp)
+	}
+
 	var builder strings.Builder
 
 	for _, char := range indexPattern {
@@ -929,5 +992,7 @@ func TableNamePatternRegexp(indexPattern string) *regexp.Regexp {
 		}
 	}
 
-	return regexp.MustCompile(fmt.Sprintf("^%s$", builder.String()))
+	result := regexp.MustCompile(fmt.Sprintf("^%s$", builder.String()))
+	patternCache[indexPattern] = result
+	return result
 }

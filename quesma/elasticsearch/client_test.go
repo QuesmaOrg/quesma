@@ -4,12 +4,12 @@ package elasticsearch
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"quesma/quesma/config"
 	"testing"
 )
 

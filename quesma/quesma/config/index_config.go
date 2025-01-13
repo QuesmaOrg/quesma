@@ -16,12 +16,11 @@ const (
 type IndexConfiguration struct {
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
-	Override        string                            `koanf:"tableName"`
+	Override        string                            `koanf:"tableName"` // use method TableName()
 	UseCommonTable  bool                              `koanf:"useCommonTable"`
 	Target          any                               `koanf:"target"`
 
 	// Computed based on the overall configuration
-	Name         string
 	QueryTarget  []string
 	IngestTarget []string
 }
@@ -31,11 +30,18 @@ type OptimizerConfiguration struct {
 	Properties map[string]string `koanf:"properties"`
 }
 
-func (c IndexConfiguration) String() string {
+func (c IndexConfiguration) TableName(origName string) string {
+	if len(c.Override) > 0 {
+		return c.Override
+	}
+	return origName
+}
+
+func (c IndexConfiguration) String(indexName string) string {
 	var builder strings.Builder
 
 	builder.WriteString("\n\t\t")
-	builder.WriteString(c.Name)
+	builder.WriteString(indexName)
 	builder.WriteString(", query targets: ")
 	builder.WriteString(fmt.Sprintf("%v", c.QueryTarget))
 	builder.WriteString(", ingest targets: ")
@@ -48,7 +54,7 @@ func (c IndexConfiguration) String() string {
 		builder.WriteString("\n\t\t\t")
 	}
 	if len(c.Override) > 0 {
-		builder.WriteString(", override: ")
+		builder.WriteString(", Override: ")
 		builder.WriteString(c.Override)
 	}
 	if c.UseCommonTable {

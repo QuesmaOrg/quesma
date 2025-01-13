@@ -5,7 +5,7 @@ package pipeline_aggregations
 import (
 	"context"
 	"fmt"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 )
 
 // Derivative is just Serial Diff, with lag = 1

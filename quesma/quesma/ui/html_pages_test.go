@@ -4,16 +4,16 @@ package ui
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/stats"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/stats"
-	"quesma/table_resolver"
-	"quesma/telemetry"
-	"quesma/util"
+	"quesma_v2/core/diag"
 	"testing"
 )
 
@@ -23,12 +23,12 @@ func TestHtmlPages(t *testing.T) {
 	id := "b1c4a89e-4905-5e3c-b57f-dc92627d011e"
 	logChan := make(chan logger.LogWithLevel, 5)
 	resolver := table_resolver.NewEmptyTableResolver()
-	qmc := NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
-	qmc.PushPrimaryInfo(&QueryDebugPrimarySource{Id: id, QueryResp: xssBytes})
-	qmc.PushSecondaryInfo(&QueryDebugSecondarySource{Id: id,
+	qmc := NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
+	qmc.PushPrimaryInfo(&diag.QueryDebugPrimarySource{Id: id, QueryResp: xssBytes})
+	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{Id: id,
 		Path:                   xss,
 		IncomingQueryBody:      xssBytes,
-		QueryBodyTranslated:    []types.TranslatedSQLQuery{{Query: xssBytes}},
+		QueryBodyTranslated:    []diag.TranslatedSQLQuery{{Query: xssBytes}},
 		QueryTranslatedResults: xssBytes,
 	})
 	log := fmt.Sprintf(`{"request_id": "%s", "message": "%s"}`, id, xss)
@@ -59,7 +59,7 @@ func TestHtmlPages(t *testing.T) {
 	})
 
 	t.Run("statistics got no XSS", func(t *testing.T) {
-		stats.GlobalStatistics.Process(&config.QuesmaConfiguration{}, xss, types.MustJSON("{}"), clickhouse.NestedSeparator)
+		stats.GlobalStatistics.Process(false, xss, types.MustJSON("{}"), clickhouse.NestedSeparator)
 		response := string(qmc.generateStatistics())
 		assert.NotContains(t, response, xss)
 	})
@@ -96,7 +96,7 @@ func TestHtmlSchemaPage(t *testing.T) {
 
 	cfg := config.QuesmaConfiguration{}
 
-	cfg.IndexConfig = map[string]config.IndexConfiguration{xss: {Name: xss}}
+	cfg.IndexConfig = map[string]config.IndexConfiguration{xss: {}}
 
 	tables := util.NewSyncMap[string, *clickhouse.Table]()
 	tables.Store(table.Name, table)
@@ -104,7 +104,7 @@ func TestHtmlSchemaPage(t *testing.T) {
 	logManager := clickhouse.NewLogManager(tables, &cfg)
 
 	resolver := table_resolver.NewEmptyTableResolver()
-	qmc := NewQuesmaManagementConsole(&cfg, logManager, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
+	qmc := NewQuesmaManagementConsole(&cfg, logManager, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
 
 	t.Run("schema got no XSS and no panic", func(t *testing.T) {
 		response := string(qmc.generateTables())

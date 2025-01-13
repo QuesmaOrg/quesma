@@ -4,7 +4,7 @@ package ui
 
 import (
 	"fmt"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 )
 
 func (qmc *QuesmaManagementConsole) generateSchemas() []byte {

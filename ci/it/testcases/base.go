@@ -20,7 +20,7 @@ import (
 type TestCase interface {
 	SetupContainers(ctx context.Context) error
 	RunTests(ctx context.Context, t *testing.T) error
-	Cleanup(ctx context.Context)
+	Cleanup(ctx context.Context, t *testing.T)
 }
 
 type IntegrationTestcaseBase struct {
@@ -36,8 +36,10 @@ func (tc *IntegrationTestcaseBase) RunTests(ctx context.Context, t *testing.T) e
 	return nil
 }
 
-func (tc *IntegrationTestcaseBase) Cleanup(ctx context.Context) {
-	tc.Containers.Cleanup(ctx)
+func (tc *IntegrationTestcaseBase) Cleanup(ctx context.Context, t *testing.T) {
+	if tc.Containers != nil {
+		tc.Containers.Cleanup(ctx, t)
+	}
 }
 
 func (tc *IntegrationTestcaseBase) getQuesmaEndpoint() string {
@@ -128,6 +130,27 @@ func (tc *IntegrationTestcaseBase) FetchClickHouseColumns(ctx context.Context, t
 			return nil, err
 		}
 		result[name] = colType
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (tc *IntegrationTestcaseBase) FetchClickHouseComments(ctx context.Context, tableName string) (map[string]string, error) {
+	rows, err := tc.ExecuteClickHouseQuery(ctx, fmt.Sprintf("SELECT name, comment FROM system.columns WHERE table = '%s'", tableName))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]string)
+	for rows.Next() {
+		var name, comment string
+		if err := rows.Scan(&name, &comment); err != nil {
+			return nil, err
+		}
+		result[name] = comment
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

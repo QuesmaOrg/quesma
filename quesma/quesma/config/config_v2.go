@@ -5,12 +5,12 @@ package config
 import (
 	"errors"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/hashicorp/go-multierror"
 	"github.com/knadh/koanf/parsers/json"
 	"github.com/knadh/koanf/v2"
 	"github.com/rs/zerolog"
 	"log"
-	"quesma/util"
 	"reflect"
 	"slices"
 	"strings"
@@ -281,11 +281,6 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		if ingestProcessor.Type != QuesmaV1ProcessorIngest && ingestProcessor.Type != QuesmaV1ProcessorNoOp {
 			return fmt.Errorf("ingest pipeline must have ingest-type or noop processor")
 		}
-		for _, indexConf := range ingestProcessor.Config.IndexConfig {
-			if len(indexConf.Optimizers) != 0 {
-				return fmt.Errorf("configuration of index '%s' in '%s' processor cannot have any optimizers, this is only a feature of query processor", ingestPipeline.Processors[0], indexConf.Name)
-			}
-		}
 		queryProcessor := c.getProcessorByName(queryPipeline.Processors[0])
 		if queryProcessor == nil {
 			return fmt.Errorf("query processor named [%s] not found in configuration", ingestPipeline.Processors[0])
@@ -317,7 +312,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 					continue
 				}
 				if queryIndexConf.Override != ingestIndexConf.Override {
-					return fmt.Errorf("ingest and query processors must have the same configuration of 'override' for index '%s' due to current limitations", indexName)
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'Override' for index '%s' due to current limitations", indexName)
 				}
 				if queryIndexConf.UseCommonTable != ingestIndexConf.UseCommonTable {
 					return fmt.Errorf("ingest and query processors must have the same configuration of 'useCommonTable' for index '%s' due to current limitations", indexName)
@@ -596,7 +591,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 				processedConfig := indexConfig
-				processedConfig.Name = indexName
 				targets, errTarget := c.getTargetsExtendedConfig(indexConfig.Target)
 				if errTarget != nil {
 					errAcc = multierror.Append(errAcc, errTarget)
@@ -626,7 +620,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 				if len(processedConfig.QueryTarget) == 2 {
 					// Turn on A/B testing
-					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+					if processedConfig.Optimizers == nil {
+						processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+					}
 					processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
 						Disabled:   false,
 						Properties: map[string]string{},
@@ -730,12 +726,11 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.DefaultIngestTarget = defaultConfig.IngestTarget
 		conf.DefaultQueryTarget = defaultConfig.QueryTarget
 		conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
+
 		delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
-		delete(ingestProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 			processedConfig := indexConfig
-			processedConfig.Name = indexName
 
 			processedConfig.IngestTarget = defaultConfig.IngestTarget
 			targets, errTarget = c.getTargetsExtendedConfig(indexConfig.Target)
@@ -766,7 +761,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			if len(processedConfig.QueryTarget) == 2 {
 				// Turn on A/B testing
-				processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+				if processedConfig.Optimizers == nil {
+					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+				}
 				processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
 					Disabled:   false,
 					Properties: map[string]string{},
@@ -777,7 +774,15 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 
 		conf.EnableIngest = true
-		conf.IngestStatistics = true
+		conf.IngestStatistics = c.IngestStatistics
+
+		if defaultIngestConfig, ok := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
+			conf.DefaultIngestOptimizers = defaultIngestConfig.Optimizers
+		} else {
+			conf.DefaultIngestOptimizers = nil
+		}
+
+		delete(ingestProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 
 		for indexName, indexConfig := range ingestProcessor.Config.IndexConfig {
 			processedConfig, found := conf.IndexConfig[indexName]
@@ -785,7 +790,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				// Index is only configured in ingest processor, not in query processor,
 				// use the ingest processor's configuration as the base (similarly as in the previous loop)
 				processedConfig = indexConfig
-				processedConfig.Name = indexName
 				processedConfig.QueryTarget = defaultConfig.QueryTarget
 			}
 
@@ -810,8 +814,20 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					processedConfig.Override = val.(string)
 				}
 			}
+
+			// copy ingest optimizers to the destination
+			if indexConfig.Optimizers != nil {
+				if processedConfig.Optimizers == nil {
+					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
+				}
+				for optName, optConf := range indexConfig.Optimizers {
+					processedConfig.Optimizers[optName] = optConf
+				}
+			}
+
 			conf.IndexConfig[indexName] = processedConfig
 		}
+
 	}
 
 END:

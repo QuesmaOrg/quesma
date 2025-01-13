@@ -3,9 +3,9 @@
 package resolve
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/stretchr/testify/assert"
-	"quesma/elasticsearch"
-	"quesma/schema"
 	"testing"
 )
 
@@ -25,7 +25,7 @@ func Test_combineSourcesFromElasticWithRegistry(t *testing.T) {
 	tests := []struct {
 		name               string
 		sourcesFromElastic elasticsearch.Sources
-		schemas            map[schema.TableName]schema.Schema
+		schemas            map[schema.IndexName]schema.Schema
 		normalizedPattern  string
 		expectedResult     elasticsearch.Sources
 	}{
@@ -37,7 +37,7 @@ func Test_combineSourcesFromElasticWithRegistry(t *testing.T) {
 				Aliases:     []elasticsearch.Alias{},
 				DataStreams: []elasticsearch.DataStream{},
 			},
-			schemas:           map[schema.TableName]schema.Schema{}, // schema.Registry won't contain disabled indexes, even if they exist in the data source (manually created by the user)
+			schemas:           map[schema.IndexName]schema.Schema{}, // schema.Registry won't contain disabled indexes, even if they exist in the data source (manually created by the user)
 			normalizedPattern: "index*",
 			expectedResult: elasticsearch.Sources{
 				Indices:     []elasticsearch.Index{{Name: "index1"}},
@@ -53,7 +53,7 @@ func Test_combineSourcesFromElasticWithRegistry(t *testing.T) {
 				Aliases:     []elasticsearch.Alias{},
 				DataStreams: []elasticsearch.DataStream{},
 			},
-			schemas: map[schema.TableName]schema.Schema{
+			schemas: map[schema.IndexName]schema.Schema{
 				"index1": schema.Schema{ExistsInDataSource: false},
 				"index2": schema.Schema{ExistsInDataSource: false},
 				"quesma": schema.Schema{ExistsInDataSource: true},
@@ -73,7 +73,7 @@ func Test_combineSourcesFromElasticWithRegistry(t *testing.T) {
 				Aliases:     []elasticsearch.Alias{},
 				DataStreams: []elasticsearch.DataStream{{Name: "index3"}, {Name: "index5"}},
 			},
-			schemas: map[schema.TableName]schema.Schema{
+			schemas: map[schema.IndexName]schema.Schema{
 				"index1": schema.Schema{ExistsInDataSource: true},
 				"index2": schema.Schema{ExistsInDataSource: true},
 				"index3": schema.Schema{ExistsInDataSource: true},

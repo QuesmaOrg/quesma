@@ -5,17 +5,19 @@ package quesma
 import (
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
-	"quesma/ab_testing"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/elasticsearch"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/telemetry"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	mux "quesma_v2/core"
+	"quesma_v2/core/diag"
 	"testing"
 )
 
@@ -179,9 +181,12 @@ func TestSearchCommonTable(t *testing.T) {
 	}
 
 	schemaRegistry := schema.StaticRegistry{
-		Tables: make(map[schema.TableName]schema.Schema),
+		Tables: make(map[schema.IndexName]schema.Schema),
 	}
 	tableMap := clickhouse.NewTableMap()
+
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tableMap
 
 	schemaRegistry.Tables["logs-1"] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
@@ -250,49 +255,49 @@ func TestSearchCommonTable(t *testing.T) {
 
 	resolver := table_resolver.NewEmptyTableResolver()
 
-	resolver.Decisions["logs-1"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-1"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1"},
+			ClickhouseIndexes:   []string{"logs-1"},
 			IsCommonTable:       true,
 		}},
 	}
 
-	resolver.Decisions["logs-2"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-2"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-2"},
+			ClickhouseIndexes:   []string{"logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
 
-	resolver.Decisions["logs-3"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-3"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: "logs-3",
-			ClickhouseTables:    []string{"logs-3"},
+			ClickhouseIndexes:   []string{"logs-3"},
 			IsCommonTable:       false,
 		}},
 	}
 
-	resolver.Decisions["logs-1,logs-2"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-1,logs-2"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
 
-	resolver.Decisions["logs-*"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["logs-*"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
-	resolver.Decisions["*"] = &table_resolver.Decision{
-		UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+	resolver.Decisions["*"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
-			ClickhouseTables:    []string{"logs-1", "logs-2"},
+			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
 			IsCommonTable:       true,
 		}},
 	}
@@ -300,7 +305,8 @@ func TestSearchCommonTable(t *testing.T) {
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
 
-			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			conn, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			if err != nil {
 				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 			}
@@ -310,7 +316,7 @@ func TestSearchCommonTable(t *testing.T) {
 			indexManagement := elasticsearch.NewFixedIndexManagement()
 			lm := clickhouse.NewLogManagerWithConnection(db, tableMap)
 
-			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil, resolver)
+			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
 
 			for i, query := range tt.WantedSql {
 
@@ -321,10 +327,11 @@ func TestSearchCommonTable(t *testing.T) {
 
 				mock.ExpectQuery(query).WillReturnRows(rows)
 			}
-			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver)
+
+			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
 			queryRunner.maxParallelQueries = 0
 
-			_, err = queryRunner.handleSearch(ctx, tt.IndexPattern, types.MustJSON(tt.QueryJson))
+			_, err = queryRunner.HandleSearch(ctx, tt.IndexPattern, types.MustJSON(tt.QueryJson))
 
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)

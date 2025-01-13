@@ -6,15 +6,17 @@ import (
 	"context"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/jsonprocessor"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/jsonprocessor"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/util"
+	mux "quesma_v2/core"
 	"slices"
 	"strconv"
 	"strings"
@@ -236,11 +238,12 @@ func TestProcessInsertQuery(t *testing.T) {
 		for index2, config := range configs {
 			for index3, ip := range ingestProcessors(config) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
-					db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+					conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+					db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 					ip.ip.chDb = db
 					resolver := table_resolver.NewEmptyTableResolver()
-					decision := &table_resolver.Decision{
-						UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+					decision := &mux.Decision{
+						UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 							ClickhouseTableName: "test_table",
 						}}}
 					resolver.Decisions["test_table"] = decision
@@ -290,7 +293,8 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	// big integer as a schema field
 	for i, bigInt := range bigInts {
 		t.Run("big integer schema field: "+bigInt, func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+			conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			lm := newIngestProcessorEmpty()
 			lm.chDb = db
 			defer db.Close()
@@ -316,7 +320,8 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 
 	for i, bigInt := range bigInts {
 		t.Run("big integer attribute field: "+bigInt, func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+			conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			lm := newIngestProcessorEmpty()
 			lm.chDb = db
 			lm.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
@@ -382,7 +387,7 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 				{"new_field": "bar"},
 			},
 			expectedStatements: []string{
-				`CREATE TABLE IF NOT EXISTS "test_index" ( "@timestamp" DateTime64(3) DEFAULT now64(), "attributes_values" Map(String,String), "attributes_metadata" Map(String,String), "new_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=new_field', "schema_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=schema_field', ) ENGINE = MergeTree ORDER BY ("@timestamp") COMMENT 'created by Quesma'`,
+				`CREATE TABLE IF NOT EXISTS "test_index" ( "@timestamp" DateTime64(3) DEFAULT now64(), "attributes_values" Map(String,String), "attributes_metadata" Map(String,String), "new_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=new_field', "nested_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=nested.field', ) ENGINE = MergeTree ORDER BY ("@timestamp") COMMENT 'created by Quesma'`,
 				`INSERT INTO "test_index" FORMAT JSONEachRow {"new_field":"bar"}`,
 			},
 		},
@@ -402,9 +407,9 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			indexSchema := schema.Schema{
 				ExistsInDataSource: false,
 				Fields: map[schema.FieldName]schema.Field{
-					"schema_field": {
-						PropertyName:         "schema_field",
-						InternalPropertyName: "schema_field",
+					"nested.field": {
+						PropertyName:         "nested.field",
+						InternalPropertyName: "nested_field",
 						InternalPropertyType: "String",
 						Type:                 schema.QuesmaTypeKeyword},
 				},
@@ -412,26 +417,27 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 
 			tables := NewTableMap()
 
-			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			conn, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			if err != nil {
 				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 			}
 
 			virtualTableStorage := persistence.NewStaticJSONDatabase()
 			schemaRegistry := &schema.StaticRegistry{
-				Tables: make(map[schema.TableName]schema.Schema),
+				Tables: make(map[schema.IndexName]schema.Schema),
 			}
-			schemaRegistry.Tables[schema.TableName(indexName)] = indexSchema
+			schemaRegistry.Tables[schema.IndexName(indexName)] = indexSchema
 
 			resolver := table_resolver.NewEmptyTableResolver()
-			decision := &table_resolver.Decision{
-				UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+			decision := &mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 					ClickhouseTableName: "test_index",
 				}}}
 			resolver.Decisions["test_index"] = decision
 
 			schemaRegistry.FieldEncodings = make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
-			schemaRegistry.FieldEncodings[schema.FieldEncodingKey{TableName: indexName, FieldName: "schema_field"}] = "schema_field"
+			schemaRegistry.FieldEncodings[schema.FieldEncodingKey{TableName: indexName, FieldName: "nested.field"}] = "nested_field"
 
 			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db

@@ -4,14 +4,14 @@ package proxy
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/stats"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"net"
 	"net/http"
-	"quesma/stats"
-	"quesma/util"
 	"slices"
 	"strconv"
 	"testing"

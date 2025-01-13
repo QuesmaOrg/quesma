@@ -4,7 +4,9 @@ package model
 
 import (
 	"fmt"
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"regexp"
 	"sort"
 	"strconv"
@@ -49,7 +51,7 @@ func (v *renderer) VisitPrefixExpr(e PrefixExpr) interface{} {
 }
 
 func (v *renderer) VisitNestedProperty(e NestedProperty) interface{} {
-	return fmt.Sprintf("%v.%v", e.ColumnRef.Accept(v), e.PropertyName.Accept(v))
+	return fmt.Sprintf("%v.%v", e.ObjectExpr.Accept(v), e.PropertyName.Accept(v))
 }
 
 func (v *renderer) VisitArrayAccess(e ArrayAccess) interface{} {
@@ -65,7 +67,28 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 }
 
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
-	return fmt.Sprintf("%v", l.Value)
+	switch val := l.Value.(type) {
+	case string:
+		return escapeString(val)
+	default:
+		return fmt.Sprintf("%v", val)
+	}
+}
+
+func (v *renderer) VisitTuple(t TupleExpr) interface{} {
+	exprs := make([]string, 0, len(t.Exprs))
+	for _, expr := range t.Exprs {
+		exprs = append(exprs, expr.Accept(v).(string))
+	}
+	switch len(exprs) {
+	case 0:
+		logger.WarnWithThrottling("visitTuple", "tupleExpr with no expressions") // hacky way to log this
+		return "tuple()"
+	case 1:
+		return exprs[0]
+	default:
+		return fmt.Sprintf("tuple(%s)", strings.Join(exprs, ", ")) // can omit "tuple", but I think SQL's more readable with it
+	}
 }
 
 func (v *renderer) VisitInfix(e InfixExpr) interface{} {
@@ -82,9 +105,9 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	}
 	// This might look like a strange heuristics to but is aligned with the way we are currently generating the statement
 	// I think in the future every infix op should be in braces.
-	if e.Op == "AND" || e.Op == "OR" {
+	if strings.HasPrefix(e.Op, "_") || e.Op == "AND" || e.Op == "OR" {
 		return fmt.Sprintf("(%v %v %v)", lhs, e.Op, rhs)
-	} else if strings.Contains(e.Op, "LIKE") || e.Op == "IS" || e.Op == "IN" || e.Op == "REGEXP" {
+	} else if strings.Contains(e.Op, "LIKE") || e.Op == "IS" || e.Op == "IN" || e.Op == "NOT IN" || e.Op == "REGEXP" || strings.Contains(e.Op, "UNION") {
 		return fmt.Sprintf("%v %v %v", lhs, e.Op, rhs)
 	} else {
 		return fmt.Sprintf("%v%v%v", lhs, e.Op, rhs)
@@ -191,13 +214,17 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 		sb.WriteString(" FROM ")
 	}
 	/* HACK ALERT END */
-	if c.FromClause != nil { // here we have to handle nested
-		if nestedCmd, isNested := c.FromClause.(SelectCommand); isNested {
-			sb.WriteString(fmt.Sprintf("(%s)", AsString(nestedCmd)))
-		} else if nestedCmdPtr, isNested := c.FromClause.(*SelectCommand); isNested {
-			sb.WriteString(fmt.Sprintf("(%s)", AsString(nestedCmdPtr)))
-		} else {
+	if c.FromClause != nil {
+		// Non-nested FROM clauses don't have to be wrapped in parentheses
+		if _, isTableRef := c.FromClause.(TableRef); isTableRef {
 			sb.WriteString(AsString(c.FromClause))
+		} else if _, isLiteral := c.FromClause.(LiteralExpr); isLiteral {
+			sb.WriteString(AsString(c.FromClause))
+		} else if _, isJoinExpr := c.FromClause.(JoinExpr); isJoinExpr {
+			sb.WriteString(AsString(c.FromClause))
+		} else {
+			// Nested sub-query
+			sb.WriteString(fmt.Sprintf("(%s)", AsString(c.FromClause)))
 		}
 	}
 	if c.WhereClause != nil {
@@ -327,4 +354,15 @@ func (v *renderer) VisitJoinExpr(j JoinExpr) interface{} {
 
 func (v *renderer) VisitCTE(c CTE) interface{} {
 	return fmt.Sprintf("%s AS (%s) ", c.Name, AsString(c.SelectCommand))
+}
+
+// escapeString escapes the given string so that it can be used in a SQL Clickhouse query.
+// It escapes ' and \ characters: ' -> \', \ -> \\.
+func escapeString(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`) // \ should be escaped with no exceptions
+	if len(s) >= 2 && s[0] == '\'' && s[len(s)-1] == '\'' {
+		// don't escape the first and last '
+		return util.SingleQuote(strings.ReplaceAll(s[1:len(s)-1], `'`, `\'`))
+	}
+	return strings.ReplaceAll(s, `'`, `\'`)
 }

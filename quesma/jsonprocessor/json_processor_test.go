@@ -3,9 +3,9 @@
 package jsonprocessor
 
 import (
-	"encoding/json"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
-	"quesma/quesma/types"
 	"reflect"
 	"testing"
 )

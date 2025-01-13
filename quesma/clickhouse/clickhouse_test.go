@@ -4,9 +4,10 @@ package clickhouse
 
 import (
 	"context"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	schema2 "github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -774,9 +775,17 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
+			schemaTables := make(map[schema2.IndexName]schema2.Schema)
+
+			for _, name := range tt.tables.Keys() {
+				schemaTables[schema2.IndexName(name)] = schema2.Schema{}
+			}
+			schemaRegistry := schema2.StaticRegistry{
+				Tables: schemaTables,
+			}
 			tableDefinitions.Store(tt.tables)
 			lm := &LogManager{tableDiscovery: NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tt.tables)}
-			indexes, err := lm.ResolveIndexPattern(context.Background(), tt.patterns)
+			indexes, err := lm.ResolveIndexPattern(context.Background(), &schemaRegistry, tt.patterns)
 			assert.NoError(t, err)
 			assert.Equalf(t, tt.resolved, indexes, tt.patterns, "ResolveIndexPattern(%v)", tt.patterns)
 		})

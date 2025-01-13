@@ -1,0 +1,66 @@
+installationId: #HYDROLIX_REQUIRES_THIS
+frontendConnectors:
+  - name: elastic-ingest
+    type: elasticsearch-fe-ingest
+    config:
+      listenPort: 8080
+  - name: elastic-query
+    type: elasticsearch-fe-query
+    config:
+      listenPort: 8080
+backendConnectors:
+  - name: E
+    type: elasticsearch
+    config:
+      url: "http://elasticsearch:9200"
+  - name: C
+    type: clickhouse-os
+    config:
+      url: "clickhouse://clickhouse:9000"
+ingestStatistics: true
+processors:
+  - name: QP
+    type: quesma-v1-processor-query
+    config:
+      indexes:
+
+        logs-1:
+          optimizers:
+              - query_only:
+                  disabled: false
+          target:
+            - C
+
+        "*":
+          optimizers:
+            - query_only:
+                disabled: false
+          target:
+            - C
+
+  - name: IP
+    type: quesma-v1-processor-ingest
+    config:
+      indexes:
+        logs-1:
+          optimizers:
+            - ingest_only:
+               disabled: false
+          target:
+            - C
+        "*":
+          optimizers:
+            - ingest_only:
+                disabled: false
+          target:
+            - C
+
+pipelines:
+  - name: my-elasticsearch-proxy-read
+    frontendConnectors: [ elastic-query ]
+    processors: [ QP ]
+    backendConnectors: [ E, C ]
+  - name: my-elasticsearch-proxy-write
+    frontendConnectors: [ elastic-ingest ]
+    processors: [ IP ]
+    backendConnectors: [ E, C ]

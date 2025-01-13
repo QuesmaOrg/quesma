@@ -3,8 +3,8 @@
 package jsonprocessor
 
 import (
-	"quesma/quesma/config"
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"strings"
 )
 

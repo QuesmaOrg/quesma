@@ -4,11 +4,9 @@ package queryparser
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"quesma/util"
 	"testing"
 )
 
@@ -78,7 +76,7 @@ var parseRangeTests = []parseRangeTest{
 
 func Test_parseRange(t *testing.T) {
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -102,8 +100,7 @@ func Test_parseRange(t *testing.T) {
 				t.Fatal(err)
 			}
 			assert.NoError(t, err)
-			lm := clickhouse.NewLogManager(util.NewSyncMapWith(tableName, table), &config.QuesmaConfiguration{})
-			cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.TableName(tableName)]}
+			cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(tableName)]}
 
 			simpleQuery := cw.parseRange(test.rangePartOfQuery)
 			assert.Equal(t, test.expectedWhere, simpleQuery.WhereClauseAsString())

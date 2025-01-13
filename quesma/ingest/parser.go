@@ -4,11 +4,11 @@ package ingest
 
 import (
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/comment_metadata"
-	"quesma/logger"
-	"quesma/schema"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/comment_metadata"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"slices"
 	"strings"
 )
@@ -67,15 +67,17 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 	}
 
 	// There might be some columns from schema which were not present in the JSON
-	for propertyName, column := range columnsFromSchema {
+	for _, column := range columnsFromSchema {
 		if first {
 			first = false
 		} else {
 			result.WriteString(",\n")
 		}
 
+		propertyName := reverseMap[schema.EncodedFieldName(column.ClickHouseColumnName)].FieldName
+
 		columnMetadata := comment_metadata.NewCommentMetadata()
-		columnMetadata.Values[comment_metadata.ElasticFieldName] = string(propertyName)
+		columnMetadata.Values[comment_metadata.ElasticFieldName] = propertyName
 		comment := columnMetadata.Marshall()
 
 		result.WriteString(util.Indent(1))

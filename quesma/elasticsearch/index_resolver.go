@@ -4,10 +4,10 @@ package elasticsearch
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/goccy/go-json"
 	"io"
 	"net/http"
-	"quesma/quesma/config"
 )
 
 type (

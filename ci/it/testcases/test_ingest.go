@@ -28,11 +28,8 @@ func NewIngestTestcase() *IngestTestcase {
 
 func (a *IngestTestcase) SetupContainers(ctx context.Context) error {
 	containers, err := setupAllContainersWithCh(ctx, a.ConfigTemplate)
-	if err != nil {
-		return err
-	}
 	a.Containers = containers
-	return nil
+	return err
 }
 
 func (a *IngestTestcase) RunTests(ctx context.Context, t *testing.T) error {
@@ -43,6 +40,7 @@ func (a *IngestTestcase) RunTests(ctx context.Context, t *testing.T) error {
 	t.Run("test kibana_sample_data_ecommerce ingest to ClickHouse (with PUT mapping)", func(t *testing.T) { a.testKibanaSampleEcommerceIngestWithMappingToClickHouse(ctx, t) })
 	t.Run("test ignored fields", func(t *testing.T) { a.testIgnoredFields(ctx, t) })
 	t.Run("test nested fields", func(t *testing.T) { a.testNestedFields(ctx, t) })
+	t.Run("test field encodings (mappings bug)", func(t *testing.T) { a.testFieldEncodingsMappingsBug(ctx, t) })
 	return nil
 }
 
@@ -607,4 +605,43 @@ func (it *IngestTestcase) testNestedFields(ctx context.Context, t *testing.T) {
 	assert.Equal(t, "lima", *values[6].(*string))
 
 	assert.False(t, rows.Next())
+}
+
+// Reproducer for issue #1045
+func (a *IngestTestcase) testFieldEncodingsMappingsBug(ctx context.Context, t *testing.T) {
+	resp, _ := a.RequestToQuesma(ctx, t, "PUT", "/encodings_test", []byte(`
+{
+	"mappings": {
+		"properties": {
+			"Field1": {
+				"type": "text"
+			},
+			"Field2": {
+				"type": "text"
+			}
+		}
+	},
+	"settings": {
+		"index": {}
+	}
+}`))
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	resp, _ = a.RequestToQuesma(ctx, t, "POST", "/encodings_test/_doc", []byte(`
+{
+	"Field1": "abc"
+}`))
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	resp, _ = a.RequestToQuesma(ctx, t, "POST", "/encodings_test/_doc", []byte(`
+{
+	"Field2": "cde"
+}`))
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	comments, err := a.FetchClickHouseComments(ctx, "encodings_test")
+	assert.NoError(t, err, "error fetching clickhouse comments")
+
+	assert.Equal(t, "quesmaMetadataV1:fieldName=Field1", comments["field1"])
+	assert.Equal(t, "quesmaMetadataV1:fieldName=Field2", comments["field2"])
 }

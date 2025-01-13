@@ -5,8 +5,8 @@ package recovery
 import (
 	"context"
 	"errors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/rs/zerolog"
-	"quesma/logger"
 	"runtime/debug"
 	"sync/atomic"
 )
@@ -32,12 +32,16 @@ func commonRecovery(r any, panicLogger func() *zerolog.Event) {
 	panicLogger().Msgf("Panic recovered: %s\n%s", recoveredToError(r), string(debug.Stack()))
 }
 
+// IMPORTANT: must be used with defer:
+// defer recovery.LogPanic()
 func LogPanic() {
 	if r := recover(); r != nil {
 		commonRecovery(r, logger.Error)
 	}
 }
 
+// IMPORTANT: must be used with defer:
+// defer recovery.LogPanicWithCtx(ctx)
 func LogPanicWithCtx(ctx context.Context) {
 	if r := recover(); r != nil {
 		commonRecovery(r, func() *zerolog.Event {
@@ -46,6 +50,8 @@ func LogPanicWithCtx(ctx context.Context) {
 	}
 }
 
+// IMPORTANT: must be used with defer:
+// defer recovery.LogAndHandlePanic(ctx, cleanupHandler)
 func LogAndHandlePanic(ctx context.Context, cleanupHandler func(err error)) {
 	if r := recover(); r != nil {
 		commonRecovery(r, func() *zerolog.Event {

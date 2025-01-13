@@ -4,16 +4,16 @@ package quesma
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/telemetry"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/ingest"
-	"quesma/quesma/config"
-	"quesma/quesma/mux"
-	"quesma/quesma/routes"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/telemetry"
+	mux "quesma_v2/core"
+	"quesma_v2/core/routes"
 	"strings"
 	"testing"
 )
@@ -172,7 +172,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 			pattern:       "my_index",
 			configuration: withAutodiscovery(indexConfig("another-index", false)),
 			registry: &schema.StaticRegistry{
-				Tables: map[schema.TableName]schema.Schema{
+				Tables: map[schema.IndexName]schema.Schema{
 					"my_index": {ExistsInDataSource: true},
 				},
 			},
@@ -183,7 +183,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 			pattern:       "my_index*",
 			configuration: withAutodiscovery(indexConfig("another-index", false)),
 			registry: &schema.StaticRegistry{
-				Tables: map[schema.TableName]schema.Schema{
+				Tables: map[schema.IndexName]schema.Schema{
 					"my_index8": {ExistsInDataSource: true},
 				},
 			},
@@ -209,7 +209,7 @@ func indexConfig(name string, elastic bool) config.QuesmaConfiguration {
 	} else {
 		targets = []string{config.ClickhouseTarget}
 	}
-	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {Name: name, QueryTarget: targets, IngestTarget: targets}}}
+	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {QueryTarget: targets, IngestTarget: targets}}}
 }
 
 func withAutodiscovery(cfg config.QuesmaConfiguration) config.QuesmaConfiguration {
@@ -276,13 +276,11 @@ const testIndexName = "indexName"
 func TestConfigureRouter(t *testing.T) {
 	cfg := &config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{
-			testIndexName: {
-				Name: testIndexName,
-			},
+			testIndexName: {},
 		},
 	}
 	tr := TestTableResolver{}
-	testRouter := ConfigureRouter(cfg, schema.NewSchemaRegistry(fixedTableProvider{}, cfg, clickhouse.SchemaTypeAdapter{}), &clickhouse.LogManager{}, &ingest.IngestProcessor{}, &ui.QuesmaManagementConsole{}, telemetry.NewPhoneHomeAgent(cfg, nil, ""), &QueryRunner{}, tr)
+	testRouter := ConfigureRouter(cfg, schema.NewSchemaRegistry(fixedTableProvider{}, cfg, clickhouse.SchemaTypeAdapter{}), &clickhouse.LogManager{}, &ingest.IngestProcessor{}, &ui.QuesmaManagementConsole{}, telemetry.NewPhoneHomeAgent(cfg, nil, ""), &QueryRunner{}, tr, nil)
 
 	tests := []struct {
 		path                string
@@ -358,15 +356,15 @@ func (t TestTableResolver) Start() {}
 
 func (t TestTableResolver) Stop() {}
 
-func (t TestTableResolver) Resolve(_ string, indexPattern string) *table_resolver.Decision {
+func (t TestTableResolver) Resolve(_ string, indexPattern string) *mux.Decision {
 	if indexPattern == testIndexName {
-		return &table_resolver.Decision{
-			UseConnectors: []table_resolver.ConnectorDecision{
-				&table_resolver.ConnectorDecisionClickhouse{},
+		return &mux.Decision{
+			UseConnectors: []mux.ConnectorDecision{
+				&mux.ConnectorDecisionClickhouse{},
 			},
 		}
 	} else {
-		return &table_resolver.Decision{
+		return &mux.Decision{
 			Err:          fmt.Errorf("TestTableResolver err"),
 			Reason:       "TestTableResolver reason",
 			ResolverName: "TestTableResolver",
@@ -376,6 +374,6 @@ func (t TestTableResolver) Resolve(_ string, indexPattern string) *table_resolve
 
 func (t TestTableResolver) Pipelines() []string { return []string{} }
 
-func (t TestTableResolver) RecentDecisions() []table_resolver.PatternDecisions {
-	return []table_resolver.PatternDecisions{}
+func (t TestTableResolver) RecentDecisions() []mux.PatternDecisions {
+	return []mux.PatternDecisions{}
 }

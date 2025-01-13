@@ -3,20 +3,20 @@
 package resolve
 
 import (
-	"quesma/elasticsearch"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 )
 
 // HandleResolve combines results from both schema.Registry (ClickHouse) and Elasticsearch,
 // This endpoint is used in Kibana/OSD when creating Data Views/Index Patterns.
-func HandleResolve(pattern string, sr schema.Registry, cfg *config.QuesmaConfiguration) (elasticsearch.Sources, error) {
+func HandleResolve(pattern string, sr schema.Registry, ir elasticsearch.IndexResolver) (elasticsearch.Sources, error) {
 	sourcesToShow := &elasticsearch.Sources{}
 
 	normalizedPattern := elasticsearch.NormalizePattern(pattern) // changes `_all` to `*`
 
-	sourcesFromElasticsearch, _, err := elasticsearch.NewIndexResolver(cfg.Elasticsearch).Resolve(normalizedPattern)
+	sourcesFromElasticsearch, _, err := ir.Resolve(normalizedPattern)
 	if err != nil {
 		logger.Warn().Msgf("Failed fetching resolving sources matching `%s`: %v", pattern, err)
 	} else {
@@ -29,7 +29,7 @@ func HandleResolve(pattern string, sr schema.Registry, cfg *config.QuesmaConfigu
 	return *sourcesToShow, nil
 }
 
-func getMatchingClickHouseTables(schemas map[schema.TableName]schema.Schema, normalizedPattern string) (tables []string) {
+func getMatchingClickHouseTables(schemas map[schema.IndexName]schema.Schema, normalizedPattern string) (tables []string) {
 	for name, currentSchema := range schemas {
 		indexName := name.AsString()
 

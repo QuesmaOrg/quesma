@@ -4,14 +4,14 @@ package config
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch/elasticsearch_field_types"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/hashicorp/go-multierror"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
 	"log"
 	"os"
-	"quesma/elasticsearch/elasticsearch_field_types"
-	"quesma/util"
 	"strings"
 )
 
@@ -48,6 +48,7 @@ type QuesmaConfiguration struct {
 	UseCommonTableForWildcard bool //the meaning of this is to use a common table for wildcard (default) indexes
 	DefaultIngestTarget       []string
 	DefaultQueryTarget        []string
+	DefaultIngestOptimizers   map[string]OptimizerConfiguration
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
@@ -109,7 +110,7 @@ func (c *QuesmaConfiguration) Validate() error {
 		result = c.validateIndexName(indexName, result)
 		// TODO enable when rolling out schema configuration
 		//result = c.validateDeprecated(indexConfig, result)
-		result = c.validateSchemaConfiguration(indexConfig, result)
+		result = c.validateSchemaConfiguration(indexName, indexConfig, result)
 	}
 	if c.Hydrolix.IsNonEmpty() {
 		// At this moment we share the code between ClickHouse and Hydrolix which use only different names
@@ -186,8 +187,8 @@ func (c *QuesmaConfiguration) OptimizersConfigAsString() string {
 
 func (c *QuesmaConfiguration) String() string {
 	var indexConfigs string
-	for _, idx := range c.IndexConfig {
-		indexConfigs += idx.String()
+	for indexName, idx := range c.IndexConfig {
+		indexConfigs += idx.String(indexName)
 	}
 
 	elasticUrl := "<nil>"
@@ -280,19 +281,19 @@ Quesma Configuration:
 	)
 }
 
-func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfiguration, err error) error {
+func (c *QuesmaConfiguration) validateSchemaConfiguration(indexName string, config IndexConfiguration, err error) error {
 	if config.SchemaOverrides == nil {
 		return err
 	}
 
 	for fieldName, fieldConfig := range config.SchemaOverrides.Fields {
 		if fieldConfig.Type == "" && !fieldConfig.Ignored {
-			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has no type", fieldName, config.Name))
+			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has no type", fieldName, indexName))
 		} else if !elasticsearch_field_types.IsValid(fieldConfig.Type.AsString()) && !fieldConfig.Ignored {
-			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has invalid type %s", fieldName, config.Name, fieldConfig.Type))
+			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has invalid type %s", fieldName, indexName, fieldConfig.Type))
 		}
 		if fieldConfig.Type == TypeAlias && fieldConfig.TargetColumnName == "" {
-			err = multierror.Append(err, fmt.Errorf("field [%s] of type alias in index [%s] cannot have `targetColumnName` property unset", fieldName, config.Name))
+			err = multierror.Append(err, fmt.Errorf("field [%s] of type alias in index [%s] cannot have `targetColumnName` property unset", fieldName, indexName))
 		}
 
 		// TODO This validation will be fixed on further field config cleanup

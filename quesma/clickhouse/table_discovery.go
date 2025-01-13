@@ -4,17 +4,17 @@ package clickhouse
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"quesma/common_table"
-	"quesma/end_user_errors"
-	"quesma/logger"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/goccy/go-json"
+	quesma_api "quesma_v2/core"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -44,7 +44,7 @@ type TableDiscovery interface {
 
 type tableDiscovery struct {
 	cfg                               *config.QuesmaConfiguration
-	dbConnPool                        *sql.DB
+	dbConnPool                        quesma_api.BackendConnector
 	tableDefinitions                  *atomic.Pointer[TableMap]
 	tableDefinitionsAccessUnixSec     atomic.Int64
 	tableDefinitionsLastReloadUnixSec atomic.Int64
@@ -61,7 +61,7 @@ type columnMetadata struct {
 	comment string
 }
 
-func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB, virtualTablesDB persistence.JSONDatabase) TableDiscovery {
+func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool quesma_api.BackendConnector, virtualTablesDB persistence.JSONDatabase) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
 	result := &tableDiscovery{
@@ -80,11 +80,25 @@ type TableDiscoveryTableProviderAdapter struct {
 }
 
 func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema.Table {
+
+	// here we filter out our internal columns
+
+	internalColumn := make(map[string]bool)
+	internalColumn[AttributesValuesColumn] = true
+	internalColumn[AttributesMetadataColumn] = true
+	internalColumn[DeprecatedAttributesKeyColumn] = true
+	internalColumn[DeprecatedAttributesValueColumn] = true
+	internalColumn[DeprecatedAttributesValueType] = true
+
 	tableMap := t.TableDiscovery.TableDefinitions()
 	tables := make(map[string]schema.Table)
 	tableMap.Range(func(tableName string, value *Table) bool {
 		table := schema.Table{Columns: make(map[string]schema.Column)}
 		for _, column := range value.Cols {
+			if internalColumn[column.Name] {
+				continue
+			}
+
 			table.Columns[column.Name] = schema.Column{
 				Name:    column.Name,
 				Type:    column.Type.String(),
@@ -98,7 +112,7 @@ func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema
 	return tables
 }
 
-func NewTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB, tables TableMap) TableDiscovery {
+func NewTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool quesma_api.BackendConnector, tables TableMap) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(&tables)
 	result := &tableDiscovery{
@@ -293,6 +307,7 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]colum
 }
 
 func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg *config.QuesmaConfiguration) {
+
 	tableMap := NewTableMap()
 	for tableName, resTable := range configuredTables {
 		var columnsMap = make(map[string]*Column)
@@ -304,16 +319,16 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 					continue
 				}
 			}
-			if col != AttributesValuesColumn && col != AttributesMetadataColumn {
-				column := resolveColumn(col, columnMeta.colType)
-				if column != nil {
-					column.Comment = columnMeta.comment
-					columnsMap[col] = column
-				} else {
-					logger.Warn().Msgf("column '%s.%s' type: '%s' not resolved. table will be skipped", tableName, col, columnMeta.colType)
-					partiallyResolved = true
-				}
+
+			column := resolveColumn(col, columnMeta.colType)
+			if column != nil {
+				column.Comment = columnMeta.comment
+				columnsMap[col] = column
+			} else {
+				logger.Warn().Msgf("column '%s.%s' type: '%s' not resolved. table will be skipped", tableName, col, columnMeta.colType)
+				partiallyResolved = true
 			}
+
 		}
 
 		var timestampFieldName *string
@@ -521,18 +536,20 @@ func removePrecision(str string) string {
 }
 
 func (td *tableDiscovery) readTables(database string) (map[string]map[string]columnMetadata, error) {
-
 	logger.Debug().Msgf("describing tables: %s", database)
 
 	if td.dbConnPool == nil {
 		return map[string]map[string]columnMetadata{}, fmt.Errorf("database connection pool is nil, cannot describe tables")
 	}
-	rows, err := td.dbConnPool.Query("SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
+
+	rows, err := td.dbConnPool.Query(context.Background(), "SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
+
 	if err != nil {
 		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
 		return map[string]map[string]columnMetadata{}, err
 	}
 	defer rows.Close()
+
 	columnsPerTable := make(map[string]map[string]columnMetadata)
 	for rows.Next() {
 		var table, colName, colType, comment string
@@ -543,6 +560,10 @@ func (td *tableDiscovery) readTables(database string) (map[string]map[string]col
 			columnsPerTable[table] = make(map[string]columnMetadata)
 		}
 		columnsPerTable[table][colName] = columnMetadata{colType: colType, comment: comment}
+	}
+
+	if err := rows.Err(); err != nil {
+		return map[string]map[string]columnMetadata{}, err
 	}
 
 	return columnsPerTable, nil
@@ -561,7 +582,8 @@ func (td *tableDiscovery) tableTimestampField(database, table string, dbKind DbK
 func (td *tableDiscovery) getTimestampFieldForHydrolix(database, table string) (timestampField string) {
 	// In Hydrolix, there's always only one column in a table set as a primary timestamp
 	// Ref: https://docs.hydrolix.io/docs/transforms-and-write-schema#primary-timestamp
-	if err := td.dbConnPool.QueryRow("SELECT primary_key FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&timestampField); err != nil {
+	err := td.dbConnPool.QueryRow(context.Background(), "SELECT primary_key FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&timestampField)
+	if err != nil {
 		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
 	}
 	return timestampField
@@ -570,7 +592,8 @@ func (td *tableDiscovery) getTimestampFieldForHydrolix(database, table string) (
 func (td *tableDiscovery) getTimestampFieldForClickHouse(database, table string) (timestampField string) {
 	// In ClickHouse, there's no concept of a primary timestamp field, primary keys are often composite,
 	// hence we have to use following heuristic to determine the timestamp field (also just picking the first column if there are multiple)
-	if err := td.dbConnPool.QueryRow("SELECT name FROM system.columns WHERE database = ? AND table = ? AND is_in_primary_key = 1 AND type iLIKE 'DateTime%'", database, table).Scan(&timestampField); err != nil {
+	err := td.dbConnPool.QueryRow(context.Background(), "SELECT name FROM system.columns WHERE database = ? AND table = ? AND is_in_primary_key = 1 AND type iLIKE 'DateTime%'", database, table).Scan(&timestampField)
+	if err != nil {
 		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
 		return
 	}
@@ -578,9 +601,7 @@ func (td *tableDiscovery) getTimestampFieldForClickHouse(database, table string)
 }
 
 func (td *tableDiscovery) tableComment(database, table string) (comment string) {
-
-	err := td.dbConnPool.QueryRow("SELECT comment FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&comment)
-
+	err := td.dbConnPool.QueryRow(context.Background(), "SELECT comment FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&comment)
 	if err != nil {
 		logger.Error().Msgf("could not get table comment: %v", err)
 	}
@@ -588,11 +609,16 @@ func (td *tableDiscovery) tableComment(database, table string) (comment string) 
 }
 
 func (td *tableDiscovery) createTableQuery(database, table string) (ddl string) {
-	err := td.dbConnPool.QueryRow("SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&ddl)
-
+	rows, err := td.dbConnPool.Query(context.Background(), "SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table)
 	if err != nil {
 		logger.Error().Msgf("could not get table comment: %v", err)
 	}
+
+	defer rows.Close()
+	if scanErr := rows.Scan(&ddl); scanErr != nil {
+		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
+	}
+
 	return ddl
 }
 

@@ -4,11 +4,11 @@ package collector
 
 import (
 	"context"
-	"quesma/ab_testing"
-	"quesma/buildinfo"
-	"quesma/ingest"
-	"quesma/logger"
-	"quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
 	"time"
 )
 
@@ -111,14 +111,14 @@ func (r *InMemoryCollector) Start() {
 	logger.Info().Msg("Starting A/B Results Collector")
 
 	go func() {
-		recovery.LogAndHandlePanic(r.ctx, func(err error) {
+		defer recovery.LogAndHandlePanic(r.ctx, func(err error) {
 			r.cancelFunc()
 		})
 		r.receiveIncomingResults()
 	}()
 
 	go func() {
-		recovery.LogAndHandlePanic(r.ctx, func(err error) {
+		defer recovery.LogAndHandlePanic(r.ctx, func(err error) {
 			r.cancelFunc()
 		})
 		r.receiveHealthAndErrorsLoop()

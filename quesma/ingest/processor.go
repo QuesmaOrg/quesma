@@ -4,26 +4,28 @@ package ingest
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
-	chLib "quesma/clickhouse"
-	"quesma/comment_metadata"
-	"quesma/common_table"
-	"quesma/end_user_errors"
-	"quesma/jsonprocessor"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/quesma/recovery"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/stats"
-	"quesma/table_resolver"
-	"quesma/telemetry"
-	"quesma/util"
+	chLib "github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/comment_metadata"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/jsonprocessor"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/stats"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/telemetry"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/goccy/go-json"
+	"quesma_v2/core"
+	"quesma_v2/core/diag"
 	"slices"
 	"sort"
 	"strings"
@@ -57,10 +59,10 @@ type (
 	IngestProcessor struct {
 		ctx                       context.Context
 		cancel                    context.CancelFunc
-		chDb                      *sql.DB
+		chDb                      quesma_api.BackendConnector
 		tableDiscovery            chLib.TableDiscovery
 		cfg                       *config.QuesmaConfiguration
-		phoneHomeAgent            telemetry.PhoneHomeAgent
+		phoneHomeAgent            diag.PhoneHomeClient
 		schemaRegistry            schema.Registry
 		ingestCounter             int64
 		ingestFieldStatistics     IngestFieldStatistics
@@ -97,7 +99,7 @@ func (ip *IngestProcessor) Start() {
 	forceReloadCh := ip.tableDiscovery.ForceReloadCh()
 
 	go func() {
-		recovery.LogPanic()
+		defer recovery.LogPanic()
 		for {
 			select {
 			case <-ip.ctx.Done():
@@ -170,7 +172,7 @@ func addOurFieldsToCreateTableQuery(q string, config *chLib.ChTableConfig, table
 
 func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, error) {
 	var count int64
-	err := ip.chDb.QueryRowContext(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
+	err := ip.chDb.QueryRow(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
@@ -203,7 +205,7 @@ func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, q
 }
 
 func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
-	if foundSchema, found := schemaRegistry.FindSchema(schema.TableName(tableName)); found {
+	if foundSchema, found := schemaRegistry.FindSchema(schema.IndexName(tableName)); found {
 		return &foundSchema
 	}
 	return nil
@@ -490,32 +492,14 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	config *chLib.ChTableConfig,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]string, types.JSON, []NonSchemaField, error) {
 
-	jsonAsBytesSlice, err := json.Marshal(data)
-
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	// we find all non-schema fields
-	jsonMap, err := types.ParseJSON(string(jsonAsBytesSlice))
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
 	if len(config.Attributes) == 0 {
-		return nil, jsonMap, nil, nil
+		return nil, data, nil, nil
 	}
 
-	schemaFieldsJson, err := json.Marshal(jsonMap)
+	mDiff := DifferenceMap(data, table) // TODO change to DifferenceMap(m, t)
 
-	if err != nil {
-		return nil, jsonMap, nil, err
-	}
-
-	mDiff := DifferenceMap(jsonMap, table) // TODO change to DifferenceMap(m, t)
-
-	if len(mDiff) == 0 && string(schemaFieldsJson) == string(jsonAsBytesSlice) && len(inValidJson) == 0 { // no need to modify, just insert 'js'
-		return nil, jsonMap, nil, nil
+	if len(mDiff) == 0 && len(inValidJson) == 0 { // no need to modify, just insert 'js'
+		return nil, data, nil, nil
 	}
 
 	// check attributes precondition
@@ -546,7 +530,7 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 		return nil, nil, nil, err
 	}
 
-	onlySchemaFields := RemoveNonSchemaFields(jsonMap, table)
+	onlySchemaFields := RemoveNonSchemaFields(data, table)
 
 	return alterCmd, onlySchemaFields, nonSchemaFields, nil
 }
@@ -648,7 +632,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 			fieldOrigins[schema.FieldName(column.ClickHouseColumnName)] = schema.FieldSourceIngest
 		}
 
-		ip.schemaRegistry.UpdateFieldsOrigins(schema.TableName(tableName), fieldOrigins)
+		ip.schemaRegistry.UpdateFieldsOrigins(schema.IndexName(tableName), fieldOrigins)
 
 		// This comes externally from (configuration)
 		// So we need to convert that separately
@@ -702,18 +686,23 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
 }
 
-func (lm *IngestProcessor) Ingest(ctx context.Context, tableName string, jsonData []types.JSON) error {
+func (lm *IngestProcessor) Ingest(ctx context.Context, indexName string, jsonData []types.JSON) error {
+
+	err := elasticsearch.IsValidIndexName(indexName)
+	if err != nil {
+		return err
+	}
 
 	nameFormatter := DefaultColumnNameFormatter()
-	transformer := jsonprocessor.IngestTransformerFor(tableName, lm.cfg)
-	return lm.ProcessInsertQuery(ctx, tableName, jsonData, transformer, nameFormatter)
+	transformer := jsonprocessor.IngestTransformerFor(indexName, lm.cfg)
+	return lm.ProcessInsertQuery(ctx, indexName, jsonData, transformer, nameFormatter)
 }
 
 func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
 
-	decision := lm.tableResolver.Resolve(table_resolver.IngestPipeline, tableName)
+	decision := lm.tableResolver.Resolve(quesma_api.IngestPipeline, tableName)
 
 	if decision.Err != nil {
 		return decision.Err
@@ -729,10 +718,10 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 
 	for _, connectorDecision := range decision.UseConnectors {
 
-		var clickhouseDecision *table_resolver.ConnectorDecisionClickhouse
+		var clickhouseDecision *quesma_api.ConnectorDecisionClickhouse
 
 		var ok bool
-		if clickhouseDecision, ok = connectorDecision.(*table_resolver.ConnectorDecisionClickhouse); !ok {
+		if clickhouseDecision, ok = connectorDecision.(*quesma_api.ConnectorDecisionClickhouse); !ok {
 			continue
 		}
 
@@ -770,6 +759,43 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	return nil
 }
 
+func (ip *IngestProcessor) applyAsyncInsertOptimizer(tableName string, clickhouseSettings clickhouse.Settings) clickhouse.Settings {
+
+	const asyncInsertOptimizerName = "async_insert"
+	enableAsyncInsert := true // enabled by default
+	var asyncInsertProps map[string]string
+
+	if optimizer, ok := ip.cfg.DefaultIngestOptimizers[asyncInsertOptimizerName]; ok {
+		enableAsyncInsert = !optimizer.Disabled
+		asyncInsertProps = optimizer.Properties
+	}
+
+	idxCfg, ok := ip.cfg.IndexConfig[tableName]
+	if ok {
+		if optimizer, ok := idxCfg.Optimizers[asyncInsertOptimizerName]; ok {
+			enableAsyncInsert = !optimizer.Disabled
+			asyncInsertProps = optimizer.Properties
+		}
+	}
+
+	if enableAsyncInsert {
+		clickhouseSettings["async_insert"] = 1
+
+		// some sane defaults
+		clickhouseSettings["wait_for_async_insert"] = 1
+
+		clickhouseSettings["async_insert_busy_timeout_ms"] = 100      // default is 1000ms
+		clickhouseSettings["async_insert_max_data_size"] = 50_000_000 // default is 10MB
+		clickhouseSettings["async_insert_max_query_number"] = 10000   // default is 450
+
+		for k, v := range asyncInsertProps {
+			clickhouseSettings[k] = v
+		}
+	}
+
+	return clickhouseSettings
+}
+
 func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, tableName string,
 	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
 	tableFormatter TableColumNameFormatter, isVirtualTable bool) error {
@@ -792,10 +818,14 @@ func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, table
 		return nil
 	}
 
-	// We expect to have date format set to `best_effort`
-	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
+	clickhouseSettings := clickhouse.Settings{
 		"date_time_input_format": "best_effort",
-	}))
+	}
+
+	clickhouseSettings = ip.applyAsyncInsertOptimizer(tableName, clickhouseSettings)
+
+	// We expect to have date format set to `best_effort`
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouseSettings))
 
 	return ip.executeStatements(ctx, statements)
 }
@@ -820,7 +850,7 @@ func (ip *IngestProcessor) execute(ctx context.Context, query string) error {
 		}
 	}
 
-	_, err := ip.chDb.ExecContext(ctx, query)
+	err := ip.chDb.Exec(ctx, query)
 	span.End(err)
 	return err
 }
@@ -849,8 +879,9 @@ func (ip *IngestProcessor) preprocessJsons(ctx context.Context,
 			return nil, nil, fmt.Errorf("error validation: %v", err)
 		}
 		invalidJsons = append(invalidJsons, inValidJson)
-		stats.GlobalStatistics.UpdateNonSchemaValues(ip.cfg, tableName,
-			inValidJson, NestedSeparator)
+		if ip.cfg != nil {
+			stats.GlobalStatistics.UpdateNonSchemaValues(ip.cfg.IngestStatistics, tableName, inValidJson, NestedSeparator)
+		}
 		// Remove invalid fields from the input JSON
 		jsonValue = subtractInputJson(jsonValue, inValidJson)
 		validatedJsons = append(validatedJsons, jsonValue)
@@ -939,11 +970,19 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 	return wasntCreated
 }
 
+func (ip *IngestProcessor) GetSchemaRegistry() schema.Registry {
+	return ip.schemaRegistry
+}
+
+func (ip *IngestProcessor) GetTableResolver() table_resolver.TableResolver {
+	return ip.tableResolver
+}
+
 func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
-func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
+func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
 }

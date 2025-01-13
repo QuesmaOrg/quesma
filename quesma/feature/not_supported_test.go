@@ -4,8 +4,8 @@ package feature
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/stretchr/testify/assert"
-	"quesma/quesma/config"
 	"testing"
 )
 
@@ -29,9 +29,7 @@ func TestNewUnsupportedFeature_index(t *testing.T) {
 
 	cfg := config.QuesmaConfiguration{}
 	cfg.IndexConfig = map[string]config.IndexConfiguration{
-		"foo": {
-			Name: "foo",
-		},
+		"foo": {},
 	}
 
 	ctx := context.Background()

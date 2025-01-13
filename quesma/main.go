@@ -5,29 +5,29 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing/sender"
+	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/connectors"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/feature"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/licensing"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/telemetry"
+	"github.com/QuesmaOrg/quesma/quesma/tracing"
 	"log"
 	"os"
 	"os/signal"
-	"quesma/ab_testing"
-	"quesma/ab_testing/sender"
-	"quesma/buildinfo"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/connectors"
-	"quesma/elasticsearch"
-	"quesma/feature"
-	"quesma/ingest"
-	"quesma/licensing"
-	"quesma/logger"
-	"quesma/persistence"
-	"quesma/quesma"
-	"quesma/quesma/async_search_storage"
-	"quesma/quesma/config"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/telemetry"
-	"quesma/tracing"
 	"runtime"
 	"syscall"
 	"time"
@@ -44,8 +44,17 @@ const banner = `
 
 const EnableConcurrencyProfiling = false
 
-func main() {
+// Example of how to use the v2 module api in main function
+//func main() {
+//	q1 := buildIngestOnlyQuesma() // Back working on ingest for a while
+//	//q1 := buildQueryOnlyQuesma()
+//	q1.Start()
+//	stop := make(chan os.Signal, 1)
+//	<-stop
+//	q1.Stop(context.Background())
+//}
 
+func main() {
 	if EnableConcurrencyProfiling {
 		runtime.SetBlockProfileRate(1)
 		runtime.SetMutexProfileFraction(1)
@@ -148,8 +157,9 @@ func main() {
 
 func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender, indexRegistry table_resolver.TableResolver) *quesma.Quesma {
 	if cfg.TransparentProxy {
-		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, false)
+		return quesma.NewQuesmaTcpProxy(cfg, quesmaManagementConsole, logChan, false)
 	} else {
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry)
+		const quesma_v2 = false
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry, quesma_v2)
 	}
 }

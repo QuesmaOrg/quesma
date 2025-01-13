@@ -34,11 +34,8 @@ func NewABTestcase() *ABTestcase {
 
 func (a *ABTestcase) SetupContainers(ctx context.Context) error {
 	containers, err := setupAllContainersWithCh(ctx, a.ConfigTemplate)
-	if err != nil {
-		return err
-	}
 	a.Containers = containers
-	return nil
+	return err
 }
 
 func (a *ABTestcase) RunTests(ctx context.Context, t *testing.T) error {
@@ -117,7 +114,8 @@ func (a *ABTestcase) testIngest(ctx context.Context, t *testing.T) {
 
 	_, _ = a.RequestToElasticsearch(ctx, "GET", "/test_index/_refresh", nil)
 
-	// Also make sure no such index got created in Elasticsearch
+
+	// Also make sure the index got created in Elasticsearch
 	resp, err := a.RequestToElasticsearch(ctx, "GET", "/test_index/_count", nil)
 	if err != nil {
 		t.Fatalf("Failed to make GET request: %s", err)

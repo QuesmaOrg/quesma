@@ -7,12 +7,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/table_resolver"
-	"quesma/util"
+	mux "quesma_v2/core"
 	"strings"
 	"testing"
 )
@@ -165,14 +167,15 @@ func TestIngestValidation(t *testing.T) {
 		Created: true,
 	})
 	for i := range inputJson {
-		db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+		conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 		ip := newIngestProcessorEmpty()
 		ip.chDb = db
 		ip.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
 
 		resolver := table_resolver.NewEmptyTableResolver()
-		decision := &table_resolver.Decision{
-			UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+		decision := &mux.Decision{
+			UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 				ClickhouseTableName: "test_table",
 			}}}
 		resolver.Decisions["test_table"] = decision

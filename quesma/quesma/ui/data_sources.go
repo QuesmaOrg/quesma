@@ -3,7 +3,7 @@
 package ui
 
 import (
-	"quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
 	"slices"
 	"strings"
 )
@@ -47,8 +47,18 @@ func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
 		slices.Sort(tableNames)
 		for _, tableName := range tableNames {
 			buffer.Html(`<li>`).Text(tableName)
-			if _, exist := tables.Load(tableName); exist {
-				buffer.Html(` (table exists)`)
+			cfg := qmc.cfg.IndexConfig[tableName]
+			finalTableName := cfg.TableName(tableName)
+			if _, exist := tables.Load(finalTableName); exist {
+				if finalTableName != tableName {
+					buffer.Html(` (table exists as override '`).Text(finalTableName).Html(`')`)
+				} else {
+					buffer.Html(` (table exists)`)
+				}
+			} else {
+				if finalTableName != tableName {
+					buffer.Html(` (table missing as override '`).Text(finalTableName).Html(`')`)
+				}
 			}
 			buffer.Html(`</li>`)
 		}

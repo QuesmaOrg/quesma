@@ -5,14 +5,15 @@ package tracing
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/rs/zerolog"
-	"quesma/util"
+	tracing "quesma_v2/core/tracing"
 	"strings"
 	"time"
 )
 
 const (
-	DumpedCtxKey ContextKey = "DumpCtxKey"
+	DumpedCtxKey tracing.ContextKey = "DumpCtxKey"
 )
 
 // This is representation of logger hook which
@@ -41,7 +42,7 @@ func FormatMessages(messages []string) string {
 
 func (h *AsyncTraceLogger) Run(e *zerolog.Event, level zerolog.Level, message string) {
 	ctx := e.GetCtx()
-	if asyncId, ok := ctx.Value(AsyncIdCtxKey).(string); ok {
+	if asyncId, ok := ctx.Value(tracing.AsyncIdCtxKey).(string); ok {
 		_, ok = ctx.Value(DumpedCtxKey).(bool)
 		if ok {
 			return
@@ -50,7 +51,7 @@ func (h *AsyncTraceLogger) Run(e *zerolog.Event, level zerolog.Level, message st
 			return
 		}
 
-		if _, ok = ctx.Value(TraceEndCtxKey).(bool); ok {
+		if _, ok = ctx.Value(tracing.TraceEndCtxKey).(bool); ok {
 			e.Discard()
 			h.AsyncQueryTrace.Delete(asyncId)
 		} else if level == zerolog.ErrorLevel || level == zerolog.FatalLevel || level == zerolog.PanicLevel {

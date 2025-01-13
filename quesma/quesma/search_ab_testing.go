@@ -4,23 +4,23 @@ package quesma
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/goccy/go-json"
 	"io"
 	"net/http"
-	"quesma/ab_testing"
-	"quesma/clickhouse"
-	"quesma/elasticsearch"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/quesma/async_search_storage"
-	"quesma/quesma/config"
-	"quesma/quesma/recovery"
-	"quesma/quesma/types"
-	"quesma/quesma/ui"
-	"quesma/table_resolver"
-	"quesma/tracing"
-	"quesma/util"
+	"quesma_v2/core"
+	"quesma_v2/core/diag"
+	tracing "quesma_v2/core/tracing"
 	"time"
 )
 
@@ -112,7 +112,7 @@ func (q *QueryRunner) runABTestingResultsCollector(ctx context.Context, indexPat
 	return optComparePlansCh, backgroundContext
 }
 
-func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, decision *table_resolver.Decision, indexPattern string) ([]byte, error) {
+func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, decision *quesma_api.Decision, indexPattern string) ([]byte, error) {
 
 	optComparePlansCh, backgroundContext := q.runABTestingResultsCollector(ctx, indexPattern, body)
 
@@ -126,13 +126,13 @@ func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.Executio
 
 		switch connector.(type) {
 
-		case *table_resolver.ConnectorDecisionClickhouse:
+		case *quesma_api.ConnectorDecisionClickhouse:
 			planExecutor = func(ctx context.Context) ([]byte, error) {
 				plan.Name = config.ClickhouseTarget
 				return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh, isMainPlan)
 			}
 
-		case *table_resolver.ConnectorDecisionElastic:
+		case *quesma_api.ConnectorDecisionElastic:
 			planExecutor = func(ctx context.Context) ([]byte, error) {
 				elasticPlan := &model.ExecutionPlan{
 					IndexPattern:          plan.IndexPattern,
@@ -167,7 +167,7 @@ func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.Executio
 
 type asyncElasticSearchWithError struct {
 	response            types.JSON
-	translatedQueryBody []types.TranslatedSQLQuery
+	translatedQueryBody []diag.TranslatedSQLQuery
 	err                 error
 }
 
@@ -211,7 +211,7 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 			responseBody, err = response.response.Bytes()
 		}
 
-		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
+		pushSecondaryInfo(q.debugInfoCollector, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
 		sendABResult(responseBody, err)
 		return responseBody, err
 	} else {
@@ -222,14 +222,14 @@ func (q *QueryRunner) executePlanElastic(ctx context.Context, plan *model.Execut
 
 		case <-time.After(time.Duration(optAsync.waitForResultsMs) * time.Millisecond):
 			go func() { // Async search takes longer. Return partial results and wait for
-				recovery.LogPanicWithCtx(ctx)
+				defer recovery.LogPanicWithCtx(ctx)
 				res := <-doneCh
-				responseBody, err = q.storeAsyncSearchWithRaw(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, requestBody, res.response, res.err, res.translatedQueryBody, true, opaqueId)
+				responseBody, err = q.storeAsyncSearchWithRaw(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, requestBody, res.response, res.err, res.translatedQueryBody, true, opaqueId)
 				sendABResult(responseBody, err)
 			}()
-			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
+			return q.HandlePartialAsyncSearch(ctx, optAsync.asyncId)
 		case res := <-doneCh:
-			responseBody, err = q.storeAsyncSearchWithRaw(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, requestBody, res.response, res.err, res.translatedQueryBody, true, opaqueId)
+			responseBody, err = q.storeAsyncSearchWithRaw(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, requestBody, res.response, res.err, res.translatedQueryBody, true, opaqueId)
 			sendABResult(responseBody, err)
 			return responseBody, err
 		}
@@ -273,7 +273,7 @@ func (q *QueryRunner) callElastic(ctx context.Context, plan *model.ExecutionPlan
 	}
 
 	contextValues := tracing.ExtractValues(ctx)
-	pushPrimaryInfo(q.quesmaManagementConsole, contextValues.RequestId, data, plan.StartTime)
+	pushPrimaryInfo(q.debugInfoCollector, contextValues.RequestId, data, plan.StartTime)
 
 	responseBody, err = types.ParseJSON(string(data))
 
@@ -314,8 +314,8 @@ func WrapElasticResponseAsAsync(searchResponse any, asyncId string, isPartial bo
 }
 
 // TODO rename and change signature to use asyncElasticSearchWithError
-func (q *QueryRunner) storeAsyncSearchWithRaw(qmc *ui.QuesmaManagementConsole, id, asyncId string,
-	startTime time.Time, path string, body types.JSON, resultJSON types.JSON, resultError error, translatedQueryBody []types.TranslatedSQLQuery, keep bool, opaqueId string) (responseBody []byte, err error) {
+func (q *QueryRunner) storeAsyncSearchWithRaw(qmc diag.DebugInfoCollector, id, asyncId string,
+	startTime time.Time, path string, body types.JSON, resultJSON types.JSON, resultError error, translatedQueryBody []diag.TranslatedSQLQuery, keep bool, opaqueId string) (responseBody []byte, err error) {
 
 	took := time.Since(startTime)
 
@@ -336,7 +336,7 @@ func (q *QueryRunner) storeAsyncSearchWithRaw(qmc *ui.QuesmaManagementConsole, i
 		err = resultError
 	}
 
-	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
 		Id:                     id,
 		AsyncId:                asyncId,
 		OpaqueId:               opaqueId,

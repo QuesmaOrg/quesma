@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package optimize
 
-import "quesma/model"
+import "github.com/QuesmaOrg/quesma/quesma/model"
 
 // cacheQueries - a transformer that suggests db to cache the query results
 //

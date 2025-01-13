@@ -3,8 +3,9 @@
 package common_table
 
 import (
-	"database/sql"
-	"quesma/logger"
+	"context"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	quesma_api "quesma_v2/core"
 )
 
 const TableName = "quesma_common_table"
@@ -25,10 +26,10 @@ CREATE TABLE IF NOT EXISTS "quesma_common_table"
 
 `
 
-func EnsureCommonTableExists(db *sql.DB) {
+func EnsureCommonTableExists(db quesma_api.BackendConnector) {
 
 	logger.Info().Msgf("Ensuring common table '%v' exists", TableName)
-	_, err := db.Exec(singleTableDDL)
+	err := db.Exec(context.Background(), singleTableDDL)
 	if err != nil {
 		// TODO check if we've got RO access to the database
 		logger.Warn().Msgf("Failed to create common table '%v': %v", TableName, err)

@@ -4,9 +4,9 @@ package pipeline_aggregations
 
 import (
 	"context"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
 	"strings"
 )
 

@@ -3,14 +3,14 @@
 package ingest
 
 import (
-	"encoding/json"
-	"quesma/clickhouse"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/telemetry"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/goccy/go-json"
+	"quesma_v2/core/diag"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -22,7 +22,7 @@ func newIngestProcessorWithEmptyTableMap(tables *TableMap, cfg *config.QuesmaCon
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
 	return &IngestProcessor{chDb: nil, tableDiscovery: clickhouse.NewTableDiscoveryWith(cfg, nil, *tables),
-		cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(),
+		cfg: cfg, phoneHomeAgent: diag.NewPhoneHomeEmptyAgent(),
 		ingestFieldStatistics: make(IngestFieldStatistics),
 		virtualTableStorage:   persistence.NewStaticJSONDatabase(),
 	}
@@ -33,7 +33,7 @@ func newIngestProcessorEmpty() *IngestProcessor {
 	tableDefinitions.Store(NewTableMap())
 	cfg := &config.QuesmaConfiguration{}
 	return &IngestProcessor{tableDiscovery: clickhouse.NewTableDiscovery(cfg, nil, persistence.NewStaticJSONDatabase()), cfg: cfg,
-		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
+		phoneHomeAgent: diag.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 
 var hasOthersConfig = &clickhouse.ChTableConfig{

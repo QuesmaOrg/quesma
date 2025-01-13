@@ -3,13 +3,13 @@
 package field_capabilities
 
 import (
-	"encoding/json"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/model"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"quesma/util"
 	"testing"
 )
 
@@ -76,26 +76,24 @@ func TestFieldCaps(t *testing.T) {
   ]
 }
 `)
-	resp, err := handleFieldCapsIndex(&config.QuesmaConfiguration{
-		IndexConfig: map[string]config.IndexConfiguration{
+	resp, err := handleFieldCapsIndex(
+		map[string]config.IndexConfiguration{
 			"logs-generic-default": {
-				Name:         "logs-generic-default",
 				QueryTarget:  []string{config.ClickhouseTarget},
 				IngestTarget: []string{config.ClickhouseTarget},
 			},
-		},
-	}, &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
-				Fields: map[schema.FieldName]schema.Field{
-					"service.name":           {PropertyName: "service.name", InternalPropertyName: "service.name", Type: schema.QuesmaTypeKeyword},
-					"arrayOfArraysOfStrings": {PropertyName: "arrayOfArraysOfStrings", InternalPropertyName: "arrayOfArraysOfStrings", Type: schema.QuesmaTypeKeyword},
-					"arrayOfTuples":          {PropertyName: "arrayOfTuples", InternalPropertyName: "arrayOfTuples", Type: schema.QuesmaTypeObject},
-					"host.name":              {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+		}, &schema.StaticRegistry{
+			Tables: map[schema.IndexName]schema.Schema{
+				"logs-generic-default": {
+					Fields: map[schema.FieldName]schema.Field{
+						"service.name":           {PropertyName: "service.name", InternalPropertyName: "service.name", Type: schema.QuesmaTypeKeyword},
+						"arrayOfArraysOfStrings": {PropertyName: "arrayOfArraysOfStrings", InternalPropertyName: "arrayOfArraysOfStrings", Type: schema.QuesmaTypeKeyword},
+						"arrayOfTuples":          {PropertyName: "arrayOfTuples", InternalPropertyName: "arrayOfTuples", Type: schema.QuesmaTypeObject},
+						"host.name":              {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+					},
 				},
 			},
-		},
-	}, []string{"logs-generic-default"})
+		}, []string{"logs-generic-default"})
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent(expected, "", "  ")
 	assert.NoError(t, err)
@@ -142,16 +140,15 @@ func TestFieldCapsWithAliases(t *testing.T) {
     "logs-generic-default"
   ]
 }`)
-	resp, err := handleFieldCapsIndex(&config.QuesmaConfiguration{
-		IndexConfig: map[string]config.IndexConfiguration{"logs-generic-default": {Name: "logs-generic-default", QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget}}},
-	}, &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
-				Fields:  map[schema.FieldName]schema.Field{"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeTimestamp}},
-				Aliases: map[schema.FieldName]schema.FieldName{"timestamp": "@timestamp"},
+	resp, err := handleFieldCapsIndex(
+		map[string]config.IndexConfiguration{"logs-generic-default": {QueryTarget: []string{config.ClickhouseTarget}, IngestTarget: []string{config.ClickhouseTarget}}}, &schema.StaticRegistry{
+			Tables: map[schema.IndexName]schema.Schema{
+				"logs-generic-default": {
+					Fields:  map[schema.FieldName]schema.Field{"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeTimestamp}},
+					Aliases: map[schema.FieldName]schema.FieldName{"timestamp": "@timestamp"},
+				},
 			},
-		},
-	}, []string{"logs-generic-default"})
+		}, []string{"logs-generic-default"})
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent(expected, "", "  ")
 	assert.NoError(t, err)
@@ -182,33 +179,30 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 			"foo.bar2": {Name: "foo.bar2", Type: clickhouse.BaseType{Name: "String"}},
 		},
 	})
-	resp, err := handleFieldCapsIndex(&config.QuesmaConfiguration{
-		IndexConfig: map[string]config.IndexConfiguration{
+	resp, err := handleFieldCapsIndex(
+		map[string]config.IndexConfiguration{
 			"logs-1": {
-				Name:         "logs-1",
 				QueryTarget:  []string{config.ClickhouseTarget},
 				IngestTarget: []string{config.ClickhouseTarget},
 			},
 			"logs-2": {
-				Name:         "logs-2",
 				QueryTarget:  []string{config.ClickhouseTarget},
 				IngestTarget: []string{config.ClickhouseTarget},
 			},
-		},
-	}, &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
-			"logs-1": {
-				Fields: map[schema.FieldName]schema.Field{
-					"foo.bar1": {PropertyName: "foo.bar1", InternalPropertyName: "foo.bar1", Type: schema.QuesmaTypeKeyword},
+		}, &schema.StaticRegistry{
+			Tables: map[schema.IndexName]schema.Schema{
+				"logs-1": {
+					Fields: map[schema.FieldName]schema.Field{
+						"foo.bar1": {PropertyName: "foo.bar1", InternalPropertyName: "foo.bar1", Type: schema.QuesmaTypeKeyword},
+					},
+				},
+				"logs-2": {
+					Fields: map[schema.FieldName]schema.Field{
+						"foo.bar2": {PropertyName: "foo.bar2", InternalPropertyName: "foo.bar2", Type: schema.QuesmaTypeKeyword},
+					},
 				},
 			},
-			"logs-2": {
-				Fields: map[schema.FieldName]schema.Field{
-					"foo.bar2": {PropertyName: "foo.bar2", InternalPropertyName: "foo.bar2", Type: schema.QuesmaTypeKeyword},
-				},
-			},
-		},
-	}, []string{"logs-1", "logs-2"})
+		}, []string{"logs-1", "logs-2"})
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent([]byte(`{
   "fields": {
@@ -293,43 +287,39 @@ func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
 			"foo.bar": {Name: "foo.bar", Type: clickhouse.BaseType{Name: "Boolean"}},
 		},
 	})
-	resp, err := handleFieldCapsIndex(&config.QuesmaConfiguration{
-		IndexConfig: map[string]config.IndexConfiguration{
+	resp, err := handleFieldCapsIndex(
+		map[string]config.IndexConfiguration{
 			"logs-1": {
-				Name:         "logs-1",
 				QueryTarget:  []string{config.ClickhouseTarget},
 				IngestTarget: []string{config.ClickhouseTarget},
 			},
 			"logs-2": {
-				Name:         "logs-2",
 				QueryTarget:  []string{config.ClickhouseTarget},
 				IngestTarget: []string{config.ClickhouseTarget},
 			},
 			"logs-3": {
-				Name:         "logs-3",
 				QueryTarget:  []string{config.ClickhouseTarget},
 				IngestTarget: []string{config.ClickhouseTarget},
 			},
-		},
-	}, &schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
-			"logs-1": {
-				Fields: map[schema.FieldName]schema.Field{
-					"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo.bar", Type: schema.QuesmaTypeKeyword},
+		}, &schema.StaticRegistry{
+			Tables: map[schema.IndexName]schema.Schema{
+				"logs-1": {
+					Fields: map[schema.FieldName]schema.Field{
+						"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo.bar", Type: schema.QuesmaTypeKeyword},
+					},
+				},
+				"logs-2": {
+					Fields: map[schema.FieldName]schema.Field{
+						"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo.bar", Type: schema.QuesmaTypeBoolean},
+					},
+				},
+				"logs-3": {
+					Fields: map[schema.FieldName]schema.Field{
+						"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo.bar", Type: schema.QuesmaTypeBoolean},
+					},
 				},
 			},
-			"logs-2": {
-				Fields: map[schema.FieldName]schema.Field{
-					"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo.bar", Type: schema.QuesmaTypeBoolean},
-				},
-			},
-			"logs-3": {
-				Fields: map[schema.FieldName]schema.Field{
-					"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo.bar", Type: schema.QuesmaTypeBoolean},
-				},
-			},
-		},
-	}, []string{"logs-1", "logs-2", "logs-3"})
+		}, []string{"logs-1", "logs-2", "logs-3"})
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent([]byte(`{
   "fields": {
