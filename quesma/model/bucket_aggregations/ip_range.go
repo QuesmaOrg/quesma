@@ -97,8 +97,8 @@ func (interval IpInterval) ToWhereClause(field model.Expr) model.Expr {
 	hasBegin := interval.hasBeginInResponse()
 	hasEnd := interval.hasEndInResponse()
 
-	begin := model.NewInfixExpr(field, ">=", model.NewLiteralSingleQuoteString(interval.begin))
-	end := model.NewInfixExpr(field, "<", model.NewLiteralSingleQuoteString(interval.end))
+	begin := model.NewInfixExpr(field, ">=", model.NewLiteralSingleQuoteIfString(interval.begin))
+	end := model.NewInfixExpr(field, "<", model.NewLiteralSingleQuoteIfString(interval.end))
 
 	if hasBegin && hasEnd {
 		return model.NewInfixExpr(begin, "AND", end)

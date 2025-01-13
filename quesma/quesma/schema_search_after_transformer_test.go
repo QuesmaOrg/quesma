@@ -45,7 +45,7 @@ func Test_validateAndParse(t *testing.T) {
 					query.SelectCommand.OrderBy = append(query.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(model.NewColumnRef("message")))
 				}
 				query.SearchAfter = tc.searchAfter
-				_, err := strategy.ValidateAndParse(query, Schema)
+				err := strategy.ValidateAndParse(query, Schema)
 				if (err == nil) != tc.isInputFineBasicAndFastStrategy {
 					t.Errorf("BasicAndFast strategy failed to validate the input: %v, err: %v", tc.searchAfter, err)
 				}
@@ -153,9 +153,10 @@ func Test_applySearchAfterParameter(t *testing.T) {
 			t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
 				// apply search_after parameter, easier to do here than in all the testcases
 				tc.query.SearchAfter = tc.searchAfter
+				tc.query.SearchAfterStrategy = searchAfterStrategyFactory(strategy)
 				tc.transformedQueryExpected.SearchAfter = tc.searchAfter
 
-				transformer := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, strategy)
+				transformer := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery)
 				actual, err := transformer.applySearchAfterParameter(Schema, tc.query)
 				assert.Equal(t, tc.errorExpected, err != nil, "Expected error: %v, got: %v", tc.errorExpected, err)
 				if err == nil {

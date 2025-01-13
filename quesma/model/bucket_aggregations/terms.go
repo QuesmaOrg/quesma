@@ -150,7 +150,7 @@ func (query Terms) UpdateFieldForIncludeAndExclude(field model.Expr) (updatedFie
 		// Select expr will be: if(field NOT IN (excludeArr[0], excludeArr[1], ...), field, NULL)
 		exprs := make([]model.Expr, 0, len(excludeArr))
 		for _, excludeVal := range excludeArr {
-			exprs = append(exprs, model.NewLiteralSingleQuoteString(excludeVal))
+			exprs = append(exprs, model.NewLiteralSingleQuoteIfString(excludeVal))
 		}
 		return ifOrNull(model.NewInfixExpr(field, "NOT IN", model.NewTupleExpr(exprs...))), true
 	case hasExclude:

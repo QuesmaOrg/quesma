@@ -88,7 +88,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) (*model.Exec
 
 	if simpleQuery.CanParse {
 
-		query = query_util.BuildHitsQuery(cw.Ctx, cw.Table.Name, []string{"*"}, &simpleQuery, queryInfo.Size, queryInfo.SearchAfter)
+		query = query_util.BuildHitsQuery(cw.Ctx, cw.Table.Name, []string{"*"}, &simpleQuery, queryInfo.Size, queryInfo.SearchAfter, cw.SearchAfterStrategy)
 		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, cw.SearchAfterStrategy, query.SelectCommand.OrderByFieldNames(), true, false, false, []string{cw.Table.Name})
 		query.Type = &queryType
 		query.Highlighter = highlighter

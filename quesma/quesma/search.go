@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/goccy/go-json"
+	"github.com/k0kubun/pp"
 	"net/http"
 	"quesma/ab_testing"
 	"quesma/clickhouse"
@@ -102,7 +103,7 @@ func NewQueryRunner(lm clickhouse.LogManagerIFace,
 		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemory(),
 		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
 		transformationPipeline: TransformationPipeline{
-			transformers: []model.QueryTransformer{NewSchemaCheckPass(cfg, tableDiscovery, searchAfterStrategy)},
+			transformers: []model.QueryTransformer{NewSchemaCheckPass(cfg, tableDiscovery)},
 		},
 		schemaRegistry:      schemaRegistry,
 		ABResultsSender:     abResultsRepository,
@@ -579,6 +580,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		table = commonTable
 	}
 
+	pp.Println("SASTRATEGY", q.SearchAfterStrategy)
 	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer,
 		searchAfterStrategyFactory(q.SearchAfterStrategy), resolvedIndexes, q.cfg)
 

@@ -8,7 +8,7 @@ func FormatSortValue(i any) any {
 	switch v := i.(type) {
 	case time.Time:
 		// When returned as part of `sort`, timestamps are always returned as millis
-		return v.UnixMilli()
+		return float64(v.UnixMilli())
 	default:
 		return i
 	}

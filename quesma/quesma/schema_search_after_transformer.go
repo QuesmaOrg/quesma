@@ -5,6 +5,7 @@ package quesma
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/schema"
@@ -14,14 +15,14 @@ import (
 func searchAfterStrategyFactory(strategy model.SearchAfterStrategyType) model.SearchAfterStrategy {
 	switch strategy {
 	case model.Bulletproof:
-		return searchAfterStrategyBulletproof{}
+		return &searchAfterStrategyBulletproof{}
 	case model.JustDiscardTheParameter:
-		return searchAfterStrategyJustDiscardTheParameter{}
+		return &searchAfterStrategyJustDiscardTheParameter{}
 	case model.BasicAndFast:
-		return searchAfterStrategyBasicAndFast{}
+		return &searchAfterStrategyBasicAndFast{}
 	default:
 		logger.Error().Msgf("Unknown search_after strategy: %d. Using default (basicAndFast).", strategy)
-		return searchAfterStrategyBasicAndFast{}
+		return &searchAfterStrategyBulletproof{}
 	}
 }
 
@@ -29,37 +30,43 @@ func searchAfterStrategyFactory(strategy model.SearchAfterStrategyType) model.Se
 // | Bulletproof, but might be a bit slower for gigantic datasets                  |
 // ---------------------------------------------------------------------------------
 
-// sortFields  []model.OrderByExpr
-//	pkHashes    []string // md5 for now, should be improved to shorten hashes lengths
-//	searchAfter any
-
 type searchAfterStrategyBulletproof struct {
+	sortParamsRaw           []any
+	sortParams              []model.Expr // before ValidateAndParse: nil; after non-error ValidateAndParse: non-nil array
+	primaryKeys             []string     // before ValidateAndParse: nil; after non-error ValidateAndParse: non-nil array
+	lastNRowsSameSortValues int          // 0 for first row, else >= 1 meaning how many last rows have the same sort values
 }
 
 // ValidateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
-func (s searchAfterStrategyBulletproof) ValidateAndParse(query *model.Query, indexSchema schema.Schema) (searchAfterParamsParsed []model.Expr, err error) {
-	sortParamsParsed, err := validateAndParseCommonOnlySortParams(query, indexSchema)
-	if err != nil {
-		return sortParamsParsed, err
+// add comment
+func (s *searchAfterStrategyBulletproof) ValidateAndParse(query *model.Query, indexSchema schema.Schema) error {
+	sortParams, otherParams, err := validateAndParseCommon(query, indexSchema)
+	if err != nil || sortParams == nil {
+		return err
 	}
 
-	searchAfter, isArr := query.SearchAfter.([]any)
-	if !isArr {
-		return make([]model.Expr, 0), nil
+	primaryKeys := make([]string, 0, len(otherParams))
+	for _, pk := range otherParams {
+		if pkStr, isStr := pk.(string); isStr {
+			primaryKeys = append(primaryKeys, pkStr)
+		} else {
+			return fmt.Errorf("primary key must be a string, got: %v", pk)
+		}
 	}
 
-	searchAfterParamsParsed = make([]model.Expr, 0, len(searchAfter))
-	searchAfterParamsParsed = append(searchAfterParamsParsed, sortParamsParsed...)
-	sortParamsNr := len(sortParamsParsed)
-	for i := sortParamsNr; i < len(searchAfter); i++ {
-		searchAfterParamsParsed = append(searchAfterParamsParsed, model.NewLiteral(util.SingleQuoteIfString(searchAfter[i])))
+	s.sortParams = sortParams
+	s.primaryKeys = primaryKeys
+	s.sortParamsRaw = make([]any, len(sortParams))
+	for i, param := range query.SearchAfter.([]any)[:len(sortParams)] { // we're sure it's []any because of validateAndParseCommon above
+		s.sortParamsRaw[i] = param
 	}
-
-	return searchAfterParamsParsed, nil
+	pp.Println("parse", s)
+	return nil
 }
 
-func (s searchAfterStrategyBulletproof) TransformQuery(query *model.Query, searchAfterParsed []model.Expr) (*model.Query, error) {
-	if searchAfterParsed == nil || len(searchAfterParsed) == 0 {
+func (s *searchAfterStrategyBulletproof) TransformQuery(query *model.Query) (*model.Query, error) {
+	fmt.Println("GOT searchAfterParsed", s.sortParams, s.primaryKeys)
+	if s.sortParams == nil {
 		return query, nil
 	}
 
@@ -69,12 +76,12 @@ func (s searchAfterStrategyBulletproof) TransformQuery(query *model.Query, searc
 	//   AND primary_key NOT IN (searchAfterPrimaryKey1, searchAfterPrimaryKey2, ...))
 	//
 	// Because some fields might be ASC, we need to swap sortField_i with searchAfter_i
-	sortFieldsNr := len(query.SelectCommand.OrderBy)
-	fmt.Println("searchAfterParsed", searchAfterParsed, sortFieldsNr)
+	sortFieldsNr := len(s.sortParams)
+	fmt.Println("searchAfterParsed", s.sortParams, sortFieldsNr)
 	lhs := model.NewTupleExpr(make([]model.Expr, sortFieldsNr)...)
 	rhs := model.NewTupleExpr(make([]model.Expr, sortFieldsNr)...)
-	for i := range sortFieldsNr {
-		lhs.Exprs[i] = searchAfterParsed[i]
+	for i, sortParam := range s.sortParams {
+		lhs.Exprs[i] = sortParam
 		rhs.Exprs[i] = query.SelectCommand.OrderBy[i].Expr
 		if query.SelectCommand.OrderBy[i].Direction == model.AscOrder {
 			lhs.Exprs[i], rhs.Exprs[i] = rhs.Exprs[i], lhs.Exprs[i] // swap
@@ -83,16 +90,20 @@ func (s searchAfterStrategyBulletproof) TransformQuery(query *model.Query, searc
 
 	newWhereClause1 := model.NewInfixExpr(lhs, ">", rhs)
 	pkField := query.Schema.GetPrimaryKey()
-	if len(searchAfterParsed) <= sortFieldsNr || pkField == nil {
+	if len(s.primaryKeys) == 0 || pkField == nil {
 		// It means we have 0 primary keys -> we just imitate basicAndFast strategy
-		if len(searchAfterParsed) != 0 {
+		if len(s.sortParams) > 0 {
 			query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause, newWhereClause1})
 		}
 		return query, nil
 	}
 
-	fmt.Println("pkField", pkField, "searchAfterParsed", searchAfterParsed, "sortFieldsNr", sortFieldsNr, query.SelectCommand.OrderBy)
-	notInTuple := model.NewTupleExpr(searchAfterParsed[sortFieldsNr:]...)
+	fmt.Println("pkField", pkField, "searchAfterParsed", s.sortParams, "sortFieldsNr", sortFieldsNr, query.SelectCommand.OrderBy)
+	pks := make([]model.Expr, 0, len(s.primaryKeys))
+	for _, pk := range s.primaryKeys {
+		pks = append(pks, model.NewLiteralSingleQuote(pk))
+	}
+	notInTuple := model.NewTupleExpr(pks...)
 	newWhereClause2_1 := model.NewInfixExpr(lhs, "=", rhs)
 	newWhereClause2_2 := model.NewInfixExpr(model.NewColumnRef(pkField.AsString()), "NOT IN", notInTuple)
 
@@ -101,18 +112,17 @@ func (s searchAfterStrategyBulletproof) TransformQuery(query *model.Query, searc
 	return query, nil
 }
 
-func (s searchAfterStrategyBulletproof) TransformHit(ctx context.Context, hit *model.SearchHit, pkFieldName *string, sortFieldNames []string,
-	rows []model.QueryResultRow, lastNRowsSameSortValues int) (hitTransformed *model.SearchHit, lastNRowsSameSortValuesNew int) {
+func (s *searchAfterStrategyBulletproof) TransformHit(ctx context.Context, hit *model.SearchHit, pkFieldName *string,
+	sortFieldNames []string, rows []model.QueryResultRow) *model.SearchHit {
 
-	fmt.Println("KK transformHit")
+	pp.Println("KK transformHit", s)
 
-	hitTransformed, lastNRowsSameSortValuesNew = hit, 1 // default values, when returning early
 	if pkFieldName == nil {
-		return
+		return hit
 	}
 	if len(rows) == 0 { // sanity check
 		logger.Warn().Msg("searchAfterStrategyBulletproof.TransformHit: rows is empty")
-		return
+		return hit
 	}
 
 	// find the primary key column
@@ -125,27 +135,50 @@ func (s searchAfterStrategyBulletproof) TransformHit(ctx context.Context, hit *m
 	}
 	if pkColIdx == -1 {
 		logger.Warn().Msgf("searchAfterStrategyBulletproof.TransformHit: primary key column %s not found in rows", *pkFieldName)
-		return
+		return hit
 	}
 
 	fmt.Println("pkColIdx", pkColIdx, "pkFieldName", *pkFieldName)
 
-	hitTransformed.Sort = append(hitTransformed.Sort, rows[len(rows)-1].Cols[pkColIdx].Value)
+	hit.Sort = append(hit.Sort, rows[len(rows)-1].Cols[pkColIdx].Value)
 
 	fmt.Println("KK transformHit 2, rows len:", len(rows))
 
+	addPreQueryPKs := func() {
+		for _, pk := range s.primaryKeys {
+			hit.Sort = append(hit.Sort, pk)
+		}
+	}
+	if len(rows) == 1 {
+		// here we can't compare the last two rows, but need to compare
+		// one row with what we've received in search_after param
+		s.lastNRowsSameSortValues = 1
+		if s.sortParamsRaw != nil && rows[0].SameSubsetOfColumnsRaw(s.sortParamsRaw, sortFieldNames) {
+			// rows[0] has the same sort values
+			addPreQueryPKs()
+			s.lastNRowsSameSortValues += len(s.primaryKeys)
+		}
+		pp.Println("AB", s, rows[0], sortFieldNames)
+		return hit
+	}
+
 	// if current_row != last_row (we check only 'sortFieldNames' columns), we have only one "result" row added above
-	if len(rows) == 1 || !rows[len(rows)-1].SameSubsetOfColumns(&rows[len(rows)-2], sortFieldNames) {
+	if !rows[len(rows)-1].SameSubsetOfColumns(&rows[len(rows)-2], sortFieldNames) {
 		fmt.Println("cols different")
-		return hitTransformed, 1
+		s.lastNRowsSameSortValues = 1
+		return hit
 	}
 
 	// else we have lastNRowsSameSortValues+1 "result" rows
-	for i, cnt := len(rows)-2, 0; cnt < lastNRowsSameSortValues; i, cnt = i-1, cnt+1 {
+	for i, cnt := len(rows)-2, 0; i >= 0 && cnt < s.lastNRowsSameSortValues; i, cnt = i-1, cnt+1 {
 		fmt.Println("adding", rows[i].Cols[pkColIdx].Value)
-		hitTransformed.Sort = append(hitTransformed.Sort, rows[i].Cols[pkColIdx].Value)
+		hit.Sort = append(hit.Sort, rows[i].Cols[pkColIdx].Value)
 	}
-	return hitTransformed, lastNRowsSameSortValues + 1
+	if len(hit.Sort) <= s.lastNRowsSameSortValues {
+		addPreQueryPKs()
+	}
+	s.lastNRowsSameSortValues += 1
+	return hit
 }
 
 // -------------------------------------------------------------------------------------------------------------------------------
@@ -154,46 +187,57 @@ func (s searchAfterStrategyBulletproof) TransformHit(ctx context.Context, hit *m
 
 type searchAfterStrategyJustDiscardTheParameter struct{}
 
-// ValidateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
-func (s searchAfterStrategyJustDiscardTheParameter) ValidateAndParse(*model.Query, schema.Schema) (searchAfterParamParsed []model.Expr, err error) {
-	return nil, nil
+func (s *searchAfterStrategyJustDiscardTheParameter) ValidateAndParse(query *model.Query, indexSchema schema.Schema) error {
+	return nil
 }
 
-func (s searchAfterStrategyJustDiscardTheParameter) TransformQuery(query *model.Query, _ []model.Expr) (*model.Query, error) {
+func (s *searchAfterStrategyJustDiscardTheParameter) TransformQuery(query *model.Query) (*model.Query, error) {
 	return query, nil
 }
 
-func (s searchAfterStrategyJustDiscardTheParameter) TransformHit(ctx context.Context, hit *model.SearchHit, pkFieldName *string, sortFieldNames []string,
-	rows []model.QueryResultRow, lastNRowsSameSortValues int) (hitTransformed *model.SearchHit, lastNRowsSameSortValuesNew int) {
-	return hit, 0 // lastNRowsSameSortValues doesn't matter
+func (s *searchAfterStrategyJustDiscardTheParameter) TransformHit(ctx context.Context, hit *model.SearchHit, pkFieldName *string,
+	sortFieldNames []string, rows []model.QueryResultRow) *model.SearchHit {
+	return hit
 }
 
 // ----------------------------------------------------------------------------------
 // | First, simple strategy: BasicAndFast (default until Bulletproof is implemented |
 // ----------------------------------------------------------------------------------
 
-type searchAfterStrategyBasicAndFast struct{}
-
-// ValidateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
-func (s searchAfterStrategyBasicAndFast) ValidateAndParse(query *model.Query, indexSchema schema.Schema) (searchAfterParamParsed []model.Expr, err error) {
-	searchAfterParamParsed, err = validateAndParseCommonOnlySortParams(query, indexSchema)
-	if searchAfterParamParsed != nil && err == nil {
-		if len(searchAfterParamParsed) != len(query.SelectCommand.OrderBy) {
-			return nil, fmt.Errorf("len(search_after) != len(sortFields), search_after: %v, sortFields: %v", query.SearchAfter, query.SelectCommand.OrderBy)
-		}
-	}
-	return searchAfterParamParsed, err
+type searchAfterStrategyBasicAndFast struct {
+	sortParams []model.Expr // before ValidateAndParse: nil; after non-error ValidateAndParse: non-nil arry
 }
 
-func (s searchAfterStrategyBasicAndFast) TransformQuery(query *model.Query, searchAfterParsed []model.Expr) (*model.Query, error) {
+// ValidateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
+func (s *searchAfterStrategyBasicAndFast) ValidateAndParse(query *model.Query, indexSchema schema.Schema) error {
+	sortParams, otherParams, err := validateAndParseCommon(query, indexSchema)
+	fmt.Println("validateAndParse", sortParams, otherParams)
+	if err != nil {
+		return err
+	}
+	if len(otherParams) != 0 {
+		return fmt.Errorf("BasicAndFast should have only sort params. search_after: %v, sortFields: %v", query.SearchAfter, query.SelectCommand.OrderBy)
+	}
+
+	s.sortParams = sortParams
+	pp.Println("1", s)
+	return nil
+}
+
+func (s *searchAfterStrategyBasicAndFast) TransformQuery(query *model.Query) (*model.Query, error) {
+	fmt.Println("searchAfterParsed", s.sortParams)
+	pp.Println(s)
+	if len(s.sortParams) == 0 {
+		return query, nil
+	}
+
 	// If all order by's would be DESC, we would add to the where clause:
 	// tuple(sortField1, sortField2, ...) > tuple(searchAfter1, searchAfter2, ...)
 	// But because some fields might be ASC, we need to swap sortField_i with searchAfter_i
-	fmt.Println("searchAfterParsed", searchAfterParsed)
-	sortFieldsNr := len(searchAfterParsed)
+	sortFieldsNr := len(s.sortParams)
 	lhs := model.NewTupleExpr(make([]model.Expr, sortFieldsNr)...)
 	rhs := model.NewTupleExpr(make([]model.Expr, sortFieldsNr)...)
-	for i, searchAfterValue := range searchAfterParsed {
+	for i, searchAfterValue := range s.sortParams {
 		lhs.Exprs[i] = searchAfterValue
 		rhs.Exprs[i] = query.SelectCommand.OrderBy[i].Expr
 		if query.SelectCommand.OrderBy[i].Direction == model.AscOrder {
@@ -206,69 +250,72 @@ func (s searchAfterStrategyBasicAndFast) TransformQuery(query *model.Query, sear
 	return query, nil
 }
 
-func (s searchAfterStrategyBasicAndFast) TransformHit(ctx context.Context, hit *model.SearchHit, pkFieldName *string, sortFieldNames []string,
-	rows []model.QueryResultRow, lastNRowsSameSortValues int) (hitTransformed *model.SearchHit, lastNRowsSameSortValuesNew int) {
-	return hit, 0 // lastNRowsSameSortValues doesn't matter
+func (s *searchAfterStrategyBasicAndFast) TransformHit(ctx context.Context, hit *model.SearchHit, pkFieldName *string,
+	sortFieldNames []string, rows []model.QueryResultRow) *model.SearchHit {
+	return hit
 }
 
-func validateAndParseCommonOnlySortParams(query *model.Query, indexSchema schema.Schema) (searchAfterParamParsed []model.Expr, err error) {
+func validateAndParseCommon(query *model.Query, indexSchema schema.Schema) (sortParams []model.Expr, otherParams []any, err error) {
 	if query.SearchAfter == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	asArray, ok := query.SearchAfter.([]any)
 	if !ok {
-		return nil, fmt.Errorf("search_after must be an array, got: %v", query.SearchAfter)
-	}
-	if len(asArray) < len(query.SelectCommand.OrderBy) {
-		return nil, fmt.Errorf("len(search_after) < len(sortFields), search_after: %v, sortFields: %v", asArray, query.SelectCommand.OrderBy)
+		return nil, nil, fmt.Errorf("search_after must be an array, got: %v", query.SearchAfter)
 	}
 
-	sortFieldsNr := len(asArray)
-	searchAfterParamParsed = make([]model.Expr, sortFieldsNr)
+	sortFieldsNr := len(query.SelectCommand.OrderBy)
+	allFieldsNr := len(asArray)
+	if allFieldsNr < sortFieldsNr {
+		return nil, nil, fmt.Errorf("len(search_after) < len(sortFields), search_after: %v, sortFields: %v", asArray, query.SelectCommand.OrderBy)
+	}
+
+	sortParams = make([]model.Expr, 0, sortFieldsNr)
+	otherParams = make([]any, 0, allFieldsNr-sortFieldsNr)
 	for i, searchAfterValue := range asArray {
-		if i >= len(query.SelectCommand.OrderBy) {
-			searchAfterParamParsed[i] = model.NewLiteral(util.SingleQuoteIfString(searchAfterValue))
+		if i >= sortFieldsNr {
+			otherParams = append(otherParams, searchAfterValue)
 			continue
 		}
 
 		column, ok := query.SelectCommand.OrderBy[i].Expr.(model.ColumnRef)
 		if !ok {
-			return nil, fmt.Errorf("for basicAndFast strategy, order by must be a column reference")
+			return nil, nil, fmt.Errorf("for basicAndFast strategy, order by must be a column reference")
 		}
 
 		field, resolved := indexSchema.ResolveField(column.ColumnName)
 		if !resolved {
-			return nil, fmt.Errorf("could not resolve field: %v", model.AsString(query.SelectCommand.OrderBy[i].Expr))
+			return nil, nil, fmt.Errorf("could not resolve field: %v", model.AsString(query.SelectCommand.OrderBy[i].Expr))
 		}
 
 		if field.Type.Name == "date" || field.Type.Name == "timestamp" {
 			if number, isNumber := util.ExtractNumeric64Maybe(searchAfterValue); isNumber {
 				if number >= 0 && util.IsFloat64AnInt64(number) {
 					// this param will always be timestamp in milliseconds, as we create it like this while rendering hits
-					searchAfterParamParsed[i] = model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number)))
+					sortParams = append(sortParams, model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number))))
 				} else {
-					return nil, fmt.Errorf("for basicAndFast strategy, search_after must be a unix timestamp in milliseconds")
+					return nil, nil, fmt.Errorf("for basicAndFast strategy, search_after must be a unix timestamp in milliseconds")
 				}
 			} else {
-				return nil, fmt.Errorf("for basicAndFast strategy, search_after must be a number")
+				return nil, nil, fmt.Errorf("for basicAndFast strategy, search_after must be a number")
 			}
 		} else {
-			searchAfterParamParsed[i] = model.NewLiteral(util.SingleQuoteIfString(searchAfterValue))
+			sortParams = append(sortParams, model.NewLiteral(util.SingleQuoteIfString(searchAfterValue)))
 		}
 	}
 
-	return searchAfterParamParsed, nil
+	return sortParams, otherParams, nil
 }
 
 func (s *SchemaCheckPass) applySearchAfterParameter(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
-	searchAfterParsed, err := s.searchAfterStrategy.ValidateAndParse(query, indexSchema)
-	if err != nil {
-		return nil, err
+	fmt.Println("applySearchAfterParameter", query.SearchAfterStrategy)
+	if query.SearchAfterStrategy != nil {
+		err := query.SearchAfterStrategy.ValidateAndParse(query, indexSchema)
+		if err != nil {
+			return nil, err
+		}
+		return query.SearchAfterStrategy.TransformQuery(query)
 	}
-	if searchAfterParsed == nil {
-		return query, nil
-	}
-
-	return s.searchAfterStrategy.TransformQuery(query, searchAfterParsed)
+	return query, nil
 }

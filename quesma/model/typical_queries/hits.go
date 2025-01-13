@@ -57,7 +57,6 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 	hits := make([]model.SearchHit, 0, len(rows))
 
 	lookForCommonTableIndexColumn := true
-	lastNRowsSameSortValues := 1
 
 	for i, row := range rows {
 
@@ -101,12 +100,11 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 			}
 		}
 
-		fmt.Println("QQ", query.ctx, hit, query.table.PrimaryKey, rows[:i], lastNRowsSameSortValues, query.searchAfterStrategy)
+		fmt.Println("QQ", query.ctx, hit, query.table.PrimaryKey, rows[:i], query.searchAfterStrategy)
 		fmt.Printf("QQ %T\n", query.searchAfterStrategy)
-		hit, lastNRowsSameSortValues = query.searchAfterStrategy.TransformHit(query.ctx, hit,
-			query.table.PrimaryKey, query.sortFieldNames, rows[:i+1], lastNRowsSameSortValues)
+		hit = query.searchAfterStrategy.TransformHit(query.ctx, hit, query.table.PrimaryKey, query.sortFieldNames, rows[:i+1])
 
-		fmt.Println("transformed hit, last N:", lastNRowsSameSortValues, hit, "sort:", hit.Sort)
+		fmt.Println("transformed hit, last N:", hit, "sort:", hit.Sort)
 		hits = append(hits, *hit)
 	}
 	fmt.Println("hits:", len(hits))

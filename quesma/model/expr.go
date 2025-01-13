@@ -130,14 +130,19 @@ func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value}
 }
 
-// NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else
-func NewLiteralSingleQuoteString(value any) LiteralExpr {
+// NewLiteralSingleQuoteIfString simply does: string -> 'string', anything_else -> anything_else
+func NewLiteralSingleQuoteIfString(value any) LiteralExpr {
 	switch v := value.(type) {
 	case string:
 		return LiteralExpr{Value: fmt.Sprintf("'%s'", v)}
 	default:
 		return LiteralExpr{Value: v}
 	}
+}
+
+// NewLiteralSingleQuote simply does: string -> LiteralExpr{'string'}
+func NewLiteralSingleQuote(value string) LiteralExpr {
+	return LiteralExpr{Value: fmt.Sprintf("'%s'", value)}
 }
 
 // DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`

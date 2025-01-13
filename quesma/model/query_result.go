@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/goccy/go-json"
 	"quesma/common_table"
+	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/schema"
 	"quesma/util"
@@ -141,6 +142,29 @@ func (r *QueryResultRow) SameSubsetOfColumns(other *QueryResultRow, colNames []s
 			} else {
 				return false
 			}
+		}
+	}
+	return true
+}
+
+// SameSubsetOfColumnsRaw returns if r and other have the same values for columns with names in colNames
+// They are results of the same query, so we can assume that the columns are in the same order.
+func (r *QueryResultRow) SameSubsetOfColumnsRaw(prev []any, colNames []string) bool {
+	fmt.Println("r.Cols:", r.Cols, "other:", prev, colNames)
+	for i, colName := range colNames {
+		prevValue := prev[i]
+		var curRowValue any
+		var found bool
+		for _, col := range r.Cols {
+			if col.ColName == colName {
+				curRowValue = elasticsearch.FormatSortValue(col.ExtractValue())
+				found = true
+				break
+			}
+		}
+		fmt.Println("prevValue:", prevValue, "curRowValue:", curRowValue, "found:", found, "prevValue == curRowValue:", prevValue == curRowValue)
+		if !found || prevValue != curRowValue {
+			return false
 		}
 	}
 	return true

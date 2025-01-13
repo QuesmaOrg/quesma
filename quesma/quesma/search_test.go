@@ -1034,12 +1034,53 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 						{"_doc": {"unmapped_type": "boolean", "order": "desc"}}
 					]
 				}`,
-			expectedSQL:              `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE (fromUnixTimestamp64Milli(1706551896491)>"@timestamp" OR (fromUnixTimestamp64Milli(1706551896491)="@timestamp" AND "message" NOT IN tuple('m3', 'm2', 'm1'))) ORDER BY "@timestamp" DESC LIMIT 3`,
-			resultRowsFromDB:         [][]any{{someTime, "m4"}, {someTime, "m5"}, {someTime, "m6"}},
-			expectedSortFieldsPerHit: [][]any{{someTime.UnixMilli(), "m4"}, {someTime.UnixMilli(), "m5", "m4"}, {someTime.UnixMilli(), "m6", "m5", "m4"}},
+			expectedSQL:      `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE (fromUnixTimestamp64Milli(1706551896491)>"@timestamp" OR (fromUnixTimestamp64Milli(1706551896491)="@timestamp" AND "message" NOT IN tuple('m3', 'm2', 'm1'))) ORDER BY "@timestamp" DESC LIMIT 3`,
+			resultRowsFromDB: [][]any{{someTime, "m4"}, {someTime, "m5"}, {someTime, "m6"}},
+			expectedSortFieldsPerHit: [][]any{
+				{someTime.UnixMilli(), "m4", "m3", "m2", "m1"},
+				{someTime.UnixMilli(), "m5", "m4", "m3", "m2", "m1"},
+				{someTime.UnixMilli(), "m6", "m5", "m4", "m3", "m2", "m1"},
+			},
+		},
+		{
+			request: `
+				{
+					"search_after": [1706551896491, "m6", "m5", "m4", "m3", "m2", "m1"],
+					"size": 3,
+					"track_total_hits": false,
+					"sort": [
+						{"@timestamp": {"order": "desc", "format": "strict_date_optional_time", "unmapped_type": "boolean"}},
+						{"_doc": {"unmapped_type": "boolean", "order": "desc"}}
+					]
+				}`,
+			expectedSQL:      `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE (fromUnixTimestamp64Milli(1706551896491)>"@timestamp" OR (fromUnixTimestamp64Milli(1706551896491)="@timestamp" AND "message" NOT IN tuple('m6', 'm5', 'm4', 'm3', 'm2', 'm1'))) ORDER BY "@timestamp" DESC LIMIT 3`,
+			resultRowsFromDB: [][]any{{someTime, "m7"}, {sub(1), "m8"}, {sub(1), "m9"}},
+			expectedSortFieldsPerHit: [][]any{
+				{someTime.UnixMilli(), "m7", "m6", "m5", "m4", "m3", "m2", "m1"},
+				{sub(1).UnixMilli(), "m8"},
+				{sub(1).UnixMilli(), "m9", "m8"},
+			},
+		},
+		{
+			request: `
+				{
+					"search_after": [1706551895491, "m9", "m8"],
+					"size": 3,
+					"track_total_hits": false,
+					"sort": [
+						{"@timestamp": {"order": "desc", "format": "strict_date_optional_time", "unmapped_type": "boolean"}},
+						{"_doc": {"unmapped_type": "boolean", "order": "desc"}}
+					]
+				}`,
+			expectedSQL:      `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE (fromUnixTimestamp64Milli(1706551895491)>"@timestamp" OR (fromUnixTimestamp64Milli(1706551895491)="@timestamp" AND "message" NOT IN tuple('m9', 'm8'))) ORDER BY "@timestamp" DESC LIMIT 3`,
+			resultRowsFromDB: [][]any{{sub(1), "m10"}, {sub(2), "m11"}, {sub(3), "m12"}},
+			expectedSortFieldsPerHit: [][]any{
+				{sub(1).UnixMilli(), "m10", "m9", "m8"},
+				{sub(2).UnixMilli(), "m11"},
+				{sub(3).UnixMilli(), "m12"},
+			},
 		},
 	}
-	_ = iterationsBulletproof
 
 	logger.InitSimpleLoggerForTestsWarnLevel()
 	test := func(strategy model.SearchAfterStrategyType, iterations []Iteration, dateTimeType string, handlerName string) {
@@ -1048,9 +1089,9 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 		queryRunner := NewQueryRunnerDefaultForTestsWithSearchAfter(db, &DefaultConfig, tableName, tab, staticRegistry, strategy)
 
-		fmt.Printf("Test, strategy: %T\n", strategy)
+		fmt.Printf("Test, strategy: %s\n", strategy.String())
 
-		for _, iteration := range iterations[:2] {
+		for _, iteration := range iterations {
 			rows := sqlmock.NewRows([]string{"@timestamp", "message"})
 			for _, row := range iteration.resultRowsFromDB {
 				rows.AddRow(row[0], row[1])
@@ -1102,13 +1143,11 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 		}
 	}
 
-	//strategies := []model.SearchAfterStrategy{searchAfterStrategyFactory(model.BasicAndFast), searchAfterStrategyFactory(model.Bulletproof)}
 	strategies := map[model.SearchAfterStrategyType][]Iteration{
 		model.BasicAndFast: iterationsBasicAndFast,
 		model.Bulletproof:  iterationsBulletproof,
 	}
-	//handlers := []string{"handleSearch", "handleAsyncSearch"}
-	handlers := []string{"handleSearch"}
+	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for strategy, iterations := range strategies {
 		for _, handlerName := range handlers {
 			t.Run(fmt.Sprintf("TestSearchAfterParameter:%s/%s", handlerName, strategy.String()), func(t *testing.T) {

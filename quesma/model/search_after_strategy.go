@@ -8,10 +8,9 @@ import (
 type (
 	SearchAfterStrategy interface {
 		// ValidateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
-		ValidateAndParse(query *Query, indexSchema schema.Schema) (searchAfterParamParsed []Expr, err error)
-		TransformQuery(query *Query, searchAfterParameterParsed []Expr) (*Query, error)
-		TransformHit(ctx context.Context, hit *SearchHit, pkFieldName *string, sortFieldNames []string,
-			rows []QueryResultRow, lastNRowsSameSortValues int) (hitTransformed *SearchHit, lastNRowsSameSortValuesNew int)
+		ValidateAndParse(query *Query, indexSchema schema.Schema) error
+		TransformQuery(query *Query) (*Query, error)
+		TransformHit(ctx context.Context, hit *SearchHit, pkFieldName *string, sortFieldNames []string, rows []QueryResultRow) *SearchHit
 	}
 	SearchAfterStrategyType int
 )
