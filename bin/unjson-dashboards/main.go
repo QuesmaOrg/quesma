@@ -13,10 +13,14 @@ import (
 
 type jsonMap = map[string]any
 
-const filename = "SECRET"
+const filename = "SIP_export.ndjson"
 
-var keysWithNestedJsonsAsStrings = []string{"optionsJSON", "panelsJSON", "fieldAttrs"}
-var interestingKeys = []string{"match_phrase", "text", "formula", "query", "field", "sourceField"}
+//const filename = "S1AP_export.ndjson"
+
+//const filename = "S6a_export.ndjson"
+
+var keysWithNestedJsonsAsStrings = []string{ /*"optionsJSON", */ "panelsJSON", "fieldAttrs"}
+var interestingKeys = []string{"attributes", "match_phrase", "text", "formula", "query", "field", "sourceField", "index_pattern"}
 
 func scanOneFile() error {
 	file, err := os.Open(filename)
@@ -39,12 +43,12 @@ func scanOneFile() error {
 	return nil
 }
 
-func parseNdJson(s string) []jsonMap {
+func parseNdJson(s string, printDebug bool) []jsonMap {
 	var jsons []jsonMap
 	d := json.NewDecoder(strings.NewReader(s))
 	for {
 		// Decode one JSON document.
-		var v interface{}
+		var v any
 		err := d.Decode(&v)
 
 		if err != nil {
@@ -62,10 +66,14 @@ func parseNdJson(s string) []jsonMap {
 		//}
 		switch vv := v.(type) {
 		case jsonMap:
-			// fmt.Println("jsonMap", v)
+			if printDebug {
+				fmt.Println("parseNdJson jsonMap:", vv)
+			}
 			jsons = append(jsons, vv)
 		case []any:
-			// fmt.Println("[]any")
+			if printDebug {
+				pp.Println("parseNdJson []any", vv)
+			}
 			for _, vvv := range vv {
 				if j, ok := vvv.(jsonMap); ok {
 					jsons = append(jsons, j)
@@ -78,9 +86,17 @@ func parseNdJson(s string) []jsonMap {
 
 func processJson(j jsonMap) error {
 	for k, v := range j {
+		if strings.HasPrefix(k, "a") {
+			pp.Println(k)
+		}
 		if slices.Contains(keysWithNestedJsonsAsStrings, k) {
-			fmt.Println("---", k, "---")
-			ndJson := parseNdJson(v.(string))
+			fmt.Println("--- processJson, in keysWithNestedJsonsAsStrings, key:", k, "val:", v)
+			var ndJson []jsonMap
+			if k == "panelsJSON" {
+				ndJson = parseNdJson(v.(string), true)
+			} else {
+				ndJson = parseNdJson(v.(string), false)
+			}
 			for _, js := range ndJson {
 				// pp.Println(js)
 				if err := processJson(js); err != nil {
@@ -135,8 +151,11 @@ func processInteresting(key string, value, dataType any) {
 		processFormula(key, value, dataType)
 	case "query":
 		processQuery(key, value, dataType)
+	case "attributes":
+		fmt.Println("processJson from attributes")
+		processJson(value.(jsonMap))
 	default:
-		fmt.Println(key, value, dataType)
+		fmt.Println("processInteresting, default case, key:", key, value, dataType)
 	}
 }
 
@@ -163,12 +182,12 @@ func processSourceField(key string, value, dataType any) {
 
 func processFormula(key string, value, dataType any) {
 	if _, ok := value.(string); !ok {
-		pp.Println(key, value, dataType)
+		pp.Println("processFormula key:", key, "value:", value, "dataType:", dataType)
 		errors = append(errors, fmt.Sprintf("formula is not a string: %v", value))
 		return
 	}
 	if dataType != nil {
-		pp.Println(key, value, dataType)
+		pp.Println("processFormula key:", key, "value:", value, "dataType:", dataType)
 		errors = append(errors, fmt.Sprintf("dataType is not nil: %v", dataType))
 		return
 	}
@@ -176,6 +195,7 @@ func processFormula(key string, value, dataType any) {
 }
 
 func processQuery(key string, value, dataType any) {
+	pp.Println("--- processQuery, key:", key)
 	if valueAsMap, ok := value.(jsonMap); ok {
 		// we skip <=> len == 2, and there are 2 keys: 'query' == "", and 'language'
 		weCanSkip := len(valueAsMap) == 2
@@ -188,18 +208,18 @@ func processQuery(key string, value, dataType any) {
 		if weCanSkip {
 			return
 		}
-		pp.Println(key, value, dataType)
+		pp.Println("processQuery key:", key, "value:", value, "dataType:", dataType)
 		errors = append(errors, fmt.Sprintf("query is a map: %v", value))
 	}
 
 	if dataType != nil {
-		pp.Println(key, value, dataType)
+		pp.Println("processQuery key:", key, "value:", value, "dataType:", dataType)
 		errors = append(errors, fmt.Sprintf("dataType is not nil: %v", dataType))
 		return
 	}
 
 	if _, ok := value.(string); !ok {
-		pp.Println(key, value, dataType)
+		pp.Println("processQuery key:", key, "value:", value, "dataType:", dataType)
 		errors = append(errors, fmt.Sprintf("query is not a string: %v", value))
 		return
 	}
