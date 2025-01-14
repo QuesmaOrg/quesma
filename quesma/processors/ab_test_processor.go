@@ -6,8 +6,8 @@ package processors
 import (
 	"encoding/json"
 	"fmt"
+	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
 	"github.com/google/go-cmp/cmp"
-	quesma_api "quesma_v2/core"
 	"strconv"
 )
 

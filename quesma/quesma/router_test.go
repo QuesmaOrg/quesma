@@ -11,9 +11,9 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/telemetry"
+	mux "github.com/QuesmaOrg/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/v2/core/routes"
 	"github.com/stretchr/testify/assert"
-	mux "quesma_v2/core"
-	"quesma_v2/core/routes"
 	"strings"
 	"testing"
 )

@@ -9,7 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/bulk"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
-	"quesma_v2/core/diag"
+	"github.com/QuesmaOrg/quesma/v2/core/diag"
 )
 
 func Write(ctx context.Context, tableName *string, body types.JSON, ip *ingest.IngestProcessor, ingestStatsEnabled bool, phoneHomeAgent diag.PhoneHomeClient, registry table_resolver.TableResolver, elasticsearchConnector *backend_connectors.ElasticsearchBackendConnector) (bulk.BulkItem, error) {

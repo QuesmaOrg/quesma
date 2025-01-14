@@ -11,8 +11,8 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
 	"net"
-	quesma_api "quesma_v2/core"
 	"strings"
 	"time"
 )

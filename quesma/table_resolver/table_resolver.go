@@ -10,7 +10,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
-	"quesma_v2/core"
+	"github.com/QuesmaOrg/quesma/v2/core"
 	"sort"
 	"sync"
 	"time"

@@ -22,9 +22,9 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/v2/core/tracing"
 	"net/http"
-	quesma_api "quesma_v2/core"
-	"quesma_v2/core/tracing"
 )
 
 func HandleDeletingAsyncSearchById(queryRunner QueryRunnerIFace, asyncSearchId string) (*quesma_api.Result, error) {

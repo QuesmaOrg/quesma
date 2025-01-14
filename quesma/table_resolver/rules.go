@@ -9,7 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/util"
-	"quesma_v2/core"
+	"github.com/QuesmaOrg/quesma/v2/core"
 	"reflect"
 	"strings"
 )

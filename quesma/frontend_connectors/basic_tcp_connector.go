@@ -6,8 +6,8 @@ package frontend_connectors
 import (
 	"context"
 	"fmt"
+	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
 	"net"
-	quesma_api "quesma_v2/core"
 	"sync/atomic"
 )
 

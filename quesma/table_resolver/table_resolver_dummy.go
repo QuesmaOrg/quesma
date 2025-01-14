@@ -4,7 +4,7 @@
 package table_resolver
 
 import (
-	mux "quesma_v2/core"
+	mux "github.com/QuesmaOrg/quesma/v2/core"
 )
 
 // DummyTableResolver is a dummy implementation of TableResolver to satisfy the QueryRunner and make it be compatible with the v2 api
