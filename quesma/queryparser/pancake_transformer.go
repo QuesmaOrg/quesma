@@ -361,8 +361,12 @@ func (a *pancakeTransformer) transformAutoDateHistogram(layers []*pancakeModelLa
 	for _, layer := range layers {
 		if layer.nextBucketAggregation != nil {
 			if autoDateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.AutoDateHistogram); ok {
-				if tsLowerBound, found := model.FindTimestampLowerBound(autoDateHistogram.GetField(), whereClause); found {
-					autoDateHistogram.SetKey(tsLowerBound)
+				// think if if/else is correct here, maybe something better
+				if lowerBoundInMs, lbFound, upperBoundInMs, ubFound := model.FindTimestampBounds(autoDateHistogram.GetField(), whereClause); lbFound || ubFound {
+					autoDateHistogram.SetBounds(lowerBoundInMs, lbFound, upperBoundInMs, ubFound)
+					if sql, sqlNeeded := autoDateHistogram.GenerateSql(); sqlNeeded {
+						layer.nextBucketAggregation.selectedColumns = append(layer.nextBucketAggregation.selectedColumns, sql)
+					}
 				} else {
 					logger.WarnWithCtx(a.ctx).Msgf("could not find timestamp lower bound (field: %v, where clause: %v)",
 						autoDateHistogram.GetField(), whereClause)
