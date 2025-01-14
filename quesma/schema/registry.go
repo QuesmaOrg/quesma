@@ -3,9 +3,12 @@
 package schema
 
 import (
+	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/comment_metadata"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"sync"
 )
@@ -37,11 +40,15 @@ type (
 		fieldEncodings          map[FieldEncodingKey]EncodedFieldName
 		fieldOriginsLock        sync.RWMutex
 		fieldOrigins            map[IndexName]map[FieldName]FieldSource
+
+		schemaLock sync.RWMutex
+		schema     map[IndexName]Schema
 	}
 	typeAdapter interface {
 		Convert(string) (QuesmaType, bool)
 	}
 	TableProvider interface {
+		AddListener(chan<- types.ReloadMessage)
 		TableDefinitions() map[string]Table
 		AutodiscoveryEnabled() bool
 	}
@@ -72,6 +79,44 @@ func (s *schemaRegistry) getInternalToPublicFieldEncodings(tableName string) map
 	}
 
 	return internalToPublicFieldsEncodings
+}
+
+func (s *schemaRegistry) reload() error {
+
+	schema, err := s.loadSchemas()
+	if err != nil {
+		return err
+	}
+	s.schemaLock.Lock()
+	s.schema = schema
+	s.schemaLock.Unlock()
+	return nil
+}
+
+func (s *schemaRegistry) start() {
+
+	notificationChannel := make(chan types.ReloadMessage, 100)
+
+	s.dataSourceTableProvider.AddListener(notificationChannel)
+
+	protectedReload := func() {
+		defer recovery.LogPanic()
+		err := s.reload()
+		if err != nil {
+			logger.Error().Err(err).Msg("error reloading schema")
+		}
+	}
+
+	go func() {
+		for {
+			select {
+			case msg := <-notificationChannel:
+				fmt.Println("XXXXX schema registry received notification", msg)
+				protectedReload()
+			}
+		}
+	}()
+
 }
 
 func (s *schemaRegistry) loadSchemas() (map[IndexName]Schema, error) {
@@ -126,22 +171,19 @@ func (s *schemaRegistry) populateSchemaFromDynamicConfiguration(indexName string
 }
 
 func (s *schemaRegistry) AllSchemas() map[IndexName]Schema {
-	if schemas, err := s.loadSchemas(); err != nil {
-		logger.Error().Msgf("error loading schemas: %v", err)
-		return make(map[IndexName]Schema)
-	} else {
-		return schemas
-	}
+	s.schemaLock.RLock()
+	defer s.schemaLock.RUnlock()
+
+	return s.schema
 }
 
 func (s *schemaRegistry) FindSchema(name IndexName) (Schema, bool) {
-	if schemas, err := s.loadSchemas(); err != nil {
-		logger.Error().Msgf("error loading schemas: %v", err)
-		return Schema{}, false
-	} else {
-		schema, found := schemas[name]
-		return schema, found
-	}
+	s.schemaLock.RLock()
+	defer s.schemaLock.RUnlock()
+
+	schema, found := s.schema[name]
+	return schema, found
+
 }
 
 func (s *schemaRegistry) UpdateDynamicConfiguration(name IndexName, table Table) {
@@ -175,13 +217,16 @@ func (s *schemaRegistry) GetFieldEncodings() map[FieldEncodingKey]EncodedFieldNa
 }
 
 func NewSchemaRegistry(tableProvider TableProvider, configuration *config.QuesmaConfiguration, dataSourceTypeAdapter typeAdapter) Registry {
-	return &schemaRegistry{
+	res := &schemaRegistry{
 		indexConfiguration:      &configuration.IndexConfig,
 		dataSourceTableProvider: tableProvider,
 		dataSourceTypeAdapter:   dataSourceTypeAdapter,
 		dynamicConfiguration:    make(map[string]Table),
+		schema:                  make(map[IndexName]Schema),
 		fieldEncodings:          make(map[FieldEncodingKey]EncodedFieldName),
 	}
+	res.start()
+	return res
 }
 
 func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguration config.IndexConfiguration, fields map[FieldName]Field) {

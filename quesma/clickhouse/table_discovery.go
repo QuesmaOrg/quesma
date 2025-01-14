@@ -11,11 +11,13 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/goccy/go-json"
 	quesma_api "quesma_v2/core"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -40,6 +42,8 @@ type TableDiscovery interface {
 	LastReloadTime() time.Time
 	ForceReloadCh() <-chan chan<- struct{}
 	AutodiscoveryEnabled() bool
+
+	AddListener(ch chan<- types.ReloadMessage)
 }
 
 type tableDiscovery struct {
@@ -51,6 +55,9 @@ type tableDiscovery struct {
 	forceReloadCh                     chan chan<- struct{}
 	ReloadTablesError                 error
 	virtualTableStorage               persistence.JSONDatabase
+
+	reloadObserversMutex sync.Mutex
+	reloadObservers      []chan<- types.ReloadMessage
 }
 
 type columnMetadata struct {
@@ -77,6 +84,10 @@ func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool quesma_api.Ba
 
 type TableDiscoveryTableProviderAdapter struct {
 	TableDiscovery
+}
+
+func (t TableDiscoveryTableProviderAdapter) AddListener(ch chan<- types.ReloadMessage) {
+	t.TableDiscovery.AddListener(ch)
 }
 
 func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema.Table {
@@ -123,6 +134,26 @@ func NewTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool quesma_ap
 	}
 	result.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 	return result
+}
+
+func (td *tableDiscovery) AddListener(ch chan<- types.ReloadMessage) {
+	td.reloadObserversMutex.Lock()
+	defer td.reloadObserversMutex.Unlock()
+	td.reloadObservers = append(td.reloadObservers, ch)
+}
+
+func (td *tableDiscovery) notifyObservers() {
+
+	td.reloadObserversMutex.Lock()
+	defer td.reloadObserversMutex.Unlock()
+
+	msg := types.ReloadMessage{Timestamp: time.Now()}
+	for _, observer := range td.reloadObservers {
+		fmt.Println("Sending message to observer", observer)
+		go func() {
+			observer <- msg
+		}()
+	}
 }
 
 func (td *tableDiscovery) TableDefinitionsFetchError() error {
@@ -178,6 +209,8 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 
 	td.ReloadTablesError = nil
 	td.populateTableDefinitions(configuredTables, databaseName, td.cfg)
+
+	td.notifyObservers()
 }
 
 func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discoveredTable) map[string]discoveredTable {
@@ -632,6 +665,9 @@ func NewEmptyTableDiscovery() *EmptyTableDiscovery {
 	return &EmptyTableDiscovery{
 		TableMap: NewTableMap(),
 	}
+}
+
+func (td *EmptyTableDiscovery) AddListener(ch chan<- types.ReloadMessage) {
 }
 
 func (td *EmptyTableDiscovery) ReloadTableDefinitions() {
