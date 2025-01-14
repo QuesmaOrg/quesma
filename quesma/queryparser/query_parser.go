@@ -68,6 +68,8 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		queries = append(queries, countQuery)
 	}
 
+	fmt.Println("queries", len(queries))
+
 	if listQuery := cw.buildListQueryIfNeeded(simpleQuery, hitsInfo, highlighter); listQuery != nil {
 		queries = append(queries, listQuery)
 	}
@@ -76,6 +78,8 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	if err != nil {
 		return &model.ExecutionPlan{}, err
 	}
+
+	fmt.Println("queries", len(queries))
 
 	// we apply post query transformer for certain aggregation types
 	// this should be a part of the query parsing process
@@ -103,12 +107,15 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		QueryRowsTransformers: queryResultTransformers,
 	}
 
+	fmt.Println("queries", len(queries))
+
 	return plan, err
 }
 
 func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	simpleQuery *model.SimpleQuery, queryInfo model.HitsCountInfo, highlighter model.Highlighter) *model.Query {
 	var fullQuery *model.Query
+	fmt.Println("queryInfo.Type", queryInfo.Type)
 	switch queryInfo.Type {
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)

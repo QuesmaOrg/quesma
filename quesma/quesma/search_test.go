@@ -1162,7 +1162,7 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 // Rows in DB are as follows (sorted by message ASC):
 // - 5x "m1",
 // - 2x "m2",
-// - 1x "m3's", (TODO add some special character, so m3 -> m3's after https://github.com/QuesmaOrg/quesma/pull/1114)
+// - 1x "m3's",
 // - 1x "m4", "m5", ...
 //
 // We send 4 requests, simulating user scrolling through hits.
@@ -1227,7 +1227,6 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 			resultRowsFromDB: [][]any{{"m7"}, {"m8"}, {"m9"}},
 		},
 	}
-	_ = iterationsBasicAndFast
 
 	// because of no PK, we lose some hits (return 3 'm1's, not 5)
 	iterationsBulletproofNoPK := []Iteration{
@@ -1289,7 +1288,7 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 			map[string]schema.Table{},
 			map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 		)
-		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tableMap, staticRegistry)
+		queryRunner := NewQueryRunnerDefaultForTestsWithSearchAfter(db, &DefaultConfig, tableName, tableMap, staticRegistry, strategy)
 
 		for _, iteration := range iterations {
 			var rows *sqlmock.Rows
@@ -1353,19 +1352,17 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 		}
 	}
 
-	type testcase struct {
+	handlers := []string{"handleSearch", "handleAsyncSearch"}
+	testcases := []struct {
 		strategy   model.SearchAfterStrategyType
 		tableName  string
 		iterations []Iteration
-	}
-
-	testcases := []testcase{
+	}{
 		{model.BasicAndFast, "noPK", iterationsBasicAndFast},
 		{model.BasicAndFast, "withPK", iterationsBasicAndFast},
 		{model.Bulletproof, "noPK", iterationsBulletproofNoPK},
 		{model.Bulletproof, "withPK", iterationsBulletproofWithPK},
 	}
-	handlers := []string{"handleSearch"} //, "handleAsyncSearch"}
 	for _, tc := range testcases {
 		for _, handlerName := range handlers {
 			t.Run(fmt.Sprintf("TestSearchAfterParameter:%s/%s/%s", handlerName, tc.strategy.String(), tc.tableName), func(t *testing.T) {
@@ -1383,50 +1380,71 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 // (t, m4, 4); (t, m5, 5); (t, m5, 0); (t, m5, 0);
 // (t-1s, m6, 0); (t-1s, m7, 0); (t-1s, m8, 0);
 // (t-1s, m9, 0); (t-2s, m10, 0); (t-3s, m11, 0);
+// (pks are "1", "2", "3", ...)
 //
 // We send 4 requests, simulating user scrolling through hits.
 func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
-	fields := map[schema.FieldName]schema.Field{
-		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
-		"bicep_size": {PropertyName: "bicep_size", InternalPropertyName: "bicep_size", Type: schema.QuesmaTypeInteger},
-		"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+	pk := "pk"
+	tables := map[string]*util.SyncMap[string, *clickhouse.Table]{
+		"noPK": util.NewSyncMapWith(tableName, &clickhouse.Table{
+			Name:   tableName,
+			Config: clickhouse.NewChTableConfigNoAttrs(),
+			Cols: map[string]*clickhouse.Column{
+				"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
+				"bicep_size": {Name: "bicep_size", Type: clickhouse.NewBaseType("Int64")},
+				"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			},
+			Created: true,
+		}),
+		"withPK": util.NewSyncMapWith(tableName, &clickhouse.Table{
+			Name:   tableName,
+			Config: clickhouse.NewChTableConfigNoAttrs(),
+			Cols: map[string]*clickhouse.Column{
+				"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
+				"bicep_size": {Name: "bicep_size", Type: clickhouse.NewBaseType("Int64")},
+				"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+				pk:           {Name: pk, Type: clickhouse.NewBaseType("String")},
+			},
+			Created:    true,
+			PrimaryKey: &pk,
+		}),
 	}
-	Schema := schema.NewSchema(fields, true, "", schema.NewPrimaryKey("message"))
-	staticRegistry := schema.NewStaticRegistry(
-		map[schema.IndexName]schema.Schema{tableName: Schema},
-		map[string]schema.Table{},
-		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
-	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
-		Name:   tableName,
-		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
-		Cols: map[string]*clickhouse.Column{
-			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"bicep_size": {Name: "bicep_size", Type: clickhouse.NewBaseType("Int64")},
-			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-		},
-		Created: true,
-	})
+	schemas := map[string]schema.Schema{
+		"noPK": schema.NewSchema(map[schema.FieldName]schema.Field{
+			"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+			"bicep_size": {PropertyName: "bicep_size", InternalPropertyName: "bicep_size", Type: schema.QuesmaTypeInteger},
+			"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+		}, true, "", nil),
+		"withPK": schema.NewSchema(map[schema.FieldName]schema.Field{
+			"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+			"bicep_size": {PropertyName: "bicep_size", InternalPropertyName: "bicep_size", Type: schema.QuesmaTypeInteger},
+			"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+			"pk":         {PropertyName: "pk", InternalPropertyName: "pk", Type: schema.QuesmaTypeText},
+		}, true, "", schema.NewPrimaryKey("pk")),
+	}
 
 	someTime := time.Date(2024, 1, 29, 18, 11, 36, 491000000, time.UTC) // 1706551896491 in UnixMilli
 	sub := func(secondsFromSomeTime int) time.Time {
 		return someTime.Add(time.Second * time.Duration(-secondsFromSomeTime))
 	}
-	iterations := []struct {
-		request                     string
-		expectedSQL                 string
-		resultRowsFromDB            [][]any
-		basicAndFastSortFieldPerHit [][]any
-	}{
+
+	type Iteration struct {
+		request                  string
+		expectedSQL              string
+		resultRowsFromDB         [][]any
+		expectedSortFieldsPerHit [][]any // only for bulletproof with pk, other cases can simply use resultRowsFromDB
+	}
+
+	iterationsBasicAndFast := []Iteration{
 		{
 			request:     `{"size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}, {"message": {"order": "asc"}}, {"bicep_size": {"order": "desc"}}]}`,
 			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
 			resultRowsFromDB: [][]any{
-				{someTime, int64(1), "m1"},
-				{someTime, int64(2), "m2"},
-				{someTime, int64(3), "m3"},
+				{someTime, int64(1), "m1", "1"},
+				{someTime, int64(2), "m2", "2"},
+				{someTime, int64(3), "m3", "3"},
 			},
-			basicAndFastSortFieldPerHit: [][]any{
+			expectedSortFieldsPerHit: [][]any{
 				{someTime.UnixMilli(), "m1", int64(1)},
 				{someTime.UnixMilli(), "m2", int64(2)},
 				{someTime.UnixMilli(), "m3", int64(3)},
@@ -1436,11 +1454,11 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 			request:     `{"search_after": [1706551896491, "m3", 3], "size": 3, "track_total_hits": false,  "sort": [{"@timestamp": {"order": "desc"}}, {"message": {"order": "asc"}}, {"bicep_size": {"order": "desc"}}]}`,
 			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name WHERE tuple(fromUnixTimestamp64Milli(1706551896491), "message", 3)>tuple("@timestamp", 'm3', "bicep_size") ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
 			resultRowsFromDB: [][]any{
-				{someTime, int64(4), "m4"},
-				{someTime, int64(5), "m5"},
-				{someTime, int64(0), "m5"},
+				{someTime, int64(4), "m4", "4"},
+				{someTime, int64(5), "m5", "5"},
+				{someTime, int64(0), "m5", "6"},
 			},
-			basicAndFastSortFieldPerHit: [][]any{
+			expectedSortFieldsPerHit: [][]any{
 				{someTime.UnixMilli(), "m4", int64(4)},
 				{someTime.UnixMilli(), "m5", int64(5)},
 				{someTime.UnixMilli(), "m5", int64(0)},
@@ -1450,11 +1468,11 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 			request:     `{"search_after": [1706551896491, "m5", 0], "size": 3, "track_total_hits": false,  "sort": [{"@timestamp": {"order": "desc"}}, {"message": {"order": "asc"}}, {"bicep_size": {"order": "desc"}}]}`,
 			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name WHERE tuple(fromUnixTimestamp64Milli(1706551896491), "message", 0)>tuple("@timestamp", 'm5', "bicep_size") ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
 			resultRowsFromDB: [][]any{
-				{sub(1), int64(0), "m6"},
-				{sub(1), int64(0), "m7"},
-				{sub(1), int64(0), "m8"},
+				{sub(1), int64(0), "m6", "7"},
+				{sub(1), int64(0), "m7", "8"},
+				{sub(1), int64(0), "m8", "9"},
 			},
-			basicAndFastSortFieldPerHit: [][]any{
+			expectedSortFieldsPerHit: [][]any{
 				{sub(1).UnixMilli(), "m6", int64(0)},
 				{sub(1).UnixMilli(), "m7", int64(0)},
 				{sub(1).UnixMilli(), "m8", int64(0)},
@@ -1464,11 +1482,11 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 			request:     `{"search_after": [1706551896491, "m8", 0], "size": 3, "track_total_hits": false,  "sort": [{"@timestamp": {"order": "desc"}}, {"message": {"order": "asc"}}, {"bicep_size": {"order": "desc"}}]}`,
 			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name WHERE tuple(fromUnixTimestamp64Milli(1706551896491), "message", 0)>tuple("@timestamp", 'm8', "bicep_size") ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
 			resultRowsFromDB: [][]any{
-				{sub(1), int64(0), "m9"},
-				{sub(2), int64(0), "m10"},
-				{sub(3), int64(0), "m11"},
+				{sub(1), int64(0), "m9", "10"},
+				{sub(2), int64(0), "m10", "11"},
+				{sub(3), int64(0), "m11", "12"},
 			},
-			basicAndFastSortFieldPerHit: [][]any{
+			expectedSortFieldsPerHit: [][]any{
 				{sub(1).UnixMilli(), "m9", int64(0)},
 				{sub(2).UnixMilli(), "m10", int64(0)},
 				{sub(3).UnixMilli(), "m11", int64(0)},
@@ -1476,17 +1494,33 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 		},
 	}
 
-	test := func(strategy model.SearchAfterStrategy, dateTimeType string, handlerName string) {
+	test := func(strategy model.SearchAfterStrategyType, iterations []Iteration, tableMap *clickhouse.TableMap, Schema schema.Schema, dateTimeType string, handlerName string) {
 		conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 		defer conn.Close()
 		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
-		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
+		staticRegistry := schema.NewStaticRegistry(
+			map[schema.IndexName]schema.Schema{tableName: Schema},
+			map[string]schema.Table{},
+			map[schema.FieldEncodingKey]schema.EncodedFieldName{},
+		)
+		queryRunner := NewQueryRunnerDefaultForTestsWithSearchAfter(db, &DefaultConfig, tableName, tableMap, staticRegistry, strategy)
 
 		for _, iteration := range iterations {
-			rows := sqlmock.NewRows([]string{"@timestamp", "bicep_size", "message"})
-			for _, row := range iteration.resultRowsFromDB {
-				rows.AddRow(row[0], row[1], row[2])
+			testcaseWithPk := tableMap == tables["withPK"]
+			var rows *sqlmock.Rows
+			if testcaseWithPk {
+				rows = sqlmock.NewRows([]string{"timestamp", "bicep_size", "message", "pk"})
+				for _, row := range iteration.resultRowsFromDB {
+					rows.AddRow(row[0], row[1], row[2], row[3])
+				}
+				iteration.expectedSQL = strings.Replace(iteration.expectedSQL, ` FROM`, `, "pk" FROM`, 1)
+			} else {
+				rows = sqlmock.NewRows([]string{"timestamp", "bicep_size", "message"})
+				for _, row := range iteration.resultRowsFromDB {
+					rows.AddRow(row[0], row[1], row[2])
+				}
 			}
+
 			mock.ExpectQuery(iteration.expectedSQL).WillReturnRows(rows)
 
 			var (
@@ -1512,13 +1546,18 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 			}
 
 			hits := responsePart["hits"].(model.JsonMap)["hits"].([]any)
+			pp.Println(responseMap)
 			assert.Len(t, hits, len(iteration.resultRowsFromDB))
 			for i, hit := range hits {
 				sortField := hit.(model.JsonMap)["sort"].([]any)
 				assert.Len(t, sortField, 3)
-				assert.Equal(t, float64(iteration.basicAndFastSortFieldPerHit[i][0].(int64)), sortField[0].(float64))
-				assert.Equal(t, iteration.basicAndFastSortFieldPerHit[i][1].(string), sortField[1].(string))
-				assert.Equal(t, float64(iteration.basicAndFastSortFieldPerHit[i][2].(int64)), sortField[2].(float64))
+				assert.Equal(t, float64(iteration.expectedSortFieldsPerHit[i][0].(int64)), sortField[0].(float64))
+				assert.Equal(t, iteration.expectedSortFieldsPerHit[i][1].(string), sortField[1].(string))
+				if testcaseWithPk {
+					assert.Equal(t, float64(iteration.expectedSortFieldsPerHit[i][2].(int64)), sortField[2].(float64))
+				} else {
+					assert.Equal(t, float64(iteration.expectedSortFieldsPerHit[i][2].(int64)), sortField[2].(float64))
+				}
 			}
 		}
 
@@ -1528,10 +1567,22 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 	}
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
-	for _, strategy := range []model.SearchAfterStrategy{searchAfterStrategyFactory(model.BasicAndFast)} {
+	testcases := []struct {
+		strategy   model.SearchAfterStrategyType
+		tableName  string
+		iterations []Iteration
+	}{
+		{model.BasicAndFast, "noPK", iterationsBasicAndFast},
+		{model.BasicAndFast, "withPK", iterationsBasicAndFast},
+		//{model.Bulletproof, "noPK", iterationsBulletproofNoPK},
+		//{model.Bulletproof, "withPK", iterationsBulletproofWithPK},
+	}
+
+	logger.InitSimpleLoggerForTestsWarnLevel()
+	for _, tc := range testcases {
 		for _, handlerName := range handlers {
-			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
-				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
+			t.Run(fmt.Sprintf("TestSearchAfterParameter:%s/%s/%s", handlerName, tc.strategy.String(), tc.tableName), func(t *testing.T) {
+				test(tc.strategy, tc.iterations, tables[tc.tableName], schemas[tc.tableName], "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
 			})
 		}
 	}
@@ -1583,11 +1634,11 @@ func TestSearchAfterParameter_sortByNoField(t *testing.T) {
 		},
 	}
 
-	test := func(strategy model.SearchAfterStrategy, dateTimeType string, handlerName string) {
+	test := func(strategy model.SearchAfterStrategyType, dateTimeType string, handlerName string) {
 		conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 		defer conn.Close()
 		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
-		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, tab, staticRegistry)
+		queryRunner := NewQueryRunnerDefaultForTestsWithSearchAfter(db, &DefaultConfig, tableName, tab, staticRegistry, strategy)
 
 		for _, iteration := range iterations {
 			rows := sqlmock.NewRows([]string{"@timestamp", "bicep_size", "message"})
@@ -1632,7 +1683,7 @@ func TestSearchAfterParameter_sortByNoField(t *testing.T) {
 	}
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
-	for _, strategy := range []model.SearchAfterStrategy{searchAfterStrategyFactory(model.BasicAndFast)} {
+	for _, strategy := range []model.SearchAfterStrategyType{model.BasicAndFast, model.Bulletproof} {
 		for _, handlerName := range handlers {
 			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
 				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)

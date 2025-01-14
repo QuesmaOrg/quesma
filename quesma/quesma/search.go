@@ -610,6 +610,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return q.executeABTesting(ctx, plan, queryTranslator, table, body, optAsync, decision, indexPattern)
 	}
 
+	fmt.Println("DUPA", body, plan.Queries)
+	pp.Println(plan)
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, nil, true)
 
 }
