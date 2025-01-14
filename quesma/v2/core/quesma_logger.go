@@ -11,22 +11,12 @@ import (
 )
 
 const (
-	stdLogFileName = "quesma.log"
-	errLogFileName = "err.log"
-)
-
-const (
 	RID                              = "request_id" // request id key for the logger
 	Reason                           = "reason"     // Known error reason key for the logger
 	Path                             = "path"
 	AsyncId                          = "async_id"
 	OpaqueId                         = "opaque_id"
 	ReasonPrefixUnsupportedQueryType = "unsupported_search_query: " // Reason for Error messages for unsupported queries will start with this prefix
-)
-
-const (
-	initialBufferSize = 32 * 1024
-	bufferSizeChannel = 1024
 )
 
 type QuesmaLogger interface {
