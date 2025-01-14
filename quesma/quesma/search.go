@@ -6,31 +6,31 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/optimize"
+	"github.com/QuesmaOrg/quesma/quesma/painful"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/errors"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
 	"net/http"
-	"quesma/ab_testing"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/elasticsearch"
-	"quesma/end_user_errors"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/optimize"
-	"quesma/painful"
-	"quesma/queryparser"
-	"quesma/quesma/async_search_storage"
-	"quesma/quesma/config"
-	"quesma/quesma/errors"
-	"quesma/quesma/recovery"
-	"quesma/quesma/types"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/util"
-	"quesma_v2/core"
-	"quesma_v2/core/diag"
-	tracing "quesma_v2/core/tracing"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -273,7 +273,6 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 					StatusCode:    http.StatusInternalServerError,
 					GenericResult: queryparser.BadRequestParseError(err),
 				}
-				return nil, err
 			}
 
 			responses = append(responses, wrappedErr)
@@ -535,7 +534,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		for _, indexName := range resolvedIndexes {
 			table, _ = tables.Load(q.cfg.IndexConfig[indexName].TableName(indexName))
 			if table == nil {
-				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", indexName)).Details("Table: %s", indexName)
+				continue
 			}
 			if table.VirtualTable {
 				virtualOnlyTables = append(virtualOnlyTables, indexName)
@@ -564,8 +563,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			DatabaseName:       "", // it doesn't matter here, common table will be used
 		}
 
+		schemas := q.schemaRegistry.AllSchemas()
+
 		for _, idx := range resolvedIndexes {
-			scm, ok := q.schemaRegistry.FindSchema(schema.IndexName(idx))
+			scm, ok := schemas[schema.IndexName(idx)]
 			if !ok {
 				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", idx)).Details("Table: %s", idx)
 			}

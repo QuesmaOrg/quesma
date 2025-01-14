@@ -5,28 +5,27 @@ package quesma
 import (
 	"context"
 	"errors"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/painful"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/errors"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/routes"
 	"github.com/goccy/go-json"
 	"net/http"
-	"quesma/clickhouse"
-	"quesma/elasticsearch"
-	"quesma/ingest"
-	"quesma/logger"
-	"quesma/painful"
-	"quesma/queryparser"
-	"quesma/quesma/config"
-	"quesma/quesma/errors"
-	"quesma/quesma/functionality/bulk"
-	"quesma/quesma/functionality/doc"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/table_resolver"
-	quesma_api "quesma_v2/core"
-	"quesma_v2/core/routes"
 	"strings"
 	"time"
 )
 
-func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesma_api.Dependencies, ip *ingest.IngestProcessor, tableResolver table_resolver.TableResolver) quesma_api.Router {
+func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesma_api.Dependencies, ip *ingest.IngestProcessor, tableResolver table_resolver.TableResolver, esConn *backend_connectors.ElasticsearchBackendConnector) quesma_api.Router {
 	// some syntactic sugar
 	method := quesma_api.IsHTTPMethod
 	and := quesma_api.And
@@ -79,14 +78,11 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 	})
 
 	router.Register(routes.BulkPath, and(method("POST", "PUT"), matchedAgainstBulkBody(cfg, tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-
 		body, err := types.ExpectNDJSON(req.ParsedBody)
 		if err != nil {
 			return nil, err
 		}
-
-		results, err := bulk.Write(ctx, nil, body, ip, cfg, dependencies.PhoneHomeAgent(), tableResolver)
-		return bulkInsertResult(ctx, results, err)
+		return HandleBulk(ctx, body, ip, cfg.IngestStatistics, esConn, dependencies, tableResolver)
 	})
 	router.Register(routes.IndexDocPath, and(method("POST"), matchedExactIngestPath(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 		index := req.Params["index"]
@@ -100,16 +96,7 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 			}, nil
 		}
 
-		result, err := doc.Write(ctx, &index, body, ip, cfg, dependencies.PhoneHomeAgent(), tableResolver)
-		if err != nil {
-			return &quesma_api.Result{
-				Body:          string(queryparser.BadRequestParseError(err)),
-				StatusCode:    http.StatusBadRequest,
-				GenericResult: queryparser.BadRequestParseError(err),
-			}, nil
-		}
-
-		return indexDocResult(result)
+		return HandleIndexDoc(ctx, index, body, ip, cfg.IngestStatistics, esConn, dependencies, tableResolver)
 	})
 
 	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExactIngestPath(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
@@ -120,8 +107,7 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 			return nil, err
 		}
 
-		results, err := bulk.Write(ctx, &index, body, ip, cfg, dependencies.PhoneHomeAgent(), tableResolver)
-		return bulkInsertResult(ctx, results, err)
+		return HandleBulkIndex(ctx, index, body, ip, cfg.IngestStatistics, esConn, dependencies, tableResolver)
 	})
 	return router
 }

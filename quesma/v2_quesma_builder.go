@@ -4,13 +4,13 @@
 package main
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_ingest"
+	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_query"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"log"
-	"quesma/backend_connectors"
-	"quesma/frontend_connectors"
-	"quesma/processors/es_to_ch_ingest"
-	"quesma/processors/es_to_ch_query"
-	"quesma/quesma/config"
-	quesma_api "quesma_v2/core"
 )
 
 // BuildNewQuesma creates a new quesma instance with both Ingest And Query Processors, unused yet

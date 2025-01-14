@@ -4,13 +4,13 @@ package quesma
 
 import (
 	"context"
-	"quesma/clickhouse"
-	"quesma/eql"
-	"quesma/model"
-	"quesma/queryparser"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/eql"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 )
 
 // This is an extracted interface for query translation.

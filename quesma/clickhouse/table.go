@@ -5,10 +5,10 @@ package clickhouse
 import (
 	"context"
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/quesma/config"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strconv"
 	"strings"
 )

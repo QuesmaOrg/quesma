@@ -5,11 +5,11 @@ package quesma
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/k0kubun/pp"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/schema"
-	"quesma/util"
 )
 
 func searchAfterStrategyFactory(strategy model.SearchAfterStrategyType) model.SearchAfterStrategy {

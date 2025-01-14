@@ -4,12 +4,12 @@ package table_resolver
 
 import (
 	"fmt"
-	"quesma/common_table"
-	"quesma/elasticsearch"
-	"quesma/end_user_errors"
-	"quesma/quesma/config"
-	"quesma/util"
-	"quesma_v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"reflect"
 	"strings"
 )
@@ -134,8 +134,14 @@ func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string)
 		for _, target := range targets {
 			switch target {
 			case config.ClickhouseTarget:
+				var tableName string
+				if quesmaConf.UseCommonTableForWildcard {
+					tableName = common_table.TableName
+				} else {
+					tableName = resolveTableName(quesmaConf, part)
+				}
 				useConnectors = append(useConnectors, &quesma_api.ConnectorDecisionClickhouse{
-					ClickhouseTableName: resolveTableName(quesmaConf, part),
+					ClickhouseTableName: tableName,
 					IsCommonTable:       quesmaConf.UseCommonTableForWildcard,
 					ClickhouseIndexes:   []string{part},
 				})

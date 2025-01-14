@@ -3,8 +3,8 @@
 package painful
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"net/http"
-	"quesma/quesma/types"
 )
 
 type ScriptRequest struct {

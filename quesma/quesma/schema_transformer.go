@@ -4,13 +4,13 @@ package quesma
 
 import (
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/typical_queries"
-	"quesma/quesma/config"
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"sort"
 	"strings"
 )

@@ -4,11 +4,11 @@ package quesma
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/model"
-	"quesma/queryparser"
 	"testing"
 )
 

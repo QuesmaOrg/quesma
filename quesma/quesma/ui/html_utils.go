@@ -4,8 +4,8 @@ package ui
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
 	"net/url"
-	"quesma/quesma/ui/internal/builder"
 )
 
 func generateSimpleTop(title string) []byte {

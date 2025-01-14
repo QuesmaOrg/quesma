@@ -4,7 +4,7 @@ package elasticsearch
 
 import (
 	"fmt"
-	"quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
 	"strings"
 )
 

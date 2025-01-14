@@ -3,8 +3,8 @@
 package testdata
 
 import (
-	"quesma/model"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"time"
 )
 

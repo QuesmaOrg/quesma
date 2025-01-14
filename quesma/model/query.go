@@ -3,8 +3,8 @@
 package model
 
 import (
-	"quesma/painful"
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/painful"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"time"
 )
 

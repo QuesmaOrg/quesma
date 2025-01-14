@@ -3,7 +3,7 @@
 package model
 
 import (
-	"quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"sort"
 	"strings"
 )
