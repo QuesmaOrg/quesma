@@ -3,7 +3,7 @@
 package table_resolver
 
 import (
-	"github.com/QuesmaOrg/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 
 type TableResolver interface {

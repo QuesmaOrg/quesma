@@ -8,7 +8,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/util"
-	"github.com/QuesmaOrg/quesma/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/rs/zerolog"
 
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"

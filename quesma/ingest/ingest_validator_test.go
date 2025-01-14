@@ -13,7 +13,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/util"
-	mux "github.com/QuesmaOrg/quesma/v2/core"
+	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"

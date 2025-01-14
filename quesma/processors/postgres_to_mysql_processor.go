@@ -6,7 +6,7 @@ package processors
 import (
 	"context"
 	"fmt"
-	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/jackc/pgx/v5/pgproto3"
 	"log"
 )

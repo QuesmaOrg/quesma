@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
-	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
 	"time"
 )

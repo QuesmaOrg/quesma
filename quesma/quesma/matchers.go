@@ -8,8 +8,8 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
-	"github.com/QuesmaOrg/quesma/v2/core"
-	"github.com/QuesmaOrg/quesma/v2/core/tracing"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
 	"strings"
 )

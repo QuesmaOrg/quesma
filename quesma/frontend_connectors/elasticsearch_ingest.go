@@ -6,7 +6,7 @@ package frontend_connectors
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
-	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
 )
 

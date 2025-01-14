@@ -5,7 +5,7 @@ package frontend_connectors
 
 import (
 	"fmt"
-	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"io"
 	"net"
 )

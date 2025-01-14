@@ -4,15 +4,10 @@ package quesma_api
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/v2/core/tracing"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/rs/zerolog"
 	"os"
 	"time"
-)
-
-const (
-	stdLogFileName = "quesma.log"
-	errLogFileName = "err.log"
 )
 
 const (
@@ -22,11 +17,6 @@ const (
 	AsyncId                          = "async_id"
 	OpaqueId                         = "opaque_id"
 	ReasonPrefixUnsupportedQueryType = "unsupported_search_query: " // Reason for Error messages for unsupported queries will start with this prefix
-)
-
-const (
-	initialBufferSize = 32 * 1024
-	bufferSizeChannel = 1024
 )
 
 type QuesmaLogger interface {

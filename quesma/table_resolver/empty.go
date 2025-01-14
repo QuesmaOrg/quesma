@@ -4,7 +4,7 @@ package table_resolver
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 
 type EmptyTableResolver struct {

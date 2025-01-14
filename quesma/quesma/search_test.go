@@ -16,7 +16,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/testdata"
 	"github.com/QuesmaOrg/quesma/quesma/util"
-	"github.com/QuesmaOrg/quesma/v2/core/tracing"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"

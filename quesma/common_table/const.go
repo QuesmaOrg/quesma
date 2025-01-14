@@ -5,7 +5,7 @@ package common_table
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 
 const TableName = "quesma_common_table"

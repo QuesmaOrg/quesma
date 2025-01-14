@@ -4,7 +4,7 @@ package telemetry
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"slices"
 	"sync"
 )

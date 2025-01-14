@@ -15,7 +15,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/util"
-	mux "github.com/QuesmaOrg/quesma/v2/core"
+	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/stretchr/testify/assert"
 	"slices"
 	"strconv"

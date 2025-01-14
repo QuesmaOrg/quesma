@@ -5,7 +5,7 @@ package backend_connectors
 
 import (
 	"context"
-	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/jackc/pgx/v4"
 )
 

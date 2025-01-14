@@ -5,7 +5,7 @@ package types
 import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
-	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"strings"
 )
 

@@ -14,7 +14,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
-	mux "github.com/QuesmaOrg/quesma/v2/core"
+	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"testing"
