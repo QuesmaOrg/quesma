@@ -3,7 +3,7 @@
 
 package processors
 
-import quesma_api "github.com/QuesmaOrg/quesma/v2/core"
+import quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 
 type BaseProcessor struct {
 	InnerProcessors   []quesma_api.Processor

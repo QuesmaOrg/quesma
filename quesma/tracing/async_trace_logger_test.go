@@ -5,7 +5,7 @@ package tracing
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/util"
-	"github.com/QuesmaOrg/quesma/v2/core/tracing"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"os"

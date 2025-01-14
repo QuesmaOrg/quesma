@@ -3,7 +3,7 @@
 package quesma_api
 
 import (
-	"github.com/QuesmaOrg/quesma/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"testing"
 )
 

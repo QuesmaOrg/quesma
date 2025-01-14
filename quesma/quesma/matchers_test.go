@@ -4,7 +4,7 @@ package quesma
 
 import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
-	mux "github.com/QuesmaOrg/quesma/v2/core"
+	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

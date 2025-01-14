@@ -20,7 +20,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
-	"github.com/QuesmaOrg/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"

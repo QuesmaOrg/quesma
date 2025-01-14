@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/stats/errorstats"
 	asyncQueryTracing "github.com/QuesmaOrg/quesma/quesma/tracing"
-	quesma_v2 "github.com/QuesmaOrg/quesma/v2/core"
+	quesma_v2 "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/rs/zerolog"
 	"io"
 	"net/http"

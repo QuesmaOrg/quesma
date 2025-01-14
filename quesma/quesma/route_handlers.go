@@ -22,8 +22,8 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
-	quesma_api "github.com/QuesmaOrg/quesma/v2/core"
-	"github.com/QuesmaOrg/quesma/v2/core/tracing"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"net/http"
 )
 
