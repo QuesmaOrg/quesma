@@ -18,19 +18,31 @@ func (p *TcpPostgresConnectionHandler) HandleConnection(conn net.Conn) error {
 	backend := pgproto3.NewBackend(conn, conn)
 	defer p.close(conn)
 
-	err := p.handleStartup(conn, backend)
-	if err != nil {
-		return err
-	}
+	//err := p.handleStartup(conn, backend)
+	//if err != nil {
+	//	return err
+	//}
+
+	receivedStartupMessage := false
 
 	dispatcher := quesma_api.Dispatcher{}
 
 	for {
-		msg, err := backend.Receive()
+		var resp any
+		var err error
+
+		if receivedStartupMessage {
+			resp, err = backend.Receive()
+		} else {
+			resp, err = backend.ReceiveStartupMessage()
+			if _, isStartup := resp.(*pgproto3.StartupMessage); isStartup {
+				receivedStartupMessage = true
+			}
+		}
 		if err != nil {
 			return fmt.Errorf("error receiving message: %w", err)
 		}
-		var resp any = msg
+
 		metadata := make(map[string]interface{})
 		_, resp = dispatcher.Dispatch(p.processors, metadata, resp)
 		if resp != nil {

@@ -59,8 +59,12 @@ const EnableConcurrencyProfiling = false
 //}
 
 func main() {
-	if true {
+	if false {
 		launchPostgressPassthrough()
+		return
+	}
+	if true {
+		launchTcpPassthrough()
 		return
 	}
 
@@ -162,6 +166,31 @@ func main() {
 	tableResolver.Stop()
 	instance.Close(ctx)
 
+}
+
+func launchTcpPassthrough() {
+	var frontendConn = frontend_connectors.NewTCPConnector(":15432")
+	var tcpProcessor quesma_api.Processor = processors.NewTcpPassthroughProcessor()
+	var tcpPostgressHandler = frontend_connectors.TcpPostgresConnectionHandler{}
+	frontendConn.AddConnectionHandler(&tcpPostgressHandler)
+	var postgressPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	postgressPipeline.AddProcessor(tcpProcessor)
+	postgressPipeline.AddFrontendConnector(frontendConn)
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+	backendConn, err := backend_connectors.NewTcpBackendConnector("localhost:5432")
+	if err != nil {
+		panic(err)
+	}
+	postgressPipeline.AddBackendConnector(backendConn)
+	quesmaBuilder.AddPipeline(postgressPipeline)
+	qb, err := quesmaBuilder.Build()
+	if err != nil {
+		panic(err)
+	}
+	qb.Start()
+	stop := make(chan os.Signal, 1)
+	<-stop
+	qb.Stop(context.Background())
 }
 
 func launchPostgressPassthrough() {
