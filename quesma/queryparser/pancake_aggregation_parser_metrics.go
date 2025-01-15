@@ -166,8 +166,8 @@ func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) mo
 	case "geo_centroid":
 		return metrics_aggregations.NewGeoCentroid(ctx)
 	case "rate":
-		fieldPresent := len(metricsAggr.Fields) > 0
-		return metrics_aggregations.NewRate(ctx, metricsAggr.unit, fieldPresent)
+		isFieldPresent := len(metricsAggr.Fields) > 0
+		return metrics_aggregations.NewRate(ctx, metricsAggr.unit, isFieldPresent)
 	}
 	return nil
 }

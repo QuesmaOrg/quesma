@@ -3,7 +3,6 @@
 package util
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -13,7 +12,8 @@ func ParseTime(asString string) time.Time {
 	return t
 }
 
+// DaysInMonth returns number of days in month of given time.
 func DaysInMonth(t time.Time) int {
-	fmt.Println("KK DaysInMonth, ", t, int(t.AddDate(0, 1, 0).Sub(t).Hours()+0.1)/24)
+	// a bit of a heuristic, but it should work + I evade some edge cases
 	return int(t.AddDate(0, 1, 0).Sub(t).Hours()+0.1) / 24
 }
