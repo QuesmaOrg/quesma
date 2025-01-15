@@ -27,10 +27,7 @@ type (
 )
 
 const (
-	RateModeSum        RateMode = "sum"
-	RateModeValueCount RateMode = "value_count"
-	RateModeInvalid    RateMode = "invalid"
-	second             RateUnit = iota
+	second RateUnit = iota
 	minute
 	hour
 	day
@@ -39,6 +36,12 @@ const (
 	quarter
 	year
 	invalidRateUnit
+)
+
+const (
+	RateModeSum        RateMode = "sum"
+	RateModeValueCount RateMode = "value_count"
+	RateModeInvalid    RateMode = "invalid"
 )
 
 // NewRate creates a new Rate aggregation, during parsing.
