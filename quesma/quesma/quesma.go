@@ -17,7 +17,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/telemetry"
 	"github.com/QuesmaOrg/quesma/quesma/util"
-	quesma_v2 "quesma_v2/core"
+	quesma_v2 "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 
 type (

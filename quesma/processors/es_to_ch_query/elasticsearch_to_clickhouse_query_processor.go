@@ -22,11 +22,11 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/telemetry"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"io"
 	"net/http"
 	"net/url"
-	"quesma_v2/core"
-	"quesma_v2/core/tracing"
 	"strings"
 	"time"
 )

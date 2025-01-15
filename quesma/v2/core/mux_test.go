@@ -5,6 +5,7 @@ package quesma_api
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"net/http"
 	"testing"
 )
 
@@ -75,6 +76,6 @@ func toRequest(path, method string, body string) *Request {
 	}
 }
 
-func mockHandler(_ context.Context, _ *Request) (*Result, error) {
+func mockHandler(_ context.Context, _ *Request, _ http.ResponseWriter) (*Result, error) {
 	return &Result{}, nil
 }
