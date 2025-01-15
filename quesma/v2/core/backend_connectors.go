@@ -12,6 +12,7 @@ const (
 	PgSQLBackend
 	ClickHouseSQLBackend
 	ElasticsearchBackend
+	TcpBackend
 )
 
 func GetBackendConnectorNameFromType(connectorType BackendConnectorType) string {
