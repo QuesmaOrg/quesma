@@ -5,15 +5,15 @@ package eql
 import (
 	"context"
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/elasticsearch"
-	"quesma/eql/transform"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/typical_queries"
-	"quesma/queryparser"
-	"quesma/queryparser/query_util"
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/eql/transform"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser/query_util"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"strconv"
 	"strings"
 )
@@ -21,7 +21,7 @@ import (
 // It implements quesma.IQueryTranslator for EQL queries.
 
 type ClickhouseEQLQueryTranslator struct {
-	ClickhouseLM *clickhouse.LogManager
+	ClickhouseLM clickhouse.LogManagerIFace
 	Table        *clickhouse.Table
 	Ctx          context.Context
 }
@@ -87,7 +87,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) (*model.Exec
 
 	if simpleQuery.CanParse {
 
-		query = query_util.BuildHitsQuery(cw.Ctx, cw.Table.Name, []string{"*"}, &simpleQuery, queryInfo.Size)
+		query = query_util.BuildHitsQuery(cw.Ctx, cw.Table.Name, []string{"*"}, &simpleQuery, queryInfo.Size, queryInfo.SearchAfter)
 		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, query.SelectCommand.OrderByFieldNames(), true, false, false, []string{cw.Table.Name})
 		query.Type = &queryType
 		query.Highlighter = highlighter
@@ -105,7 +105,7 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 	// no highlighting here
 	highlighter = queryparser.NewEmptyHighlighter()
 
-	searchQueryInfo.Typ = model.ListAllFields
+	searchQueryInfo.Type = model.ListAllFields
 
 	var eqlQuery string
 

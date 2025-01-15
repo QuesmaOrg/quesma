@@ -10,13 +10,14 @@ package quesma
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"math/rand"
-	"quesma/logger"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/testdata"
-	"quesma/util"
-	tracing "quesma_v2/core/tracing"
 	"testing"
 )
 
@@ -29,7 +30,8 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			if tt.QueryType == "script" {
 				t.Skip("Only 1 test. We can't deal with scripts inside queries yet. It fails very early, during JSON unmarshalling, so we can't even know the type of aggregation.")
 			}
-			db, _ := util.InitSqlMockWithPrettyPrint(t, false)
+			conn, _ := util.InitSqlMockWithPrettyPrint(t, false)
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			defer db.Close()
 
 			s := &schema.StaticRegistry{
@@ -100,7 +102,8 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 		testCounts[randInt]++
 	}
 
-	db, _ := util.InitSqlMockWithPrettyPrint(t, false)
+	conn, _ := util.InitSqlMockWithPrettyPrint(t, false)
+	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 	defer db.Close()
 
 	s := &schema.StaticRegistry{

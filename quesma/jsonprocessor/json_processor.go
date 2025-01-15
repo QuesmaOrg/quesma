@@ -4,8 +4,8 @@ package jsonprocessor
 
 import (
 	"fmt"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 )
 
 func FlattenMap(data map[string]interface{}, nestedSeparator string) map[string]interface{} {

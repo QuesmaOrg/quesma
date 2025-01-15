@@ -5,17 +5,17 @@ package field_capabilities
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch/elasticsearch_field_types"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/errors"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/goccy/go-json"
-	"quesma/clickhouse"
-	"quesma/elasticsearch"
-	"quesma/elasticsearch/elasticsearch_field_types"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/quesma/config"
-	"quesma/quesma/errors"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/util"
 )
 
 func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, fieldType schema.QuesmaType, index string) {
@@ -44,12 +44,15 @@ func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.Fie
 
 func handleFieldCapsIndex(cfg map[string]config.IndexConfiguration, schemaRegistry schema.Registry, indexes []string) ([]byte, error) {
 	fields := make(map[string]map[string]model.FieldCapability)
+
+	schemas := schemaRegistry.AllSchemas()
+
 	for _, resolvedIndex := range indexes {
 		if len(resolvedIndex) == 0 {
 			continue
 		}
 
-		if schemaDefinition, found := schemaRegistry.FindSchema(schema.IndexName(resolvedIndex)); found {
+		if schemaDefinition, found := schemas[schema.IndexName(resolvedIndex)]; found {
 			indexConfig, configured := cfg[resolvedIndex]
 			if configured && !indexConfig.IsClickhouseQueryEnabled() {
 				continue

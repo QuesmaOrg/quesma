@@ -3,10 +3,10 @@
 package opensearch_visualize
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"math"
-	"quesma/model"
-	"quesma/testdata"
-	"quesma/util"
 	"time"
 )
 

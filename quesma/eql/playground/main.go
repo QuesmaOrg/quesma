@@ -7,9 +7,9 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/QuesmaOrg/quesma/quesma/eql"
+	"github.com/QuesmaOrg/quesma/quesma/eql/transform"
 	"os"
-	"quesma/eql"
-	"quesma/eql/transform"
 	"strings"
 	"text/tabwriter"
 )

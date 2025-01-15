@@ -4,11 +4,11 @@ package ingest
 
 import (
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/comment_metadata"
-	"quesma/logger"
-	"quesma/schema"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/comment_metadata"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"slices"
 	"strings"
 )

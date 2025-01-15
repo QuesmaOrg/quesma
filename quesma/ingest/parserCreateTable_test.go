@@ -3,7 +3,7 @@
 package ingest
 
 import (
-	"quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

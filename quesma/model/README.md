@@ -28,7 +28,7 @@ More info: https://www.elastic.co/guide/en/elasticsearch/reference/current/searc
  Median absolute deviation |          :x:           | Global                       |        :x:         | Moving function        |    :wavy_dash:     |
  Min                       |   :white_check_mark:   | Histogram                    | :white_check_mark: | Moving percentiles     |        :x:         |
  Percentile ranks          |   :white_check_mark:   | IP prefix                    | :white_check_mark: | Normalize              |        :x:         |
- Percentiles               |   :white_check_mark:   | IP range                     |        :x:         | Percentiles bucket     |        :x:         |
+ Percentiles               |   :white_check_mark:   | IP range                     | :white_check_mark: | Percentiles bucket     |        :x:         |
  Rate                      |   :white_check_mark:   | Missing                      |        :x:         | Serial differencing    | :white_check_mark: |
  Scripted metric           |          :x:           | Multi-terms                  | :white_check_mark: | Stats bucket           |        :x:         |
  Stats                     |   :white_check_mark:   | Nested                       |        :x:         | Sum bucket             | :white_check_mark: |

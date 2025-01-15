@@ -6,9 +6,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/telemetry/headers"
 	"net/http"
 	"net/url"
-	"quesma/telemetry/headers"
 	"strconv"
 	"time"
 )

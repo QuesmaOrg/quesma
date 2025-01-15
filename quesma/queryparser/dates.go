@@ -5,10 +5,10 @@ package queryparser
 
 import (
 	"context"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strconv"
 	"time"
 )

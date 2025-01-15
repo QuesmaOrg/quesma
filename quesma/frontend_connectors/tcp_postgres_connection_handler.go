@@ -5,9 +5,9 @@ package frontend_connectors
 
 import (
 	"fmt"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/jackc/pgx/v5/pgproto3"
 	"net"
-	quesma_api "quesma_v2/core"
 )
 
 type TcpPostgresConnectionHandler struct {

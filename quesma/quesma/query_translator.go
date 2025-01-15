@@ -4,13 +4,13 @@ package quesma
 
 import (
 	"context"
-	"quesma/clickhouse"
-	"quesma/eql"
-	"quesma/model"
-	"quesma/queryparser"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/eql"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 )
 
 // This is an extracted interface for query translation.
@@ -33,7 +33,7 @@ const (
 	QueryLanguageEQL     = "eql"
 )
 
-func NewQueryTranslator(ctx context.Context, language QueryLanguage, schema schema.Schema, table *clickhouse.Table, logManager *clickhouse.LogManager, dateMathRenderer string, indexes []string, configuration *config.QuesmaConfiguration) (queryTranslator IQueryTranslator) {
+func NewQueryTranslator(ctx context.Context, language QueryLanguage, schema schema.Schema, table *clickhouse.Table, logManager clickhouse.LogManagerIFace, dateMathRenderer string, indexes []string, configuration *config.QuesmaConfiguration) (queryTranslator IQueryTranslator) {
 	switch language {
 	case QueryLanguageEQL:
 		return &eql.ClickhouseEQLQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx}

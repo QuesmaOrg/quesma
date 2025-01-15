@@ -7,10 +7,10 @@ package e2e
 import (
 	"bytes"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/jsonprocessor"
 	"github.com/goccy/go-json"
 	"io"
 	"net/http"
-	"quesma/jsonprocessor"
 	"sort"
 	"strings"
 )

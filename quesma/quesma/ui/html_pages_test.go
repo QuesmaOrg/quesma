@@ -4,16 +4,16 @@ package ui
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/stats"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/stats"
-	"quesma/table_resolver"
-	"quesma/util"
-	"quesma_v2/core/diag"
 	"testing"
 )
 
@@ -59,7 +59,7 @@ func TestHtmlPages(t *testing.T) {
 	})
 
 	t.Run("statistics got no XSS", func(t *testing.T) {
-		stats.GlobalStatistics.Process(&config.QuesmaConfiguration{}, xss, types.MustJSON("{}"), clickhouse.NestedSeparator)
+		stats.GlobalStatistics.Process(false, xss, types.MustJSON("{}"), clickhouse.NestedSeparator)
 		response := string(qmc.generateStatistics())
 		assert.NotContains(t, response, xss)
 	})

@@ -4,7 +4,7 @@ package testdata
 
 import (
 	"fmt"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 )
 
 func selectCnt(limit int) string {

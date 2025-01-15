@@ -5,13 +5,12 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/model/metrics_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"math/big"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
-	"quesma/model/metrics_aggregations"
-	"quesma/util"
 	"slices"
 	"strconv"
 	"strings"
@@ -269,7 +268,6 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		case *metrics_aggregations.Rate:
 			// 2 lines below: e.g. metric__2__year -> aggr__2
 			fmt.Println("metric.InternalNamePrefix(): ", metric, metric.InternalNamePrefix(), metric.internalName)
-			pp.Println(metric)
 			parentHistogramColName := fmt.Sprintf("aggr%s", strings.TrimPrefix(metric.internalName, "metric"))
 			parentHistogramColName = strings.TrimSuffix(parentHistogramColName, metric.name)
 

@@ -6,16 +6,17 @@ import (
 	"context"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/jsonprocessor"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/jsonprocessor"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/util"
-	mux "quesma_v2/core"
 	"slices"
 	"strconv"
 	"strings"
@@ -237,7 +238,8 @@ func TestProcessInsertQuery(t *testing.T) {
 		for index2, config := range configs {
 			for index3, ip := range ingestProcessors(config) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
-					db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+					conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+					db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 					ip.ip.chDb = db
 					resolver := table_resolver.NewEmptyTableResolver()
 					decision := &mux.Decision{
@@ -291,7 +293,8 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	// big integer as a schema field
 	for i, bigInt := range bigInts {
 		t.Run("big integer schema field: "+bigInt, func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+			conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			lm := newIngestProcessorEmpty()
 			lm.chDb = db
 			defer db.Close()
@@ -317,7 +320,8 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 
 	for i, bigInt := range bigInts {
 		t.Run("big integer attribute field: "+bigInt, func(t *testing.T) {
-			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+			conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			lm := newIngestProcessorEmpty()
 			lm.chDb = db
 			lm.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
@@ -413,7 +417,8 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 
 			tables := NewTableMap()
 
-			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			conn, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			if err != nil {
 				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 			}

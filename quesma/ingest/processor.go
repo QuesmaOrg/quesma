@@ -4,29 +4,28 @@ package ingest
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	chLib "github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/comment_metadata"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/jsonprocessor"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/stats"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/telemetry"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/goccy/go-json"
-	chLib "quesma/clickhouse"
-	"quesma/comment_metadata"
-	"quesma/common_table"
-	"quesma/elasticsearch"
-	"quesma/end_user_errors"
-	"quesma/jsonprocessor"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/quesma/recovery"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/stats"
-	"quesma/table_resolver"
-	"quesma/telemetry"
-	"quesma/util"
-	"quesma_v2/core"
-	"quesma_v2/core/diag"
 	"slices"
 	"sort"
 	"strings"
@@ -60,7 +59,7 @@ type (
 	IngestProcessor struct {
 		ctx                       context.Context
 		cancel                    context.CancelFunc
-		chDb                      *sql.DB
+		chDb                      quesma_api.BackendConnector
 		tableDiscovery            chLib.TableDiscovery
 		cfg                       *config.QuesmaConfiguration
 		phoneHomeAgent            diag.PhoneHomeClient
@@ -173,7 +172,7 @@ func addOurFieldsToCreateTableQuery(q string, config *chLib.ChTableConfig, table
 
 func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, error) {
 	var count int64
-	err := ip.chDb.QueryRowContext(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
+	err := ip.chDb.QueryRow(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
@@ -851,7 +850,7 @@ func (ip *IngestProcessor) execute(ctx context.Context, query string) error {
 		}
 	}
 
-	_, err := ip.chDb.ExecContext(ctx, query)
+	err := ip.chDb.Exec(ctx, query)
 	span.End(err)
 	return err
 }
@@ -880,8 +879,9 @@ func (ip *IngestProcessor) preprocessJsons(ctx context.Context,
 			return nil, nil, fmt.Errorf("error validation: %v", err)
 		}
 		invalidJsons = append(invalidJsons, inValidJson)
-		stats.GlobalStatistics.UpdateNonSchemaValues(ip.cfg, tableName,
-			inValidJson, NestedSeparator)
+		if ip.cfg != nil {
+			stats.GlobalStatistics.UpdateNonSchemaValues(ip.cfg.IngestStatistics, tableName, inValidJson, NestedSeparator)
+		}
 		// Remove invalid fields from the input JSON
 		jsonValue = subtractInputJson(jsonValue, inValidJson)
 		validatedJsons = append(validatedJsons, jsonValue)
@@ -970,11 +970,19 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 	return wasntCreated
 }
 
+func (ip *IngestProcessor) GetSchemaRegistry() schema.Registry {
+	return ip.schemaRegistry
+}
+
+func (ip *IngestProcessor) GetTableResolver() table_resolver.TableResolver {
+	return ip.tableResolver
+}
+
 func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
-func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
+func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
 }

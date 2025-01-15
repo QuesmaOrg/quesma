@@ -5,9 +5,9 @@ package queryparser
 import (
 	"errors"
 	"fmt"
-	"quesma/model"
-	"quesma/model/pipeline_aggregations"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/pipeline_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 )
 

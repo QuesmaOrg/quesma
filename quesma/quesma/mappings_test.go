@@ -3,12 +3,12 @@
 package quesma
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"quesma/elasticsearch"
-	"quesma/quesma/types"
-	"quesma/schema"
 	"reflect"
 	"strings"
 	"testing"

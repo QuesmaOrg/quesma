@@ -4,20 +4,21 @@ package quesma
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
-	"quesma/ab_testing"
-	"quesma/clickhouse"
-	"quesma/elasticsearch"
-	"quesma/frontend_connectors"
-	"quesma/ingest"
-	"quesma/logger"
-	"quesma/queryparser"
-	"quesma/quesma/async_search_storage"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/util"
-	quesma_api "quesma_v2/core"
 	"strconv"
 	"sync/atomic"
 )
@@ -75,8 +76,9 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 
 	// tests should not be run with optimization enabled by default
 	queryProcessor.EnableQueryOptimization(config)
+	esConn := backend_connectors.NewElasticsearchBackendConnector(config.Elasticsearch)
 
-	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver)
+	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver, esConn)
 	searchRouter := ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
 
 	elasticHttpIngestFrontendConnector := frontend_connectors.NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),

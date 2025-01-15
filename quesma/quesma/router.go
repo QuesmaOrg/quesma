@@ -5,38 +5,39 @@ package quesma
 import (
 	"context"
 	"errors"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/painful"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/errors"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/bulk"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/doc"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/field_capabilities"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/resolve"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/terms_enum"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/telemetry"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/routes"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
 	"net/http"
-	"quesma/clickhouse"
-	"quesma/elasticsearch"
-	"quesma/end_user_errors"
-	"quesma/frontend_connectors"
-	"quesma/ingest"
-	"quesma/logger"
-	"quesma/painful"
-	"quesma/queryparser"
-	"quesma/quesma/config"
-	"quesma/quesma/errors"
-	"quesma/quesma/functionality/bulk"
-	"quesma/quesma/functionality/doc"
-	"quesma/quesma/functionality/field_capabilities"
-	"quesma/quesma/functionality/resolve"
-	"quesma/quesma/functionality/terms_enum"
-	"quesma/quesma/types"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/telemetry"
-	quesma_api "quesma_v2/core"
-	"quesma_v2/core/routes"
-	tracing "quesma_v2/core/tracing"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 )
 
-func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) *quesma_api.PathRouter {
+func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver, elasticsearchConnector *backend_connectors.ElasticsearchBackendConnector) *quesma_api.PathRouter {
 
 	// some syntactic sugar
 	method := quesma_api.IsHTTPMethod
@@ -111,7 +112,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			return nil, err
 		}
 
-		results, err := bulk.Write(ctx, nil, body, ip, cfg, phoneHomeAgent, tableResolver)
+		results, err := bulk.Write(ctx, nil, body, ip, cfg.IngestStatistics, elasticsearchConnector, phoneHomeAgent, tableResolver)
 		return bulkInsertResult(ctx, results, err)
 	})
 
@@ -131,7 +132,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			}, nil
 		}
 
-		result, err := doc.Write(ctx, &index, body, ip, cfg, phoneHomeAgent, tableResolver)
+		result, err := doc.Write(ctx, &index, body, ip, cfg.IngestStatistics, phoneHomeAgent, tableResolver, elasticsearchConnector)
 		if err != nil {
 			return &quesma_api.Result{
 				Body:          string(queryparser.BadRequestParseError(err)),
@@ -151,7 +152,7 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			return nil, err
 		}
 
-		results, err := bulk.Write(ctx, &index, body, ip, cfg, phoneHomeAgent, tableResolver)
+		results, err := bulk.Write(ctx, &index, body, ip, cfg.IngestStatistics, elasticsearchConnector, phoneHomeAgent, tableResolver)
 		return bulkInsertResult(ctx, results, err)
 	})
 
@@ -261,6 +262,40 @@ func ConfigureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			}
 		}
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+	})
+
+	handleMultiSearch := func(ctx context.Context, req *quesma_api.Request, defaultIndexName string, _ http.ResponseWriter) (*quesma_api.Result, error) {
+
+		body, err := types.ExpectNDJSON(req.ParsedBody)
+		if err != nil {
+			return nil, err
+		}
+
+		responseBody, err := queryRunner.HandleMultiSearch(ctx, defaultIndexName, body)
+
+		if err != nil {
+			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
+				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
+			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
+				return &quesma_api.Result{
+					Body:          string(queryparser.BadRequestParseError(err)),
+					StatusCode:    http.StatusBadRequest,
+					GenericResult: queryparser.BadRequestParseError(err),
+				}, nil
+			} else {
+				return nil, err
+			}
+		}
+
+		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+	}
+
+	router.Register(routes.IndexMsearchPath, and(method("GET", "POST"), quesma_api.Always()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+		return handleMultiSearch(ctx, req, req.Params["index"], nil)
+	})
+
+	router.Register(routes.GlobalMsearchPath, and(method("GET", "POST"), quesma_api.Always()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+		return handleMultiSearch(ctx, req, "", nil)
 	})
 
 	router.Register(routes.IndexMappingPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {

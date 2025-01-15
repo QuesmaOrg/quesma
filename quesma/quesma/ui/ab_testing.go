@@ -5,13 +5,13 @@ package ui
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/jsondiff"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
 	"github.com/goccy/go-json"
 	"io"
-	"quesma/elasticsearch"
-	"quesma/jsondiff"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/ui/internal/builder"
 	"strings"
 	"time"
 )
@@ -24,11 +24,14 @@ func (qmc *QuesmaManagementConsole) hasABTestingTable() bool {
 
 	sql := `SELECT count(*) FROM ab_testing_logs`
 
-	row := db.QueryRow(sql)
+	row, err := db.Query(context.Background(), sql)
 	var count int
-	err := row.Scan(&count)
 	if err != nil {
 		logger.Error().Err(err).Msg("Error checking for ab_testing_logs table")
+		return false
+	}
+	if errScan := row.Scan(&count); errScan != nil {
+		logger.Error().Err(errScan).Msg("Error scanning for ab_testing_logs table")
 		return false
 	}
 
@@ -327,7 +330,7 @@ GROUP BY
 	var result []abTestingReportRow
 
 	db := qmc.logManager.GetDB()
-	rows, err := db.Query(sql, orderBySQL)
+	rows, err := db.Query(context.Background(), sql, orderBySQL)
 	if err != nil {
 		return nil, err
 	}
@@ -501,7 +504,7 @@ func (qmc *QuesmaManagementConsole) abTestingReadPanelDetails(dashboardId, panel
 `
 	db := qmc.logManager.GetDB()
 
-	rows, err := db.Query(sql, dashboardId, panelId)
+	rows, err := db.Query(context.Background(), sql, dashboardId, panelId)
 	if err != nil {
 		return nil, err
 	}
@@ -684,7 +687,7 @@ func (qmc *QuesmaManagementConsole) abTestingReadMismatchDetails(dashboardId, pa
 
 	db := qmc.logManager.GetDB()
 
-	rows, err := db.Query(sql, dashboardId, panelId, mismatchHash)
+	rows, err := db.Query(context.Background(), sql, dashboardId, panelId, mismatchHash)
 	if err != nil {
 		return nil, err
 	}
@@ -820,10 +823,12 @@ func (qmc *QuesmaManagementConsole) abTestingReadRow(requestId string) (abTestin
 
 	db := qmc.logManager.GetDB()
 
-	row := db.QueryRow(sql, requestId)
-
+	row, err := db.Query(context.Background(), sql, requestId)
 	rec := abTestingTableRow{}
-	err := row.Scan(
+	if err != nil {
+		return rec, err
+	}
+	errScan := row.Scan(
 		&rec.requestID, &rec.requestPath, &rec.requestIndexName,
 		&rec.requestBody, &rec.responseBTime, &rec.responseBError, &rec.responseBName, &rec.responseBBody,
 		&rec.quesmaHash, &rec.kibanaDashboardID, &rec.opaqueID, &rec.responseABody, &rec.responseATime,
@@ -832,8 +837,8 @@ func (qmc *QuesmaManagementConsole) abTestingReadRow(requestId string) (abTestin
 		&rec.responseMismatchMismatches, &rec.responseMismatchMessage, &rec.quesmaVersion,
 		&rec.kibanaDashboardPanelID)
 
-	if err != nil {
-		return rec, err
+	if errScan != nil {
+		return rec, errScan
 	}
 
 	if row.Err() != nil {

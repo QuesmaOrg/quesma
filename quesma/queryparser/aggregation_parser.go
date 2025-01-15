@@ -4,10 +4,10 @@ package queryparser
 
 import (
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/metrics_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/metrics_aggregations"
 	"regexp"
 	"slices"
 	"strconv"

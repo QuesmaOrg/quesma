@@ -4,9 +4,9 @@ package model
 
 import (
 	"fmt"
-	"quesma/logger"
-	"quesma/quesma/types"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"regexp"
 	"sort"
 	"strconv"
@@ -77,18 +77,18 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 }
 
 func (v *renderer) VisitTuple(t TupleExpr) interface{} {
-	switch len(t.Exprs) {
+	exprs := make([]string, 0, len(t.Exprs))
+	for _, expr := range t.Exprs {
+		exprs = append(exprs, expr.Accept(v).(string))
+	}
+	switch len(exprs) {
 	case 0:
-		logger.WarnWithThrottling("VisitTuple", "TupleExpr with no expressions")
-		return "()"
+		logger.WarnWithThrottling("visitTuple", "tupleExpr with no expressions") // hacky way to log this
+		return "tuple()"
 	case 1:
-		return t.Exprs[0].Accept(v)
+		return exprs[0]
 	default:
-		args := make([]string, len(t.Exprs))
-		for i, arg := range t.Exprs {
-			args[i] = arg.Accept(v).(string)
-		}
-		return fmt.Sprintf("tuple(%s)", strings.Join(args, ", ")) // can omit "tuple", but I think SQL's more readable with it
+		return fmt.Sprintf("tuple(%s)", strings.Join(exprs, ", ")) // can omit "tuple", but I think SQL's more readable with it
 	}
 }
 
