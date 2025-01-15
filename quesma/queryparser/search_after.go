@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package quesma
+package queryparser
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/k0kubun/pp"
 )
 
-func searchAfterStrategyFactory(strategy model.SearchAfterStrategyType) model.SearchAfterStrategy {
+func SearchAfterStrategyFactory(strategy model.SearchAfterStrategyType) model.SearchAfterStrategy {
 	switch strategy {
 	case model.Bulletproof:
 		return &searchAfterStrategyBulletproof{}
@@ -296,16 +296,4 @@ func validateAndParseCommon(query *model.Query, indexSchema schema.Schema) (sort
 	}
 
 	return sortParams, otherParams, nil
-}
-
-func (s *SchemaCheckPass) applySearchAfterParameter(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
-	fmt.Println("applySearchAfterParameter", query.SearchAfterStrategy)
-	if query.SearchAfterStrategy != nil {
-		err := query.SearchAfterStrategy.ValidateAndParse(query, indexSchema)
-		if err != nil {
-			return nil, err
-		}
-		return query.SearchAfterStrategy.TransformQuery(query)
-	}
-	return query, nil
 }

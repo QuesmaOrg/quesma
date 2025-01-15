@@ -309,6 +309,5 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 }
 
 func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldNames []string, query *model.SimpleQuery, info model.HitsCountInfo) *model.Query {
-	pp.Println("build n rows query", cw.SearchAfterStrategy)
 	return query_util.BuildHitsQuery(cw.Ctx, model.SingleTableNamePlaceHolder, fieldNames, query, info.Size, info.SearchAfter, cw.SearchAfterStrategy)
 }

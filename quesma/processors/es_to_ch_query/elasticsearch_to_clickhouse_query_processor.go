@@ -12,6 +12,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/common_table"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"

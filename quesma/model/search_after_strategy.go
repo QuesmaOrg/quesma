@@ -2,7 +2,7 @@ package model
 
 import (
 	"context"
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 )
 
 type (
@@ -10,7 +10,8 @@ type (
 		// ValidateAndParse validates the 'searchAfter', which is what came from the request's search_after field.
 		ValidateAndParse(query *Query, indexSchema schema.Schema) error
 		TransformQuery(query *Query) (*Query, error)
-		TransformHit(ctx context.Context, hit *SearchHit, pkFieldName *string, sortFieldNames []string, rows []QueryResultRow) *SearchHit
+		TransformHit(ctx context.Context, hit *SearchHit, pkFieldName *string, sortFieldNames []string,
+			rows []QueryResultRow) *SearchHit
 	}
 	SearchAfterStrategyType int
 )

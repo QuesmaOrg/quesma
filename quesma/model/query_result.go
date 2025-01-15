@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/util"

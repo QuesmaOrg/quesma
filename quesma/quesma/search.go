@@ -583,7 +583,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	pp.Println("SASTRATEGY", q.SearchAfterStrategy)
 	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer,
-		searchAfterStrategyFactory(q.SearchAfterStrategy), resolvedIndexes, q.cfg)
+		queryparser.SearchAfterStrategyFactory(q.SearchAfterStrategy), resolvedIndexes, q.cfg)
 
 	plan, err := queryTranslator.ParseQuery(body)
 

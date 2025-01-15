@@ -42,7 +42,6 @@ type PerformanceResult struct {
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
 func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query) (rows []model.QueryResultRow, performanceResult PerformanceResult, err error) {
-	pp.Println(query)
 	rowToScan := make([]interface{}, len(query.SelectCommand.Columns))
 	columns := make([]string, 0, len(query.SelectCommand.Columns))
 

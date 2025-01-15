@@ -177,15 +177,15 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background(), Schema: s.Tables["test"]}
+	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background(), Schema: s.Tables["test"], SearchAfterStrategy: SearchAfterStrategyFactory(model.DefaultSearchAfterStrategy)}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
 			hitQuery := query_util.BuildHitsQuery(
 				context.Background(), "test", []string{"*"},
-				&model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty,
+				&model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty, cw.SearchAfterStrategy,
 			)
 			highlighter := NewEmptyHighlighter()
-			queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, hitQuery.SelectCommand.OrderByFieldNames(), true, false, false, []string{cw.Table.Name})
+			queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, cw.SearchAfterStrategy, hitQuery.SelectCommand.OrderByFieldNames(), true, false, false, []string{cw.Table.Name})
 			hitQuery.Type = &queryType
 			ourResponseRaw := cw.MakeSearchResponse(
 				[]*model.Query{hitQuery},
@@ -275,7 +275,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("message", "User updated")}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("message", "User created")}},
 			},
-			query_util.BuildHitsQuery(context.Background(), "test", []string{"message"}, &model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty),
+			query_util.BuildHitsQuery(context.Background(), "test", []string{"message"}, &model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty, cw.SearchAfterStrategy),
 		},
 		{
 			`
@@ -413,7 +413,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 					},
 				},
 			},
-			query_util.BuildHitsQuery(context.Background(), "test", []string{"*"}, &model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty)},
+			query_util.BuildHitsQuery(context.Background(), "test", []string{"*"}, &model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty, cw.SearchAfterStrategy)},
 	}
 	for i, tt := range args {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {

@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
