@@ -257,6 +257,7 @@ func validateAndParseCommon(query *model.Query, indexSchema schema.Schema) (sort
 
 	sortFieldsNr := len(query.SelectCommand.OrderBy)
 	allFieldsNr := len(asArray)
+	fmt.Println("all", allFieldsNr, "sort", sortFieldsNr)
 	if allFieldsNr < sortFieldsNr {
 		return nil, nil, fmt.Errorf("len(search_after) < len(sortFields), search_after: %v, sortFields: %v", asArray, query.SelectCommand.OrderBy)
 	}
