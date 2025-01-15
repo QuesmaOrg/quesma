@@ -4,7 +4,7 @@ package quesma_api
 
 import (
 	"context"
-	"quesma_v2/core/tracing"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 )
 
 const opaqueIdHeaderKey = "X-Opaque-Id"

@@ -11,7 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
-	"quesma_v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"sort"
 	"sync"
 )

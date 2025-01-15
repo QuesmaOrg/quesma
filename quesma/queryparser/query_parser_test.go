@@ -15,7 +15,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/testdata"
 	"github.com/QuesmaOrg/quesma/quesma/util"
-	"quesma_v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"strconv"
 	"strings"
 	"testing"
