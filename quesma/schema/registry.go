@@ -3,7 +3,6 @@
 package schema
 
 import (
-	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/comment_metadata"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
@@ -31,24 +30,24 @@ type (
 	}
 	EncodedFieldName string
 	schemaRegistry   struct {
+		sync.RWMutex // this lock is used to protect all the fields below
+		// locking is done in public methods only to avoid deadlocks
+
 		// index configuration overrides always take precedence
 		indexConfiguration      *map[string]config.IndexConfiguration
 		dataSourceTableProvider TableProvider
 		dataSourceTypeAdapter   typeAdapter
 		dynamicConfiguration    map[string]Table
-		fieldEncodingsLock      sync.RWMutex
 		fieldEncodings          map[FieldEncodingKey]EncodedFieldName
-		fieldOriginsLock        sync.RWMutex
 		fieldOrigins            map[IndexName]map[FieldName]FieldSource
 
-		schemaLock sync.RWMutex
-		schema     map[IndexName]Schema
+		cachedSchemas map[IndexName]Schema
 	}
 	typeAdapter interface {
 		Convert(string) (QuesmaType, bool)
 	}
 	TableProvider interface {
-		AddListener(chan<- types.ReloadMessage)
+		RegisterTablesReloadListener(chan<- types.ReloadMessage)
 		TableDefinitions() map[string]Table
 		AutodiscoveryEnabled() bool
 	}
@@ -65,13 +64,13 @@ type (
 
 func (s *schemaRegistry) getInternalToPublicFieldEncodings(tableName string) map[EncodedFieldName]string {
 	fieldsEncodingsPerIndex := make(map[string]EncodedFieldName)
-	s.fieldEncodingsLock.RLock()
+
 	for key, value := range s.fieldEncodings {
 		if key.TableName == tableName {
 			fieldsEncodingsPerIndex[key.FieldName] = EncodedFieldName(value)
 		}
 	}
-	s.fieldEncodingsLock.RUnlock()
+
 	internalToPublicFieldsEncodings := make(map[EncodedFieldName]string)
 
 	for key, value := range fieldsEncodingsPerIndex {
@@ -81,42 +80,49 @@ func (s *schemaRegistry) getInternalToPublicFieldEncodings(tableName string) map
 	return internalToPublicFieldsEncodings
 }
 
-func (s *schemaRegistry) reload() error {
-
-	schema, err := s.loadSchemas()
-	if err != nil {
-		return err
-	}
-	s.schemaLock.Lock()
-	s.schema = schema
-	s.schemaLock.Unlock()
-	return nil
+func (s *schemaRegistry) invalidateCache() {
+	s.cachedSchemas = nil
 }
 
 func (s *schemaRegistry) start() {
 
-	notificationChannel := make(chan types.ReloadMessage, 100)
+	notificationChannel := make(chan types.ReloadMessage, 1)
 
-	s.dataSourceTableProvider.AddListener(notificationChannel)
+	s.dataSourceTableProvider.RegisterTablesReloadListener(notificationChannel)
 
 	protectedReload := func() {
 		defer recovery.LogPanic()
-		err := s.reload()
-		if err != nil {
-			logger.Error().Err(err).Msg("error reloading schema")
-		}
+		s.Lock()
+		defer s.Unlock()
+
+		s.invalidateCache()
 	}
+
+	protectedReload()
 
 	go func() {
 		for {
 			select {
-			case msg := <-notificationChannel:
-				fmt.Println("XXXXX schema registry received notification", msg)
+			case <-notificationChannel:
 				protectedReload()
 			}
 		}
 	}()
 
+}
+
+func (s *schemaRegistry) loadOrGetSchemas() map[IndexName]Schema {
+
+	if s.cachedSchemas == nil {
+		schema, err := s.loadSchemas()
+		if err != nil {
+			logger.Error().Err(err).Msg("error loading schema")
+			return nil
+		}
+		s.cachedSchemas = schema
+	}
+
+	return s.cachedSchemas
 }
 
 func (s *schemaRegistry) loadSchemas() (map[IndexName]Schema, error) {
@@ -171,22 +177,27 @@ func (s *schemaRegistry) populateSchemaFromDynamicConfiguration(indexName string
 }
 
 func (s *schemaRegistry) AllSchemas() map[IndexName]Schema {
-	s.schemaLock.RLock()
-	defer s.schemaLock.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 
-	return s.schema
+	return s.loadOrGetSchemas()
 }
 
 func (s *schemaRegistry) FindSchema(name IndexName) (Schema, bool) {
-	s.schemaLock.RLock()
-	defer s.schemaLock.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 
-	schema, found := s.schema[name]
+	schemas := s.loadOrGetSchemas()
+
+	schema, found := schemas[name]
 	return schema, found
 
 }
 
 func (s *schemaRegistry) UpdateDynamicConfiguration(name IndexName, table Table) {
+	s.Lock()
+	defer s.Unlock()
+
 	s.dynamicConfiguration[name.AsString()] = table
 	dynamicEncodings := make(map[FieldEncodingKey]EncodedFieldName)
 	for _, column := range table.Columns {
@@ -194,20 +205,29 @@ func (s *schemaRegistry) UpdateDynamicConfiguration(name IndexName, table Table)
 		// Otherwise, they will be populated only based on ingested data which might not contain all the fields
 		dynamicEncodings[FieldEncodingKey{TableName: name.AsString(), FieldName: column.Name}] = EncodedFieldName(util.FieldToColumnEncoder(column.Name))
 	}
-	s.UpdateFieldEncodings(dynamicEncodings)
+	s.updateFieldEncodingsInternal(dynamicEncodings)
+	s.invalidateCache()
 }
 
-func (s *schemaRegistry) UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName) {
-	s.fieldEncodingsLock.Lock()
-	defer s.fieldEncodingsLock.Unlock()
+func (s *schemaRegistry) updateFieldEncodingsInternal(encodings map[FieldEncodingKey]EncodedFieldName) {
+
 	for key, value := range encodings {
 		s.fieldEncodings[key] = EncodedFieldName(value)
 	}
 }
 
+func (s *schemaRegistry) UpdateFieldEncodings(encodings map[FieldEncodingKey]EncodedFieldName) {
+	s.Lock()
+	defer s.Unlock()
+
+	s.updateFieldEncodingsInternal(encodings)
+	s.invalidateCache()
+}
+
 func (s *schemaRegistry) GetFieldEncodings() map[FieldEncodingKey]EncodedFieldName {
-	s.fieldEncodingsLock.RLock()
-	defer s.fieldEncodingsLock.RUnlock()
+	s.RLock()
+	defer s.RUnlock()
+
 	fieldEncodings := make(map[FieldEncodingKey]EncodedFieldName)
 	for key, value := range s.fieldEncodings {
 		fieldEncodings[key] = EncodedFieldName(value)
@@ -222,7 +242,7 @@ func NewSchemaRegistry(tableProvider TableProvider, configuration *config.Quesma
 		dataSourceTableProvider: tableProvider,
 		dataSourceTypeAdapter:   dataSourceTypeAdapter,
 		dynamicConfiguration:    make(map[string]Table),
-		schema:                  make(map[IndexName]Schema),
+		cachedSchemas:           make(map[IndexName]Schema),
 		fieldEncodings:          make(map[FieldEncodingKey]EncodedFieldName),
 	}
 	res.start()
@@ -328,7 +348,7 @@ func (s *schemaRegistry) removeGeoPhysicalFields(fields map[FieldName]Field) {
 }
 
 func (s *schemaRegistry) populateFieldsOrigins(indexName string, fields map[FieldName]Field) {
-	s.fieldOriginsLock.RLock()
+
 	if fieldOrigins, ok := s.fieldOrigins[IndexName(indexName)]; ok {
 		for fieldName, field := range fields {
 			if origin, ok := fieldOrigins[field.InternalPropertyName]; ok {
@@ -337,12 +357,13 @@ func (s *schemaRegistry) populateFieldsOrigins(indexName string, fields map[Fiel
 			}
 		}
 	}
-	s.fieldOriginsLock.RUnlock()
+
 }
 
 func (s *schemaRegistry) UpdateFieldsOrigins(name IndexName, fields map[FieldName]FieldSource) {
-	s.fieldOriginsLock.Lock()
-	defer s.fieldOriginsLock.Unlock()
+	s.Lock()
+	defer s.Unlock()
+
 	if s.fieldOrigins == nil {
 		s.fieldOrigins = make(map[IndexName]map[FieldName]FieldSource)
 	}

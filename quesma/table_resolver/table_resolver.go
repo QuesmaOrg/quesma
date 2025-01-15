@@ -204,8 +204,8 @@ func (r *tableRegistryImpl) Stop() {
 
 func (r *tableRegistryImpl) Start() {
 
-	notificationChannel := make(chan types.ReloadMessage, 100)
-	r.tableDiscovery.AddListener(notificationChannel)
+	notificationChannel := make(chan types.ReloadMessage, 1)
+	r.tableDiscovery.RegisterTablesReloadListener(notificationChannel)
 
 	go func() {
 		defer recovery.LogPanic()
@@ -216,7 +216,6 @@ func (r *tableRegistryImpl) Start() {
 			case <-r.ctx.Done():
 				return
 			case <-notificationChannel:
-				fmt.Println("XXX Notification received")
 				r.updateState()
 			}
 		}

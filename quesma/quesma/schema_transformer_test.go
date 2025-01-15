@@ -6,6 +6,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/stretchr/testify/assert"
 	"strconv"
@@ -19,8 +20,8 @@ type fixedTableProvider struct {
 func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
 	return f.tables
 }
-
-func (f fixedTableProvider) AutodiscoveryEnabled() bool { return false }
+func (f fixedTableProvider) AutodiscoveryEnabled() bool                              { return false }
+func (f fixedTableProvider) RegisterTablesReloadListener(chan<- types.ReloadMessage) {}
 
 func Test_ipRangeTransform(t *testing.T) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"

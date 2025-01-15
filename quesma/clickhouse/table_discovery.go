@@ -43,7 +43,7 @@ type TableDiscovery interface {
 	ForceReloadCh() <-chan chan<- struct{}
 	AutodiscoveryEnabled() bool
 
-	AddListener(ch chan<- types.ReloadMessage)
+	RegisterTablesReloadListener(ch chan<- types.ReloadMessage)
 }
 
 type tableDiscovery struct {
@@ -86,8 +86,8 @@ type TableDiscoveryTableProviderAdapter struct {
 	TableDiscovery
 }
 
-func (t TableDiscoveryTableProviderAdapter) AddListener(ch chan<- types.ReloadMessage) {
-	t.TableDiscovery.AddListener(ch)
+func (t TableDiscoveryTableProviderAdapter) RegisterTablesReloadListener(ch chan<- types.ReloadMessage) {
+	t.TableDiscovery.RegisterTablesReloadListener(ch)
 }
 
 func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema.Table {
@@ -136,7 +136,7 @@ func NewTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool quesma_ap
 	return result
 }
 
-func (td *tableDiscovery) AddListener(ch chan<- types.ReloadMessage) {
+func (td *tableDiscovery) RegisterTablesReloadListener(ch chan<- types.ReloadMessage) {
 	td.reloadObserversMutex.Lock()
 	defer td.reloadObserversMutex.Unlock()
 	td.reloadObservers = append(td.reloadObservers, ch)
@@ -667,7 +667,7 @@ func NewEmptyTableDiscovery() *EmptyTableDiscovery {
 	}
 }
 
-func (td *EmptyTableDiscovery) AddListener(ch chan<- types.ReloadMessage) {
+func (td *EmptyTableDiscovery) RegisterTablesReloadListener(ch chan<- types.ReloadMessage) {
 }
 
 func (td *EmptyTableDiscovery) ReloadTableDefinitions() {
