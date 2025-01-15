@@ -69,13 +69,13 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 		return innerFieldsAsSelect, nil
 	case "rate":
 		if len(metricsAggr.Fields) > 0 {
-			fmt.Println("metricsAggr.Fields", metricsAggr.Fields, getFirstExpression())
 			switch metrics_aggregations.NewRateMode(ctx, metricsAggr.mode) {
 			case metrics_aggregations.RateModeSum:
 				result = []model.Expr{model.NewFunction("sumOrNull", getFirstExpression())}
 			case metrics_aggregations.RateModeValueCount:
 				result = []model.Expr{model.NewCountFunc(getFirstExpression())}
 			default:
+				// should never happen because of parsing checks
 				logger.ErrorWithCtx(ctx).Msgf("unknown rate mode: %s", metricsAggr.mode)
 			}
 		}
@@ -166,7 +166,8 @@ func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) mo
 	case "geo_centroid":
 		return metrics_aggregations.NewGeoCentroid(ctx)
 	case "rate":
-		return metrics_aggregations.NewRate(ctx, metricsAggr.unit, len(metricsAggr.Fields) > 0)
+		fieldPresent := len(metricsAggr.Fields) > 0
+		return metrics_aggregations.NewRate(ctx, metricsAggr.unit, fieldPresent)
 	}
 	return nil
 }

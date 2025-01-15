@@ -34,7 +34,7 @@ Currently supported:
   including: `boolean`, `match`, `match phrase`, `multi-match`, `query string`, `nested`, `match all`, `exists`, `prefix`, `range`, `term`, `terms`, `wildcard`
 - most popular [Aggregations](https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations.html),
   including: `avg`, `cardinality`, `max`, `min`, `percentile ranks`, `percentiles`, `stats`, `sum`, `top hits`, `top metrics`, `value counts`,
-  `date histogram`, `date range`, `filter`, `filters`, `histogram`, `range`, `rate`, `significant terms`, `terms`, `ip prefix`
+  `date histogram`, `date range`, `filter`, `filters`, `histogram`, `range`, `rate`, `significant terms`, `terms`, `ip prefix`, `ip range`
 
 Which as a result allows you to run Kibana/OSD queries and dashboards on data residing in ClickHouse/Hydrolix.
 
