@@ -10,6 +10,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"sync"
+	"time"
 )
 
 // TODO we should rethink naming and types used in this package
@@ -99,10 +100,17 @@ func (s *schemaRegistry) start() {
 	}
 
 	go func() {
+		// reload schemas every 5 minutes
+		// table_discovery can be disabled, so we need to reload schemas periodically just in case
+		ticker := time.NewTicker(5 * time.Minute)
 		for {
 			select {
 			case <-notificationChannel:
 				protectedReload()
+
+			case <-ticker.C:
+				protectedReload()
+
 			}
 		}
 	}()
