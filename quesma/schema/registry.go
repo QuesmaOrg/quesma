@@ -98,8 +98,6 @@ func (s *schemaRegistry) start() {
 		s.invalidateCache()
 	}
 
-	protectedReload()
-
 	go func() {
 		for {
 			select {
@@ -242,7 +240,7 @@ func NewSchemaRegistry(tableProvider TableProvider, configuration *config.Quesma
 		dataSourceTableProvider: tableProvider,
 		dataSourceTypeAdapter:   dataSourceTypeAdapter,
 		dynamicConfiguration:    make(map[string]Table),
-		cachedSchemas:           make(map[IndexName]Schema),
+		cachedSchemas:           nil,
 		fieldEncodings:          make(map[FieldEncodingKey]EncodedFieldName),
 	}
 	res.start()

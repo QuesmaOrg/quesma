@@ -36,6 +36,7 @@ func (d DbKind) String() string {
 type TableDiscovery interface {
 	ReloadTableDefinitions()
 	TableDefinitions() *TableMap
+	AddTable(tableName string, table *Table)
 	TableDefinitionsFetchError() error
 
 	LastAccessTime() time.Time
@@ -134,6 +135,11 @@ func NewTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool quesma_ap
 	}
 	result.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 	return result
+}
+
+func (td *tableDiscovery) AddTable(tableName string, table *Table) {
+	td.tableDefinitions.Load().Store(tableName, table)
+	td.notifyObservers()
 }
 
 func (td *tableDiscovery) RegisterTablesReloadListener(ch chan<- types.ReloadMessage) {
@@ -695,4 +701,8 @@ func (td *EmptyTableDiscovery) ForceReloadCh() <-chan chan<- struct{} {
 
 func (td *EmptyTableDiscovery) AutodiscoveryEnabled() bool {
 	return td.Autodiscovery
+}
+
+func (td *EmptyTableDiscovery) AddTable(tableName string, table *Table) {
+	td.TableMap.Store(tableName, table)
 }
