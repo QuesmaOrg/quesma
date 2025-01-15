@@ -21,9 +21,10 @@ import (
 // It implements quesma.IQueryTranslator for EQL queries.
 
 type ClickhouseEQLQueryTranslator struct {
-	ClickhouseLM clickhouse.LogManagerIFace
-	Table        *clickhouse.Table
-	Ctx          context.Context
+	ClickhouseLM        clickhouse.LogManagerIFace
+	Table               *clickhouse.Table
+	Ctx                 context.Context
+	SearchAfterStrategy model.SearchAfterStrategy
 }
 
 func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
@@ -87,8 +88,8 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) (*model.Exec
 
 	if simpleQuery.CanParse {
 
-		query = query_util.BuildHitsQuery(cw.Ctx, cw.Table.Name, []string{"*"}, &simpleQuery, queryInfo.Size, queryInfo.SearchAfter)
-		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, query.SelectCommand.OrderByFieldNames(), true, false, false, []string{cw.Table.Name})
+		query = query_util.BuildHitsQuery(cw.Ctx, cw.Table.Name, []string{"*"}, &simpleQuery, queryInfo.Size, queryInfo.SearchAfter, cw.SearchAfterStrategy)
+		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, cw.SearchAfterStrategy, query.SelectCommand.OrderByFieldNames(), true, false, false, []string{cw.Table.Name})
 		query.Type = &queryType
 		query.Highlighter = highlighter
 		query.SelectCommand.OrderBy = simpleQuery.OrderBy

@@ -20,7 +20,8 @@ type ClickhouseQueryTranslator struct {
 	Schema schema.Schema
 	Ctx    context.Context
 
-	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	DateMathRenderer    string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	SearchAfterStrategy model.SearchAfterStrategy
 
 	Indexes []string
 
@@ -308,5 +309,5 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 }
 
 func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldNames []string, query *model.SimpleQuery, info model.HitsCountInfo) *model.Query {
-	return query_util.BuildHitsQuery(cw.Ctx, model.SingleTableNamePlaceHolder, fieldNames, query, info.Size, info.SearchAfter)
+	return query_util.BuildHitsQuery(cw.Ctx, model.SingleTableNamePlaceHolder, fieldNames, query, info.Size, info.SearchAfter, cw.SearchAfterStrategy)
 }

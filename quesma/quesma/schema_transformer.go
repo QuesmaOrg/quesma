@@ -16,16 +16,14 @@ import (
 )
 
 type SchemaCheckPass struct {
-	cfg                 *config.QuesmaConfiguration
-	tableDiscovery      clickhouse.TableDiscovery
-	searchAfterStrategy searchAfterStrategy
+	cfg            *config.QuesmaConfiguration
+	tableDiscovery clickhouse.TableDiscovery
 }
 
-func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery clickhouse.TableDiscovery, strategyType searchAfterStrategyType) *SchemaCheckPass {
+func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery clickhouse.TableDiscovery) *SchemaCheckPass {
 	return &SchemaCheckPass{
-		cfg:                 cfg,
-		tableDiscovery:      tableDiscovery,
-		searchAfterStrategy: searchAfterStrategyFactory(strategyType),
+		cfg:            cfg,
+		tableDiscovery: tableDiscovery,
 	}
 }
 
@@ -1001,4 +999,16 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 	}
 	return query, nil
 
+}
+
+func (s *SchemaCheckPass) applySearchAfterParameter(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	fmt.Println("applySearchAfterParameter", query.SearchAfterStrategy)
+	if query.SearchAfterStrategy != nil {
+		err := query.SearchAfterStrategy.ValidateAndParse(query, indexSchema)
+		if err != nil {
+			return nil, err
+		}
+		return query.SearchAfterStrategy.TransformQuery(query)
+	}
+	return query, nil
 }

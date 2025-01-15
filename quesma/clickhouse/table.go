@@ -25,6 +25,7 @@ type Table struct {
 	// TODO: we should use aliases directly from configuration, not store them here
 	Comment          string // this human-readable comment
 	CreateTableQuery string
+	PrimaryKey       *string
 
 	DiscoveredTimestampFieldName *string
 

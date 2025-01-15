@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
@@ -67,7 +68,7 @@ func (q *dualWriteHttpProxyV2) Stop(ctx context.Context) {
 
 func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
 
-	queryProcessor := NewQueryRunner(logManager, config, indexManager, dependencies.DebugInfoCollector(), registry, abResultsRepository, resolver, schemaLoader)
+	queryProcessor := NewQueryRunner(logManager, config, indexManager, dependencies.DebugInfoCollector(), registry, abResultsRepository, resolver, schemaLoader, model.DefaultSearchAfterStrategy)
 
 	// not sure how we should configure our query translator ???
 	// is this a config option??

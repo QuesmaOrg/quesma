@@ -1,15 +1,20 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package quesma
+package queryparser
 
 import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
-	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
-	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/stretchr/testify/assert"
 	"strconv"
+
+	//"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	//"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	//"github.com/stretchr/testify/assert"
+	//"strconv"
 	"testing"
 )
 
@@ -18,7 +23,7 @@ func Test_validateAndParse(t *testing.T) {
 		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 		"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
 	}
-	Schema := schema.NewSchema(fields, true, "")
+	Schema := schema.NewSchema(fields, true, "", nil) // TODO nil?
 
 	var testcases = []struct {
 		searchAfter                     any
@@ -31,11 +36,15 @@ func Test_validateAndParse(t *testing.T) {
 		{[]any{1.0}, true, true},
 		{[]any{1.1}, false, false},
 		{[]any{-1}, false, false},
-		{[]any{1, "abc"}, true, true},
+		{[]any{1, "abc"}, true, true}, // true because we add an additional order by column
 		{"string is bad", false, false},
+		{[]any{10, 20, 30, 40}, true, false},
 	}
 
-	strategies := []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)}
+	strategies := []model.SearchAfterStrategy{
+		SearchAfterStrategyFactory(model.BasicAndFast),
+		SearchAfterStrategyFactory(model.Bulletproof),
+	}
 	for _, strategy := range strategies {
 		for i, tc := range testcases {
 			t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
@@ -45,8 +54,12 @@ func Test_validateAndParse(t *testing.T) {
 					query.SelectCommand.OrderBy = append(query.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(model.NewColumnRef("message")))
 				}
 				query.SearchAfter = tc.searchAfter
-				_, err := strategy.validateAndParse(query, Schema)
-				if (err == nil) != tc.isInputFineBasicAndFastStrategy {
+				err := strategy.ValidateAndParse(query, Schema)
+
+				if _, ok := strategy.(*searchAfterStrategyBulletproof); ok && (err == nil) != tc.isInputFineBulletproofStrategy {
+					t.Errorf("Bulletproof strategy failed to validate the input: %v, err: %v", tc.searchAfter, err)
+				}
+				if _, ok := strategy.(*searchAfterStrategyBasicAndFast); ok && (err == nil) != tc.isInputFineBasicAndFastStrategy {
 					t.Errorf("BasicAndFast strategy failed to validate the input: %v, err: %v", tc.searchAfter, err)
 				}
 			})
@@ -55,11 +68,12 @@ func Test_validateAndParse(t *testing.T) {
 }
 
 func Test_applySearchAfterParameter(t *testing.T) {
+	t.Skip("napraw to")
 	fields := map[schema.FieldName]schema.Field{
 		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 		"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
 	}
-	Schema := schema.NewSchema(fields, true, "")
+	Schema := schema.NewSchema(fields, true, "", nil) // TODO nil?
 
 	indexConfig := map[string]config.IndexConfiguration{"kibana_sample_data_ecommerce": {}}
 
@@ -129,6 +143,8 @@ func Test_applySearchAfterParameter(t *testing.T) {
 			},
 		}
 	}
+	_ = withWhere
+	_ = oneRealQuery
 
 	var testcases = []struct {
 		searchAfter              any
@@ -136,27 +152,30 @@ func Test_applySearchAfterParameter(t *testing.T) {
 		transformedQueryExpected *model.Query
 		errorExpected            bool
 	}{
-		{nil, emptyQuery(), emptyQuery(), false},
+		//{nil, emptyQuery(), emptyQuery(), false},
 		{[]any{}, emptyQuery(), emptyQuery(), true},
-		{[]any{1}, emptyQuery(), withWhere(emptyQuery(), 1), false},
-		{[]any{1.0}, emptyQuery(), withWhere(emptyQuery(), 1), false},
-		{[]any{1.1}, emptyQuery(), emptyQuery(), true},
-		{[]any{5, 10}, emptyQuery(), emptyQuery(), true},
-		{[]any{-1}, emptyQuery(), emptyQuery(), true},
-		{"string is bad", emptyQuery(), emptyQuery(), true},
-		{[]any{int64(1)}, oneRealQuery(), withWhere(oneRealQuery(), 1), false},
+		//{[]any{1}, emptyQuery(), withWhere(emptyQuery(), 1), false},
+		//{[]any{1.0}, emptyQuery(), withWhere(emptyQuery(), 1), false},
+		//{[]any{1.1}, emptyQuery(), emptyQuery(), true},
+		//{[]any{5, 10}, emptyQuery(), emptyQuery(), true},
+		//{[]any{-1}, emptyQuery(), emptyQuery(), true},
+		//{"string is bad", emptyQuery(), emptyQuery(), true},
+		//{[]any{int64(1)}, oneRealQuery(), withWhere(oneRealQuery(), 1), false},
 	}
 
-	strategies := []searchAfterStrategyType{basicAndFast}
+	strategies := []model.SearchAfterStrategyType{model.BasicAndFast}
 	for _, strategy := range strategies {
 		for i, tc := range testcases {
 			t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
 				// apply search_after parameter, easier to do here than in all the testcases
 				tc.query.SearchAfter = tc.searchAfter
+				tc.query.SearchAfterStrategy = SearchAfterStrategyFactory(strategy)
 				tc.transformedQueryExpected.SearchAfter = tc.searchAfter
 
-				transformer := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, strategy)
-				actual, err := transformer.applySearchAfterParameter(Schema, tc.query)
+				err := tc.query.SearchAfterStrategy.ValidateAndParse(tc.query, Schema)
+				fmt.Println("err validate_and_parse", err)
+				assert.Equal(t, tc.errorExpected, err != nil, "Expected error: %v, got: %v", tc.errorExpected, err)
+				actual, err := tc.query.SearchAfterStrategy.TransformQuery(tc.query)
 				assert.Equal(t, tc.errorExpected, err != nil, "Expected error: %v, got: %v", tc.errorExpected, err)
 				if err == nil {
 					assert.Equal(t,

@@ -29,6 +29,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
+	"github.com/k0kubun/pp"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -57,6 +58,7 @@ type QueryRunner struct {
 
 	// this is passed to the QueryTranslator to render date math expressions
 	DateMathRenderer         string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	SearchAfterStrategy      model.SearchAfterStrategyType
 	currentParallelQueryJobs atomic.Int64
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
@@ -91,7 +93,8 @@ func NewQueryRunner(lm clickhouse.LogManagerIFace,
 	schemaRegistry schema.Registry,
 	abResultsRepository ab_testing.Sender,
 	resolver table_resolver.TableResolver,
-	tableDiscovery clickhouse.TableDiscovery) *QueryRunner {
+	tableDiscovery clickhouse.TableDiscovery,
+	searchAfterStrategy model.SearchAfterStrategyType) *QueryRunner {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -100,13 +103,14 @@ func NewQueryRunner(lm clickhouse.LogManagerIFace,
 		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemory(),
 		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
 		transformationPipeline: TransformationPipeline{
-			transformers: []model.QueryTransformer{NewSchemaCheckPass(cfg, tableDiscovery, defaultSearchAfterStrategy)},
+			transformers: []model.QueryTransformer{NewSchemaCheckPass(cfg, tableDiscovery)},
 		},
-		schemaRegistry:     schemaRegistry,
-		ABResultsSender:    abResultsRepository,
-		tableResolver:      resolver,
-		tableDiscovery:     tableDiscovery,
-		maxParallelQueries: maxParallelQueries,
+		schemaRegistry:      schemaRegistry,
+		ABResultsSender:     abResultsRepository,
+		tableResolver:       resolver,
+		tableDiscovery:      tableDiscovery,
+		maxParallelQueries:  maxParallelQueries,
+		SearchAfterStrategy: searchAfterStrategy,
 	}
 }
 
@@ -141,7 +145,33 @@ func NewQueryRunnerDefaultForTests(db quesma_api.BackendConnector, cfg *config.Q
 
 	go managementConsole.RunOnlyChannelProcessor()
 
-	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
+	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery, model.DefaultSearchAfterStrategy)
+}
+
+func NewQueryRunnerDefaultForTestsWithSearchAfter(db quesma_api.BackendConnector, cfg *config.QuesmaConfiguration,
+	tableName string, tables *clickhouse.TableMap, staticRegistry *schema.StaticRegistry, searchAfterStrategy model.SearchAfterStrategyType) *QueryRunner {
+
+	lm := clickhouse.NewLogManagerWithConnection(db, tables)
+	logChan := logger.InitOnlyChannelLoggerForTests()
+
+	resolver := table_resolver.NewEmptyTableResolver()
+	resolver.Decisions[tableName] = &quesma_api.Decision{
+		UseConnectors: []quesma_api.ConnectorDecision{
+			&quesma_api.ConnectorDecisionClickhouse{
+				ClickhouseTableName: tableName,
+				ClickhouseIndexes:   []string{tableName},
+			},
+		},
+	}
+
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tables
+
+	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
+
+	go managementConsole.RunOnlyChannelProcessor()
+
+	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery, searchAfterStrategy)
 }
 
 // HandleCount returns -1 when table name could not be resolved
@@ -551,7 +581,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		table = commonTable
 	}
 
-	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes, q.cfg)
+	pp.Println("SASTRATEGY", q.SearchAfterStrategy)
+	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer,
+		queryparser.SearchAfterStrategyFactory(q.SearchAfterStrategy), resolvedIndexes, q.cfg)
 
 	plan, err := queryTranslator.ParseQuery(body)
 
@@ -579,6 +611,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return q.executeABTesting(ctx, plan, queryTranslator, table, body, optAsync, decision, indexPattern)
 	}
 
+	fmt.Println("DUPA", body, plan.Queries)
+	pp.Println(plan)
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, nil, true)
 
 }

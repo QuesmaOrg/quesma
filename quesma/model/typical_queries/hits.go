@@ -24,22 +24,23 @@ import (
 // We treat it here as if it was a normal aggregation, even though it's technically not completely correct.
 // But it works, and because of that we can unify response creation part of Quesma, so it's very useful.
 type Hits struct {
-	ctx                context.Context
-	table              *clickhouse.Table
-	highlighter        *model.Highlighter
-	sortFieldNames     []string
-	addSource          bool // true <=> we add hit.Source field to the response
-	addScore           bool // true <=> we add hit.Score field to the response (whose value is always 1)
-	addVersion         bool // true <=> we add hit.Version field to the response (whose value is always 1)
-	indexes            []string
-	timestampFieldName string
+	ctx                 context.Context
+	table               *clickhouse.Table
+	highlighter         *model.Highlighter
+	searchAfterStrategy model.SearchAfterStrategy
+	sortFieldNames      []string
+	addSource           bool // true <=> we add hit.Source field to the response
+	addScore            bool // true <=> we add hit.Score field to the response (whose value is always 1)
+	addVersion          bool // true <=> we add hit.Version field to the response (whose value is always 1)
+	indexes             []string
+	timestampFieldName  string
 }
 
 func NewHits(ctx context.Context, table *clickhouse.Table, highlighter *model.Highlighter,
-	sortFieldNames []string, addSource, addScore, addVersion bool, indexes []string) Hits {
+	searchAfterStrategy model.SearchAfterStrategy, sortFieldNames []string, addSource, addScore, addVersion bool, indexes []string) Hits {
 
-	return Hits{ctx: ctx, table: table, highlighter: highlighter, sortFieldNames: sortFieldNames,
-		addSource: addSource, addScore: addScore, addVersion: addVersion, indexes: indexes}
+	return Hits{ctx: ctx, table: table, highlighter: highlighter, searchAfterStrategy: searchAfterStrategy,
+		sortFieldNames: sortFieldNames, addSource: addSource, addScore: addScore, addVersion: addVersion, indexes: indexes}
 }
 
 const (
@@ -88,7 +89,7 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 		if query.addSource {
 			hit.Source = []byte(rows[i].String(query.ctx))
 		}
-		query.addAndHighlightHit(&hit, &row)
+		query.addAndHighlightHit(hit, &row)
 
 		hit.ID = query.computeIdForDocument(hit, strconv.Itoa(i+1))
 		for _, fieldName := range query.sortFieldNames {
@@ -98,7 +99,17 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 				logger.WarnWithCtx(query.ctx).Msgf("field %s not found in fields", fieldName)
 			}
 		}
-		hits = append(hits, hit)
+
+		fmt.Println("QQ", query.ctx, hit, query.table.PrimaryKey, rows[:i], query.searchAfterStrategy)
+		fmt.Printf("QQ %T\n", query.searchAfterStrategy)
+		hit = query.searchAfterStrategy.TransformHit(query.ctx, hit, query.table.PrimaryKey, query.sortFieldNames, rows[:i+1])
+
+		fmt.Println("transformed hit, last N:", hit, "sort:", hit.Sort)
+		hits = append(hits, *hit)
+	}
+	fmt.Println("hits:", len(hits))
+	for i, hit := range hits {
+		fmt.Println("hit", i, hit.Sort)
 	}
 
 	return model.JsonMap{
@@ -176,7 +187,7 @@ func (query Hits) WithTimestampField(fieldName string) Hits {
 	return query
 }
 
-func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) string {
+func (query Hits) computeIdForDocument(doc *model.SearchHit, defaultID string) string {
 
 	if query.timestampFieldName == "" {
 		return defaultID

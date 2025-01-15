@@ -15,7 +15,7 @@ func Test_SchemaToHierarchicalSchema(t *testing.T) {
 		"product.product_id":     {PropertyName: "product.product_id", InternalPropertyName: "product::product_id", Type: QuesmaTypeInteger},
 		"triple.nested.example1": {PropertyName: "triple.nested.example1", InternalPropertyName: "triple::nested::example1", Type: QuesmaTypeText},
 		"triple.nested.example2": {PropertyName: "triple.nested.example2", InternalPropertyName: "triple::nested::example2", Type: QuesmaTypeKeyword},
-	}, map[FieldName]FieldName{}, true, "")
+	}, map[FieldName]FieldName{}, true, "", nil)
 
 	hs := SchemaToHierarchicalSchema(&s)
 	assert.Equal(t, "", hs.Name)
