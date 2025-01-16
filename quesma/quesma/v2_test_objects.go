@@ -345,20 +345,6 @@ func (p *QueryComplexProcessor) GetId() string {
 	return "QueryProcessor"
 }
 
-/*
-func (p *QueryComplexProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
-	if len(message) != 1 {
-		panic("QueryProcessor: expect only one message")
-	}
-	_, err := quesma_api.CheckedCast[*http.Request](message[0])
-	if err != nil {
-		panic("QueryProcessor: invalid message type")
-	}
-	resp := []byte("qqq->")
-	return metadata, resp, nil
-}
-*/
-
 type QueryTransformationPipeline struct {
 	*processors.BasicQueryTransformationPipeline
 }
@@ -370,6 +356,10 @@ func NewQueryTransformationPipeline() *QueryTransformationPipeline {
 }
 
 func (p *QueryTransformationPipeline) ParseQuery(message any) (*quesma_api.ExecutionPlan, error) {
+	_, err := quesma_api.CheckedCast[*http.Request](message)
+	if err != nil {
+		panic("QueryProcessor: invalid message type")
+	}
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: ParseQuery")
 	plan := &quesma_api.ExecutionPlan{}
 	query := "SELECT * FROM users"
