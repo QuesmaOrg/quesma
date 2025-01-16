@@ -88,6 +88,7 @@ func (a *ABTestcase) testIngest(ctx context.Context, t *testing.T) {
 			fmt.Println("Failed POST request: ", string(body))
 			t.Fatalf("Failed to make POST request: %s", resp.Status)
 		}
+		_ = resp.Body.Close()
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	}
@@ -112,6 +113,7 @@ func (a *ABTestcase) testIngest(ctx context.Context, t *testing.T) {
 	assert.Equal(t, 100, count)
 
 	_, _ = a.RequestToElasticsearch(ctx, "GET", "/test_index/_refresh", nil)
+
 
 	// Also make sure the index got created in Elasticsearch
 	resp, err := a.RequestToElasticsearch(ctx, "GET", "/test_index/_count", nil)
@@ -241,9 +243,10 @@ func (a *ABTestcase) testQueries(ctx context.Context, t *testing.T) {
 
 	// here we skip some queries that are known to fail
 	//
-	// TODO add them to the unit tests
 	//
-	skip["01.json"] = true // empty query, quesma returns their internal fields (attributes), quesma returns "fields" list
+	// These are the queries that are known to fail
+	//
+	// https://github.com/QuesmaOrg/quesma/issues/1044
 	skip["04.json"] = true // date_histogram aggregation is used here, quesma output differs from ES
 	skip["06.json"] = true // it contains histogram aggregation, quesma returns different results than ES
 
