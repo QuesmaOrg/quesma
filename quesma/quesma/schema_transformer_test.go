@@ -87,6 +87,8 @@ func Test_ipRangeTransform(t *testing.T) {
 			TableName: "kibana_sample_data_logs_nested", FieldName: "nested.clientip"}: "nested_clientip",
 	}
 	s := schema.NewSchemaRegistry(tableProvider, &cfg, clickhouse.SchemaTypeAdapter{})
+	s.Start()
+	defer s.Stop()
 	transform := NewSchemaCheckPass(&cfg, tableDiscovery, defaultSearchAfterStrategy)
 	s.UpdateFieldEncodings(fieldEncodings)
 
@@ -705,6 +707,8 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 	td.Store(tableDefinition.Name, &tableDefinition)
 
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+	s.Start()
+	defer s.Stop()
 	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, nil, defaultSearchAfterStrategy)
 
 	tests := []struct {
@@ -965,6 +969,8 @@ func TestFullTextFields(t *testing.T) {
 			}
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			s.Start()
+			defer s.Stop()
 			transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, nil, defaultSearchAfterStrategy)
 
 			indexSchema, ok := s.FindSchema("test")
@@ -1072,6 +1078,9 @@ func Test_applyMatchOperator(t *testing.T) {
 			}
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			s.Start()
+			defer s.Stop()
+
 			transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
 
 			indexSchema, ok := s.FindSchema("test")
@@ -1172,6 +1181,8 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 			}
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			s.Start()
+			defer s.Stop()
 			transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
 
 			indexSchema, ok := s.FindSchema("test")

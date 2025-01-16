@@ -17,6 +17,9 @@ import (
 
 type (
 	Registry interface {
+		Start()
+		Stop()
+
 		AllSchemas() map[IndexName]Schema
 		FindSchema(name IndexName) (Schema, bool)
 		UpdateFieldsOrigins(name IndexName, fields map[FieldName]FieldSource)
@@ -43,6 +46,8 @@ type (
 		fieldOrigins            map[IndexName]map[FieldName]FieldSource
 
 		cachedSchemas map[IndexName]Schema
+
+		doneCh chan struct{}
 	}
 	typeAdapter interface {
 		Convert(string) (QuesmaType, bool)
@@ -85,7 +90,7 @@ func (s *schemaRegistry) invalidateCache() {
 	s.cachedSchemas = nil
 }
 
-func (s *schemaRegistry) start() {
+func (s *schemaRegistry) Start() {
 
 	notificationChannel := make(chan types.ReloadMessage, 1)
 
@@ -111,10 +116,15 @@ func (s *schemaRegistry) start() {
 			case <-ticker.C:
 				protectedReload()
 
+			case <-s.doneCh:
+				return
 			}
 		}
 	}()
+}
 
+func (s *schemaRegistry) Stop() {
+	s.doneCh <- struct{}{}
 }
 
 func (s *schemaRegistry) loadOrGetSchemas() map[IndexName]Schema {
@@ -123,7 +133,7 @@ func (s *schemaRegistry) loadOrGetSchemas() map[IndexName]Schema {
 		schema, err := s.loadSchemas()
 		if err != nil {
 			logger.Error().Err(err).Msg("error loading schema")
-			return nil
+			return make(map[IndexName]Schema)
 		}
 		s.cachedSchemas = schema
 	}
@@ -250,8 +260,8 @@ func NewSchemaRegistry(tableProvider TableProvider, configuration *config.Quesma
 		dynamicConfiguration:    make(map[string]Table),
 		cachedSchemas:           nil,
 		fieldEncodings:          make(map[FieldEncodingKey]EncodedFieldName),
+		doneCh:                  make(chan struct{}),
 	}
-	res.start()
 	return res
 }
 
