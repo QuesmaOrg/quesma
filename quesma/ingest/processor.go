@@ -23,9 +23,9 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/telemetry"
 	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/goccy/go-json"
-	"quesma_v2/core"
-	"quesma_v2/core/diag"
 	"slices"
 	"sort"
 	"strings"
@@ -962,7 +962,7 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 				logger.Error().Msgf("error storing virtual table: %v", err)
 			}
 		}
-		ip.tableDiscovery.TableDefinitions().Store(table.Name, table)
+		ip.tableDiscovery.AddTable(table.Name, table)
 		return true
 	}
 	wasntCreated := !t.Created

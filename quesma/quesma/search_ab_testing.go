@@ -15,12 +15,12 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
 	"io"
 	"net/http"
-	"quesma_v2/core"
-	"quesma_v2/core/diag"
-	tracing "quesma_v2/core/tracing"
 	"time"
 )
 

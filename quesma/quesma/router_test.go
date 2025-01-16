@@ -11,9 +11,9 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/telemetry"
+	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/routes"
 	"github.com/stretchr/testify/assert"
-	mux "quesma_v2/core"
-	"quesma_v2/core/routes"
 	"strings"
 	"testing"
 )
@@ -280,7 +280,12 @@ func TestConfigureRouter(t *testing.T) {
 		},
 	}
 	tr := TestTableResolver{}
-	testRouter := ConfigureRouter(cfg, schema.NewSchemaRegistry(fixedTableProvider{}, cfg, clickhouse.SchemaTypeAdapter{}), &clickhouse.LogManager{}, &ingest.IngestProcessor{}, &ui.QuesmaManagementConsole{}, telemetry.NewPhoneHomeAgent(cfg, nil, ""), &QueryRunner{}, tr, nil)
+
+	schemaRegistry := schema.NewSchemaRegistry(fixedTableProvider{}, cfg, clickhouse.SchemaTypeAdapter{})
+	schemaRegistry.Start()
+	defer schemaRegistry.Stop()
+
+	testRouter := ConfigureRouter(cfg, schemaRegistry, &clickhouse.LogManager{}, &ingest.IngestProcessor{}, &ui.QuesmaManagementConsole{}, telemetry.NewPhoneHomeAgent(cfg, nil, ""), &QueryRunner{}, tr, nil)
 
 	tests := []struct {
 		path                string

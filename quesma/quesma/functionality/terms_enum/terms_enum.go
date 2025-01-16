@@ -13,9 +13,9 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
-	"quesma_v2/core/diag"
-	tracing "quesma_v2/core/tracing"
 	"strconv"
 	"time"
 )

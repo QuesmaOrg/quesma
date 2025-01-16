@@ -14,9 +14,9 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
-	mux "quesma_v2/core"
 	"testing"
 )
 
@@ -191,6 +191,8 @@ func TestIngestToCommonTable(t *testing.T) {
 
 			tableDisco := clickhouse.NewTableDiscovery(quesmaConfig, db, virtualTableStorage)
 			schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, quesmaConfig, clickhouse.SchemaTypeAdapter{})
+			schemaRegistry.Start()
+			defer schemaRegistry.Stop()
 
 			resolver := table_resolver.NewEmptyTableResolver()
 

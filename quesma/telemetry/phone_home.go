@@ -12,6 +12,8 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/health"
 	telemetry_headers "github.com/QuesmaOrg/quesma/quesma/telemetry/headers"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v3/mem"
@@ -19,8 +21,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	quesma_api "quesma_v2/core"
-	"quesma_v2/core/diag"
 	"sort"
 
 	"github.com/QuesmaOrg/quesma/quesma/logger"
