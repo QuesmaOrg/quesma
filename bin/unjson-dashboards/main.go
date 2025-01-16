@@ -13,14 +13,22 @@ import (
 
 type jsonMap = map[string]any
 
-const filename = "SIP_export.ndjson"
+const filename = "as-se_export_dashboard_10-08-30.ndjson"
+
+type fieldAttrsResult struct {
+	title      string
+	name       string
+	fieldAttrs jsonMap
+}
+
+var fieldAttrsResults []fieldAttrsResult
 
 //const filename = "S1AP_export.ndjson"
 
 //const filename = "S6a_export.ndjson"
 
 var keysWithNestedJsonsAsStrings = []string{ /*"optionsJSON", */ "panelsJSON", "fieldAttrs"}
-var interestingKeys = []string{"attributes", "match_phrase", "text", "formula", "query", "field", "sourceField", "index_pattern"}
+var interestingKeys = []string{"attributes", "match_phrase", "text", "formula", "query", "field", "sourceField", "index_pattern", "fieldAttrs", "title", "name"}
 
 func scanOneFile() error {
 	file, err := os.Open(filename)
@@ -85,15 +93,48 @@ func parseNdJson(s string, printDebug bool) []jsonMap {
 }
 
 func processJson(j jsonMap) error {
+	fieldAttrs, hasFieldAttrs := j["fieldAttrs"]
+	title, hasTitle := j["title"].(string)
+	name, hasName := j["name"].(string)
+
+	if hasFieldAttrs {
+		if hasTitle || hasName {
+			pp.Printf("====== VIP processJson ======\n===, title: %v, name: %v, fieldAttrs:\n%v", title, name, fieldAttrs)
+		} else {
+			pp.Println("====== VIP processJson, fieldAttrs:", fieldAttrs)
+		}
+		var dict map[string]interface{}
+		err := json.Unmarshal([]byte(fieldAttrs.(string)), &dict)
+		if err != nil {
+			panic(err)
+		}
+		var keys []string
+		for k := range dict {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
+		for _, k := range keys {
+			fmt.Println("-", k, ",", dict[k])
+		}
+		fmt.Println()
+		fieldAttrsResults = append(fieldAttrsResults, fieldAttrsResult{fieldAttrs: dict})
+		if hasTitle {
+			fieldAttrsResults[len(fieldAttrsResults)-1].title = title
+		}
+		if hasName {
+			fieldAttrsResults[len(fieldAttrsResults)-1].name = name
+		}
+	}
+
 	for k, v := range j {
 		if strings.HasPrefix(k, "a") {
-			pp.Println(k)
+			fmt.Println(k)
 		}
 		if slices.Contains(keysWithNestedJsonsAsStrings, k) {
 			fmt.Println("--- processJson, in keysWithNestedJsonsAsStrings, key:", k, "val:", v)
 			var ndJson []jsonMap
 			if k == "panelsJSON" {
-				ndJson = parseNdJson(v.(string), true)
+				ndJson = parseNdJson(v.(string), false)
 			} else {
 				ndJson = parseNdJson(v.(string), false)
 			}
@@ -262,15 +303,41 @@ func printQueries() {
 	}
 }
 
+func printFieldAttrsResults(printAlsoValue bool) {
+	if len(fieldAttrsResults) > 0 {
+		pp.Println("fieldAttrsResults:")
+		for i, res := range fieldAttrsResults {
+			fmt.Printf("%d. name: %v title: %v\n", i+1, res.name, res.title)
+
+			var keys []string
+			for k := range res.fieldAttrs {
+				keys = append(keys, k)
+			}
+			slices.Sort(keys)
+
+			for _, k := range keys {
+				if printAlsoValue {
+					fmt.Printf("- %s: %v\n", k, res.fieldAttrs[k])
+				} else {
+					fmt.Printf("%s Nullable(String), ", k)
+				}
+			}
+			fmt.Printf("\n\n")
+		}
+	}
+}
+
 func main() {
 	if err := scanOneFile(); err != nil {
 		fmt.Println(err)
 	} else if len(errors) > 0 {
 		fmt.Println("Errors:", errors)
 	} else {
-		fmt.Println("Done, no error! :)")
 		printSourceFields()
 		printFormulas()
 		printQueries()
+		printFieldAttrsResults(true)
+		printFieldAttrsResults(false)
+		fmt.Println("Done, no error! :)")
 	}
 }
