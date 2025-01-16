@@ -376,3 +376,8 @@ func (p *QueryTransformationPipeline) ParseQuery(message any) (*quesma_api.Execu
 	plan.Queries = append(plan.Queries, &quesma_api.Query{Query: query})
 	return plan, nil
 }
+
+func (p *QueryTransformationPipeline) TransformResults(results [][]quesma_api.QueryResultRow) [][]quesma_api.QueryResultRow {
+	logger.Debug().Msg("SimpleQueryTransformationPipeline: TransformResults")
+	return results
+}

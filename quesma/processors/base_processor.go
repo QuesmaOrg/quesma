@@ -54,12 +54,6 @@ func (p *BaseProcessor) executeQuery(query string) ([]quesma_api.QueryResultRow,
 	return nil, nil
 }
 
-func (p *BaseProcessor) transformResults(results [][]quesma_api.QueryResultRow) [][]quesma_api.QueryResultRow {
-	logger.Debug().Msg("BaseProcessor: transformResults")
-	// This will be forwarded to the query transformation engine
-	return nil
-}
-
 func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any) (map[string]interface{}, any, error) {
 	logger.Debug().Msg("BaseProcessor: Handle")
 	var resp []byte
@@ -79,7 +73,7 @@ func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any)
 			results = append(results, result)
 		}
 		// Transform the results
-		transformedResults := p.transformResults(results)
+		transformedResults := p.QueryTransformationPipeline.TransformResults(results)
 		resp = append(resp, []byte("qqq->")...)
 		messages = append(messages, transformedResults)
 	}

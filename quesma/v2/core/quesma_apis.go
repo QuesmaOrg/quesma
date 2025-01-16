@@ -83,12 +83,17 @@ type ExecutionPlan struct {
 	Queries []*Query
 }
 
+type QueryResultTransformer interface {
+	TransformResults(results [][]QueryResultRow) [][]QueryResultRow
+}
+
 type QueryTransformer interface {
 	Transform(query []*Query) ([]*Query, error)
 }
 
 type QueryTransformationPipeline interface {
 	QueryTransformer
+	QueryResultTransformer
 	ParseQuery(message any) (*ExecutionPlan, error)
 	AddTransformer(transformer QueryTransformer)
 	GetTransformers() []QueryTransformer
@@ -99,10 +104,6 @@ type QueryResultRow struct {
 
 type QueryExecutor interface {
 	ExecuteQuery(query string) ([]QueryResultRow, error)
-}
-
-type QueryResultTransformer interface {
-	TransformResults(results [][]QueryResultRow) [][]QueryResultRow
 }
 
 type Processor interface {
