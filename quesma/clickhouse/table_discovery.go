@@ -648,16 +648,10 @@ func (td *tableDiscovery) tableComment(database, table string) (comment string) 
 }
 
 func (td *tableDiscovery) createTableQuery(database, table string) (ddl string) {
-	rows, err := td.dbConnPool.Query(context.Background(), "SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table)
+	err := td.dbConnPool.QueryRow(context.Background(), "SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&ddl)
 	if err != nil {
-		logger.Error().Msgf("could not get table comment: %v", err)
+		logger.Error().Msgf("could not get create table statement: %v", err)
 	}
-
-	defer rows.Close()
-	if scanErr := rows.Scan(&ddl); scanErr != nil {
-		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
-	}
-
 	return ddl
 }
 
