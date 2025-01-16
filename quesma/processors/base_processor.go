@@ -81,6 +81,6 @@ func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any)
 	return metadata, resp, nil
 }
 
-func (p *BaseProcessor) RegisterQueryTransfomationPipeline(pipeline quesma_api.QueryTransformationPipeline) {
+func (p *BaseProcessor) RegisterTransfomationPipeline(pipeline quesma_api.QueryTransformationPipeline) {
 	p.QueryTransformationPipeline = pipeline
 }

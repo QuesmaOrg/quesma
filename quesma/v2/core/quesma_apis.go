@@ -114,7 +114,7 @@ type Processor interface {
 	SetBackendConnectors(conns map[BackendConnectorType]BackendConnector)
 	GetBackendConnector(connectorType BackendConnectorType) BackendConnector
 	GetSupportedBackendConnectors() []BackendConnectorType
-	RegisterQueryTransfomationPipeline(pipeline QueryTransformationPipeline)
+	RegisterTransfomationPipeline(pipeline QueryTransformationPipeline)
 	Init() error
 }
 
