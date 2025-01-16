@@ -139,7 +139,7 @@ func full_workflow_scenario() quesma_api.QuesmaBuilder {
 
 	queryTransformationPipe := NewQueryTransformationPipeline()
 	queryTransformationPipe.AddTransformer(NewQueryTransformer1())
-	queryProcessor.RegisterTransfomationPipeline(queryTransformationPipe)
+	queryProcessor.RegisterTransformationPipeline(queryTransformationPipe)
 	queryPipeline.AddProcessor(queryProcessor)
 	quesmaBuilder.AddPipeline(queryPipeline)
 
