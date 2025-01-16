@@ -75,7 +75,6 @@ func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any)
 		// Transform the results
 		transformedResults := p.QueryTransformationPipeline.TransformResults(results)
 		resp = p.QueryTransformationPipeline.ComposeResult(transformedResults)
-		messages = append(messages, transformedResults)
 	}
 
 	return metadata, resp, nil
