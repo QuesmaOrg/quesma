@@ -9,7 +9,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/quesma/queryparser/query_util"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 )
@@ -23,8 +22,6 @@ type ClickhouseQueryTranslator struct {
 	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 
 	Indexes []string
-
-	Config *config.QuesmaConfiguration
 
 	// TODO this will be removed
 	Table *clickhouse.Table

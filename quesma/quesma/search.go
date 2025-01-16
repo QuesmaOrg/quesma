@@ -551,7 +551,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		table = commonTable
 	}
 
-	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes, q.cfg)
+	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes)
 
 	plan, err := queryTranslator.ParseQuery(body)
 
