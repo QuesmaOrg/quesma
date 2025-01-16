@@ -49,6 +49,7 @@ type QuesmaConfiguration struct {
 	DefaultIngestTarget       []string
 	DefaultQueryTarget        []string
 	DefaultIngestOptimizers   map[string]OptimizerConfiguration
+	DefaultQueryOptimizers    map[string]OptimizerConfiguration
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {

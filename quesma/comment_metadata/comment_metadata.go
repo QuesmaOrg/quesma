@@ -33,11 +33,11 @@ func (c *CommentMetadata) Marshall() string {
 	return metadataPrefix + "V" + metadataVersion + ":" + params.Encode()
 }
 
+var metadataRegexp = regexp.MustCompile(metadataPrefix + `V([0-9+]):([^\s]+)`)
+
 func UnmarshallCommentMetadata(s string) (*CommentMetadata, error) {
 
-	rx := regexp.MustCompile(metadataPrefix + `V([0-9+]):([^\s]+)`)
-
-	groups := rx.FindStringSubmatch(s)
+	groups := metadataRegexp.FindStringSubmatch(s)
 
 	if len(groups) == 0 {
 		return nil, nil // no metadata, we return nil here, that's not an error
