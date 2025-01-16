@@ -378,3 +378,19 @@ func (p *QueryTransformationPipeline) ComposeResult(results [][]quesma_api.Query
 	resp = append(resp, []byte("qqq->")...)
 	return resp
 }
+
+type QueryTransformer1 struct {
+}
+
+func (p *QueryTransformer1) Transform(queries []*quesma_api.Query) ([]*quesma_api.Query, error) {
+	logger.Debug().Msg("SimpleQueryTransformationPipeline: Transform")
+	// Do basic transformation
+	for _, query := range queries {
+		query.Query += " WHERE id = 1"
+	}
+	return queries, nil
+}
+
+func NewQueryTransformer1() *QueryTransformer1 {
+	return &QueryTransformer1{}
+}

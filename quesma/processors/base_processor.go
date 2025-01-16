@@ -49,7 +49,7 @@ func (p *BaseProcessor) GetSupportedBackendConnectors() []quesma_api.BackendConn
 }
 
 func (p *BaseProcessor) executeQuery(query string) ([]quesma_api.QueryResultRow, error) {
-	logger.Debug().Msg("BaseProcessor: executeQuery")
+	logger.Debug().Msgf("BaseProcessor: executeQuery:%s", query)
 	// This will be forwarded to the query execution engine
 	return nil, nil
 }
