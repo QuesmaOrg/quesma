@@ -204,7 +204,6 @@ func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
 	return callInfos
 }
 func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
-	p.mappings = make([]mapping, 0)
 	newHandlers := make(map[string]HandlersPipe, 0)
 	for path, handler := range handlers {
 		var index int
