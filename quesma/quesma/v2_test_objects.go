@@ -381,3 +381,10 @@ func (p *QueryTransformationPipeline) TransformResults(results [][]quesma_api.Qu
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: TransformResults")
 	return results
 }
+
+func (p *QueryTransformationPipeline) ComposeResult(results [][]quesma_api.QueryResultRow) any {
+	logger.Debug().Msg("SimpleQueryTransformationPipeline: ComposeResults")
+	var resp []byte
+	resp = append(resp, []byte("qqq->")...)
+	return resp
+}

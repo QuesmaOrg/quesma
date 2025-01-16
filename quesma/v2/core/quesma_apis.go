@@ -95,6 +95,7 @@ type QueryTransformationPipeline interface {
 	QueryTransformer
 	QueryResultTransformer
 	ParseQuery(message any) (*ExecutionPlan, error)
+	ComposeResult(results [][]QueryResultRow) any
 	AddTransformer(transformer QueryTransformer)
 	GetTransformers() []QueryTransformer
 }

@@ -56,7 +56,7 @@ func (p *BaseProcessor) executeQuery(query string) ([]quesma_api.QueryResultRow,
 
 func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any) (map[string]interface{}, any, error) {
 	logger.Debug().Msg("BaseProcessor: Handle")
-	var resp []byte
+	var resp any
 	for _, msg := range messages {
 		executionPlan, err := p.QueryTransformationPipeline.ParseQuery(msg)
 		if err != nil {
@@ -74,7 +74,7 @@ func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any)
 		}
 		// Transform the results
 		transformedResults := p.QueryTransformationPipeline.TransformResults(results)
-		resp = append(resp, []byte("qqq->")...)
+		resp = p.QueryTransformationPipeline.ComposeResult(transformedResults)
 		messages = append(messages, transformedResults)
 	}
 
