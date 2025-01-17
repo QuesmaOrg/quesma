@@ -4,9 +4,13 @@
 package es_to_ch_common
 
 import (
-	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/ucarion/urlpath"
 	"net/http"
+	quesma_api "quesma_v2/core"
 )
 
 // Shared code for Elasticsearch to Clickhouse Query/Ingest processors
@@ -77,5 +81,33 @@ func GetParamFromRequestURI(request *http.Request, path string, param string) st
 		return ""
 	} else {
 		return match.Params[param]
+	}
+}
+
+// LegacyQuesmaDependencies is a struct that holds dependencies for Quesma MVP processors
+type LegacyQuesmaDependencies struct {
+	quesma_api.DependenciesImpl
+	ConnectionPool      quesma_api.BackendConnector
+	VirtualTableStorage persistence.ElasticJSONDatabase
+	TableDiscovery      clickhouse.TableDiscovery
+	SchemaRegistry      schema.Registry
+	TableResolver       table_resolver.TableResolver
+}
+
+func NewLegacyQuesmaDependencies(
+	baseDependencies quesma_api.DependenciesImpl,
+	connectionPool quesma_api.BackendConnector,
+	virtualTableStorage persistence.ElasticJSONDatabase,
+	tableDiscovery clickhouse.TableDiscovery,
+	schemaRegistry schema.Registry,
+	tableResolver table_resolver.TableResolver,
+) *LegacyQuesmaDependencies {
+	return &LegacyQuesmaDependencies{
+		ConnectionPool:      connectionPool,
+		DependenciesImpl:    baseDependencies,
+		VirtualTableStorage: virtualTableStorage,
+		TableDiscovery:      tableDiscovery,
+		SchemaRegistry:      schemaRegistry,
+		TableResolver:       tableResolver,
 	}
 }

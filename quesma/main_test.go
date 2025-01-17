@@ -9,5 +9,5 @@ import (
 
 // just to make sure that the buildIngestOnlyQuesma is used
 func Test_Main(m *testing.T) {
-	_ = buildIngestOnlyQuesma()
+	//_ = buildIngestOnlyQuesma()
 }

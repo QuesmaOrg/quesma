@@ -68,7 +68,7 @@ type (
 )
 
 func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor,
-	ingestStatsEnabled bool, esBackendConn *backend_connectors.ElasticsearchBackendConnector, phoneHomeAgent diag.PhoneHomeClient, tableResolver table_resolver.TableResolver) (results []BulkItem, err error) {
+	ingestStatsEnabled bool, esBackendConn *backend_connectors.ElasticsearchBackendConnector, phoneHomeClient diag.PhoneHomeClient, tableResolver table_resolver.TableResolver) (results []BulkItem, err error) {
 	defer recovery.LogPanic()
 
 	bulkSize := len(bulk) / 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
@@ -104,7 +104,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 	}
 
 	if ip != nil {
-		sendToClickhouse(ctx, clickhouseDocumentsToInsert, phoneHomeAgent, ingestStatsEnabled, ip)
+		sendToClickhouse(ctx, clickhouseDocumentsToInsert, phoneHomeClient, ingestStatsEnabled, ip)
 	}
 
 	return results, nil
@@ -255,9 +255,9 @@ func sendToElastic(elasticRequestBody []byte, esBackendConn *backend_connectors.
 	return nil
 }
 
-func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, phoneHomeAgent diag.PhoneHomeClient, ingestStatsEnabled bool, ip *ingest.IngestProcessor) {
+func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, emptyPhoneHomeClient diag.PhoneHomeClient, ingestStatsEnabled bool, ip *ingest.IngestProcessor) {
 	for indexName, documents := range clickhouseDocumentsToInsert {
-		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
+		emptyPhoneHomeClient.IngestCounters().Add(indexName, int64(len(documents)))
 
 		for _, document := range documents {
 			stats.GlobalStatistics.Process(ingestStatsEnabled, indexName, document.document, clickhouse.NestedSeparator)

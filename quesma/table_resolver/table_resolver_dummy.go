@@ -4,15 +4,18 @@
 package table_resolver
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 
 // DummyTableResolver is a dummy implementation of TableResolver to satisfy the QueryRunner and make it be compatible with the v2 api
 // thanks to this we can reuse the existing QueryRunner implementation without any changes.
-type DummyTableResolver struct{}
+type DummyTableResolver struct {
+	cfg *config.QuesmaProcessorConfig
+}
 
-func NewDummyTableResolver() *DummyTableResolver {
-	return &DummyTableResolver{}
+func NewDummyTableResolver(cfg *config.QuesmaProcessorConfig) *DummyTableResolver {
+	return &DummyTableResolver{cfg: cfg}
 }
 
 func (t DummyTableResolver) Start() {}
@@ -20,16 +23,24 @@ func (t DummyTableResolver) Start() {}
 func (t DummyTableResolver) Stop() {}
 
 func (t DummyTableResolver) Resolve(_ string, indexPattern string) *mux.Decision {
-	return &mux.Decision{
-		UseConnectors: []mux.ConnectorDecision{
-			&mux.ConnectorDecisionClickhouse{
-				ClickhouseTableName: indexPattern,
-				ClickhouseIndexes:   []string{indexPattern}, // TODO this won't work for 'common table' feature
-				//IsCommonTable: false,
+	_, ok := t.cfg.IndexConfig[indexPattern] // TODO: if index doens't exist in config - route to Elasticsearch (just for now)
+	if !ok {
+		return &mux.Decision{
+			UseConnectors: []mux.ConnectorDecision{
+				&mux.ConnectorDecisionElastic{},
 			},
-		},
+		}
+	} else {
+		return &mux.Decision{
+			UseConnectors: []mux.ConnectorDecision{
+				&mux.ConnectorDecisionClickhouse{
+					ClickhouseTableName: indexPattern,
+					ClickhouseIndexes:   []string{indexPattern}, // TODO this won't work for 'common table' feature
+					//IsCommonTable: false,
+				},
+			},
+		}
 	}
-
 }
 
 func (t DummyTableResolver) Pipelines() []string { return []string{} }
