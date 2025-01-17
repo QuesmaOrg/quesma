@@ -11,10 +11,10 @@ import (
 // DummyTableResolver is a dummy implementation of TableResolver to satisfy the QueryRunner and make it be compatible with the v2 api
 // thanks to this we can reuse the existing QueryRunner implementation without any changes.
 type DummyTableResolver struct {
-	cfg *config.QuesmaProcessorConfig
+	cfg config.IndicesConfigs
 }
 
-func NewDummyTableResolver(cfg *config.QuesmaProcessorConfig) *DummyTableResolver {
+func NewDummyTableResolver(cfg config.IndicesConfigs) *DummyTableResolver {
 	return &DummyTableResolver{cfg: cfg}
 }
 
@@ -23,7 +23,7 @@ func (t DummyTableResolver) Start() {}
 func (t DummyTableResolver) Stop() {}
 
 func (t DummyTableResolver) Resolve(_ string, indexPattern string) *mux.Decision {
-	_, ok := t.cfg.IndexConfig[indexPattern] // TODO: if index doens't exist in config - route to Elasticsearch (just for now)
+	_, ok := t.cfg[indexPattern] // TODO: if index doens't exist in config - route to Elasticsearch (just for now)
 	if !ok {
 		return &mux.Decision{
 			UseConnectors: []mux.ConnectorDecision{

@@ -5,7 +5,9 @@ package es_to_ch_common
 
 import (
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
@@ -87,6 +89,7 @@ func GetParamFromRequestURI(request *http.Request, path string, param string) st
 // LegacyQuesmaDependencies is a struct that holds dependencies for Quesma MVP processors
 type LegacyQuesmaDependencies struct {
 	quesma_api.DependenciesImpl
+	OldQuesmaConfig     *config.QuesmaConfiguration
 	ConnectionPool      quesma_api.BackendConnector
 	VirtualTableStorage persistence.ElasticJSONDatabase
 	TableDiscovery      clickhouse.TableDiscovery
@@ -96,6 +99,7 @@ type LegacyQuesmaDependencies struct {
 
 func NewLegacyQuesmaDependencies(
 	baseDependencies quesma_api.DependenciesImpl,
+	oldQuesmaConfig *config.QuesmaConfiguration,
 	connectionPool quesma_api.BackendConnector,
 	virtualTableStorage persistence.ElasticJSONDatabase,
 	tableDiscovery clickhouse.TableDiscovery,
@@ -103,11 +107,23 @@ func NewLegacyQuesmaDependencies(
 	tableResolver table_resolver.TableResolver,
 ) *LegacyQuesmaDependencies {
 	return &LegacyQuesmaDependencies{
-		ConnectionPool:      connectionPool,
 		DependenciesImpl:    baseDependencies,
+		OldQuesmaConfig:     oldQuesmaConfig,
+		ConnectionPool:      connectionPool,
 		VirtualTableStorage: virtualTableStorage,
 		TableDiscovery:      tableDiscovery,
 		SchemaRegistry:      schemaRegistry,
 		TableResolver:       tableResolver,
 	}
+}
+
+func InitializeLegacyQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, oldQuesmaConfig *config.QuesmaConfiguration) *LegacyQuesmaDependencies {
+	connectionPool := clickhouse.InitDBConnectionPool(oldQuesmaConfig)
+	virtualTableStorage := persistence.NewElasticJSONDatabase(oldQuesmaConfig.Elasticsearch, common_table.VirtualTableElasticIndexName)
+	tableDisco := clickhouse.NewTableDiscovery(oldQuesmaConfig, connectionPool, virtualTableStorage)
+	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
+	schemaRegistry.Start()
+	dummyTableResolver := table_resolver.NewDummyTableResolver(oldQuesmaConfig.IndexConfig)
+	legacyDependencies := NewLegacyQuesmaDependencies(*baseDeps, oldQuesmaConfig, connectionPool, *virtualTableStorage, tableDisco, schemaRegistry, dummyTableResolver)
+	return legacyDependencies
 }

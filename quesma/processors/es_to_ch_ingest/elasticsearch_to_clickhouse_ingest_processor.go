@@ -74,11 +74,8 @@ func (p *ElasticsearchToClickHouseIngestProcessor) GetSchemaRegistry() schema.Re
 // which uses `quesma_api.BackendConnector` instead of `*sql.DB` for the database connection.
 func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor() *ingest.IngestProcessor {
 
-	oldQuesmaConfig := &config.QuesmaConfiguration{
-		IndexConfig: p.config.IndexConfig,
-	}
-
-	ip := ingest.NewIngestProcessor(oldQuesmaConfig,
+	ip := ingest.NewIngestProcessor(
+		p.legacyDependencies.OldQuesmaConfig,
 		p.legacyDependencies.ConnectionPool,
 		p.legacyDependencies.PhoneHomeAgent(),
 		p.legacyDependencies.TableDiscovery,

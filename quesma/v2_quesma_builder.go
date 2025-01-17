@@ -5,16 +5,11 @@ package main
 
 import (
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
-	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
-	"github.com/QuesmaOrg/quesma/quesma/common_table"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
-	"github.com/QuesmaOrg/quesma/quesma/persistence"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_ingest"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_query"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
-	"github.com/QuesmaOrg/quesma/quesma/schema"
-	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"log"
 	"net/url"
@@ -63,15 +58,7 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 		Elasticsearch: config.ElasticsearchConfiguration{Url: (*config.Url)(&url.URL{Scheme: "http", Host: "localhost:9200"})},
 	}
 
-	// LEGACY QUESMA DEPENDENCIES
-	connectionPool := clickhouse.InitDBConnectionPool(oldQuesmaConfig)
-	virtualTableStorage := persistence.NewElasticJSONDatabase(elasticsearchBackendCfg, common_table.VirtualTableElasticIndexName)
-	tableDisco := clickhouse.NewTableDiscovery(oldQuesmaConfig, connectionPool, virtualTableStorage)
-	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
-	schemaRegistry.Start()
-	dummyTableResolver := table_resolver.NewDummyTableResolver(&processorConfig)
-	legacyDependencies := es_to_ch_common.NewLegacyQuesmaDependencies(*deps, connectionPool, *virtualTableStorage, tableDisco, schemaRegistry, dummyTableResolver)
-	// END OF LEGACY QUESMA DEPENDENCIES
+	legacyDependencies := es_to_ch_common.InitializeLegacyQuesmaDependencies(deps, oldQuesmaConfig)
 
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(legacyDependencies)
 
