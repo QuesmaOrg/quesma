@@ -8,9 +8,9 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/ucarion/urlpath"
 	"net/http"
-	quesma_api "quesma_v2/core"
 )
 
 // Shared code for Elasticsearch to Clickhouse Query/Ingest processors

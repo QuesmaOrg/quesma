@@ -17,10 +17,10 @@ import (
 	quesm "github.com/QuesmaOrg/quesma/quesma/quesma"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"io"
 	"net/http"
-	"quesma_v2/core"
-	"quesma_v2/core/tracing"
 	"strings"
 	"time"
 )

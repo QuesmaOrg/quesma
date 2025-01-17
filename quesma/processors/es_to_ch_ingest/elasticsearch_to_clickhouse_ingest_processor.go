@@ -22,7 +22,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
-	"quesma_v2/core"
 )
 
 type ElasticsearchToClickHouseIngestProcessor struct {

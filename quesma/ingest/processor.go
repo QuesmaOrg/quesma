@@ -840,7 +840,7 @@ func subtractInputJson(inputDoc types.JSON, anotherDoc types.JSON) types.JSON {
 // This function executes query with context
 // and creates span for it
 func (ip *IngestProcessor) execute(ctx context.Context, query string) error {
-	//span := ip.phoneHomeAgent.ClickHouseInsertDuration().Begin()
+	span := ip.phoneHomeClient.ClickHouseInsertDuration().Begin()
 
 	// We log every DDL query
 	if ip.cfg.Logging.EnableSQLTracing {
@@ -850,7 +850,7 @@ func (ip *IngestProcessor) execute(ctx context.Context, query string) error {
 	}
 
 	err := ip.chDb.Exec(ctx, query)
-	//span.End(err)
+	span.End(err)
 	return err
 }
 

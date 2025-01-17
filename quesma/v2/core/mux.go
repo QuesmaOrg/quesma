@@ -111,7 +111,7 @@ func (p *PathRouter) Matches(req *Request) (*HandlersPipe, *Decision) {
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (*HandlersPipe, *Decision) {
+func (p *PathRouter) findHandler(req *Request) (handler *HandlersPipe, decision *Decision) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
 		meta, pathMatches := m.compiledPath.Match(path)
