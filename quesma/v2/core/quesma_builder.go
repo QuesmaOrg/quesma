@@ -142,7 +142,7 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 						if info.pipelineIndex == pipelineIndex && info.connIndex == connIndex {
 							continue
 						}
-						quesma.dependencies.Logger().Info().Msgf("Sharing frontend connector %v with %v", sharedFc.InstanceName(), conn.InstanceName())
+						quesma.dependencies.Logger().Info().Msgf("Sharing frontend connector %p with %p", sharedFc, pipeline.GetFrontendConnectors()[connIndex])
 						pipeline.GetFrontendConnectors()[connIndex] = sharedFc
 					}
 				}
