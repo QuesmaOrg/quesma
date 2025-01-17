@@ -4,14 +4,19 @@
 package backend_connectors
 
 import (
-	"context"
+	"database/sql"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
-	"github.com/jackc/pgx/v4"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type PostgresBackendConnector struct {
-	Endpoint   string
-	connection *pgx.Conn
+	BasicSqlBackendConnector
+	Endpoint string
+}
+
+func (p *PostgresBackendConnector) InstanceName() string {
+	return "postgresql"
 }
 
 func (p *PostgresBackendConnector) GetId() quesma_api.BackendConnectorType {
@@ -19,63 +24,16 @@ func (p *PostgresBackendConnector) GetId() quesma_api.BackendConnectorType {
 }
 
 func (p *PostgresBackendConnector) Open() error {
-	conn, err := pgx.Connect(context.Background(), p.Endpoint)
+	// Note: pgx library also has its own custom interface (pgx.Connect), which is not compatible
+	// with the standard sql.DB interface, but has more features and is more efficient.
+	conn, err := sql.Open("pgx", p.Endpoint)
+	if err != nil {
+		return err
+	}
+	err = conn.Ping()
 	if err != nil {
 		return err
 	}
 	p.connection = conn
 	return nil
-}
-
-func (p *PostgresBackendConnector) Close() error {
-	if p.connection == nil {
-		return nil
-	}
-	return p.connection.Close(context.Background())
-}
-
-func (p *PostgresBackendConnector) Query(ctx context.Context, query string, args ...interface{}) (quesma_api.Rows, error) {
-	pgRows, err := p.connection.Query(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	return &PgRows{rows: pgRows}, nil
-}
-
-func (p *PostgresBackendConnector) QueryRow(ctx context.Context, query string, args ...interface{}) quesma_api.Row {
-	return p.connection.QueryRow(ctx, query, args...)
-}
-
-func (p *PostgresBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
-	if len(args) == 0 {
-		_, err := p.connection.Exec(ctx, query)
-		return err
-	}
-	_, err := p.connection.Exec(ctx, query, args...)
-	return err
-}
-
-func (p *PostgresBackendConnector) Stats() quesma_api.DBStats {
-	return quesma_api.DBStats{}
-}
-
-type PgRows struct {
-	rows pgx.Rows
-}
-
-func (p *PgRows) Next() bool {
-	return p.rows.Next()
-}
-
-func (p *PgRows) Scan(dest ...interface{}) error {
-	return p.rows.Scan(dest...)
-}
-
-func (p *PgRows) Close() error {
-	p.rows.Close()
-	return nil
-}
-
-func (p *PgRows) Err() error {
-	return p.rows.Err()
 }
