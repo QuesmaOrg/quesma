@@ -332,9 +332,14 @@ type QueryComplexProcessor struct {
 }
 
 func NewQueryComplexProcessor() *QueryComplexProcessor {
+	queryTransformationPipe := NewQueryTransformationPipeline()
+	queryTransformationPipe.AddTransformer(NewQueryTransformer1())
+	baseProcessor := processors.NewBaseProcessor()
+	baseProcessor.QueryTransformationPipeline = queryTransformationPipe
 	return &QueryComplexProcessor{
-		BaseProcessor: processors.NewBaseProcessor(),
+		BaseProcessor: baseProcessor,
 	}
+
 }
 
 func (p *QueryComplexProcessor) InstanceName() string {
@@ -355,24 +360,24 @@ func NewQueryTransformationPipeline() *QueryTransformationPipeline {
 	}
 }
 
-func (p *QueryTransformationPipeline) ParseQuery(message any) (*quesma_api.ExecutionPlan, error) {
+func (p *QueryTransformationPipeline) ParseQuery(message any) (*processors.ExecutionPlan, error) {
 	_, err := quesma_api.CheckedCast[*http.Request](message)
 	if err != nil {
 		panic("QueryProcessor: invalid message type")
 	}
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: ParseQuery")
-	plan := &quesma_api.ExecutionPlan{}
+	plan := &processors.ExecutionPlan{}
 	query := "SELECT * FROM users"
-	plan.Queries = append(plan.Queries, &quesma_api.Query{Query: query})
+	plan.Queries = append(plan.Queries, &processors.Query{Query: query})
 	return plan, nil
 }
 
-func (p *QueryTransformationPipeline) TransformResults(results [][]quesma_api.QueryResultRow) [][]quesma_api.QueryResultRow {
+func (p *QueryTransformationPipeline) TransformResults(results [][]processors.QueryResultRow) [][]processors.QueryResultRow {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: TransformResults")
 	return results
 }
 
-func (p *QueryTransformationPipeline) ComposeResult(results [][]quesma_api.QueryResultRow) any {
+func (p *QueryTransformationPipeline) ComposeResult(results [][]processors.QueryResultRow) any {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: ComposeResults")
 	var resp []byte
 	resp = append(resp, []byte("qqq->")...)
@@ -382,7 +387,7 @@ func (p *QueryTransformationPipeline) ComposeResult(results [][]quesma_api.Query
 type QueryTransformer1 struct {
 }
 
-func (p *QueryTransformer1) Transform(queries []*quesma_api.Query) ([]*quesma_api.Query, error) {
+func (p *QueryTransformer1) Transform(queries []*processors.Query) ([]*processors.Query, error) {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: Transform")
 	// Do basic transformation
 	for _, query := range queries {

@@ -137,9 +137,6 @@ func full_workflow_scenario() quesma_api.QuesmaBuilder {
 	queryPipeline.AddFrontendConnector(queryFrontendConnector)
 	var queryProcessor quesma_api.Processor = NewQueryComplexProcessor()
 
-	queryTransformationPipe := NewQueryTransformationPipeline()
-	queryTransformationPipe.AddTransformer(NewQueryTransformer1())
-	queryProcessor.RegisterTransformationPipeline(queryTransformationPipe)
 	queryPipeline.AddProcessor(queryProcessor)
 	quesmaBuilder.AddPipeline(queryPipeline)
 

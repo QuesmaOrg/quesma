@@ -8,10 +8,61 @@ import (
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 
+// Query This is placeholder
+// Concrete definition will be taken
+// from `quesma/model/query.go`
+type Query struct {
+	Query string
+}
+
+// ExecutionPlan This is placeholder
+// Concrete definition will be taken
+// from `quesma/model/query.go`
+type ExecutionPlan struct {
+	Queries []*Query
+}
+
+// QueryResultTransformer This is a copy of the
+// interface `ResultTransformer` from `quesma/model/transformers.go`
+// from `quesma/model/transformers.go`
+type QueryResultTransformer interface {
+	TransformResults(results [][]QueryResultRow) [][]QueryResultRow
+}
+
+// QueryTransformer This is a copy of the
+// interface `QueryTransformer` from `quesma/model/transformers.go`
+// from `quesma/model/transformers.go`
+type QueryTransformer interface {
+	Transform(query []*Query) ([]*Query, error)
+}
+
+// QueryTransformationPipeline is the interface that parsing and composing
+// `QueryTransformer` and `QueryResultTransformer`
+// and makes body of BaseProcessor::Handle() method
+type QueryTransformationPipeline interface {
+	QueryTransformer
+	QueryResultTransformer
+	ParseQuery(message any) (*ExecutionPlan, error)
+	ComposeResult(results [][]QueryResultRow) any
+	AddTransformer(transformer QueryTransformer)
+	GetTransformers() []QueryTransformer
+}
+
+// QueryResultRow This is a copy of the
+// struct `QueryResultRow` from `quesma/model/query.go`
+// and something that we should unify
+type QueryResultRow struct {
+}
+
+// QueryExecutor is the interface that wraps the ExecuteQuery method.
+type QueryExecutor interface {
+	ExecuteQuery(query string) ([]QueryResultRow, error)
+}
+
 type BaseProcessor struct {
 	InnerProcessors             []quesma_api.Processor
 	BackendConnectors           map[quesma_api.BackendConnectorType]quesma_api.BackendConnector
-	QueryTransformationPipeline quesma_api.QueryTransformationPipeline
+	QueryTransformationPipeline QueryTransformationPipeline
 }
 
 func NewBaseProcessor() BaseProcessor {
@@ -48,7 +99,7 @@ func (p *BaseProcessor) GetSupportedBackendConnectors() []quesma_api.BackendConn
 	return []quesma_api.BackendConnectorType{quesma_api.NoopBackend}
 }
 
-func (p *BaseProcessor) executeQuery(query string) ([]quesma_api.QueryResultRow, error) {
+func (p *BaseProcessor) executeQuery(query string) ([]QueryResultRow, error) {
 	logger.Debug().Msgf("BaseProcessor: executeQuery:%s", query)
 	// This will be forwarded to the query execution engine
 	return nil, nil
@@ -67,7 +118,7 @@ func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any)
 			logger.Error().Err(err).Msg("Error transforming queries")
 		}
 		// Execute the queries
-		var results [][]quesma_api.QueryResultRow
+		var results [][]QueryResultRow
 		for _, query := range queries {
 			result, _ := p.executeQuery(query.Query)
 			results = append(results, result)
@@ -80,6 +131,6 @@ func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any)
 	return metadata, resp, nil
 }
 
-func (p *BaseProcessor) RegisterTransformationPipeline(pipeline quesma_api.QueryTransformationPipeline) {
+func (p *BaseProcessor) RegisterTransformationPipeline(pipeline QueryTransformationPipeline) {
 	p.QueryTransformationPipeline = pipeline
 }
