@@ -68,6 +68,7 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 	virtualTableStorage := persistence.NewElasticJSONDatabase(elasticsearchBackendCfg, common_table.VirtualTableElasticIndexName)
 	tableDisco := clickhouse.NewTableDiscovery(oldQuesmaConfig, connectionPool, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
+	schemaRegistry.Start()
 	dummyTableResolver := table_resolver.NewDummyTableResolver(&processorConfig)
 	legacyDependencies := es_to_ch_common.NewLegacyQuesmaDependencies(*deps, connectionPool, *virtualTableStorage, tableDisco, schemaRegistry, dummyTableResolver)
 	// END OF LEGACY QUESMA DEPENDENCIES
