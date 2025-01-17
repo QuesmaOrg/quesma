@@ -117,15 +117,16 @@ func (p *PathRouter) findHandler(req *Request) (handler *HandlersPipe, decision 
 		meta, pathMatches := m.compiledPath.Match(path)
 		req.Params = meta.Params // this is dodgy and we should stop doing it
 		predicateMatchResult := m.predicate.Matches(req)
-		decision = predicateMatchResult.Decision
 		if pathMatches && predicateMatchResult.Matched {
+			decision = predicateMatchResult.Decision
 			handler = m.handler
-			//decision = predicateMatchResult.Decision
 			break
+		} else if pathMatches { // index can be disabled in config, in that case `predicateMatchResult.Matched == false`
+			decision = predicateMatchResult.Decision
 		}
+
 	}
 	return handler, decision
-
 }
 
 type httpMethodPredicate struct {
