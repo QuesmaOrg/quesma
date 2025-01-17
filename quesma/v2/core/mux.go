@@ -117,9 +117,10 @@ func (p *PathRouter) findHandler(req *Request) (handler *HandlersPipe, decision 
 		meta, pathMatches := m.compiledPath.Match(path)
 		req.Params = meta.Params // this is dodgy and we should stop doing it
 		predicateMatchResult := m.predicate.Matches(req)
+		decision = predicateMatchResult.Decision
 		if pathMatches && predicateMatchResult.Matched {
 			handler = m.handler
-			decision = predicateMatchResult.Decision
+			//decision = predicateMatchResult.Decision
 			break
 		}
 	}
