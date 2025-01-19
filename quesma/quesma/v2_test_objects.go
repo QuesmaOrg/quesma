@@ -6,6 +6,7 @@ package quesma
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
@@ -324,4 +325,77 @@ func (p *QueryProcessor) Handle(metadata map[string]interface{}, message ...any)
 		panic("QueryProcessor: invalid message type")
 	}
 	return metadata, request, nil
+}
+
+type QueryComplexProcessor struct {
+	processors.BaseProcessor
+}
+
+func NewQueryComplexProcessor() *QueryComplexProcessor {
+	queryTransformationPipe := NewQueryTransformationPipeline()
+	queryTransformationPipe.AddTransformer(NewQueryTransformer1())
+	baseProcessor := processors.NewBaseProcessor()
+	baseProcessor.QueryTransformationPipeline = queryTransformationPipe
+	return &QueryComplexProcessor{
+		BaseProcessor: baseProcessor,
+	}
+
+}
+
+func (p *QueryComplexProcessor) InstanceName() string {
+	return "QueryProcessor" // TODO return name from config
+}
+
+func (p *QueryComplexProcessor) GetId() string {
+	return "QueryProcessor"
+}
+
+type QueryTransformationPipeline struct {
+	*processors.BasicQueryTransformationPipeline
+}
+
+func NewQueryTransformationPipeline() *QueryTransformationPipeline {
+	return &QueryTransformationPipeline{
+		BasicQueryTransformationPipeline: processors.NewBasicQueryTransformationPipeline(),
+	}
+}
+
+func (p *QueryTransformationPipeline) ParseQuery(message any) (*processors.ExecutionPlan, error) {
+	_, err := quesma_api.CheckedCast[*http.Request](message)
+	if err != nil {
+		panic("QueryProcessor: invalid message type")
+	}
+	logger.Debug().Msg("SimpleQueryTransformationPipeline: ParseQuery")
+	plan := &processors.ExecutionPlan{}
+	query := "SELECT * FROM users"
+	plan.Queries = append(plan.Queries, &processors.Query{Query: query})
+	return plan, nil
+}
+
+func (p *QueryTransformationPipeline) TransformResults(results [][]processors.QueryResultRow) [][]processors.QueryResultRow {
+	logger.Debug().Msg("SimpleQueryTransformationPipeline: TransformResults")
+	return results
+}
+
+func (p *QueryTransformationPipeline) ComposeResult(results [][]processors.QueryResultRow) any {
+	logger.Debug().Msg("SimpleQueryTransformationPipeline: ComposeResults")
+	var resp []byte
+	resp = append(resp, []byte("qqq->")...)
+	return resp
+}
+
+type QueryTransformer1 struct {
+}
+
+func (p *QueryTransformer1) Transform(queries []*processors.Query) ([]*processors.Query, error) {
+	logger.Debug().Msg("SimpleQueryTransformationPipeline: Transform")
+	// Do basic transformation
+	for _, query := range queries {
+		query.Query += " WHERE id = 1"
+	}
+	return queries, nil
+}
+
+func NewQueryTransformer1() *QueryTransformer1 {
+	return &QueryTransformer1{}
 }
