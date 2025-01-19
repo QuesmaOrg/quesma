@@ -163,9 +163,15 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 	)
 
 	var didWeAddMissing, didWeUpdateFieldHere bool
-	field := cw.parseFieldField(params, aggrName)
-	field, didWeAddMissing = cw.addMissingParameterIfPresent(field, params)
-	field, didWeUpdateFieldHere = terms.UpdateFieldForIncludeAndExclude(field)
+	field, isFromScript := cw.parseFieldFieldMaybeScript(params, aggrName)
+	fmt.Println(params, isFromScript)
+	if !isFromScript {
+		fmt.Println(field)
+		field, didWeAddMissing = cw.addMissingParameterIfPresent(field, params)
+		fmt.Println(field)
+		field, didWeUpdateFieldHere = terms.UpdateFieldForIncludeAndExclude(field)
+		fmt.Println(field)
+	}
 
 	// If we updated above, we change our select to if(condition, field, NULL), so we also need to filter out those NULLs later
 	if !didWeAddMissing || didWeUpdateFieldHere {

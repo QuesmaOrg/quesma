@@ -171,7 +171,7 @@ func (query Terms) UpdateFieldForIncludeAndExclude(field model.Expr) (updatedFie
 // TODO add bad requests to tests
 // Doing so will ensure we see 100% of what we're interested in in our logs (now we see ~95%)
 func CheckParamsTerms(ctx context.Context, paramsRaw any) error {
-	requiredParams := map[string]string{"field": "string"}
+	eitherRequired := map[string]string{"field": "string", "script": "map"}
 	optionalParams := map[string]string{
 		"size":                      "float64|string", // TODO should be int|string, will be fixed
 		"shard_size":                "float64",        // TODO should be int, will be fixed
@@ -197,19 +197,25 @@ func CheckParamsTerms(ctx context.Context, paramsRaw any) error {
 	}
 
 	// check if required are present
-	for paramName, paramType := range requiredParams {
-		paramVal, exists := params[paramName]
-		if !exists {
-			return fmt.Errorf("required parameter %s not found in Terms params", paramName)
-		}
-		if reflect.TypeOf(paramVal).Name() != paramType { // TODO I'll make a small rewrite to not use reflect here
-			return fmt.Errorf("required parameter %s is not of type %s, but %T", paramName, paramType, paramVal)
+	nrOfRequired := 0
+	for paramName := range eitherRequired {
+		if _, exists := params[paramName]; exists {
+			nrOfRequired++
 		}
 	}
+	if nrOfRequired != 1 {
+		return fmt.Errorf("expected exactly one of %v in Terms params %v", eitherRequired, params)
+	}
+	if field, exists := params["field"]; exists {
+		if _, isString := field.(string); !isString {
+			return fmt.Errorf("field is not a string, but %T", field)
+		}
+	}
+	// TODO check script's type as well
 
 	// check if only required/optional are present
 	for paramName := range params {
-		if _, isRequired := requiredParams[paramName]; !isRequired {
+		if _, isRequired := eitherRequired[paramName]; !isRequired {
 			wantedType, isOptional := optionalParams[paramName]
 			if !isOptional {
 				return fmt.Errorf("unexpected parameter %s found in Terms params %v", paramName, params)
