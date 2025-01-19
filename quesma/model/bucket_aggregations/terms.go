@@ -210,8 +210,15 @@ func CheckParamsTerms(ctx context.Context, paramsRaw any) error {
 		if _, isString := field.(string); !isString {
 			return fmt.Errorf("field is not a string, but %T", field)
 		}
+	} else {
+		_, hasInclude := params["include"]
+		_, hasExclude := params["exclude"]
+		_, hasMissing := params["missing"]
+		if hasInclude || hasExclude || hasMissing {
+			return fmt.Errorf("field is missing, but include/exclude/missing are present in Terms params %v", params)
+		}
+		// TODO check script's type as well
 	}
-	// TODO check script's type as well
 
 	// check if only required/optional are present
 	for paramName := range params {

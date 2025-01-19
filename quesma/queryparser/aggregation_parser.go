@@ -373,7 +373,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldFromScriptField(queryMap QueryMap
 		return model.NewFunction("toHour", model.NewColumnRef(matches[1])), true
 	}
 
-	// b) TODO (if more such expressions will be needed, not only "a==b") - use painless parser
+	// b) source: "if (doc['field_name_1'].value == doc['field_name_2'].value") { return 1; } else { return 0; }"
 	wantedRegex = regexp.MustCompile(`^if \(doc\['(.*)\.value']\.value == doc\['(.*)\.value'].value\) \{ \n  return 1; \n} else \{ \n  return 0; \n}$`)
 	matches = wantedRegex.FindStringSubmatch(source)
 	if len(matches) == 3 {

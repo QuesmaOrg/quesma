@@ -164,13 +164,12 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 
 	var didWeAddMissing, didWeUpdateFieldHere bool
 	field, isFromScript := cw.parseFieldFieldMaybeScript(params, aggrName)
-	fmt.Println(params, isFromScript)
 	if !isFromScript {
-		fmt.Println(field)
+		// We currently don't support both 'script' and any of ['include', 'exclude', 'missing'] at the same time
+		// as it's not completely obvious how to handle it. Let's wait for a use case.
+		// (we'll see it in logs if it happens, because of CheckParamsTerms above)
 		field, didWeAddMissing = cw.addMissingParameterIfPresent(field, params)
-		fmt.Println(field)
 		field, didWeUpdateFieldHere = terms.UpdateFieldForIncludeAndExclude(field)
-		fmt.Println(field)
 	}
 
 	// If we updated above, we change our select to if(condition, field, NULL), so we also need to filter out those NULLs later
