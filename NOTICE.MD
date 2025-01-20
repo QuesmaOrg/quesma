@@ -8,11 +8,11 @@ Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/ClickHouse/clickhouse-go/v2
-Version : v2.30.0
-Time    : 2024-10-16T16:02:58Z
+Version : v2.30.1
+Time    : 2025-01-17T19:58:51Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.30.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.30.1/LICENSE:
 
 Copyright 2016-2023 ClickHouse, Inc.
 
@@ -4581,11 +4581,11 @@ either expressed or implied, of the FreeBSD Project.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/docker/docker
-Version : v27.3.0+incompatible
-Time    : 2024-09-18T10:25:38Z
+Version : v27.4.1+incompatible
+Time    : 2024-12-17T12:50:31Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/docker/docker@v27.3.0+incompatible/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/docker/docker@v27.4.1+incompatible/LICENSE:
 
 
                                  Apache License
@@ -13705,11 +13705,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/net
-Version : v0.30.0
-Time    : 2024-10-04T16:20:59Z
+Version : v0.34.0
+Time    : 2025-01-06T16:00:15Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/net@v0.30.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/net@v0.34.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
