@@ -7,16 +7,19 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing/sender"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/common_table"
 	"github.com/QuesmaOrg/quesma/quesma/connectors"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/feature"
+	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/licensing"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/processors"
 	"github.com/QuesmaOrg/quesma/quesma/quesma"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
@@ -25,6 +28,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/telemetry"
 	"github.com/QuesmaOrg/quesma/quesma/tracing"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"log"
 	"os"
 	"os/signal"
@@ -55,6 +59,15 @@ const EnableConcurrencyProfiling = false
 //}
 
 func main() {
+	if false {
+		launchPostgressPassthrough()
+		return
+	}
+	if true {
+		launchTcpPassthrough()
+		return
+	}
+
 	if EnableConcurrencyProfiling {
 		runtime.SetBlockProfileRate(1)
 		runtime.SetMutexProfileFraction(1)
@@ -155,6 +168,52 @@ func main() {
 	tableResolver.Stop()
 	instance.Close(ctx)
 
+}
+
+func launchTcpPassthrough() {
+	var frontendConn = frontend_connectors.NewTCPConnector(":15432")
+	var tcpProcessor quesma_api.Processor = processors.NewTcpPassthroughProcessor()
+	var tcpPostgressHandler = frontend_connectors.TcpPostgresConnectionHandler{}
+	frontendConn.AddConnectionHandler(&tcpPostgressHandler)
+	var postgressPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	postgressPipeline.AddProcessor(tcpProcessor)
+	postgressPipeline.AddFrontendConnector(frontendConn)
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+	backendConn, err := backend_connectors.NewTcpBackendConnector("localhost:5432")
+	if err != nil {
+		panic(err)
+	}
+	postgressPipeline.AddBackendConnector(backendConn)
+	quesmaBuilder.AddPipeline(postgressPipeline)
+	qb, err := quesmaBuilder.Build()
+	if err != nil {
+		panic(err)
+	}
+	qb.Start()
+	stop := make(chan os.Signal, 1)
+	<-stop
+	qb.Stop(context.Background())
+}
+
+func launchPostgressPassthrough() {
+	var frontendConn = frontend_connectors.NewTCPConnector(":15432")
+	var tcpProcessor quesma_api.Processor = processors.NewPostgresPassthroughProcessor()
+	var tcpPostgressHandler = frontend_connectors.TcpPostgresConnectionHandler{}
+	frontendConn.AddConnectionHandler(&tcpPostgressHandler)
+	var postgressPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	postgressPipeline.AddProcessor(tcpProcessor)
+	postgressPipeline.AddFrontendConnector(frontendConn)
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+	postgressPipeline.AddBackendConnector(&backend_connectors.PostgresBackendConnector{Endpoint: "postgresql://localhost:5432/postgres"})
+	quesmaBuilder.AddPipeline(postgressPipeline)
+	qb, err := quesmaBuilder.Build()
+	if err != nil {
+		panic(err)
+	}
+	qb.Start()
+	stop := make(chan os.Signal, 1)
+	<-stop
+	qb.Stop(context.Background())
 }
 
 func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender, indexRegistry table_resolver.TableResolver) *quesma.Quesma {

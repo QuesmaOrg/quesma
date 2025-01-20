@@ -58,6 +58,10 @@ func (t *TCPListener) GetEndpoint() string {
 	return t.Endpoint
 }
 
+func (t *TCPListener) InstanceName() string {
+	return "TCPListener"
+}
+
 func (t *TCPListener) AddConnectionHandler(handler quesma_api.TCPConnectionHandler) {
 	t.handler = handler
 }
