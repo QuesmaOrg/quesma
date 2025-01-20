@@ -187,15 +187,16 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, max
 					return err
 				}
 				elasticRequestBody = append(elasticRequestBody, opBytes...)
-				elasticRequestBody = append(elasticRequestBody, '\r')
+				elasticRequestBody = append(elasticRequestBody, '\n')
 
-				documentBytes, err := document.Bytes()
-				if err != nil {
-					return err
+				if operation != "delete" {
+					documentBytes, err := document.Bytes()
+					if err != nil {
+						return err
+					}
+					elasticRequestBody = append(elasticRequestBody, documentBytes...)
+					elasticRequestBody = append(elasticRequestBody, '\n')
 				}
-				elasticRequestBody = append(elasticRequestBody, documentBytes...)
-				elasticRequestBody = append(elasticRequestBody, '\r')
-
 				elasticBulkEntries = append(elasticBulkEntries, entryWithResponse)
 
 			case *quesma_api.ConnectorDecisionClickhouse:
