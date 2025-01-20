@@ -286,7 +286,6 @@ func TestConfigureRouter(t *testing.T) {
 	defer schemaRegistry.Stop()
 
 	testRouter := ConfigureRouter(cfg, schemaRegistry, &clickhouse.LogManager{}, &ingest.IngestProcessor{}, &ui.QuesmaManagementConsole{}, telemetry.NewPhoneHomeAgent(cfg, nil, ""), &QueryRunner{}, tr, nil)
-
 	tests := []struct {
 		path                string
 		method              string
