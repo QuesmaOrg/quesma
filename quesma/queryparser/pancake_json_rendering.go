@@ -11,7 +11,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/model/metrics_aggregations"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"math/big"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -41,14 +40,16 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 	return
 }
 
-func (p *pancakeJSONRenderer) selectMetricRowsMultipleNames(rows []model.QueryResultRow, metricNames []string) (result []model.QueryResultRow) {
+// selectMetricRowsMultipleNames: exactly like selectMetricRows above, but for multiple metric names.
+func (p *pancakeJSONRenderer) selectMetricRowsMultipleNames(metricNames []string, rows []model.QueryResultRow) (result []model.QueryResultRow) {
 	if len(rows) > 0 {
 		newRow := model.QueryResultRow{Index: rows[0].Index}
 		for _, col := range rows[0].Cols {
-			if slices.ContainsFunc(metricNames, func(name string) bool {
-				return strings.HasPrefix(col.ColName, name)
-			}) {
-				newRow.Cols = append(newRow.Cols, col)
+			for _, name := range metricNames {
+				if strings.HasPrefix(col.ColName, name) {
+					newRow.Cols = append(newRow.Cols, col)
+					break
+				}
 			}
 		}
 		return []model.QueryResultRow{newRow}
@@ -266,8 +267,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		case *metrics_aggregations.TopMetrics, *metrics_aggregations.TopHits:
 			metricRows = p.selectTopHitsRows(metric, rows)
 		case *metrics_aggregations.Rate:
+			// Special, as we need to select also parent date_histogram's values.
+
 			// 2 lines below: e.g. metric__2__year -> aggr__2
-			fmt.Println("metric.InternalNamePrefix(): ", metric, metric.InternalNamePrefix(), metric.internalName)
 			parentHistogramColName := fmt.Sprintf("aggr%s", strings.TrimPrefix(metric.internalName, "metric"))
 			parentHistogramColName = strings.TrimSuffix(parentHistogramColName, metric.name)
 
@@ -277,15 +279,15 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			)
 			rate, _ := metric.queryType.(*metrics_aggregations.Rate)
 			if rate.FieldPresent() {
+				// if we have field, we use it
 				metricValue = metric.InternalNamePrefix()
 			} else {
+				// else: our value is date_histogram's count
 				metricValue = fmt.Sprintf("%scount", parentHistogramColName)
 			}
-			fmt.Println("parentHistogramColName: ", parentHistogramColName)
-			metricRows = p.selectMetricRowsMultipleNames(rows, []string{parentHistogramKey, metricValue})
+			metricRows = p.selectMetricRowsMultipleNames([]string{parentHistogramKey, metricValue}, rows)
 
 		default:
-			fmt.Println("metric.InternalNamePrefix(): ", metric, metric.InternalNamePrefix())
 			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
 		}
 		if metric.name != PancakeTotalCountMetricName {
