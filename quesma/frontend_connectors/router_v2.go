@@ -51,7 +51,10 @@ func responseFromElasticV2(ctx context.Context, elkResponse *http.Response, w ht
 }
 
 func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseWriter, quesmaResponse *quesma_api.Result, zip bool) {
-
+	if quesmaResponse == nil {
+		logger.Error().Msg("responseFromQuesmaV2: quesmaResponse is nil")
+		return
+	}
 	for key, value := range quesmaResponse.Meta {
 		if headerStringValue, ok := value.(string); ok {
 			w.Header().Set(key, headerStringValue)
