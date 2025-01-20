@@ -25,7 +25,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/telemetry"
-	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/routes"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
@@ -542,7 +541,7 @@ func Test_matchedAgainstConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			req := &mux.Request{Params: map[string]string{"index": tt.index}, Body: tt.body}
+			req := &quesma_api.Request{Params: map[string]string{"index": tt.index}, Body: tt.body}
 			res := matchedExactQueryPath(resolver).Matches(req)
 
 			assert.Equalf(t, tt.want, res.Matched, "matchedExactQueryPath(%v), index: %s, desision %s", tt.config, tt.index, res.Decision)
@@ -682,7 +681,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			req := &mux.Request{Params: map[string]string{"index": tt.pattern}, Body: tt.body}
+			req := &quesma_api.Request{Params: map[string]string{"index": tt.pattern}, Body: tt.body}
 			assert.Equalf(t, tt.want, matchedAgainstPattern(resolver).Matches(req).Matched, "matchedAgainstPattern(%v)", tt.configuration)
 		})
 	}
@@ -750,7 +749,7 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			req := &mux.Request{Body: tt.body}
+			req := &quesma_api.Request{Body: tt.body}
 
 			assert.Equalf(t, tt.want, matchedAgainstBulkBody(&tt.config, resolver).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
 		})
@@ -832,7 +831,7 @@ func TestConfigureRouter(t *testing.T) {
 		tt.path = strings.Replace(tt.path, ":id", "quesma_async_absurd_test_id", -1)
 		tt.path = strings.Replace(tt.path, ":index", testIndexName, -1)
 		t.Run(tt.method+"-at-"+tt.path, func(t *testing.T) {
-			req := &mux.Request{Path: tt.path, Method: tt.method}
+			req := &quesma_api.Request{Path: tt.path, Method: tt.method}
 			reqHandler, _ := testRouter.Matches(req)
 			assert.Equal(t, tt.shouldReturnHandler, reqHandler != nil, "Expected route match result for path: %s and method: %s", tt.path, tt.method)
 		})
@@ -846,15 +845,15 @@ func (t TestTableResolver) Start() {}
 
 func (t TestTableResolver) Stop() {}
 
-func (t TestTableResolver) Resolve(_ string, indexPattern string) *mux.Decision {
+func (t TestTableResolver) Resolve(_ string, indexPattern string) *quesma_api.Decision {
 	if indexPattern == testIndexName {
-		return &mux.Decision{
-			UseConnectors: []mux.ConnectorDecision{
-				&mux.ConnectorDecisionClickhouse{},
+		return &quesma_api.Decision{
+			UseConnectors: []quesma_api.ConnectorDecision{
+				&quesma_api.ConnectorDecisionClickhouse{},
 			},
 		}
 	} else {
-		return &mux.Decision{
+		return &quesma_api.Decision{
 			Err:          fmt.Errorf("TestTableResolver err"),
 			Reason:       "TestTableResolver reason",
 			ResolverName: "TestTableResolver",
@@ -864,6 +863,6 @@ func (t TestTableResolver) Resolve(_ string, indexPattern string) *mux.Decision 
 
 func (t TestTableResolver) Pipelines() []string { return []string{} }
 
-func (t TestTableResolver) RecentDecisions() []mux.PatternDecisions {
-	return []mux.PatternDecisions{}
+func (t TestTableResolver) RecentDecisions() []quesma_api.PatternDecisions {
+	return []quesma_api.PatternDecisions{}
 }
