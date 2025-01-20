@@ -108,6 +108,8 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 	}
 
 	// Here we filter out empty results so that final response does not contain empty elements
+	// WARNING: We could have `SplitBulk` returning properly-sized results,
+	//          however at the time of writing this it would've been too much work.
 	nonEmptyResults := make([]BulkItem, 0, len(results))
 	for _, result := range results {
 		if result != (BulkItem{}) {
