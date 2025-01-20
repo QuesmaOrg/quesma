@@ -107,7 +107,14 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 		sendToClickhouse(ctx, clickhouseBulkEntries, phoneHomeClient, ingestStatsEnabled, ip)
 	}
 
-	return results, nil
+	// Here we filter out empty results so that final response does not contain empty elements
+	nonEmptyResults := make([]BulkItem, 0, len(results))
+	for _, result := range results {
+		if result != (BulkItem{}) {
+			nonEmptyResults = append(nonEmptyResults, result)
+		}
+	}
+	return nonEmptyResults, nil
 }
 
 func SplitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, maxBulkSize int, tableResolver table_resolver.TableResolver) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {

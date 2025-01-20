@@ -138,10 +138,10 @@ func TestSplitBulkSampleData(t *testing.T) {
 	}
 	maxBulkSize := len(bulk)
 
-	results, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver)
+	// first returned value here is a result of side effects (writes to ClickHouse and Elasticsearch) so it is not tested here
+	_, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver)
 
 	assert.NoError(t, err)
-	assert.Len(t, results, maxBulkSize)
 	assert.Len(t, clickhouseBulkEntries["kibana_sample_data_ecommerce"], 5)
 	assert.Empty(t, elasticRequestBody)
 	assert.Len(t, elasticBulkEntries, 0)
@@ -158,10 +158,10 @@ func TestSplitBulkDelete(t *testing.T) {
 	}
 	maxBulkSize := len(bulk)
 
-	results, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver)
+	// first returned value here is a result of side effects (writes to ClickHouse and Elasticsearch) so it is not tested here
+	_, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver)
 
 	assert.NoError(t, err)
-	assert.Len(t, results, maxBulkSize)
 	assert.Len(t, clickhouseBulkEntries, 0)
 	assert.NotEmpty(t, elasticRequestBody)
 	assert.Equal(t, deleteOnlyPayload+"\n\n", string(elasticRequestBody))
@@ -186,10 +186,10 @@ func TestSplitBulkUpdatePayload(t *testing.T) {
 	}
 	maxBulkSize := len(bulk)
 
-	results, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver)
+	// first returned value here is a result of side effects (writes to ClickHouse and Elasticsearch) so it is not tested here
+	_, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver)
 
 	assert.NoError(t, err)
-	assert.Len(t, results, maxBulkSize)
 	assert.Len(t, clickhouseBulkEntries, 0)
 	assert.NotEmpty(t, elasticRequestBody)
 	assert.Len(t, elasticBulkEntries, 4)
