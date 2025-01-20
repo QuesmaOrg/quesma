@@ -63,33 +63,59 @@ func (op BulkOperation) GetOperation() string {
 	return ""
 }
 
+// BulkForEach iterates over the NDJSON entries and calls the supplied function for each entry.
 func (n NDJSON) BulkForEach(f func(entryNumber int, operationParsed BulkOperation, operation JSON, doc JSON) error) error {
+	// Example bulk payload, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html#docs-bulk-api-desc
+	// {"delete":{"_index":"my_index","_id":"1"}}
+	// {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
+	for i, j := 0, 0; i < len(n); i++ {
+		actionAndMetadata := n[i]
 
-	for i := 0; i+1 < len(n); i += 2 {
-		operation := n[i]  // {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}
-		document := n[i+1] // {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
+		actionAndMetadataParsed := make(BulkOperation)
+		for opType, opDetails := range actionAndMetadata {
+			if detailsMap, ok := opDetails.(map[string]interface{}); ok {
+				docTarget := DocumentTarget{}
 
-		operationParsed := make(map[string]DocumentTarget)
-
-		for k, v := range operation {
-			d := DocumentTarget{}
-			if op, ok := v.(map[string]interface{}); ok {
-				if index, ok := op["_index"].(string); ok {
-					d.Index = &index
+				if index, ok := detailsMap["_index"].(string); ok {
+					docTarget.Index = &index
+				}
+				if id, ok := detailsMap["_id"].(string); ok {
+					docTarget.Id = &id
 				}
 
-				if id, ok := op["_id"].(string); ok {
-					d.Id = &id
-				}
+				actionAndMetadataParsed[opType] = docTarget
+			} else {
+				return fmt.Errorf("invalid metadata format for operation at index %d: %v", i, actionAndMetadata)
 			}
-
-			operationParsed[k] = d
 		}
 
-		err := f(i/2, operationParsed, operation, document)
-		if err != nil {
-			return err
+		if operationRequiresDocument(actionAndMetadata) {
+			if i+1 >= len(n) {
+				return fmt.Errorf("missing document for metadata at index %d", i)
+			}
+			optionalDocumentSource := n[i+1]
+			err := f(j, actionAndMetadataParsed, actionAndMetadata, optionalDocumentSource)
+			j++
+			if err != nil {
+				return err
+			}
+			i++ // Skip the document line
+		} else { // Call the callback without a document
+			err := f(j, actionAndMetadataParsed, actionAndMetadata, JSON{})
+			j++
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+func operationRequiresDocument(metadata JSON) bool {
+	for opType := range metadata {
+		if opType == "delete" {
+			return false
+		}
+	}
+	return true
 }

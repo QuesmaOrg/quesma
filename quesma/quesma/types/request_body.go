@@ -73,6 +73,8 @@ func ExpectJSON(body quesma_api.RequestBody) (JSON, error) {
 func ExpectNDJSON(body quesma_api.RequestBody) (NDJSON, error) {
 
 	switch b := body.(type) {
+	case JSON:
+		return NDJSON{b}, nil
 	case NDJSON:
 		return b, nil
 	default:

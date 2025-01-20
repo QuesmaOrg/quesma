@@ -45,16 +45,16 @@ const banner = `
 const EnableConcurrencyProfiling = false
 
 // Example of how to use the v2 module api in main function
-//func main() {
-//	q1 := BuildNewQuesma() // Back working on ingest for a while
-//	//q1 := buildQueryOnlyQuesma()
-//	q1.Start()
-//	stop := make(chan os.Signal, 1)
-//	<-stop
-//	q1.Stop(context.Background())
-//}
-
 func main() {
+	q1 := BuildNewQuesma() // Back working on ingest for a while
+	//q1 := buildQueryOnlyQuesma()
+	q1.Start()
+	stop := make(chan os.Signal, 1)
+	<-stop
+	q1.Stop(context.Background())
+}
+
+func main2() {
 	if EnableConcurrencyProfiling {
 		runtime.SetBlockProfileRate(1)
 		runtime.SetMutexProfileFraction(1)
