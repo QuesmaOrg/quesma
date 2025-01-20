@@ -71,7 +71,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 	ingestStatsEnabled bool, esBackendConn *backend_connectors.ElasticsearchBackendConnector, phoneHomeClient diag.PhoneHomeClient, tableResolver table_resolver.TableResolver) (results []BulkItem, err error) {
 	defer recovery.LogPanic()
 
-	maxBulkSize := len(bulk) /// 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
+	maxBulkSize := len(bulk)
 	maybeLogBatchSize(maxBulkSize)
 
 	// The returned results should be in the same order as the input request, however splitting the bulk might change the order.
@@ -334,7 +334,7 @@ func maybeLogBatchSize(batchSize int) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	if _, alreadyLogged := loggedBatchSizes[batchSize]; !alreadyLogged {
-		logger.Info().Msgf("Ingesting via _bulk API, batch size=%d documents", batchSize)
+		logger.Info().Msgf("Ingesting via _bulk API, batch size=%d lines", batchSize)
 		loggedBatchSizes[batchSize] = struct{}{}
 	}
 }
