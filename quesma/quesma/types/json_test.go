@@ -40,6 +40,7 @@ func TestNDJSON_BulkForEach(t *testing.T) {
 
 	input := `{"create":{"_index":"kibana_sample_data_flights", "_id": "1"}}
 {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
+{"delete":{"_id":"task:Dashboard-dashboard_telemetry","_index":".kibana_task_manager_8.11.1"}}
 {"create":{"_index":"kibana_sample_data_flights", "_id": "2"}}
 {"FlightNum":"FOO","DestCountry":"BAR","OriginWeather":"BAZ","OriginCityName":"QUIX" }
 `
@@ -57,6 +58,10 @@ func TestNDJSON_BulkForEach(t *testing.T) {
 			assert.Equal(t, "9HY9SWR", doc["FlightNum"])
 
 		case 1:
+			assert.Equal(t, "delete", operationParsed.GetOperation())
+			assert.Equal(t, ".kibana_task_manager_8.11.1", operationParsed.GetIndex())
+
+		case 2:
 			assert.Equal(t, "create", operationParsed.GetOperation())
 			assert.Equal(t, "kibana_sample_data_flights", operationParsed.GetIndex())
 			assert.Equal(t, "FOO", doc["FlightNum"])
