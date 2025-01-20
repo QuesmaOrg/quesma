@@ -962,7 +962,7 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 				logger.Error().Msgf("error storing virtual table: %v", err)
 			}
 		}
-		ip.tableDiscovery.TableDefinitions().Store(table.Name, table)
+		ip.tableDiscovery.AddTable(table.Name, table)
 		return true
 	}
 	wasntCreated := !t.Created

@@ -11,11 +11,13 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/goccy/go-json"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -34,12 +36,15 @@ func (d DbKind) String() string {
 type TableDiscovery interface {
 	ReloadTableDefinitions()
 	TableDefinitions() *TableMap
+	AddTable(tableName string, table *Table)
 	TableDefinitionsFetchError() error
 
 	LastAccessTime() time.Time
 	LastReloadTime() time.Time
 	ForceReloadCh() <-chan chan<- struct{}
 	AutodiscoveryEnabled() bool
+
+	RegisterTablesReloadListener(ch chan<- types.ReloadMessage)
 }
 
 type tableDiscovery struct {
@@ -51,6 +56,9 @@ type tableDiscovery struct {
 	forceReloadCh                     chan chan<- struct{}
 	ReloadTablesError                 error
 	virtualTableStorage               persistence.JSONDatabase
+
+	reloadObserversMutex sync.Mutex
+	reloadObservers      []chan<- types.ReloadMessage
 }
 
 type columnMetadata struct {
@@ -77,6 +85,10 @@ func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool quesma_api.Ba
 
 type TableDiscoveryTableProviderAdapter struct {
 	TableDiscovery
+}
+
+func (t TableDiscoveryTableProviderAdapter) RegisterTablesReloadListener(ch chan<- types.ReloadMessage) {
+	t.TableDiscovery.RegisterTablesReloadListener(ch)
 }
 
 func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema.Table {
@@ -123,6 +135,31 @@ func NewTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool quesma_ap
 	}
 	result.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 	return result
+}
+
+func (td *tableDiscovery) AddTable(tableName string, table *Table) {
+	td.tableDefinitions.Load().Store(tableName, table)
+	td.notifyObservers()
+}
+
+func (td *tableDiscovery) RegisterTablesReloadListener(ch chan<- types.ReloadMessage) {
+	td.reloadObserversMutex.Lock()
+	defer td.reloadObserversMutex.Unlock()
+	td.reloadObservers = append(td.reloadObservers, ch)
+}
+
+func (td *tableDiscovery) notifyObservers() {
+
+	td.reloadObserversMutex.Lock()
+	defer td.reloadObserversMutex.Unlock()
+
+	msg := types.ReloadMessage{Timestamp: time.Now()}
+	for _, observer := range td.reloadObservers {
+		fmt.Println("Sending message to observer", observer)
+		go func() {
+			observer <- msg
+		}()
+	}
 }
 
 func (td *tableDiscovery) TableDefinitionsFetchError() error {
@@ -178,6 +215,8 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 
 	td.ReloadTablesError = nil
 	td.populateTableDefinitions(configuredTables, databaseName, td.cfg)
+
+	td.notifyObservers()
 }
 
 func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discoveredTable) map[string]discoveredTable {
@@ -609,16 +648,10 @@ func (td *tableDiscovery) tableComment(database, table string) (comment string) 
 }
 
 func (td *tableDiscovery) createTableQuery(database, table string) (ddl string) {
-	rows, err := td.dbConnPool.Query(context.Background(), "SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table)
+	err := td.dbConnPool.QueryRow(context.Background(), "SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&ddl)
 	if err != nil {
-		logger.Error().Msgf("could not get table comment: %v", err)
+		logger.Error().Msgf("could not get create table statement: %v", err)
 	}
-
-	defer rows.Close()
-	if scanErr := rows.Scan(&ddl); scanErr != nil {
-		logger.Debug().Msgf("failed scanning primary key for table %s: %v", table, scanErr)
-	}
-
 	return ddl
 }
 
@@ -632,6 +665,9 @@ func NewEmptyTableDiscovery() *EmptyTableDiscovery {
 	return &EmptyTableDiscovery{
 		TableMap: NewTableMap(),
 	}
+}
+
+func (td *EmptyTableDiscovery) RegisterTablesReloadListener(ch chan<- types.ReloadMessage) {
 }
 
 func (td *EmptyTableDiscovery) ReloadTableDefinitions() {
@@ -659,4 +695,8 @@ func (td *EmptyTableDiscovery) ForceReloadCh() <-chan chan<- struct{} {
 
 func (td *EmptyTableDiscovery) AutodiscoveryEnabled() bool {
 	return td.Autodiscovery
+}
+
+func (td *EmptyTableDiscovery) AddTable(tableName string, table *Table) {
+	td.TableMap.Store(tableName, table)
 }

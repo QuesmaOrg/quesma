@@ -107,6 +107,7 @@ func main() {
 	virtualTableStorage := persistence.NewElasticJSONDatabase(cfg.Elasticsearch, common_table.VirtualTableElasticIndexName)
 	tableDisco := clickhouse.NewTableDiscovery(&cfg, connectionPool, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.SchemaTypeAdapter{})
+	schemaRegistry.Start()
 
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch)
 
@@ -146,6 +147,7 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
+	schemaRegistry.Stop()
 	feature.NotSupportedLogger.Stop()
 	phoneHomeAgent.Stop(ctx)
 	lm.Stop()
@@ -159,7 +161,7 @@ func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscove
 	if cfg.TransparentProxy {
 		return quesma.NewQuesmaTcpProxy(cfg, quesmaManagementConsole, logChan, false)
 	} else {
-		const quesma_v2 = false
+		const quesma_v2 = true
 		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry, quesma_v2)
 	}
 }

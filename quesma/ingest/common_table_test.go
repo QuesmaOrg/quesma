@@ -191,6 +191,8 @@ func TestIngestToCommonTable(t *testing.T) {
 
 			tableDisco := clickhouse.NewTableDiscovery(quesmaConfig, db, virtualTableStorage)
 			schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, quesmaConfig, clickhouse.SchemaTypeAdapter{})
+			schemaRegistry.Start()
+			defer schemaRegistry.Stop()
 
 			resolver := table_resolver.NewEmptyTableResolver()
 
