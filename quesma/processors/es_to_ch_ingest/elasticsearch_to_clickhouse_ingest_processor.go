@@ -164,7 +164,6 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			}
 			return metadata, res, nil
 		case es_to_ch_common.IndexMappingPath:
-			logger.Info().Msgf("[PRZEMYSLAW] PUT MAPPING called %s", indexPatterFromRequestUri)
 			payloadJson, err := types.ExpectJSON(types.ParseRequestBody(string(reqBodyBytes)))
 			if err != nil {
 				return metadata, nil, err
