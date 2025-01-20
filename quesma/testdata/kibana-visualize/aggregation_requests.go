@@ -3652,8 +3652,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  "range_1__aggr__2__count"
 			FROM __quesma_table_name`,
 	},
-	{ // [27]
-		TestName: `Simplest Rate aggregation: only 'unit' present (all possible units).
+	{ // [29]
+		TestName: `Simplest Rate aggregation: only 'unit' present (all possible units), with date_histogram's calendar_interval,
 			You can notice slightly different results in 2 buckets, because of different nr of days in a month`,
 		QueryRequestJson: `
 		{
@@ -3798,7 +3798,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  'Europe/Warsaw'))))*1000 AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
-	{ // [28]
+	{ // [30]
 		TestName: "Rate aggregation: all possible units with date_histogram's fixed_interval ('field' present)",
 		QueryRequestJson: `
 		{
@@ -3872,24 +3872,24 @@ var AggregationTests = []testdata.AggregationTestCase{
 				"2": {
 					"buckets": [
 						{
-							"day": {
-								"value": 5639433.75
-							},
-							"doc_count": 1,
-							"hour": {
-								"value": 234976.40625
-							},
-							"key": 1731584220000,
-							"key_as_string": "2024-11-14T11:37:00.000",
-							"minute": {
-								"value": 3916.2734375
-							},
 							"second": {
 								"value": 65.27122395833334
 							},
+							"minute": {
+								"value": 3916.2734375
+							},
+							"hour": {
+								"value": 234976.40625
+							},
+							"day": {
+								"value": 5639433.75
+							},
 							"week": {
 								"value": 39476036.25
-							}
+							},
+							"key": 1731584220000,
+							"key_as_string": "2024-11-14T11:37:00.000",
+							"doc_count": 1
 						}
 					]
 				}
@@ -3922,7 +3922,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  "timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
-	{ // [29]
+	{ // [31]
 		TestName: "Rate aggregation: all possible units with date_histogram's calendar_interval ('field' present)",
 		QueryRequestJson: `
 		{
@@ -4085,8 +4085,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  'Europe/Warsaw'))))*1000 AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
-	{ // [30]
-		TestName: "Rate aggregation: all possible units with date_histogram's calendar_interval ('field' present)",
+	{ // [32]
+		TestName: "Rate aggregation with some bigger aggregation tree",
 		QueryRequestJson: `
 		{
 			"aggs": {

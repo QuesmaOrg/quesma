@@ -8,7 +8,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/util"
-	"github.com/k0kubun/pp"
 	"reflect"
 	"strings"
 	"time"
@@ -55,7 +54,6 @@ func (query *Rate) AggregationType() model.AggregationType {
 }
 
 func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	fmt.Println(rows)
 	// rows[0] is either: val (1 column)
 	// or parent date_histogram's key, val (2 columns)
 	if len(rows) != 1 || (len(rows[0].Cols) != 1 && len(rows[0].Cols) != 2) {
@@ -63,31 +61,27 @@ func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 		return model.JsonMap{"value": nil}
 	}
 
-	fmt.Println(rows)
 	parentVal, ok := util.ExtractNumeric64Maybe(rows[0].LastColValue())
 	if !ok {
 		logger.WarnWithCtx(query.ctx).Msgf("cannot extract numeric value from %v, %T", rows[0].Cols[0], rows[0].Cols[0].Value)
 		return model.JsonMap{"value": nil}
 	}
 
-	fix := 1.0
+	fix := 1.0 // e.g. 90/88 if there are 88 days in 3 months, but our calculations are based on 90 days
 	thirtyDaysInMs := int64(30 * 24 * 60 * 60 * 1000)
-	pp.Println(query)
-	//
 	needToCountDaysNr := query.parentIntervalInMs%thirtyDaysInMs == 0 &&
 		(query.unit == second || query.unit == minute || query.unit == hour || query.unit == day || query.unit == week)
 	weHaveParentDateHistogramKey := len(rows[0].Cols) == 2
 	if needToCountDaysNr && weHaveParentDateHistogramKey {
-		// we need to count days of every month, as it can be 28, 29, 30 or 31...
-		// for our average to be correct (in Elastic it always is)
-		fmt.Println("parentIntervalInMs", query.parentIntervalInMs/thirtyDaysInMs)
+		// Calculating 'fix':
+		// We need to count days of every month, as it can be 28, 29, 30 or 31...
+		// So that our average is correct (in Elastic it always is)
 		someTime := time.UnixMilli(rows[0].Cols[0].Value.(int64)).Add(48 * time.Hour)
-		fmt.Println("someTime1", someTime)
-		// someTime.Day() is in [28, 31] U {1}. I want it to be 2, so I'm sure I'm in the right month for all timezones.
+		// someTime.Day() is in [28, 31] U {1}. I want it to be >= 2, so I'm sure I'm in the right month for all timezones.
 		for someTime.Day() == 1 || someTime.Day() > 25 {
 			someTime = someTime.Add(24 * time.Hour)
 		}
-		fmt.Println("someTime2", someTime)
+
 		actualDays := 0
 		currentDays := query.parentIntervalInMs / thirtyDaysInMs * 30 // e.g. 90 for 3 months date_histogram
 		currentDaysConst := currentDays
@@ -97,9 +91,7 @@ func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 			someTime = someTime.AddDate(0, -1, 0)
 		}
 		fix = float64(currentDaysConst) / float64(actualDays)
-		fmt.Println("actualDays", actualDays, "currentDays", currentDays, "fix", fix)
 	}
-	fmt.Println(query.multiplier)
 
 	return model.JsonMap{"value": fix * parentVal * query.multiplier}
 }
