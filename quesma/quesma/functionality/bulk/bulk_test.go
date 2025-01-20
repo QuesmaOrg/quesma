@@ -143,7 +143,7 @@ func TestSplitBulkSampleData(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, results, maxBulkSize)
 	assert.Len(t, clickhouseBulkEntries["kibana_sample_data_ecommerce"], 5)
-	assert.Equal(t, []byte{'\n'}, elasticRequestBody)
+	assert.Empty(t, elasticRequestBody)
 	assert.Len(t, elasticBulkEntries, 0)
 }
 

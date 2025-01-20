@@ -218,7 +218,9 @@ func SplitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, max
 
 		return nil
 	})
-	elasticRequestBody = append(elasticRequestBody, '\n')
+	if len(elasticRequestBody) != 0 {
+		elasticRequestBody = append(elasticRequestBody, '\n')
+	}
 	return results, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err
 }
 
