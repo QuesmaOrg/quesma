@@ -328,7 +328,7 @@ func TestSearchCommonTable(t *testing.T) {
 				mock.ExpectQuery(query).WillReturnRows(rows)
 			}
 
-			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
+			queryRunner := NewQueryRunner(lm, quesmaConfig, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
 			queryRunner.maxParallelQueries = 0
 
 			_, err = queryRunner.HandleSearch(ctx, tt.IndexPattern, types.MustJSON(tt.QueryJson))
