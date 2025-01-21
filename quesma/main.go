@@ -18,13 +18,11 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
 	"github.com/QuesmaOrg/quesma/quesma/quesma"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/telemetry"
-	"github.com/QuesmaOrg/quesma/quesma/tracing"
 	"log"
 	"os"
 	"os/signal"
@@ -75,8 +73,6 @@ func main() {
 		log.Fatalf("error validating configuration: %v", err)
 	}
 
-	var asyncQueryTraceLogger *tracing.AsyncTraceLogger
-
 	licenseMod := licensing.Init(&cfg)
 	qmcLogChannel := logger.InitLogger(logger.Configuration{
 		FileLogging:       cfg.Logging.FileLogging,
@@ -84,7 +80,7 @@ func main() {
 		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
 		Level:             *cfg.Logging.Level,
 		ClientId:          licenseMod.License.ClientID,
-	}, sig, doneCh, asyncQueryTraceLogger)
+	}, sig, doneCh)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
 	go func() {
@@ -92,12 +88,6 @@ func main() {
 			logger.Warn().Msg(message)
 		}
 	}()
-
-	if asyncQueryTraceLogger != nil {
-		asyncQueryTraceEvictor := async_search_storage.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
-		asyncQueryTraceEvictor.Start()
-		defer asyncQueryTraceEvictor.Stop()
-	}
 
 	var connectionPool = clickhouse.InitDBConnectionPool(&cfg)
 
