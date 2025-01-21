@@ -6,6 +6,7 @@ package processors
 import (
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"time"
 )
 
 // Query This is placeholder
@@ -42,7 +43,17 @@ type Query struct {
 // Concrete definition will be taken
 // from `quesma/model/query.go`
 type ExecutionPlan struct {
+	Name string
+
+	IndexPattern string
+
 	Queries []*Query
+
+	QueryRowsTransformers []model.QueryRowsTransformer
+
+	// add more fields here
+	// JSON renderers
+	StartTime time.Time
 }
 
 // QueryResultTransformer This is a copy of the
