@@ -134,7 +134,7 @@ func main() {
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 
-	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry, tableResolver) //FIXME no ingest processor here just for now
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry, tableResolver)
 
 	abTestingController := sender.NewSenderCoordinator(&cfg, ingestProcessor)
 	abTestingController.Start()
