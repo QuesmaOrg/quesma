@@ -3,11 +3,39 @@
 
 package processors
 
+import (
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+)
+
 // Query This is placeholder
 // Concrete definition will be taken
 // from `quesma/model/query.go`
 type Query struct {
-	Query string
+	Query         string
+	SelectCommand model.SelectCommand // The representation of SELECT query
+
+	OptimizeHints         *model.QueryOptimizeHints   // it can be optional
+	TransformationHistory model.TransformationHistory // it can be optional
+
+	Type      model.QueryType
+	TableName string // TODO delete this and use Indexes instead
+
+	Indexes []string // list of indexes we're going to use for this query
+
+	// this is schema for current query, this schema should be used in pipeline processing
+	Schema schema.Schema
+
+	Highlighter model.Highlighter
+	SearchAfter any // Value of query's "search_after" param. Used for pagination of hits. SearchAfterEmpty means no pagination
+
+	RuntimeMappings map[string]model.RuntimeMapping
+
+	// dictionary to add as 'meta' field in the response.
+	// WARNING: it's probably not passed everywhere where it's needed, just in one place.
+	// But it works for the test + our dashboards, so let's fix it later if necessary.
+	// NoMetadataField (nil) is a valid option and means no meta field in the response.
+	Metadata model.JsonMap
 }
 
 // ExecutionPlan This is placeholder

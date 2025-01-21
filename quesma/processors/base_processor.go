@@ -69,7 +69,7 @@ func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any)
 		// Execute the queries
 		var results [][]QueryResultRow
 		for _, query := range queries {
-			result, _ := p.executeQuery(query.Query)
+			result, _ := p.executeQuery(query.SelectCommand.String())
 			results = append(results, result)
 		}
 		// Transform the results
