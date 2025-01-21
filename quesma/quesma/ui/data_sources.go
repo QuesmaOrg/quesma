@@ -3,9 +3,10 @@
 package ui
 
 import (
+	"context"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
 	"slices"
-	"strings"
 )
 
 func (qmc *QuesmaManagementConsole) generateDatasourcesPage() []byte {
@@ -69,11 +70,11 @@ func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
 
 	buffer.Html(`<ul>`)
 
-	qmc.indexManagement.Start()
-	indexNames := []string{}
-	internalIndexNames := []string{}
-	for indexName := range qmc.indexManagement.GetSourceNames() {
-		if strings.HasPrefix(indexName, ".") {
+	var indexNames []string
+	var internalIndexNames []string
+
+	for _, indexName := range qmc.GetElasticSearchIndices(context.Background()) {
+		if elasticsearch.IsInternalIndex(indexName) {
 			internalIndexNames = append(internalIndexNames, indexName)
 		} else {
 			indexNames = append(indexNames, indexName)

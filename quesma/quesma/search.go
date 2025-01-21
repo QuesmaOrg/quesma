@@ -135,7 +135,7 @@ func NewQueryRunnerDefaultForTests(db quesma_api.BackendConnector, cfg *config.Q
 	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tables
 
-	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
+	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
 
 	go managementConsole.RunOnlyChannelProcessor()
 
