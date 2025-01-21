@@ -76,7 +76,6 @@ func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor
 	queryRunner := quesm.NewQueryRunner(logManager,
 		p.legacyDependencies.OldQuesmaConfig,
 		nil,
-		nil,
 		p.legacyDependencies.SchemaRegistry,
 		nil,
 		p.legacyDependencies.TableResolver,

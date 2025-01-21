@@ -32,7 +32,7 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 	}
 
 	processorConfig := config.QuesmaProcessorConfig{
-		UseCommonTable: false,
+		UseCommonTable: true,
 		IndexConfig: map[string]config.IndexConfiguration{
 			"test_index":   {},
 			"test_index_2": {},
@@ -55,7 +55,8 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 		IndexConfig: processorConfig.IndexConfig,
 		ClickHouse:  config.RelationalDbConfiguration{Url: (*config.Url)(&url.URL{Scheme: "clickhouse", Host: "localhost:9000"})},
 		// Elasticsearch section is here only for the phone home agent not to blow up
-		Elasticsearch: config.ElasticsearchConfiguration{Url: (*config.Url)(&url.URL{Scheme: "http", Host: "localhost:9200"})},
+		Elasticsearch:             config.ElasticsearchConfiguration{Url: (*config.Url)(&url.URL{Scheme: "http", Host: "localhost:9200"})},
+		UseCommonTableForWildcard: processorConfig.UseCommonTable,
 	}
 
 	legacyDependencies := es_to_ch_common.InitializeLegacyQuesmaDependencies(deps, oldQuesmaConfig)

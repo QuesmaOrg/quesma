@@ -6,7 +6,6 @@ import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
-	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/proxy"
@@ -58,7 +57,6 @@ func NewQuesmaTcpProxy(config *config.QuesmaConfiguration, quesmaManagementConso
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent,
 	logManager *clickhouse.LogManager, ingestProcessor *ingest.IngestProcessor,
 	schemaLoader clickhouse.TableDiscovery,
-	indexManager elasticsearch.IndexManagement,
 	schemaRegistry schema.Registry, config *config.QuesmaConfiguration,
 	quesmaManagementConsole *ui.QuesmaManagementConsole,
 	abResultsRepository ab_testing.Sender, resolver table_resolver.TableResolver) *Quesma {
@@ -70,7 +68,7 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent,
 
 	return &Quesma{
 		telemetryAgent: phoneHomeAgent,
-		processor: newDualWriteProxyV2(dependencies, schemaLoader, logManager, indexManager,
+		processor: newDualWriteProxyV2(dependencies, schemaLoader, logManager,
 			schemaRegistry, config,
 			ingestProcessor, resolver, abResultsRepository),
 		publicTcpPort:           config.PublicTcpPort,

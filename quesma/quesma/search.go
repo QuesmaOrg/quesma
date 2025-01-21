@@ -49,7 +49,6 @@ type QueryRunner struct {
 	AsyncQueriesContexts async_search_storage.AsyncQueryContextStorage
 	logManager           clickhouse.LogManagerIFace
 	cfg                  *config.QuesmaConfiguration
-	im                   elasticsearch.IndexManagement
 	debugInfoCollector   diag.DebugInfoCollector
 
 	tableDiscovery clickhouse.TableDiscovery
@@ -86,7 +85,6 @@ func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
 
 func NewQueryRunner(lm clickhouse.LogManagerIFace,
 	cfg *config.QuesmaConfiguration,
-	im elasticsearch.IndexManagement,
 	qmc diag.DebugInfoCollector,
 	schemaRegistry schema.Registry,
 	abResultsRepository ab_testing.Sender,
@@ -95,7 +93,7 @@ func NewQueryRunner(lm clickhouse.LogManagerIFace,
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &QueryRunner{logManager: lm, cfg: cfg, im: im, debugInfoCollector: qmc,
+	return &QueryRunner{logManager: lm, cfg: cfg, debugInfoCollector: qmc,
 		executionCtx: ctx, cancel: cancel,
 		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemory(),
 		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
@@ -141,7 +139,7 @@ func NewQueryRunnerDefaultForTests(db quesma_api.BackendConnector, cfg *config.Q
 
 	go managementConsole.RunOnlyChannelProcessor()
 
-	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
+	return NewQueryRunner(lm, cfg, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
 }
 
 // HandleCount returns -1 when table name could not be resolved
