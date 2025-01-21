@@ -481,7 +481,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	var currentSchema schema.Schema
 	resolvedIndexes := clickhouseConnector.ClickhouseIndexes
 
-	if len(resolvedIndexes) == 1 {
+	if !clickhouseConnector.IsCommonTable {
+		if len(resolvedIndexes) < 1 {
+			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load [%s] schema", resolvedIndexes)).Details("Table: [%v]", resolvedIndexes)
+		}
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
 		resolvedTableName := q.cfg.IndexConfig[indexName].TableName(indexName)
 
