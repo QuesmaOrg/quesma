@@ -63,6 +63,12 @@ func main() {
 		return
 	}
 
+	const mysql_vitess_experiment = true
+	if mysql_vitess_experiment {
+		launchMysqlVitess()
+		return
+	}
+
 	if EnableConcurrencyProfiling {
 		runtime.SetBlockProfileRate(1)
 		runtime.SetMutexProfileFraction(1)
@@ -155,6 +161,34 @@ func main() {
 	tableResolver.Stop()
 	instance.Close(ctx)
 
+}
+
+func launchMysqlVitess() {
+	var frontendConn, err = frontend_connectors.NewVitessMySqlConnector(":13306")
+	if err != nil {
+		panic(err)
+	}
+
+	var tcpProcessor quesma_api.Processor = processors.NewTcpMysqlPassthroughProcessor()
+
+	var postgressPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	postgressPipeline.AddProcessor(tcpProcessor)
+	postgressPipeline.AddFrontendConnector(frontendConn)
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+	backendConn, err := backend_connectors.NewTcpBackendConnector("localhost:3306")
+	if err != nil {
+		panic(err)
+	}
+	postgressPipeline.AddBackendConnector(backendConn)
+	quesmaBuilder.AddPipeline(postgressPipeline)
+	qb, err := quesmaBuilder.Build()
+	if err != nil {
+		panic(err)
+	}
+	qb.Start()
+	stop := make(chan os.Signal, 1)
+	<-stop
+	qb.Stop(context.Background())
 }
 
 func launchMysqlPassthrough() {
