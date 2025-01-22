@@ -9,7 +9,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/proxy"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
@@ -48,7 +47,7 @@ func (q *Quesma) Start() {
 
 func NewQuesmaTcpProxy(config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, inspect bool) *Quesma {
 	return &Quesma{
-		processor:               proxy.NewTcpProxy(config.PublicTcpPort, config.Elasticsearch.Url.Host, inspect),
+		processor:               NewTcpProxy(config.PublicTcpPort, config.Elasticsearch.Url.Host, inspect),
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
