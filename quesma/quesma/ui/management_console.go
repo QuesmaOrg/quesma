@@ -283,6 +283,10 @@ func (qmc *QuesmaManagementConsole) elasticsearchResolveIndexPattern(ctx context
 		return
 	}
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.InfoWithCtx(ctx).Msgf("Failed to read response from Elasticsearch: %v", err)
+		return
+	}
 	err = json.Unmarshal(body, &sources)
 	if err != nil {
 		logger.InfoWithCtx(ctx).Msgf("Failed to parse response from Elasticsearch: %v", err)
