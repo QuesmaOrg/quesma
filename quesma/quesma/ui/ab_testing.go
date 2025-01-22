@@ -6,10 +6,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
-	"github.com/QuesmaOrg/quesma/quesma/jsondiff"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/goccy/go-json"
 	"io"
 	"strings"
@@ -235,8 +235,8 @@ func (qmc *QuesmaManagementConsole) readKibanaDashboards() (resolvedDashboards, 
 	return result, nil
 }
 
-func parseMismatches(mismatch string) ([]jsondiff.JSONMismatch, error) {
-	var mismatches []jsondiff.JSONMismatch
+func parseMismatches(mismatch string) ([]util.JSONMismatch, error) {
+	var mismatches []util.JSONMismatch
 	err := json.Unmarshal([]byte(mismatch), &mismatches)
 	return mismatches, err
 }
@@ -536,7 +536,7 @@ func (qmc *QuesmaManagementConsole) abTestingReadPanelDetails(dashboardId, panel
 	return result, nil
 }
 
-func (qmc *QuesmaManagementConsole) renderABTestingMismatch(buffer *builder.HtmlBuffer, mismatch jsondiff.JSONMismatch) {
+func (qmc *QuesmaManagementConsole) renderABTestingMismatch(buffer *builder.HtmlBuffer, mismatch util.JSONMismatch) {
 
 	buffer.Html(`<li>`)
 	buffer.Html(`<p>`)
@@ -626,7 +626,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 				size := len(mismatches)
 				if size > limit {
 					mismatches = mismatches[:limit]
-					mismatches = append(mismatches, jsondiff.JSONMismatch{
+					mismatches = append(mismatches, util.JSONMismatch{
 						Message: fmt.Sprintf("... and %d more", size-limit),
 					})
 				}
