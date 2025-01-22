@@ -136,7 +136,7 @@ func main() {
 
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, qmcLogChannel, phoneHomeAgent, schemaRegistry, tableResolver)
 
-	abTestingController := sender.NewSenderCoordinator(&cfg, ingestProcessor)
+	abTestingController := sender.NewSenderCoordinator(&cfg)
 	abTestingController.Start()
 
 	instance := constructQuesma(&cfg, tableDisco, lm, ingestProcessor, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender(), tableResolver)

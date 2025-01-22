@@ -49,6 +49,10 @@ func (e *ElasticsearchBackendConnector) GetConfig() config.ElasticsearchConfigur
 	return e.config
 }
 
+func (e *ElasticsearchBackendConnector) Request(ctx context.Context, method, endpoint string, body []byte) (*http.Response, error) {
+	return e.doRequest(ctx, method, endpoint, body, http.Header{})
+}
+
 func (e *ElasticsearchBackendConnector) RequestWithHeaders(ctx context.Context, method, endpoint string, body []byte, headers http.Header) (*http.Response, error) {
 	return e.doRequest(ctx, method, endpoint, body, headers)
 }
@@ -72,21 +76,16 @@ func (e *ElasticsearchBackendConnector) doRequest(ctx context.Context, method, e
 
 // HttpBackendConnector is a base interface for sending http requests, for now
 type HttpBackendConnector interface {
-	Send(r *http.Request) *http.Response
+	Send(r *http.Request) (*http.Response, error)
 }
 
-func (e *ElasticsearchBackendConnector) Send(r *http.Request) *http.Response {
+func (e *ElasticsearchBackendConnector) Send(r *http.Request) (*http.Response, error) {
 	r.Host = e.config.Url.Host
 	r.URL.Host = e.config.Url.Host
 	r.URL.Scheme = e.config.Url.Scheme
 	r.RequestURI = "" // this is important for the request to be sent correctly to a different host
 	maybeAuthdReq := elasticsearch.AddBasicAuthIfNeeded(r, e.config.User, e.config.Password)
-	if resp, err := e.client.Do(maybeAuthdReq); err != nil {
-		fmt.Printf("Error: %v\n", err)
-		panic(err)
-	} else {
-		return resp
-	}
+	return e.client.Do(maybeAuthdReq)
 }
 
 func (e *ElasticsearchBackendConnector) GetId() quesma_api.BackendConnectorType {

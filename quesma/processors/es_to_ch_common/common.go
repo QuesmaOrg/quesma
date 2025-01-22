@@ -8,6 +8,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/common_table"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
@@ -95,6 +96,7 @@ type LegacyQuesmaDependencies struct {
 	TableDiscovery      clickhouse.TableDiscovery
 	SchemaRegistry      schema.Registry
 	TableResolver       table_resolver.TableResolver
+	Adminconsole        *ui.QuesmaManagementConsole
 }
 
 func NewLegacyQuesmaDependencies(
