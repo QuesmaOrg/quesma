@@ -37,3 +37,9 @@ func (p *PostgresBackendConnector) Open() error {
 	p.connection = conn
 	return nil
 }
+
+func NewPostgresBackendConnector(endpoint string) *PostgresBackendConnector {
+	return &PostgresBackendConnector{
+		Endpoint: endpoint,
+	}
+}
