@@ -16,7 +16,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
 	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/gzip"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
@@ -66,7 +65,7 @@ func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseW
 	w.Header().Set(QuesmaSourceHeader, QuesmaSourceClickhouse)
 	w.WriteHeader(quesmaResponse.StatusCode)
 	if zip {
-		zipped, err := gzip.Zip(unzipped)
+		zipped, err := util.Zip(unzipped)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("Error zipping: %v", err)
 		}
@@ -454,7 +453,7 @@ func PeekBodyV2(r *http.Request) ([]byte, error) {
 	case "":
 		// No compression, leaving reqBody as-is
 	case "gzip":
-		reqBody, err = gzip.UnZip(reqBody)
+		reqBody, err = util.UnZip(reqBody)
 		if err != nil {
 			logger.ErrorWithCtxAndReason(r.Context(), "invalid gzip body").
 				Msgf("Error decompressing gzip body: %v", err)
