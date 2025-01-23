@@ -380,7 +380,6 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	case 0:
 		whereStmt = model.FalseExpr // timestamp IN [] <=> false
 	case 1:
-		fmt.Println(ids[0])
 		sql, err := idToSql(ids[0])
 		if err != nil {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("error converting id to sql: %v", err)

@@ -188,7 +188,6 @@ func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) st
 
 	if v, ok := doc.Fields[tsFieldName]; ok {
 		if vv, okk := v[0].(time.Time); okk {
-			fmt.Println("KK", vv.Nanosecond())
 			// At database level we only compare timestamps with millisecond precision
 			// However in search results we append `q` plus generated digits (we use q because it's not in hex)
 			// so that kibana can iterate over documents in UI
