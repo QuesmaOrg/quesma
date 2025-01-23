@@ -6,10 +6,12 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/hex"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
@@ -42,7 +44,7 @@ var DefaultConfig = config.QuesmaConfiguration{
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
 
 func TestAsyncSearchHandler(t *testing.T) {
-	// logger.InitSimpleLoggerForTests()
+	logger.InitSimpleLoggerForTests()
 
 	table := util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
@@ -86,6 +88,15 @@ func TestAsyncSearchHandler(t *testing.T) {
 
 	for i, tt := range testdata.TestsAsyncSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+			fmt.Println(i)
+			a := fmt.Sprintf("%x", "2024-12-21 07:29:03.3")
+			b := fmt.Sprintf("%x", "2024-12-21 07:29:03")
+			fmt.Println(len(a), a)
+			fmt.Println(len(b), b)
+			c, e1 := hex.DecodeString(a)
+			d, e2 := hex.DecodeString(b)
+			fmt.Println(e1, string(c))
+			fmt.Println(e2, string(d))
 			conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			defer conn.Close()
