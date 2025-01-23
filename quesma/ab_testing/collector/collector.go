@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const abTestingLogsIndex = "ab_testing_logs"
+//const abTestingLogsIndex = "ab_testing_logs"
 
 type ResponseMismatch struct {
 	IsOK bool `json:"is_ok"` // true if responses are the same
@@ -93,7 +93,7 @@ func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessa
 			//	esConn:    esConn,
 			//	indexName: abTestingLogsIndex,
 			//},
-			&internalIngestFanout{ // due to migration to V2 architecture, ClickHouse ingest is disabled
+			&internalIngestFanout{
 				indexName:       ab_testing.ABTestingTableName,
 				ingestProcessor: ingester,
 			},
