@@ -17,7 +17,7 @@ func TestFindTimestampPrecision(t *testing.T) {
 		{"2024-12-21 07:29:03", 0, true},
 		{"2024-12-21 07:29:3.3312", -1, false}, // we expect :03, not :3
 		{"2024-12-21 07:29:03.123456789", 9, true},
-		{"2024-12-21 25:25:25.123", 3, true},
+		{"2024-12-21 25:25:25.123", 3, true}, // we don't check for actual time validity
 	}
 	for _, tc := range testcases {
 		precision, success := FindTimestampPrecision(tc.timestamp)

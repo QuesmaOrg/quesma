@@ -14,22 +14,23 @@ func ParseTime(asString string) time.Time {
 }
 
 // FindTimestampPrecision returns the number of digits after the dot in the seconds part of the timestamp.
-// It only works for timestamps looking like this: '2024-12-21 07:29:03.3[more_digits+]' (here return value is 1).
+// e.g. '2024-12-21 07:29:03.123456789' -> 9, as it has 9 digits after the dot.
+// It only works for timestamps looking like this: '2024-12-21 07:29:03[.digit+]'
 // For timestamps without dot, it returns 0 (e.g. '2024-12-21 07:29:03').
 func FindTimestampPrecision(timestamp string) (precision int, success bool) {
 	isTime := func(endIdx int) bool {
 		// timestamp[:endIdx] should end with 'DD:DD:DD' (D is a digit)
-		shouldBeDigit := []int{endIdx - 1, endIdx - 2, endIdx - 4, endIdx - 5, endIdx - 7, endIdx - 8}
-		shouldBeColon := []int{endIdx - 3, endIdx - 6}
+		shouldBeDigitIdxs := []int{endIdx - 1, endIdx - 2, endIdx - 4, endIdx - 5, endIdx - 7, endIdx - 8}
+		shouldBeColonIdxs := []int{endIdx - 3, endIdx - 6}
 		if endIdx-8 < 0 {
 			return false
 		}
-		for _, idx := range shouldBeDigit {
+		for _, idx := range shouldBeDigitIdxs {
 			if timestamp[idx] < '0' || timestamp[idx] > '9' {
 				return false
 			}
 		}
-		for _, idx := range shouldBeColon {
+		for _, idx := range shouldBeColonIdxs {
 			if timestamp[idx] != ':' {
 				return false
 			}
@@ -39,19 +40,18 @@ func FindTimestampPrecision(timestamp string) (precision int, success bool) {
 
 	lastDot := strings.LastIndex(timestamp, ".")
 	if lastDot == -1 {
-		success = isTime(len(timestamp))
+		return 0, isTime(len(timestamp))
 	} else {
 		if !isTime(lastDot) {
-			success = false
+			return -1, false
 		} else {
-			success = true
 			for i := lastDot + 1; i < len(timestamp); i++ {
 				if timestamp[i] < '0' || timestamp[i] > '9' {
-					success = false
+					return -1, false
 				}
 				precision += 1
 			}
 		}
+		return precision, true
 	}
-	return
 }
