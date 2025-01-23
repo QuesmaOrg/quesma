@@ -374,10 +374,12 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 			buffer.Html("<tr>")
 			buffer.Html(`<td colspan=3 class="create-table-query">`)
 			query := table.CreateTableQuery
+
 			// indent first line
 			query = strings.Replace(query, "(", "(\n", 1)
-			query = strings.ReplaceAll(query, "),", "),\n")
-			query = strings.ReplaceAll(query, ")`,", ")`,\n")
+			query = strings.ReplaceAll(query, "), ", "),\n")
+			query = strings.ReplaceAll(query, ")`, ", ")`,\n")
+			query = strings.ReplaceAll(query, "', ", "',\n")
 
 			query = strings.ReplaceAll(query, " ENGINE", "\nENGINE")
 			query = strings.ReplaceAll(query, " SETTINGS", "\nSETTINGS")
