@@ -13,12 +13,27 @@ import (
 
 type jsonMap = map[string]any
 
-const filename = "as-se_export_dashboard_10-08-30.ndjson"
+// const filename = "as-se_export_dashboard_10-08-30.ndjson"
+const filename = "eu_export_dashboard_10-08-30.ndjson"
+
+//const filename = "nomnom_export_dashboard_10-08-30.ndjson"
 
 type fieldAttrsResult struct {
 	title      string
 	name       string
 	fieldAttrs jsonMap
+}
+
+func (f *fieldAttrsResult) Equal(other *fieldAttrsResult) bool {
+	if f.title != other.title || f.name != other.name || len(f.fieldAttrs) != len(other.fieldAttrs) {
+		return false
+	}
+	for k := range f.fieldAttrs { // we only compare keys
+		if _, ok := other.fieldAttrs[k]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 var fieldAttrsResults []fieldAttrsResult
@@ -117,12 +132,15 @@ func processJson(j jsonMap) error {
 			fmt.Println("-", k, ",", dict[k])
 		}
 		fmt.Println()
-		fieldAttrsResults = append(fieldAttrsResults, fieldAttrsResult{fieldAttrs: dict})
+		thisTableResult := fieldAttrsResult{fieldAttrs: dict}
 		if hasTitle {
-			fieldAttrsResults[len(fieldAttrsResults)-1].title = title
+			thisTableResult.title = title
 		}
 		if hasName {
-			fieldAttrsResults[len(fieldAttrsResults)-1].name = name
+			thisTableResult.name = name
+		}
+		if len(fieldAttrsResults) == 0 || !fieldAttrsResults[len(fieldAttrsResults)-1].Equal(&thisTableResult) {
+			fieldAttrsResults = append(fieldAttrsResults, thisTableResult)
 		}
 	}
 
@@ -304,6 +322,7 @@ func printQueries() {
 }
 
 func printFieldAttrsResults(printAlsoValue bool) {
+	fmt.Println("Printing fieldAttrs results:")
 	if len(fieldAttrsResults) > 0 {
 		pp.Println("fieldAttrsResults:")
 		for i, res := range fieldAttrsResults {
@@ -317,10 +336,11 @@ func printFieldAttrsResults(printAlsoValue bool) {
 
 			for _, k := range keys {
 				if printAlsoValue {
-					fmt.Printf("- %s: %v\n", k, res.fieldAttrs[k])
+					fmt.Printf(`- "%s": %v`, k, res.fieldAttrs[k])
 				} else {
-					fmt.Printf("%s Nullable(String), ", k)
+					fmt.Printf(`"%s" Nullable(String),`, k)
 				}
+				fmt.Println()
 			}
 			fmt.Printf("\n\n")
 		}
@@ -330,14 +350,18 @@ func printFieldAttrsResults(printAlsoValue bool) {
 func main() {
 	if err := scanOneFile(); err != nil {
 		fmt.Println(err)
-	} else if len(errors) > 0 {
-		fmt.Println("Errors:", errors)
+	}
+
+	printSourceFields()
+	printFormulas()
+	printQueries()
+	printFieldAttrsResults(true)
+	printFieldAttrsResults(false)
+
+	if len(errors) > 0 {
+		//pp.Println("Errors:", errors)
 	} else {
-		printSourceFields()
-		printFormulas()
-		printQueries()
-		printFieldAttrsResults(true)
-		printFieldAttrsResults(false)
 		fmt.Println("Done, no error! :)")
 	}
+
 }
