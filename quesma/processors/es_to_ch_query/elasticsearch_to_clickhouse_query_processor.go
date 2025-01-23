@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/quesma/ab_testing/sender"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
@@ -74,14 +73,11 @@ func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor
 	logManager := clickhouse.NewEmptyLogManager(p.legacyDependencies.OldQuesmaConfig, p.legacyDependencies.ConnectionPool, p.legacyDependencies.PhoneHomeAgent(), p.legacyDependencies.TableDiscovery)
 	logManager.Start()
 
-	abTestingController := sender.NewSenderCoordinator(p.legacyDependencies.OldQuesmaConfig)
-	abTestingController.Start()
-
 	queryRunner := quesm.NewQueryRunner(logManager,
 		p.legacyDependencies.OldQuesmaConfig,
 		nil,
 		p.legacyDependencies.SchemaRegistry,
-		abTestingController.GetSender(),
+		p.legacyDependencies.AbTestingController.GetSender(),
 		p.legacyDependencies.TableResolver,
 		p.legacyDependencies.TableDiscovery,
 	)
