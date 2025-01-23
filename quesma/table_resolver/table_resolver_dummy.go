@@ -50,18 +50,6 @@ func (t DummyTableResolver) RecentDecisions() []mux.PatternDecisions {
 	return []mux.PatternDecisions{}
 }
 
-//func (t DummyTableResolver) resolveWildcardCommonTable(indexPattern string) *mux.Decision {
-//	return &mux.Decision{
-//		UseConnectors: []mux.ConnectorDecision{
-//			&mux.ConnectorDecisionClickhouse{
-//				ClickhouseTableName: common_table.TableName,
-//				ClickhouseIndexes:   []string{indexPattern},
-//				IsCommonTable:       true,
-//			},
-//		},
-//	}
-//}
-
 func (t DummyTableResolver) resolveElastic() *mux.Decision {
 	return &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{
