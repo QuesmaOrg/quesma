@@ -2410,7 +2410,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{},
 	},
 	{ // [44]
-		"ids with DateTime64(9)",
+		"ids with DateTime64(9) (trailing zeroes)",
 		`{
 			"query": {
 				"ids": {
@@ -2430,6 +2430,26 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{},
 	},
 	{ // [45]
+		"ids with DateTime64(9) (no trailing zeroes)",
+		`{
+			"query": {
+				"ids": {
+					 "values": ["323032342d31322d32312030373a32393a30332e313233343536373839q123"]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03.123456789',9)`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.123456789',9) ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [46]
 		"ids with DateTime64(0)",
 		`{
 			"query": {
@@ -2449,7 +2469,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [46]
+	{ // [47]
 		"ids with DateTime64(1)",
 		`{
 			"query": {
