@@ -5,10 +5,10 @@ package ui
 import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
-	"github.com/QuesmaOrg/quesma/quesma/health"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
 	"github.com/QuesmaOrg/quesma/quesma/stats/errorstats"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
@@ -126,7 +126,7 @@ func secondsToTerseString(second uint64) string {
 	return (time.Duration(second) * time.Second).String()
 }
 
-func statusToDiv(s health.Status) string {
+func statusToDiv(s quesma_api.Status) string {
 	return fmt.Sprintf(`<span class="status %s" title="%s">%s</span>`, html.EscapeString(s.Status),
 		html.EscapeString(s.Tooltip), html.EscapeString(s.Message))
 }
