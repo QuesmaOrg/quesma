@@ -41,8 +41,7 @@ func (a *ABTestcase) SetupContainers(ctx context.Context) error {
 func (a *ABTestcase) RunTests(ctx context.Context, t *testing.T) error {
 	t.Run("test basic request", func(t *testing.T) { a.testBasicRequest(ctx, t) })
 	t.Run("test ingest to both connectors", func(t *testing.T) { a.testIngest(ctx, t) })
-	// TODO: temporarily disabled as we no longer ingest A/B results to CH whereas this test expects it
-	//t.Run("test A/B queries", func(t *testing.T) { a.testQueries(ctx, t) })
+	t.Run("test A/B queries with ClickHouse result store", func(t *testing.T) { a.testQueries(ctx, t) })
 	return nil
 }
 
