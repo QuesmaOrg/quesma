@@ -116,7 +116,7 @@ func Test_BulkForEachDeleteOnly(t *testing.T) {
 // This table resolver will only route `kibana_sample_data_ecommerce` to ClickHouse, rest will go to Elasticsearch
 var testTableResolver = table_resolver.NewDummyTableResolver(config.IndicesConfigs{
 	"kibana_sample_data_ecommerce": config.IndexConfiguration{},
-})
+}, false)
 
 func TestSplitBulkSampleData(t *testing.T) {
 	ctx := context.Background()

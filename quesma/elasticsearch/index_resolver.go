@@ -53,7 +53,7 @@ func NormalizePattern(p string) string {
 }
 
 func (im *indexResolver) Resolve(indexPattern string) (Sources, bool, error) {
-	response, err := im.httpClient.Request(context.Background(), "GET", "_resolve/index/"+indexPattern+"?expand_wildcards=open", []byte{})
+	response, err := im.httpClient.Request(context.Background(), "GET", ResolveIndexPattenPath(indexPattern), []byte{})
 	if err != nil {
 		return Sources{}, false, err
 	}
@@ -91,4 +91,8 @@ func NewEmptyIndexResolver() *EmptyIndexResolver {
 func (r *EmptyIndexResolver) Resolve(indexPattern string) (Sources, bool, error) {
 	res, ok := r.Indexes[indexPattern]
 	return res, ok, nil
+}
+
+func ResolveIndexPattenPath(indexPattern string) string {
+	return "_resolve/index/" + indexPattern + "?expand_wildcards=open"
 }

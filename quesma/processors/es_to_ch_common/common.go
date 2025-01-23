@@ -4,10 +4,12 @@
 package es_to_ch_common
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing/sender"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/common_table"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
@@ -95,9 +97,11 @@ type LegacyQuesmaDependencies struct {
 	TableDiscovery      clickhouse.TableDiscovery
 	SchemaRegistry      schema.Registry
 	TableResolver       table_resolver.TableResolver
+	Adminconsole        *ui.QuesmaManagementConsole
+	AbTestingController *sender.SenderCoordinator
 }
 
-func NewLegacyQuesmaDependencies(
+func newLegacyQuesmaDependencies(
 	baseDependencies quesma_api.DependenciesImpl,
 	oldQuesmaConfig *config.QuesmaConfiguration,
 	connectionPool quesma_api.BackendConnector,
@@ -105,6 +109,7 @@ func NewLegacyQuesmaDependencies(
 	tableDiscovery clickhouse.TableDiscovery,
 	schemaRegistry schema.Registry,
 	tableResolver table_resolver.TableResolver,
+	abTestingController *sender.SenderCoordinator,
 ) *LegacyQuesmaDependencies {
 	return &LegacyQuesmaDependencies{
 		DependenciesImpl:    baseDependencies,
@@ -114,6 +119,7 @@ func NewLegacyQuesmaDependencies(
 		TableDiscovery:      tableDiscovery,
 		SchemaRegistry:      schemaRegistry,
 		TableResolver:       tableResolver,
+		AbTestingController: abTestingController,
 	}
 }
 
@@ -123,7 +129,9 @@ func InitializeLegacyQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, o
 	tableDisco := clickhouse.NewTableDiscovery(oldQuesmaConfig, connectionPool, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
 	schemaRegistry.Start()
-	dummyTableResolver := table_resolver.NewDummyTableResolver(oldQuesmaConfig.IndexConfig)
-	legacyDependencies := NewLegacyQuesmaDependencies(*baseDeps, oldQuesmaConfig, connectionPool, *virtualTableStorage, tableDisco, schemaRegistry, dummyTableResolver)
+	dummyTableResolver := table_resolver.NewDummyTableResolver(oldQuesmaConfig.IndexConfig, oldQuesmaConfig.UseCommonTableForWildcard)
+	abTestingController := sender.NewSenderCoordinator(oldQuesmaConfig)
+	abTestingController.Start()
+	legacyDependencies := newLegacyQuesmaDependencies(*baseDeps, oldQuesmaConfig, connectionPool, *virtualTableStorage, tableDisco, schemaRegistry, dummyTableResolver, abTestingController)
 	return legacyDependencies
 }

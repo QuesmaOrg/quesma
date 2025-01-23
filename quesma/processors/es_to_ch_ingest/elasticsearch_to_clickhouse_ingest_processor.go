@@ -200,7 +200,10 @@ func (p *ElasticsearchToClickHouseIngestProcessor) routeToElasticsearch(metadata
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch Elasticsearch backend connector")
 	}
-	resp := esConn.Send(req)
+	resp, err := esConn.Send(req)
+	if err != nil {
+		return metadata, nil, err
+	}
 	respBody, err := ReadResponseBody(resp)
 	if err != nil {
 		return metadata, nil, fmt.Errorf("failed to read response body from Elastic")

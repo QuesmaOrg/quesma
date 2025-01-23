@@ -6,7 +6,7 @@ import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing/collector"
-	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
@@ -21,12 +21,12 @@ type SenderCoordinator struct {
 
 	sender *sender // sender managed by this coordinator
 
-	ingester ingest.Ingester
+	elasticsearchConn *backend_connectors.ElasticsearchBackendConnector
 
 	enabled bool
 }
 
-func NewSenderCoordinator(cfg *config.QuesmaConfiguration, ingester ingest.Ingester) *SenderCoordinator {
+func NewSenderCoordinator(cfg *config.QuesmaConfiguration) *SenderCoordinator {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -43,11 +43,11 @@ func NewSenderCoordinator(cfg *config.QuesmaConfiguration, ingester ingest.Inges
 	}
 
 	return &SenderCoordinator{
-		sender:     newSender(ctx),
-		ctx:        ctx,
-		cancelFunc: cancel,
-		enabled:    len(enabledForIndex) > 0,
-		ingester:   ingester,
+		sender:            newSender(ctx),
+		ctx:               ctx,
+		cancelFunc:        cancel,
+		enabled:           len(enabledForIndex) > 0,
+		elasticsearchConn: backend_connectors.NewElasticsearchBackendConnector(cfg.Elasticsearch),
 		// add quesma health monitor service here
 	}
 }
@@ -61,7 +61,7 @@ func (c *SenderCoordinator) GetSender() ab_testing.Sender {
 }
 
 func (c *SenderCoordinator) newInMemoryProcessor(healthQueue chan<- ab_testing.HealthMessage) *collector.InMemoryCollector {
-	repo := collector.NewCollector(c.ctx, c.ingester, healthQueue)
+	repo := collector.NewCollector(c.ctx, healthQueue, c.elasticsearchConn)
 	repo.Start()
 	return repo
 }

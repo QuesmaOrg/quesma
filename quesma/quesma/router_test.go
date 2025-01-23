@@ -158,7 +158,8 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	})
 
 	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		sources, err := resolve.HandleResolve(req.Params["index"], sr, queryRunner.im)
+		ir := elasticsearch.NewIndexResolver(cfg.Elasticsearch)
+		sources, err := resolve.HandleResolve(req.Params["index"], sr, ir)
 		if err != nil {
 			return nil, err
 		}

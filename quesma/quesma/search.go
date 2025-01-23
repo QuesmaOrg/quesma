@@ -49,7 +49,6 @@ type QueryRunner struct {
 	AsyncQueriesContexts async_search_storage.AsyncQueryContextStorage
 	logManager           clickhouse.LogManagerIFace
 	cfg                  *config.QuesmaConfiguration
-	im                   elasticsearch.IndexManagement
 	debugInfoCollector   diag.DebugInfoCollector
 
 	tableDiscovery clickhouse.TableDiscovery
@@ -86,7 +85,6 @@ func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
 
 func NewQueryRunner(lm clickhouse.LogManagerIFace,
 	cfg *config.QuesmaConfiguration,
-	im elasticsearch.IndexManagement,
 	qmc diag.DebugInfoCollector,
 	schemaRegistry schema.Registry,
 	abResultsRepository ab_testing.Sender,
@@ -95,7 +93,7 @@ func NewQueryRunner(lm clickhouse.LogManagerIFace,
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &QueryRunner{logManager: lm, cfg: cfg, im: im, debugInfoCollector: qmc,
+	return &QueryRunner{logManager: lm, cfg: cfg, debugInfoCollector: qmc,
 		executionCtx: ctx, cancel: cancel,
 		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemory(),
 		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
@@ -137,11 +135,11 @@ func NewQueryRunnerDefaultForTests(db quesma_api.BackendConnector, cfg *config.Q
 	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tables
 
-	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
+	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
 
 	go managementConsole.RunOnlyChannelProcessor()
 
-	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
+	return NewQueryRunner(lm, cfg, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
 }
 
 // HandleCount returns -1 when table name could not be resolved
@@ -481,7 +479,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	var currentSchema schema.Schema
 	resolvedIndexes := clickhouseConnector.ClickhouseIndexes
 
-	if len(resolvedIndexes) == 1 {
+	if !clickhouseConnector.IsCommonTable {
+		if len(resolvedIndexes) < 1 {
+			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load [%s] schema", resolvedIndexes)).Details("Table: [%v]", resolvedIndexes)
+		}
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
 		resolvedTableName := q.cfg.IndexConfig[indexName].TableName(indexName)
 

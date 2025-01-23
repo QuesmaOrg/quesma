@@ -76,9 +76,8 @@ func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor
 	queryRunner := quesm.NewQueryRunner(logManager,
 		p.legacyDependencies.OldQuesmaConfig,
 		nil,
-		nil,
 		p.legacyDependencies.SchemaRegistry,
-		nil,
+		p.legacyDependencies.AbTestingController.GetSender(),
 		p.legacyDependencies.TableResolver,
 		p.legacyDependencies.TableDiscovery,
 	)
@@ -250,7 +249,10 @@ func (p *ElasticsearchToClickHouseQueryProcessor) routeToElasticsearch(metadata 
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch Elasticsearch backend connector")
 	}
-	resp := esConn.Send(req)
+	resp, err := esConn.Send(req)
+	if err != nil {
+		return metadata, nil, fmt.Errorf("failed sending request to Elastic")
+	}
 	respBody, err := ReadResponseBody(resp)
 	if err != nil {
 		return metadata, nil, fmt.Errorf("failed to read response body from Elastic")
