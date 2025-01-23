@@ -9,38 +9,34 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
-	"github.com/QuesmaOrg/quesma/quesma/common_table"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/persistence"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
 	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	quesm "github.com/QuesmaOrg/quesma/quesma/quesma"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
-	"github.com/QuesmaOrg/quesma/quesma/schema"
-	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
-	"github.com/QuesmaOrg/quesma/quesma/telemetry"
-	"github.com/QuesmaOrg/quesma/quesma/v2/core"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 )
 
 type ElasticsearchToClickHouseQueryProcessor struct {
 	processors.BaseProcessor
-	config      config.QuesmaProcessorConfig
-	queryRunner *quesm.QueryRunner
+	config             config.QuesmaProcessorConfig
+	queryRunner        *quesm.QueryRunner
+	legacyDependencies *es_to_ch_common.LegacyQuesmaDependencies
 }
 
-func NewElasticsearchToClickHouseQueryProcessor(conf config.QuesmaProcessorConfig) *ElasticsearchToClickHouseQueryProcessor {
+func NewElasticsearchToClickHouseQueryProcessor(conf config.QuesmaProcessorConfig, legacyDependencies *es_to_ch_common.LegacyQuesmaDependencies) *ElasticsearchToClickHouseQueryProcessor {
 	return &ElasticsearchToClickHouseQueryProcessor{
-		BaseProcessor: processors.NewBaseProcessor(),
-		config:        conf,
+		BaseProcessor:      processors.NewBaseProcessor(),
+		config:             conf,
+		legacyDependencies: legacyDependencies,
 	}
 }
 
@@ -49,16 +45,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) InstanceName() string {
 }
 
 func (p *ElasticsearchToClickHouseQueryProcessor) Init() error {
-	chBackendConnector := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
-	if chBackendConnector == nil {
-		return fmt.Errorf("backend connector for ClickHouse not found")
-	}
-	esBackendConnector, err := p.getElasticsearchBackendConnector()
-	if err != nil {
-		return err
-	}
-
-	queryRunner := p.prepareTemporaryQueryProcessor(chBackendConnector, esBackendConnector)
+	queryRunner := p.prepareTemporaryQueryProcessor()
 	p.queryRunner = queryRunner
 	return nil
 }
@@ -81,31 +68,19 @@ func (p *ElasticsearchToClickHouseQueryProcessor) GetId() string {
 
 // prepareTemporaryQueryProcessor creates a temporary ingest processor which is a new version of the ingest processor,
 // which uses `quesma_api.BackendConnector` instead of `*sql.DB` for the database connection.
-func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor(_ quesma_api.BackendConnector, esBackendConn *backend_connectors.ElasticsearchBackendConnector) *quesm.QueryRunner {
+func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor() *quesm.QueryRunner {
 
-	oldQuesmaConfig := &config.QuesmaConfiguration{
-		IndexConfig: p.config.IndexConfig,
-		ClickHouse:  config.RelationalDbConfiguration{Url: (*config.Url)(&url.URL{Scheme: "clickhouse", Host: "localhost:9000"})},
-		// Elasticsearch section is here only for the phone home agent not to blow up
-		Elasticsearch: config.ElasticsearchConfiguration{Url: (*config.Url)(&url.URL{Scheme: "http", Host: "localhost:9200"})},
-	}
-
-	connectionPool := clickhouse.InitDBConnectionPool(oldQuesmaConfig)
-
-	phoneHomeAgent := telemetry.NewPhoneHomeAgent(oldQuesmaConfig, connectionPool, "dummy-id")
-	phoneHomeAgent.Start()
-
-	virtualTableStorage := persistence.NewElasticJSONDatabase(esBackendConn.GetConfig(), common_table.VirtualTableElasticIndexName)
-	tableDisco := clickhouse.NewTableDiscovery(oldQuesmaConfig, connectionPool, virtualTableStorage)
-	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
-	schemaRegistry.Start()
-
-	logManager := clickhouse.NewEmptyLogManager(oldQuesmaConfig, connectionPool, phoneHomeAgent, tableDisco)
+	logManager := clickhouse.NewEmptyLogManager(p.legacyDependencies.OldQuesmaConfig, p.legacyDependencies.ConnectionPool, p.legacyDependencies.PhoneHomeAgent(), p.legacyDependencies.TableDiscovery)
 	logManager.Start()
 
-	dummyTableResolver := table_resolver.NewDummyTableResolver()
-
-	queryRunner := quesm.NewQueryRunner(logManager, oldQuesmaConfig, nil, nil, schemaRegistry, nil, dummyTableResolver, tableDisco)
+	queryRunner := quesm.NewQueryRunner(logManager,
+		p.legacyDependencies.OldQuesmaConfig,
+		nil,
+		p.legacyDependencies.SchemaRegistry,
+		p.legacyDependencies.AbTestingController.GetSender(),
+		p.legacyDependencies.TableResolver,
+		p.legacyDependencies.TableDiscovery,
+	)
 	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
 
 	return queryRunner
@@ -134,7 +109,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 		}
 		indexNotInConfig := findQueryTarget(indexPattern, p.config) != config.ClickhouseTarget
 		if routerOrderedToBypass {
-			logger.Info().Msgf("%s - BYPASSED per frontend connector decision", req.URL)
+			logger.Info().Msgf("BYPASSING %s  per frontend connector decision", req.URL)
 			return p.routeToElasticsearch(metadata, req)
 		}
 		logger.Info().Msgf("Maybe processing %s", req.URL)
@@ -149,6 +124,9 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 			metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceQuesma
 			return metadata, res, err
 		case es_to_ch_common.IndexMappingPath:
+			if indexNotInConfig {
+				return p.routeToElasticsearch(metadata, req)
+			}
 			res, err := quesm.HandleGetIndexMapping(p.queryRunner.GetSchemaRegistry(), indexPattern)
 			if err != nil {
 				return metadata, nil, err
@@ -163,10 +141,9 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 			if err != nil {
 				return metadata, nil, err
 			}
-			res, err := quesm.HandleTermsEnum(ctx, indexPattern, query, p.queryRunner.GetLogManager(), p.queryRunner.GetSchemaRegistry(), nil) // TODO dependencies are nil for now
+			res, err := quesm.HandleTermsEnum(ctx, indexPattern, query, p.queryRunner.GetLogManager(), p.queryRunner.GetSchemaRegistry(), p.legacyDependencies)
 			return metadata, res, err
 		case es_to_ch_common.IndexPath:
-			logger.Warn().Msgf("PROBLEMATIC INDEXPATH CALLED FOR %s", indexPattern)
 			if indexNotInConfig {
 				return p.routeToElasticsearch(metadata, req)
 			}
@@ -272,7 +249,10 @@ func (p *ElasticsearchToClickHouseQueryProcessor) routeToElasticsearch(metadata 
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch Elasticsearch backend connector")
 	}
-	resp := esConn.Send(req)
+	resp, err := esConn.Send(req)
+	if err != nil {
+		return metadata, nil, fmt.Errorf("failed sending request to Elastic")
+	}
 	respBody, err := ReadResponseBody(resp)
 	if err != nil {
 		return metadata, nil, fmt.Errorf("failed to read response body from Elastic")
@@ -280,7 +260,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) routeToElasticsearch(metadata 
 	return metadata, &quesma_api.Result{
 		Body:          string(respBody),
 		Meta:          metadata,
-		StatusCode:    http.StatusOK,
+		StatusCode:    resp.StatusCode,
 		GenericResult: respBody,
 	}, nil
 }

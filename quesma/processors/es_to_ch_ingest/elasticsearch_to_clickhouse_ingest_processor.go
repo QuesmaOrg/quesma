@@ -8,35 +8,34 @@ import (
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
-	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
-	"github.com/QuesmaOrg/quesma/quesma/common_table"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
-	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+
 	"github.com/QuesmaOrg/quesma/quesma/processors"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
 	quesm "github.com/QuesmaOrg/quesma/quesma/quesma"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
-	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
-	"github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
-	"net/url"
 )
 
 type ElasticsearchToClickHouseIngestProcessor struct {
 	processors.BaseProcessor
 	config                config.QuesmaProcessorConfig
 	legacyIngestProcessor *ingest.IngestProcessor
+	legacyDependencies    *es_to_ch_common.LegacyQuesmaDependencies
 }
 
-func NewElasticsearchToClickHouseIngestProcessor(conf config.QuesmaProcessorConfig) *ElasticsearchToClickHouseIngestProcessor {
+func NewElasticsearchToClickHouseIngestProcessor(conf config.QuesmaProcessorConfig, legacyDependencies *es_to_ch_common.LegacyQuesmaDependencies) *ElasticsearchToClickHouseIngestProcessor {
 	return &ElasticsearchToClickHouseIngestProcessor{
-		BaseProcessor: processors.NewBaseProcessor(),
-		config:        conf,
+		BaseProcessor:      processors.NewBaseProcessor(),
+		config:             conf,
+		legacyDependencies: legacyDependencies,
 	}
 }
 
@@ -45,21 +44,8 @@ func (p *ElasticsearchToClickHouseIngestProcessor) InstanceName() string {
 }
 
 func (p *ElasticsearchToClickHouseIngestProcessor) Init() error {
-	chBackendConnector := p.GetBackendConnector(quesma_api.ClickHouseSQLBackend)
-	if chBackendConnector == nil {
-		return fmt.Errorf("backend connector for ClickHouse not found")
-	}
-	esBackendConnector := p.GetBackendConnector(quesma_api.ElasticsearchBackend)
-	if esBackendConnector == nil {
-		return fmt.Errorf("backend connector for Elasticsearch not found")
-	}
-	esBackendConnectorCasted, ok := esBackendConnector.(*backend_connectors.ElasticsearchBackendConnector) // OKAY JUST FOR NOW
-	if !ok {
-		return fmt.Errorf("failed to cast Elasticsearch backend connector")
-	}
-
 	// TODO so we initialize the connection pool in `prepareTemporaryIngestProcessor`, maybe we should do it here?
-	p.legacyIngestProcessor = p.prepareTemporaryIngestProcessor(chBackendConnector, *esBackendConnectorCasted)
+	p.legacyIngestProcessor = p.prepareTemporaryIngestProcessor()
 
 	return nil
 }
@@ -86,29 +72,17 @@ func (p *ElasticsearchToClickHouseIngestProcessor) GetSchemaRegistry() schema.Re
 
 // prepareTemporaryIngestProcessor creates a temporary ingest processor which is a new version of the ingest processor,
 // which uses `quesma_api.BackendConnector` instead of `*sql.DB` for the database connection.
-func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor(_ quesma_api.BackendConnector, esBackendConn backend_connectors.ElasticsearchBackendConnector) *ingest.IngestProcessor {
+func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor() *ingest.IngestProcessor {
 
-	oldQuesmaConfig := &config.QuesmaConfiguration{
-		IndexConfig: p.config.IndexConfig,
-		ClickHouse:  config.RelationalDbConfiguration{Url: (*config.Url)(&url.URL{Scheme: "clickhouse", Host: "localhost:9000"})},
-		// Elasticsearch section is here only for the phone home agent not to blow up
-		Elasticsearch: config.ElasticsearchConfiguration{Url: (*config.Url)(&url.URL{Scheme: "http", Host: "localhost:9200"})},
-	}
-
-	connectionPool := clickhouse.InitDBConnectionPool(oldQuesmaConfig)
-
-	// TODO see if we can get away with that
-	//phoneHomeAgent := telemetry.NewPhoneHomeAgent(oldQuesmaConfig, connectionPool, "dummy-id")
-	//phoneHomeAgent.Start()
-
-	virtualTableStorage := persistence.NewElasticJSONDatabase(esBackendConn.GetConfig(), common_table.VirtualTableElasticIndexName)
-	tableDisco := clickhouse.NewTableDiscovery(oldQuesmaConfig, connectionPool, virtualTableStorage)
-	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
-	schemaRegistry.Start()
-
-	dummyTableResolver := table_resolver.NewDummyTableResolver()
-
-	ip := ingest.NewIngestProcessor(oldQuesmaConfig, connectionPool, nil, tableDisco, schemaRegistry, virtualTableStorage, dummyTableResolver)
+	ip := ingest.NewIngestProcessor(
+		p.legacyDependencies.OldQuesmaConfig,
+		p.legacyDependencies.ConnectionPool,
+		p.legacyDependencies.PhoneHomeAgent(),
+		p.legacyDependencies.TableDiscovery,
+		p.legacyDependencies.SchemaRegistry,
+		&p.legacyDependencies.VirtualTableStorage,
+		p.legacyDependencies.TableResolver,
+	)
 
 	ip.Start()
 	return ip
@@ -142,7 +116,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 		}
 
 		// TODO this comes from Quesma general config and should be passed to the processor
-		ingestStats := false
+		ingestStats := true
 
 		ctx := context.Background()
 		esConn, err := p.getElasticsearchBackendConnector()
@@ -151,31 +125,40 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 		}
 		switch metadata[es_to_ch_common.PathPattern] {
 		case es_to_ch_common.IndexDocPath:
+			logger.Info().Msgf("_DOC CALLED: %s", indexPatterFromRequestUri)
 			payloadJson, err := types.ExpectJSON(types.ParseRequestBody(string(reqBodyBytes)))
 			if err != nil {
 				return metadata, nil, err
 			}
-			res, err := quesm.HandleIndexDoc(ctx, indexPatterFromRequestUri, payloadJson, p.legacyIngestProcessor, ingestStats, esConn, nil, p.legacyIngestProcessor.GetTableResolver())
+			res, err := quesm.HandleIndexDoc(ctx, indexPatterFromRequestUri, payloadJson, p.legacyIngestProcessor, ingestStats, esConn, p.legacyDependencies, p.legacyIngestProcessor.GetTableResolver())
 			if err != nil {
 				return metadata, nil, err
 			}
 			return metadata, res, nil
 		case es_to_ch_common.IndexBulkPath:
+			logger.Info().Msgf("BULK CALLED: %s", indexPatterFromRequestUri)
+			if _, present := p.config.IndexConfig[indexPatterFromRequestUri]; !present {
+				// TODO PERHAPS WE SHOULD SUPPORT IT
+				// but index:/_bulk calls to .kibana internal indices are more complex
+				logger.Info().Msgf("BULK CALLED: %s AND RIGHT AWAY PASS TO ELASTIC", indexPatterFromRequestUri)
+				return p.routeToElasticsearch(metadata, req)
+			}
 			payloadNDJson, err := types.ExpectNDJSON(types.ParseRequestBody(string(reqBodyBytes)))
 			if err != nil {
 				return metadata, nil, err
 			}
-			res, err := quesm.HandleBulkIndex(ctx, indexPatterFromRequestUri, payloadNDJson, p.legacyIngestProcessor, ingestStats, esConn, nil, p.legacyIngestProcessor.GetTableResolver())
+			res, err := quesm.HandleBulkIndex(ctx, indexPatterFromRequestUri, payloadNDJson, p.legacyIngestProcessor, ingestStats, esConn, p.legacyDependencies, p.legacyIngestProcessor.GetTableResolver())
 			if err != nil {
 				return metadata, nil, err
 			}
 			return metadata, res, nil
 		case es_to_ch_common.BulkPath:
+			logger.Info().Msgf("BULK CALLED ( just /_bulk ) ")
 			payloadNDJson, err := types.ExpectNDJSON(types.ParseRequestBody(string(reqBodyBytes)))
 			if err != nil {
-
+				return metadata, nil, err
 			}
-			res, err := quesm.HandleBulk(ctx, payloadNDJson, p.legacyIngestProcessor, ingestStats, esConn, nil, p.legacyIngestProcessor.GetTableResolver())
+			res, err := quesm.HandleBulk(ctx, payloadNDJson, p.legacyIngestProcessor, ingestStats, esConn, p.legacyDependencies, p.legacyIngestProcessor.GetTableResolver())
 			if err != nil {
 				return metadata, nil, err
 			}
@@ -217,7 +200,10 @@ func (p *ElasticsearchToClickHouseIngestProcessor) routeToElasticsearch(metadata
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch Elasticsearch backend connector")
 	}
-	resp := esConn.Send(req)
+	resp, err := esConn.Send(req)
+	if err != nil {
+		return metadata, nil, err
+	}
 	respBody, err := ReadResponseBody(resp)
 	if err != nil {
 		return metadata, nil, fmt.Errorf("failed to read response body from Elastic")

@@ -37,7 +37,7 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 			return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 		})
 	}
-	// TODO: Somehow this messes up the router, so we need to fix it
+	//TODO: Somehow this messes up the router, so we need to fix it
 	//router.Register(IndexPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 	//	return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
 	//})

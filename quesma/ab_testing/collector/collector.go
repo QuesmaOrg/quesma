@@ -5,12 +5,14 @@ package collector
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
-	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
 	"time"
 )
+
+const abTestingLogsIndex = "ab_testing_logs"
 
 type ResponseMismatch struct {
 	IsOK bool `json:"is_ok"` // true if responses are the same
@@ -68,7 +70,7 @@ func (r *InMemoryCollector) String() string {
 	return "InMemoryCollector(sends data to Quesma)"
 }
 
-func NewCollector(ctx context.Context, ingester ingest.Ingester, healthQueue chan<- ab_testing.HealthMessage) *InMemoryCollector {
+func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessage, esConn *backend_connectors.ElasticsearchBackendConnector) *InMemoryCollector {
 
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -86,14 +88,14 @@ func NewCollector(ctx context.Context, ingester ingest.Ingester, healthQueue cha
 			//&ppPrintFanout{},
 			//&mismatchedOnlyFilter{},
 			&redactOkResults{},
-			//&elasticSearchFanout{
-			//	url:       "http://localhost:8080",
-			//	indexName: "ab_testing_logs",
-			//},
-			&internalIngestFanout{
-				indexName:       ab_testing.ABTestingTableName,
-				ingestProcessor: ingester,
+			&elasticSearchFanout{
+				esConn:    esConn,
+				indexName: abTestingLogsIndex,
 			},
+			//&internalIngestFanout{ // due to migration to V2 architecture, ClickHouse ingest is disabled
+			//	indexName:       ab_testing.ABTestingTableName,
+			//	ingestProcessor: ingester,
+			//},
 		},
 		healthQueue:         healthQueue,
 		processorErrorQueue: make(chan processorErrorMessage, 100),
