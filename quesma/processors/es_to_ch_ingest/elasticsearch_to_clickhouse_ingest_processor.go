@@ -44,9 +44,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) InstanceName() string {
 }
 
 func (p *ElasticsearchToClickHouseIngestProcessor) Init() error {
-	// TODO so we initialize the connection pool in `prepareTemporaryIngestProcessor`, maybe we should do it here?
-	p.legacyIngestProcessor = p.prepareTemporaryIngestProcessor()
-
+	p.legacyIngestProcessor = p.legacyDependencies.IngestProcessor
 	return nil
 }
 
@@ -68,24 +66,6 @@ func (p *ElasticsearchToClickHouseIngestProcessor) GetId() string {
 
 func (p *ElasticsearchToClickHouseIngestProcessor) GetSchemaRegistry() schema.Registry {
 	return p.legacyIngestProcessor.GetSchemaRegistry()
-}
-
-// prepareTemporaryIngestProcessor creates a temporary ingest processor which is a new version of the ingest processor,
-// which uses `quesma_api.BackendConnector` instead of `*sql.DB` for the database connection.
-func (p *ElasticsearchToClickHouseIngestProcessor) prepareTemporaryIngestProcessor() *ingest.IngestProcessor {
-
-	ip := ingest.NewIngestProcessor(
-		p.legacyDependencies.OldQuesmaConfig,
-		p.legacyDependencies.ConnectionPool,
-		p.legacyDependencies.PhoneHomeAgent(),
-		p.legacyDependencies.TableDiscovery,
-		p.legacyDependencies.SchemaRegistry,
-		&p.legacyDependencies.VirtualTableStorage,
-		p.legacyDependencies.TableResolver,
-	)
-
-	ip.Start()
-	return ip
 }
 
 func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
