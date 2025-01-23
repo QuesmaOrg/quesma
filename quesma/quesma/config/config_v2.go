@@ -113,9 +113,11 @@ const DefaultWildcardIndexName = "*"
 
 // Configuration of QuesmaV1ProcessorQuery and QuesmaV1ProcessorIngest
 type QuesmaProcessorConfig struct {
-	UseCommonTable bool                          `koanf:"useCommonTable"`
-	IndexConfig    map[string]IndexConfiguration `koanf:"indexes"`
+	UseCommonTable bool           `koanf:"useCommonTable"`
+	IndexConfig    IndicesConfigs `koanf:"indexes"`
 }
+
+type IndicesConfigs map[string]IndexConfiguration
 
 func LoadV2Config() QuesmaNewConfiguration {
 	var v2config QuesmaNewConfiguration

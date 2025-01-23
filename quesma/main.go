@@ -18,13 +18,11 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
 	"github.com/QuesmaOrg/quesma/quesma/quesma"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
 	"github.com/QuesmaOrg/quesma/quesma/telemetry"
-	"github.com/QuesmaOrg/quesma/quesma/tracing"
 	"log"
 	"os"
 	"os/signal"
@@ -46,7 +44,7 @@ const EnableConcurrencyProfiling = false
 
 // Example of how to use the v2 module api in main function
 //func main() {
-//	q1 := buildIngestOnlyQuesma() // Back working on ingest for a while
+//	q1 := BuildNewQuesma() // Back working on ingest for a while
 //	//q1 := buildQueryOnlyQuesma()
 //	q1.Start()
 //	stop := make(chan os.Signal, 1)
@@ -75,8 +73,6 @@ func main() {
 		log.Fatalf("error validating configuration: %v", err)
 	}
 
-	var asyncQueryTraceLogger *tracing.AsyncTraceLogger
-
 	licenseMod := licensing.Init(&cfg)
 	qmcLogChannel := logger.InitLogger(logger.Configuration{
 		FileLogging:       cfg.Logging.FileLogging,
@@ -84,7 +80,7 @@ func main() {
 		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
 		Level:             *cfg.Logging.Level,
 		ClientId:          licenseMod.License.ClientID,
-	}, sig, doneCh, asyncQueryTraceLogger)
+	}, sig, doneCh)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
 	go func() {
@@ -92,12 +88,6 @@ func main() {
 			logger.Warn().Msg(message)
 		}
 	}()
-
-	if asyncQueryTraceLogger != nil {
-		asyncQueryTraceEvictor := async_search_storage.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
-		asyncQueryTraceEvictor.Start()
-		defer asyncQueryTraceEvictor.Stop()
-	}
 
 	var connectionPool = clickhouse.InitDBConnectionPool(&cfg)
 
@@ -161,7 +151,6 @@ func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscove
 	if cfg.TransparentProxy {
 		return quesma.NewQuesmaTcpProxy(cfg, quesmaManagementConsole, logChan, false)
 	} else {
-		const quesma_v2 = true
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry, quesma_v2)
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry)
 	}
 }

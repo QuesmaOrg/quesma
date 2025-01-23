@@ -68,24 +68,24 @@ type (
 )
 
 func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ingest.IngestProcessor,
-	ingestStatsEnabled bool, esBackendConn *backend_connectors.ElasticsearchBackendConnector, phoneHomeAgent diag.PhoneHomeClient, tableResolver table_resolver.TableResolver) (results []BulkItem, err error) {
+	ingestStatsEnabled bool, esBackendConn *backend_connectors.ElasticsearchBackendConnector, phoneHomeClient diag.PhoneHomeClient, tableResolver table_resolver.TableResolver) (results []BulkItem, err error) {
 	defer recovery.LogPanic()
 
-	bulkSize := len(bulk) / 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
-	maybeLogBatchSize(bulkSize)
+	maxBulkSize := len(bulk)
+	maybeLogBatchSize(maxBulkSize)
 
 	// The returned results should be in the same order as the input request, however splitting the bulk might change the order.
 	// Therefore, each BulkRequestEntry has a corresponding pointer to the result entry, allowing us to freely split and reshuffle the bulk.
-	results, clickhouseDocumentsToInsert, elasticRequestBody, elasticBulkEntries, err := splitBulk(ctx, defaultIndex, bulk, bulkSize, tableResolver)
+	results, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, defaultIndex, bulk, maxBulkSize, tableResolver)
 	if err != nil {
 		return []BulkItem{}, err
 	}
 
 	// we fail if there are some documents to insert into Clickhouse but ingest processor is not available
-	if len(clickhouseDocumentsToInsert) > 0 && ip == nil {
+	if len(clickhouseBulkEntries) > 0 && ip == nil {
 
 		indexes := make(map[string]struct{})
-		for index := range clickhouseDocumentsToInsert {
+		for index := range clickhouseBulkEntries {
 			indexes[index] = struct{}{}
 		}
 
@@ -104,16 +104,25 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 	}
 
 	if ip != nil {
-		sendToClickhouse(ctx, clickhouseDocumentsToInsert, phoneHomeAgent, ingestStatsEnabled, ip)
+		sendToClickhouse(ctx, clickhouseBulkEntries, phoneHomeClient, ingestStatsEnabled, ip)
 	}
 
-	return results, nil
+	// Here we filter out empty results so that final response does not contain empty elements
+	// WARNING: We could have `SplitBulk` returning properly-sized results,
+	//          however at the time of writing this it would've been too much work.
+	nonEmptyResults := make([]BulkItem, 0, len(results))
+	for _, result := range results {
+		if result != (BulkItem{}) {
+			nonEmptyResults = append(nonEmptyResults, result)
+		}
+	}
+	return nonEmptyResults, nil
 }
 
-func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bulkSize int, tableResolver table_resolver.TableResolver) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
-	results := make([]BulkItem, bulkSize)
+func SplitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, maxBulkSize int, tableResolver table_resolver.TableResolver) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
+	results := make([]BulkItem, maxBulkSize)
 
-	clickhouseDocumentsToInsert := make(map[string][]BulkRequestEntry, bulkSize)
+	clickhouseBulkEntries := make(map[string][]BulkRequestEntry, maxBulkSize)
 	var elasticRequestBody []byte
 	var elasticBulkEntries []BulkRequestEntry
 
@@ -189,13 +198,14 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 				elasticRequestBody = append(elasticRequestBody, opBytes...)
 				elasticRequestBody = append(elasticRequestBody, '\n')
 
-				documentBytes, err := document.Bytes()
-				if err != nil {
-					return err
+				if operation != "delete" {
+					documentBytes, err := document.Bytes()
+					if err != nil {
+						return err
+					}
+					elasticRequestBody = append(elasticRequestBody, documentBytes...)
+					elasticRequestBody = append(elasticRequestBody, '\n')
 				}
-				elasticRequestBody = append(elasticRequestBody, documentBytes...)
-				elasticRequestBody = append(elasticRequestBody, '\n')
-
 				elasticBulkEntries = append(elasticBulkEntries, entryWithResponse)
 
 			case *quesma_api.ConnectorDecisionClickhouse:
@@ -207,7 +217,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 					return fmt.Errorf("unsupported bulk operation type: %s. Operation: %v, Document: %v", operation, rawOp, document)
 				}
 
-				clickhouseDocumentsToInsert[index] = append(clickhouseDocumentsToInsert[index], entryWithResponse)
+				clickhouseBulkEntries[index] = append(clickhouseBulkEntries[index], entryWithResponse)
 
 			default:
 				return fmt.Errorf("unsupported connector type: %T", connector)
@@ -217,8 +227,10 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 
 		return nil
 	})
-
-	return results, clickhouseDocumentsToInsert, elasticRequestBody, elasticBulkEntries, err
+	if len(elasticRequestBody) != 0 {
+		elasticRequestBody = append(elasticRequestBody, '\n')
+	}
+	return results, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err
 }
 
 func sendToElastic(elasticRequestBody []byte, esBackendConn *backend_connectors.ElasticsearchBackendConnector, elasticBulkEntries []BulkRequestEntry) error {
@@ -255,9 +267,9 @@ func sendToElastic(elasticRequestBody []byte, esBackendConn *backend_connectors.
 	return nil
 }
 
-func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[string][]BulkRequestEntry, phoneHomeAgent diag.PhoneHomeClient, ingestStatsEnabled bool, ip *ingest.IngestProcessor) {
-	for indexName, documents := range clickhouseDocumentsToInsert {
-		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
+func sendToClickhouse(ctx context.Context, clickhouseBulkEntries map[string][]BulkRequestEntry, emptyPhoneHomeClient diag.PhoneHomeClient, ingestStatsEnabled bool, ip *ingest.IngestProcessor) {
+	for indexName, documents := range clickhouseBulkEntries {
+		emptyPhoneHomeClient.IngestCounters().Add(indexName, int64(len(documents)))
 
 		for _, document := range documents {
 			stats.GlobalStatistics.Process(ingestStatsEnabled, indexName, document.document, clickhouse.NestedSeparator)
@@ -331,7 +343,7 @@ func maybeLogBatchSize(batchSize int) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	if _, alreadyLogged := loggedBatchSizes[batchSize]; !alreadyLogged {
-		logger.Info().Msgf("Ingesting via _bulk API, batch size=%d documents", batchSize)
+		logger.Info().Msgf("Ingesting via _bulk API, batch size=%d lines", batchSize)
 		loggedBatchSizes[batchSize] = struct{}{}
 	}
 }

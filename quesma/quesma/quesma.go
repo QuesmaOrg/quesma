@@ -9,7 +9,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/proxy"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
@@ -48,7 +47,7 @@ func (q *Quesma) Start() {
 
 func NewQuesmaTcpProxy(config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, inspect bool) *Quesma {
 	return &Quesma{
-		processor:               proxy.NewTcpProxy(config.PublicTcpPort, config.Elasticsearch.Url.Host, inspect),
+		processor:               NewTcpProxy(config.PublicTcpPort, config.Elasticsearch.Url.Host, inspect),
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
@@ -61,33 +60,20 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent,
 	indexManager elasticsearch.IndexManagement,
 	schemaRegistry schema.Registry, config *config.QuesmaConfiguration,
 	quesmaManagementConsole *ui.QuesmaManagementConsole,
-	abResultsRepository ab_testing.Sender, resolver table_resolver.TableResolver,
-	v2 bool) *Quesma {
+	abResultsRepository ab_testing.Sender, resolver table_resolver.TableResolver) *Quesma {
 
 	dependencies := quesma_v2.NewDependencies()
 	dependencies.SetPhoneHomeAgent(phoneHomeAgent)
 	dependencies.SetDebugInfoCollector(quesmaManagementConsole)
 	dependencies.SetLogger(logger.GlobalLogger()) // FIXME: we're using global logger here, create
 
-	if v2 {
-		return &Quesma{
-			telemetryAgent: phoneHomeAgent,
-			processor: newDualWriteProxyV2(dependencies, schemaLoader, logManager, indexManager,
-				schemaRegistry, config,
-				ingestProcessor, resolver, abResultsRepository),
-			publicTcpPort:           config.PublicTcpPort,
-			quesmaManagementConsole: quesmaManagementConsole,
-			config:                  config,
-		}
-	} else {
-		return &Quesma{
-			telemetryAgent: phoneHomeAgent,
-			processor: newDualWriteProxy(schemaLoader, logManager, indexManager,
-				schemaRegistry, config, quesmaManagementConsole, phoneHomeAgent,
-				ingestProcessor, resolver, abResultsRepository),
-			publicTcpPort:           config.PublicTcpPort,
-			quesmaManagementConsole: quesmaManagementConsole,
-			config:                  config,
-		}
+	return &Quesma{
+		telemetryAgent: phoneHomeAgent,
+		processor: newDualWriteProxyV2(dependencies, schemaLoader, logManager, indexManager,
+			schemaRegistry, config,
+			ingestProcessor, resolver, abResultsRepository),
+		publicTcpPort:           config.PublicTcpPort,
+		quesmaManagementConsole: quesmaManagementConsole,
+		config:                  config,
 	}
 }
