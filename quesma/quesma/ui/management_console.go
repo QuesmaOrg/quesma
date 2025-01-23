@@ -273,7 +273,7 @@ func (qmc *QuesmaManagementConsole) GetElasticSearchIndices(ctx context.Context)
 }
 
 func (qmc *QuesmaManagementConsole) elasticsearchResolveIndexPattern(ctx context.Context, indexPattern string) (sources elasticsearch.Sources) {
-	resp, err := qmc.elasticsearch.RequestWithHeaders(ctx, "GET", "_resolve/index/"+indexPattern+"?expand_wildcards=open", nil, nil)
+	resp, err := qmc.elasticsearch.RequestWithHeaders(ctx, "GET", elasticsearch.ResolveIndexPattenPath(indexPattern), nil, nil)
 	if err != nil {
 		logger.InfoWithCtx(ctx).Msgf("Failed call Elasticsearch: %v", err)
 		return
