@@ -164,7 +164,7 @@ func InitializeLegacyQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, o
 	logManager.Start()
 
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(oldQuesmaConfig, logManager, logChan, phoneHomeAgent, schemaRegistry, dummyTableResolver)
-	quesmaManagementConsole.Run()
+	go quesmaManagementConsole.Run()
 
 	legacyDependencies := newLegacyQuesmaDependencies(*baseDeps, oldQuesmaConfig, connectionPool, *virtualTableStorage, tableDisco, schemaRegistry, dummyTableResolver, abTestingController, ingestProcessor, logManager, logChan)
 	return legacyDependencies
