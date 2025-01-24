@@ -15,9 +15,9 @@ type ElasticsearchIngestFrontendConnector struct {
 	*BasicHTTPFrontendConnector
 }
 
-func NewElasticsearchIngestFrontendConnector(endpoint string, esCfg config.ElasticsearchConfiguration) *ElasticsearchIngestFrontendConnector {
+func NewElasticsearchIngestFrontendConnector(endpoint string, esCfg config.ElasticsearchConfiguration, disableAuth bool) *ElasticsearchIngestFrontendConnector {
 
-	basicHttpFrontendConnector := NewBasicHTTPFrontendConnector(endpoint, &config.QuesmaConfiguration{Elasticsearch: esCfg})
+	basicHttpFrontendConnector := NewBasicHTTPFrontendConnector(endpoint, &config.QuesmaConfiguration{Elasticsearch: esCfg, DisableAuth: disableAuth})
 	basicHttpFrontendConnector.responseMutator = func(w http.ResponseWriter) http.ResponseWriter {
 		w.Header().Set("Content-Type", "application/json")
 		return w

@@ -47,7 +47,9 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(legacyDependencies)
 
-	queryFrontendConnector := frontend_connectors.NewElasticsearchQueryFrontendConnector(":8080", cfg.Elasticsearch)
+	queryConn := newConfiguration.GetFrontendConnectorByType(config.ElasticsearchFrontendQueryConnectorName)
+
+	queryFrontendConnector := frontend_connectors.NewElasticsearchQueryFrontendConnector(":"+queryConn.Config.ListenPort.String(), cfg.Elasticsearch, queryConn.Config.DisableAuth)
 
 	var queryPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	queryPipeline.AddFrontendConnector(queryFrontendConnector)
@@ -57,7 +59,9 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 
 	queryProcessor := es_to_ch_query.NewElasticsearchToClickHouseQueryProcessor(processor.Config, legacyDependencies)
 
-	ingestFrontendConnector := frontend_connectors.NewElasticsearchIngestFrontendConnector(":8080", cfg.Elasticsearch)
+	ingestConn := newConfiguration.GetFrontendConnectorByType(config.ElasticsearchFrontendIngestConnectorName)
+
+	ingestFrontendConnector := frontend_connectors.NewElasticsearchIngestFrontendConnector(":"+queryConn.Config.ListenPort.String(), cfg.Elasticsearch, ingestConn.Config.DisableAuth)
 	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
 

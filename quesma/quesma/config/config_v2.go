@@ -172,6 +172,24 @@ func (c *QuesmaNewConfiguration) getFrontendConnectorByName(name string) *Fronte
 	return nil
 }
 
+func (c *QuesmaNewConfiguration) GetFrontendConnectorByType(typ string) *FrontendConnector {
+	for _, fc := range c.FrontendConnectors {
+		if fc.Type == typ {
+			return &fc
+		}
+	}
+	return nil
+}
+
+func (c *QuesmaNewConfiguration) GetBackendConnectorByType(typ string) *BackendConnector {
+	for _, fc := range c.BackendConnectors {
+		if fc.Type == typ {
+			return &fc
+		}
+	}
+	return nil
+}
+
 func (c *QuesmaNewConfiguration) validateFrontendConnectors() error {
 	if len(c.FrontendConnectors) == 0 {
 		return fmt.Errorf("no frontend connectors defined")
