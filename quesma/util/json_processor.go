@@ -1,10 +1,9 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package jsonprocessor
+package util
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 )
 
@@ -111,12 +110,12 @@ func (t *RewriteArrayOfObject) Transform(data types.JSON) (types.JSON, error) {
 }
 
 type RemoveFieldsOfObject struct {
-	RemovedFields []config.FieldName
+	RemovedFields []string
 }
 
 func (t *RemoveFieldsOfObject) Transform(data types.JSON) (types.JSON, error) {
 	for _, field := range t.RemovedFields {
-		delete(data, field.AsString())
+		delete(data, field)
 	}
 	return data, nil
 }

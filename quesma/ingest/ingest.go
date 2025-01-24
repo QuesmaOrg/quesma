@@ -1,10 +1,11 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package jsonprocessor
+package ingest
 
 import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 )
 
@@ -17,7 +18,7 @@ type flattenMapTransformer struct {
 }
 
 func (t *flattenMapTransformer) Transform(document types.JSON) (types.JSON, error) {
-	return FlattenMap(document, t.separator), nil
+	return util.FlattenMap(document, t.separator), nil
 }
 
 type removeFieldsTransformer struct {
