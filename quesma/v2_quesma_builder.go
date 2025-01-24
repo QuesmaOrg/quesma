@@ -6,17 +6,33 @@ package main
 import (
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_ingest"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_query"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/rs/zerolog"
 	"log"
 	"net/url"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 // BuildNewQuesma creates a new quesma instance with both Ingest And Query Processors, unused yet
 func BuildNewQuesma() quesma_api.QuesmaBuilder {
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	doneCh := make(chan struct{})
+
+	logChan := logger.InitLogger(logger.Configuration{
+		FileLogging:       false,
+		RemoteLogDrainUrl: config.DefaultTelemetryUrl().ToUrl(), // ugh that whole config.Url we have/use is a mess
+		Level:             zerolog.DebugLevel,
+		ClientId:          "DUMMY_CLIENT_ID",
+	}, sig, doneCh)
 
 	deps := quesma_api.EmptyDependencies()
 
@@ -59,7 +75,7 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 		UseCommonTableForWildcard: processorConfig.UseCommonTable,
 	}
 
-	legacyDependencies := es_to_ch_common.InitializeLegacyQuesmaDependencies(deps, oldQuesmaConfig)
+	legacyDependencies := es_to_ch_common.InitializeLegacyQuesmaDependencies(deps, oldQuesmaConfig, logChan)
 
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(legacyDependencies)
 
