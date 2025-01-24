@@ -5,7 +5,6 @@ package frontend_connectors
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
@@ -28,15 +27,6 @@ func NewElasticsearchQueryFrontendConnector(endpoint string, cfg *config.QuesmaC
 	}
 	router := quesma_api.NewPathRouter()
 
-	internalPaths := append(elasticsearch.InternalPaths, "/_stats")
-
-	for _, esInternalPath := range internalPaths {
-		router.Register(esInternalPath, quesma_api.Always(), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-			metadata := quesma_api.MakeNewMetadata()
-			metadata[es_to_ch_common.Bypass] = true
-			return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
-		})
-	}
 	//TODO: Somehow this messes up the router, so we need to fix it
 	//router.Register(IndexPath, quesma_api.IsHTTPMethod("GET"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 	//	return &quesma_api.Result{Meta: metadata, GenericResult: req.OriginalRequest}, nil
