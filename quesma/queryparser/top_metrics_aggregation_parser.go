@@ -4,8 +4,8 @@ package queryparser
 
 import (
 	"context"
-	"quesma/logger"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 )
 
 func (cw *ClickhouseQueryTranslator) ParseTopMetricsAggregation(queryMap QueryMap) metricsAggregation {

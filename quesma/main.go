@@ -5,33 +5,27 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing/sender"
+	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/connectors"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch/feature"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/licensing"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/telemetry"
 	"log"
 	"os"
 	"os/signal"
-	"quesma/ab_testing"
-	"quesma/ab_testing/sender"
-	"quesma/backend_connectors"
-	"quesma/buildinfo"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/connectors"
-	"quesma/elasticsearch"
-	"quesma/feature"
-	"quesma/frontend_connectors"
-	"quesma/ingest"
-	"quesma/licensing"
-	"quesma/logger"
-	"quesma/persistence"
-	"quesma/processors/es_to_ch_ingest"
-	"quesma/quesma"
-	"quesma/quesma/async_search_storage"
-	"quesma/quesma/config"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/telemetry"
-	"quesma/tracing"
-	"quesma_v2/core"
 	"runtime"
 	"syscall"
 	"time"
@@ -48,56 +42,10 @@ const banner = `
 
 const EnableConcurrencyProfiling = false
 
-// buildIngestOnlyQuesma is for now a helper function to help establishing the way of v2 module api import
-func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
-	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
-
-	ingestFrontendConnector := frontend_connectors.NewElasticsearchIngestFrontendConnector(":8080")
-
-	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
-	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
-
-	ingestProcessor := es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor(
-		config.QuesmaProcessorConfig{
-			UseCommonTable: false,
-			IndexConfig: map[string]config.IndexConfiguration{
-				"test_index":   {},
-				"test_index_2": {},
-				"tab1": {
-					UseCommonTable: true,
-				},
-				"tab2": {
-					UseCommonTable: true,
-				},
-				"*": {
-					IngestTarget: []string{config.ElasticsearchTarget},
-				},
-			},
-		},
-	)
-	ingestPipeline.AddProcessor(ingestProcessor)
-	quesmaBuilder.AddPipeline(ingestPipeline)
-
-	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector("clickhouse://localhost:9000")
-	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector(
-		config.ElasticsearchConfiguration{
-			Url:      &config.Url{Host: "localhost:9200", Scheme: "https"},
-			User:     "elastic",
-			Password: "quesmaquesma",
-		})
-	ingestPipeline.AddBackendConnector(clickHouseBackendConnector)
-	ingestPipeline.AddBackendConnector(elasticsearchBackendConnector)
-
-	quesmaInstance, err := quesmaBuilder.Build()
-	if err != nil {
-		log.Fatalf("error building quesma instance: %v", err)
-	}
-	return quesmaInstance
-}
-
 // Example of how to use the v2 module api in main function
 //func main() {
-//	q1 := buildIngestOnlyQuesma()
+//	q1 := BuildNewQuesma() // Back working on ingest for a while
+//	//q1 := buildQueryOnlyQuesma()
 //	q1.Start()
 //	stop := make(chan os.Signal, 1)
 //	<-stop
@@ -125,8 +73,6 @@ func main() {
 		log.Fatalf("error validating configuration: %v", err)
 	}
 
-	var asyncQueryTraceLogger *tracing.AsyncTraceLogger
-
 	licenseMod := licensing.Init(&cfg)
 	qmcLogChannel := logger.InitLogger(logger.Configuration{
 		FileLogging:       cfg.Logging.FileLogging,
@@ -134,7 +80,7 @@ func main() {
 		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
 		Level:             *cfg.Logging.Level,
 		ClientId:          licenseMod.License.ClientID,
-	}, sig, doneCh, asyncQueryTraceLogger)
+	}, sig, doneCh)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
 	go func() {
@@ -142,12 +88,6 @@ func main() {
 			logger.Warn().Msg(message)
 		}
 	}()
-
-	if asyncQueryTraceLogger != nil {
-		asyncQueryTraceEvictor := async_search_storage.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
-		asyncQueryTraceEvictor.Start()
-		defer asyncQueryTraceEvictor.Stop()
-	}
 
 	var connectionPool = clickhouse.InitDBConnectionPool(&cfg)
 
@@ -157,8 +97,10 @@ func main() {
 	virtualTableStorage := persistence.NewElasticJSONDatabase(cfg.Elasticsearch, common_table.VirtualTableElasticIndexName)
 	tableDisco := clickhouse.NewTableDiscovery(&cfg, connectionPool, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.SchemaTypeAdapter{})
+	schemaRegistry.Start()
 
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch)
+	im.Start()
 
 	connManager := connectors.NewConnectorManager(&cfg, connectionPool, phoneHomeAgent, tableDisco)
 	lm := connManager.GetConnector()
@@ -182,12 +124,12 @@ func main() {
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 
-	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry, tableResolver) //FIXME no ingest processor here just for now
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(&cfg, lm, qmcLogChannel, phoneHomeAgent, schemaRegistry, tableResolver)
 
 	abTestingController := sender.NewSenderCoordinator(&cfg, ingestProcessor)
 	abTestingController.Start()
 
-	instance := constructQuesma(&cfg, tableDisco, lm, ingestProcessor, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender(), tableResolver)
+	instance := constructQuesma(&cfg, tableDisco, lm, ingestProcessor, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.GetSender(), tableResolver)
 	instance.Start()
 
 	<-doneCh
@@ -196,6 +138,7 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
+	schemaRegistry.Stop()
 	feature.NotSupportedLogger.Stop()
 	phoneHomeAgent.Stop(ctx)
 	lm.Stop()
@@ -205,11 +148,10 @@ func main() {
 
 }
 
-func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender, indexRegistry table_resolver.TableResolver) *quesma.Quesma {
+func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender, indexRegistry table_resolver.TableResolver) *quesma.Quesma {
 	if cfg.TransparentProxy {
 		return quesma.NewQuesmaTcpProxy(cfg, quesmaManagementConsole, logChan, false)
 	} else {
-		const quesma_v2 = false
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, im, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry, quesma_v2)
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry)
 	}
 }

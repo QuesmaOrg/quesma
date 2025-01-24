@@ -4,15 +4,15 @@ package clickhouse
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"math/rand"
-	"quesma/end_user_errors"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/quesma/recovery"
-	tracing "quesma_v2/core/tracing"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -109,7 +109,7 @@ func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed ti
 
 	explainQuery := "EXPLAIN json=1, indexes=1 " + query
 
-	rows, err := lm.chDb.QueryContext(ctx, explainQuery)
+	rows, err := lm.chDb.Query(ctx, explainQuery)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("failed to explain slow query: %v", err)
 	}
@@ -182,7 +182,7 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 
 	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(settings), clickhouse.WithQueryID(queryID))
 
-	rows, err := lm.chDb.QueryContext(ctx, queryAsString)
+	rows, err := lm.chDb.Query(ctx, queryAsString)
 	if err != nil {
 		elapsed := span.End(err)
 		performanceResult.Duration = elapsed
@@ -205,7 +205,7 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
 // like e.g. count(), or toInt8(boolField)
-func read(ctx context.Context, rows *sql.Rows, selectFields []string, rowToScan []interface{}, limit int) ([]model.QueryResultRow, error) {
+func read(ctx context.Context, rows quesma_api.Rows, selectFields []string, rowToScan []interface{}, limit int) ([]model.QueryResultRow, error) {
 
 	// read selected fields from the metadata
 

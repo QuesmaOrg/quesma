@@ -7,18 +7,18 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser/lucene"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/util/regex"
 	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
-	"quesma/model/typical_queries"
-	"quesma/queryparser/lucene"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/util"
-	"quesma/util/regex"
 	"strconv"
 	"strings"
 	"unicode"
@@ -109,12 +109,12 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	simpleQuery *model.SimpleQuery, queryInfo model.HitsCountInfo, highlighter model.Highlighter) *model.Query {
 	var fullQuery *model.Query
-	switch queryInfo.Typ {
+	switch queryInfo.Type {
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
-		fullQuery = cw.BuildNRowsQuery(queryInfo.RequestedFields, simpleQuery, queryInfo.Size)
+		fullQuery = cw.BuildNRowsQuery(queryInfo.RequestedFields, simpleQuery, queryInfo)
 	case model.ListAllFields:
-		fullQuery = cw.BuildNRowsQuery([]string{"*"}, simpleQuery, queryInfo.Size)
+		fullQuery = cw.BuildNRowsQuery([]string{"*"}, simpleQuery, queryInfo)
 	default:
 	}
 	if fullQuery != nil {
@@ -179,6 +179,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model
 	queryInfo := cw.tryProcessSearchMetadata(queryAsMap)
 	queryInfo.Size = size
 	queryInfo.TrackTotalHits = trackTotalHits
+	queryInfo.SearchAfter = queryAsMap["search_after"]
 
 	return &parsedQuery, queryInfo, highlighter, nil
 }
@@ -224,7 +225,7 @@ func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) model.H
 func (cw *ClickhouseQueryTranslator) parseMetadata(queryMap QueryMap) QueryMap {
 	queryMetadata := make(QueryMap, 5)
 	for k, v := range queryMap {
-		if k == "query" || k == "bool" || k == "query_string" || k == "index_filter" { // probably change that, made so tests work, but let's see after more real use cases {
+		if k == "query" || k == "bool" || k == "query_string" || k == "index_filter" || k == "search_after" { // probably change that, made so tests work, but let's see after more real use cases {
 			continue
 		}
 		queryMetadata[k] = v
@@ -349,17 +350,21 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	}
 
 	// TODO replace with cw.Schema
-	var idToSql func(string) model.Expr
+	var idToSql func(string) (model.Expr, error)
 	timestampColumnName := model.TimestampFieldName
 	if column, ok := cw.Table.Cols[timestampColumnName]; ok {
 		switch column.Type.String() {
 		case clickhouse.DateTime64.String():
-			idToSql = func(id string) model.Expr {
-				return model.NewFunction("toDateTime64", model.NewLiteral(id), model.NewLiteral(3))
+			idToSql = func(id string) (model.Expr, error) {
+				precision, success := util.FindTimestampPrecision(id[1 : len(id)-1]) // strip quotes added above
+				if !success {
+					return nil, fmt.Errorf("invalid timestamp format: %s", id)
+				}
+				return model.NewFunction("toDateTime64", model.NewLiteral(id), model.NewLiteral(precision)), nil
 			}
 		case clickhouse.DateTime.String():
-			idToSql = func(id string) model.Expr {
-				return model.NewFunction("toDateTime", model.NewLiteral(id))
+			idToSql = func(id string) (model.Expr, error) {
+				return model.NewFunction("toDateTime", model.NewLiteral(id)), nil
 			}
 		default:
 			logger.ErrorWithCtx(cw.Ctx).Msgf("timestamp field of unsupported type %s", column.Type.String())
@@ -375,11 +380,20 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	case 0:
 		whereStmt = model.FalseExpr // timestamp IN [] <=> false
 	case 1:
-		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", idToSql(ids[0]))
+		sql, err := idToSql(ids[0])
+		if err != nil {
+			logger.ErrorWithCtx(cw.Ctx).Msgf("error converting id to sql: %v", err)
+			return model.NewSimpleQueryInvalid()
+		}
+		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", sql)
 	default:
 		idsAsExprs := make([]model.Expr, len(ids))
 		for i, id := range ids {
-			idsAsExprs[i] = idToSql(id)
+			idsAsExprs[i], err = idToSql(id)
+			if err != nil {
+				logger.ErrorWithCtx(cw.Ctx).Msgf("error converting id to sql: %v", err)
+				return model.NewSimpleQueryInvalid()
+			}
 		}
 		idsTuple := model.NewTupleExpr(idsAsExprs...)
 		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " IN ", idsTuple)
@@ -976,7 +990,7 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.H
 
 	fields, ok := queryMap["fields"].([]any)
 	if !ok {
-		return model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
+		return model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
 	}
 	if len(fields) > 1 {
 		fieldNames := make([]string, 0)
@@ -999,13 +1013,13 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.H
 		}
 		logger.Debug().Msgf("requested more than one field %s, falling back to '*'", fieldNames)
 		// so far everywhere I've seen, > 1 field ==> "*" is one of them
-		return model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
+		return model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
 	} else if len(fields) == 0 {
 		// isCount, ok := queryMap["track_total_hits"].(bool)
 		// TODO make count separate!
 		/*
 			if ok && isCount {
-				return model.HitsCountInfo{Typ: model.CountAsync, RequestedFields: make([]string, 0), FieldName: "", I1: 0, I2: 0}, true
+				return model.HitsCountInfo{Type: model.CountAsync, RequestedFields: make([]string, 0), FieldName: "", I1: 0, I2: 0}, true
 			}
 		*/
 		return model.NewEmptyHitsCountInfo(), false
@@ -1031,9 +1045,9 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.H
 
 		resolvedField := ResolveField(cw.Ctx, fieldName, cw.Schema)
 		if resolvedField == "*" {
-			return model.HitsCountInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
+			return model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: size}, true
 		}
-		return model.HitsCountInfo{Typ: model.ListByField, RequestedFields: []string{resolvedField}, Size: size}, true
+		return model.HitsCountInfo{Type: model.ListByField, RequestedFields: []string{resolvedField}, Size: size}, true
 	}
 }
 

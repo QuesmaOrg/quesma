@@ -4,8 +4,8 @@ package collector
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/goccy/go-json"
-	"quesma/quesma/types"
 	"regexp"
 )
 

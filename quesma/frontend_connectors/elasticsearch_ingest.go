@@ -5,62 +5,40 @@ package frontend_connectors
 
 import (
 	"context"
-	"github.com/ucarion/urlpath"
+	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
-	quesma_api "quesma_v2/core"
 )
 
 type ElasticsearchIngestFrontendConnector struct {
-	BasicHTTPFrontendConnector
+	*BasicHTTPFrontendConnector
 }
 
-const (
-	IndexDocPath  = "/:index/_doc"
-	IndexBulkPath = "/:index/_bulk"
+func NewElasticsearchIngestFrontendConnector(endpoint string, cfg *config.QuesmaConfiguration) *ElasticsearchIngestFrontendConnector {
 
-	// IngestAction and below are metadata items passed to processor.
-	IngestAction    = "ingest_action"
-	DocIndexAction  = "_doc"
-	BulkIndexAction = "_bulk"
-	IngestTargetKey = "ingest_target"
-	// TODO: this actually should not be a dependency on processor
-)
-
-func NewElasticsearchIngestFrontendConnector(endpoint string) *ElasticsearchIngestFrontendConnector {
+	basicHttpFrontendConnector := NewBasicHTTPFrontendConnector(endpoint, cfg)
+	basicHttpFrontendConnector.responseMutator = func(w http.ResponseWriter) http.ResponseWriter {
+		w.Header().Set("Content-Type", "application/json")
+		return w
+	}
 	fc := &ElasticsearchIngestFrontendConnector{
-		BasicHTTPFrontendConnector: BasicHTTPFrontendConnector{
-			endpoint:        endpoint,
-			responseMutator: setContentType,
-		},
+		BasicHTTPFrontendConnector: basicHttpFrontendConnector,
 	}
 	router := quesma_api.NewPathRouter()
-	router.AddRoute(IndexBulkPath, bulk)
-	router.AddRoute(IndexDocPath, doc)
+
+	router.Register(es_to_ch_common.IndexBulkPath, quesma_api.IsHTTPMethod("POST", "PUT"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.IndexBulkPath), nil
+	})
+	router.Register(es_to_ch_common.BulkPath, quesma_api.IsHTTPMethod("POST", "PUT"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.BulkPath), nil
+	})
+	router.Register(es_to_ch_common.IndexMappingPath, quesma_api.IsHTTPMethod("PUT"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.IndexMappingPath), nil
+	})
+	router.Register(es_to_ch_common.IndexDocPath, quesma_api.IsHTTPMethod("POST"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
+		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.IndexDocPath), nil
+	})
 	fc.AddRouter(router)
 	return fc
-}
-
-func setContentType(w http.ResponseWriter) http.ResponseWriter {
-	w.Header().Set("Content-Type", "application/json")
-	return w
-}
-
-func bulk(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-	metadata := quesma_api.MakeNewMetadata()
-	metadata[IngestAction] = BulkIndexAction
-	metadata[IngestTargetKey] = getIndexFromRequest(request.OriginalRequest)
-	return &quesma_api.Result{Meta: metadata, GenericResult: request}, nil
-}
-
-func doc(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-	metadata := quesma_api.MakeNewMetadata()
-	metadata[IngestAction] = DocIndexAction
-	metadata[IngestTargetKey] = getIndexFromRequest(request.OriginalRequest)
-	return &quesma_api.Result{Meta: metadata, GenericResult: request}, nil
-}
-
-func getIndexFromRequest(request *http.Request) string {
-	expectedUrl := urlpath.New("/:index/*")
-	match, _ := expectedUrl.Match(request.URL.Path) // safe to call at this level
-	return match.Params["index"]
 }

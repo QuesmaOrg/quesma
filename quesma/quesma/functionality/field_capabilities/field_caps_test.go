@@ -3,13 +3,13 @@
 package field_capabilities
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/model"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"quesma/util"
 	"testing"
 )
 

@@ -3,11 +3,12 @@
 package quesma
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/model"
-	"quesma/quesma/config"
-	"quesma/schema"
 	"strconv"
 	"testing"
 )
@@ -19,8 +20,8 @@ type fixedTableProvider struct {
 func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
 	return f.tables
 }
-
-func (f fixedTableProvider) AutodiscoveryEnabled() bool { return false }
+func (f fixedTableProvider) AutodiscoveryEnabled() bool                              { return false }
+func (f fixedTableProvider) RegisterTablesReloadListener(chan<- types.ReloadMessage) {}
 
 func Test_ipRangeTransform(t *testing.T) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
@@ -86,7 +87,9 @@ func Test_ipRangeTransform(t *testing.T) {
 			TableName: "kibana_sample_data_logs_nested", FieldName: "nested.clientip"}: "nested_clientip",
 	}
 	s := schema.NewSchemaRegistry(tableProvider, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: &cfg, tableDiscovery: tableDiscovery}
+	s.Start()
+	defer s.Stop()
+	transform := NewSchemaCheckPass(&cfg, tableDiscovery, defaultSearchAfterStrategy)
 	s.UpdateFieldEncodings(fieldEncodings)
 
 	selectColumns := []model.Expr{model.NewColumnRef("message")}
@@ -441,7 +444,7 @@ func Test_arrayType(t *testing.T) {
 		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
 	}
 
-	transform := &SchemaCheckPass{cfg: &config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery: tableDiscovery}
+	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, defaultSearchAfterStrategy)
 
 	tests := []struct {
 		name     string
@@ -616,7 +619,7 @@ func TestApplyWildCard(t *testing.T) {
 		},
 	}
 
-	transform := &SchemaCheckPass{cfg: &config.QuesmaConfiguration{IndexConfig: indexConfig}}
+	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, nil, defaultSearchAfterStrategy)
 
 	tests := []struct {
 		name     string
@@ -704,7 +707,9 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 	td.Store(tableDefinition.Name, &tableDefinition)
 
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: &config.QuesmaConfiguration{IndexConfig: indexConfig}}
+	s.Start()
+	defer s.Stop()
+	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, nil, defaultSearchAfterStrategy)
 
 	tests := []struct {
 		name     string
@@ -964,7 +969,9 @@ func TestFullTextFields(t *testing.T) {
 			}
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-			transform := &SchemaCheckPass{cfg: &config.QuesmaConfiguration{IndexConfig: indexConfig}}
+			s.Start()
+			defer s.Stop()
+			transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, nil, defaultSearchAfterStrategy)
 
 			indexSchema, ok := s.FindSchema("test")
 			if !ok {
@@ -1071,7 +1078,10 @@ func Test_applyMatchOperator(t *testing.T) {
 			}
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-			transform := &SchemaCheckPass{cfg: &cfg}
+			s.Start()
+			defer s.Stop()
+
+			transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
 
 			indexSchema, ok := s.FindSchema("test")
 			if !ok {
@@ -1171,7 +1181,9 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 			}
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
-			transform := &SchemaCheckPass{cfg: &cfg}
+			s.Start()
+			defer s.Stop()
+			transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
 
 			indexSchema, ok := s.FindSchema("test")
 			if !ok {

@@ -10,6 +10,7 @@ import (
 type HTTPFrontendHandler func(ctx context.Context, req *Request, writer http.ResponseWriter) (*Result, error)
 
 type HandlersPipe struct {
+	Path       string
 	Predicate  RequestMatcher
 	Handler    HTTPFrontendHandler
 	Processors []Processor

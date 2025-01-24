@@ -4,29 +4,27 @@ package ingest
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	chLib "github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/comment_metadata"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/jsonprocessor"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/stats"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/goccy/go-json"
-	chLib "quesma/clickhouse"
-	"quesma/comment_metadata"
-	"quesma/common_table"
-	"quesma/elasticsearch"
-	"quesma/end_user_errors"
-	"quesma/jsonprocessor"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/quesma/recovery"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/stats"
-	"quesma/table_resolver"
-	"quesma/telemetry"
-	"quesma/util"
-	"quesma_v2/core"
-	"quesma_v2/core/diag"
 	"slices"
 	"sort"
 	"strings"
@@ -60,10 +58,10 @@ type (
 	IngestProcessor struct {
 		ctx                       context.Context
 		cancel                    context.CancelFunc
-		chDb                      *sql.DB
+		chDb                      quesma_api.BackendConnector
 		tableDiscovery            chLib.TableDiscovery
 		cfg                       *config.QuesmaConfiguration
-		phoneHomeAgent            diag.PhoneHomeClient
+		phoneHomeClient           diag.PhoneHomeClient
 		schemaRegistry            schema.Registry
 		ingestCounter             int64
 		ingestFieldStatistics     IngestFieldStatistics
@@ -173,7 +171,7 @@ func addOurFieldsToCreateTableQuery(q string, config *chLib.ChTableConfig, table
 
 func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, error) {
 	var count int64
-	err := ip.chDb.QueryRowContext(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
+	err := ip.chDb.QueryRow(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
@@ -763,14 +761,12 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 func (ip *IngestProcessor) applyAsyncInsertOptimizer(tableName string, clickhouseSettings clickhouse.Settings) clickhouse.Settings {
 
 	const asyncInsertOptimizerName = "async_insert"
-	enableAsyncInsert := false
+	enableAsyncInsert := true // enabled by default
 	var asyncInsertProps map[string]string
 
 	if optimizer, ok := ip.cfg.DefaultIngestOptimizers[asyncInsertOptimizerName]; ok {
-		if !optimizer.Disabled {
-			enableAsyncInsert = true
-			asyncInsertProps = optimizer.Properties
-		}
+		enableAsyncInsert = !optimizer.Disabled
+		asyncInsertProps = optimizer.Properties
 	}
 
 	idxCfg, ok := ip.cfg.IndexConfig[tableName]
@@ -786,9 +782,10 @@ func (ip *IngestProcessor) applyAsyncInsertOptimizer(tableName string, clickhous
 
 		// some sane defaults
 		clickhouseSettings["wait_for_async_insert"] = 1
-		clickhouseSettings["async_insert_busy_timeout_ms"] = 1000
-		clickhouseSettings["async_insert_max_data_size"] = 1000000
-		clickhouseSettings["async_insert_max_query_number"] = 10000
+
+		clickhouseSettings["async_insert_busy_timeout_ms"] = 100      // default is 1000ms
+		clickhouseSettings["async_insert_max_data_size"] = 50_000_000 // default is 10MB
+		clickhouseSettings["async_insert_max_query_number"] = 10000   // default is 450
 
 		for k, v := range asyncInsertProps {
 			clickhouseSettings[k] = v
@@ -843,7 +840,7 @@ func subtractInputJson(inputDoc types.JSON, anotherDoc types.JSON) types.JSON {
 // This function executes query with context
 // and creates span for it
 func (ip *IngestProcessor) execute(ctx context.Context, query string) error {
-	span := ip.phoneHomeAgent.ClickHouseInsertDuration().Begin()
+	span := ip.phoneHomeClient.ClickHouseInsertDuration().Begin()
 
 	// We log every DDL query
 	if ip.cfg.Logging.EnableSQLTracing {
@@ -852,7 +849,7 @@ func (ip *IngestProcessor) execute(ctx context.Context, query string) error {
 		}
 	}
 
-	_, err := ip.chDb.ExecContext(ctx, query)
+	err := ip.chDb.Exec(ctx, query)
 	span.End(err)
 	return err
 }
@@ -881,8 +878,9 @@ func (ip *IngestProcessor) preprocessJsons(ctx context.Context,
 			return nil, nil, fmt.Errorf("error validation: %v", err)
 		}
 		invalidJsons = append(invalidJsons, inValidJson)
-		stats.GlobalStatistics.UpdateNonSchemaValues(ip.cfg, tableName,
-			inValidJson, NestedSeparator)
+		if ip.cfg != nil {
+			stats.GlobalStatistics.UpdateNonSchemaValues(ip.cfg.IngestStatistics, tableName, inValidJson, NestedSeparator)
+		}
 		// Remove invalid fields from the input JSON
 		jsonValue = subtractInputJson(jsonValue, inValidJson)
 		validatedJsons = append(validatedJsons, jsonValue)
@@ -963,7 +961,7 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 				logger.Error().Msgf("error storing virtual table: %v", err)
 			}
 		}
-		ip.tableDiscovery.TableDefinitions().Store(table.Name, table)
+		ip.tableDiscovery.AddTable(table.Name, table)
 		return true
 	}
 	wasntCreated := !t.Created
@@ -971,13 +969,21 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 	return wasntCreated
 }
 
+func (ip *IngestProcessor) GetSchemaRegistry() schema.Registry {
+	return ip.schemaRegistry
+}
+
+func (ip *IngestProcessor) GetTableResolver() table_resolver.TableResolver {
+	return ip.tableResolver
+}
+
 func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
-func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
+func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeClient diag.PhoneHomeClient, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
+	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
 }
 
 func NewOnlySchemaFieldsCHConfig() *chLib.ChTableConfig {

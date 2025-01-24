@@ -6,14 +6,16 @@ package queryparser
 import (
 	"fmt"
 	"github.com/H0llyW00dzZ/cidr"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	cidr2 "github.com/apparentlymart/go-cidr/cidr"
 	"github.com/pkg/errors"
 	"math"
 	"net"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
-	"quesma/util"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
@@ -410,23 +412,39 @@ func (cw *ClickhouseQueryTranslator) parseIpRange(aggregation *pancakeAggregatio
 	rangesRaw := params["ranges"].([]any)
 	ranges := make([]bucket_aggregations.IpInterval, 0, len(rangesRaw))
 	for _, rangeRaw := range rangesRaw {
+		var begin, end string
 		var key *string
 		if keyIfPresent, exists := cw.parseStringFieldExistCheck(rangeRaw.(QueryMap), "key"); exists {
 			key = &keyIfPresent
 		}
-		var begin, end string
 		if maskIfExists, exists := cw.parseStringFieldExistCheck(rangeRaw.(QueryMap), "mask"); exists {
 			_, ipNet, err := net.ParseCIDR(maskIfExists)
 			if err != nil {
 				return err
 			}
-			beginAsInt, endAsInt := cidr.IPv4ToRange(ipNet)
-			begin = util.IntToIpv4(beginAsInt)
-			// endAsInt is inclusive, we do +1, because we need it exclusive
-			if endAsInt != math.MaxUint32 {
-				end = util.IntToIpv4(endAsInt + 1)
+			if ipNet.IP.To4() != nil {
+				// it's ipv4
+				beginAsInt, endAsInt := cidr.IPv4ToRange(ipNet)
+				begin = util.IntToIpv4(beginAsInt)
+				// endAsInt is inclusive, we do +1, because we need it exclusive
+				if endAsInt != math.MaxUint32 {
+					end = util.IntToIpv4(endAsInt + 1)
+				} else {
+					end = bucket_aggregations.BiggestIpv4 // "255.255.255.255 + 1", so to say (value in compliance with Elastic)
+				}
+			} else if ipNet.IP.To16() != nil {
+				// it's ipv6
+				beginInclusive, endInclusive := cidr2.AddressRange(ipNet)
+				begin = beginInclusive.String()
+				// we do +1 (.Next()), because we need end to be exclusive
+				endExclusive := netip.MustParseAddr(endInclusive.String()).Next()
+				if endExclusive.IsValid() {
+					end = endExclusive.String()
+				} else { // invalid means endInclusive was already the biggest possible value (ff...ff)
+					end = bucket_aggregations.UnboundedInterval
+				}
 			} else {
-				end = bucket_aggregations.BiggestIpv4 // "255.255.255.255 + 1", so to say (value in compliance with Elastic)
+				return fmt.Errorf("invalid mask: %s", maskIfExists)
 			}
 			if key == nil {
 				key = &maskIfExists

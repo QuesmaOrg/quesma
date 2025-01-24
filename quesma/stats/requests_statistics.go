@@ -3,8 +3,8 @@
 package stats
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"math"
-	"quesma/logger"
 	"sort"
 	"sync"
 	"time"

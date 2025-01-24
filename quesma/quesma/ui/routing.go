@@ -3,8 +3,8 @@
 package ui
 
 import (
-	"quesma/quesma/ui/internal/builder"
-	"quesma_v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"strings"
 )
 

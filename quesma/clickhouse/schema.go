@@ -4,9 +4,9 @@ package clickhouse
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"math"
-	"quesma/logger"
-	"quesma/util"
 	"reflect"
 	"strings"
 	"time"
@@ -296,11 +296,16 @@ func (col *Column) isArray() bool {
 }
 
 func (col *Column) createTableString(indentLvl int) string {
-	spaceStr := " "
+	maybeSpace := " "
 	if len(col.Modifiers) == 0 {
-		spaceStr = ""
+		maybeSpace = ""
 	}
-	return util.Indent(indentLvl) + `"` + col.Name + `" ` + col.Type.createTableString(indentLvl) + spaceStr + col.Modifiers
+	comment := fmt.Sprintf(" COMMENT '%s'", col.Comment)
+	if len(col.Comment) == 0 {
+		comment = ""
+	}
+	return fmt.Sprintf(`%s"%s" %s%s%s%s`, util.Indent(indentLvl), col.Name, col.Type.createTableString(indentLvl),
+		maybeSpace, col.Modifiers, comment)
 }
 
 // TODO TTL only by timestamp for now!

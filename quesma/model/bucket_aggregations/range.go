@@ -5,9 +5,9 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"math"
-	"quesma/logger"
-	"quesma/model"
 	"strconv"
 	"strings"
 )

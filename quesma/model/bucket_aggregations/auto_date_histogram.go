@@ -5,8 +5,8 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"time"
 )
 

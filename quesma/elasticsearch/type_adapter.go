@@ -3,8 +3,8 @@
 package elasticsearch
 
 import (
-	"quesma/elasticsearch/elasticsearch_field_types"
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch/elasticsearch_field_types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 )
 
 type SchemaTypeAdapter struct {

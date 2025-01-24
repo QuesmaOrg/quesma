@@ -4,20 +4,29 @@ package quesma
 
 import (
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/typical_queries"
-	"quesma/quesma/config"
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"sort"
 	"strings"
 )
 
 type SchemaCheckPass struct {
-	cfg            *config.QuesmaConfiguration
-	tableDiscovery clickhouse.TableDiscovery
+	cfg                 *config.QuesmaConfiguration
+	tableDiscovery      clickhouse.TableDiscovery
+	searchAfterStrategy searchAfterStrategy
+}
+
+func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery clickhouse.TableDiscovery, strategyType searchAfterStrategyType) *SchemaCheckPass {
+	return &SchemaCheckPass{
+		cfg:                 cfg,
+		tableDiscovery:      tableDiscovery,
+		searchAfterStrategy: searchAfterStrategyFactory(strategyType),
+	}
 }
 
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
@@ -650,7 +659,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 		// This is workaround.
 		// Our query parse resolves columns sometimes. Here we detect it and skip the resolution.
 		if _, ok := indexSchema.ResolveFieldByInternalName(e.ColumnName); ok {
-			logger.Warn().Msgf("Got field already resolved %s", e.ColumnName)
+			logger.Debug().Msgf("Got field already resolved %s", e.ColumnName) // Reduced to debug as it was really noisy
 			return e
 		}
 
@@ -901,6 +910,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
+		{TransformationName: "ApplySearchAfterParameter", Transformation: s.applySearchAfterParameter},
 
 		// Section 3: clickhouse specific transformations
 		{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse},

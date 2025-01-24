@@ -7,20 +7,21 @@ import (
 	"context"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/queryparser"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/util"
-	"quesma_v2/core/diag"
-	tracing "quesma_v2/core/tracing"
 	"regexp"
 	"testing"
 )
@@ -94,8 +95,9 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 		Created: true,
 	}
 	tableResolver := table_resolver.NewEmptyTableResolver()
-	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, tableResolver)
-	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, tableResolver)
+	conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, util.NewSyncMapWith(testTableName, table))
 	s := schema.StaticRegistry{

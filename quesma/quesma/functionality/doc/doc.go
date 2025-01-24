@@ -4,21 +4,21 @@ package doc
 
 import (
 	"context"
-	"quesma/ingest"
-	"quesma/quesma/config"
-	"quesma/quesma/functionality/bulk"
-	"quesma/quesma/types"
-	"quesma/table_resolver"
-	"quesma_v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/bulk"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 )
 
-func Write(ctx context.Context, tableName *string, body types.JSON, ip *ingest.IngestProcessor, cfg *config.QuesmaConfiguration, phoneHomeAgent diag.PhoneHomeClient, registry table_resolver.TableResolver) (bulk.BulkItem, error) {
+func Write(ctx context.Context, tableName *string, body types.JSON, ip *ingest.IngestProcessor, ingestStatsEnabled bool, phoneHomeAgent diag.PhoneHomeClient, registry table_resolver.TableResolver, elasticsearchConnector *backend_connectors.ElasticsearchBackendConnector) (bulk.BulkItem, error) {
 	// Translate single doc write to a bulk request, reusing exiting logic of bulk ingest
-
-	results, err := bulk.Write(ctx, tableName, []types.JSON{
+	payload := []types.JSON{
 		map[string]interface{}{"index": map[string]interface{}{"_index": *tableName}},
 		body,
-	}, ip, cfg, phoneHomeAgent, registry)
+	}
+	results, err := bulk.Write(ctx, tableName, payload, ip, ingestStatsEnabled, elasticsearchConnector, phoneHomeAgent, registry)
 
 	if err != nil {
 		return bulk.BulkItem{}, err

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package common_table
 
-import "quesma/quesma/types"
+import "github.com/QuesmaOrg/quesma/quesma/quesma/types"
 
 // IngestAddIndexNameTransformer is a transformer that adds an index name to the JSON
 type IngestAddIndexNameTransformer struct {

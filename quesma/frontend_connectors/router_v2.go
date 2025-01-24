@@ -8,25 +8,25 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch/feature"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/routes"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"io"
 	"net/http"
-	"quesma/clickhouse"
-	"quesma/elasticsearch"
-	"quesma/end_user_errors"
-	"quesma/feature"
-	"quesma/logger"
-	"quesma/queryparser"
-	"quesma/quesma/config"
-	"quesma/quesma/gzip"
-	"quesma/quesma/recovery"
-	"quesma/quesma/types"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/util"
-	quesma_api "quesma_v2/core"
-	"quesma_v2/core/diag"
-	"quesma_v2/core/routes"
-	"quesma_v2/core/tracing"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -50,14 +50,10 @@ func responseFromElasticV2(ctx context.Context, elkResponse *http.Response, w ht
 }
 
 func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseWriter, quesmaResponse *quesma_api.Result, zip bool) {
-	var reqIdFromContext string
-	if id := ctx.Value(tracing.RequestIdCtxKey); id != nil {
-		reqIdFromContext = id.(string)
-	} else {
-		reqIdFromContext = "EMPTY_REQUEST_ID_IN_CONTEXT"
+	if quesmaResponse == nil {
+		logger.Error().Msg("responseFromQuesmaV2: quesmaResponse is nil")
+		return
 	}
-	logger.Debug().Str(logger.RID, reqIdFromContext).Msg("responding from Quesma")
-
 	for key, value := range quesmaResponse.Meta {
 		if headerStringValue, ok := value.(string); ok {
 			w.Header().Set(key, headerStringValue)
@@ -69,7 +65,7 @@ func responseFromQuesmaV2(ctx context.Context, unzipped []byte, w http.ResponseW
 	w.Header().Set(QuesmaSourceHeader, QuesmaSourceClickhouse)
 	w.WriteHeader(quesmaResponse.StatusCode)
 	if zip {
-		zipped, err := gzip.Zip(unzipped)
+		zipped, err := util.Zip(unzipped)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("Error zipping: %v", err)
 		}
@@ -283,22 +279,39 @@ func (r *RouterV2) Reroute(ctx context.Context, w http.ResponseWriter, req *http
 			}
 			metadata, message := dispatcher.Dispatch(handlersPipe.Processors, result.Meta, result.GenericResult)
 
-			result = &quesma_api.Result{
-				Body:          result.Body,
-				Meta:          metadata,
-				StatusCode:    result.StatusCode,
-				GenericResult: message,
+			// Very dumb way to see what processor called eventually the handler, should eventually replace
+			// X-Quesma-Source which is no longer true in the V2 API realm
+			if realSource, ok := metadata[es_to_ch_common.RealSourceHeader].(string); ok {
+				logger.Info().Msgf("Request to %s, processor called [%s]", req.URL.Path, realSource)
 			}
-			return result, err
+
+			if res, ok := message.(*quesma_api.Result); ok {
+				return res, nil
+			}
+
+			if msgBytes, ok := message.([]byte); !ok {
+				return result, fmt.Errorf("invalid message type: %v", message)
+			} else {
+				result = &quesma_api.Result{
+					Body:          string(msgBytes),
+					Meta:          metadata,
+					StatusCode:    http.StatusOK,
+					GenericResult: message,
+				}
+				return result, err
+			}
 		})
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
 
 		if err == nil {
-			logger.Debug().Ctx(ctx).Msg("responding from quesma")
 			unzipped := []byte{}
 			if quesmaResponse != nil {
-				unzipped = quesmaResponse.GenericResult.([]byte)
+				if v, ok := quesmaResponse.GenericResult.([]byte); ok {
+					unzipped = v
+				} else {
+					logger.Error().Msgf("Failed casting .GenericResult to []byte")
+				}
 			}
 			if len(unzipped) == 0 {
 				logger.WarnWithCtx(ctx).Msgf("empty response from Clickhouse, method=%s", req.Method)
@@ -440,7 +453,7 @@ func PeekBodyV2(r *http.Request) ([]byte, error) {
 	case "":
 		// No compression, leaving reqBody as-is
 	case "gzip":
-		reqBody, err = gzip.UnZip(reqBody)
+		reqBody, err = util.UnZip(reqBody)
 		if err != nil {
 			logger.ErrorWithCtxAndReason(r.Context(), "invalid gzip body").
 				Msgf("Error decompressing gzip body: %v", err)

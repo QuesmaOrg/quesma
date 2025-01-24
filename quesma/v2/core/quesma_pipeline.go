@@ -70,7 +70,7 @@ func (p *Pipeline) Start() {
 	// because we are copying routing table from all connectors
 	// however, bind error remains
 	for _, conn := range p.FrontendConnectors {
-		p.logger.Info().Msgf("Starting frontend connector %s", conn)
+		p.logger.Info().Msgf("Starting frontend connector %s", conn.GetEndpoint())
 		go conn.Listen()
 	}
 }

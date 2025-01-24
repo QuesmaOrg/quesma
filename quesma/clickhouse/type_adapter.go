@@ -3,7 +3,7 @@
 package clickhouse
 
 import (
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"strings"
 )
 
