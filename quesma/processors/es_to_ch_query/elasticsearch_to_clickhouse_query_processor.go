@@ -72,7 +72,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor
 	queryRunner := quesm.NewQueryRunner(
 		p.legacyDependencies.LogManager,
 		p.legacyDependencies.OldQuesmaConfig,
-		nil,
+		p.legacyDependencies.UIConsole,
 		p.legacyDependencies.SchemaRegistry,
 		p.legacyDependencies.AbTestingController.GetSender(),
 		p.legacyDependencies.TableResolver,

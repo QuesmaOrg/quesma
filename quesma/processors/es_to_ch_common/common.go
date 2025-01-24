@@ -100,7 +100,7 @@ type LegacyQuesmaDependencies struct {
 	TableDiscovery      clickhouse.TableDiscovery
 	SchemaRegistry      schema.Registry
 	TableResolver       table_resolver.TableResolver
-	Adminconsole        *ui.QuesmaManagementConsole
+	UIConsole           *ui.QuesmaManagementConsole
 	AbTestingController *sender.SenderCoordinator
 	IngestProcessor     *ingest.IngestProcessor
 	LogManager          clickhouse.LogManagerIFace
@@ -119,6 +119,7 @@ func newLegacyQuesmaDependencies(
 	ingestProcessor *ingest.IngestProcessor,
 	logManager clickhouse.LogManagerIFace,
 	logChan <-chan logger.LogWithLevel,
+	uiConsole *ui.QuesmaManagementConsole,
 ) *LegacyQuesmaDependencies {
 	return &LegacyQuesmaDependencies{
 		DependenciesImpl:    baseDependencies,
@@ -132,6 +133,7 @@ func newLegacyQuesmaDependencies(
 		IngestProcessor:     ingestProcessor,
 		LogManager:          logManager,
 		LogChan:             logChan,
+		UIConsole:           uiConsole,
 	}
 }
 
@@ -166,6 +168,6 @@ func InitializeLegacyQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, o
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(oldQuesmaConfig, logManager, logChan, phoneHomeAgent, schemaRegistry, dummyTableResolver)
 	go quesmaManagementConsole.Run()
 
-	legacyDependencies := newLegacyQuesmaDependencies(*baseDeps, oldQuesmaConfig, connectionPool, *virtualTableStorage, tableDisco, schemaRegistry, dummyTableResolver, abTestingController, ingestProcessor, logManager, logChan)
+	legacyDependencies := newLegacyQuesmaDependencies(*baseDeps, oldQuesmaConfig, connectionPool, *virtualTableStorage, tableDisco, schemaRegistry, dummyTableResolver, abTestingController, ingestProcessor, logManager, logChan, quesmaManagementConsole)
 	return legacyDependencies
 }
