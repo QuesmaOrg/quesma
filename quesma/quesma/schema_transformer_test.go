@@ -498,6 +498,36 @@ func Test_arrayType(t *testing.T) {
 		},
 
 		{
+			name: "arrayReducePancake",
+			//SELECT "order_date", avgOrNullMerge(avgOrNullState("products::quantity"")) OVER (), sumOrNull("products::quantity") FROM "kibana_sample_data_ecommerce" GROUP BY "order_date"
+			query: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns: []model.Expr{
+						model.NewColumnRef("order_date"),
+						model.NewWindowFunction("avgOrNullMerge", []model.Expr{model.NewFunction("avgOrNullState", model.NewColumnRef("products.quantity"))}, []model.Expr{}, []model.OrderByExpr{}),
+						model.NewFunction("sumOrNull", model.NewColumnRef("products.quantity")),
+					},
+					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
+				},
+			},
+			//SELECT "order_date", avgArrayOrNullMerge(avgArrayOrNullMerge("products::quantity"")) OVER (), sumOrNull("products::quantity") FROM "kibana_sample_data_ecommerce" GROUP BY "order_date"
+			expected: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns: []model.Expr{
+						model.NewColumnRef("order_date"),
+						model.NewWindowFunction("avgArrayOrNullMerge", []model.Expr{model.NewFunction("avgArrayOrNullState", model.NewColumnRef("products.quantity"))}, []model.Expr{}, []model.OrderByExpr{}),
+						model.NewAliasedExpr(model.NewFunction("sumArrayOrNull", model.NewColumnRef("products_quantity")), "column_1"),
+					},
+					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
+				},
+			},
+		},
+
+		{
 			name: "ilike array",
 			//SELECT "order_date", count() FROM "kibana_sample_data_ecommerce" WHERE  "products::name" ILIKE '%bag%	 GROUP BY "order_date"
 			//SELECT "order_date", count() FROM "kibana_sample_data_ecommerce" WHERE arrayExists((x) -> x ILIKE '%bag%',"products::product_name") GROUP BY "order_date"
