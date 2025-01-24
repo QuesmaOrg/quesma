@@ -519,8 +519,8 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewWindowFunction("avgArrayOrNullMerge", []model.Expr{model.NewFunction("avgArrayOrNullState", model.NewColumnRef("products.quantity"))}, []model.Expr{}, []model.OrderByExpr{}),
-						model.NewAliasedExpr(model.NewFunction("sumArrayOrNull", model.NewColumnRef("products_quantity")), "column_1"),
+						model.NewAliasedExpr(model.NewWindowFunction("avgArrayOrNullMerge", []model.Expr{model.NewFunction("avgArrayOrNullState", model.NewColumnRef("products_quantity"))}, []model.Expr{}, []model.OrderByExpr{}), "column_1"),
+						model.NewAliasedExpr(model.NewFunction("sumArrayOrNull", model.NewColumnRef("products_quantity")), "column_2"),
 					},
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
 				},

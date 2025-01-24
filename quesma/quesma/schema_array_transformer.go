@@ -53,10 +53,11 @@ func parseFunctionWithCombinator(funcName string) (result functionWithCombinator
 		return s, false
 	}
 
-	result.baseFunctionName, result.isIf = stripSuffix(funcName, "If")
-	result.baseFunctionName, result.isOrNull = stripSuffix(result.baseFunctionName, "OrNull")
+	result.baseFunctionName = funcName
 	result.baseFunctionName, result.isState = stripSuffix(result.baseFunctionName, "State")
 	result.baseFunctionName, result.isMerge = stripSuffix(result.baseFunctionName, "Merge")
+	result.baseFunctionName, result.isIf = stripSuffix(result.baseFunctionName, "If")
+	result.baseFunctionName, result.isOrNull = stripSuffix(result.baseFunctionName, "OrNull")
 
 	return result
 }
@@ -118,6 +119,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 
 	}
 
+	var childGotArrayFunc bool
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
 
 		if len(e.Args) > 0 {
@@ -128,13 +130,26 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 				if strings.HasPrefix(dbType, "Array") {
 					funcParsed := parseFunctionWithCombinator(e.Name)
 					funcParsed.isArray = true
+					childGotArrayFunc = true
 					e.Name = funcParsed.String()
 				}
+			} else {
+				e.Args = b.VisitChildren(e.Args)
 			}
 		}
 
+		return model.NewFunction(e.Name, e.Args...)
+	}
+
+	visitor.OverrideVisitWindowFunction = func(b *model.BaseExprVisitor, e model.WindowFunction) interface{} {
+		childGotArrayFunc = false
 		args := b.VisitChildren(e.Args)
-		return model.NewFunction(e.Name, args...)
+		if childGotArrayFunc {
+			funcParsed := parseFunctionWithCombinator(e.Name)
+			funcParsed.isArray = true
+			e.Name = funcParsed.String()
+		}
+		return model.NewWindowFunction(e.Name, args, e.PartitionBy, e.OrderBy)
 	}
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
