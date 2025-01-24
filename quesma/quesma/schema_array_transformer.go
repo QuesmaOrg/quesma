@@ -16,6 +16,52 @@ import (
 //
 //
 
+type functionWithCombinator struct {
+	baseFunctionName string
+	isArray          bool
+	isIf             bool
+	isOrNull         bool
+	isState          bool
+	isMerge          bool
+}
+
+func (f functionWithCombinator) String() string {
+	result := f.baseFunctionName
+	if f.isArray {
+		result = result + "Array"
+	}
+	if f.isIf {
+		result = result + "If"
+	}
+	if f.isOrNull {
+		result = result + "OrNull"
+	}
+	if f.isState {
+		result = result + "State"
+	}
+	if f.isMerge {
+		result = result + "Merge"
+	}
+	return result
+}
+
+func parseFunctionWithCombinator(funcName string) (result functionWithCombinator) {
+	stripSuffix := func(s string, suffix string) (string, bool) {
+		if strings.HasSuffix(s, suffix) {
+			return strings.TrimSuffix(s, suffix), true
+		}
+		return s, false
+	}
+
+	result.baseFunctionName = funcName
+	result.baseFunctionName, result.isState = stripSuffix(result.baseFunctionName, "State")
+	result.baseFunctionName, result.isMerge = stripSuffix(result.baseFunctionName, "Merge")
+	result.baseFunctionName, result.isIf = stripSuffix(result.baseFunctionName, "If")
+	result.baseFunctionName, result.isOrNull = stripSuffix(result.baseFunctionName, "OrNull")
+
+	return result
+}
+
 type arrayTypeResolver struct {
 	indexSchema schema.Schema
 }
@@ -73,6 +119,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 
 	}
 
+	var childGotArrayFunc bool
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
 
 		if len(e.Args) > 0 {
@@ -81,23 +128,38 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 			if ok {
 				dbType := resolver.dbColumnType(column.ColumnName)
 				if strings.HasPrefix(dbType, "Array") {
-					if strings.HasPrefix(e.Name, "sum") {
-						// here we apply -Array combinator to the sum function
-						// https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators#-array
-						//
-						// TODO this can be rewritten to transform all aggregate functions as well
-						//
-						e.Name = strings.ReplaceAll(e.Name, "sum", "sumArray")
-					} else {
-						logger.Error().Msgf("Unhandled array function %s, column %v (%v)", e.Name, column.ColumnName, dbType)
-					}
+					funcParsed := parseFunctionWithCombinator(e.Name)
+					funcParsed.isArray = true
+					childGotArrayFunc = true
+					e.Name = funcParsed.String()
 				}
+			} else {
+				e.Args = b.VisitChildren(e.Args)
 			}
 		}
 
-		args := b.VisitChildren(e.Args)
-		return model.NewFunction(e.Name, args...)
+		return model.NewFunction(e.Name, e.Args...)
 	}
+
+	visitor.OverrideVisitWindowFunction = func(b *model.BaseExprVisitor, e model.WindowFunction) interface{} {
+		childGotArrayFunc = false
+		args := b.VisitChildren(e.Args)
+		if childGotArrayFunc {
+			funcParsed := parseFunctionWithCombinator(e.Name)
+			funcParsed.isArray = true
+			e.Name = funcParsed.String()
+		}
+		return model.NewWindowFunction(e.Name, args, e.PartitionBy, e.OrderBy)
+	}
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+		dbType := resolver.dbColumnType(e.ColumnName)
+		if strings.HasPrefix(dbType, "Array") {
+			logger.Error().Msgf("Unhandled array column ref %v (%v)", e.ColumnName, dbType)
+		}
+		return e
+	}
+
 	return visitor
 }
 
@@ -146,23 +208,6 @@ func checkIfGroupingByArrayColumn(selectCommand model.SelectCommand, resolver ar
 		}
 
 		return &e
-	}
-
-	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
-
-		if strings.HasPrefix(e.Name, "sum") || strings.HasPrefix(e.Name, "count") {
-
-			if len(e.Args) > 0 {
-				arg := e.Args[0]
-
-				if isArrayColumn(arg) {
-					found = true
-				}
-
-			}
-
-		}
-		return e
 	}
 
 	selectCommand.Accept(visitor)
