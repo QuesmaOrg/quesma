@@ -55,6 +55,7 @@ const EnableConcurrencyProfiling = false
 //}
 
 func main() {
+	// TODO: Experimental feature, move to the configuration after architecture v2
 	const mysql_passthrough_experiment = false
 	if mysql_passthrough_experiment {
 		launchMysqlPassthrough()
