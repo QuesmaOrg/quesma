@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
-	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
@@ -70,10 +69,8 @@ func (p *ElasticsearchToClickHouseQueryProcessor) GetId() string {
 // which uses `quesma_api.BackendConnector` instead of `*sql.DB` for the database connection.
 func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor() *quesm.QueryRunner {
 
-	logManager := clickhouse.NewEmptyLogManager(p.legacyDependencies.OldQuesmaConfig, p.legacyDependencies.ConnectionPool, p.legacyDependencies.PhoneHomeAgent(), p.legacyDependencies.TableDiscovery)
-	logManager.Start()
-
-	queryRunner := quesm.NewQueryRunner(logManager,
+	queryRunner := quesm.NewQueryRunner(
+		p.legacyDependencies.LogManager,
 		p.legacyDependencies.OldQuesmaConfig,
 		nil,
 		p.legacyDependencies.SchemaRegistry,

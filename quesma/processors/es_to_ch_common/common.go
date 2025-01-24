@@ -101,6 +101,7 @@ type LegacyQuesmaDependencies struct {
 	Adminconsole        *ui.QuesmaManagementConsole
 	AbTestingController *sender.SenderCoordinator
 	IngestProcessor     *ingest.IngestProcessor
+	LogManager          clickhouse.LogManagerIFace
 }
 
 func newLegacyQuesmaDependencies(
@@ -113,6 +114,7 @@ func newLegacyQuesmaDependencies(
 	tableResolver table_resolver.TableResolver,
 	abTestingController *sender.SenderCoordinator,
 	ingestProcessor *ingest.IngestProcessor,
+	logManager clickhouse.LogManagerIFace,
 ) *LegacyQuesmaDependencies {
 	return &LegacyQuesmaDependencies{
 		DependenciesImpl:    baseDependencies,
@@ -124,6 +126,7 @@ func newLegacyQuesmaDependencies(
 		TableResolver:       tableResolver,
 		AbTestingController: abTestingController,
 		IngestProcessor:     ingestProcessor,
+		LogManager:          logManager,
 	}
 }
 
@@ -134,11 +137,12 @@ func InitializeLegacyQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, o
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
 	schemaRegistry.Start()
 	dummyTableResolver := table_resolver.NewDummyTableResolver(oldQuesmaConfig.IndexConfig, oldQuesmaConfig.UseCommonTableForWildcard)
+	phoneHomeAgent := baseDeps.PhoneHomeAgent()
 
 	ingestProcessor := ingest.NewIngestProcessor(
 		oldQuesmaConfig,
 		connectionPool,
-		baseDeps.PhoneHomeAgent(),
+		phoneHomeAgent,
 		tableDisco,
 		schemaRegistry,
 		virtualTableStorage,
@@ -149,6 +153,9 @@ func InitializeLegacyQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, o
 	abTestingController := sender.NewSenderCoordinator(oldQuesmaConfig, ingestProcessor)
 	abTestingController.Start()
 
-	legacyDependencies := newLegacyQuesmaDependencies(*baseDeps, oldQuesmaConfig, connectionPool, *virtualTableStorage, tableDisco, schemaRegistry, dummyTableResolver, abTestingController, ingestProcessor)
+	logManager := clickhouse.NewEmptyLogManager(oldQuesmaConfig, connectionPool, phoneHomeAgent, tableDisco)
+	logManager.Start()
+
+	legacyDependencies := newLegacyQuesmaDependencies(*baseDeps, oldQuesmaConfig, connectionPool, *virtualTableStorage, tableDisco, schemaRegistry, dummyTableResolver, abTestingController, ingestProcessor, logManager)
 	return legacyDependencies
 }
