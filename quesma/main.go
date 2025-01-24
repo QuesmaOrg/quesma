@@ -14,6 +14,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/connectors"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch/feature"
+	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/licensing"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
