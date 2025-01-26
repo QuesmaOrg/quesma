@@ -877,6 +877,10 @@ func columnsToAliasedColumns(columns []model.Expr) []model.Expr {
 			aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
 			continue
 		}
+		if _, ok := column.(model.WindowFunction); ok {
+			aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
+			continue
+		}
 
 		aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
 		logger.Error().Msgf("Quesma internal error - unreachable code: unsupported column type %T", column)

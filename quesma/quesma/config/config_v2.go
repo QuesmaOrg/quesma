@@ -314,7 +314,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 					continue
 				}
 				if queryIndexConf.Override != ingestIndexConf.Override {
-					return fmt.Errorf("ingest and query processors must have the same configuration of 'Override' for index '%s' due to current limitations", indexName)
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'tableName' for index '%s' due to current limitations", indexName)
 				}
 				if queryIndexConf.UseCommonTable != ingestIndexConf.UseCommonTable {
 					return fmt.Errorf("ingest and query processors must have the same configuration of 'useCommonTable' for index '%s' due to current limitations", indexName)

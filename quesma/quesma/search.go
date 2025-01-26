@@ -270,11 +270,7 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 }
 
 func (q *QueryRunner) HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
-	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageDefault)
-}
-
-func (q *QueryRunner) handleEQLSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
-	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageEQL)
+	return q.handleSearchCommon(ctx, indexPattern, body, nil)
 }
 
 func (q *QueryRunner) HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
@@ -287,7 +283,7 @@ func (q *QueryRunner) HandleAsyncSearch(ctx context.Context, indexPattern string
 	}
 	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, async.asyncId)
 	logger.InfoWithCtx(ctx).Msgf("async search request id: %s started", async.asyncId)
-	return q.handleSearchCommon(ctx, indexPattern, body, &async, QueryLanguageDefault)
+	return q.handleSearchCommon(ctx, indexPattern, body, &async)
 }
 
 type asyncSearchWithError struct {
@@ -404,7 +400,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	}
 }
 
-func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
+func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery) ([]byte, error) {
 
 	decision := q.tableResolver.Resolve(quesma_api.QueryPipeline, indexPattern)
 
@@ -552,7 +548,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		table = commonTable
 	}
 
-	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes)
+	queryTranslator := NewQueryTranslator(ctx, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes)
 
 	plan, err := queryTranslator.ParseQuery(body)
 

@@ -46,14 +46,6 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 	router := quesma_api.NewPathRouter()
 
-	// These are the endpoints that are not supported by Quesma
-	// These will redirect to the elastic cluster.
-	for _, path := range elasticsearch.InternalPaths {
-		router.Register(path, quesma_api.Never(), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-			return nil, nil
-		})
-	}
-
 	// These are the endpoints that are supported by Quesma
 
 	// Warning:
@@ -407,20 +399,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 	})
 
 	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		body, err := types.ExpectJSON(req.ParsedBody)
-		if err != nil {
-			return nil, err
-		}
-
-		responseBody, err := queryRunner.handleEQLSearch(ctx, req.Params["index"], body)
-		if err != nil {
-			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
-			} else {
-				return nil, err
-			}
-		}
-		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+		return nil, errors.New("EQL is not supported yet")
 	})
 
 	router.Register(routes.IndexPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
