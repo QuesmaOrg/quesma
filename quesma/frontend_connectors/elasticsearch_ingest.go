@@ -6,22 +6,27 @@ package frontend_connectors
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
 )
 
 type ElasticsearchIngestFrontendConnector struct {
-	BasicHTTPFrontendConnector
+	*BasicHTTPFrontendConnector
 }
 
-func NewElasticsearchIngestFrontendConnector(endpoint string) *ElasticsearchIngestFrontendConnector {
+func NewElasticsearchIngestFrontendConnector(endpoint string, cfg *config.QuesmaConfiguration) *ElasticsearchIngestFrontendConnector {
+
+	basicHttpFrontendConnector := NewBasicHTTPFrontendConnector(endpoint, cfg)
+	basicHttpFrontendConnector.responseMutator = func(w http.ResponseWriter) http.ResponseWriter {
+		w.Header().Set("Content-Type", "application/json")
+		return w
+	}
 	fc := &ElasticsearchIngestFrontendConnector{
-		BasicHTTPFrontendConnector: BasicHTTPFrontendConnector{
-			endpoint:        endpoint,
-			responseMutator: setContentType,
-		},
+		BasicHTTPFrontendConnector: basicHttpFrontendConnector,
 	}
 	router := quesma_api.NewPathRouter()
+
 	router.Register(es_to_ch_common.IndexBulkPath, quesma_api.IsHTTPMethod("POST", "PUT"), func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
 		return es_to_ch_common.SetPathPattern(req, es_to_ch_common.IndexBulkPath), nil
 	})
@@ -36,9 +41,4 @@ func NewElasticsearchIngestFrontendConnector(endpoint string) *ElasticsearchInge
 	})
 	fc.AddRouter(router)
 	return fc
-}
-
-func setContentType(w http.ResponseWriter) http.ResponseWriter {
-	w.Header().Set("Content-Type", "application/json")
-	return w
 }

@@ -8,11 +8,11 @@ Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/ClickHouse/clickhouse-go/v2
-Version : v2.30.0
-Time    : 2024-10-16T16:02:58Z
+Version : v2.30.1
+Time    : 2025-01-17T19:58:51Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.30.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.30.1/LICENSE:
 
 Copyright 2016-2023 ClickHouse, Inc.
 
@@ -324,44 +324,6 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
---------------------------------------------------------------------------------
-#### Module  : github.com/antlr4-go/antlr/v4
-Version : v4.13.1
-Time    : 2024-05-15T15:52:48Z
-Licence : BSD-3-Clause
-
-Contents of probable licence file $GOMODCACHE/github.com/antlr4-go/antlr/v4@v4.13.1/LICENSE:
-
-Copyright (c) 2012-2023 The ANTLR Project. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-
-1. Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-
-3. Neither name of copyright holders nor the names of its contributors
-may be used to endorse or promote products derived from this software
-without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 --------------------------------------------------------------------------------
@@ -4581,11 +4543,11 @@ either expressed or implied, of the FreeBSD Project.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/docker/docker
-Version : v27.3.0+incompatible
-Time    : 2024-09-18T10:25:38Z
+Version : v27.4.1+incompatible
+Time    : 2024-12-17T12:50:31Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/docker/docker@v27.3.0+incompatible/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/docker/docker@v27.4.1+incompatible/LICENSE:
 
 
                                  Apache License
@@ -13705,11 +13667,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/net
-Version : v0.30.0
-Time    : 2024-10-04T16:20:59Z
+Version : v0.34.0
+Time    : 2025-01-06T16:00:15Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/net@v0.30.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/net@v0.34.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 

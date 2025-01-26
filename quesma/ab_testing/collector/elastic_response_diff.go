@@ -1,11 +1,14 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package jsondiff
+package collector
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+)
 
 // NewElasticResponseJSONDiff creates a JSONDiff instance that is tailored to compare Elasticsearch response JSONs.
-func NewElasticResponseJSONDiff() (*JSONDiff, error) {
+func NewElasticResponseJSONDiff() (*util.JSONDiff, error) {
 
 	var ignorePaths []string
 
@@ -21,7 +24,7 @@ func NewElasticResponseJSONDiff() (*JSONDiff, error) {
 	// ignore some fields that are related to location, just for now (we  want to compare them in the future)
 	ignorePaths = append(ignorePaths, ".*Location$", ".*\\.lat$", ".*\\.lon$")
 
-	d, err := NewJSONDiff(ignorePaths...)
+	d, err := util.NewJSONDiff(ignorePaths...)
 
 	if err != nil {
 		return nil, fmt.Errorf("could not create JSONDiff: %v", err)

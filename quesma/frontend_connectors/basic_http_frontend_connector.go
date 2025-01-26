@@ -22,7 +22,7 @@ type BasicHTTPFrontendConnector struct {
 	mutex           sync.Mutex
 	responseMutator func(w http.ResponseWriter) http.ResponseWriter
 	endpoint        string
-	routerInstance  *RouterV2
+	dispatcher      *Dispatcher
 	logManager      *clickhouse.LogManager
 	registry        schema.Registry
 	config          *config.QuesmaConfiguration
@@ -40,8 +40,8 @@ func (h *BasicHTTPFrontendConnector) GetChildComponents() []interface{} {
 		components = append(components, h.router)
 	}
 
-	if h.routerInstance != nil {
-		components = append(components, h.routerInstance)
+	if h.dispatcher != nil {
+		components = append(components, h.dispatcher)
 	}
 	return components
 }
@@ -52,18 +52,18 @@ func (h *BasicHTTPFrontendConnector) SetDependencies(deps quesma_api.Dependencie
 	h.logger = deps.Logger()
 
 	deps.PhoneHomeAgent().FailedRequestsCollector(func() int64 {
-		return h.routerInstance.FailedRequests.Load()
+		return h.dispatcher.FailedRequests.Load()
 	})
 }
 
 func NewBasicHTTPFrontendConnector(endpoint string, config *config.QuesmaConfiguration) *BasicHTTPFrontendConnector {
 
 	return &BasicHTTPFrontendConnector{
-		endpoint:       endpoint,
-		config:         config,
-		routerInstance: NewRouterV2(config),
-		logManager:     nil,
-		registry:       nil,
+		endpoint:   endpoint,
+		config:     config,
+		dispatcher: NewDispatcher(config),
+		logManager: nil,
+		registry:   nil,
 		responseMutator: func(w http.ResponseWriter) http.ResponseWriter {
 			return w
 		},
@@ -127,7 +127,7 @@ func (h *BasicHTTPFrontendConnector) finalHandler(w http.ResponseWriter, req *ht
 		h.phoneHomeClient.UserAgentCounters().Add(ua, 1)
 	}
 
-	h.routerInstance.Reroute(req.Context(), w, req, reqBody, h.router, h.logManager, h.registry)
+	h.dispatcher.Reroute(req.Context(), w, req, reqBody, h.router, h.logManager, h.registry)
 }
 
 func (h *BasicHTTPFrontendConnector) Listen() error {
@@ -175,8 +175,8 @@ func ReadRequestBody(request *http.Request) ([]byte, error) {
 	return reqBody, nil
 }
 
-func (h *BasicHTTPFrontendConnector) GetRouterInstance() *RouterV2 {
-	return h.routerInstance
+func (h *BasicHTTPFrontendConnector) GetDispatcherInstance() *Dispatcher {
+	return h.dispatcher
 }
 
 func (h *BasicHTTPFrontendConnector) AddMiddleware(middleware http.Handler) {
