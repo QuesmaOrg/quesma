@@ -70,6 +70,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{"db.str:*weaver*", `"db.str" ILIKE '%weaver%'`},
 		{"(db.str:*weaver*)", `("db.str" ILIKE '%weaver%')`},
 		{"(a.type:*ab* OR a.type:*Ab*)", `(("a.type" ILIKE '%ab%') OR "a.type" ILIKE '%Ab%')`},
+		{"log:  \"lalala lala la\" AND log: \"troll\"", `("log" iLIKE '%lalala lala la%' AND "log" iLIKE '%troll%')`},
 	}
 	var randomQueriesWithPossiblyIncorrectInput = []struct {
 		query string
