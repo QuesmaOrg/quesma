@@ -13,10 +13,7 @@ import (
 
 type jsonMap = map[string]any
 
-// const filename = "as-se_export_dashboard_10-08-30.ndjson"
-const filename = "eu_export_dashboard_10-08-30.ndjson"
-
-//const filename = "nomnom_export_dashboard_10-08-30.ndjson"
+const filename = // copy ndjson to this directory and enter filename here, e.g. "file.ndjson"
 
 type fieldAttrsResult struct {
 	title      string
@@ -324,8 +321,9 @@ func printQueries() {
 func printFieldAttrsResults(printAlsoValue bool) {
 	fmt.Println("Printing fieldAttrs results:")
 	if len(fieldAttrsResults) > 0 {
-		pp.Println("fieldAttrsResults:")
-		for i, res := range fieldAttrsResults {
+		pp.Println("fieldAttrsResults:, len:", len(fieldAttrsResults), "First 10:")
+		a := fieldAttrsResults[:10]
+		for i, res := range a {
 			fmt.Printf("%d. name: %v title: %v\n", i+1, res.name, res.title)
 
 			var keys []string
@@ -335,10 +333,15 @@ func printFieldAttrsResults(printAlsoValue bool) {
 			slices.Sort(keys)
 
 			for _, k := range keys {
+				Type := "String"
+				
+				if k == "@timestamp" || k == "timestamp" || k == "date_from" || k == "date_to" {
+					Type = "DateTime64(3)"
+				}
 				if printAlsoValue {
 					fmt.Printf(`- "%s": %v`, k, res.fieldAttrs[k])
 				} else {
-					fmt.Printf(`"%s" Nullable(String),`, k)
+					fmt.Printf(`"%s" Nullable(%s),`, k, Type)
 				}
 				fmt.Println()
 			}
