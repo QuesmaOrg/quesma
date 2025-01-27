@@ -287,18 +287,31 @@ func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discover
 func (td *tableDiscovery) configureTables(tables map[string]map[string]columnMetadata, databaseName string) (configuredTables map[string]discoveredTable) {
 	configuredTables = make(map[string]discoveredTable)
 	var explicitlyDisabledTables, notConfiguredTables []string
+	overrideToOriginal := make(map[string]string)
+
+	for indexName, indexConfig := range td.cfg.IndexConfig {
+		if len(indexConfig.Override) > 0 {
+			overrideToOriginal[indexConfig.Override] = indexName
+		}
+	}
+
 	for table, columns := range tables {
 
 		// single logs table is our internal table, user shouldn't configure it at all
 		// and we should always include it in the list of tables managed by Quesma
 		isCommonTable := table == common_table.TableName
-
-		if indexConfig, found := td.cfg.IndexConfig[table]; found || isCommonTable {
+		override := false
+		if _, found := overrideToOriginal[table]; found {
+			override = true
+		}
+		if indexConfig, found := td.cfg.IndexConfig[table]; found || isCommonTable || override {
 
 			if isCommonTable {
 				indexConfig = config.IndexConfiguration{}
 			}
-
+			if override {
+				indexConfig = td.cfg.IndexConfig[overrideToOriginal[table]]
+			}
 			if !isCommonTable && !indexConfig.IsClickhouseQueryEnabled() && !indexConfig.IsClickhouseIngestEnabled() {
 				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 			} else {
