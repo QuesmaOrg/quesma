@@ -6,87 +6,82 @@ package main
 import (
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/licensing"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_ingest"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_query"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"log"
-	"net/url"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 // BuildNewQuesma creates a new quesma instance with both Ingest And Query Processors, unused yet
 func BuildNewQuesma() quesma_api.QuesmaBuilder {
 
+	var newConfiguration = config.LoadV2Config()
+	var cfg = newConfiguration.TranslateToLegacyConfig()
+
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("error validating configuration: %v", err)
+	}
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	doneCh := make(chan struct{})
+	licenseMod := licensing.Init(&cfg)
+	logChan := logger.InitLogger(logger.Configuration{
+		FileLogging:       cfg.Logging.FileLogging,
+		Path:              cfg.Logging.Path,
+		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
+		Level:             *cfg.Logging.Level,
+		ClientId:          licenseMod.License.ClientID,
+	}, sig, doneCh)
+
 	deps := quesma_api.EmptyDependencies()
 
-	elasticsearchBackendCfg := config.ElasticsearchConfiguration{
-		Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
-		User:     "",
-		Password: "",
-	}
-
-	frontendConfig := &config.QuesmaConfiguration{
-		DisableAuth:   true,
-		Elasticsearch: elasticsearchBackendCfg,
-	}
-
-	processorConfig := config.QuesmaProcessorConfig{
-		UseCommonTable: true,
-		IndexConfig: map[string]config.IndexConfiguration{
-			"test_index":   {},
-			"test_index_2": {},
-			"tab1": {
-				UseCommonTable: true,
-			},
-			"tab2": {
-				UseCommonTable: true,
-			},
-			"kibana_sample_data_ecommerce": {
-				QueryTarget: []string{config.ClickhouseTarget}, // table_discovery2.go:230 explains why this is needed
-			},
-			"*": {
-				QueryTarget: []string{config.ElasticsearchTarget},
-			},
-		},
-	}
-
-	oldQuesmaConfig := &config.QuesmaConfiguration{
-		IndexConfig: processorConfig.IndexConfig,
-		ClickHouse:  config.RelationalDbConfiguration{Url: (*config.Url)(&url.URL{Scheme: "clickhouse", Host: "localhost:9000"})},
-		// Elasticsearch section is here only for the phone home agent not to blow up
-		Elasticsearch:             config.ElasticsearchConfiguration{Url: (*config.Url)(&url.URL{Scheme: "http", Host: "localhost:9200"})},
-		UseCommonTableForWildcard: processorConfig.UseCommonTable,
-	}
-
-	legacyDependencies := es_to_ch_common.InitializeLegacyQuesmaDependencies(deps, oldQuesmaConfig)
+	legacyDependencies := es_to_ch_common.InitializeLegacyQuesmaDependencies(deps, &cfg, logChan)
 
 	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(legacyDependencies)
 
-	queryFrontendConnector := frontend_connectors.NewElasticsearchQueryFrontendConnector(":8080", frontendConfig)
+	queryConn := newConfiguration.GetFrontendConnectorByType(config.ElasticsearchFrontendQueryConnectorName)
+
+	queryFrontendConnector := frontend_connectors.NewElasticsearchQueryFrontendConnector(":"+queryConn.Config.ListenPort.String(), cfg.Elasticsearch, queryConn.Config.DisableAuth)
 
 	var queryPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	queryPipeline.AddFrontendConnector(queryFrontendConnector)
 
-	queryProcessor := es_to_ch_query.NewElasticsearchToClickHouseQueryProcessor(processorConfig, legacyDependencies)
+	// Well, since MVP limitation processors have to have exact same configs, we can do it.
+	processor := newConfiguration.Processors[0]
 
-	ingestFrontendConnector := frontend_connectors.NewElasticsearchIngestFrontendConnector(":8080", frontendConfig)
+	queryProcessor := es_to_ch_query.NewElasticsearchToClickHouseQueryProcessor(processor.Config, legacyDependencies)
+
+	ingestConn := newConfiguration.GetFrontendConnectorByType(config.ElasticsearchFrontendIngestConnectorName)
+
+	ingestFrontendConnector := frontend_connectors.NewElasticsearchIngestFrontendConnector(":"+queryConn.Config.ListenPort.String(), cfg.Elasticsearch, ingestConn.Config.DisableAuth)
 	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
 
-	ingestProcessor := es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor(processorConfig, legacyDependencies)
+	ingestProcessor := es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor(processor.Config, legacyDependencies)
 	ingestPipeline.AddProcessor(ingestProcessor)
 	quesmaBuilder.AddPipeline(ingestPipeline)
 
 	queryPipeline.AddProcessor(queryProcessor)
 	quesmaBuilder.AddPipeline(queryPipeline)
 
-	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector("clickhouse://localhost:9000")
+	chBackendConn := newConfiguration.GetBackendConnectorByType(config.ClickHouseOSBackendConnectorName)
+	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector(&chBackendConn.Config)
+
+	esBackendConn := newConfiguration.GetBackendConnectorByType(config.ElasticsearchBackendConnectorName)
+	esCfg := esBackendConn.Config
 	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector(
 		config.ElasticsearchConfiguration{
-			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
-			User:     "elastic",
-			Password: "quesmaquesma",
+			Url:      esCfg.Url, //&config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     esCfg.User,
+			Password: esCfg.Password,
 		})
 	queryPipeline.AddBackendConnector(clickHouseBackendConnector)
 	queryPipeline.AddBackendConnector(elasticsearchBackendConnector)

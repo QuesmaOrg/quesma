@@ -24,6 +24,10 @@ var (
 	telemetryUrl = &Url{Scheme: "https", Host: "api.quesma.com", Path: "/phone-home"}
 )
 
+func DefaultTelemetryUrl() *Url {
+	return telemetryUrl
+}
+
 type QuesmaConfiguration struct {
 	// both clickhouse and hydrolix connections are going to be deprecated and everything is going to live under connector
 	Connectors       map[string]RelationalDbConfiguration
