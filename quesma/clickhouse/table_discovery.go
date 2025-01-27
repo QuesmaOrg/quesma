@@ -289,6 +289,9 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]columnMet
 	var explicitlyDisabledTables, notConfiguredTables []string
 	overrideToOriginal := make(map[string]string)
 
+	// populate map of override to original table names
+	// this will be further used to take specific index config
+	// from the original table
 	for indexName, indexConfig := range td.cfg.IndexConfig {
 		if len(indexConfig.Override) > 0 {
 			overrideToOriginal[indexConfig.Override] = indexName
@@ -309,6 +312,7 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]columnMet
 			if isCommonTable {
 				indexConfig = config.IndexConfiguration{}
 			}
+			// if table is overridden, we take the index config from the original index
 			if override {
 				indexConfig = td.cfg.IndexConfig[overrideToOriginal[table]]
 			}
