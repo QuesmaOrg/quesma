@@ -72,12 +72,16 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 	queryPipeline.AddProcessor(queryProcessor)
 	quesmaBuilder.AddPipeline(queryPipeline)
 
-	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector("clickhouse://localhost:9000")
+	chBackendConn := newConfiguration.GetBackendConnectorByType(config.ClickHouseOSBackendConnectorName)
+	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector(&chBackendConn.Config)
+
+	esBackendConn := newConfiguration.GetBackendConnectorByType(config.ElasticsearchBackendConnectorName)
+	esCfg := esBackendConn.Config
 	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector(
 		config.ElasticsearchConfiguration{
-			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
-			User:     "elastic",
-			Password: "quesmaquesma",
+			Url:      esCfg.Url, //&config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     esCfg.User,
+			Password: esCfg.Password,
 		})
 	queryPipeline.AddBackendConnector(clickHouseBackendConnector)
 	queryPipeline.AddBackendConnector(elasticsearchBackendConnector)

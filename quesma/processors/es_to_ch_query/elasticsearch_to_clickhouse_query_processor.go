@@ -267,20 +267,9 @@ func (p *ElasticsearchToClickHouseQueryProcessor) GetSupportedBackendConnectors(
 }
 
 func findQueryTarget(index string, processorConfig config.QuesmaProcessorConfig) string {
-	var defaultTargetFromConfig string
-	wildcardConfig, ok := processorConfig.IndexConfig["*"]
-	if !ok {
-		logger.Warn().Msgf("No wildcard index config found in processor config!!")
-		return config.ClickhouseTarget
-	}
-	if len(wildcardConfig.QueryTarget) == 0 {
-		logger.Warn().Msgf("wildcard index has no target!!")
-		return config.ClickhouseTarget
-	}
-	defaultTargetFromConfig = wildcardConfig.QueryTarget[0]
 	_, found := processorConfig.IndexConfig[index]
 	if !found {
-		return defaultTargetFromConfig
+		return processorConfig.DefaultTargetConnectorType
 	} else { // per legacy syntax, if present means it's a clickhouse target
 		return config.ClickhouseTarget
 	}

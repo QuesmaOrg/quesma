@@ -115,6 +115,8 @@ const DefaultWildcardIndexName = "*"
 type QuesmaProcessorConfig struct {
 	UseCommonTable bool           `koanf:"useCommonTable"`
 	IndexConfig    IndicesConfigs `koanf:"indexes"`
+	// DefaultTargetConnectorType is used in V2 code only
+	DefaultTargetConnectorType string //it is not serialized to maintain configuration BWC, so it's basically just populated from '*' config in `config_v2.go`
 }
 
 type IndicesConfigs map[string]IndexConfiguration
@@ -607,6 +609,13 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			conf.DefaultIngestTarget = []string{}
 			conf.DefaultQueryTarget = defaultConfig.QueryTarget
 			conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
+
+			// safe to call per validation earlier
+			if targts, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target.([]interface{}); ok {
+				conn := c.getBackendConnectorByName(targts[0].(string))
+				queryProcessor.Config.DefaultTargetConnectorType = conn.Type
+				c.updateProcessorConfig(queryProcessor.Name, queryProcessor.Config)
+			}
 			delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 
 			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
@@ -747,6 +756,12 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.DefaultQueryTarget = defaultConfig.QueryTarget
 		conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
 
+		// safe to call per validation earlier
+		if targts, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target.([]interface{}); ok {
+			conn := c.getBackendConnectorByName(targts[0].(string))
+			queryProcessor.Config.DefaultTargetConnectorType = conn.Type
+			c.updateProcessorConfig(queryProcessor.Name, queryProcessor.Config)
+		}
 		delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
@@ -802,6 +817,12 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			conf.DefaultIngestOptimizers = nil
 		}
 
+		// safe to call per validation earlier
+		if targts, ok := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target.([]interface{}); ok {
+			conn := c.getBackendConnectorByName(targts[0].(string))
+			ingestProcessor.Config.DefaultTargetConnectorType = conn.Type
+			c.updateProcessorConfig(ingestProcessor.Name, ingestProcessor.Config)
+		}
 		delete(ingestProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 
 		for indexName, indexConfig := range ingestProcessor.Config.IndexConfig {
@@ -986,4 +1007,14 @@ func (c *QuesmaNewConfiguration) getTargetsExtendedConfig(target any) ([]struct 
 		}
 	}
 	return result, nil
+}
+
+func (c *QuesmaNewConfiguration) updateProcessorConfig(processorName string, newConfig QuesmaProcessorConfig) error {
+	for i, p := range c.Processors {
+		if p.Name == processorName {
+			c.Processors[i].Config = newConfig
+			return nil
+		}
+	}
+	return fmt.Errorf("processor named %s not found in configuration", processorName)
 }
