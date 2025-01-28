@@ -28,9 +28,28 @@ type ElasticsearchBackendConnector struct {
 	config config.ElasticsearchConfiguration
 }
 
+// NewElasticsearchBackendConnector is a constructor which uses old (v1) configuration object
 func NewElasticsearchBackendConnector(cfg config.ElasticsearchConfiguration) *ElasticsearchBackendConnector {
 	conn := &ElasticsearchBackendConnector{
 		config: cfg,
+		client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+			Timeout: esRequestTimeout,
+		},
+	}
+	return conn
+}
+
+// NewElasticsearchBackendConnector2 is an alternative constructor which uses the generic database configuration object
+func NewElasticsearchBackendConnector2(cfg config.RelationalDbConfiguration) *ElasticsearchBackendConnector {
+	conn := &ElasticsearchBackendConnector{
+		config: config.ElasticsearchConfiguration{
+			Url:      cfg.Url,
+			User:     cfg.User,
+			Password: cfg.Password,
+		},
 		client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},

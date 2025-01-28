@@ -77,12 +77,8 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 
 	esBackendConn := newConfiguration.GetBackendConnectorByType(config.ElasticsearchBackendConnectorName)
 	esCfg := esBackendConn.Config
-	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector(
-		config.ElasticsearchConfiguration{
-			Url:      esCfg.Url,
-			User:     esCfg.User,
-			Password: esCfg.Password,
-		})
+	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector2(esCfg)
+
 	queryPipeline.AddBackendConnector(clickHouseBackendConnector)
 	queryPipeline.AddBackendConnector(elasticsearchBackendConnector)
 

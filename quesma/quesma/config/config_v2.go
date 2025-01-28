@@ -82,6 +82,7 @@ type BackendConnector struct {
 	Config RelationalDbConfiguration `koanf:"config"`
 }
 
+// RelationalDbConfiguration works fine for non-relational databases too, consider rename
 type RelationalDbConfiguration struct {
 	//ConnectorName string `koanf:"name"`
 	ConnectorType string `koanf:"type"`
