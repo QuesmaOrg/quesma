@@ -79,7 +79,7 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 	esCfg := esBackendConn.Config
 	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector(
 		config.ElasticsearchConfiguration{
-			Url:      esCfg.Url, //&config.Url{Host: "localhost:9200", Scheme: "http"},
+			Url:      esCfg.Url,
 			User:     esCfg.User,
 			Password: esCfg.Password,
 		})
