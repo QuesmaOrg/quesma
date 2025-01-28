@@ -54,10 +54,9 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 	var queryPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	queryPipeline.AddFrontendConnector(queryFrontendConnector)
 
-	// Well, since MVP limitation processors have to have exact same configs, we can do it.
-	processor := newConfiguration.Processors[0]
+	queryProc := newConfiguration.GetProcessorByType(config.QuesmaV1ProcessorQuery)
 
-	queryProcessor := es_to_ch_query.NewElasticsearchToClickHouseQueryProcessor(processor.Config, legacyDependencies)
+	queryProcessor := es_to_ch_query.NewElasticsearchToClickHouseQueryProcessor(queryProc.Config, legacyDependencies)
 
 	ingestConn := newConfiguration.GetFrontendConnectorByType(config.ElasticsearchFrontendIngestConnectorName)
 
@@ -65,7 +64,8 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
 	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
 
-	ingestProcessor := es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor(processor.Config, legacyDependencies)
+	ingestProc := newConfiguration.GetProcessorByType(config.QuesmaV1ProcessorIngest)
+	ingestProcessor := es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor(ingestProc.Config, legacyDependencies)
 	ingestPipeline.AddProcessor(ingestProcessor)
 	quesmaBuilder.AddPipeline(ingestPipeline)
 

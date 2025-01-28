@@ -533,6 +533,15 @@ func (c *QuesmaNewConfiguration) getProcessorByName(name string) *Processor {
 	return nil
 }
 
+func (c *QuesmaNewConfiguration) GetProcessorByType(typ ProcessorType) *Processor {
+	for _, p := range c.Processors {
+		if p.Type == typ {
+			return &p
+		}
+	}
+	return nil
+}
+
 func (c *QuesmaNewConfiguration) getTargetType(backendConnectorName string) (string, bool) {
 	backendConnector := c.getBackendConnectorByName(backendConnectorName)
 	if backendConnector == nil {
