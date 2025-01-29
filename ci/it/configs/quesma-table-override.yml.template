@@ -31,7 +31,7 @@ processors:
         kibana_sample_data_flights:
           target:
             - my-clickhouse-instance
-          tableName: "kibana_sample_data_flights_ext"
+                tableName: "kibana_sample_data_flights_ext"
           schemaOverrides:
             fields:
               "DestLocation":
@@ -40,15 +40,15 @@ processors:
                 type: geo_point
         "*":
           target:
-            - my-clickhouse-instance
+            - my-minimal-elasticsearch
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
       indexes:
         kibana_sample_data_flights:
           target:
-            - my-clickhouse-instance
-          tableName: "kibana_sample_data_flights_ext"
+            - my-clickhouse-instance:
+                tableName: "kibana_sample_data_flights_ext"
           schemaOverrides:
             fields:
               "DestLocation":
@@ -57,7 +57,7 @@ processors:
                 type: geo_point
         "*":
           target:
-            - my-clickhouse-instance
+            - my-minimal-elasticsearch
 
 pipelines:
   - name: my-elasticsearch-proxy-read
