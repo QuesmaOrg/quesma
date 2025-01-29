@@ -30,7 +30,7 @@ processors:
       indexes:
         kibana_sample_data_flights:
           target:
-            - my-clickhouse-instance
+            - my-clickhouse-instance:
                 tableName: "kibana_sample_data_flights_ext"
           schemaOverrides:
             fields:
