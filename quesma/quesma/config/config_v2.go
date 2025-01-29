@@ -166,7 +166,7 @@ func (c *QuesmaNewConfiguration) Validate() error {
 	return nil
 }
 
-func (c *QuesmaNewConfiguration) getFrontendConnectorByName(name string) *FrontendConnector {
+func (c *QuesmaNewConfiguration) GetFrontendConnectorByName(name string) *FrontendConnector {
 	for _, fc := range c.FrontendConnectors {
 		if fc.Name == name {
 			return &fc
@@ -232,11 +232,11 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		// We plan to only support a case of a single pipeline for querying (this code validates this).
 		// However, we haven't yet implemented the case of disabling ingest, so single pipeline case is not yet supported.
 		fcName := c.Pipelines[0].FrontendConnectors[0]
-		if fc := c.getFrontendConnectorByName(fcName); fc != nil {
+		if fc := c.GetFrontendConnectorByName(fcName); fc != nil {
 			if fc.Type != ElasticsearchFrontendQueryConnectorName {
 				return fmt.Errorf("single-pipeline Quesma can only be used for querying, but the frontend connector is not of query type")
 			}
-			proc := c.getProcessorByName(c.Pipelines[0].Processors[0])
+			proc := c.GetProcessorByName(c.Pipelines[0].Processors[0])
 			if proc == nil {
 				return fmt.Errorf("processor named [%s] not found in configuration", c.Pipelines[0].Processors[0])
 			}
@@ -245,7 +245,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				if len(declaredBackendConnectors) != 1 {
 					return fmt.Errorf("noop processor supports only one backend connector")
 				}
-				if conn := c.getBackendConnectorByName(declaredBackendConnectors[0]); conn.Type != ElasticsearchBackendConnectorName {
+				if conn := c.GetBackendConnectorByName(declaredBackendConnectors[0]); conn.Type != ElasticsearchBackendConnectorName {
 					return fmt.Errorf("noop processor can be connected only to elasticsearch backend connector")
 				}
 			} else if proc.Type == QuesmaV1ProcessorQuery {
@@ -254,7 +254,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				}
 				var backendConnectorTypes []string
 				for _, con := range declaredBackendConnectors {
-					connector := c.getBackendConnectorByName(con)
+					connector := c.GetBackendConnectorByName(con)
 					if connector == nil {
 						return fmt.Errorf("backend connector named [%s] not found in configuration", con)
 					}
@@ -280,7 +280,7 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		}
 	}
 	if isDualPipeline {
-		fc1, fc2 := c.getFrontendConnectorByName(c.Pipelines[0].FrontendConnectors[0]), c.getFrontendConnectorByName(c.Pipelines[1].FrontendConnectors[0])
+		fc1, fc2 := c.GetFrontendConnectorByName(c.Pipelines[0].FrontendConnectors[0]), c.GetFrontendConnectorByName(c.Pipelines[1].FrontendConnectors[0])
 		if fc1 == nil {
 			return fmt.Errorf("frontend connector named [%s] not found in configuration", c.Pipelines[0].FrontendConnectors[0])
 		}
@@ -297,14 +297,14 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 		} else {
 			queryPipeline, ingestPipeline = c.Pipelines[1], c.Pipelines[0]
 		}
-		ingestProcessor := c.getProcessorByName(ingestPipeline.Processors[0])
+		ingestProcessor := c.GetProcessorByName(ingestPipeline.Processors[0])
 		if ingestProcessor == nil {
 			return fmt.Errorf("ingest processor named [%s] not found in configuration", ingestPipeline.Processors[0])
 		}
 		if ingestProcessor.Type != QuesmaV1ProcessorIngest && ingestProcessor.Type != QuesmaV1ProcessorNoOp {
 			return fmt.Errorf("ingest pipeline must have ingest-type or noop processor")
 		}
-		queryProcessor := c.getProcessorByName(queryPipeline.Processors[0])
+		queryProcessor := c.GetProcessorByName(queryPipeline.Processors[0])
 		if queryProcessor == nil {
 			return fmt.Errorf("query processor named [%s] not found in configuration", ingestPipeline.Processors[0])
 		}
@@ -401,7 +401,7 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 			//if p.Type == QuesmaV1ProcessorQuery && indexHasTargetSpecified {
 			//	indexConf := p.Config.IndexConfig[indexName]
 			//	if len(indexTarget) != 0 {
-			//		targetType := c.getBackendConnectorByName(indexTarget[0].(string)).Type
+			//		targetType := c.GetBackendConnectorByName(indexTarget[0].(string)).Type
 			//		if targetType == "elasticsearch" {
 			//			targetType = "elasticsearch"
 			//		} else { // clickhouse-os, hydrolix included
@@ -414,7 +414,7 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 			//if p.Type == QuesmaV1ProcessorIngest && indexHasTargetSpecified {
 			//	indexConf := p.Config.IndexConfig[indexName]
 			//	if len(indexTarget) != 0 {
-			//		targetType := c.getBackendConnectorByName(indexTarget[0].(string)).Type
+			//		targetType := c.GetBackendConnectorByName(indexTarget[0].(string)).Type
 			//		if targetType == "elasticsearch" {
 			//			targetType = "elasticsearch"
 			//		} else { // clickhouse-os, hydrolix included
@@ -446,7 +446,7 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 				return errTarget
 			}
 			for _, target := range targets {
-				if c.getBackendConnectorByName(target.target) == nil {
+				if c.GetBackendConnectorByName(target.target) == nil {
 					return fmt.Errorf("invalid target %s in configuration of index %s", target, indexName)
 				}
 			}
@@ -487,19 +487,19 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 	if !slices.Contains(c.definedProcessorNames(), pipeline.Processors[0]) {
 		errAcc = multierror.Append(errAcc, fmt.Errorf("processor named %s referenced in %s not found in configuration", pipeline.Processors[0], pipeline.Name))
 	} else {
-		onlyProcessorInPipeline := c.getProcessorByName(pipeline.Processors[0])
+		onlyProcessorInPipeline := c.GetProcessorByName(pipeline.Processors[0])
 		if onlyProcessorInPipeline.Type == QuesmaV1ProcessorNoOp {
 			if len(pipeline.BackendConnectors) != 1 {
 				return multierror.Append(errAcc, fmt.Errorf("pipeline %s has a noop processor supports only one backend connector", pipeline.Name))
 			}
-			if conn := c.getBackendConnectorByName(pipeline.BackendConnectors[0]); conn.Type != ElasticsearchBackendConnectorName {
+			if conn := c.GetBackendConnectorByName(pipeline.BackendConnectors[0]); conn.Type != ElasticsearchBackendConnectorName {
 				return multierror.Append(errAcc, fmt.Errorf("pipeline %s has a noop processor which can be connected only to elasticsearch backend connector", pipeline.Name))
 			}
 		}
 		if onlyProcessorInPipeline.Type == QuesmaV1ProcessorQuery || onlyProcessorInPipeline.Type == QuesmaV1ProcessorIngest {
 			foundElasticBackendConnector := false
 			for _, backendConnectorName := range pipeline.BackendConnectors {
-				backendConnector := c.getBackendConnectorByName(backendConnectorName)
+				backendConnector := c.GetBackendConnectorByName(backendConnectorName)
 				if backendConnector == nil {
 					return multierror.Append(errAcc, fmt.Errorf("backend connector named %s referenced in %s not found in configuration", backendConnectorName, pipeline.Name))
 				}
@@ -516,7 +516,7 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 	return errAcc
 }
 
-func (c *QuesmaNewConfiguration) getBackendConnectorByName(name string) *BackendConnector {
+func (c *QuesmaNewConfiguration) GetBackendConnectorByName(name string) *BackendConnector {
 	for _, b := range c.BackendConnectors {
 		if b.Name == name {
 			return &b
@@ -525,7 +525,7 @@ func (c *QuesmaNewConfiguration) getBackendConnectorByName(name string) *Backend
 	return nil
 }
 
-func (c *QuesmaNewConfiguration) getProcessorByName(name string) *Processor {
+func (c *QuesmaNewConfiguration) GetProcessorByName(name string) *Processor {
 	for _, p := range c.Processors {
 		if p.Name == name {
 			return &p
@@ -544,7 +544,7 @@ func (c *QuesmaNewConfiguration) GetProcessorByType(typ ProcessorType) *Processo
 }
 
 func (c *QuesmaNewConfiguration) getTargetType(backendConnectorName string) (string, bool) {
-	backendConnector := c.getBackendConnectorByName(backendConnectorName)
+	backendConnector := c.GetBackendConnectorByName(backendConnectorName)
 	if backendConnector == nil {
 		return "", false
 	}
@@ -598,7 +598,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	isSinglePipeline, isDualPipeline := c.getPipelinesType()
 
 	if isSinglePipeline {
-		processor := c.getProcessorByName(c.Pipelines[0].Processors[0])
+		processor := c.GetProcessorByName(c.Pipelines[0].Processors[0])
 		procType := processor.Type
 		if procType == QuesmaV1ProcessorNoOp {
 			conf.TransparentProxy = true
@@ -651,13 +651,13 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 			// safe to call per validation earlier
 			if targts, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target.([]interface{}); ok {
-				conn := c.getBackendConnectorByName(targts[0].(string))
+				conn := c.GetBackendConnectorByName(targts[0].(string))
 				queryProcessor.Config.DefaultTargetConnectorType = conn.Type
 				for indexName, indexCfg := range queryProcessor.Config.IndexConfig {
 					var targetType string
 					indexTarget, ok2 := indexCfg.Target.([]interface{})
 					if len(indexTarget) > 0 && ok2 {
-						indexTargetType := c.getBackendConnectorByName(indexTarget[0].(string))
+						indexTargetType := c.GetBackendConnectorByName(indexTarget[0].(string))
 						if indexTargetType.Type == "elasticsearch" {
 							targetType = "elasticsearch"
 						} else { // clickhouse-os, hydrolix included
@@ -721,14 +721,14 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	}
 
 	if isDualPipeline {
-		fc1 := c.getFrontendConnectorByName(c.Pipelines[0].FrontendConnectors[0])
+		fc1 := c.GetFrontendConnectorByName(c.Pipelines[0].FrontendConnectors[0])
 		var queryPipeline, ingestPipeline Pipeline
 		if fc1.Type == ElasticsearchFrontendQueryConnectorName {
 			queryPipeline, ingestPipeline = c.Pipelines[0], c.Pipelines[1]
 		} else {
 			queryPipeline, ingestPipeline = c.Pipelines[1], c.Pipelines[0]
 		}
-		queryProcessor, ingestProcessor := c.getProcessorByName(queryPipeline.Processors[0]), c.getProcessorByName(ingestPipeline.Processors[0])
+		queryProcessor, ingestProcessor := c.GetProcessorByName(queryPipeline.Processors[0]), c.GetProcessorByName(ingestPipeline.Processors[0])
 
 		if queryProcessor.Type == QuesmaV1ProcessorNoOp && ingestProcessor.Type == QuesmaV1ProcessorNoOp {
 			conf.TransparentProxy = true
@@ -813,13 +813,13 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 		// safe to call per validation earlier
 		if targts, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target.([]interface{}); ok {
-			conn := c.getBackendConnectorByName(targts[0].(string))
+			conn := c.GetBackendConnectorByName(targts[0].(string))
 			queryProcessor.Config.DefaultTargetConnectorType = conn.Type
 			for indexName, indexCfg := range queryProcessor.Config.IndexConfig {
 				var targetType string
 				indexTarget, ok2 := indexCfg.Target.([]interface{})
 				if len(indexTarget) > 0 && ok2 {
-					indexTargetType := c.getBackendConnectorByName(indexTarget[0].(string))
+					indexTargetType := c.GetBackendConnectorByName(indexTarget[0].(string))
 					if indexTargetType.Type == "elasticsearch" {
 						targetType = "elasticsearch"
 					} else { // clickhouse-os, hydrolix included
@@ -835,7 +835,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			//if p.Type == QuesmaV1ProcessorQuery && indexHasTargetSpecified {
 			//	indexConf := p.Config.IndexConfig[indexName]
 			//	if len(indexTarget) != 0 {
-			//		targetType := c.getBackendConnectorByName(indexTarget[0].(string)).Type
+			//		targetType := c.GetBackendConnectorByName(indexTarget[0].(string)).Type
 			//		if targetType == "elasticsearch" {
 			//			targetType = "elasticsearch"
 			//		} else { // clickhouse-os, hydrolix included
@@ -848,7 +848,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			//if p.Type == QuesmaV1ProcessorIngest && indexHasTargetSpecified {
 			//	indexConf := p.Config.IndexConfig[indexName]
 			//	if len(indexTarget) != 0 {
-			//		targetType := c.getBackendConnectorByName(indexTarget[0].(string)).Type
+			//		targetType := c.GetBackendConnectorByName(indexTarget[0].(string)).Type
 			//		if targetType == "elasticsearch" {
 			//			targetType = "elasticsearch"
 			//		} else { // clickhouse-os, hydrolix included
@@ -919,14 +919,14 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 		// safe to call per validation earlier
 		if targts, ok := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target.([]interface{}); ok {
-			conn := c.getBackendConnectorByName(targts[0].(string))
+			conn := c.GetBackendConnectorByName(targts[0].(string))
 			ingestProcessor.Config.DefaultTargetConnectorType = conn.Type
 			// In order to maintain compat with v1 code we have to fill QueryTarget and IngestTarget for each index
 			for indexName, indexCfg := range ingestProcessor.Config.IndexConfig {
 				var targetType string
 				indexTarget, ok2 := indexCfg.Target.([]interface{})
 				if len(indexTarget) > 0 && ok2 {
-					indexTargetType := c.getBackendConnectorByName(indexTarget[0].(string))
+					indexTargetType := c.GetBackendConnectorByName(indexTarget[0].(string))
 					if indexTargetType.Type == "elasticsearch" {
 						targetType = "elasticsearch"
 					} else { // clickhouse-os, hydrolix included
