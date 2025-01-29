@@ -983,11 +983,11 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/goccy/go-json
-Version : v0.10.4
-Time    : 2024-12-11T12:52:23Z
+Version : v0.10.5
+Time    : 2025-01-25T05:38:06Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/goccy/go-json@v0.10.4/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/goccy/go-json@v0.10.5/LICENSE:
 
 MIT License
 

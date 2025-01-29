@@ -1,5 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
+
 // Experimental alpha processor for MySQL protocol
 
 package processors
@@ -16,19 +17,19 @@ import (
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 
-type TcpPassthroughMysqlProcessor struct {
+type TcpPassthroughMySqlProcessor struct {
 	BaseProcessor
 }
 
-func (t TcpPassthroughMysqlProcessor) InstanceName() string {
-	return "TcpPassthroughMysqlProcessor"
+func (t TcpPassthroughMySqlProcessor) InstanceName() string {
+	return "TcpPassthroughMySqlProcessor"
 }
 
-func (t TcpPassthroughMysqlProcessor) GetId() string {
-	return "TcpPassthroughMysqlProcessor"
+func (t TcpPassthroughMySqlProcessor) GetId() string {
+	return "TcpPassthroughMySqlProcessor"
 }
 
-func (t *TcpPassthroughMysqlProcessor) Handle(metadata map[string]interface{}, messages ...any) (map[string]interface{}, any, error) {
+func (t *TcpPassthroughMySqlProcessor) Handle(metadata map[string]interface{}, messages ...any) (map[string]interface{}, any, error) {
 	//
 	// MySQL client -> tcp_mysql_connection_handler -> tcp_passthrough_mysql_processor -> tcp_backend_connector -> real MySQL server
 	//
@@ -81,7 +82,7 @@ func (t *TcpPassthroughMysqlProcessor) Handle(metadata map[string]interface{}, m
 	eofCount := 0
 
 	for {
-		fullPacketBytes, err := frontend_connectors.ReadMysqlPacket(conn)
+		fullPacketBytes, err := frontend_connectors.ReadMySqlPacket(conn)
 		if err != nil {
 			if err != io.EOF {
 				logger.Warn().Err(err).Msgf("Error reading MySQL packet from the MySQL TCP backend")
@@ -245,8 +246,8 @@ func maybeProcessComQuery(msg []byte) []byte {
 	return msg
 }
 
-func NewTcpMysqlPassthroughProcessor() *TcpPassthroughMysqlProcessor {
-	return &TcpPassthroughMysqlProcessor{
+func NewTcpMySqlPassthroughProcessor() *TcpPassthroughMySqlProcessor {
+	return &TcpPassthroughMySqlProcessor{
 		BaseProcessor: NewBaseProcessor(),
 	}
 }
