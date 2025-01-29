@@ -1,5 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
+
 // Experimental alpha frontend for MySQL protocol
 
 package frontend_connectors
@@ -13,13 +14,13 @@ import (
 	"net"
 )
 
-type TcpMysqlConnectionHandler struct {
+type TcpMySqlConnectionHandler struct {
 	processors []quesma_api.Processor
 }
 
 var ErrInvalidPacket = fmt.Errorf("invalid packet")
 
-func ReadMysqlPacket(conn net.Conn) ([]byte, error) {
+func ReadMySqlPacket(conn net.Conn) ([]byte, error) {
 	// MySQL wire protocol packet format (see https://dev.mysql.com/doc/dev/mysql-server/8.4.3/PAGE_PROTOCOL.html):
 	// - 3 bytes: length of the packet (= LEN)
 	// - 1 byte: sequence ID
@@ -59,7 +60,7 @@ func ReadMysqlPacket(conn net.Conn) ([]byte, error) {
 	return fullPacketBytes, nil
 }
 
-func (p *TcpMysqlConnectionHandler) HandleConnection(conn net.Conn) error {
+func (p *TcpMySqlConnectionHandler) HandleConnection(conn net.Conn) error {
 	dispatcher := quesma_api.Dispatcher{}
 	metadata := make(map[string]interface{})
 
@@ -81,7 +82,7 @@ func (p *TcpMysqlConnectionHandler) HandleConnection(conn net.Conn) error {
 	for {
 		var message any
 
-		fullPacketBytes, err := ReadMysqlPacket(conn)
+		fullPacketBytes, err := ReadMySqlPacket(conn)
 		if err == io.EOF {
 			break
 		}
@@ -103,6 +104,6 @@ func (p *TcpMysqlConnectionHandler) HandleConnection(conn net.Conn) error {
 	return nil
 }
 
-func (h *TcpMysqlConnectionHandler) SetHandlers(processors []quesma_api.Processor) {
+func (h *TcpMySqlConnectionHandler) SetHandlers(processors []quesma_api.Processor) {
 	h.processors = processors
 }
