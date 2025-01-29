@@ -3,8 +3,8 @@
 package opensearch_visualize
 
 import (
-	"quesma/model"
-	"quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
 )
 
 var PipelineAggregationTests = []testdata.AggregationTestCase{
@@ -128,8 +128,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			WHERE ("order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND
-			  "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z'))
+			WHERE ("order_date">=fromUnixTimestamp64Milli(1706095390802) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1715163790802))
 			GROUP BY "day_of_week_i" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
@@ -755,12 +755,18 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"1": {
 									"value": null
 								},
+								"1-metric": {
+									"value": null
+								},
 								"doc_count": 0,
 								"key": 1715197200000,
 								"key_as_string": "2024-05-08T19:40:00.000"
 							},
 							{
 								"1": {
+									"value": null
+								},
+								"1-metric": {
 									"value": null
 								},
 								"doc_count": 0,
@@ -982,7 +988,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 1714871400000,
 							"key_as_string": "2024-05-05T01:10:00.000"
 						},
-{
+						{
 							"1": {
 								"value": 0.0
 							},
@@ -993,7 +999,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 1714872000000,
 							"key_as_string": "2024-05-05T01:20:00.000"
 						},
-{
+						{
 							"1": {
 								"value": 0.0
 							},
@@ -1004,7 +1010,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 1714872600000,
 							"key_as_string": "2024-05-05T01:30:00.000"
 						},
-{
+						{
 							"1": {
 								"value": 0.0
 							},
@@ -1015,7 +1021,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 1714873200000,
 							"key_as_string": "2024-05-05T01:40:00.000"
 						},
-{
+						{
 							"1": {
 								"value": 0.0
 							},
@@ -1026,7 +1032,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 1714873800000,
 							"key_as_string": "2024-05-05T01:50:00.000"
 						},
-{
+						{
 							"1": {
 								"value": 0.0
 							},
@@ -1037,7 +1043,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 1714874400000,
 							"key_as_string": "2024-05-05T02:00:00.000"
 						},
-{
+						{
 							"1": {
 								"value": 0.0
 							},
@@ -1625,12 +1631,18 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"1": {
 									"value": null
 								},
+								"1-metric": {
+									"value": null
+								},
 								"doc_count": 0,
 								"key": 1715197200000,
 								"key_as_string": "2024-05-08T19:40:00.000"
 							},
 							{
 								"1": {
+									"value": null
+								},
+								"1-metric": {
 									"value": null
 								},
 								"doc_count": 0,
@@ -2841,8 +2853,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "clientip" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z'))
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1715413213606) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1715467213606))
 			GROUP BY "clientip" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" DESC
 			LIMIT 6`,
@@ -3333,11 +3345,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					"buckets": [
 						{
 							"doc_count": 260,
-							"key": true
+							"key": 1,
+							"key_as_string": "true"
 						},
 						{
 							"doc_count": 1923,
-							"key": false
+							"key": 0,
+							"key_as_string": "false"
 						}
 					],
 					"doc_count_error_upper_bound": 0,
@@ -3371,8 +3385,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "Cancelled" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z'))
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1714255011264) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1715551011264))
 			GROUP BY "Cancelled" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" DESC
 			LIMIT 6`,
@@ -3691,6 +3705,9 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"key": 3.0
 						},
 						{
+							"1-metric": {
+								"value": null
+							},
 							"3": {
 								"value": null
 							},
@@ -3761,7 +3778,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			GROUP BY "bytes" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" ASC`,
 	},
-	/* waits for probably a simple filters fix
+	/* waits for probably a simple filters fix */
 	{ // [21]
 		TestName: "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)",
 		QueryRequestJson: `
@@ -3891,52 +3908,24 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 189
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2183))}}},
-			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`count()`, 0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 4968221.14887619),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`count()`, 722),
-				}},
-			},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("filter_0__aggr__1-bucket__count", uint64(0)),
+				model.NewQueryResultCol("filter_0__metric__1-bucket__1-metric_col_0", 0.0),
+				model.NewQueryResultCol("filter_1__aggr__1-bucket__count", uint64(722)),
+				model.NewQueryResultCol("filter_1__metric__1-bucket__1-metric_col_0", 4968221.14887619),
+			}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` `,
-			`NoDBQuery`,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "FlightDelayMin" > '-100' `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "FlightDelayMin" > '-100' `,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE false `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE false `,
-		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT countIf("FlightDelayMin" > '-100') AS "filter_0__aggr__1-bucket__count",
+			  sumOrNullIf("DistanceKilometers", "FlightDelayMin" > '-100') AS
+			  "filter_0__metric__1-bucket__1-metric_col_0",
+			  countIf(false) AS "filter_1__aggr__1-bucket__count",
+			  sumOrNullIf("DistanceKilometers", false) AS
+			  "filter_1__metric__1-bucket__1-metric_col_0"
+			FROM __quesma_table_name`,
 	},
-	*/
-	/* waits for probably a simple filters fix
+	/* waits for probably a simple filters fix */
 	{ // [22] TODO check this test with other pipeline aggregations
 		TestName: "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range",
 		QueryRequestJson: `
@@ -4124,61 +4113,63 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 78
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2184))}}},
-			{}, // NoDBQuery
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 82682.96674728394)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 140)}}},
-			{}, // NoDBQuery
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 140267.98315429688)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 62)}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol(`count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL))`, 419),
-				model.NewQueryResultCol(`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL))`, 159),
-				model.NewQueryResultCol(`count()`, 2184),
-			}}},
-		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` `,
-			`NoDBQuery`,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
-			`NoDBQuery`,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
-			`SELECT sumOrNull("DistanceKilometers") ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
-			`SELECT count() ` +
-				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
-			`SELECT count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL)), ` +
-				`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL)), ` +
-				`count() ` +
-				`FROM ` + testdata.QuotedTableName + ` `,
-		},
+		/*
+			ExpectedResults: [][]model.QueryResultRow{
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2184))}}},
+				{}, // NoDBQuery
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 82682.96674728394)}}},
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 140)}}},
+				{}, // NoDBQuery
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 140267.98315429688)}}},
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 62)}}},
+				{{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL))`, 419),
+					model.NewQueryResultCol(`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL))`, 159),
+					model.NewQueryResultCol(`count()`, 2184),
+				}}},
+			},
+			ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+			ExpectedSQLs: []string{
+				`SELECT count() ` +
+					`FROM ` + testdata.QuotedTableName + ` `,
+				`NoDBQuery`,
+				`SELECT sumOrNull("DistanceKilometers") ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
+				`SELECT count() ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
+				`SELECT sumOrNull("DistanceKilometers") ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
+				`SELECT count() ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
+				`NoDBQuery`,
+				`SELECT sumOrNull("DistanceKilometers") ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
+				`SELECT count() ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
+				`SELECT sumOrNull("DistanceKilometers") ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
+				`SELECT count() ` +
+					`FROM ` + testdata.QuotedTableName + ` ` +
+					`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
+				`SELECT count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL)), ` +
+					`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL)), ` +
+					`count() ` +
+					`FROM ` + testdata.QuotedTableName + ` `,
+			},
+		*/
 		ExpectedPancakeSQL: "TODO",
-	}, */
+	},
 	{ // [23]
 		TestName: "Simplest sum_bucket. Reproduce: Visualize -> Horizontal Bar: Metrics: Sum Bucket (B ucket: Terms, Metric: Count)",
 		QueryRequestJson: `
@@ -4333,8 +4324,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "extension" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z') AND
-			  "timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z'))
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1714256186906) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1715552186906))
 			GROUP BY "extension" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" DESC
 			LIMIT 6`,
@@ -4522,7 +4513,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 									"date_histogram": {
 										"field": "timestamp",
 										"fixed_interval": "12h",
-										"min_doc_count": 1
+										"min_doc_count": 1,
+										"time_zone": "Europe/Warsaw"
 									}
 								}
 							},
@@ -4613,7 +4605,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 6,
 													"key": 1714860000000,
-													"key_as_string": "2024-05-05T00:00:00.000+02:00"
+													"key_as_string": "2024-05-04T22:00:00.000"
 												},
 												{
 													"1-metric": {
@@ -4621,7 +4613,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 9,
 													"key": 1714903200000,
-													"key_as_string": "2024-05-05T12:00:00.000+02:00"
+													"key_as_string": "2024-05-05T10:00:00.000"
 												}
 											]
 										},
@@ -4630,7 +4622,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 									},
 									{
 										"1": {
-											"value": 22680.0
+											"value": null
 										},
 										"1-bucket": {
 											"buckets": [
@@ -4640,7 +4632,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 1,
 													"key": 1714860000000,
-													"key_as_string": "2024-05-05T00:00:00.000+02:00"
+													"key_as_string": "2024-05-04T22:00:00.000"
 												},
 												{
 													"1-metric": {
@@ -4648,7 +4640,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 2,
 													"key": 1714989600000,
-													"key_as_string": "2024-05-06T12:00:00.000+02:00"
+													"key_as_string": "2024-05-06T10:00:00.000"
 												},
 												{
 													"1-metric": {
@@ -4656,7 +4648,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 3,
 													"key": 1715076000000,
-													"key_as_string": "2024-05-07T12:00:00.000+02:00"
+													"key_as_string": "2024-05-07T10:00:00.000"
 												}
 											]
 										},
@@ -4665,7 +4657,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 									},
 									{
 										"1": {
-											"value": 82940.0
+											"value": 27400.0
 										},
 										"1-bucket": {
 											"buckets": [
@@ -4675,7 +4667,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 1,
 													"key": 1714860000000,
-													"key_as_string": "2024-05-05T00:00:00.000+02:00"
+													"key_as_string": "2024-05-04T22:00:00.000"
 												}
 											]
 										},
@@ -4703,7 +4695,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 1,
 													"key": 1715076000000,
-													"key_as_string": "2024-05-07T12:00:00.000+02:00"
+													"key_as_string": "2024-05-07T10:00:00.000"
 												},
 												{
 													"1-metric": {
@@ -4711,7 +4703,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 1,
 													"key": 1715205600000,
-													"key_as_string": "2024-05-09T00:00:00.000+02:00"
+													"key_as_string": "2024-05-08T22:00:00.000"
 												}
 											]
 										},
@@ -4730,7 +4722,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 1,
 													"key": 1715162400000,
-													"key_as_string": "2024-05-08T12:00:00.000+02:00"
+													"key_as_string": "2024-05-08T10:00:00.000"
 												}
 											]
 										},
@@ -4739,7 +4731,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 									},
 									{
 										"1": {
-											"value": 178320.0
+											"value": null
 										},
 										"1-bucket": {
 											"buckets": [
@@ -4749,7 +4741,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 1,
 													"key": 1714903200000,
-													"key_as_string": "2024-05-05T12:00:00.000+02:00"
+													"key_as_string": "2024-05-05T10:00:00.000"
 												},
 												{
 													"1-metric": {
@@ -4757,7 +4749,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 2,
 													"key": 1715076000000,
-													"key_as_string": "2024-05-07T12:00:00.000+02:00"
+													"key_as_string": "2024-05-07T10:00:00.000"
 												}
 											]
 										},
@@ -4766,7 +4758,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 									},
 									{
 										"1": {
-											"value": 135880.0
+											"value": null
 										},
 										"1-bucket": {
 											"buckets": [
@@ -4776,7 +4768,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 3,
 													"key": 1714860000000,
-													"key_as_string": "2024-05-05T00:00:00.000+02:00"
+													"key_as_string": "2024-05-04T22:00:00.000"
 												},
 												{
 													"1-metric": {
@@ -4784,7 +4776,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 1,
 													"key": 1715248800000,
-													"key_as_string": "2024-05-09T12:00:00.000+02:00"
+													"key_as_string": "2024-05-09T10:00:00.000"
 												}
 											]
 										},
@@ -4803,7 +4795,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 2,
 													"key": 1714860000000,
-													"key_as_string": "2024-05-05T00:00:00.000+02:00"
+													"key_as_string": "2024-05-04T22:00:00.000"
 												},
 												{
 													"1-metric": {
@@ -4811,7 +4803,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 6,
 													"key": 1714903200000,
-													"key_as_string": "2024-05-05T12:00:00.000+02:00"
+													"key_as_string": "2024-05-05T10:00:00.000"
 												},
 												{
 													"1-metric": {
@@ -4819,7 +4811,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 8,
 													"key": 1714989600000,
-													"key_as_string": "2024-05-06T12:00:00.000+02:00"
+													"key_as_string": "2024-05-06T10:00:00.000"
 												},
 												{
 													"1-metric": {
@@ -4827,7 +4819,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 													},
 													"doc_count": 7,
 													"key": 1715076000000,
-													"key_as_string": "2024-05-07T12:00:00.000+02:00"
+													"key_as_string": "2024-05-07T10:00:00.000"
 												}
 											]
 										},
@@ -4854,234 +4846,210 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 40
 		}`,
-		/*
-			ExpectedResults: [][]model.QueryResultRow{
-				{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1865))}}},
-				{}, // NoDBQuery
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, 6920.0),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, 1000.0),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 600.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, 27400.0),
-					}},
-				},
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-						model.NewQueryResultCol(`count()`, 6),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-						model.NewQueryResultCol(`count()`, 9),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-						model.NewQueryResultCol(`count()`, 1),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
-						model.NewQueryResultCol(`count()`, 2),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-						model.NewQueryResultCol(`count()`, 3),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 600.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-						model.NewQueryResultCol(`count()`, 1),
-					}},
-				},
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 0.0),
-						model.NewQueryResultCol(`count()`, 15),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 200.0),
-						model.NewQueryResultCol(`count()`, 6),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 600.0),
-						model.NewQueryResultCol(`count()`, 1),
-					}},
-				},
-				{}, // NoDBQuery
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, 43320.0),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715205600000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, 44080.0),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1200.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715162400000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, 50040.0),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715248800000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, 72640.0),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-						model.NewQueryResultCol(`avgOrNull("memory")`, nil),
-					}},
-				},
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-						model.NewQueryResultCol(`count()`, 1),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715205600000/43200000)),
-						model.NewQueryResultCol(`count()`, 1),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1200.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715162400000/43200000)),
-						model.NewQueryResultCol(`count()`, 1),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-						model.NewQueryResultCol(`count()`, 1),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-						model.NewQueryResultCol(`count()`, 2),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-						model.NewQueryResultCol(`count()`, 3),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715248800000/43200000)),
-						model.NewQueryResultCol(`count()`, 1),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-						model.NewQueryResultCol(`count()`, 2),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-						model.NewQueryResultCol(`count()`, 6),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
-						model.NewQueryResultCol(`count()`, 8),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-						model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-						model.NewQueryResultCol(`count()`, 7),
-					}},
-				},
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1000.0),
-						model.NewQueryResultCol(`count()`, 2),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1200.0),
-						model.NewQueryResultCol(`count()`, 1),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1400.0),
-						model.NewQueryResultCol(`count()`, 3),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1600.0),
-						model.NewQueryResultCol(`count()`, 4),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`floor("bytes"/200)*200`, 1800.0),
-						model.NewQueryResultCol(`count()`, 23),
-					}},
-				},
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol(`count(if("bytes">=0 AND "bytes"<1000,1,NULL))`, 168),
-						model.NewQueryResultCol(`count(if("bytes">=1000 AND "bytes"<2000,1,NULL))`, 94),
-						model.NewQueryResultCol(`count()`, 1865),
-					}},
-				},
-			},*/
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
-		ExpectedPancakeSQL:     "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__count", "aggr__2__3__key_0", "aggr__2__3__count",
+			  "aggr__2__3__1-bucket__key_0", "aggr__2__3__1-bucket__count",
+			  "metric__2__3__1-bucket__1-metric_col_0"
+			FROM (
+			  SELECT "aggr__2__count", "aggr__2__3__key_0", "aggr__2__3__count",
+				"aggr__2__3__1-bucket__key_0", "aggr__2__3__1-bucket__count",
+				"metric__2__3__1-bucket__1-metric_col_0",
+				dense_rank() OVER (ORDER BY "aggr__2__3__key_0" ASC) AS
+				"aggr__2__3__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__2__3__key_0" ORDER BY
+				"aggr__2__3__1-bucket__key_0" ASC) AS "aggr__2__3__1-bucket__order_1_rank"
+			  FROM (
+				SELECT sum(countIf(("bytes">=0 AND "bytes"<1000))) OVER () AS
+				  "aggr__2__count", floor("bytes"/200)*200 AS "aggr__2__3__key_0",
+				  sum(countIf(("bytes">=0 AND "bytes"<1000))) OVER (PARTITION BY
+				  "aggr__2__3__key_0") AS "aggr__2__3__count",
+				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+                  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
+				  "aggr__2__3__1-bucket__key_0",
+				  countIf(("bytes">=0 AND "bytes"<1000)) AS "aggr__2__3__1-bucket__count",
+				  avgOrNullIf("memory", ("bytes">=0 AND "bytes"<1000)) AS
+				  "metric__2__3__1-bucket__1-metric_col_0"
+				FROM __quesma_table_name
+				WHERE ("bytes">=0 AND "bytes"<1000)
+				GROUP BY floor("bytes"/200)*200 AS "aggr__2__3__key_0",
+				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+                  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
+				  "aggr__2__3__1-bucket__key_0"))
+			ORDER BY "aggr__2__3__order_1_rank" ASC,
+			  "aggr__2__3__1-bucket__order_1_rank" ASC`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__count", uint64(168)),
+				model.NewQueryResultCol("aggr__2__3__key_0", 0),
+				model.NewQueryResultCol("aggr__2__3__count", uint64(15)),
+				model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1714867200000/43200000)),
+				model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(6)),
+				model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", nil),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__count", uint64(168)),
+				model.NewQueryResultCol("aggr__2__3__key_0", 0),
+				model.NewQueryResultCol("aggr__2__3__count", uint64(15)),
+				model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1714910400000/43200000)),
+				model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(9)),
+				model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", 6920.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__count", uint64(168)),
+				model.NewQueryResultCol("aggr__2__3__key_0", 200),
+				model.NewQueryResultCol("aggr__2__3__count", uint64(6)),
+				model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1714867200000/43200000)),
+				model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", nil),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__count", uint64(168)),
+				model.NewQueryResultCol("aggr__2__3__key_0", 200),
+				model.NewQueryResultCol("aggr__2__3__count", uint64(6)),
+				model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1714996800000/43200000)),
+				model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(2)),
+				model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", nil),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__count", uint64(168)),
+				model.NewQueryResultCol("aggr__2__3__key_0", 200),
+				model.NewQueryResultCol("aggr__2__3__count", uint64(6)),
+				model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1715083200000/43200000)),
+				model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(3)),
+				model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", nil),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__count", uint64(168)),
+				model.NewQueryResultCol("aggr__2__3__key_0", 600),
+				model.NewQueryResultCol("aggr__2__3__count", uint64(1)),
+				model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1714867200000/43200000)),
+				model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", 27400),
+			}},
+		},
+		ExpectedAdditionalPancakeSQLs: []string{`
+		 SELECT "aggr__2__count", "aggr__2__3__key_0", "aggr__2__3__count",
+		  "aggr__2__3__1-bucket__key_0", "aggr__2__3__1-bucket__count",
+		  "metric__2__3__1-bucket__1-metric_col_0"
+		FROM (
+		  SELECT "aggr__2__count", "aggr__2__3__key_0", "aggr__2__3__count",
+			"aggr__2__3__1-bucket__key_0", "aggr__2__3__1-bucket__count",
+			"metric__2__3__1-bucket__1-metric_col_0",
+			dense_rank() OVER (ORDER BY "aggr__2__3__key_0" ASC) AS
+			"aggr__2__3__order_1_rank",
+			dense_rank() OVER (PARTITION BY "aggr__2__3__key_0" ORDER BY
+			"aggr__2__3__1-bucket__key_0" ASC) AS "aggr__2__3__1-bucket__order_1_rank"
+		  FROM (
+			SELECT sum(countIf(("bytes">=1000 AND "bytes"<2000))) OVER () AS
+			  "aggr__2__count", floor("bytes"/200)*200 AS "aggr__2__3__key_0",
+			  sum(countIf(("bytes">=1000 AND "bytes"<2000))) OVER (PARTITION BY
+			  "aggr__2__3__key_0") AS "aggr__2__3__count",
+			  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+                "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
+			  "aggr__2__3__1-bucket__key_0",
+			  countIf(("bytes">=1000 AND "bytes"<2000)) AS "aggr__2__3__1-bucket__count",
+			  avgOrNullIf("memory", ("bytes">=1000 AND "bytes"<2000)) AS
+			  "metric__2__3__1-bucket__1-metric_col_0"
+			FROM __quesma_table_name
+			WHERE ("bytes">=1000 AND "bytes"<2000)
+			GROUP BY floor("bytes"/200)*200 AS "aggr__2__3__key_0",
+			  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+                "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
+			  "aggr__2__3__1-bucket__key_0"))
+		ORDER BY "aggr__2__3__order_1_rank" ASC,
+		  "aggr__2__3__1-bucket__order_1_rank" ASC`,
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__2__count", uint64(94)),
+					model.NewQueryResultCol("aggr__2__3__key_0", 1000),
+					model.NewQueryResultCol("aggr__2__3__count", uint64(2)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1715083200000/43200000)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(1)),
+					model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", 43320.),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__2__count", uint64(94)),
+					model.NewQueryResultCol("aggr__2__3__key_0", 1000),
+					model.NewQueryResultCol("aggr__2__3__count", uint64(2)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1715212800000/43200000)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(1)),
+					model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", 44080.),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__2__count", uint64(94)),
+					model.NewQueryResultCol("aggr__2__3__key_0", 1200),
+					model.NewQueryResultCol("aggr__2__3__count", uint64(1)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1715169600000/43200000)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(1)),
+					model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", 50040.),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__2__count", uint64(94)),
+					model.NewQueryResultCol("aggr__2__3__key_0", 1400),
+					model.NewQueryResultCol("aggr__2__3__count", uint64(3)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1714910400000/43200000)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(1)),
+					model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", nil),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__2__count", uint64(94)),
+					model.NewQueryResultCol("aggr__2__3__key_0", 1400),
+					model.NewQueryResultCol("aggr__2__3__count", uint64(3)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1715083200000/43200000)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(2)),
+					model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", nil),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__2__count", uint64(94)),
+					model.NewQueryResultCol("aggr__2__3__key_0", 1600),
+					model.NewQueryResultCol("aggr__2__3__count", uint64(4)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1714867200000/43200000)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(3)),
+					model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", nil),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__2__count", uint64(94)),
+					model.NewQueryResultCol("aggr__2__3__key_0", 1600),
+					model.NewQueryResultCol("aggr__2__3__count", uint64(4)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1715256000000/43200000)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(1)),
+					model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", nil),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__2__count", uint64(94)),
+					model.NewQueryResultCol("aggr__2__3__key_0", 1800),
+					model.NewQueryResultCol("aggr__2__3__count", uint64(23)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1714867200000/43200000)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(2)),
+					model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", nil),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__2__count", uint64(94)),
+					model.NewQueryResultCol("aggr__2__3__key_0", 1800),
+					model.NewQueryResultCol("aggr__2__3__count", uint64(23)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1714910400000/43200000)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(6)),
+					model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", 72640.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__2__count", uint64(94)),
+					model.NewQueryResultCol("aggr__2__3__key_0", 1800),
+					model.NewQueryResultCol("aggr__2__3__count", uint64(23)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1714996800000/43200000)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(8)),
+					model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", nil),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__2__count", uint64(94)),
+					model.NewQueryResultCol("aggr__2__3__key_0", 1800),
+					model.NewQueryResultCol("aggr__2__3__count", uint64(23)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__key_0", int64(1715083200000/43200000)),
+					model.NewQueryResultCol("aggr__2__3__1-bucket__count", uint64(7)),
+					model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", nil),
+				}},
+			},
+		},
 	},
 }

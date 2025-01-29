@@ -4,42 +4,41 @@ package terms_enum
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/end_user_errors"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/queryparser"
-	"quesma/quesma/types"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/tracing"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
+	"github.com/goccy/go-json"
 	"strconv"
 	"time"
 )
 
-func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *clickhouse.LogManager,
-	schemaRegistry schema.Registry, qmc *ui.QuesmaManagementConsole) ([]byte, error) {
-	if indices, err := lm.ResolveIndexPattern(ctx, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
+func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm clickhouse.LogManagerIFace,
+	schemaRegistry schema.Registry, qmc diag.DebugInfoCollector) ([]byte, error) {
+	if indices, err := lm.ResolveIndexPattern(ctx, schemaRegistry, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
 		logger.Error().Msg(errorMsg)
-		return nil, fmt.Errorf(errorMsg)
+		return nil, errors.New(errorMsg)
 	} else {
 		resolvedTableName := indices[0]
-		resolvedSchema, ok := schemaRegistry.FindSchema(schema.TableName(resolvedTableName))
+		resolvedSchema, ok := schemaRegistry.FindSchema(schema.IndexName(resolvedTableName))
 		if !ok {
 			return []byte{}, end_user_errors.ErrNoSuchSchema.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
-		return handleTermsEnumRequest(ctx, body, &queryparser.ClickhouseQueryTranslator{
-			ClickhouseLM: lm, Table: lm.FindTable(indices[0]), Ctx: context.Background(), Schema: resolvedSchema,
-		}, qmc)
+		return handleTermsEnumRequest(ctx, body, lm, &queryparser.ClickhouseQueryTranslator{Table: lm.FindTable(indices[0]), Ctx: context.Background(), Schema: resolvedSchema}, qmc)
 	}
 }
 
-func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparser.ClickhouseQueryTranslator,
-	qmc *ui.QuesmaManagementConsole) (result []byte, err error) {
+func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.LogManagerIFace, qt *queryparser.ClickhouseQueryTranslator,
+	qmc diag.DebugInfoCollector) (result []byte, err error) {
 	startTime := time.Now()
 
 	// defaults as in:
@@ -59,7 +58,7 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparse
 		logger.ErrorWithCtx(ctx).Msgf("error reading terms enum API request body: field is not present")
 		return json.Marshal(emptyTermsEnumResponse())
 	}
-	field = qt.ResolveField(ctx, field)
+	field = queryparser.ResolveField(ctx, field, qt.Schema)
 
 	size := defaultSize
 	if sizeRaw, ok := body["size"]; ok {
@@ -92,11 +91,12 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparse
 	}
 
 	where := qt.ParseAutocomplete(indexFilter, field, prefixString, caseInsensitive)
-	selectQuery := qt.BuildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
+	selectQuery := buildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
 	dbQueryCtx, cancel := context.WithCancel(ctx)
 	// TODO this will be used to cancel goroutine that is executing the query
 	_ = cancel
-	if rows, _, err2 := qt.ClickhouseLM.ProcessQuery(dbQueryCtx, qt.Table, selectQuery); err2 != nil {
+
+	if rows, _, err2 := lm.ProcessQuery(dbQueryCtx, qt.Table, selectQuery); err2 != nil {
 		logger.Error().Msgf("terms enum failed - error processing SQL query [%s]", err2)
 		result, err = json.Marshal(emptyTermsEnumResponse())
 	} else {
@@ -112,12 +112,12 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparse
 	ctxValues := tracing.ExtractValues(ctx)
 
 	reqBody, _ := body.Bytes()
-	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
 		Id:                     ctxValues.RequestId,
 		Path:                   path,
 		OpaqueId:               ctxValues.OpaqueId,
 		IncomingQueryBody:      reqBody,
-		QueryBodyTranslated:    []types.TranslatedSQLQuery{{Query: []byte(selectQuery.SelectCommand.String())}},
+		QueryBodyTranslated:    []diag.TranslatedSQLQuery{{Query: []byte(selectQuery.SelectCommand.String())}},
 		QueryTranslatedResults: result,
 		SecondaryTook:          time.Since(startTime),
 	})
@@ -146,5 +146,22 @@ func emptyTermsEnumResponse() *model.TermsEnumResponse {
 	return &model.TermsEnumResponse{
 		Complete: false,
 		Terms:    nil,
+	}
+}
+
+func buildAutocompleteQuery(fieldName, tableName string, whereClause model.Expr, limit int) *model.Query {
+	return &model.Query{
+		SelectCommand: *model.NewSelectCommand(
+			[]model.Expr{model.NewColumnRef(fieldName)},
+			nil,
+			nil,
+			model.NewTableRef(tableName),
+			whereClause,
+			[]model.Expr{},
+			limit,
+			0,
+			true,
+			nil,
+		),
 	}
 }

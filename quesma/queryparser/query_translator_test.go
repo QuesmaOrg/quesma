@@ -4,16 +4,16 @@ package queryparser
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser/query_util"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"quesma/clickhouse"
-	"quesma/model"
-	"quesma/model/typical_queries"
-	"quesma/queryparser/query_util"
-	"quesma/schema"
-	"quesma/util"
 	"strconv"
 	"testing"
 )
@@ -61,7 +61,7 @@ const (
 func TestSearchResponse(t *testing.T) {
 	row := []model.QueryResultRow{{}}
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"test": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -160,7 +160,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 		},
 	}
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"test": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -182,7 +182,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
 			hitQuery := query_util.BuildHitsQuery(
 				context.Background(), "test", []string{"*"},
-				&model.SimpleQuery{}, model.WeNeedUnlimitedCount,
+				&model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty,
 			)
 			highlighter := NewEmptyHighlighter()
 			queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, hitQuery.SelectCommand.OrderByFieldNames(), true, false, false, []string{cw.Table.Name})
@@ -275,7 +275,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("message", "User updated")}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("message", "User created")}},
 			},
-			query_util.BuildHitsQuery(context.Background(), "test", []string{"message"}, &model.SimpleQuery{}, model.WeNeedUnlimitedCount),
+			query_util.BuildHitsQuery(context.Background(), "test", []string{"message"}, &model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty),
 		},
 		{
 			`
@@ -413,7 +413,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 					},
 				},
 			},
-			query_util.BuildHitsQuery(context.Background(), "test", []string{"*"}, &model.SimpleQuery{}, model.WeNeedUnlimitedCount)},
+			query_util.BuildHitsQuery(context.Background(), "test", []string{"*"}, &model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty)},
 	}
 	for i, tt := range args {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
@@ -437,11 +437,11 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 // tests MakeSearchResponse, in particular if JSON we return is a proper JSON.
 // used to fail before we fixed field quoting.
 func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
-	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
+	cw := ClickhouseQueryTranslator{Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
 	const limit = 1000
 	queries := []*model.Query{
-		cw.BuildNRowsQuery([]string{"*"}, &model.SimpleQuery{}, limit),
-		cw.BuildNRowsQuery([]string{"@"}, &model.SimpleQuery{}, 0),
+		cw.BuildNRowsQuery([]string{"*"}, &model.SimpleQuery{}, model.HitsCountInfo{Size: limit}),
+		cw.BuildNRowsQuery([]string{"@"}, &model.SimpleQuery{}, model.HitsCountInfo{Size: 0}),
 	}
 	for _, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}

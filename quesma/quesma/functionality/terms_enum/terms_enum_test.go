@@ -5,22 +5,23 @@ package terms_enum
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/concurrent"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/queryparser"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/telemetry"
-	"quesma/tracing"
-	"quesma/util"
 	"regexp"
 	"testing"
 )
@@ -37,6 +38,15 @@ var rawRequestBody = []byte(`{
         {
           "range": {
             "epoch_time": {
+              "format": "strict_date_optional_time",
+              "gte": "2024-02-27T12:25:00.000Z",
+              "lte": "2024-02-27T12:40:59.999Z"
+            }
+          }
+        },
+		{
+          "range": {
+            "epoch_time_datetime64": {
               "format": "strict_date_optional_time",
               "gte": "2024-02-27T12:25:00.000Z",
               "lte": "2024-02-27T12:40:59.999Z"
@@ -69,6 +79,10 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 				Name: "epoch_time",
 				Type: clickhouse.NewBaseType("DateTime"),
 			},
+			"epoch_time_datetime64": {
+				Name: "epoch_time_datetime64",
+				Type: clickhouse.NewBaseType("DateTime64"),
+			},
 			"message": {
 				Name: "message",
 				Type: clickhouse.NewBaseType("String"),
@@ -80,13 +94,14 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 		},
 		Created: true,
 	}
-
-	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
-	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+	tableResolver := table_resolver.NewEmptyTableResolver()
+	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, tableResolver)
+	conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 	defer db.Close()
-	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(testTableName, table))
+	lm := clickhouse.NewLogManagerWithConnection(db, util.NewSyncMapWith(testTableName, table))
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			testTableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"client_name":       {PropertyName: "client_name", InternalPropertyName: "client_name", Type: schema.QuesmaTypeObject},
@@ -106,16 +121,16 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 			},
 		},
 	}
-	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.TableName(testTableName)]}
+	qt := &queryparser.ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(testTableName)]}
 	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
-	expectedQuery1 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE ("epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z') AND "epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z')) LIMIT 13`
-	expectedQuery2 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE ("epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z') AND "epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z')) LIMIT 13`
+	expectedQuery1 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`
+	expectedQuery2 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`
 
 	// Once in a while `AND` conditions could be swapped, so we match both cases
 	mock.ExpectQuery(fmt.Sprintf("%s|%s", regexp.QuoteMeta(expectedQuery1), regexp.QuoteMeta(expectedQuery2))).
 		WillReturnRows(sqlmock.NewRows([]string{"client_name"}).AddRow("client_a").AddRow("client_b"))
 
-	resp, err := handleTermsEnumRequest(ctx, types.MustJSON(string(requestBody)), qt, managementConsole)
+	resp, err := handleTermsEnumRequest(ctx, types.MustJSON(string(requestBody)), lm, qt, managementConsole)
 	assert.NoError(t, err)
 
 	var responseModel model.TermsEnumResponse

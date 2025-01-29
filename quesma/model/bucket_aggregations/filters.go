@@ -5,8 +5,8 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 )
 
 type Filters struct {
@@ -20,6 +20,14 @@ func NewFiltersEmpty(ctx context.Context) Filters {
 
 func NewFilters(ctx context.Context, filters []Filter) Filters {
 	return Filters{ctx: ctx, Filters: filters}
+}
+
+func (query Filters) NewFiltersSingleFilter(filterIdx int) Filters {
+	if filterIdx < 0 || filterIdx >= len(query.Filters) {
+		logger.ErrorWithCtx(query.ctx).Msgf("invalid index %d for filters aggregation", filterIdx)
+		return NewFiltersEmpty(query.ctx)
+	}
+	return NewFilters(query.ctx, []Filter{query.Filters[filterIdx]})
 }
 
 type Filter struct {
@@ -36,7 +44,7 @@ func (query Filters) AggregationType() model.AggregationType {
 }
 
 func (query Filters) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	var value any = nil
+	var value any = 0.0
 	if len(rows) > 0 {
 		if len(rows[0].Cols) > 0 {
 			value = rows[0].Cols[len(rows[0].Cols)-1].Value
@@ -79,8 +87,8 @@ func (query Filters) CombinatorTranslateSqlResponseToJson(subGroup CombinatorGro
 
 func (query Filters) CombinatorSplit() []model.QueryType {
 	result := make([]model.QueryType, 0, len(query.Filters))
-	for _, filter := range query.Filters {
-		result = append(result, NewFilters(query.ctx, []Filter{filter}))
+	for i := range query.Filters {
+		result = append(result, query.NewFiltersSingleFilter(i))
 	}
 	return result
 }

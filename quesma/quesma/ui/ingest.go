@@ -4,14 +4,14 @@ package ui
 
 import (
 	"fmt"
-	"quesma/quesma/ui/internal/builder"
-	"quesma/stats"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/stats"
 	"strings"
 )
 
 func (qmc *QuesmaManagementConsole) generateIngestStatistics() []byte {
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("statistics"))
+	buffer.Write(qmc.generateTopNavigation("statistics"))
 
 	buffer.Html(`<main id="statistics">`)
 	buffer.Write(qmc.generateStatistics())

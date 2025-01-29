@@ -4,12 +4,11 @@ package ingest
 
 import (
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/comment_metadata"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/comment_metadata"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"slices"
 	"strings"
 )
@@ -68,15 +67,17 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 	}
 
 	// There might be some columns from schema which were not present in the JSON
-	for propertyName, column := range columnsFromSchema {
+	for _, column := range columnsFromSchema {
 		if first {
 			first = false
 		} else {
 			result.WriteString(",\n")
 		}
 
+		propertyName := reverseMap[schema.EncodedFieldName(column.ClickHouseColumnName)].FieldName
+
 		columnMetadata := comment_metadata.NewCommentMetadata()
-		columnMetadata.Values[comment_metadata.ElasticFieldName] = string(propertyName)
+		columnMetadata.Values[comment_metadata.ElasticFieldName] = propertyName
 		comment := columnMetadata.Marshall()
 
 		result.WriteString(util.Indent(1))
@@ -85,50 +86,34 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 	return result.String()
 }
 
-func JsonToColumns(namespace string, m SchemaMap, indentLvl int, chConfig *clickhouse.ChTableConfig, nameFormatter TableColumNameFormatter, ignoredFields []config.FieldName) []CreateTableEntry {
+func JsonToColumns(m SchemaMap, chConfig *clickhouse.ChTableConfig) []CreateTableEntry {
 	var resultColumns []CreateTableEntry
 
 	for name, value := range m {
-		listValue, isListValue := value.([]interface{})
-		if isListValue {
-			value = listValue
-		}
-		nestedValue, ok := value.(SchemaMap)
-		if (ok && nestedValue != nil && len(nestedValue) > 0) && !isListValue {
-			nested := JsonToColumns(nameFormatter.Format(namespace, name), nestedValue, indentLvl, chConfig, nameFormatter, ignoredFields)
-			resultColumns = append(resultColumns, nested...)
+		var fTypeString string
+		if value == nil { // HACK ALERT -> We're treating null values as strings for now, so that we don't completely discard documents with empty values
+			fTypeString = "Nullable(String)"
 		} else {
-			var fTypeString string
-			if value == nil { // HACK ALERT -> We're treating null values as strings for now, so that we don't completely discard documents with empty values
-				fTypeString = "Nullable(String)"
-			} else {
-				fType := clickhouse.NewType(value)
+			fType := clickhouse.NewType(value)
 
-				// handle "field":{} case (Elastic Agent sends such JSON fields) by ignoring them
-				if multiValueType, ok := fType.(clickhouse.MultiValueType); ok && len(multiValueType.Cols) == 0 {
-					logger.Warn().Msgf("Ignoring empty JSON object: \"%s\":%v (in %s)", name, value, namespace)
-					continue
-				}
-
-				fTypeString = fType.String()
-				if !strings.Contains(fTypeString, "Array") && !strings.Contains(fTypeString, "DateTime") {
-					fTypeString = "Nullable(" + fTypeString + ")"
-				}
+			// handle "field":{} case (Elastic Agent sends such JSON fields) by ignoring them
+			if multiValueType, ok := fType.(clickhouse.MultiValueType); ok && len(multiValueType.Cols) == 0 {
+				logger.Warn().Msgf("Ignoring empty JSON object: \"%s\":%v", name, value)
+				continue
 			}
-			// hack for now
-			if indentLvl == 1 && name == timestampFieldName && chConfig.TimestampDefaultsNow {
-				fTypeString += " DEFAULT now64()"
-			}
-			// We still may have name like:
-			// "service.name": { "very.name": "value" }
-			// Before that code it would be transformed to:
-			// "service.name::very.name"
-			// So I convert it to:
-			// "service::name::very::name"
 
-			internalName := nameFormatter.Format(namespace, name)
-			resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: internalName, ClickHouseType: fTypeString})
+			fTypeString = fType.String()
+			if !strings.Contains(fTypeString, "Array") && !strings.Contains(fTypeString, "DateTime") {
+				fTypeString = "Nullable(" + fTypeString + ")"
+			}
 		}
+		// hack for now
+		if name == timestampFieldName && chConfig.TimestampDefaultsNow {
+			fTypeString += " DEFAULT now64()"
+		}
+
+		resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: name, ClickHouseType: fTypeString})
+
 	}
 	return resultColumns
 }
@@ -148,8 +133,12 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameF
 			logger.Warn().Msgf("Unsupported field type '%s' for field '%s' when trying to create a table. Ignoring that field.", field.Type.Name, field.PropertyName.AsString())
 			continue
 		case schema.QuesmaTypePoint.Name:
-			lat := nameFormatter.Format(internalPropertyName, "lat")
-			lon := nameFormatter.Format(internalPropertyName, "lon")
+			lat := string(fieldEncodings[schema.FieldEncodingKey{TableName: tableName, FieldName: field.PropertyName.AsString() + ".lat"}])
+			lon := string(fieldEncodings[schema.FieldEncodingKey{TableName: tableName, FieldName: field.PropertyName.AsString() + ".lon"}])
+			if len(lat) == 0 || len(lon) == 0 {
+				logger.Error().Msgf("Empty internal property names for geo_point field '%s' (lat: '%s'/lon: '%s'). This might result in incorrect table schema.", field.PropertyName.AsString(), lat, lon)
+			}
+
 			resultColumns[schema.FieldName(lat)] = CreateTableEntry{ClickHouseColumnName: lat, ClickHouseType: "Nullable(String)"}
 			resultColumns[schema.FieldName(lon)] = CreateTableEntry{ClickHouseColumnName: lon, ClickHouseType: "Nullable(String)"}
 			continue
@@ -175,6 +164,9 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameF
 			fType = "Nullable(Float64)"
 		case schema.QuesmaTypeBoolean.Name:
 			fType = "Nullable(Bool)"
+		}
+		if len(internalPropertyName) == 0 {
+			logger.Error().Msgf("Empty internal property name for field '%s'. This might result in incorrect table schema.", field.PropertyName.AsString())
 		}
 		resultColumns[schema.FieldName(internalPropertyName)] = CreateTableEntry{ClickHouseColumnName: internalPropertyName, ClickHouseType: fType}
 	}

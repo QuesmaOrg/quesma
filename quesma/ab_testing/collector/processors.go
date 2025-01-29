@@ -3,9 +3,10 @@
 package collector
 
 import (
-	"encoding/json"
 	"fmt"
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/goccy/go-json"
+	"regexp"
 )
 
 // unifySyncAsyncResponse is a processor that processes that removes async "wrapper" from the response
@@ -55,6 +56,44 @@ func (t *unifySyncAsyncResponse) process(in EnrichedResults) (out EnrichedResult
 
 	in.A.Body = respA
 	in.B.Body = respB
+
+	return in, false, nil
+}
+
+type extractKibanaIds struct {
+}
+
+func (t *extractKibanaIds) name() string {
+	return "extractKibanaIds"
+}
+
+var opaqueIdKibanaDashboardIdRegexp = regexp.MustCompile(`dashboards:([0-9a-f-]+)`)
+var opaqueIdKibanaPanelIdRegexp = regexp.MustCompile(`dashboard:dashboards:.*;.*:.*:([0-9a-f-]+)`)
+
+func (t *extractKibanaIds) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
+
+	opaqueId := in.OpaqueID
+
+	in.KibanaDashboardId = "n/a"
+	in.KibanaDashboardPanelId = "n/a"
+
+	if opaqueId == "" {
+		return in, false, nil
+	}
+
+	matches := opaqueIdKibanaDashboardIdRegexp.FindStringSubmatch(opaqueId)
+
+	if len(matches) < 2 {
+		return in, false, nil
+	}
+
+	in.KibanaDashboardId = matches[1]
+
+	panelsMatches := opaqueIdKibanaPanelIdRegexp.FindStringSubmatch(opaqueId)
+	if len(panelsMatches) < 2 {
+		return in, false, nil
+	}
+	in.KibanaDashboardPanelId = panelsMatches[1]
 
 	return in, false, nil
 }

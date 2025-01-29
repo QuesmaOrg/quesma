@@ -3,14 +3,15 @@
 package ui
 
 import (
-	"quesma/quesma/ui/internal/builder"
+	"context"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
 	"slices"
-	"strings"
 )
 
 func (qmc *QuesmaManagementConsole) generateDatasourcesPage() []byte {
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("data-sources"))
+	buffer.Write(qmc.generateTopNavigation("data-sources"))
 
 	buffer.Html(`<main id="data-sources">`)
 	buffer.Write(qmc.generateDatasources())
@@ -47,8 +48,18 @@ func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
 		slices.Sort(tableNames)
 		for _, tableName := range tableNames {
 			buffer.Html(`<li>`).Text(tableName)
-			if _, exist := tables.Load(tableName); exist {
-				buffer.Html(` (table exists)`)
+			cfg := qmc.cfg.IndexConfig[tableName]
+			finalTableName := cfg.TableName(tableName)
+			if _, exist := tables.Load(finalTableName); exist {
+				if finalTableName != tableName {
+					buffer.Html(` (table exists as override '`).Text(finalTableName).Html(`')`)
+				} else {
+					buffer.Html(` (table exists)`)
+				}
+			} else {
+				if finalTableName != tableName {
+					buffer.Html(` (table missing as override '`).Text(finalTableName).Html(`')`)
+				}
 			}
 			buffer.Html(`</li>`)
 		}
@@ -59,11 +70,11 @@ func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
 
 	buffer.Html(`<ul>`)
 
-	qmc.indexManagement.Start()
-	indexNames := []string{}
-	internalIndexNames := []string{}
-	for indexName := range qmc.indexManagement.GetSourceNames() {
-		if strings.HasPrefix(indexName, ".") {
+	var indexNames []string
+	var internalIndexNames []string
+
+	for _, indexName := range qmc.GetElasticSearchIndices(context.Background()) {
+		if elasticsearch.IsInternalIndex(indexName) {
 			internalIndexNames = append(internalIndexNames, indexName)
 		} else {
 			indexNames = append(indexNames, indexName)

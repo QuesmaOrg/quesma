@@ -3,8 +3,8 @@
 package kibana_visualize
 
 import (
-	"quesma/model"
-	"quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
 	"time"
 )
 
@@ -198,8 +198,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				  "aggr__2__1-bucket__key_0", count(*) AS "aggr__2__1-bucket__count",
 				  maxOrNull("timestamp") AS "metric__2__1-bucket__1-metric_col_0"
 				FROM __quesma_table_name
-				WHERE ("timestamp">=parseDateTime64BestEffort('2024-09-20T16:16:03.807Z')
-				  AND "timestamp"<=parseDateTime64BestEffort('2024-10-05T16:16:03.807Z'))
+				WHERE ("timestamp">=fromUnixTimestamp64Milli(1726848963807) AND "timestamp"
+				  <=fromUnixTimestamp64Milli(1728144963807))
 				GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 				  toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
 				  "aggr__2__key_0",
@@ -283,6 +283,9 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								"1": {
 									"value": 5.0
 								},
+								"1-metric": {
+									"value": null
+								},
 								"doc_count": 0,
 								"key": 1728144360000,
 								"key_as_string": "2024-10-05T16:06:00.000"
@@ -290,6 +293,9 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							{
 								"1": {
 									"value": 5.0
+								},
+								"1-metric": {
+									"value": null
 								},
 								"doc_count": 0,
 								"key": 1728144420000,

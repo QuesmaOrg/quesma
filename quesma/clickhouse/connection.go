@@ -7,10 +7,12 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net"
-	"quesma/buildinfo"
-	"quesma/logger"
-	"quesma/quesma/config"
 	"strings"
 	"time"
 )
@@ -51,7 +53,7 @@ func initDBConnection(c *config.QuesmaConfiguration, tlsConfig *tls.Config) *sql
 
 }
 
-func InitDBConnectionPool(c *config.QuesmaConfiguration) *sql.DB {
+func InitDBConnectionPool(c *config.QuesmaConfiguration) quesma_api.BackendConnector {
 	if c.ClickHouse.Url == nil {
 		return nil
 	}
@@ -60,7 +62,7 @@ func InitDBConnectionPool(c *config.QuesmaConfiguration) *sql.DB {
 
 	err := db.Ping()
 	if err != nil {
-
+		logger.Error().Err(err).Msg("Failed to ping database.")
 		// These error message duplicates messages from end_user_errors.GuessClickhouseErrorType
 		// Not sure if you want to keep them in sync or not. These two cases are different.
 
@@ -94,16 +96,14 @@ func InitDBConnectionPool(c *config.QuesmaConfiguration) *sql.DB {
 	// clean up connections after 5 minutes, before that they may be killed by the firewall
 	db.SetConnMaxLifetime(time.Duration(5) * time.Minute) // default is 1h
 
-	return db
+	return backend_connectors.NewClickHouseBackendConnectorWithConnection(c.ClickHouse.Url.String(), db)
 }
 
 // RunClickHouseConnectionDoctor is very blunt and verbose function which aims to print some helpful information
 // in case of misconfigured ClickHouse connection. In the future, we might rethink how do we manage this and perhaps
 // move some parts to InitDBConnectionPool, but for now this should already provide some useful feedback.
 func RunClickHouseConnectionDoctor(c *config.QuesmaConfiguration) {
-	timeout := 1 * time.Second
-	defaultNativeProtocolPort := "9000"
-	defaultNativeProtocolPortEncrypted := "9440"
+	timeout := 5 * time.Second
 
 	logger.Info().Msgf("[connection-doctor] Starting ClickHouse connection doctor")
 	hostName, port := c.ClickHouse.Url.Hostname(), c.ClickHouse.Url.Port()
@@ -112,24 +112,39 @@ func RunClickHouseConnectionDoctor(c *config.QuesmaConfiguration) {
 	connTcp, errTcp := net.DialTimeout("tcp", address, timeout)
 	if errTcp != nil {
 		logger.Info().Msgf("[connection-doctor] Failed dialing with %s, err=[%v], no service listening at configured host/port, make sure to specify reachable ClickHouse address", address, errTcp)
-		logger.Info().Msgf("[connection-doctor] Trying default ClickHouse native ports...")
-		if conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%s", hostName, defaultNativeProtocolPort), timeout); err == nil {
-			logger.Info().Msgf("[connection-doctor] Default ClickHouse plaintext port is reachable, consider changing ClickHouse port to %s in Quesma configuration", defaultNativeProtocolPort)
-			conn.Close()
-		}
-		if conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%s", hostName, defaultNativeProtocolPortEncrypted), timeout); err == nil {
-			logger.Info().Msgf("[connection-doctor] Default ClickHouse TLS port is reachable, consider changing ClickHouse port to %s in Quesma conbfiguration", defaultNativeProtocolPortEncrypted)
-			conn.Close()
-		}
+		tryDefaultPorts(hostName, timeout)
 		return
 	}
+	logger.Info().Msgf("[connection-doctor] Successfully dialed host/port (%s)...", address)
 	defer connTcp.Close()
-	logger.Info().Msgf("[connection-doctor] Trying to establish TLS connection with configured host/port (%s)", address)
-	connTls, errTls := tls.DialWithDialer(&net.Dialer{Timeout: timeout}, "tcp", address, &tls.Config{InsecureSkipVerify: true})
-	if errTls != nil {
-		logger.Info().Msgf("[connection-doctor] Failed establishing TLS connection with %s, err=[%v], please use `clickhouse.disableTLS: true` in Quesma configuration", address, errTls)
-		return
+
+	if !c.ClickHouse.DisableTLS {
+		logger.Info().Msgf("[connection-doctor] Trying to establish TLS connection with configured host/port (%s)", address)
+		connTls, errTls := tls.DialWithDialer(&net.Dialer{Timeout: timeout}, "tcp", address, &tls.Config{InsecureSkipVerify: true})
+		if errTls != nil {
+			logger.Info().Msgf("[connection-doctor] Failed establishing TLS connection with %s, err=[%v], please use `config.disableTLS: true` in Quesma configuration of ClickHouse backend connector", address, errTls)
+			return
+		}
+		defer connTls.Close()
+		logger.Info().Msgf("[connection-doctor] TLS connection (handshake) with %s established successfully", address)
+	} else {
+		logger.Info().Msgf("[connection-doctor] TLS connection is disabled in Quesma configuration (consider trying `config.disableTLS: false` in Quesma configuration of ClickHouse backend connector), skipping TLS connection tests.")
 	}
-	defer connTls.Close()
-	logger.Info().Msgf("[connection-doctor] TLS connection (handshake) with %s established successfully", address)
+	logger.Info().Msgf("[connection-doctor] Make sure you are using the correct protocol (currently: %s), correct username/password and correct database (currently: '%s')", c.ClickHouse.Url.Scheme, c.ClickHouse.Database)
+	tryDefaultPorts(hostName, timeout)
+}
+
+func tryDefaultPorts(hostName string, timeout time.Duration) {
+	defaultNativeProtocolPort := "9000"
+	defaultNativeProtocolPortEncrypted := "9440"
+
+	logger.Info().Msgf("[connection-doctor] Trying default ClickHouse ports...")
+	if conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%s", hostName, defaultNativeProtocolPort), timeout); err == nil {
+		logger.Info().Msgf("[connection-doctor] Default ClickHouse plaintext port is reachable, consider changing the ClickHouse URL in Quesma configuration to clickhouse://%s:%s", hostName, defaultNativeProtocolPort)
+		conn.Close()
+	}
+	if conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%s", hostName, defaultNativeProtocolPortEncrypted), timeout); err == nil {
+		logger.Info().Msgf("[connection-doctor] Default ClickHouse TLS port is reachable, consider changing the ClickHouse URL in Quesma configuration to clickhouse://%s:%s", hostName, defaultNativeProtocolPortEncrypted)
+		conn.Close()
+	}
 }

@@ -26,7 +26,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           cache-dependency-path: ${{ matrix.module }}/go.sum
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Install go-licence-detector
         working-directory: ${{ matrix.module }}
@@ -37,7 +37,7 @@ jobs:
         run: |
           go mod tidy
           go mod download all
-          go list -m -json all | go-licence-detector -includeIndirect -noticeTemplate=../.github/go-licence-detector/templates/NOTICE.MD.tmpl -noticeOut=../NOTICE.MD -depsTemplate=../.github/go-licence-detector/templates/dependencies.asciidoc.tmpl -depsOut=dependencies.asciidoc -overrides=../.github/go-licence-detector/overrides.ndjson
+          go list -m -json all | jq 'select(.Path != "quesma_v2")' | go-licence-detector -includeIndirect -noticeTemplate=../.github/go-licence-detector/templates/NOTICE.MD.tmpl -noticeOut=../NOTICE.MD -depsTemplate=../.github/go-licence-detector/templates/dependencies.asciidoc.tmpl -depsOut=dependencies.asciidoc -overrides=../.github/go-licence-detector/overrides.ndjson
           rm dependencies.asciidoc
 
       - name: Print NOTICE.MD

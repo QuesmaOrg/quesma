@@ -4,10 +4,9 @@ package async_search_storage
 
 import (
 	"context"
-	"quesma/concurrent"
-	"quesma/logger"
-	"quesma/quesma/recovery"
-	"quesma/tracing"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 	"time"
 )
@@ -16,12 +15,12 @@ const EvictionInterval = 15 * time.Minute
 const GCInterval = 1 * time.Minute
 
 type AsyncSearchStorageInMemory struct {
-	idToResult *concurrent.Map[string, *AsyncRequestResult]
+	idToResult *util.SyncMap[string, *AsyncRequestResult]
 }
 
 func NewAsyncSearchStorageInMemory() AsyncSearchStorageInMemory {
 	return AsyncSearchStorageInMemory{
-		idToResult: concurrent.NewMap[string, *AsyncRequestResult](),
+		idToResult: util.NewSyncMap[string, *AsyncRequestResult](),
 	}
 }
 
@@ -46,12 +45,12 @@ func (s AsyncSearchStorageInMemory) Size() int {
 }
 
 type AsyncQueryContextStorageInMemory struct {
-	idToContext *concurrent.Map[string, *AsyncQueryContext]
+	idToContext *util.SyncMap[string, *AsyncQueryContext]
 }
 
 func NewAsyncQueryContextStorageInMemory() AsyncQueryContextStorageInMemory {
 	return AsyncQueryContextStorageInMemory{
-		idToContext: concurrent.NewMap[string, *AsyncQueryContext](),
+		idToContext: util.NewSyncMap[string, *AsyncQueryContext](),
 	}
 }
 
@@ -75,16 +74,16 @@ func elapsedTime(t time.Time) time.Duration {
 	return time.Since(t)
 }
 
-type AsyncQueryIdWithTime struct {
+type asyncQueryIdWithTime struct {
 	id   string
 	time time.Time
 }
 
 func (e *AsyncQueriesEvictor) tryEvictAsyncRequests(timeFun func(time.Time) time.Duration) {
-	var ids []AsyncQueryIdWithTime
+	var ids []asyncQueryIdWithTime
 	e.AsyncRequestStorage.Range(func(key string, value *AsyncRequestResult) bool {
 		if timeFun(value.added) > EvictionInterval {
-			ids = append(ids, AsyncQueryIdWithTime{id: key, time: value.added})
+			ids = append(ids, asyncQueryIdWithTime{id: key, time: value.added})
 		}
 		return true
 	})
@@ -129,60 +128,4 @@ func (e *AsyncQueriesEvictor) AsyncQueriesGC() {
 func (e *AsyncQueriesEvictor) Close() {
 	e.cancel()
 	logger.Info().Msg("AsyncQueriesEvictor Stopped")
-}
-
-type AsyncQueryTraceLoggerEvictor struct {
-	AsyncQueryTrace *concurrent.Map[string, tracing.TraceCtx]
-	ctx             context.Context
-	cancel          context.CancelFunc
-}
-
-func (e *AsyncQueryTraceLoggerEvictor) Start() {
-	e.ctx, e.cancel = context.WithCancel(context.Background())
-
-	go e.FlushHangingAsyncQueryTrace(elapsedTime)
-}
-
-func (e *AsyncQueryTraceLoggerEvictor) Stop() {
-	e.cancel()
-	logger.Info().Msg("AsyncQueryTraceLoggerEvictor Stopped")
-}
-
-func (e *AsyncQueryTraceLoggerEvictor) TryFlushHangingAsyncQueryTrace(timeFun func(time.Time) time.Duration) {
-	asyncIds := []string{}
-	e.AsyncQueryTrace.Range(func(key string, value tracing.TraceCtx) bool {
-		if timeFun(value.Added) > EvictionInterval {
-			asyncIds = append(asyncIds, key)
-			logger.Error().Msgf("Async query %s was not finished", key)
-			var formattedLines strings.Builder
-			formattedLines.WriteString(tracing.FormatMessages(value.Messages))
-			logger.Info().Msg(formattedLines.String())
-		}
-		return true
-	})
-	for _, asyncId := range asyncIds {
-		e.AsyncQueryTrace.Delete(asyncId)
-	}
-}
-
-func (e *AsyncQueryTraceLoggerEvictor) FlushHangingAsyncQueryTrace(timeFun func(time.Time) time.Duration) {
-	go func() {
-		recovery.LogPanic()
-		for {
-			select {
-			case <-time.After(GCInterval):
-				e.TryFlushHangingAsyncQueryTrace(timeFun)
-			case <-e.ctx.Done():
-				logger.Debug().Msg("AsyncQueryTraceLoggerEvictor stopped")
-				e.AsyncQueryTrace.Range(func(key string, value tracing.TraceCtx) bool {
-					logger.Error().Msgf("Async query %s was not finished", key)
-					var formattedLines strings.Builder
-					formattedLines.WriteString(tracing.FormatMessages(value.Messages))
-					logger.Info().Msg(formattedLines.String())
-					return true
-				})
-				return
-			}
-		}
-	}()
 }

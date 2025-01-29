@@ -3,10 +3,10 @@
 package quesma
 
 import (
-	"quesma/logger"
-	"quesma/model"
-	"quesma/quesma/types"
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"strings"
 )
 

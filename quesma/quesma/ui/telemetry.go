@@ -3,13 +3,13 @@
 package ui
 
 import (
-	"encoding/json"
-	"quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/goccy/go-json"
 )
 
 func (qmc *QuesmaManagementConsole) generateTelemetry() []byte {
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("telemetry"))
+	buffer.Write(qmc.generateTopNavigation("telemetry"))
 	buffer.Html(`<main id="telemetry">`)
 
 	buffer.Html(`<h2>Telemetry</h2>`)

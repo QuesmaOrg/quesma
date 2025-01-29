@@ -4,9 +4,10 @@ package elasticsearch
 
 import (
 	"context"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -19,6 +20,7 @@ type (
 		GetSources() Sources
 		GetSourceNames() map[string]bool
 		GetSourceNamesMatching(indexPattern string) map[string]bool
+		Resolve(indexPattern string) (Sources, bool, error)
 	}
 	indexManagement struct {
 		ElasticsearchUrl string
@@ -33,11 +35,15 @@ type (
 	}
 )
 
-func NewIndexManagement(elasticsearchUrl string) IndexManagement {
+func NewIndexManagement(elasticsearch config.ElasticsearchConfiguration) IndexManagement {
 	return &indexManagement{
-		ElasticsearchUrl: elasticsearchUrl,
-		indexResolver:    NewIndexResolver(elasticsearchUrl),
+		ElasticsearchUrl: elasticsearch.Url.String(),
+		indexResolver:    NewIndexResolver(elasticsearch),
 	}
+}
+
+func (im *indexManagement) Resolve(indexPattern string) (Sources, bool, error) {
+	return im.indexResolver.Resolve(indexPattern)
 }
 
 func (im *indexManagement) ReloadIndices() {
@@ -99,7 +105,7 @@ func (im *indexManagement) Start() {
 	im.ctx, im.cancel = context.WithCancel(context.Background())
 
 	go func() {
-		recovery.LogPanic()
+		defer recovery.LogPanic()
 		for {
 			select {
 			case <-im.ctx.Done():
@@ -114,4 +120,46 @@ func (im *indexManagement) Start() {
 
 func (im *indexManagement) Stop() {
 	im.cancel()
+}
+
+func NewFixedIndexManagement(indexes ...string) IndexManagement {
+	return stubIndexManagement{indexes: indexes}
+}
+
+type stubIndexManagement struct {
+	indexes []string
+}
+
+func (s stubIndexManagement) Start()         {}
+func (s stubIndexManagement) Stop()          {}
+func (s stubIndexManagement) ReloadIndices() {}
+func (s stubIndexManagement) GetSources() Sources {
+	var dataStreams = []DataStream{}
+	for _, index := range s.indexes {
+		dataStreams = append(dataStreams, DataStream{Name: index})
+	}
+	return Sources{DataStreams: dataStreams}
+}
+func (s stubIndexManagement) Resolve(_ string) (Sources, bool, error) {
+	return Sources{}, true, nil
+}
+
+func (s stubIndexManagement) GetSourceNames() map[string]bool {
+	var result = make(map[string]bool)
+	for _, index := range s.indexes {
+		result[index] = true
+	}
+	return result
+}
+
+func (s stubIndexManagement) GetSourceNamesMatching(indexPattern string) map[string]bool {
+	var result = make(map[string]bool)
+	for _, index := range s.indexes {
+		if matches, err := util.IndexPatternMatches(indexPattern, index); err == nil && matches {
+			result[index] = true
+		} else {
+			logger.Error().Err(err)
+		}
+	}
+	return result
 }

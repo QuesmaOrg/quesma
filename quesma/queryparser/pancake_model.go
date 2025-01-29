@@ -4,8 +4,8 @@ package queryparser
 
 import (
 	"fmt"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
 	"regexp"
 	"strings"
 )
@@ -18,6 +18,22 @@ type pancakeModel struct {
 
 	whereClause model.Expr
 	sampleLimit int
+}
+
+// Clone isn't a shallow copy, isn't also a full deep copy, but it's enough for our purposes.
+func (p *pancakeModel) Clone() *pancakeModel {
+	layers := make([]*pancakeModelLayer, len(p.layers))
+	for i, layer := range p.layers {
+		layers[i] = newPancakeModelLayer(layer.nextBucketAggregation)
+		layers[i].currentMetricAggregations = p.layers[i].currentMetricAggregations
+		layers[i].currentPipelineAggregations = p.layers[i].currentPipelineAggregations
+		layers[i].childrenPipelineAggregations = p.layers[i].childrenPipelineAggregations
+	}
+	return &pancakeModel{
+		layers:      layers,
+		whereClause: p.whereClause,
+		sampleLimit: p.sampleLimit,
+	}
 }
 
 type pancakeModelLayer struct {

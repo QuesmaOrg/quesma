@@ -5,10 +5,10 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 )
 
 type pancakePipelinesProcessor struct {
@@ -18,6 +18,10 @@ type pancakePipelinesProcessor struct {
 func (p pancakePipelinesProcessor) selectPipelineRows(pipeline model.PipelineQueryType, rows []model.QueryResultRow,
 	bucketAggregation *pancakeModelBucketAggregation) (
 	result []model.QueryResultRow) {
+
+	if bucketAggregation == nil {
+		return rows
+	}
 
 	isCount := pipeline.IsCount()
 	for _, row := range rows {
@@ -49,7 +53,11 @@ func (p pancakePipelinesProcessor) currentPipelineMetricAggregations(layer *panc
 		thisPipelineResults := p.calcSingleMetricPipeline(layer, pipeline, rows)
 
 		errorMsg := fmt.Sprintf("calculateThisLayerMetricPipelines, pipeline: %s", pipeline.internalName)
-		resultPerPipeline = util.Merge(p.ctx, resultPerPipeline, thisPipelineResults, errorMsg)
+		var err error
+		resultPerPipeline, err = util.Merge(resultPerPipeline, thisPipelineResults, errorMsg)
+		if err != nil {
+			logger.ErrorWithCtx(p.ctx).Msgf("error merging results: %v", err)
+		}
 	}
 
 	return
@@ -68,7 +76,11 @@ func (p pancakePipelinesProcessor) calcSingleMetricPipeline(layer *pancakeModelL
 		childResults := p.calcSingleMetricPipeline(layer, pipelineChild, resultRows)
 
 		errorMsg := fmt.Sprintf("processSingleMetricPipeline, pipeline: %s, pipelineChild: %s", pipeline.internalName, pipelineChild.internalName)
-		resultPerPipeline = util.Merge(p.ctx, resultPerPipeline, childResults, errorMsg)
+		var err error
+		resultPerPipeline, err = util.Merge(resultPerPipeline, childResults, errorMsg)
+		if err != nil {
+			logger.ErrorWithCtx(p.ctx).Msgf("error merging results: %v", err)
+		}
 	}
 
 	return

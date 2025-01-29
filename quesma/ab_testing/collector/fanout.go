@@ -3,17 +3,20 @@
 package collector
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/goccy/go-json"
 	"net/http"
-	"quesma/logger"
 )
 
 type elasticSearchFanout struct {
-	url        string
 	indexName  string
 	errorCount int
+	esConn     *backend_connectors.ElasticsearchBackendConnector
 }
 
 func (t *elasticSearchFanout) name() string {
@@ -40,7 +43,7 @@ func (t *elasticSearchFanout) process(in EnrichedResults) (out EnrichedResults, 
 	logBytes = append(logBytes, logLine...)
 	logBytes = append(logBytes, []byte("\n")...)
 
-	if resp, err := http.Post(t.url+"/_bulk", "application/json", bytes.NewBuffer(logBytes)); err != nil {
+	if resp, err := t.esConn.Request(context.Background(), http.MethodPost, "/_bulk", logBytes); err != nil {
 		t.errorCount += +1
 		return in, false, fmt.Errorf("failed to send A/B results: %v", err)
 	} else {
@@ -57,3 +60,35 @@ func (t *elasticSearchFanout) process(in EnrichedResults) (out EnrichedResults, 
 	// Elasticsearch logic here
 	return in, false, nil
 }
+
+type internalIngestFanout struct {
+	indexName       string
+	ingestProcessor ingest.Ingester
+}
+
+func (t *internalIngestFanout) name() string {
+	return "internalIngestFanout"
+}
+
+func (t *internalIngestFanout) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
+
+	asBytes, err := json.Marshal(in)
+	if err != nil {
+		logger.Error().Msgf("failed to marshal A/B results line: %v", err)
+		return in, false, err
+	}
+
+	asJson, err := types.ParseJSON(string(asBytes))
+
+	if err != nil {
+		logger.Error().Msgf("failed to parse A/B results line: %v", err)
+		return
+	}
+
+	err = t.ingestProcessor.Ingest(context.Background(), t.indexName, []types.JSON{asJson})
+
+	return in, false, err
+}
+
+var _ = &internalIngestFanout{}
+var _ = &elasticSearchFanout{}

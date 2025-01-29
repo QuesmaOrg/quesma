@@ -4,13 +4,13 @@ package ui
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
+	tracing "github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
+	"github.com/goccy/go-json"
 	"gopkg.in/yaml.v3"
-	"quesma/quesma/types"
-	"quesma/quesma/ui/internal/builder"
-	"quesma/tracing"
-	"quesma/util"
 	"strings"
 )
 
@@ -60,7 +60,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 		buffer.Html(`<div class="query-body-translated">` + "\n")
 		buffer.Html("<p class=\"title\">Translated SQL:</p>\n")
 
-		printQueries := func(queries []types.TranslatedSQLQuery) {
+		printQueries := func(queries []diag.TranslatedSQLQuery) {
 
 			for _, queryBody := range queries {
 				prettyQueryBody := util.SqlPrettyPrint(queryBody.Query)

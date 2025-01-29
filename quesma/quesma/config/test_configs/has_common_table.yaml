@@ -26,38 +26,48 @@ processors:
     config:
       indexes:
         logs-1:
-          target: [ E ]
+          target:
+            - E
         logs-2:
-          target: [ E ]
+          target:
+            - E
         logs-3:
-          target: [ C, E ]
+          target:
+            - C
+            - E
         logs-4:
-          useCommonTable: true
-          target: [ C ]
+          target:
+            - C:
+                useCommonTable: true
         logs-5:
-          useCommonTable: true
-          target: [ C ]
+          target:
         "*":
-          target: [ E ]
+          target:
+            - E
 
   - name: IP
     type: quesma-v1-processor-ingest
     config:
       indexes:
         logs-1:
-          target: [ E ]
+          target:
+            - E
         logs-2:
-          target: [ E ]
+          target:
+            - E
         logs-3:
-          target: [ C, E ]
+          target:
+            - C
+            - E
         logs-4:
-          useCommonTable: true
-          target: [ C ]
+          target:
+            - C:
+                useCommonTable: true
         "*":
-          target: [ E ]
+          target:
+            - E
         logs-5:
-          useCommonTable: true
-          target: [  ]
+          target:
 
 pipelines:
   - name: my-elasticsearch-proxy-read

@@ -3,14 +3,14 @@
 package ingest
 
 import (
-	"encoding/json"
-	"quesma/clickhouse"
-	"quesma/concurrent"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/telemetry"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
+	"github.com/goccy/go-json"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -22,7 +22,7 @@ func newIngestProcessorWithEmptyTableMap(tables *TableMap, cfg *config.QuesmaCon
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
 	return &IngestProcessor{chDb: nil, tableDiscovery: clickhouse.NewTableDiscoveryWith(cfg, nil, *tables),
-		cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(),
+		cfg: cfg, phoneHomeClient: diag.NewPhoneHomeEmptyAgent(),
 		ingestFieldStatistics: make(IngestFieldStatistics),
 		virtualTableStorage:   persistence.NewStaticJSONDatabase(),
 	}
@@ -33,7 +33,7 @@ func newIngestProcessorEmpty() *IngestProcessor {
 	tableDefinitions.Store(NewTableMap())
 	cfg := &config.QuesmaConfiguration{}
 	return &IngestProcessor{tableDiscovery: clickhouse.NewTableDiscovery(cfg, nil, persistence.NewStaticJSONDatabase()), cfg: cfg,
-		phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
+		phoneHomeClient: diag.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
 }
 
 var hasOthersConfig = &clickhouse.ChTableConfig{
@@ -55,7 +55,7 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	rowToInsert := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","non-schema2":"2","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z","non-schema1":{"a":"b"}}`
 	var emptyMap TableMap
 	// TODO fix clickhouse.Columns
-	fieldsMap := concurrent.NewMapWith("tableName", &clickhouse.Table{
+	fieldsMap := util.NewSyncMapWith("tableName", &clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"host::name":    nil,
 			"message":       nil,
@@ -139,15 +139,13 @@ func TestAddTimestamp(t *testing.T) {
 		CastUnsupportedAttrValueTypesToString: false,
 		PreferCastingToOthers:                 false,
 	}
-	nameFormatter := clickhouse.DefaultColumnNameFormatter()
+	nameFormatter := DefaultColumnNameFormatter()
 	ip := newIngestProcessorEmpty()
 	ip.schemaRegistry = &schema.StaticRegistry{}
 	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
 	encodings := populateFieldEncodings([]types.JSON{jsonData}, tableName)
 
-	ignoredFields := ip.getIgnoredFields(tableName)
-	columnsFromJson := JsonToColumns("", jsonData, 1,
-		tableConfig, nameFormatter, ignoredFields)
+	columnsFromJson := JsonToColumns(jsonData, tableConfig)
 
 	columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), nameFormatter, tableName, encodings)
 	columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(jsonData))
@@ -787,49 +785,49 @@ func TestLogManager_GetTable(t *testing.T) {
 	}{
 		{
 			name:             "empty",
-			predefinedTables: *concurrent.NewMap[string, *clickhouse.Table](),
+			predefinedTables: *util.NewSyncMap[string, *clickhouse.Table](),
 			tableNamePattern: "table",
 			found:            false,
 		},
 		{
 			name:             "should find by name",
-			predefinedTables: *concurrent.NewMapWith("table1", &clickhouse.Table{Name: "table1"}),
+			predefinedTables: *util.NewSyncMapWith("table1", &clickhouse.Table{Name: "table1"}),
 			tableNamePattern: "table1",
 			found:            true,
 		},
 		{
 			name:             "should not find by name",
-			predefinedTables: *concurrent.NewMapWith("table1", &clickhouse.Table{Name: "table1"}),
+			predefinedTables: *util.NewSyncMapWith("table1", &clickhouse.Table{Name: "table1"}),
 			tableNamePattern: "foo",
 			found:            false,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-generic-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*-*-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-*-default",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*",
 			found:            true,
 		},
 		{
 			name:             "should not find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "foo-*",
 			found:            false,
 		},

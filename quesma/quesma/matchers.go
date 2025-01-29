@@ -3,28 +3,29 @@
 package quesma
 
 import (
-	"quesma/elasticsearch"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/mux"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/tracing"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/painful"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
+	"github.com/goccy/go-json"
 	"strings"
 )
 
-func matchedAgainstAsyncId() mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
+func matchedAgainstAsyncId() quesma_api.RequestMatcher {
+	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
 		if !strings.HasPrefix(req.Params["id"], tracing.AsyncIdPrefix) {
 			logger.Debug().Msgf("async query id %s is forwarded to Elasticsearch", req.Params["id"])
-			return false
+			return quesma_api.MatchResult{Matched: false}
 		}
-		return true
+		return quesma_api.MatchResult{Matched: true}
 	})
 }
 
-func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
+func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableResolver table_resolver.TableResolver) quesma_api.RequestMatcher {
+	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
 		idx := 0
 		for _, s := range strings.Split(req.Body, "\n") {
 			if len(s) == 0 {
@@ -32,86 +33,65 @@ func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration) mux.Reque
 				continue
 			}
 			if idx%2 == 0 {
-				indexConfig, found := configuration.IndexConfig[extractIndexName(s)]
-				if found && (indexConfig.IsClickhouseIngestEnabled() || indexConfig.IsIngestDisabled()) {
-					return true
+				name := extractIndexName(s)
+
+				decision := tableResolver.Resolve(quesma_api.IngestPipeline, name)
+
+				if decision.IsClosed {
+					return quesma_api.MatchResult{Matched: true, Decision: decision}
+				}
+
+				// if have any enabled Clickhouse connector, then return true
+				for _, connector := range decision.UseConnectors {
+					if _, ok := connector.(*quesma_api.ConnectorDecisionClickhouse); ok {
+						return quesma_api.MatchResult{Matched: true, Decision: decision}
+					}
 				}
 			}
 			idx += 1
 		}
 
 		// All indexes are disabled, the whole bulk can go to Elastic
-		return false
+		return quesma_api.MatchResult{Matched: false}
 	})
 }
 
 // Query path only (looks at QueryTarget)
-func matchedAgainstPattern(configuration *config.QuesmaConfiguration, sr schema.Registry) mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
-		patterns := strings.Split(req.Params["index"], ",")
-		for i, pattern := range patterns {
-			patterns[i] = elasticsearch.NormalizePattern(pattern)
-		}
-
-		for _, pattern := range patterns {
-			if elasticsearch.IsInternalIndex(pattern) {
-				// We assume that even if one index is an internal Elasticsearch index then the entire query
-				// is an internal Elasticsearch query.
-				logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", pattern)
-				return false
-			}
-		}
-
-		if configuration.IndexAutodiscoveryEnabled() {
-			for _, pattern := range patterns {
-				for tableName := range sr.AllSchemas() {
-					if config.MatchName(pattern, string(tableName)) {
-						return true
-					}
-				}
-			}
-		}
-
-		for _, pattern := range patterns {
-			for _, indexConf := range configuration.IndexConfig {
-				if config.MatchName(pattern, indexConf.Name) && configuration.IndexConfig[indexConf.Name].IsClickhouseQueryEnabled() {
-					return true
-				}
-			}
-		}
-
-		return false
-	})
+func matchedAgainstPattern(indexRegistry table_resolver.TableResolver) quesma_api.RequestMatcher {
+	return matchAgainstTableResolver(indexRegistry, quesma_api.QueryPipeline)
 }
 
 // check whether exact index name is enabled
-func matchedExact(cfg *config.QuesmaConfiguration, queryPath bool) mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
-		if elasticsearch.IsInternalIndex(req.Params["index"]) {
-			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", req.Params["index"])
-			return false
+func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipelineName string) quesma_api.RequestMatcher {
+	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
+
+		indexName := req.Params["index"]
+
+		decision := indexRegistry.Resolve(pipelineName, indexName)
+		if decision.Err != nil {
+			return quesma_api.MatchResult{Matched: false, Decision: decision}
 		}
-		indexConfig, exists := cfg.IndexConfig[req.Params["index"]]
-		if queryPath {
-			return exists && indexConfig.IsClickhouseQueryEnabled()
-		} else {
-			return exists && (indexConfig.IsClickhouseIngestEnabled() || indexConfig.IsIngestDisabled())
+		for _, connector := range decision.UseConnectors {
+			if _, ok := connector.(*quesma_api.ConnectorDecisionClickhouse); ok {
+				return quesma_api.MatchResult{Matched: true, Decision: decision}
+			}
 		}
+		return quesma_api.MatchResult{Matched: false, Decision: decision}
 	})
 }
 
-func matchedExactQueryPath(cfg *config.QuesmaConfiguration) mux.RequestMatcher {
-	return matchedExact(cfg, true)
+func matchedExactQueryPath(indexRegistry table_resolver.TableResolver) quesma_api.RequestMatcher {
+	return matchAgainstTableResolver(indexRegistry, quesma_api.QueryPipeline)
 }
 
-func matchedExactIngestPath(cfg *config.QuesmaConfiguration) mux.RequestMatcher {
-	return matchedExact(cfg, false)
+func matchedExactIngestPath(indexRegistry table_resolver.TableResolver) quesma_api.RequestMatcher {
+	return matchAgainstTableResolver(indexRegistry, quesma_api.IngestPipeline)
 }
 
 // Returns false if the body contains a Kibana internal search.
 // Kibana does several /_search where you can identify it only by field
-func matchAgainstKibanaInternal() mux.RequestMatcher {
-	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
+func matchAgainstKibanaInternal() quesma_api.RequestMatcher {
+	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
 
 		var query types.JSON
 
@@ -121,7 +101,7 @@ func matchAgainstKibanaInternal() mux.RequestMatcher {
 			query = req.ParsedBody.(types.JSON)
 
 		default:
-			return true
+			return quesma_api.MatchResult{Matched: true}
 		}
 
 		hasJsonKey := func(keyFrag string, node interface{}) bool {
@@ -163,6 +143,32 @@ func matchAgainstKibanaInternal() mux.RequestMatcher {
 		// 1. https://www.elastic.co/guide/en/security/current/alert-schema.html
 		// 2. migrationVersion
 		// 3., 4., 5. related to Kibana Fleet
-		return !hasJsonKey("kibana.alert.", q) && !hasJsonKey("migrationVersion", q) && !hasJsonKey("idleTimeoutExpiration", q) && !strings.Contains(req.Body, "fleet-message-signing-keys") && !strings.Contains(req.Body, "fleet-uninstall-tokens")
+		matched := !hasJsonKey("kibana.alert.", q) && !hasJsonKey("migrationVersion", q) && !hasJsonKey("idleTimeoutExpiration", q) && !strings.Contains(req.Body, "fleet-message-signing-keys") && !strings.Contains(req.Body, "fleet-uninstall-tokens")
+		return quesma_api.MatchResult{Matched: matched}
+	})
+}
+
+func matchAgainstIndexNameInScriptRequestBody(tableResolver table_resolver.TableResolver) quesma_api.RequestMatcher {
+	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
+
+		var scriptRequest painful.ScriptRequest
+
+		err := json.Unmarshal([]byte(req.Body), &scriptRequest)
+		if err != nil {
+			return quesma_api.MatchResult{Matched: false}
+		}
+
+		decision := tableResolver.Resolve(quesma_api.QueryPipeline, scriptRequest.ContextSetup.IndexName)
+
+		if decision.Err != nil {
+			return quesma_api.MatchResult{Matched: false, Decision: decision}
+		}
+		for _, connector := range decision.UseConnectors {
+			if _, ok := connector.(*quesma_api.ConnectorDecisionClickhouse); ok {
+				return quesma_api.MatchResult{Matched: true, Decision: decision}
+			}
+		}
+
+		return quesma_api.MatchResult{Matched: false, Decision: nil}
 	})
 }

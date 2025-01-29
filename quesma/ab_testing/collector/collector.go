@@ -4,18 +4,23 @@ package collector
 
 import (
 	"context"
-	"quesma/ab_testing"
-	"quesma/buildinfo"
-	"quesma/logger"
-	"quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
 	"time"
 )
+
+//const abTestingLogsIndex = "ab_testing_logs"
 
 type ResponseMismatch struct {
 	IsOK bool `json:"is_ok"` // true if responses are the same
 
 	Mismatches string `json:"mismatches"` // JSON array of differences
 	Message    string `json:"message"`    // human readable variant of the array above
+	SHA1       string `json:"sha1"`       // SHA1 of the differences
 
 	Count           int    `json:"count"`             // number of differences
 	TopMismatchType string `json:"top_mismatch_type"` // most common difference type
@@ -34,6 +39,9 @@ type EnrichedResults struct {
 	QuesmaVersion   string           `json:"quesma_version"`
 	QuesmaBuildHash string           `json:"quesma_hash"`
 	Errors          []string         `json:"errors,omitempty"`
+
+	KibanaDashboardId      string `json:"kibana_dashboard_id,omitempty"`
+	KibanaDashboardPanelId string `json:"kibana_dashboard_panel_id,omitempty"`
 }
 
 type pipelineProcessor interface {
@@ -63,14 +71,11 @@ func (r *InMemoryCollector) String() string {
 	return "InMemoryCollector(sends data to Quesma)"
 }
 
-func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessage) *InMemoryCollector {
+func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessage, _ *backend_connectors.ElasticsearchBackendConnector, ingester ingest.Ingester) *InMemoryCollector {
 
 	ctx, cancel := context.WithCancel(ctx)
 
 	// TODO read config here
-
-	// avoid unused struct error
-	var _ = &mismatchedOnlyFilter{}
 
 	return &InMemoryCollector{
 		receiveQueue: make(chan ab_testing.Result, 1000),
@@ -78,13 +83,19 @@ func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessa
 		cancelFunc:   cancel,
 		pipeline: []pipelineProcessor{
 			&probabilisticSampler{ratio: 1},
+			&extractKibanaIds{},
 			&unifySyncAsyncResponse{},
 			&diffTransformer{},
 			//&ppPrintFanout{},
 			//&mismatchedOnlyFilter{},
-			&elasticSearchFanout{
-				url:       "http://localhost:8080",
-				indexName: "ab_testing_logs",
+			&redactOkResults{},
+			//&elasticSearchFanout{
+			//	esConn:    esConn,
+			//	indexName: abTestingLogsIndex,
+			//},
+			&internalIngestFanout{
+				indexName:       ab_testing.ABTestingTableName,
+				ingestProcessor: ingester,
 			},
 		},
 		healthQueue:         healthQueue,
@@ -103,14 +114,14 @@ func (r *InMemoryCollector) Start() {
 	logger.Info().Msg("Starting A/B Results Collector")
 
 	go func() {
-		recovery.LogAndHandlePanic(r.ctx, func(err error) {
+		defer recovery.LogAndHandlePanic(r.ctx, func(err error) {
 			r.cancelFunc()
 		})
 		r.receiveIncomingResults()
 	}()
 
 	go func() {
-		recovery.LogAndHandlePanic(r.ctx, func(err error) {
+		defer recovery.LogAndHandlePanic(r.ctx, func(err error) {
 			r.cancelFunc()
 		})
 		r.receiveHealthAndErrorsLoop()

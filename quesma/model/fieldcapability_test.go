@@ -3,7 +3,7 @@
 package model
 
 import (
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"reflect"
 	"testing"
 )

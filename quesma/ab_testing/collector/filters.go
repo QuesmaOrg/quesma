@@ -37,3 +37,30 @@ func (t *mismatchedOnlyFilter) process(in EnrichedResults) (out EnrichedResults,
 
 	return in, false, nil
 }
+
+// avoid unused struct error
+var _ = &mismatchedOnlyFilter{}
+
+type redactOkResults struct {
+}
+
+func (t *redactOkResults) name() string {
+	return "redactOkResults"
+}
+
+func (t *redactOkResults) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
+
+	// we're not interested in the details of the request and responses if the mismatch is OK
+
+	redactMsg := "***REDACTED***"
+	if in.Mismatch.IsOK {
+		in.Request.Body = redactMsg
+		in.A.Body = redactMsg
+		in.B.Body = redactMsg
+		in.Mismatch.Message = "OK"
+	}
+
+	return in, false, nil
+}
+
+var _ = &redactOkResults{}

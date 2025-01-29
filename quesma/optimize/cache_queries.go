@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package optimize
 
-import "quesma/model"
+import "github.com/QuesmaOrg/quesma/quesma/model"
 
 // cacheQueries - a transformer that suggests db to cache the query results
 //
@@ -42,7 +42,7 @@ func (s *cacheQueries) Transform(queries []*model.Query, properties map[string]s
 
 		visitor.OverrideVisitSelectCommand = func(v *model.BaseExprVisitor, query model.SelectCommand) interface{} {
 
-			if query.GroupBy != nil && len(query.GroupBy) > 0 {
+			if len(query.GroupBy) > 0 {
 				hasGroupBy = true
 			}
 

@@ -3,13 +3,13 @@
 package connectors
 
 import (
-	"database/sql"
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/licensing"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/telemetry"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/licensing"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/telemetry"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 
 type Connector interface {
@@ -38,13 +38,13 @@ func (c *ConnectorManager) GetConnector() *clickhouse.LogManager {
 	return c.connectors[0].GetConnector()
 }
 
-func NewConnectorManager(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader clickhouse.TableDiscovery) *ConnectorManager {
+func NewConnectorManager(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeAgent telemetry.PhoneHomeAgent, loader clickhouse.TableDiscovery) *ConnectorManager {
 	return &ConnectorManager{
 		connectors: registerConnectors(cfg, chDb, phoneHomeAgent, loader),
 	}
 }
 
-func registerConnectors(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader clickhouse.TableDiscovery) (conns []Connector) {
+func registerConnectors(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeAgent telemetry.PhoneHomeAgent, loader clickhouse.TableDiscovery) (conns []Connector) {
 	for connName, conn := range cfg.Connectors {
 		logger.Info().Msgf("Registering connector named [%s] of type [%s]", connName, conn.ConnectorType)
 		switch conn.ConnectorType {

@@ -4,17 +4,14 @@ package config
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch/elasticsearch_field_types"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/hashicorp/go-multierror"
 	"github.com/knadh/koanf/parsers/yaml"
-	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
-	"github.com/rs/zerolog"
 	"log"
 	"os"
-	"quesma/elasticsearch/elasticsearch_field_types"
-	"quesma/index"
-	"quesma/network"
 	"strings"
 )
 
@@ -29,56 +26,29 @@ var (
 
 type QuesmaConfiguration struct {
 	// both clickhouse and hydrolix connections are going to be deprecated and everything is going to live under connector
-	Connectors       map[string]RelationalDbConfiguration `koanf:"connectors"`
-	TransparentProxy bool                                 `koanf:"transparentProxy"`
-	InstallationId   string                               `koanf:"installationId"`
-	LicenseKey       string                               `koanf:"licenseKey"`
+	Connectors       map[string]RelationalDbConfiguration
+	TransparentProxy bool
+	InstallationId   string
+	LicenseKey       string
 	//deprecated
-	ClickHouse RelationalDbConfiguration `koanf:"clickhouse"`
+	ClickHouse RelationalDbConfiguration
 	//deprecated
-	Hydrolix                   RelationalDbConfiguration     `koanf:"hydrolix"`
-	Elasticsearch              ElasticsearchConfiguration    `koanf:"elasticsearch"`
-	IndexConfig                map[string]IndexConfiguration `koanf:"indexes"`
-	Logging                    LoggingConfiguration          `koanf:"logging"`
-	PublicTcpPort              network.Port                  `koanf:"port"`
-	IngestStatistics           bool                          `koanf:"ingestStatistics"`
-	QuesmaInternalTelemetryUrl *Url                          `koanf:"internalTelemetryUrl"`
-	DisableAuth                bool                          `koanf:"disableAuth"`
+	Hydrolix                   RelationalDbConfiguration
+	Elasticsearch              ElasticsearchConfiguration
+	IndexConfig                map[string]IndexConfiguration
+	Logging                    LoggingConfiguration
+	PublicTcpPort              util.Port
+	IngestStatistics           bool
+	QuesmaInternalTelemetryUrl *Url
+	DisableAuth                bool
 	AutodiscoveryEnabled       bool
 
-	EnableIngest      bool // this is computed from the configuration 2.0
-	CreateCommonTable bool
-}
-
-type LoggingConfiguration struct {
-	Path              string         `koanf:"path"`
-	Level             *zerolog.Level `koanf:"level"`
-	RemoteLogDrainUrl *Url           `koanf:"remoteUrl"`
-	FileLogging       bool           `koanf:"fileLogging"`
-}
-
-type RelationalDbConfiguration struct {
-	//ConnectorName string `koanf:"name"`
-	ConnectorType string `koanf:"type"`
-	Url           *Url   `koanf:"url"`
-	User          string `koanf:"user"`
-	Password      string `koanf:"password"`
-	Database      string `koanf:"database"`
-	AdminUrl      *Url   `koanf:"adminUrl"`
-	DisableTLS    bool   `koanf:"disableTLS"`
-}
-
-type OptimizerConfiguration struct {
-	Disabled   bool              `koanf:"disabled"`
-	Properties map[string]string `koanf:"properties"`
-}
-
-func (c *RelationalDbConfiguration) IsEmpty() bool {
-	return c != nil && c.Url == nil && c.User == "" && c.Password == "" && c.Database == ""
-}
-
-func (c *RelationalDbConfiguration) IsNonEmpty() bool {
-	return !c.IsEmpty()
+	EnableIngest              bool // this is computed from the configuration 2.0
+	CreateCommonTable         bool
+	UseCommonTableForWildcard bool //the meaning of this is to use a common table for wildcard (default) indexes
+	DefaultIngestTarget       []string
+	DefaultQueryTarget        []string
+	DefaultIngestOptimizers   map[string]OptimizerConfiguration
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
@@ -94,38 +64,10 @@ func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
 }
 
 func MatchName(pattern, name string) bool {
-	return index.TableNamePatternRegexp(pattern).MatchString(name)
+	return util.TableNamePatternRegexp(pattern).MatchString(name)
 }
 
 var k = koanf.New(".")
-
-func Load() QuesmaConfiguration {
-	var config QuesmaConfiguration
-
-	loadConfigFile()
-	if err := k.Load(env.Provider("QUESMA_", ".", func(s string) string {
-		// This enables overriding config values with environment variables. It's case-sensitive, just like the YAML.
-		// Examples:
-		// `QUESMA_logging_level=debug` overrides `logging.level` in the config file
-		// `QUESMA_licenseKey=arbitrary-license-key` overrides `licenseKey` in the config file
-		return strings.Replace(strings.TrimPrefix(s, "QUESMA_"), "_", ".", -1)
-	}), nil); err != nil {
-		log.Fatalf("error loading config form supplied env vars: %v", err)
-	}
-	if err := k.Unmarshal("", &config); err != nil {
-		log.Fatalf("error unmarshalling config: %v", err)
-	}
-	for name, idxConfig := range config.IndexConfig {
-		idxConfig.Name = name
-		config.IndexConfig[name] = idxConfig
-		if idxConfig.SchemaOverrides != nil {
-			for fieldName, configuration := range idxConfig.SchemaOverrides.Fields {
-				idxConfig.SchemaOverrides.Fields[fieldName] = configuration
-			}
-		}
-	}
-	return config
-}
 
 func loadConfigFile() {
 	var configPath string
@@ -168,7 +110,7 @@ func (c *QuesmaConfiguration) Validate() error {
 		result = c.validateIndexName(indexName, result)
 		// TODO enable when rolling out schema configuration
 		//result = c.validateDeprecated(indexConfig, result)
-		result = c.validateSchemaConfiguration(indexConfig, result)
+		result = c.validateSchemaConfiguration(indexName, indexConfig, result)
 	}
 	if c.Hydrolix.IsNonEmpty() {
 		// At this moment we share the code between ClickHouse and Hydrolix which use only different names
@@ -224,7 +166,7 @@ func (c *QuesmaConfiguration) optimizersConfigAsString(s string, cfg map[string]
 			status = "enabled"
 		}
 		lines = append(lines, fmt.Sprintf("            %s: %s", k, status))
-		if v.Properties != nil && len(v.Properties) > 0 {
+		if len(v.Properties) > 0 {
 			lines = append(lines, fmt.Sprintf("                properties: %v", v.Properties))
 		}
 	}
@@ -235,23 +177,18 @@ func (c *QuesmaConfiguration) optimizersConfigAsString(s string, cfg map[string]
 func (c *QuesmaConfiguration) OptimizersConfigAsString() string {
 
 	var lines []string
-
-	lines = append(lines, "\n")
-
 	for indexName, indexConfig := range c.IndexConfig {
-		if indexConfig.Optimizers != nil && len(indexConfig.Optimizers) > 0 {
+		if len(indexConfig.Optimizers) > 0 {
 			lines = append(lines, c.optimizersConfigAsString(indexName, indexConfig.Optimizers))
 		}
 	}
-
-	lines = append(lines, "\n")
 	return strings.Join(lines, "\n")
 }
 
 func (c *QuesmaConfiguration) String() string {
 	var indexConfigs string
-	for _, idx := range c.IndexConfig {
-		indexConfigs += idx.String()
+	for indexName, idx := range c.IndexConfig {
+		indexConfigs += idx.String(indexName)
 	}
 
 	elasticUrl := "<nil>"
@@ -311,8 +248,16 @@ Quesma Configuration:
 	Log Level: %v
 	Public TCP Port: %d
 	Ingest Statistics: %t,
-	Quesma Telemetry URL: %s
-    Optimizers: %s`,
+	Quesma Telemetry URL: %s,
+	Optimizers: %s,
+	DisableAuth: %t,
+	AutodiscoveryEnabled: %t,
+	EnableIngest: %t,
+	CreateCommonTable: %t,
+	UseCommonTableForWildcard: %t,
+	DefaultIngestTarget: %v,
+	DefaultQueryTarget: %v,
+`,
 		c.TransparentProxy,
 		elasticUrl,
 		elasticsearchExtra,
@@ -326,22 +271,29 @@ Quesma Configuration:
 		c.IngestStatistics,
 		quesmaInternalTelemetryUrl,
 		c.OptimizersConfigAsString(),
+		c.DisableAuth,
+		c.AutodiscoveryEnabled,
+		c.EnableIngest,
+		c.CreateCommonTable,
+		c.UseCommonTableForWildcard,
+		c.DefaultIngestTarget,
+		c.DefaultQueryTarget,
 	)
 }
 
-func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfiguration, err error) error {
+func (c *QuesmaConfiguration) validateSchemaConfiguration(indexName string, config IndexConfiguration, err error) error {
 	if config.SchemaOverrides == nil {
 		return err
 	}
 
 	for fieldName, fieldConfig := range config.SchemaOverrides.Fields {
 		if fieldConfig.Type == "" && !fieldConfig.Ignored {
-			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has no type", fieldName, config.Name))
+			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has no type", fieldName, indexName))
 		} else if !elasticsearch_field_types.IsValid(fieldConfig.Type.AsString()) && !fieldConfig.Ignored {
-			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has invalid type %s", fieldName, config.Name, fieldConfig.Type))
+			err = multierror.Append(err, fmt.Errorf("field [%s] in index [%s] has invalid type %s", fieldName, indexName, fieldConfig.Type))
 		}
 		if fieldConfig.Type == TypeAlias && fieldConfig.TargetColumnName == "" {
-			err = multierror.Append(err, fmt.Errorf("field [%s] of type alias in index [%s] cannot have `targetColumnName` property unset", fieldName, config.Name))
+			err = multierror.Append(err, fmt.Errorf("field [%s] of type alias in index [%s] cannot have `targetColumnName` property unset", fieldName, indexName))
 		}
 
 		// TODO This validation will be fixed on further field config cleanup

@@ -4,32 +4,13 @@ package clickhouse
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/goccy/go-json"
 	"strings"
 	"time"
 )
-
-type TableColumNameFormatter interface {
-	Format(namespace, columnName string) string
-}
-
-type columNameFormatter struct {
-	separator string
-}
-
-func (t *columNameFormatter) Format(namespace, columnName string) string {
-	if namespace == "" {
-		return columnName
-	}
-	return fmt.Sprintf("%s%s%s", namespace, t.separator, columnName)
-}
-
-func DefaultColumnNameFormatter() TableColumNameFormatter {
-	return &columNameFormatter{separator: "_"}
-}
 
 // Code doesn't need to be pretty, 99.9% it's just for our purposes
 // Parses type from SHOW COLUMNS FROM "table"

@@ -1,18 +1,22 @@
 name: Integration tests
 
 on:
-#  #merge_group:
-#  push:
-#    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
   workflow_dispatch:
     inputs:
       GIT_REF:
         description: 'Commit hash to run the tests'
         required: true
 jobs:
+  build-quesma-docker-image:
+    uses: ./.github/workflows/build-quesma-docker-image.yml
+    with:
+      REF: ${{inputs.GIT_REF}}
 
   integration-test-run:
     runs-on: ubuntu-latest
+    needs: [build-quesma-docker-image]
     steps:
       - uses: actions/checkout@v4
         with:     ## @TODO REMOVE
@@ -22,20 +26,70 @@ jobs:
         uses: actions/setup-go@v5
         with:
           cache-dependency-path: smoke-test/go.sum
-          go-version: '1.22'
+          go-version: '1.23'
 
-#     (perhaps prefetching these should be considered)
-#      - name: Download images
-#        uses: actions/download-artifact@v4
-#        with:
-#          path: /tmp/images
+      - name: Download images
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/images
+
+      - name: Load images
+        run: |
+          for file in /tmp/images/*/*.tar; do
+            docker load --input $file
+          done
+          docker image ls -a  
 
       - name: Set environment variable
         run: echo "EXECUTING_ON_GITHUB_CI=true" >> $GITHUB_ENV
 
+      - name: Get last commit author
+        id: get_author
+        run: >
+          echo "author=$(git log -1 --pretty=format:'%an <%ae>, commit URL: ${{ github.server_url }}/${{ github.repository }}/commit/%H')" >> $GITHUB_OUTPUT
+
+      - name: License Header Verification
+        working-directory: ci/it
+        run: |
+          LICENSE_COMMENT="// Copyright Quesma, licensed under the Elastic License 2.0.
+          // SPDX-License-Identifier: Elastic-2.0"
+          failed=false
+          while IFS= read -r -d '' file; do
+            file_content=$(< "$file")
+
+            if [[ "$file_content" != "$LICENSE_COMMENT"* ]]; then
+              echo "License header missing or incorrect in file: $file"
+              failed=true
+            fi
+          done < <(find . -type f -name "*.go" -print0)
+          if [ "$failed" = true ]; then
+            exit 1
+          fi
+
       - name: Run integration tests
         working-directory: ci/it
-#        env:
-#          EXECUTING_ON_GITHUB_CI: true
         run: go test -v
+
+      - name: Send Slack notification on failure
+        if: ${{ failure() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: ":exclamation: *Integration tests failed.* :exclamation: <!channel>\n*Last commit by:* ${{ steps.get_author.outputs.author }}\n*Workflow run URL:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Send Slack notification on success
+        if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: ":white_check_mark: *Integration tests passed.* Good job team!\n*Last commit by:* ${{ steps.get_author.outputs.author }}\n*Workflow run URL:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
 

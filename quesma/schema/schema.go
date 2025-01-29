@@ -6,6 +6,14 @@ import (
 	"strings"
 )
 
+// FieldSource is an enum that represents the source of a field in the schema
+type FieldSource int
+
+const (
+	FieldSourceIngest FieldSource = iota
+	FieldSourceMapping
+)
+
 type (
 	Schema struct {
 		Fields             map[FieldName]Field
@@ -23,8 +31,9 @@ type (
 		InternalPropertyName FieldName
 		InternalPropertyType string
 		Type                 QuesmaType
+		Origin               FieldSource
 	}
-	TableName string
+	IndexName string
 	FieldName string
 )
 
@@ -50,7 +59,7 @@ func (f FieldName) Components() []string {
 	return strings.Split(f.AsString(), ".")
 }
 
-func (t TableName) AsString() string {
+func (t IndexName) AsString() string {
 	return string(t)
 }
 

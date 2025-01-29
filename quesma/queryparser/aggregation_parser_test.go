@@ -5,14 +5,14 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/testdata/clients"
+	dashboard_1 "github.com/QuesmaOrg/quesma/quesma/testdata/dashboard-1"
+	kibana_visualize "github.com/QuesmaOrg/quesma/quesma/testdata/kibana-visualize"
+	opensearch_visualize "github.com/QuesmaOrg/quesma/quesma/testdata/opensearch-visualize"
 	"github.com/stretchr/testify/assert"
-	"quesma/model"
-	"quesma/schema"
-	"quesma/testdata"
-	"quesma/testdata/clients"
-	dashboard_1 "quesma/testdata/dashboard-1"
-	kibana_visualize "quesma/testdata/kibana-visualize"
-	opensearch_visualize "quesma/testdata/opensearch-visualize"
 	"testing"
 )
 
@@ -666,6 +666,7 @@ func allAggregationTests() []testdata.AggregationTestCase {
 	add(kibana_visualize.PipelineAggregationTests, "kibana-visualize/pipeline_agg_req")
 	add(clients.KunkkaTests, "clients/kunkka")
 	add(clients.OpheliaTests, "clients/ophelia")
+	add(clients.CloverTests, "clients/clover")
 
 	return allTests
 }
@@ -709,7 +710,7 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 		{QueryMap{"script": QueryMap{"source": 1}}, nil, false},
 	}
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},

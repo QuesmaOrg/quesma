@@ -3,10 +3,11 @@
 package collector
 
 import (
-	"encoding/json"
+	"crypto/sha1"
 	"fmt"
-	"quesma/jsondiff"
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/goccy/go-json"
 )
 
 type diffTransformer struct {
@@ -16,7 +17,7 @@ func (t *diffTransformer) name() string {
 	return "diffTransformer"
 }
 
-func (t *diffTransformer) mostCommonMismatchType(mismatches []jsondiff.JSONMismatch) (string, int) {
+func (t *diffTransformer) mostCommonMismatchType(mismatches []util.JSONMismatch) (string, int) {
 
 	currentMax := 0
 	maxType := ""
@@ -36,51 +37,96 @@ func (t *diffTransformer) mostCommonMismatchType(mismatches []jsondiff.JSONMisma
 
 func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
 
-	d, err := jsondiff.NewElasticResponseJSONDiff()
+	mismatches := util.Mismatches{}
+
+	d, err := NewElasticResponseJSONDiff()
 	if err != nil {
 		return in, false, err
 	}
 
-	jsonA, err := types.ParseJSON(in.A.Body)
-	if err != nil {
-		in.Mismatch.IsOK = false
-		in.Mismatch.Message = fmt.Sprintf("failed to parse A response: %v", err)
-		err = fmt.Errorf("failed to parse A response: %w", err)
-		in.Errors = append(in.Errors, err.Error())
-		return in, false, nil
-	}
+	if in.A.Error != "" || in.B.Error != "" {
 
-	jsonB, err := types.ParseJSON(in.B.Body)
-	if err != nil {
-		in.Mismatch.IsOK = false
-		in.Mismatch.Message = fmt.Sprintf("failed to parse B response: %v", err)
-		err = fmt.Errorf("failed to parse B response: %w", err)
-		in.Errors = append(in.Errors, err.Error())
-		return in, false, nil
-	}
+		if in.A.Error != "" {
+			mismatches = append(mismatches, util.JSONMismatch{
+				Type:     "error",
+				Message:  fmt.Sprintf("\nA response has an error: %s", in.A.Error),
+				Path:     "n/a",
+				Expected: "n/a",
+				Actual:   "n/a",
+			})
+		}
 
-	mismatches, err := d.Diff(jsonA, jsonB)
+		if in.B.Error != "" {
+			mismatches = append(mismatches, util.JSONMismatch{
+				Type:     "error",
+				Message:  fmt.Sprintf("\nB response has an error: %s", in.B.Error),
+				Path:     "n/a",
+				Expected: "n/a",
+				Actual:   "n/a",
+			})
+		}
 
-	if err != nil {
-		return in, false, err
+	} else {
+
+		jsonA, err := types.ParseJSON(in.A.Body)
+		if err != nil {
+			in.Mismatch.IsOK = false
+			in.Mismatch.Message = fmt.Sprintf("failed to parse A response: %v", err)
+			err = fmt.Errorf("failed to parse A response: %w", err)
+			in.Errors = append(in.Errors, err.Error())
+			return in, false, nil
+		}
+
+		jsonB, err := types.ParseJSON(in.B.Body)
+		if err != nil {
+			in.Mismatch.IsOK = false
+			in.Mismatch.Message = fmt.Sprintf("failed to parse B response: %v", err)
+			err = fmt.Errorf("failed to parse B response: %w", err)
+			in.Errors = append(in.Errors, err.Error())
+			return in, false, nil
+		}
+
+		mismatches, err = d.Diff(jsonA, jsonB)
+		if err != nil {
+			return in, false, err
+		}
+
 	}
 
 	if len(mismatches) > 0 {
-		b, err := json.MarshalIndent(mismatches, "", " ")
+
+		b, err := json.Marshal(mismatches)
 
 		if err != nil {
 			return in, false, fmt.Errorf("failed to marshal mismatches: %w", err)
 		}
 
 		in.Mismatch.Mismatches = string(b)
+		hash := sha1.Sum(b)
+		in.Mismatch.SHA1 = fmt.Sprintf("%x", hash)
 		in.Mismatch.IsOK = false
 		in.Mismatch.Count = len(mismatches)
-		in.Mismatch.Message = mismatches.String()
 
 		topMismatchType, _ := t.mostCommonMismatchType(mismatches)
 		if topMismatchType != "" {
 			in.Mismatch.TopMismatchType = topMismatchType
 		}
+
+		size := len(mismatches)
+
+		// if there are too many mismatches, we only show the first 20
+		// this is to avoid overwhelming the user with too much information
+		const mismatchesSize = 20
+
+		if len(mismatches) > mismatchesSize {
+			mismatches = mismatches[:mismatchesSize]
+			mismatches = append(mismatches, util.JSONMismatch{
+				Type:    "info",
+				Message: fmt.Sprintf("only first %d mismatches, total %d", mismatchesSize, size),
+			})
+		}
+
+		in.Mismatch.Message = mismatches.String()
 
 	} else {
 		in.Mismatch.Mismatches = "[]"

@@ -4,19 +4,29 @@ package quesma
 
 import (
 	"fmt"
-	"quesma/common_table"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/typical_queries"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"sort"
 	"strings"
 )
 
 type SchemaCheckPass struct {
-	cfg map[string]config.IndexConfiguration
+	cfg                 *config.QuesmaConfiguration
+	tableDiscovery      clickhouse.TableDiscovery
+	searchAfterStrategy searchAfterStrategy
+}
+
+func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery clickhouse.TableDiscovery, strategyType searchAfterStrategyType) *SchemaCheckPass {
+	return &SchemaCheckPass{
+		cfg:                 cfg,
+		tableDiscovery:      tableDiscovery,
+		searchAfterStrategy: searchAfterStrategyFactory(strategyType),
+	}
 }
 
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
@@ -354,8 +364,10 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 
 	var useCommonTable bool
 	if len(query.Indexes) == 1 {
-		if indexConf, ok := s.cfg[query.Indexes[0]]; ok {
+		if indexConf, ok := s.cfg.IndexConfig[query.Indexes[0]]; ok {
 			useCommonTable = indexConf.UseCommonTable
+		} else if s.cfg.UseCommonTableForWildcard {
+			useCommonTable = true
 		}
 	} else { // we can handle querying multiple indexes from common table only
 		useCommonTable = true
@@ -463,8 +475,20 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 
 		cols := make([]string, 0, len(indexSchema.Fields))
 		for _, col := range indexSchema.Fields {
-			cols = append(cols, col.InternalPropertyName.AsString())
+			// Take only fields that are ingested
+			if col.Origin == schema.FieldSourceIngest {
+				cols = append(cols, col.PropertyName.AsString())
+			}
 		}
+
+		if query.RuntimeMappings != nil {
+			// add columns that are not in the schema but are in the runtime mappings
+			// these columns  will be transformed later
+			for name := range query.RuntimeMappings {
+				cols = append(cols, name)
+			}
+		}
+
 		sort.Strings(cols)
 
 		for _, col := range cols {
@@ -491,7 +515,10 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 
 	for _, field := range indexSchema.Fields {
 		if field.Type.IsFullText() {
-			fullTextFields = append(fullTextFields, field.InternalPropertyName.AsString())
+			// Take only fields that are ingested
+			if field.Origin == schema.FieldSourceIngest {
+				fullTextFields = append(fullTextFields, field.InternalPropertyName.AsString())
+			}
 		}
 	}
 
@@ -613,59 +640,97 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 }
 
-func (s *SchemaCheckPass) handleDottedTColumnNames(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
-
-	// TODO this is a workaround for now,
-	// if we set true dashboards are working but not tests
-	doCompensation := false
-
-	visitor := model.NewBaseVisitor()
-
-	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-
-		if strings.Contains(e.ColumnName, ".") {
-			logger.Warn().Msgf("Dotted column name found: %s", e.ColumnName)
-
-			if doCompensation {
-				return model.NewColumnRef(util.FieldToColumnEncoder(e.ColumnName))
-			}
-
-		}
-		return e
-	}
-
-	expr := query.SelectCommand.Accept(visitor)
-
-	if _, ok := expr.(*model.SelectCommand); ok {
-		query.SelectCommand = *expr.(*model.SelectCommand)
-	}
-	return query, nil
-}
-
 func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !ok {
+		return nil, fmt.Errorf("table %s not found", query.TableName)
+	}
+	_, hasAttributesValuesColumn := table.Cols[clickhouse.AttributesValuesColumn]
 
 	visitor := model.NewBaseVisitor()
 
-	var err error
-
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		// we don't want to resolve our well know technical fields
+		if e.ColumnName == model.FullTextFieldNamePlaceHolder || e.ColumnName == common_table.IndexNameColumn {
+			return e
+		}
+
+		// This is workaround.
+		// Our query parse resolves columns sometimes. Here we detect it and skip the resolution.
+		if _, ok := indexSchema.ResolveFieldByInternalName(e.ColumnName); ok {
+			logger.Debug().Msgf("Got field already resolved %s", e.ColumnName) // Reduced to debug as it was really noisy
+			return e
+		}
 
 		if resolvedField, ok := indexSchema.ResolveField(e.ColumnName); ok {
 			return model.NewColumnRef(resolvedField.InternalPropertyName.AsString())
 		} else {
-			return e
+			if hasAttributesValuesColumn {
+				return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
+			} else {
+				return model.NewLiteral("NULL")
+			}
 		}
+	}
+
+	visitor.OverrideVisitSelectCommand = func(v *model.BaseExprVisitor, query model.SelectCommand) interface{} {
+		var columns, groupBy []model.Expr
+		var orderBy []model.OrderByExpr
+		from := query.FromClause
+		where := query.WhereClause
+
+		for _, expr := range query.Columns {
+			var alias string
+			if e, ok := expr.(model.ColumnRef); ok {
+				alias = e.ColumnName
+			}
+
+			col := expr.Accept(v).(model.Expr)
+
+			if e, ok := col.(model.ArrayAccess); ok && alias != "" {
+				col = model.NewAliasedExpr(e, alias)
+			} else if e, ok := col.(model.LiteralExpr); ok && alias != "" && e.Value == "NULL" {
+				col = model.NewAliasedExpr(e, alias)
+			}
+
+			columns = append(columns, col)
+		}
+		for _, expr := range query.GroupBy {
+			groupBy = append(groupBy, expr.Accept(v).(model.Expr))
+		}
+		for _, expr := range query.OrderBy {
+			orderBy = append(orderBy, expr.Accept(v).(model.OrderByExpr))
+		}
+		if query.FromClause != nil {
+			from = query.FromClause.Accept(v).(model.Expr)
+		}
+		if query.WhereClause != nil {
+			where = query.WhereClause.Accept(v).(model.Expr)
+		}
+
+		var namedCTEs []*model.CTE
+		if query.NamedCTEs != nil {
+			for _, cte := range query.NamedCTEs {
+				namedCTEs = append(namedCTEs, cte.Accept(v).(*model.CTE))
+			}
+		}
+
+		var limitBy []model.Expr
+		if query.LimitBy != nil {
+			for _, expr := range query.LimitBy {
+				limitBy = append(limitBy, expr.Accept(v).(model.Expr))
+			}
+		}
+		return model.NewSelectCommand(columns, groupBy, orderBy, from, where, limitBy, query.Limit, query.SampleLimit, query.IsDistinct, namedCTEs)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
 
-	if err != nil {
-		return nil, err
-	}
-
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
+
 	return query, nil
 }
 
@@ -675,12 +740,24 @@ func (s *SchemaCheckPass) applyRuntimeMappings(indexSchema schema.Schema, query 
 		return query, nil
 	}
 
+	cols := query.SelectCommand.Columns
+
+	// replace column refs with runtime mappings with proper name
+	for i, col := range cols {
+		switch c := col.(type) {
+		case model.ColumnRef:
+			if mapping, ok := query.RuntimeMappings[c.ColumnName]; ok {
+				cols[i] = model.NewAliasedExpr(mapping.DatabaseExpression, c.ColumnName)
+			}
+		}
+	}
+	query.SelectCommand.Columns = cols
+
+	// replace other places where column refs are used
 	visitor := model.NewBaseVisitor()
-
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-
 		if mapping, ok := query.RuntimeMappings[e.ColumnName]; ok {
-			return mapping.Expr
+			return mapping.DatabaseExpression
 		}
 		return e
 	}
@@ -725,6 +802,97 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema s
 
 }
 
+func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	aggFunctionPrefixes := []string{"sum", "avg", "quantiles"}
+
+	dbTypePrefixes := []string{"DateTime", "String", "LowCardinality(String)"}
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
+
+		currentFunctionName := strings.ToLower(e.Name)
+
+		for _, aggPrefix := range aggFunctionPrefixes {
+			if strings.HasPrefix(currentFunctionName, aggPrefix) {
+				if len(e.Args) > 0 {
+					if columnRef, ok := e.Args[0].(model.ColumnRef); ok {
+						if col, ok := indexSchema.ResolveFieldByInternalName(columnRef.ColumnName); ok {
+							for _, dbTypePrefix := range dbTypePrefixes {
+								if strings.HasPrefix(col.InternalPropertyType, dbTypePrefix) {
+									logger.Warn().Msgf("Aggregation '%s' over unsupported type '%s' in column '%s'", e.Name, dbTypePrefix, col.InternalPropertyName.AsString())
+									args := b.VisitChildren(e.Args)
+									args[0] = model.NewLiteral("NULL")
+									return model.NewFunction(e.Name, args...)
+								}
+							}
+						}
+					}
+					// attributes values are always string,
+					if access, ok := e.Args[0].(model.ArrayAccess); ok {
+						if access.ColumnRef.ColumnName == clickhouse.AttributesValuesColumn {
+							logger.Warn().Msgf("Unsupported case. Aggregation '%s' over attribute named: '%s'", e.Name, access.Index)
+							args := b.VisitChildren(e.Args)
+							args[0] = model.NewLiteral("NULL")
+							return model.NewFunction(e.Name, args...)
+						}
+					}
+				}
+			}
+		}
+
+		return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
+}
+
+func columnsToAliasedColumns(columns []model.Expr) []model.Expr {
+	aliasedColumns := make([]model.Expr, len(columns))
+	for i, column := range columns {
+		if columnRef, ok := column.(model.ColumnRef); ok {
+			aliasedColumns[i] = columnRef
+			continue
+		}
+		if col, ok := column.(model.LiteralExpr); ok {
+			if _, isStr := col.Value.(string); !isStr {
+				aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
+			} else {
+				aliasedColumns[i] = col
+			}
+			continue
+		}
+		if aliasedExpr, ok := column.(model.AliasedExpr); ok {
+			aliasedColumns[i] = aliasedExpr
+			continue
+		}
+		if _, ok := column.(model.FunctionExpr); ok {
+			aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
+			continue
+		}
+		if _, ok := column.(model.WindowFunction); ok {
+			aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
+			continue
+		}
+
+		aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
+		logger.Error().Msgf("Quesma internal error - unreachable code: unsupported column type %T", column)
+	}
+	return aliasedColumns
+}
+
+func (s *SchemaCheckPass) applyAliasColumns(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	query.SelectCommand.Columns = columnsToAliasedColumns(query.SelectCommand.Columns)
+	return query, nil
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 
 	transformationChain := []struct {
@@ -735,6 +903,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMappings},
+		{TransformationName: "AliasColumnsTransformation", Transformation: s.applyAliasColumns},
 
 		// Section 2: generic schema based transformations
 		//
@@ -745,6 +914,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
+		{TransformationName: "ApplySearchAfterParameter", Transformation: s.applySearchAfterParameter},
 
 		// Section 3: clickhouse specific transformations
 		{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse},
@@ -752,57 +922,87 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 		{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
+		{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
+		{TransformationName: "AggOverUnsupportedType", Transformation: s.checkAggOverUnsupportedType},
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
-		{TransformationName: "DottedColumnNames", Transformation: s.handleDottedTColumnNames},
 	}
 
 	for k, query := range queries {
 		var err error
 
+		if !s.cfg.Logging.EnableSQLTracing {
+			query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, "n/a")
+		}
+
 		for _, transformation := range transformationChain {
 
-			inputQuery := query.SelectCommand.String()
+			var inputQuery string
+
+			if s.cfg.Logging.EnableSQLTracing {
+				inputQuery = query.SelectCommand.String()
+			}
+
 			query, err = transformation.Transformation(query.Schema, query)
 			if err != nil {
 				return nil, err
 			}
-			if query.SelectCommand.String() != inputQuery {
 
-				query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, transformation.TransformationName)
-
-				logger.Info().Msgf(transformation.TransformationName+" triggered, input query: %s", inputQuery)
-				logger.Info().Msgf(transformation.TransformationName+" triggered, output query: %s", query.SelectCommand.String())
+			if s.cfg.Logging.EnableSQLTracing {
+				if query.SelectCommand.String() != inputQuery {
+					query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, transformation.TransformationName)
+					logger.Info().Msgf(transformation.TransformationName+" triggered, input query: %s", inputQuery)
+					logger.Info().Msgf(transformation.TransformationName+" triggered, output query: %s", query.SelectCommand.String())
+				}
 			}
-
 		}
+
 		queries[k] = query
 	}
 	return queries, nil
 }
 
-// ArrayResultTransformer is a transformer that transforms array columns into string representation
-type ArrayResultTransformer struct {
-}
+func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
-func (g *ArrayResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+	visitor := model.NewBaseVisitor()
 
-	for i, rows := range result {
+	var err error
 
-		for j, row := range rows {
-			for k, col := range row.Cols {
+	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
+		lhs, ok := e.Left.(model.ColumnRef)
+		rhs, ok2 := e.Right.(model.LiteralExpr)
 
-				if ary, ok := col.Value.([]string); ok {
-					aryStr := make([]string, 0, len(ary))
-					for _, el := range ary {
-						aryStr = append(aryStr, fmt.Sprintf("%v", el))
-					}
-					result[i][j].Cols[k].Value = fmt.Sprintf("[%s]", strings.Join(aryStr, ","))
-				}
+		if ok && ok2 && e.Op == model.MatchOperator {
+			field, found := indexSchema.ResolveFieldByInternalName(lhs.ColumnName)
+			if !found {
+				logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhs.ColumnName, query.TableName)
+			}
+
+			rhsValue := rhs.Value.(string)
+			rhsValue = strings.TrimPrefix(rhsValue, "'")
+			rhsValue = strings.TrimSuffix(rhsValue, "'")
+
+			switch field.Type.String() {
+			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeBoolean.Name:
+				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
+			default:
+				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteral("'%"+rhsValue+"%'"))
 			}
 		}
 
+		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
 	}
-	return result, nil
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+
 }

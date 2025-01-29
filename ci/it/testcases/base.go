@@ -1,3 +1,6 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
+
 package testcases
 
 import (
@@ -6,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -16,7 +20,7 @@ import (
 type TestCase interface {
 	SetupContainers(ctx context.Context) error
 	RunTests(ctx context.Context, t *testing.T) error
-	Cleanup(ctx context.Context)
+	Cleanup(ctx context.Context, t *testing.T)
 }
 
 type IntegrationTestcaseBase struct {
@@ -32,8 +36,10 @@ func (tc *IntegrationTestcaseBase) RunTests(ctx context.Context, t *testing.T) e
 	return nil
 }
 
-func (tc *IntegrationTestcaseBase) Cleanup(ctx context.Context) {
-	tc.Containers.Cleanup(ctx)
+func (tc *IntegrationTestcaseBase) Cleanup(ctx context.Context, t *testing.T) {
+	if tc.Containers != nil {
+		tc.Containers.Cleanup(ctx, t)
+	}
 }
 
 func (tc *IntegrationTestcaseBase) getQuesmaEndpoint() string {
@@ -110,9 +116,60 @@ func (tc *IntegrationTestcaseBase) ExecuteClickHouseStatement(ctx context.Contex
 	return res, nil
 }
 
-func (tc *IntegrationTestcaseBase) RequestToQuesma(ctx context.Context, method, uri string, body []byte) (*http.Response, error) {
+func (tc *IntegrationTestcaseBase) FetchClickHouseColumns(ctx context.Context, tableName string) (map[string]string, error) {
+	rows, err := tc.ExecuteClickHouseQuery(ctx, fmt.Sprintf("SELECT name, type FROM system.columns WHERE table = '%s'", tableName))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]string)
+	for rows.Next() {
+		var name, colType string
+		if err := rows.Scan(&name, &colType); err != nil {
+			return nil, err
+		}
+		result[name] = colType
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (tc *IntegrationTestcaseBase) FetchClickHouseComments(ctx context.Context, tableName string) (map[string]string, error) {
+	rows, err := tc.ExecuteClickHouseQuery(ctx, fmt.Sprintf("SELECT name, comment FROM system.columns WHERE table = '%s'", tableName))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]string)
+	for rows.Next() {
+		var name, comment string
+		if err := rows.Scan(&name, &comment); err != nil {
+			return nil, err
+		}
+		result[name] = comment
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (tc *IntegrationTestcaseBase) RequestToQuesma(ctx context.Context, t *testing.T, method, uri string, requestBody []byte) (*http.Response, []byte) {
 	endpoint := tc.getQuesmaEndpoint()
-	return tc.doRequest(ctx, method, endpoint+uri, body, nil)
+	resp, err := tc.doRequest(ctx, method, endpoint+uri, requestBody, nil)
+	if err != nil {
+		t.Fatalf("Error sending %s request to the endpoint '%s': %s", method, uri, err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body of %s request to the endpoint '%s': %s", method, uri, err)
+	}
+	return resp, responseBody
 }
 
 func (tc *IntegrationTestcaseBase) RequestToElasticsearch(ctx context.Context, method, uri string, body []byte) (*http.Response, error) {

@@ -3,11 +3,12 @@
 package queryparser
 
 import (
-	"quesma/model"
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/painful"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 )
 
-func ParseRuntimeMappings(body types.JSON) map[string]model.RuntimeMapping {
+func ParseRuntimeMappings(body types.JSON) (map[string]model.RuntimeMapping, error) {
 
 	result := make(map[string]model.RuntimeMapping)
 
@@ -27,28 +28,43 @@ func ParseRuntimeMappings(body types.JSON) map[string]model.RuntimeMapping {
 						if scriptAsMap, ok := script.(map[string]interface{}); ok {
 							if source, ok := scriptAsMap["source"]; ok {
 								if sourceAsString, ok := source.(string); ok {
-									mapping.Expr = ParseScript(sourceAsString)
+
+									dbExpr, postProcesExpr, err := ParseScript(sourceAsString)
+
+									if err != nil {
+										return nil, err
+									}
+
+									mapping.DatabaseExpression = dbExpr
+									mapping.PostProcessExpression = postProcesExpr
 								}
 							}
 						}
 					}
 				}
-				if mapping.Expr != nil {
+				if mapping.DatabaseExpression != nil {
 					result[k] = mapping
 				}
 			}
 		}
 	}
-	return result
+	return result, nil
 }
 
-func ParseScript(s string) model.Expr {
+func ParseScript(s string) (model.Expr, painful.Expr, error) {
 
 	// TODO: add a real parser here
 	if s == "emit(doc['timestamp'].value.getHour());" {
-		return model.NewFunction(model.DateHourFunction, model.NewColumnRef(model.TimestampFieldName))
+		return model.NewFunction(model.DateHourFunction, model.NewColumnRef(model.TimestampFieldName)), nil, nil
 	}
 
-	// harmless default
-	return model.NewLiteral("NULL")
+	expr, err := painful.ParsePainless(s)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// TODO here we can transform the parsed expression to an SQL
+
+	// we return an empty SQL expression for given field, it'll make a column in the result set
+	return model.NewLiteral("NULL"), expr, nil
 }

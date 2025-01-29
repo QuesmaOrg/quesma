@@ -4,6 +4,7 @@ package telemetry
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"slices"
 	"strconv"
 	"sync"
@@ -17,23 +18,6 @@ const percentileSamplePoolSize = 10000
 var percentiles = []int{5, 25, 50, 75, 95}
 
 // public API
-
-type Span interface {
-	End(err error) time.Duration
-}
-
-type DurationMeasurement interface {
-	Begin() Span
-	AggregateAndReset() DurationStats
-}
-
-type DurationStats struct {
-	Count          int64              `json:"count"`
-	Avg            float64            `json:"avg_time_sec"`
-	Failed         int64              `json:"failed"`
-	OverThresholds map[string]int64   `json:"over_thresholds"`
-	Percentiles    map[string]float32 `json:"percentiles"`
-}
 
 // implementation
 
@@ -111,7 +95,7 @@ func (a *durationMeasurement) ingestLoop() {
 
 }
 
-func (a *durationMeasurement) AggregateAndReset() (stats DurationStats) {
+func (a *durationMeasurement) AggregateAndReset() (stats diag.DurationStats) {
 	a.m.Lock()
 	defer a.m.Unlock()
 
@@ -184,7 +168,7 @@ type span struct {
 	startedAt   time.Time
 }
 
-func (a *durationMeasurement) Begin() Span {
+func (a *durationMeasurement) Begin() diag.Span {
 	return &span{measurement: a, startedAt: time.Now()}
 }
 

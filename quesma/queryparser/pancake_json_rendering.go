@@ -5,11 +5,12 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
-	"quesma/model/metrics_aggregations"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/model/metrics_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"math/big"
 	"strconv"
 	"strings"
 )
@@ -36,7 +37,6 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 		}
 		return []model.QueryResultRow{newRow}
 	}
-	logger.ErrorWithCtx(p.ctx).Msgf("no rows in selectMetricRows %s", metricName)
 	return
 }
 
@@ -106,7 +106,15 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregat
 				if strings.HasPrefix(cols.ColName, bucketKeyName) {
 					for _, previousCols := range previousBucket.Cols {
 						if cols.ColName == previousCols.ColName {
-							if cols.Value != previousCols.Value {
+							var isEqual bool
+							switch val := cols.Value.(type) {
+							case big.Int:
+								prevVal := previousCols.Value.(big.Int)
+								isEqual = val.Cmp(&prevVal) == 0
+							default:
+								isEqual = val == previousCols.Value
+							}
+							if !isEqual {
 								isNewBucket = true
 							}
 							break
@@ -180,7 +188,11 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 		if err != nil {
 			return nil, err
 		}
-		return util.MergeMaps(p.ctx, aggJson, subAggr), nil
+		mergeResult, mergeErr := util.MergeMaps(aggJson, subAggr)
+		if mergeErr != nil {
+			logger.ErrorWithCtx(p.ctx).Msgf("error merging maps: %v", mergeErr)
+		}
+		return mergeResult, nil
 	case bucket_aggregations.CombinatorAggregationInterface:
 		var bucketArray []model.JsonMap
 		for _, subGroup := range queryType.CombinatorGroups() {
@@ -194,7 +206,11 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 			selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), selectedRowsWithoutPrefix)
 			aggJson := queryType.CombinatorTranslateSqlResponseToJson(subGroup, selectedRows)
 
-			bucketArray = append(bucketArray, util.MergeMaps(p.ctx, aggJson, subAggr))
+			mergeResult, mergeErr := util.MergeMaps(aggJson, subAggr)
+			if mergeErr != nil {
+				logger.ErrorWithCtx(p.ctx).Msgf("error merging maps: %v", mergeErr)
+			}
+			bucketArray = append(bucketArray, mergeResult)
 			bucketArray[len(bucketArray)-1]["key"] = subGroup.Key
 		}
 		var bucketsJson any
@@ -236,7 +252,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		default:
 			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
 		}
-		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows)
+		if metric.name != PancakeTotalCountMetricName {
+			result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows)
+		}
 		// TODO: maybe add metadata also here? probably not needed
 	}
 
@@ -252,6 +270,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			json, err := p.combinatorBucketToJSON(remainingLayers, rows)
 			if err != nil {
 				return nil, err
+			}
+			if layer.nextBucketAggregation.metadata != nil {
+				json["meta"] = layer.nextBucketAggregation.metadata
 			}
 			result[layer.nextBucketAggregation.name] = json
 			return result, nil
@@ -311,16 +332,13 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						bucketArr[i][pipelineAggrName] = pipelineAggrResult[i]
 					}
 
-					if docCount, ok := bucket["doc_count"]; ok && fmt.Sprintf("%v", docCount) == "0" {
-						// Not sure, but it does the trick.
-						continue
-					}
-
 					subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[i])
 					if err != nil {
 						return nil, err
 					}
-					bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
+					if bucketArr[i], err = util.MergeMaps(bucket, subAggr); err != nil {
+						logger.ErrorWithCtx(p.ctx).Msgf("error merging maps: %v", err)
+					}
 				}
 			} else {
 				// A bit harder case. Observation: len(bucketArr) > len(subAggrRows) and set(subAggrRows' keys) is a subset of set(bucketArr's keys)
@@ -332,11 +350,6 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						bucketArr[i][pipelineAggrName] = pipelineAggrResult[i]
 					}
 
-					if docCount, ok := bucket["doc_count"]; ok && fmt.Sprintf("%v", docCount) == "0" {
-						// Not sure, but it does the trick.
-						continue
-					}
-
 					// if our bucket aggregation is a date_histogram, we need original key, not processed one, which is "key"
 					key, exists := bucket[bucket_aggregations.OriginalKeyName]
 					if !exists {
@@ -345,20 +358,35 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 							return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
 						}
 					}
+					var (
+						columnNameWithKey        = layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
+						found                    bool
+						subAggrKey               any
+						currentBucketSubAggrRows []model.QueryResultRow
+					)
+					if subAggrIdx < len(subAggrRows) {
+						subAggrKey, found = p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
+					}
 
-					columnNameWithKey := layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
-					subAggrKey, found := p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
 					if found && subAggrKey == key {
-						subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[subAggrIdx])
-						if err != nil {
-							return nil, err
-						}
-						bucketArr[i] = util.MergeMaps(p.ctx, bucket, subAggr)
+						currentBucketSubAggrRows = subAggrRows[subAggrIdx]
 						subAggrIdx++
 					} else {
-						bucketArr[i] = bucket
+						currentBucketSubAggrRows = []model.QueryResultRow{}
+					}
+
+					subAggr, err := p.layerToJSON(remainingLayers[1:], currentBucketSubAggrRows)
+					if err != nil {
+						return nil, err
+					}
+					if bucketArr[i], err = util.MergeMaps(bucket, subAggr); err != nil {
+						logger.ErrorWithCtx(p.ctx).Msgf("error merging maps: %v", err)
 					}
 				}
+			}
+
+			for i := 0; i < len(bucketArr); i++ {
+				delete(bucketArr[i], bucket_aggregations.OriginalKeyName)
 			}
 		}
 
@@ -367,6 +395,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		}
 		result[layer.nextBucketAggregation.name] = buckets
 	}
+
 	return result, nil
 }
 

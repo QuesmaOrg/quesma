@@ -4,19 +4,10 @@ package telemetry
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"slices"
 	"sync"
 )
-
-type MultiCounterStats map[string]int64
-
-type MultiCounterTopValuesStats []string
-
-type MultiCounter interface {
-	Add(key string, value int64)
-	AggregateAndReset() MultiCounterStats
-	AggregateTopValuesAndReset() MultiCounterTopValuesStats
-}
 
 type sampleMultiCounter struct {
 	key   string
@@ -33,7 +24,7 @@ type multiCounter struct {
 	ingestDoneCh chan interface{}
 }
 
-func NewMultiCounter(ctx context.Context, processKeyFn func(string) string) MultiCounter {
+func NewMultiCounter(ctx context.Context, processKeyFn func(string) string) diag.MultiCounter {
 	mc := &multiCounter{
 		ctx:        ctx,
 		counters:   make(map[string]int64),
@@ -71,7 +62,7 @@ func (mc *multiCounter) Add(key string, value int64) {
 	mc.ingest <- sampleMultiCounter{key, value}
 }
 
-func (mc *multiCounter) AggregateAndReset() (stats MultiCounterStats) {
+func (mc *multiCounter) AggregateAndReset() (stats diag.MultiCounterStats) {
 	mc.m.Lock()
 	defer mc.m.Unlock()
 	stats = make(map[string]int64, len(mc.counters))
@@ -82,10 +73,10 @@ func (mc *multiCounter) AggregateAndReset() (stats MultiCounterStats) {
 	return stats
 }
 
-func (mc *multiCounter) AggregateTopValuesAndReset() (stats MultiCounterTopValuesStats) {
+func (mc *multiCounter) AggregateTopValuesAndReset() (s diag.MultiCounterTopValuesStats) {
 	mc.m.Lock()
 	defer mc.m.Unlock()
-	stats = make(MultiCounterTopValuesStats, 0, len(mc.counters))
+	s = make(diag.MultiCounterTopValuesStats, 0, len(mc.counters))
 
 	type userAgentHit struct {
 		userAgent string
@@ -106,11 +97,11 @@ func (mc *multiCounter) AggregateTopValuesAndReset() (stats MultiCounterTopValue
 	}
 
 	for _, ua := range userAgents {
-		stats = append(stats, ua.userAgent)
+		s = append(s, ua.userAgent)
 	}
 
 	// let's conserve some memory
 	mc.counters = make(map[string]int64)
 
-	return stats
+	return s
 }

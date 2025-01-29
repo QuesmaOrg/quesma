@@ -3,11 +3,13 @@
 package licensing
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"os"
-	"quesma/quesma/config"
 	"slices"
 )
 
@@ -19,14 +21,33 @@ type LicenseModule struct {
 }
 
 const (
-	installationIdFile = ".installation_id"
+	installationIdFile     = ".installation_id"
+	quesmaAirGapModeEnvVar = "QUESMA_AIRGAP_KEY"
 )
+
+func isAirgapKeyValid(key string) bool {
+	hasher := sha256.New()
+	hasher.Write([]byte(key))
+	keyHash := hex.EncodeToString(hasher.Sum(nil))
+	return keyHash == "78b14371a310f4e4f7e6c19a444f771bbe5d2c4f2154715191334bcf58420435"
+}
 
 func Init(config *config.QuesmaConfiguration) *LicenseModule {
 	l := &LicenseModule{
 		Config:     config,
 		LicenseKey: []byte(config.LicenseKey),
 	}
+	if airgapKey, isSet := os.LookupEnv(quesmaAirGapModeEnvVar); isSet {
+		if isAirgapKeyValid(airgapKey) {
+			l.logInfo("Running Quesma in airgapped mode")
+			l.License = &License{
+				InstallationID: "air-gapped-installation-id",
+				ClientID:       "air-gapped-client-id",
+			}
+			return l
+		}
+	}
+	l.logInfo("Initializing license module")
 	l.Run()
 	return l
 }

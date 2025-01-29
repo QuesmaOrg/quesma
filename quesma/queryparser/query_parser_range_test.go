@@ -4,11 +4,9 @@ package queryparser
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/concurrent"
-	"quesma/quesma/config"
-	"quesma/schema"
 	"testing"
 )
 
@@ -32,7 +30,7 @@ var parseRangeTests = []parseRangeTest{
 		`CREATE TABLE ` + tableName + `
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
-		`("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
+		`("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))`,
 	},
 	{
 		"parseDateTimeBestEffort",
@@ -46,7 +44,7 @@ var parseRangeTests = []parseRangeTest{
 		`CREATE TABLE ` + tableName + `
 		( "message" String, "timestamp" DateTime )
 		ENGINE = Memory`,
-		`("timestamp">=parseDateTimeBestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTimeBestEffort('2024-02-09T13:47:16.029Z'))`,
+		`("timestamp">=fromUnixTimestamp(1706881636) AND "timestamp"<=fromUnixTimestamp(1707486436))`,
 	},
 	{
 		"numeric range",
@@ -72,13 +70,13 @@ var parseRangeTests = []parseRangeTest{
 		`CREATE TABLE ` + tableName + `
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
-		`("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16'))`,
+		`("timestamp">=fromUnixTimestamp64Milli(1706881636000) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436000))`,
 	},
 }
 
 func Test_parseRange(t *testing.T) {
 	s := schema.StaticRegistry{
-		Tables: map[schema.TableName]schema.Schema{
+		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
@@ -102,8 +100,7 @@ func Test_parseRange(t *testing.T) {
 				t.Fatal(err)
 			}
 			assert.NoError(t, err)
-			lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), &config.QuesmaConfiguration{})
-			cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), Schema: s.Tables[schema.TableName(tableName)]}
+			cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(tableName)]}
 
 			simpleQuery := cw.parseRange(test.rangePartOfQuery)
 			assert.Equal(t, test.expectedWhere, simpleQuery.WhereClauseAsString())

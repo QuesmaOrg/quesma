@@ -3,7 +3,7 @@
 package clickhouse
 
 import (
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"strings"
 )
 
@@ -22,7 +22,7 @@ func (c SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
 	}
 
 	switch s {
-	case "String", "LowCardinality(String)":
+	case "String", "LowCardinality(String)", "UUID", "FixedString":
 		return schema.QuesmaTypeKeyword, true
 	case "Int", "Int8", "Int16", "Int32", "Int64":
 		return schema.QuesmaTypeLong, true

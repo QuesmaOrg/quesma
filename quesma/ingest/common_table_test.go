@@ -4,16 +4,18 @@ package ingest
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/jsonprocessor"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/schema"
 	"testing"
 )
 
@@ -178,7 +180,8 @@ func TestIngestToCommonTable(t *testing.T) {
 
 			tables.Store(common_table.TableName, quesmaCommonTable)
 
-			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			conn, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			if err != nil {
 				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 			}
@@ -187,11 +190,28 @@ func TestIngestToCommonTable(t *testing.T) {
 
 			tableDisco := clickhouse.NewTableDiscovery(quesmaConfig, db, virtualTableStorage)
 			schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, quesmaConfig, clickhouse.SchemaTypeAdapter{})
+			schemaRegistry.Start()
+			defer schemaRegistry.Stop()
+
+			resolver := table_resolver.NewEmptyTableResolver()
+
+			decision := &mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{
+					&mux.ConnectorDecisionClickhouse{
+						ClickhouseTableName: common_table.TableName,
+						ClickhouseIndexes:   []string{indexName},
+						IsCommonTable:       true,
+					},
+				},
+			}
+
+			resolver.Decisions[indexName] = decision
 
 			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db
 			ingest.virtualTableStorage = virtualTableStorage
 			ingest.schemaRegistry = schemaRegistry
+			ingest.tableResolver = resolver
 
 			if len(tt.alreadyExistingColumns) > 0 {
 
@@ -215,9 +235,9 @@ func TestIngestToCommonTable(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			formatter := clickhouse.DefaultColumnNameFormatter()
+			formatter := DefaultColumnNameFormatter()
 
-			transformer := jsonprocessor.IngestTransformerFor(indexName, quesmaConfig)
+			transformer := IngestTransformerFor(indexName, quesmaConfig)
 
 			for _, stm := range tt.expectedStatements {
 				mock.ExpectExec(stm).WillReturnResult(sqlmock.NewResult(1, 1))

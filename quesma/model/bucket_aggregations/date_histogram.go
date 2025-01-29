@@ -5,11 +5,10 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/kibana"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strconv"
 	"strings"
 	"time"
@@ -18,7 +17,6 @@ import (
 type DateHistogramIntervalType bool
 
 const (
-	DefaultMinDocCount                                      = -1
 	DateHistogramFixedInterval    DateHistogramIntervalType = true
 	DateHistogramCalendarInterval DateHistogramIntervalType = false
 	defaultDateTimeType                                     = clickhouse.DateTime64
@@ -27,6 +25,7 @@ const (
 	// map (it has the original key, doesn't know about the processed one)
 	// with date_histogram's map (it already has a "valid", processed key, after TranslateSqlResponseToJson)
 	OriginalKeyName      = "__quesma_originalKey"
+	NoExtendedBound      = int64(-1) // -1 and not e.g. 0, as 0 is a valid value
 	maxEmptyBucketsAdded = 1000
 )
 
@@ -36,13 +35,15 @@ type DateHistogram struct {
 	interval          string
 	timezone          string
 	wantedTimezone    *time.Location // key is in `timezone` time, and we need it to be UTC
+	extendedBoundsMin int64
+	extendedBoundsMax int64
 	minDocCount       int
 	intervalType      DateHistogramIntervalType
 	fieldDateTimeType clickhouse.DateTimeType
 }
 
-func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone string,
-	minDocCount int, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
+func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone string, minDocCount int,
+	extendedBoundsMin, extendedBoundsMax int64, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
 
 	wantedTimezone, err := time.LoadLocation(timezone)
 	if err != nil {
@@ -51,7 +52,8 @@ func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone 
 	}
 
 	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone, wantedTimezone: wantedTimezone,
-		minDocCount: minDocCount, intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
+		minDocCount: minDocCount, extendedBoundsMin: extendedBoundsMin, extendedBoundsMax: extendedBoundsMax,
+		intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
 }
 
 func (typ DateHistogramIntervalType) String(ctx context.Context) string {
@@ -83,14 +85,18 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 	// Implement default when query.minDocCount == DefaultMinDocCount, we need to return
 	// all buckets between the first bucket that matches documents and the last one.
 
-	if query.minDocCount == 0 {
+	if query.minDocCount == 0 || query.extendedBoundsMin != NoExtendedBound || query.extendedBoundsMax != NoExtendedBound {
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
 	var response []model.JsonMap
 	for _, row := range rows {
 		docCount := row.LastColValue()
-		if util.ExtractInt64(docCount) < int64(query.minDocCount) {
+		docCountAsInt, err := util.ExtractInt64(docCount)
+		if err != nil {
+			logger.ErrorWithCtx(query.ctx).Msgf("error parsing doc_count: %v", docCount)
+		}
+		if docCountAsInt < int64(query.minDocCount) {
 			continue
 		}
 		originalKey := query.getKey(row)
@@ -146,7 +152,7 @@ func (query *DateHistogram) GenerateSQL() model.Expr {
 }
 
 func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
-	interval, err := kibana.ParseInterval(query.interval)
+	interval, err := util.ParseInterval(query.interval)
 	if err != nil {
 		logger.ErrorWithCtx(query.ctx).Msg(err.Error())
 	}
@@ -191,12 +197,16 @@ func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
 		query.intervalType = DateHistogramFixedInterval
 		return query.generateSQLForFixedInterval()
 	case "week", "1w":
+		query.interval = "1w"
 		return exprForBiggerIntervals("toStartOfWeek")
 	case "month", "1M":
+		query.interval = "1M"
 		return exprForBiggerIntervals("toStartOfMonth")
 	case "quarter", "1q":
+		query.interval = "1q"
 		return exprForBiggerIntervals("toStartOfQuarter")
 	case "year", "1y":
+		query.interval = "1y"
 		return exprForBiggerIntervals("toStartOfYear")
 	}
 
@@ -208,25 +218,35 @@ func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
 }
 
+func (query *DateHistogram) calculateResponseKeyInUTC(originalKey int64) int64 {
+	if query.intervalType == DateHistogramCalendarInterval {
+		return originalKey
+	}
+	intervalInMilliseconds := query.intervalAsDuration().Milliseconds()
+	return originalKey * intervalInMilliseconds
+}
+
 // originalKey is the key as it came from our SQL request (e.g. returned by query.getKey)
 func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
-	var key int64
-	if query.intervalType == DateHistogramCalendarInterval {
-		key = originalKey
-	} else {
-		intervalInMilliseconds := query.intervalAsDuration().Milliseconds()
-		key = originalKey * intervalInMilliseconds
-	}
+	keyInUTC := query.calculateResponseKeyInUTC(originalKey)
 
-	ts := time.UnixMilli(key).UTC()
+	ts := time.UnixMilli(keyInUTC)
 	intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), query.wantedTimezone)
 
 	_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
-	return key - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
+	return keyInUTC - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
+}
+
+func (query *DateHistogram) fromUTCToWantedTimezone(tsUTC int64) int64 {
+	dateUTC := time.UnixMilli(tsUTC)
+	date := time.Date(dateUTC.Year(), dateUTC.Month(), dateUTC.Day(), dateUTC.Hour(), dateUTC.Minute(), dateUTC.Second(), dateUTC.Nanosecond(), query.wantedTimezone)
+
+	_, timezoneOffsetInSeconds := date.Zone()
+	return tsUTC + int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
 }
 
 func (query *DateHistogram) calculateKeyAsString(key int64) string {
-	return time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000")
+	return time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000") // TODO: check if this necessary Format("2006/01/02 15:04:05")
 }
 
 func (query *DateHistogram) OriginalKeyToKeyAsString(originalKey any) string {
@@ -239,35 +259,38 @@ func (query *DateHistogram) SetMinDocCountToZero() {
 }
 
 func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
-	differenceBetweenTwoNextKeys := int64(1)
-	if query.intervalType == DateHistogramCalendarInterval {
-		duration, err := kibana.ParseInterval(query.interval)
-		if err == nil {
-			differenceBetweenTwoNextKeys = duration.Milliseconds()
-		} else {
-			logger.ErrorWithCtx(query.ctx).Err(err)
-			differenceBetweenTwoNextKeys = 0
-		}
+	duration, err := util.ParseInterval(query.interval)
+	var differenceBetweenTwoNextKeys int64
+	if err == nil {
+		differenceBetweenTwoNextKeys = duration.Milliseconds()
+	} else {
+		// 0 is fine value for differenceBetweenTwoNextKeys, as it means we don't add keys
+		logger.ErrorWithCtx(query.ctx).Err(err)
 	}
-	return &DateHistogramRowsTransformer{MinDocCount: query.minDocCount, differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys, EmptyValue: 0}
+	return &DateHistogramRowsTransformer{dateHistogram: query, MinDocCount: query.minDocCount,
+		differenceBetweenTwoNextKeys: differenceBetweenTwoNextKeys, EmptyValue: 0,
+		extendedBoundsMin: query.extendedBoundsMin, extendedBoundsMax: query.extendedBoundsMax}
 }
 
 // we're sure len(row.Cols) >= 2
 
 type DateHistogramRowsTransformer struct {
-	MinDocCount                  int
+	dateHistogram                *DateHistogram
 	differenceBetweenTwoNextKeys int64 // if 0, we don't add keys
+	extendedBoundsMin            int64 // simply copied from DateHistogram
+	extendedBoundsMax            int64 // simply copied from DateHistogram
+	MinDocCount                  int
 	EmptyValue                   any
 }
 
 // if MinDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
+// Also if extendedBounds are present, we need to add all keys between them.
 // CAUTION: a different kind of postprocessing is needed for MinDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
 func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	if qt.MinDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 || len(rowsFromDB) < 2 {
+	if qt.MinDocCount != 0 || qt.differenceBetweenTwoNextKeys == 0 {
 		// we only add empty rows, when
 		// a) MinDocCount == 0
 		// b) we have valid differenceBetweenTwoNextKeys (>0)
-		// c) we have > 1 rows, with < 2 rows we can't add anything in between
 		return rowsFromDB
 	}
 	if qt.MinDocCount < 0 {
@@ -277,7 +300,11 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 
 	emptyRowsAdded := 0
 	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
-	postprocessedRows = append(postprocessedRows, rowsFromDB[0])
+	if len(rowsFromDB) > 0 {
+		postprocessedRows = append(postprocessedRows, rowsFromDB[0])
+	}
+
+	// add "mid" keys, so any needed key between [first_row_key, last_row_key]
 	for i := 1; i < len(rowsFromDB); i++ {
 		if len(rowsFromDB[i-1].Cols) < 2 || len(rowsFromDB[i].Cols) < 2 {
 			logger.ErrorWithCtx(ctx).Msgf(
@@ -286,20 +313,119 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 				i-1, rowsFromDB[i-1], i, rowsFromDB[i],
 			)
 		}
-		lastKey := qt.getKey(rowsFromDB[i-1])
-		currentKey := qt.getKey(rowsFromDB[i])
-		for midKey := lastKey + qt.differenceBetweenTwoNextKeys; midKey < currentKey && emptyRowsAdded < maxEmptyBucketsAdded; midKey += qt.differenceBetweenTwoNextKeys {
+		lastKey := qt.dateHistogram.calculateResponseKeyInUTC(qt.getKey(rowsFromDB[i-1]))
+		currentKey := qt.dateHistogram.calculateResponseKeyInUTC(qt.getKey(rowsFromDB[i]))
+
+		// ugly, but works, will do for now
+		doWeDivide := (currentKey/qt.getKey(rowsFromDB[i])) >= 100 || (float64(currentKey)/float64(qt.getKey(rowsFromDB[i]))) <= 0.01
+
+		for midKey := qt.nextKey(lastKey); midKey < currentKey && emptyRowsAdded < maxEmptyBucketsAdded; midKey = qt.nextKey(midKey) {
 			midRow := rowsFromDB[i-1].Copy()
-			midRow.Cols[len(midRow.Cols)-2].Value = midKey
+			divideBy := int64(1)
+			if doWeDivide {
+				divideBy = qt.differenceBetweenTwoNextKeys
+			}
+			midRow.Cols[len(midRow.Cols)-2].Value = midKey / divideBy
 			midRow.Cols[len(midRow.Cols)-1].Value = qt.EmptyValue
+
 			postprocessedRows = append(postprocessedRows, midRow)
 			emptyRowsAdded++
 		}
 		postprocessedRows = append(postprocessedRows, rowsFromDB[i])
 	}
+
+	// some cases where we don't need to add anything more
+	switch {
+	case qt.extendedBoundsMax == NoExtendedBound && qt.extendedBoundsMin == NoExtendedBound:
+	case len(postprocessedRows) == 0 && (qt.extendedBoundsMax == NoExtendedBound || qt.extendedBoundsMin == NoExtendedBound):
+		return postprocessedRows
+
+	}
+	noBounds := qt.extendedBoundsMax == NoExtendedBound && qt.extendedBoundsMin == NoExtendedBound
+	noRowsAndNotFullyBounded := len(postprocessedRows) == 0 && (qt.extendedBoundsMax == NoExtendedBound || qt.extendedBoundsMin == NoExtendedBound)
+	if noBounds || noRowsAndNotFullyBounded {
+		return postprocessedRows
+	}
+
+	newRow := func(key int64) model.QueryResultRow {
+		var row model.QueryResultRow
+		if len(postprocessedRows) > 0 {
+			row = postprocessedRows[0].Copy()
+			row.Cols[len(row.Cols)-2].Value = key
+			row.Cols[len(row.Cols)-1].Value = qt.EmptyValue
+		} else {
+			row = model.QueryResultRow{
+				Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("", key),
+					model.NewQueryResultCol("", qt.EmptyValue),
+				},
+			}
+		}
+		return row
+	}
+
+	// add "pre" keys, so any needed key between [extendedBoundsMin, first_row_key]
+	if qt.extendedBoundsMin != NoExtendedBound {
+		firstRequiredKey := (qt.dateHistogram.fromUTCToWantedTimezone(qt.extendedBoundsMin) + qt.differenceBetweenTwoNextKeys - 1) / qt.differenceBetweenTwoNextKeys
+		var lastRequiredKey int64
+		if len(postprocessedRows) > 0 {
+			lastRequiredKey = qt.getKey(postprocessedRows[0])
+			if qt.dateHistogram.intervalType == DateHistogramCalendarInterval {
+				lastRequiredKey /= qt.differenceBetweenTwoNextKeys
+			}
+		} else {
+			// we know qt.extendedBoundsMax != NoExtendedBound, because we would've returned earlier - line below is safe
+			lastRequiredKey = qt.dateHistogram.fromUTCToWantedTimezone(qt.extendedBoundsMax) / qt.differenceBetweenTwoNextKeys
+		}
+		preRows := make([]model.QueryResultRow, 0, max(0, int(lastRequiredKey-firstRequiredKey)))
+		for preKey := firstRequiredKey; preKey < lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; preKey++ {
+			preRows = append(preRows, newRow(preKey))
+			emptyRowsAdded++
+		}
+
+		postprocessedRows = append(preRows, postprocessedRows...)
+	}
+
+	// add "post" keys, so any needed key between [last_row_key, extendedBoundsMax]
+	if qt.extendedBoundsMax != NoExtendedBound {
+		firstRequiredKey := qt.dateHistogram.calculateResponseKeyInUTC(qt.getKey(postprocessedRows[len(postprocessedRows)-1]))/qt.differenceBetweenTwoNextKeys + 1
+		lastRequiredKey := qt.dateHistogram.fromUTCToWantedTimezone(qt.extendedBoundsMax) / qt.differenceBetweenTwoNextKeys
+		for postKey := firstRequiredKey; postKey <= lastRequiredKey && emptyRowsAdded < maxEmptyBucketsAdded; postKey++ {
+			postprocessedRows = append(postprocessedRows, newRow(postKey))
+			emptyRowsAdded++
+		}
+	}
+
 	return postprocessedRows
 }
 
 func (qt *DateHistogramRowsTransformer) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
+}
+
+func (qt *DateHistogramRowsTransformer) nextKey(key int64) int64 {
+	if qt.dateHistogram.intervalType == DateHistogramFixedInterval {
+		return key + qt.differenceBetweenTwoNextKeys
+	}
+	if qt.dateHistogram.interval != "1M" && qt.dateHistogram.interval != "1q" && qt.dateHistogram.interval != "1y" {
+		// intervals < month are the same as fixed_interval here
+		return key + qt.differenceBetweenTwoNextKeys
+	}
+
+	addNMonths := func(key int64, N int) int64 {
+		ts := time.UnixMilli(key).UTC()
+		// adding 2 days below isn't exactly necessary, it's only a quick way to make sure we're in the same month, even for weird timezones
+		return ts.AddDate(0, N, 2).UnixMilli() - ts.AddDate(0, 0, 2).UnixMilli()
+	}
+	var monthsNr int
+	switch qt.dateHistogram.interval {
+	case "1M":
+		monthsNr = 1
+	case "1q":
+		monthsNr = 3
+	case "1y":
+		monthsNr = 12
+	}
+	deltaInMs := addNMonths(key, monthsNr)
+	return key + deltaInMs
 }

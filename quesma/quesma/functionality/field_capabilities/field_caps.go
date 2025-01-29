@@ -4,18 +4,18 @@ package field_capabilities
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/elasticsearch"
-	"quesma/elasticsearch/elasticsearch_field_types"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/quesma/config"
-	"quesma/quesma/errors"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch/elasticsearch_field_types"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/errors"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/goccy/go-json"
 )
 
 func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, fieldType schema.QuesmaType, index string) {
@@ -41,15 +41,19 @@ func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.Fie
 		fields[colName][fieldTypeName] = fieldCapability
 	}
 }
-func handleFieldCapsIndex(cfg *config.QuesmaConfiguration, schemaRegistry schema.Registry, indexes []string) ([]byte, error) {
+
+func handleFieldCapsIndex(cfg map[string]config.IndexConfiguration, schemaRegistry schema.Registry, indexes []string) ([]byte, error) {
 	fields := make(map[string]map[string]model.FieldCapability)
+
+	schemas := schemaRegistry.AllSchemas()
+
 	for _, resolvedIndex := range indexes {
 		if len(resolvedIndex) == 0 {
 			continue
 		}
 
-		if schemaDefinition, found := schemaRegistry.FindSchema(schema.TableName(resolvedIndex)); found {
-			indexConfig, configured := cfg.IndexConfig[resolvedIndex]
+		if schemaDefinition, found := schemas[schema.IndexName(resolvedIndex)]; found {
+			indexConfig, configured := cfg[resolvedIndex]
 			if configured && !indexConfig.IsClickhouseQueryEnabled() {
 				continue
 			}
@@ -100,11 +104,8 @@ func EmptyFieldCapsResponse() []byte {
 	}
 }
 
-func HandleFieldCaps(ctx context.Context, cfg *config.QuesmaConfiguration, schemaRegistry schema.Registry, index string, lm *clickhouse.LogManager) ([]byte, error) {
-	if len(cfg.IndexConfig[index].Override) > 0 {
-		index = cfg.IndexConfig[index].Override
-	}
-	indexes, err := lm.ResolveIndexPattern(ctx, index)
+func HandleFieldCaps(ctx context.Context, cfg map[string]config.IndexConfiguration, schemaRegistry schema.Registry, index string, lm clickhouse.LogManagerIFace) ([]byte, error) {
+	indexes, err := lm.ResolveIndexPattern(ctx, schemaRegistry, index)
 	if err != nil {
 		return nil, err
 	}

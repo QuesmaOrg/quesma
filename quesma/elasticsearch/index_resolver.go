@@ -3,8 +3,9 @@
 package elasticsearch
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/goccy/go-json"
 	"io"
 	"net/http"
 )
@@ -15,7 +16,7 @@ type (
 	}
 	indexResolver struct {
 		Url        string
-		httpClient *http.Client
+		httpClient *SimpleClient
 	}
 	Sources struct {
 		Indices     []Index      `json:"indices"`
@@ -37,10 +38,10 @@ type (
 	}
 )
 
-func NewIndexResolver(elasticsearchUrl string) IndexResolver {
+func NewIndexResolver(elasticsearch config.ElasticsearchConfiguration) IndexResolver {
 	return &indexResolver{
-		Url:        elasticsearchUrl,
-		httpClient: &http.Client{},
+		Url:        elasticsearch.Url.String(),
+		httpClient: NewSimpleClient(&elasticsearch),
 	}
 }
 
@@ -52,11 +53,7 @@ func NormalizePattern(p string) string {
 }
 
 func (im *indexResolver) Resolve(indexPattern string) (Sources, bool, error) {
-	req, err := http.NewRequest("GET", im.Url+"/_resolve/index/"+indexPattern+"?expand_wildcards=open", bytes.NewBuffer([]byte{}))
-	if err != nil {
-		return Sources{}, false, err
-	}
-	response, err := im.httpClient.Do(req)
+	response, err := im.httpClient.Request(context.Background(), "GET", ResolveIndexPattenPath(indexPattern), []byte{})
 	if err != nil {
 		return Sources{}, false, err
 	}
@@ -79,4 +76,23 @@ func (im *indexResolver) Resolve(indexPattern string) (Sources, bool, error) {
 	}
 
 	return sources, true, nil
+}
+
+type EmptyIndexResolver struct {
+	Indexes map[string]Sources
+}
+
+func NewEmptyIndexResolver() *EmptyIndexResolver {
+	return &EmptyIndexResolver{
+		Indexes: make(map[string]Sources),
+	}
+}
+
+func (r *EmptyIndexResolver) Resolve(indexPattern string) (Sources, bool, error) {
+	res, ok := r.Indexes[indexPattern]
+	return res, ok, nil
+}
+
+func ResolveIndexPattenPath(indexPattern string) string {
+	return "_resolve/index/" + indexPattern + "?expand_wildcards=open"
 }
