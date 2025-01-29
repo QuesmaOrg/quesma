@@ -55,7 +55,6 @@ func (t *VitessMySqlConnector) Listen() error {
 // Implementation of Vitess mysql.Handler interface:
 
 type ComQueryMessage struct {
-	Conn  *mysql.Conn
 	Query string
 }
 
@@ -74,7 +73,6 @@ func (t *VitessMySqlConnector) ConnectionClosed(c *mysql.Conn) {
 func (t *VitessMySqlConnector) ComQuery(c *mysql.Conn, query string, callback func(*sqltypes.Result) error) error {
 	metadata := make(map[string]interface{})
 	var message any = ComQueryMessage{
-		Conn:  c,
 		Query: query,
 	}
 
