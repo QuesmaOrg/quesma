@@ -7,12 +7,13 @@ package processors
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
+	"io"
+	"net"
+
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
-	"net"
 )
 
 type TcpPassthroughMysqlProcessor struct {
@@ -58,6 +59,11 @@ func (t *TcpPassthroughMysqlProcessor) Handle(metadata map[string]interface{}, m
 			continue
 		}
 
+		if _, isEOF := m.(*frontend_connectors.TcpEOF); isEOF {
+			conn.Close()
+			return metadata, nil, nil
+		}
+
 		msg := m.([]byte)
 		msg = maybeProcessComQuery(msg)
 
@@ -71,18 +77,69 @@ func (t *TcpPassthroughMysqlProcessor) Handle(metadata map[string]interface{}, m
 	// tcp_passthrough_mysql_processor <- tcp_backend_connector <- real MySQL server
 	//
 	// and forwards them back to the MySQL client.
+
+	eofCount := 0
+
 	for {
 		fullPacketBytes, err := frontend_connectors.ReadMysqlPacket(conn)
 		if err != nil {
+			if err != io.EOF {
+				logger.Warn().Err(err).Msgf("Error reading MySQL packet from the MySQL TCP backend")
+			} else {
+				logger.Debug().Msg("Finished reading MySQL packets from the MySQL TCP backend (EOF), returning control to the frontend")
+			}
 			break
 		}
 
 		if metadata["handshake_processed"] == nil {
 			metadata["handshake_processed"] = true
 			fullPacketBytes = maybeProcessHandshake(fullPacketBytes)
+
+			response = append(response, fullPacketBytes...)
+			logger.Debug().Msg("Finished reading MySQL packets from the MySQL TCP backend (handshake), returning control to the frontend")
+			break
 		}
 
+		logger.Debug().Msgf("Received packet from MySQL backend of length %d", len(fullPacketBytes))
+
 		response = append(response, fullPacketBytes...)
+
+		// Early exit - stop reading packets if we figure out that the server has sent the entire response:
+		// an OK or ERR response or a result set (with two EOF packets).
+
+		// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_basic_ok_packet.html
+		// Quote:
+		// > These rules distinguish whether the packet represents OK or EOF:
+		// > OK: header = 0 and length of packet > 7
+		// > EOF: header = 0xfe and length of packet < 9
+		//
+		// Note: length of packet > 7 seems like a mistake in the documentation, it should be length of packet >= 7
+
+		// OK packet
+		const OK_PACKET = 0x00
+		if len(fullPacketBytes) >= 7+4 && fullPacketBytes[4] == OK_PACKET {
+			logger.Debug().Msg("Finished reading MySQL packets from the MySQL TCP backend (OK packet), returning control to the frontend")
+			break
+		}
+
+		// ERROR packet
+		const ERROR_PACKET = 0xFF
+		if len(fullPacketBytes) > 4 && fullPacketBytes[4] == ERROR_PACKET {
+			logger.Debug().Msg("Finished reading MySQL packets from the MySQL TCP backend (ERROR packet), returning control to the frontend")
+			break
+		}
+
+		// EOF packet
+		// there are two EOF packets in a result set: one after field metadata and one after rows
+		const EOF_PACKET = 0xFE
+		if len(fullPacketBytes) > 4 && len(fullPacketBytes) < 9+4 && fullPacketBytes[4] == EOF_PACKET {
+			logger.Debug().Msg("Read EOF packet from the MySQL TCP backend")
+			eofCount++
+			if eofCount == 2 {
+				logger.Debug().Msg("Finished reading MySQL packets from the MySQL TCP backend (two EOF packets), returning control to the frontend")
+				break
+			}
+		}
 	}
 
 	return metadata, response, nil
@@ -170,7 +227,7 @@ func maybeProcessComQuery(msg []byte) []byte {
 		sequenceId := msg[3]
 
 		query := string(msg[5:])
-		fmt.Println("Got query: ", query)
+		logger.Info().Msgf("Received query: %s", query)
 
 		// Potentially rewrite the query here:
 		// query = strings.Replace(query, "foo", "bar", -1)

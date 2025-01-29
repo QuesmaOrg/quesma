@@ -6,11 +6,10 @@ package backend_connectors
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
-	"os"
 	"time"
 
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
@@ -101,11 +100,8 @@ func ConnRead(conn net.Conn, n int) ([]byte, error) {
 	}
 
 	tmp := make([]byte, n)
-	n, err = conn.Read(tmp)
+	n, err = io.ReadAtLeast(conn, tmp, n)
 	if err != nil {
-		if errors.Is(err, os.ErrDeadlineExceeded) {
-			return result.Bytes(), nil
-		}
 		return result.Bytes(), err
 	}
 

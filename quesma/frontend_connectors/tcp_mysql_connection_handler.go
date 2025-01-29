@@ -6,11 +6,14 @@ package frontend_connectors
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"io"
 	"net"
+	"os"
 )
 
 type TcpMysqlConnectionHandler struct {
@@ -18,6 +21,9 @@ type TcpMysqlConnectionHandler struct {
 }
 
 var ErrInvalidPacket = fmt.Errorf("invalid packet")
+
+// TODO: should this be standard for all TCP connectors?
+type TcpEOF struct{}
 
 func ReadMysqlPacket(conn net.Conn) ([]byte, error) {
 	// MySQL wire protocol packet format (see https://dev.mysql.com/doc/dev/mysql-server/8.4.3/PAGE_PROTOCOL.html):
@@ -28,7 +34,7 @@ func ReadMysqlPacket(conn net.Conn) ([]byte, error) {
 	// TODO: when packet is larger than 16MB, it's split into multiple packets. This code does NOT support this case yet.
 
 	packetLengthBytes, err := backend_connectors.ConnRead(conn, 3)
-	if err == io.EOF {
+	if err == io.EOF || errors.Is(err, os.ErrDeadlineExceeded) {
 		return nil, err
 	}
 	if err != nil || len(packetLengthBytes) != 3 {
@@ -78,18 +84,27 @@ func (p *TcpMysqlConnectionHandler) HandleConnection(conn net.Conn) error {
 		}
 	}
 
-	for {
+	running := true
+
+	for running {
 		var message any
 
 		fullPacketBytes, err := ReadMysqlPacket(conn)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			logger.Debug().Msg("deadline exceeded, looping back")
 			continue
+		} else if err == io.EOF {
+			message = &TcpEOF{}
+			running = false
+			logger.Debug().Msg("EOF received from MySQL client, ending connection")
+		} else if err != nil {
+			message = &TcpEOF{}
+			running = false
+			logger.Error().Err(err).Msg("error reading packet from MySQL client, ending connection")
+		} else {
+			message = fullPacketBytes
+			logger.Debug().Msgf("Received packet from MySQL client of length %d", len(fullPacketBytes))
 		}
-
-		message = fullPacketBytes
 
 		metadata, message = dispatcher.Dispatch(p.processors, metadata, message)
 		if message != nil {
@@ -100,7 +115,7 @@ func (p *TcpMysqlConnectionHandler) HandleConnection(conn net.Conn) error {
 		}
 	}
 
-	return nil
+	return conn.Close()
 }
 
 func (h *TcpMysqlConnectionHandler) SetHandlers(processors []quesma_api.Processor) {
