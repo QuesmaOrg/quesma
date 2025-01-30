@@ -15,7 +15,6 @@ import (
 
 type ClickHouseBackendConnector struct {
 	BasicSqlBackendConnector
-	//Endpoint string
 	cfg *config.RelationalDbConfiguration
 }
 
@@ -73,7 +72,6 @@ func NewClickHouseBackendConnectorWithConnection(_ string, conn *sql.DB) *ClickH
 		BasicSqlBackendConnector: BasicSqlBackendConnector{
 			connection: conn,
 		},
-		//Endpoint: endpoint,
 	}
 }
 
