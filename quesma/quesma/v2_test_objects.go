@@ -5,9 +5,13 @@ package quesma
 
 import (
 	"context"
+	// TODO elastic query parser needs a clickhouse package
+	// due to the table dependency
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
@@ -384,6 +388,26 @@ func (p *QueryTransformationPipeline) ParseQuery(message any) (*processors.Execu
 		return nil, err
 	}
 	queryStr := string(queryBytes)
+
+	// TODO this is a hack to create a table for the query
+	// Why parser needs a table?
+	tableName := "test_table"
+	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
+		( "message" String, "@timestamp" DateTime64(3, 'UTC'), "attributes_values" Map(String,String))
+		ENGINE = Memory`,
+		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	cw := queryparser.ClickhouseQueryTranslator{
+		Ctx:   req.OriginalRequest.Context(),
+		Table: table,
+	}
+	_, err = cw.ParseQuery(query)
+	if err != nil {
+		return nil, err
+	}
 	plan := &processors.ExecutionPlan{}
 	plan.Queries = append(plan.Queries, &processors.Query{Query: queryStr})
 	return plan, nil
