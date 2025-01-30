@@ -335,7 +335,7 @@ func NewQueryComplexProcessor() *QueryComplexProcessor {
 	queryTransformationPipe := NewQueryTransformationPipeline()
 	queryTransformationPipe.AddTransformer(NewQueryTransformer1())
 	baseProcessor := processors.NewBaseProcessor()
-	baseProcessor.QueryTransformationPipeline = queryTransformationPipe
+	baseProcessor.RegisterTransformationPipeline(queryTransformationPipe)
 	return &QueryComplexProcessor{
 		BaseProcessor: baseProcessor,
 	}
