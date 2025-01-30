@@ -11,7 +11,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/common_table"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
-	"github.com/QuesmaOrg/quesma/quesma/jsonprocessor"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
@@ -560,7 +559,7 @@ func generateSqlStatements(createTableCmd string, alterCmd []string, insert stri
 func populateFieldEncodings(jsonData []types.JSON, tableName string) map[schema.FieldEncodingKey]schema.EncodedFieldName {
 	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
 	for _, jsonValue := range jsonData {
-		flattenJson := jsonprocessor.FlattenMap(jsonValue, ".")
+		flattenJson := util.FlattenMap(jsonValue, ".")
 		for field := range flattenJson {
 			encodedField := util.FieldToColumnEncoder(field)
 			encodings[schema.FieldEncodingKey{TableName: tableName, FieldName: field}] =
@@ -572,12 +571,12 @@ func populateFieldEncodings(jsonData []types.JSON, tableName string) map[schema.
 
 func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	tableName string,
-	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	jsonData []types.JSON, transformer IngestTransformer,
 	tableFormatter TableColumNameFormatter, tableDefinitionChangeOnly bool) ([]string, error) {
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
-	preIngestTransformer := &jsonprocessor.RewriteArrayOfObject{}
+	preIngestTransformer := &util.RewriteArrayOfObject{}
 	var processed []types.JSON
 	for _, jsonValue := range jsonData {
 		result, err := preIngestTransformer.Transform(jsonValue)
@@ -693,12 +692,12 @@ func (lm *IngestProcessor) Ingest(ctx context.Context, indexName string, jsonDat
 	}
 
 	nameFormatter := DefaultColumnNameFormatter()
-	transformer := jsonprocessor.IngestTransformerFor(indexName, lm.cfg)
+	transformer := IngestTransformerFor(indexName, lm.cfg)
 	return lm.ProcessInsertQuery(ctx, indexName, jsonData, transformer, nameFormatter)
 }
 
 func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName string,
-	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	jsonData []types.JSON, transformer IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
 
 	decision := lm.tableResolver.Resolve(quesma_api.IngestPipeline, tableName)
@@ -738,7 +737,7 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 				logger.ErrorWithCtx(ctx).Msgf("error processing insert query - virtual table schema update: %v", err)
 			}
 
-			pipeline := jsonprocessor.IngestTransformerPipeline{}
+			pipeline := IngestTransformerPipeline{}
 			pipeline = append(pipeline, &common_table.IngestAddIndexNameTransformer{IndexName: tableName})
 			pipeline = append(pipeline, transformer)
 
@@ -796,7 +795,7 @@ func (ip *IngestProcessor) applyAsyncInsertOptimizer(tableName string, clickhous
 }
 
 func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, tableName string,
-	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	jsonData []types.JSON, transformer IngestTransformer,
 	tableFormatter TableColumNameFormatter, isVirtualTable bool) error {
 	statements, err := ip.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter, isVirtualTable)
 	if err != nil {

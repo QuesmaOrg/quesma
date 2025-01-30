@@ -641,6 +641,11 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				queryProcessor.Config.DefaultTargetConnectorType = conn.Type
 				c.updateProcessorConfig(queryProcessor.Name, queryProcessor.Config)
 			}
+			if defaultQueryConfig, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
+				conf.DefaultQueryOptimizers = defaultQueryConfig.Optimizers
+			} else {
+				conf.DefaultQueryOptimizers = nil
+			}
 			delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 
 			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
@@ -801,36 +806,11 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				}
 			}
 			c.updateProcessorConfig(queryProcessor.Name, queryProcessor.Config)
-			//// In order to maintain compat with v1 code we have to fill QueryTarget and IngestTarget for each index
-			//indexTarget, indexHasTargetSpecified := indexConfig.Target.([]interface{})
-			//if p.Type == QuesmaV1ProcessorQuery && indexHasTargetSpecified {
-			//	indexConf := p.Config.IndexConfig[indexName]
-			//	if len(indexTarget) != 0 {
-			//		targetType := c.GetBackendConnectorByName(indexTarget[0].(string)).Type
-			//		if targetType == "elasticsearch" {
-			//			targetType = "elasticsearch"
-			//		} else { // clickhouse-os, hydrolix included
-			//			targetType = "clickhouse"
-			//		}
-			//		indexConf.QueryTarget = []string{targetType}
-			//		p.Config.IndexConfig[indexName] = indexConf
-			//	}
-			//}
-			//if p.Type == QuesmaV1ProcessorIngest && indexHasTargetSpecified {
-			//	indexConf := p.Config.IndexConfig[indexName]
-			//	if len(indexTarget) != 0 {
-			//		targetType := c.GetBackendConnectorByName(indexTarget[0].(string)).Type
-			//		if targetType == "elasticsearch" {
-			//			targetType = "elasticsearch"
-			//		} else { // clickhouse-os, hydrolix included
-			//			targetType = "clickhouse"
-			//		}
-			//		indexConf.IngestTarget = []string{targetType}
-			//		p.Config.IndexConfig[indexName] = indexConf
-			//	}
-			//}
-			//// we will be able to remove block above after full migration to v2
-
+		}
+		if defaultQueryConfig, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
+			conf.DefaultQueryOptimizers = defaultQueryConfig.Optimizers
+		} else {
+			conf.DefaultQueryOptimizers = nil
 		}
 		delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 
@@ -958,7 +938,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	}
 
 END:
-
 	for _, idxCfg := range conf.IndexConfig {
 		if idxCfg.UseCommonTable {
 			conf.CreateCommonTable = true

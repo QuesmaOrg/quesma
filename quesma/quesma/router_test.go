@@ -46,14 +46,6 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 
 	router := quesma_api.NewPathRouter()
 
-	// These are the endpoints that are not supported by Quesma
-	// These will redirect to the elastic cluster.
-	for _, path := range elasticsearch.InternalPaths {
-		router.Register(path, quesma_api.Never(), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-			return nil, nil
-		})
-	}
-
 	// These are the endpoints that are supported by Quesma
 
 	// Warning:

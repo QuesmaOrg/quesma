@@ -4,8 +4,8 @@ package stats
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/quesma/jsonprocessor"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"sort"
 	"strconv"
 	"strings"
@@ -81,7 +81,7 @@ func (s *Statistics) getValueStatisticsPtr(keyStatistics *KeyStatistics, nonSche
 func (s *Statistics) process(index string,
 	jsonData types.JSON, nonSchemaFields bool, nestedSeparator string) {
 
-	flatJson := jsonprocessor.FlattenMap(jsonData, nestedSeparator)
+	flatJson := util.FlattenMap(jsonData, nestedSeparator)
 
 	mu.Lock()
 	defer mu.Unlock()

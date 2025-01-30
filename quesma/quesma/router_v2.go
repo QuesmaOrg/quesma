@@ -7,7 +7,6 @@ import (
 	"errors"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
-	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/painful"
@@ -31,14 +30,6 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 	and := quesma_api.And
 
 	router := quesma_api.NewPathRouter()
-
-	// These are the endpoints that are not supported by Quesma
-	// These will redirect to the elastic cluster.
-	for _, path := range elasticsearch.InternalPaths {
-		router.Register(path, quesma_api.Never(), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-			return nil, nil
-		})
-	}
 
 	router.Register(routes.ExecutePainlessScriptPath, and(method("POST"), matchAgainstIndexNameInScriptRequestBody(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 
@@ -119,14 +110,6 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 	and := quesma_api.And
 
 	router := quesma_api.NewPathRouter()
-
-	// These are the endpoints that are not supported by Quesma
-	// These will redirect to the elastic cluster.
-	for _, path := range elasticsearch.InternalPaths {
-		router.Register(path, quesma_api.Never(), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-			return nil, nil
-		})
-	}
 
 	// These are the endpoints that are supported by Quesma
 
