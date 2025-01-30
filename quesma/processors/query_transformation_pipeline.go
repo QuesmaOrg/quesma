@@ -10,8 +10,10 @@ import (
 // QueryResultTransformer This is a copy of the
 // interface `ResultTransformer` from `quesma/model/transformers.go`
 // from `quesma/model/transformers.go`
+// It's a copy as we can't embed model.ResultTransformer into QueryTransformationPipeline
+// due to the same name of the method Transform()
 type QueryResultTransformer interface {
-	TransformResults(results [][]model.QueryResultRow) [][]model.QueryResultRow
+	TransformResults(results [][]model.QueryResultRow) ([][]model.QueryResultRow, error)
 }
 
 // QueryTransformationPipeline is the interface that parsing and composing
@@ -24,15 +26,4 @@ type QueryTransformationPipeline interface {
 	ComposeResult(results [][]model.QueryResultRow) any
 	AddTransformer(transformer model.QueryTransformer)
 	GetTransformers() []model.QueryTransformer
-}
-
-// QueryResultRow This is a copy of the
-// struct `QueryResultRow` from `quesma/model/query.go`
-// and something that we should unify
-type QueryResultRow struct {
-}
-
-// QueryExecutor is the interface that wraps the ExecuteQuery method.
-type QueryExecutor interface {
-	ExecuteQuery(query string) ([]QueryResultRow, error)
 }
