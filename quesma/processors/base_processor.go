@@ -5,6 +5,7 @@ package processors
 
 import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 
@@ -48,8 +49,10 @@ func (p *BaseProcessor) GetSupportedBackendConnectors() []quesma_api.BackendConn
 	return []quesma_api.BackendConnectorType{quesma_api.NoopBackend}
 }
 
-func (p *BaseProcessor) executeQuery(query string) ([]QueryResultRow, error) {
-	logger.Debug().Msgf("BaseProcessor: executeQuery:%s", query)
+func (p *BaseProcessor) executeQueries(queries []*model.Query) ([]QueryResultRow, error) {
+	for _, query := range queries {
+		logger.Debug().Msgf("BaseProcessor: executeQuery:%s", query.SelectCommand.String())
+	}
 	// This will be forwarded to the query execution engine
 	return nil, nil
 }
@@ -68,10 +71,8 @@ func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any)
 		}
 		// Execute the queries
 		var results [][]QueryResultRow
-		for _, query := range queries {
-			result, _ := p.executeQuery(query.SelectCommand.String())
-			results = append(results, result)
-		}
+		result, _ := p.executeQueries(queries)
+		results = append(results, result)
 		// Transform the results
 		transformedResults := p.QueryTransformationPipeline.TransformResults(results)
 		resp = p.QueryTransformationPipeline.ComposeResult(transformedResults)
