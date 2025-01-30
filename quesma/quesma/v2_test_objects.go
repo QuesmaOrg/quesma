@@ -5,6 +5,8 @@ package quesma
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+
 	// TODO elastic query parser needs a clickhouse package
 	// due to the table dependency
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
@@ -373,7 +375,7 @@ func NewQueryTransformationPipeline() *QueryTransformationPipeline {
 	}
 }
 
-func (p *QueryTransformationPipeline) ParseQuery(message any) (*processors.ExecutionPlan, error) {
+func (p *QueryTransformationPipeline) ParseQuery(message any) (*model.ExecutionPlan, error) {
 	req, err := quesma_api.CheckedCast[*quesma_api.Request](message)
 	if err != nil {
 		panic("QueryProcessor: invalid message type")
@@ -383,12 +385,6 @@ func (p *QueryTransformationPipeline) ParseQuery(message any) (*processors.Execu
 	if err != nil {
 		return nil, err
 	}
-	queryBytes, err := query.Bytes()
-	if err != nil {
-		return nil, err
-	}
-	queryStr := string(queryBytes)
-
 	// TODO this is a hack to create a table for the query
 	// Why parser needs a table?
 	tableName := "test_table"
@@ -404,12 +400,10 @@ func (p *QueryTransformationPipeline) ParseQuery(message any) (*processors.Execu
 		Ctx:   req.OriginalRequest.Context(),
 		Table: table,
 	}
-	_, err = cw.ParseQuery(query)
+	plan, err := cw.ParseQuery(query)
 	if err != nil {
 		return nil, err
 	}
-	plan := &processors.ExecutionPlan{}
-	plan.Queries = append(plan.Queries, &processors.Query{Query: queryStr})
 	return plan, nil
 }
 
@@ -428,12 +422,10 @@ func (p *QueryTransformationPipeline) ComposeResult(results [][]processors.Query
 type QueryTransformer1 struct {
 }
 
-func (p *QueryTransformer1) Transform(queries []*processors.Query) ([]*processors.Query, error) {
+func (p *QueryTransformer1) Transform(queries []*model.Query) ([]*model.Query, error) {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: Transform")
 	// Do basic transformation
-	for _, query := range queries {
-		query.Query += " WHERE id = 1"
-	}
+
 	return queries, nil
 }
 
