@@ -366,12 +366,12 @@ func (p *QueryComplexProcessor) GetId() string {
 }
 
 type QueryTransformationPipeline struct {
-	*processors.BasicQueryTransformationPipeline
+	*model.TransformationPipeline
 }
 
 func NewQueryTransformationPipeline() *QueryTransformationPipeline {
 	return &QueryTransformationPipeline{
-		BasicQueryTransformationPipeline: processors.NewBasicQueryTransformationPipeline(),
+		TransformationPipeline: model.NewTransformationPipeline(),
 	}
 }
 
