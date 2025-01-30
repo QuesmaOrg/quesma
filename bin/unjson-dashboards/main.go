@@ -10,7 +10,7 @@ func main() {
 		ingestAll()
 	}
 
-	if false {
+	if false { // it doesn't work as expected
 		createDataViews()
 		importDashboards()
 

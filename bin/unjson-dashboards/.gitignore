@@ -1,2 +1,4 @@
 dashboards/*.ndjson
 mappings/*.json
+screenshots/*.png
+

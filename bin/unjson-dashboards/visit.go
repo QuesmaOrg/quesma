@@ -3,19 +3,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
+	"github.com/chromedp/chromedp"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os/exec"
+	"os"
+	"regexp"
+	"strings"
 	"time"
-)
-
-const (
-// Change this if Kibana runs on another port
-
 )
 
 // Dashboard struct to parse JSON response
@@ -62,81 +60,21 @@ func fetchDashboardIDs() ([]string, error) {
 	return ids, nil
 }
 
-func OpenPageInChrome(url string) error {
-	webSocketURL, err := GetDebuggerWebSocketURL()
-	if err != nil {
-		return err
-	}
-
-	// Connect to the WebSocket debugger
-	conn, _, err := websocket.DefaultDialer.Dial(webSocketURL, nil)
-	if err != nil {
-		return fmt.Errorf("failed to connect to Chrome WebSocket: %v", err)
-	}
-	defer conn.Close()
-
-	// Create the navigation command
-	cmd := CDPRequest{
-		ID:     1,
-		Method: "Page.navigate",
-		Params: map[string]string{"url": url},
-	}
-
-	// Convert command to JSON
-	cmdJSON, err := json.Marshal(cmd)
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %v", err)
-	}
-
-	// Send command to Chrome
-	err = conn.WriteMessage(websocket.TextMessage, cmdJSON)
-	if err != nil {
-		return fmt.Errorf("failed to send message: %v", err)
-	}
-
-	log.Println("Successfully navigated to:", url)
-
-	// Keep connection open for a short time to allow navigation
-	time.Sleep(2 * time.Second)
-	return nil
-}
-
 func openDashboards(ids []string) {
+
+	// this is URL of Kibana dashboard as seen from the chromeDP container
+	kibanaURL := "http://kibana:5601"
 
 	options := "?_g=(filters:!(),time:(from:now-1y,to:now))"
 
 	for _, id := range ids {
-		url := fmt.Sprintf("%s/app/dashboards#/view/%s%s", kibanaURL, id, options)
-		fmt.Println("Opening:", url)
+		dashboardUrl := fmt.Sprintf("%s/app/dashboards#/view/%s%s", kibanaURL, id, options)
+		fmt.Println("Opening:", dashboardUrl)
 
-		err := OpenPageInChromeViaWebsocket(url)
-
-		if err != nil {
-			log.Printf("Failed to open dashboard %s: %v", id, err)
-		}
+		openPageChromeDP(dashboardUrl)
 
 		log.Println("Waiting 10 seconds before opening the next dashboard...")
-		time.Sleep(10 * time.Second)
-	}
-}
-
-func startChrome() *exec.Cmd {
-	chromePath := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" //
-
-	cmd := exec.Command(chromePath, "--remote-debugging-port=9223", "--new-window")
-	err := cmd.Start()
-	if err != nil {
-		log.Fatalf("Failed to start Chrome: %v", err)
-	}
-	fmt.Println("✅ Chrome started.")
-	time.Sleep(5 * time.Second) // Wait for Chrome to fully open
-	return cmd
-}
-
-func stopChrome(cmd *exec.Cmd) {
-	if cmd.Process != nil {
-		cmd.Process.Kill()
-		fmt.Println("Chrome stopped.")
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -172,50 +110,61 @@ func GetDebuggerWebSocketURL() (string, error) {
 	return webSocketURL, nil
 }
 
-// OpenPageInChrome navigates to a specified URL using Chrome DevTools Protocol
-func OpenPageInChromeViaWebsocket(url string) error {
-	webSocketURL, err := GetDebuggerWebSocketURL()
-	if err != nil {
-		return err
+var invalidChars = regexp.MustCompile(`[<>:"/\\|?*\x00-\x1F]`)
+
+func toFilename(s string) string {
+
+	// Use the host and path, replacing invalid characters
+	s = invalidChars.ReplaceAllString(s, "_")
+
+	s = strings.Trim(s, "_") // Remove trailing underscores
+
+	s = strings.TrimSpace(s)
+	if len(s) > 255 {
+		s = s[:255] // Truncate to safe length
 	}
 
-	// Connect to the WebSocket debugger
-	conn, _, err := websocket.DefaultDialer.Dial(webSocketURL, nil)
-	if err != nil {
-		return fmt.Errorf("failed to connect to Chrome WebSocket: %v", err)
+	return s
+}
+
+func openPageChromeDP(url string) {
+
+	allocCtx, cancel := chromedp.NewRemoteAllocator(context.Background(), "http://localhost:9222/json")
+	defer cancel()
+
+	ctx, cancel := chromedp.NewContext(allocCtx) //	chromedp.WithDebugf(log.Printf)
+
+	defer cancel()
+
+	// capture screenshot of an element
+	var buf []byte
+
+	title := "Kibana Dashboard"
+
+	tasks := chromedp.Tasks{
+		chromedp.EmulateViewport(1920, 1080),
+		chromedp.Navigate(url),
+		chromedp.Sleep(10 * time.Second),
+		chromedp.Title(&title),
+		chromedp.FullScreenshot(&buf, 90),
 	}
-	defer conn.Close()
 
-	// Create the navigation command
-	cmd := CDPRequest{
-		ID:     1,
-		Method: "Page.navigate",
-		Params: map[string]string{"url": url},
+	// capture entire browser viewport, returning png with quality=90
+	if err := chromedp.Run(ctx, tasks); err != nil {
+		log.Fatal(err)
 	}
 
-	// Convert command to JSON
-	cmdJSON, err := json.Marshal(cmd)
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %v", err)
+	filename := fmt.Sprintf("screenshots/%d-%s-%s.png", time.Now().UnixMilli(), toFilename(url), toFilename(title))
+
+	if err := os.WriteFile(filename, buf, 0o644); err != nil {
+		log.Fatal(err)
 	}
 
-	// Send command to Chrome
-	err = conn.WriteMessage(websocket.TextMessage, cmdJSON)
-	if err != nil {
-		return fmt.Errorf("failed to send message: %v", err)
-	}
+	log.Println("Screenshot '", title, "'  saved to", url, filename)
 
-	log.Println("Successfully navigated to:", url)
-
-	// Keep connection open for a short time to allow navigation
-	time.Sleep(2 * time.Second)
-	return nil
 }
 
 func visitDashboards() {
-
-	cmd := startChrome()
-	defer stopChrome(cmd)
 
 	ids, err := fetchDashboardIDs()
 	if err != nil {
