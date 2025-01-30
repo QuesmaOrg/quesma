@@ -45,57 +45,12 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 
 	legacyDependencies := es_to_ch_common.InitializeLegacyQuesmaDependencies(deps, &cfg, logChan)
 
-	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(legacyDependencies)
-
-	queryConn := newConfiguration.GetFrontendConnectorByType(config.ElasticsearchFrontendQueryConnectorName)
-
-	queryFrontendConnector := frontend_connectors.NewElasticsearchQueryFrontendConnector(":"+queryConn.Config.ListenPort.String(), cfg.Elasticsearch, queryConn.Config.DisableAuth)
-
-	var queryPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
-	queryPipeline.AddFrontendConnector(queryFrontendConnector)
-
-	queryProc := newConfiguration.GetProcessorByType(config.QuesmaV1ProcessorQuery)
-
-	queryProcessor := es_to_ch_query.NewElasticsearchToClickHouseQueryProcessor(queryProc.Config, legacyDependencies)
-
-	ingestConn := newConfiguration.GetFrontendConnectorByType(config.ElasticsearchFrontendIngestConnectorName)
-
-	ingestFrontendConnector := frontend_connectors.NewElasticsearchIngestFrontendConnector(":"+queryConn.Config.ListenPort.String(), cfg.Elasticsearch, ingestConn.Config.DisableAuth)
-	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
-	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
-
-	ingestProc := newConfiguration.GetProcessorByType(config.QuesmaV1ProcessorIngest)
-	ingestProcessor := es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor(ingestProc.Config, legacyDependencies)
-	ingestPipeline.AddProcessor(ingestProcessor)
-	quesmaBuilder.AddPipeline(ingestPipeline)
-
-	queryPipeline.AddProcessor(queryProcessor)
-	quesmaBuilder.AddPipeline(queryPipeline)
-
-	chBackendConn := newConfiguration.GetBackendConnectorByType(config.ClickHouseOSBackendConnectorName)
-	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector(&chBackendConn.Config)
-
-	esBackendConn := newConfiguration.GetBackendConnectorByType(config.ElasticsearchBackendConnectorName)
-	esCfg := esBackendConn.Config
-	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector2(esCfg)
-
-	queryPipeline.AddBackendConnector(clickHouseBackendConnector)
-	queryPipeline.AddBackendConnector(elasticsearchBackendConnector)
-
-	ingestPipeline.AddBackendConnector(clickHouseBackendConnector)
-	ingestPipeline.AddBackendConnector(elasticsearchBackendConnector)
-
-	quesmaInstance, err := quesmaBuilder.Build()
-	if err != nil {
-		log.Fatalf("error building quesma instance: %v", err)
-	}
-	return quesmaInstance
+	return buildQuesmaFromV2Config(newConfiguration, legacyDependencies)
 }
 
-func buildQuesmaFromV2Config(cfg config.QuesmaNewConfiguration) quesma_api.QuesmaBuilder {
-	//var cfg = config.LoadV2Config()
+func buildQuesmaFromV2Config(cfg config.QuesmaNewConfiguration, deps *es_to_ch_common.LegacyQuesmaDependencies) quesma_api.QuesmaBuilder {
 
-	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(nil)
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(deps)
 
 	for _, p := range cfg.Pipelines {
 		var pipeline quesma_api.PipelineBuilder = quesma_api.NewNamedPipeline(p.Name)
@@ -103,9 +58,9 @@ func buildQuesmaFromV2Config(cfg config.QuesmaNewConfiguration) quesma_api.Quesm
 			fc := cfg.GetFrontendConnectorByName(fcName)
 			switch fc.Type {
 			case config.ElasticsearchFrontendQueryConnectorName:
-				pipeline.AddFrontendConnector(frontend_connectors.NewElasticsearchQueryFrontendConnector())
+				pipeline.AddFrontendConnector(frontend_connectors.NewElasticsearchQueryFrontendConnector(":"+fc.Config.ListenPort.String(), deps.OldQuesmaConfig.Elasticsearch, fc.Config.DisableAuth))
 			case config.ElasticsearchFrontendIngestConnectorName:
-				pipeline.AddFrontendConnector(frontend_connectors.NewElasticsearchIngestFrontendConnector())
+				pipeline.AddFrontendConnector(frontend_connectors.NewElasticsearchIngestFrontendConnector(":"+fc.Config.ListenPort.String(), deps.OldQuesmaConfig.Elasticsearch, fc.Config.DisableAuth))
 			default:
 				log.Fatalf("unknown frontend connector type: %s", fc.Type)
 			}
@@ -114,9 +69,9 @@ func buildQuesmaFromV2Config(cfg config.QuesmaNewConfiguration) quesma_api.Quesm
 			proc := cfg.GetProcessorByName(procName)
 			switch proc.Type {
 			case config.QuesmaV1ProcessorQuery:
-				pipeline.AddProcessor(es_to_ch_query.NewElasticsearchToClickHouseQueryProcessor())
+				pipeline.AddProcessor(es_to_ch_query.NewElasticsearchToClickHouseQueryProcessor(proc.Config, deps))
 			case config.QuesmaV1ProcessorIngest:
-				pipeline.AddProcessor(es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor())
+				pipeline.AddProcessor(es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor(proc.Config, deps))
 			default:
 				log.Fatalf("unknown processor type: %s", proc.Type)
 			}
@@ -125,11 +80,31 @@ func buildQuesmaFromV2Config(cfg config.QuesmaNewConfiguration) quesma_api.Quesm
 			bc := cfg.GetBackendConnectorByName(bcName)
 			switch bc.Type {
 			case config.ClickHouseOSBackendConnectorName:
-				// TODO: implement
+				connectorDeclaration := cfg.GetBackendConnectorByType(config.ClickHouseOSBackendConnectorName)
+				backendConnector := backend_connectors.NewClickHouseBackendConnector(&connectorDeclaration.Config)
+				pipeline.AddBackendConnector(backendConnector)
+			case config.ClickHouseBackendConnectorName:
+				connectorDeclaration := cfg.GetBackendConnectorByType(config.ClickHouseBackendConnectorName)
+				backendConnector := backend_connectors.NewClickHouseBackendConnector(&connectorDeclaration.Config)
+				pipeline.AddBackendConnector(backendConnector)
+			case config.HydrolixBackendConnectorName:
+				connectorDeclaration := cfg.GetBackendConnectorByType(config.HydrolixBackendConnectorName)
+				backendConnector := backend_connectors.NewClickHouseBackendConnector(&connectorDeclaration.Config)
+				pipeline.AddBackendConnector(backendConnector)
+			case config.ElasticsearchBackendConnectorName:
+				connectorDeclaration := cfg.GetBackendConnectorByType(config.ElasticsearchBackendConnectorName)
+				backendConnector := backend_connectors.NewElasticsearchBackendConnector2(connectorDeclaration.Config)
+				pipeline.AddBackendConnector(backendConnector)
+			default:
+				log.Fatalf("unknown backend connector type: %s", bc.Type)
 			}
 		}
 		quesmaBuilder.AddPipeline(pipeline)
 
 	}
-
+	quesmaInstance, err := quesmaBuilder.Build()
+	if err != nil {
+		log.Fatalf("error building quesma instance: %v", err)
+	}
+	return quesmaInstance
 }
