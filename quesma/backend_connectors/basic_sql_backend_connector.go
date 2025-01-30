@@ -39,7 +39,6 @@ func (p *SqlRows) Err() error {
 	return p.rows.Err()
 }
 
-
 func (p *BasicSqlBackendConnector) Open() error {
 	conn, err := initDBConnection(p.cfg)
 	if err != nil {
@@ -47,6 +46,7 @@ func (p *BasicSqlBackendConnector) Open() error {
 	}
 	p.connection = conn
 	return nil
+}
 
 func (p *BasicSqlBackendConnector) GetDB() *sql.DB {
 	return p.connection
