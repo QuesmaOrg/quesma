@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
-	"github.com/QuesmaOrg/quesma/quesma/health"
 	telemetry_headers "github.com/QuesmaOrg/quesma/quesma/telemetry/headers"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
@@ -465,7 +464,7 @@ func (a *agent) collectElasticVersion(ctx context.Context, stats *diag.ElasticSt
 
 func (a *agent) collectElasticHealthStatus(ctx context.Context, stats *diag.ElasticStats) (err error) {
 
-	healthChecker := health.NewElasticHealthChecker(a.config)
+	healthChecker := elasticsearch.NewElasticHealthChecker(a.config)
 
 	stats.HealthStatus = healthChecker.CheckHealth().String()
 

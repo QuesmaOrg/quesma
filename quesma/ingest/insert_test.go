@@ -8,7 +8,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
-	"github.com/QuesmaOrg/quesma/quesma/jsonprocessor"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
@@ -133,10 +132,10 @@ type ingestProcessorHelper struct {
 	tableAlreadyCreated bool
 }
 
-type IngestTransformer struct {
+type IngestTransformerTest struct {
 }
 
-func (*IngestTransformer) Transform(document types.JSON) (types.JSON, error) {
+func (*IngestTransformerTest) Transform(document types.JSON) (types.JSON, error) {
 	return document, nil
 }
 
@@ -270,7 +269,7 @@ func TestProcessInsertQuery(t *testing.T) {
 						}
 					}
 
-					err := ip.ip.ProcessInsertQuery(ctx, tableName, []types.JSON{types.MustJSON(tt.insertJson)}, &IngestTransformer{}, &columNameFormatter{separator: "::"})
+					err := ip.ip.ProcessInsertQuery(ctx, tableName, []types.JSON{types.MustJSON(tt.insertJson)}, &IngestTransformerTest{}, &columNameFormatter{separator: "::"})
 					assert.NoError(t, err)
 					if err := mock.ExpectationsWereMet(); err != nil {
 						t.Fatal("there were unfulfilled expections:", err)
@@ -302,7 +301,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
 			mock.ExpectExec(expectedInsertJsons[i]).WillReturnResult(sqlmock.NewResult(0, 0))
 
-			err := lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON(fmt.Sprintf(`{"severity":"sev","int": %s}`, bigInt))}, &IngestTransformer{}, &columNameFormatter{separator: "::"})
+			err := lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON(fmt.Sprintf(`{"severity":"sev","int": %s}`, bigInt))}, &IngestTransformerTest{}, &columNameFormatter{separator: "::"})
 			assert.NoError(t, err)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -448,7 +447,7 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 			ctx := context.Background()
 			formatter := DefaultColumnNameFormatter()
 
-			transformer := jsonprocessor.IngestTransformerFor(indexName, quesmaConfig)
+			transformer := IngestTransformerFor(indexName, quesmaConfig)
 
 			for _, stm := range tt.expectedStatements {
 				mock.ExpectExec(stm).WillReturnResult(sqlmock.NewResult(1, 1))

@@ -708,7 +708,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 		// This is workaround.
 		// Our query parse resolves columns sometimes. Here we detect it and skip the resolution.
 		if _, ok := indexSchema.ResolveFieldByInternalName(e.ColumnName); ok {
-			logger.Warn().Msgf("Got field already resolved %s", e.ColumnName)
+			logger.Debug().Msgf("Got field already resolved %s", e.ColumnName) // Reduced to debug as it was really noisy
 			return e
 		}
 
@@ -923,6 +923,10 @@ func columnsToAliasedColumns(columns []model.Expr) []model.Expr {
 			continue
 		}
 		if _, ok := column.(model.FunctionExpr); ok {
+			aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
+			continue
+		}
+		if _, ok := column.(model.WindowFunction); ok {
 			aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
 			continue
 		}

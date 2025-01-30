@@ -10,10 +10,10 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"sort"
 	"sync"
-	"time"
 )
 
 type tableResolver interface {
@@ -150,12 +150,6 @@ func (r *tableRegistryImpl) updateIndexes() {
 
 	logger.Info().Msgf("Index registry updating state.")
 
-	// TODO how to interact with the table discovery ?
-	// right now we enforce the reload of the table definitions
-	// schema registry is doing the same
-	// we should inject list of tables into the resolver
-	r.tableDiscovery.ReloadTableDefinitions()
-
 	tableMap := r.tableDiscovery.TableDefinitions()
 	clickhouseIndexes := make(map[string]table)
 
@@ -213,6 +207,10 @@ func (r *tableRegistryImpl) Stop() {
 }
 
 func (r *tableRegistryImpl) Start() {
+
+	notificationChannel := make(chan types.ReloadMessage, 1)
+	r.tableDiscovery.RegisterTablesReloadListener(notificationChannel)
+
 	go func() {
 		defer recovery.LogPanic()
 		logger.Info().Msg("Table resolve started.")
@@ -221,7 +219,7 @@ func (r *tableRegistryImpl) Start() {
 			select {
 			case <-r.ctx.Done():
 				return
-			case <-time.After(1 * time.Minute):
+			case <-notificationChannel:
 				r.updateState()
 			}
 		}

@@ -5,6 +5,7 @@ package schema_test
 import (
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
@@ -264,6 +265,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := schema.NewSchemaRegistry(tt.tableDiscovery, &tt.cfg, clickhouse.SchemaTypeAdapter{})
+			s.Start()
+			defer s.Stop()
+
 			resultSchema, resultFound := s.FindSchema(tt.tableName)
 			if resultFound != tt.found {
 				t.Errorf("FindSchema() got1 = %v, want %v", resultFound, tt.found)
@@ -300,6 +304,8 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 	}}
 
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+	s.Start()
+	defer s.Stop()
 
 	expectedSchema := schema.NewSchema(map[schema.FieldName]schema.Field{
 		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "String"},
@@ -341,5 +347,6 @@ type fixedTableProvider struct {
 	tables map[string]schema.Table
 }
 
-func (f fixedTableProvider) TableDefinitions() map[string]schema.Table { return f.tables }
-func (f fixedTableProvider) AutodiscoveryEnabled() bool                { return false }
+func (f fixedTableProvider) TableDefinitions() map[string]schema.Table               { return f.tables }
+func (f fixedTableProvider) AutodiscoveryEnabled() bool                              { return false }
+func (f fixedTableProvider) RegisterTablesReloadListener(chan<- types.ReloadMessage) {}

@@ -11,7 +11,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/common_table"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
-	"github.com/QuesmaOrg/quesma/quesma/jsonprocessor"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
@@ -21,7 +20,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/stats"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
-	"github.com/QuesmaOrg/quesma/quesma/telemetry"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
@@ -62,7 +60,7 @@ type (
 		chDb                      quesma_api.BackendConnector
 		tableDiscovery            chLib.TableDiscovery
 		cfg                       *config.QuesmaConfiguration
-		phoneHomeAgent            diag.PhoneHomeClient
+		phoneHomeClient           diag.PhoneHomeClient
 		schemaRegistry            schema.Registry
 		ingestCounter             int64
 		ingestFieldStatistics     IngestFieldStatistics
@@ -561,7 +559,7 @@ func generateSqlStatements(createTableCmd string, alterCmd []string, insert stri
 func populateFieldEncodings(jsonData []types.JSON, tableName string) map[schema.FieldEncodingKey]schema.EncodedFieldName {
 	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
 	for _, jsonValue := range jsonData {
-		flattenJson := jsonprocessor.FlattenMap(jsonValue, ".")
+		flattenJson := util.FlattenMap(jsonValue, ".")
 		for field := range flattenJson {
 			encodedField := util.FieldToColumnEncoder(field)
 			encodings[schema.FieldEncodingKey{TableName: tableName, FieldName: field}] =
@@ -573,12 +571,12 @@ func populateFieldEncodings(jsonData []types.JSON, tableName string) map[schema.
 
 func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	tableName string,
-	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	jsonData []types.JSON, transformer IngestTransformer,
 	tableFormatter TableColumNameFormatter, tableDefinitionChangeOnly bool) ([]string, error) {
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
-	preIngestTransformer := &jsonprocessor.RewriteArrayOfObject{}
+	preIngestTransformer := &util.RewriteArrayOfObject{}
 	var processed []types.JSON
 	for _, jsonValue := range jsonData {
 		result, err := preIngestTransformer.Transform(jsonValue)
@@ -694,12 +692,12 @@ func (lm *IngestProcessor) Ingest(ctx context.Context, indexName string, jsonDat
 	}
 
 	nameFormatter := DefaultColumnNameFormatter()
-	transformer := jsonprocessor.IngestTransformerFor(indexName, lm.cfg)
+	transformer := IngestTransformerFor(indexName, lm.cfg)
 	return lm.ProcessInsertQuery(ctx, indexName, jsonData, transformer, nameFormatter)
 }
 
 func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName string,
-	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	jsonData []types.JSON, transformer IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
 
 	decision := lm.tableResolver.Resolve(quesma_api.IngestPipeline, tableName)
@@ -739,7 +737,7 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 				logger.ErrorWithCtx(ctx).Msgf("error processing insert query - virtual table schema update: %v", err)
 			}
 
-			pipeline := jsonprocessor.IngestTransformerPipeline{}
+			pipeline := IngestTransformerPipeline{}
 			pipeline = append(pipeline, &common_table.IngestAddIndexNameTransformer{IndexName: tableName})
 			pipeline = append(pipeline, transformer)
 
@@ -797,7 +795,7 @@ func (ip *IngestProcessor) applyAsyncInsertOptimizer(tableName string, clickhous
 }
 
 func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, tableName string,
-	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	jsonData []types.JSON, transformer IngestTransformer,
 	tableFormatter TableColumNameFormatter, isVirtualTable bool) error {
 	statements, err := ip.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter, isVirtualTable)
 	if err != nil {
@@ -841,7 +839,7 @@ func subtractInputJson(inputDoc types.JSON, anotherDoc types.JSON) types.JSON {
 // This function executes query with context
 // and creates span for it
 func (ip *IngestProcessor) execute(ctx context.Context, query string) error {
-	span := ip.phoneHomeAgent.ClickHouseInsertDuration().Begin()
+	span := ip.phoneHomeClient.ClickHouseInsertDuration().Begin()
 
 	// We log every DDL query
 	if ip.cfg.Logging.EnableSQLTracing {
@@ -962,7 +960,7 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 				logger.Error().Msgf("error storing virtual table: %v", err)
 			}
 		}
-		ip.tableDiscovery.TableDefinitions().Store(table.Name, table)
+		ip.tableDiscovery.AddTable(table.Name, table)
 		return true
 	}
 	wasntCreated := !t.Created
@@ -982,9 +980,9 @@ func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
-func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
+func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeClient diag.PhoneHomeClient, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
+	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
 }
 
 func NewOnlySchemaFieldsCHConfig() *chLib.ChTableConfig {

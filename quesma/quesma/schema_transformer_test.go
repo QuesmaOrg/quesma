@@ -7,6 +7,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/common_table"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/stretchr/testify/assert"
 	"strconv"
@@ -20,8 +21,8 @@ type fixedTableProvider struct {
 func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
 	return f.tables
 }
-
-func (f fixedTableProvider) AutodiscoveryEnabled() bool { return false }
+func (f fixedTableProvider) AutodiscoveryEnabled() bool                              { return false }
+func (f fixedTableProvider) RegisterTablesReloadListener(chan<- types.ReloadMessage) {}
 
 func Test_ipRangeTransform(t *testing.T) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
@@ -87,6 +88,8 @@ func Test_ipRangeTransform(t *testing.T) {
 			TableName: "kibana_sample_data_logs_nested", FieldName: "nested.clientip"}: "nested_clientip",
 	}
 	s := schema.NewSchemaRegistry(tableProvider, &cfg, clickhouse.SchemaTypeAdapter{})
+	s.Start()
+	defer s.Stop()
 	transform := NewSchemaCheckPass(&cfg, tableDiscovery, defaultSearchAfterStrategy)
 	s.UpdateFieldEncodings(fieldEncodings)
 
@@ -488,7 +491,37 @@ func Test_arrayType(t *testing.T) {
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
 					Columns: []model.Expr{
 						model.NewColumnRef("order_date"),
-						model.NewAliasedExpr(model.NewFunction("sumOrNull", model.NewFunction("arrayJoin", model.NewColumnRef("products_quantity"))), "column_1"),
+						model.NewAliasedExpr(model.NewFunction("sumArrayOrNull", model.NewColumnRef("products_quantity")), "column_1"),
+					},
+					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
+				},
+			},
+		},
+
+		{
+			name: "arrayReducePancake",
+			//SELECT "order_date", avgOrNullMerge(avgOrNullState("products::quantity"")) OVER (), sumOrNull("products::quantity") FROM "kibana_sample_data_ecommerce" GROUP BY "order_date"
+			query: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns: []model.Expr{
+						model.NewColumnRef("order_date"),
+						model.NewWindowFunction("avgOrNullMerge", []model.Expr{model.NewFunction("avgOrNullState", model.NewColumnRef("products.quantity"))}, []model.Expr{}, []model.OrderByExpr{}),
+						model.NewFunction("sumOrNull", model.NewColumnRef("products.quantity")),
+					},
+					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
+				},
+			},
+			//SELECT "order_date", avgArrayOrNullMerge(avgArrayOrNullMerge("products::quantity"")) OVER (), sumOrNull("products::quantity") FROM "kibana_sample_data_ecommerce" GROUP BY "order_date"
+			expected: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns: []model.Expr{
+						model.NewColumnRef("order_date"),
+						model.NewAliasedExpr(model.NewWindowFunction("avgArrayOrNullMerge", []model.Expr{model.NewFunction("avgArrayOrNullState", model.NewColumnRef("products_quantity"))}, []model.Expr{}, []model.OrderByExpr{}), "column_1"),
+						model.NewAliasedExpr(model.NewFunction("sumArrayOrNull", model.NewColumnRef("products_quantity")), "column_2"),
 					},
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
 				},
@@ -712,6 +745,8 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 	td.Store(tableDefinition.Name, &tableDefinition)
 
 	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+	s.Start()
+	defer s.Stop()
 	transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
 
 	tests := []struct {
@@ -1040,6 +1075,8 @@ func TestFullTextFields(t *testing.T) {
 			}
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			s.Start()
+			defer s.Stop()
 			transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, nil, defaultSearchAfterStrategy)
 
 			indexSchema, ok := s.FindSchema("test")
@@ -1147,6 +1184,9 @@ func Test_applyMatchOperator(t *testing.T) {
 			}
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			s.Start()
+			defer s.Stop()
+
 			transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
 
 			indexSchema, ok := s.FindSchema("test")
@@ -1247,6 +1287,8 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 			}
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			s.Start()
+			defer s.Stop()
 			transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
 
 			indexSchema, ok := s.FindSchema("test")

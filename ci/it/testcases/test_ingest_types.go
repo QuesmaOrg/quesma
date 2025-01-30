@@ -61,9 +61,9 @@ type Response struct {
 
 func ParseResponse(t *testing.T, body []byte) map[string]any {
 	var response Response
-	err := json.Unmarshal([]byte(body), &response)
+	err := json.Unmarshal(body, &response)
 	if err != nil {
-		log.Fatalf("Error parsing JSON: %v", err)
+		log.Fatalf("Error parsing JSON: %v. Full contents of the JSON: %s", err, string(body))
 	}
 
 	// Extract and print the `fields` tree

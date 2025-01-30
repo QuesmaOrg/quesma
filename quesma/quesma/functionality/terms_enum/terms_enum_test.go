@@ -95,7 +95,7 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 		Created: true,
 	}
 	tableResolver := table_resolver.NewEmptyTableResolver()
-	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, tableResolver)
+	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, tableResolver)
 	conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 	defer db.Close()

@@ -18,7 +18,7 @@ type Router interface {
 	AddFallbackHandler(handler HTTPFrontendHandler)
 	GetFallbackHandler() HTTPFrontendHandler
 	GetHandlers() map[string]HandlersPipe
-	SetHandlers(handlers map[string]HandlersPipe)
+	SetHandlers(handlers []HandlersPipe)
 	Register(pattern string, predicate RequestMatcher, handler HTTPFrontendHandler)
 	Matches(req *Request) (*HandlersPipe, *Decision)
 }

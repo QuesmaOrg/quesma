@@ -23,7 +23,7 @@ func TestHtmlPages(t *testing.T) {
 	id := "b1c4a89e-4905-5e3c-b57f-dc92627d011e"
 	logChan := make(chan logger.LogWithLevel, 5)
 	resolver := table_resolver.NewEmptyTableResolver()
-	qmc := NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
+	qmc := NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
 	qmc.PushPrimaryInfo(&diag.QueryDebugPrimarySource{Id: id, QueryResp: xssBytes})
 	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{Id: id,
 		Path:                   xss,
@@ -104,7 +104,7 @@ func TestHtmlSchemaPage(t *testing.T) {
 	logManager := clickhouse.NewLogManager(tables, &cfg)
 
 	resolver := table_resolver.NewEmptyTableResolver()
-	qmc := NewQuesmaManagementConsole(&cfg, logManager, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
+	qmc := NewQuesmaManagementConsole(&cfg, logManager, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
 
 	t.Run("schema got no XSS and no panic", func(t *testing.T) {
 		response := string(qmc.generateTables())
