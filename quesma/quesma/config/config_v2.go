@@ -590,7 +590,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			}
 			for _, target := range targets {
 				if targetType, found := c.getTargetType(target.target); found {
-					defaultConfig.QueryTarget = append(defaultConfig.QueryTarget, targetType)
+					if !slices.Contains(defaultConfig.QueryTarget, targetType) {
+						defaultConfig.QueryTarget = append(defaultConfig.QueryTarget, targetType)
+					}
 				} else {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
 				}
@@ -628,7 +630,17 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					var targetType string
 					indexTarget, ok2 := indexCfg.Target.([]interface{})
 					if len(indexTarget) > 0 && ok2 {
-						indexTargetType := c.GetBackendConnectorByName(indexTarget[0].(string))
+						tgt := indexTarget[0]
+						var indexTargetType *BackendConnector
+						if targetMap, ok := tgt.(map[string]interface{}); ok {
+							for name := range targetMap {
+								indexTargetType = c.GetBackendConnectorByName(name)
+								break
+							}
+						} else {
+							indexTargetType = c.GetBackendConnectorByName(indexTarget[0].(string))
+						}
+
 						if indexTargetType.Type == "elasticsearch" {
 							targetType = "elasticsearch"
 						} else { // clickhouse-os, hydrolix included
@@ -656,7 +668,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				}
 				for _, target := range targets {
 					if targetType, found := c.getTargetType(target.target); found {
-						processedConfig.QueryTarget = append(processedConfig.QueryTarget, targetType)
+						if !slices.Contains(processedConfig.QueryTarget, targetType) {
+							processedConfig.QueryTarget = append(processedConfig.QueryTarget, targetType)
+						}
 					} else {
 						errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
 					}
@@ -671,12 +685,11 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					}
 
 				}
-				// TODO: can we live without this?
-				//if len(processedConfig.QueryTarget) == 2 && !((processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) ||
-				//	(processedConfig.QueryTarget[0] == ElasticsearchTarget && processedConfig.QueryTarget[1] == ClickhouseTarget)) {
-				//	errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration", indexName))
-				//	continue
-				//}
+				if len(processedConfig.QueryTarget) == 2 && !((processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) ||
+					(processedConfig.QueryTarget[0] == ElasticsearchTarget && processedConfig.QueryTarget[1] == ClickhouseTarget)) {
+					errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration", indexName))
+					continue
+				}
 
 				if len(processedConfig.QueryTarget) == 2 {
 					// Turn on A/B testing
@@ -721,7 +734,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 		for _, target := range targets {
 			if targetType, found := c.getTargetType(target.target); found {
-				defaultConfig.QueryTarget = append(defaultConfig.QueryTarget, targetType)
+				if !slices.Contains(defaultConfig.QueryTarget, targetType) {
+					defaultConfig.QueryTarget = append(defaultConfig.QueryTarget, targetType)
+				}
 			} else {
 				errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
 			}
@@ -751,7 +766,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 		for _, target := range targets {
 			if targetType, found := c.getTargetType(target.target); found {
-				defaultConfig.IngestTarget = append(defaultConfig.IngestTarget, targetType)
+				if !slices.Contains(defaultConfig.IngestTarget, targetType) {
+					defaultConfig.IngestTarget = append(defaultConfig.IngestTarget, targetType)
+				}
 			} else {
 				errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
 			}
@@ -795,7 +812,17 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				var targetType string
 				indexTarget, ok2 := indexCfg.Target.([]interface{})
 				if len(indexTarget) > 0 && ok2 {
-					indexTargetType := c.GetBackendConnectorByName(indexTarget[0].(string))
+					tgt := indexTarget[0]
+					var indexTargetType *BackendConnector
+					if targetMap, ok := tgt.(map[string]interface{}); ok {
+						for name := range targetMap {
+							indexTargetType = c.GetBackendConnectorByName(name)
+							break
+						}
+					} else {
+						indexTargetType = c.GetBackendConnectorByName(indexTarget[0].(string))
+					}
+
 					if indexTargetType.Type == "elasticsearch" {
 						targetType = "elasticsearch"
 					} else { // clickhouse-os, hydrolix included
@@ -824,7 +851,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			}
 			for _, target := range targets {
 				if targetType, found := c.getTargetType(target.target); found {
-					processedConfig.QueryTarget = append(processedConfig.QueryTarget, targetType)
+					if !slices.Contains(processedConfig.QueryTarget, targetType) {
+						processedConfig.QueryTarget = append(processedConfig.QueryTarget, targetType)
+					}
 				} else {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
 				}
@@ -838,12 +867,11 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 					processedConfig.Override = val.(string)
 				}
 			}
-			// TODO: can we live without this?
-			//if len(processedConfig.QueryTarget) == 2 && !((processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) ||
-			//	(processedConfig.QueryTarget[0] == ElasticsearchTarget && processedConfig.QueryTarget[1] == ClickhouseTarget)) {
-			//	errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration", indexName))
-			//	continue
-			//}
+			if len(processedConfig.QueryTarget) == 2 && !((processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) ||
+				(processedConfig.QueryTarget[0] == ElasticsearchTarget && processedConfig.QueryTarget[1] == ClickhouseTarget)) {
+				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration", indexName))
+				continue
+			}
 
 			if len(processedConfig.QueryTarget) == 2 {
 				// Turn on A/B testing
@@ -877,7 +905,17 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				var targetType string
 				indexTarget, ok2 := indexCfg.Target.([]interface{})
 				if len(indexTarget) > 0 && ok2 {
-					indexTargetType := c.GetBackendConnectorByName(indexTarget[0].(string))
+					tgt := indexTarget[0]
+					var indexTargetType *BackendConnector
+					if targetMap, ok := tgt.(map[string]interface{}); ok {
+						for name := range targetMap {
+							indexTargetType = c.GetBackendConnectorByName(name)
+							break
+						}
+					} else {
+						indexTargetType = c.GetBackendConnectorByName(indexTarget[0].(string))
+					}
+
 					if indexTargetType.Type == "elasticsearch" {
 						targetType = "elasticsearch"
 					} else { // clickhouse-os, hydrolix included
@@ -907,7 +945,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			}
 			for _, target := range targets {
 				if targetType, found := c.getTargetType(target.target); found {
-					processedConfig.IngestTarget = append(processedConfig.IngestTarget, targetType)
+					if !slices.Contains(processedConfig.IngestTarget, targetType) {
+						processedConfig.IngestTarget = append(processedConfig.IngestTarget, targetType)
+					}
 				} else {
 					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
 				}
