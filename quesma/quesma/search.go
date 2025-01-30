@@ -57,7 +57,7 @@ type QueryRunner struct {
 	// this is passed to the QueryTranslator to render date math expressions
 	DateMathRenderer         string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 	currentParallelQueryJobs atomic.Int64
-	transformationPipeline   TransformationPipeline
+	transformationPipeline   model.TransformationPipeline
 	schemaRegistry           schema.Registry
 	ABResultsSender          ab_testing.Sender
 	tableResolver            table_resolver.TableResolver
@@ -80,7 +80,7 @@ type QueryRunnerIFace interface {
 }
 
 func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
-	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
+	q.transformationPipeline.AddTransformer(optimize.NewOptimizePipeline(cfg))
 }
 
 func NewQueryRunner(lm clickhouse.LogManagerIFace,
@@ -92,19 +92,18 @@ func NewQueryRunner(lm clickhouse.LogManagerIFace,
 	tableDiscovery clickhouse.TableDiscovery) *QueryRunner {
 
 	ctx, cancel := context.WithCancel(context.Background())
-
+	transformationPipeline := model.NewTransformationPipeline()
+	transformationPipeline.AddTransformer(NewSchemaCheckPass(cfg, tableDiscovery, defaultSearchAfterStrategy))
 	return &QueryRunner{logManager: lm, cfg: cfg, debugInfoCollector: qmc,
 		executionCtx: ctx, cancel: cancel,
-		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemory(),
-		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
-		transformationPipeline: TransformationPipeline{
-			transformers: []model.QueryTransformer{NewSchemaCheckPass(cfg, tableDiscovery, defaultSearchAfterStrategy)},
-		},
-		schemaRegistry:     schemaRegistry,
-		ABResultsSender:    abResultsRepository,
-		tableResolver:      resolver,
-		tableDiscovery:     tableDiscovery,
-		maxParallelQueries: maxParallelQueries,
+		AsyncRequestStorage:    async_search_storage.NewAsyncSearchStorageInMemory(),
+		AsyncQueriesContexts:   async_search_storage.NewAsyncQueryContextStorageInMemory(),
+		transformationPipeline: *transformationPipeline,
+		schemaRegistry:         schemaRegistry,
+		ABResultsSender:        abResultsRepository,
+		tableResolver:          resolver,
+		tableDiscovery:         tableDiscovery,
+		maxParallelQueries:     maxParallelQueries,
 	}
 }
 
