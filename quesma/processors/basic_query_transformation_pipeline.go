@@ -32,8 +32,3 @@ func (p *BasicQueryTransformationPipeline) AddTransformer(transformer model.Quer
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: AddTransformer")
 	p.transformers = append(p.transformers, transformer)
 }
-
-func (p *BasicQueryTransformationPipeline) GetTransformers() []model.QueryTransformer {
-	logger.Debug().Msg("SimpleQueryTransformationPipeline: GetTransformers")
-	return p.transformers
-}
