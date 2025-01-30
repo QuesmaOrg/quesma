@@ -25,5 +25,4 @@ type QueryTransformationPipeline interface {
 	ParseQuery(message any) (*model.ExecutionPlan, error)
 	ComposeResult(results [][]model.QueryResultRow) any
 	AddTransformer(transformer model.QueryTransformer)
-	GetTransformers() []model.QueryTransformer
 }
