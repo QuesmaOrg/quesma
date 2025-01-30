@@ -70,6 +70,10 @@ func (s *OptimizePipeline) findConfig(transformer OptimizeTransformer, queries [
 		}
 	}
 
+	if optimizerCfg, ok := s.config.DefaultQueryOptimizers[transformer.Name()]; ok {
+		return optimizerCfg.Disabled, optimizerCfg.Properties
+	}
+
 	// default is not enabled
 	return !transformer.IsEnabledByDefault(), make(map[string]string)
 }

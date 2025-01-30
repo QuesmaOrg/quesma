@@ -589,6 +589,13 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 			conf.DefaultIngestTarget = []string{}
 			conf.DefaultQueryTarget = defaultConfig.QueryTarget
 			conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
+
+			if defaultQueryConfig, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
+				conf.DefaultQueryOptimizers = defaultQueryConfig.Optimizers
+			} else {
+				conf.DefaultIngestOptimizers = nil
+			}
+
 			delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 
 			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
@@ -728,6 +735,12 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.DefaultIngestTarget = defaultConfig.IngestTarget
 		conf.DefaultQueryTarget = defaultConfig.QueryTarget
 		conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
+
+		if defaultQueryConfig, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
+			conf.DefaultQueryOptimizers = defaultQueryConfig.Optimizers
+		} else {
+			conf.DefaultIngestOptimizers = nil
+		}
 
 		delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
 
