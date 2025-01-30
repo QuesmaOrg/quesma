@@ -5,17 +5,18 @@ package processors
 
 import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 )
 
 type BasicQueryTransformationPipeline struct {
-	transformers []QueryTransformer
+	transformers []model.QueryTransformer
 }
 
 func NewBasicQueryTransformationPipeline() *BasicQueryTransformationPipeline {
 	return &BasicQueryTransformationPipeline{}
 }
 
-func (p *BasicQueryTransformationPipeline) Transform(queries []*Query) ([]*Query, error) {
+func (p *BasicQueryTransformationPipeline) Transform(queries []*model.Query) ([]*model.Query, error) {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: Transform")
 	var err error
 	for _, transformer := range p.transformers {
@@ -27,12 +28,12 @@ func (p *BasicQueryTransformationPipeline) Transform(queries []*Query) ([]*Query
 	return queries, nil
 }
 
-func (p *BasicQueryTransformationPipeline) AddTransformer(transformer QueryTransformer) {
+func (p *BasicQueryTransformationPipeline) AddTransformer(transformer model.QueryTransformer) {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: AddTransformer")
 	p.transformers = append(p.transformers, transformer)
 }
 
-func (p *BasicQueryTransformationPipeline) GetTransformers() []QueryTransformer {
+func (p *BasicQueryTransformationPipeline) GetTransformers() []model.QueryTransformer {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: GetTransformers")
 	return p.transformers
 }
