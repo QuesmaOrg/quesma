@@ -407,9 +407,9 @@ func (p *QueryTransformationPipeline) ParseQuery(message any) (*model.ExecutionP
 	return plan, nil
 }
 
-func (p *QueryTransformationPipeline) TransformResults(results [][]model.QueryResultRow) [][]model.QueryResultRow {
+func (p *QueryTransformationPipeline) TransformResults(results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: TransformResults")
-	return results
+	return results, nil
 }
 
 func (p *QueryTransformationPipeline) ComposeResult(results [][]model.QueryResultRow) any {
