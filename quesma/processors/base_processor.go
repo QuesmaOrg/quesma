@@ -49,12 +49,13 @@ func (p *BaseProcessor) GetSupportedBackendConnectors() []quesma_api.BackendConn
 	return []quesma_api.BackendConnectorType{quesma_api.NoopBackend}
 }
 
-func (p *BaseProcessor) executeQueries(queries []*model.Query) ([]QueryResultRow, error) {
+func (p *BaseProcessor) executeQueries(queries []*model.Query) ([]model.QueryResultRow, error) {
+	results := make([]model.QueryResultRow, 0)
 	for _, query := range queries {
 		logger.Debug().Msgf("BaseProcessor: executeQuery:%s", query.SelectCommand.String())
 	}
 	// This will be forwarded to the query execution engine
-	return nil, nil
+	return results, nil
 }
 
 func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any) (map[string]interface{}, any, error) {
@@ -70,7 +71,7 @@ func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any)
 			logger.Error().Err(err).Msg("Error transforming queries")
 		}
 		// Execute the queries
-		var results [][]QueryResultRow
+		var results [][]model.QueryResultRow
 		result, _ := p.executeQueries(queries)
 		results = append(results, result)
 		// Transform the results

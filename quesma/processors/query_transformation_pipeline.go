@@ -11,7 +11,7 @@ import (
 // interface `ResultTransformer` from `quesma/model/transformers.go`
 // from `quesma/model/transformers.go`
 type QueryResultTransformer interface {
-	TransformResults(results [][]QueryResultRow) [][]QueryResultRow
+	TransformResults(results [][]model.QueryResultRow) [][]model.QueryResultRow
 }
 
 // QueryTransformationPipeline is the interface that parsing and composing
@@ -21,7 +21,7 @@ type QueryTransformationPipeline interface {
 	model.QueryTransformer
 	QueryResultTransformer
 	ParseQuery(message any) (*model.ExecutionPlan, error)
-	ComposeResult(results [][]QueryResultRow) any
+	ComposeResult(results [][]model.QueryResultRow) any
 	AddTransformer(transformer model.QueryTransformer)
 	GetTransformers() []model.QueryTransformer
 }
