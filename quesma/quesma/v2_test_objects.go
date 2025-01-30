@@ -407,12 +407,12 @@ func (p *QueryTransformationPipeline) ParseQuery(message any) (*model.ExecutionP
 	return plan, nil
 }
 
-func (p *QueryTransformationPipeline) TransformResults(results [][]processors.QueryResultRow) [][]processors.QueryResultRow {
+func (p *QueryTransformationPipeline) TransformResults(results [][]model.QueryResultRow) [][]model.QueryResultRow {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: TransformResults")
 	return results
 }
 
-func (p *QueryTransformationPipeline) ComposeResult(results [][]processors.QueryResultRow) any {
+func (p *QueryTransformationPipeline) ComposeResult(results [][]model.QueryResultRow) any {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: ComposeResults")
 	var resp []byte
 	resp = append(resp, []byte("qqq->")...)
