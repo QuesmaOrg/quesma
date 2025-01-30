@@ -8,6 +8,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
 	"sync/atomic"
@@ -114,6 +115,14 @@ func searchHandler(_ context.Context, request *quesma_api.Request, _ http.Respon
 	atomic.AddInt64(&correlationId, 1)
 	quesma_api.SetCorrelationId(metadata, correlationId)
 	return &quesma_api.Result{Meta: metadata, GenericResult: request.OriginalRequest, StatusCode: 200}, nil
+}
+
+func searchHandler2(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+	metadata := quesma_api.MakeNewMetadata()
+	metadata["level"] = 0
+	atomic.AddInt64(&correlationId, 1)
+	quesma_api.SetCorrelationId(metadata, correlationId)
+	return &quesma_api.Result{Meta: metadata, GenericResult: request, StatusCode: 200}, nil
 }
 
 type IngestProcessor struct {
@@ -361,14 +370,22 @@ func NewQueryTransformationPipeline() *QueryTransformationPipeline {
 }
 
 func (p *QueryTransformationPipeline) ParseQuery(message any) (*processors.ExecutionPlan, error) {
-	_, err := quesma_api.CheckedCast[*http.Request](message)
+	req, err := quesma_api.CheckedCast[*quesma_api.Request](message)
 	if err != nil {
 		panic("QueryProcessor: invalid message type")
 	}
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: ParseQuery")
+	query, err := types.ExpectJSON(req.ParsedBody)
+	if err != nil {
+		return nil, err
+	}
+	queryBytes, err := query.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	queryStr := string(queryBytes)
 	plan := &processors.ExecutionPlan{}
-	query := "SELECT * FROM users"
-	plan.Queries = append(plan.Queries, &processors.Query{Query: query})
+	plan.Queries = append(plan.Queries, &processors.Query{Query: queryStr})
 	return plan, nil
 }
 
