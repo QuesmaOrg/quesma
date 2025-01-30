@@ -103,8 +103,12 @@ func (e *ElasticsearchBackendConnector) Send(r *http.Request) (*http.Response, e
 	r.URL.Host = e.config.Url.Host
 	r.URL.Scheme = e.config.Url.Scheme
 	r.RequestURI = "" // this is important for the request to be sent correctly to a different host
-	maybeAuthdReq := elasticsearch.AddBasicAuthIfNeeded(r, e.config.User, e.config.Password)
-	return e.client.Do(maybeAuthdReq)
+	if r.Header.Get("Authorization") == "" {
+		maybeAuthdReq := elasticsearch.AddBasicAuthIfNeeded(r, e.config.User, e.config.Password)
+		return e.client.Do(maybeAuthdReq)
+	} else { // request already came with auth header so just forward these credentials
+		return e.client.Do(r)
+	}
 }
 
 func (e *ElasticsearchBackendConnector) GetId() quesma_api.BackendConnectorType {
