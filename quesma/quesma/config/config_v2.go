@@ -396,35 +396,6 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 	}
 	if p.Type == QuesmaV1ProcessorQuery || p.Type == QuesmaV1ProcessorIngest {
 		for indexName, indexConfig := range p.Config.IndexConfig {
-			//// In order to maintain compat with v1 code we have to fill QueryTarget and IngestTarget for each index
-			//indexTarget, indexHasTargetSpecified := indexConfig.Target.([]interface{})
-			//if p.Type == QuesmaV1ProcessorQuery && indexHasTargetSpecified {
-			//	indexConf := p.Config.IndexConfig[indexName]
-			//	if len(indexTarget) != 0 {
-			//		targetType := c.GetBackendConnectorByName(indexTarget[0].(string)).Type
-			//		if targetType == "elasticsearch" {
-			//			targetType = "elasticsearch"
-			//		} else { // clickhouse-os, hydrolix included
-			//			targetType = "clickhouse"
-			//		}
-			//		indexConf.QueryTarget = []string{targetType}
-			//		p.Config.IndexConfig[indexName] = indexConf
-			//	}
-			//}
-			//if p.Type == QuesmaV1ProcessorIngest && indexHasTargetSpecified {
-			//	indexConf := p.Config.IndexConfig[indexName]
-			//	if len(indexTarget) != 0 {
-			//		targetType := c.GetBackendConnectorByName(indexTarget[0].(string)).Type
-			//		if targetType == "elasticsearch" {
-			//			targetType = "elasticsearch"
-			//		} else { // clickhouse-os, hydrolix included
-			//			targetType = "clickhouse"
-			//		}
-			//		indexConf.IngestTarget = []string{targetType}
-			//		p.Config.IndexConfig[indexName] = indexConf
-			//	}
-			//}
-			//// we will be able to remove block above after full migration to v2
 			if indexName != DefaultWildcardIndexName && strings.ContainsAny(indexName, "*,") {
 				return fmt.Errorf("index name '%s' in processor configuration is an index pattern, not allowed", indexName)
 			}
