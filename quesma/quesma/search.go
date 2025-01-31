@@ -218,6 +218,7 @@ func SplitQueries(body types.NDJSON, defaultIndexName string) ([]msearchQuery, e
 func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName string, body types.NDJSON) ([]byte, error) {
 
 	// Split the body into queries
+	// This is what ParseQuery does or should do
 	queries, err := SplitQueries(body, defaultIndexName)
 
 	if err != nil {
