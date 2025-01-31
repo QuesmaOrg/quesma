@@ -220,6 +220,10 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 	// Split the body into queries
 	queries, err := SplitQueries(body, defaultIndexName)
 
+	if err != nil {
+		return nil, err
+	}
+
 	// Handle each query
 	var responses []any
 
