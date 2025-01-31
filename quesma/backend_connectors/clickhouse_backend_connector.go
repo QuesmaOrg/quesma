@@ -4,15 +4,18 @@
 package backend_connectors
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 
 type ClickHouseBackendConnector struct {
 	BasicSqlBackendConnector
-	Endpoint string
+	cfg *config.RelationalDbConfiguration
 }
 
 func (p *ClickHouseBackendConnector) GetId() quesma_api.BackendConnectorType {
@@ -20,7 +23,7 @@ func (p *ClickHouseBackendConnector) GetId() quesma_api.BackendConnectorType {
 }
 
 func (p *ClickHouseBackendConnector) Open() error {
-	conn, err := initDBConnection()
+	conn, err := initDBConnection(p.cfg)
 	if err != nil {
 		return err
 	}
@@ -29,34 +32,46 @@ func (p *ClickHouseBackendConnector) Open() error {
 }
 
 // func initDBConnection(c *config.QuesmaConfiguration, tlsConfig *tls.Config) *sql.DB {
-func initDBConnection() (*sql.DB, error) {
-	options := clickhouse.Options{Addr: []string{"localhost:9000"}}
+func initDBConnection(c *config.RelationalDbConfiguration) (*sql.DB, error) {
+	options := clickhouse.Options{Addr: []string{c.Url.Host}}
+	if c.User != "" || c.Password != "" || c.Database != "" {
+
+		options.Auth = clickhouse.Auth{
+			Username: c.User,
+			Password: c.Password,
+			Database: c.Database,
+		}
+	}
+	if !c.DisableTLS {
+		options.TLS = &tls.Config{InsecureSkipVerify: true} // TODO this should be changed according to `connection.go` (more or less)
+	}
+
 	info := struct {
 		Name    string
 		Version string
 	}{
 		Name:    "quesma",
-		Version: "NEW ODD VERSION", //buildinfo.Version,
+		Version: buildinfo.Version,
 	}
+
 	options.ClientInfo.Products = append(options.ClientInfo.Products, info)
 	return clickhouse.OpenDB(&options), nil
 
 }
 
-func NewClickHouseBackendConnector(endpoint string) *ClickHouseBackendConnector {
+func NewClickHouseBackendConnector(configuration *config.RelationalDbConfiguration) *ClickHouseBackendConnector {
 	return &ClickHouseBackendConnector{
-		Endpoint: endpoint,
+		cfg: configuration,
 	}
 }
 
 // NewClickHouseBackendConnectorWithConnection bridges the gap between the ClickHouseBackendConnector and the sql.DB
 // so that it is can be used in pre-v2 code. Should be removed when moving forwards.
-func NewClickHouseBackendConnectorWithConnection(endpoint string, conn *sql.DB) *ClickHouseBackendConnector {
+func NewClickHouseBackendConnectorWithConnection(_ string, conn *sql.DB) *ClickHouseBackendConnector {
 	return &ClickHouseBackendConnector{
 		BasicSqlBackendConnector: BasicSqlBackendConnector{
 			connection: conn,
 		},
-		Endpoint: endpoint,
 	}
 }
 

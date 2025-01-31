@@ -6,6 +6,7 @@ package backend_connectors
 import (
 	"context"
 	"database/sql"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 
@@ -15,6 +16,7 @@ type SqlBackendConnector interface {
 
 type BasicSqlBackendConnector struct {
 	connection *sql.DB
+	cfg        *config.RelationalDbConfiguration
 }
 
 type SqlRows struct {
@@ -35,6 +37,15 @@ func (p *SqlRows) Close() error {
 
 func (p *SqlRows) Err() error {
 	return p.rows.Err()
+}
+
+func (p *BasicSqlBackendConnector) Open() error {
+	conn, err := initDBConnection(p.cfg)
+	if err != nil {
+		return err
+	}
+	p.connection = conn
+	return nil
 }
 
 func (p *BasicSqlBackendConnector) GetDB() *sql.DB {

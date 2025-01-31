@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
-	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
@@ -70,12 +69,10 @@ func (p *ElasticsearchToClickHouseQueryProcessor) GetId() string {
 // which uses `quesma_api.BackendConnector` instead of `*sql.DB` for the database connection.
 func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor() *quesm.QueryRunner {
 
-	logManager := clickhouse.NewEmptyLogManager(p.legacyDependencies.OldQuesmaConfig, p.legacyDependencies.ConnectionPool, p.legacyDependencies.PhoneHomeAgent(), p.legacyDependencies.TableDiscovery)
-	logManager.Start()
-
-	queryRunner := quesm.NewQueryRunner(logManager,
+	queryRunner := quesm.NewQueryRunner(
+		p.legacyDependencies.LogManager,
 		p.legacyDependencies.OldQuesmaConfig,
-		nil,
+		p.legacyDependencies.UIConsole,
 		p.legacyDependencies.SchemaRegistry,
 		p.legacyDependencies.AbTestingController.GetSender(),
 		p.legacyDependencies.TableResolver,
@@ -270,20 +267,9 @@ func (p *ElasticsearchToClickHouseQueryProcessor) GetSupportedBackendConnectors(
 }
 
 func findQueryTarget(index string, processorConfig config.QuesmaProcessorConfig) string {
-	var defaultTargetFromConfig string
-	wildcardConfig, ok := processorConfig.IndexConfig["*"]
-	if !ok {
-		logger.Warn().Msgf("No wildcard index config found in processor config!!")
-		return config.ClickhouseTarget
-	}
-	if len(wildcardConfig.QueryTarget) == 0 {
-		logger.Warn().Msgf("wildcard index has no target!!")
-		return config.ClickhouseTarget
-	}
-	defaultTargetFromConfig = wildcardConfig.QueryTarget[0]
 	_, found := processorConfig.IndexConfig[index]
 	if !found {
-		return defaultTargetFromConfig
+		return processorConfig.DefaultTargetConnectorType
 	} else { // per legacy syntax, if present means it's a clickhouse target
 		return config.ClickhouseTarget
 	}

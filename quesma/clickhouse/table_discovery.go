@@ -155,7 +155,7 @@ func (td *tableDiscovery) notifyObservers() {
 
 	msg := types.ReloadMessage{Timestamp: time.Now()}
 	for _, observer := range td.reloadObservers {
-		fmt.Println("Sending message to observer", observer)
+		logger.Info().Msgf("Sending message to observer %v", observer)
 		go func() {
 			observer <- msg
 		}()
