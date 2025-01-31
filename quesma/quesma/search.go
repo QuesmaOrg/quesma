@@ -357,11 +357,6 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 		}
 	}
 
-	err = q.transformQueries(ctx, plan)
-	if err != nil {
-		return responseBody, err
-	}
-
 	q.runExecutePlanAsync(ctx, plan, queryTranslator, table, doneCh, optAsync)
 
 	if optAsync == nil {
@@ -570,11 +565,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	plan.IndexPattern = indexPattern
 	plan.StartTime = startTime
 	plan.Name = model.MainExecutionPlan
-
+	err = q.transformQueries(ctx, plan)
+	if err != nil {
+		return responseBody, err
+	}
 	if decision.EnableABTesting {
 		return q.executeABTesting(ctx, plan, queryTranslator, table, body, optAsync, decision, indexPattern)
 	}
-
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, nil, true)
 
 }
