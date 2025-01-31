@@ -65,7 +65,7 @@ func openDashboards(ids []string) {
 	// this is URL of Kibana dashboard as seen from the chromeDP container
 	kibanaURL := "http://kibana:5601"
 
-	options := "?_g=(filters:!(),time:(from:now-1y,to:now))"
+	options := "?_g=(filters:!(),time:(from:now-1M,to:now))"
 
 	for _, id := range ids {
 		dashboardUrl := fmt.Sprintf("%s/app/dashboards#/view/%s%s", kibanaURL, id, options)
