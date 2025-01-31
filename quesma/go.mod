@@ -3,7 +3,7 @@ module github.com/QuesmaOrg/quesma/quesma
 go 1.23.5
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.30.1
+	github.com/ClickHouse/clickhouse-go/v2 v2.30.2
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/DataDog/go-sqllexer v0.0.20
 	github.com/H0llyW00dzZ/cidr v1.2.1
@@ -65,7 +65,7 @@ require (
 )
 
 require (
-	github.com/ClickHouse/ch-go v0.63.1 // indirect
+	github.com/ClickHouse/ch-go v0.64.0 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
@@ -86,8 +86,8 @@ require (
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.9.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	go.opentelemetry.io/otel v1.33.0 // indirect
-	go.opentelemetry.io/otel/trace v1.33.0 // indirect
+	go.opentelemetry.io/otel v1.34.0 // indirect
+	go.opentelemetry.io/otel/trace v1.34.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1
 )
