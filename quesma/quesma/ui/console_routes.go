@@ -74,7 +74,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	router.HandleFunc(loginWithElasticSearch, qmc.HandleElasticsearchLogin)
 
 	authenticatedRoutes := router.PathPrefix("/").Subrouter()
-	if qmc.cfg.Elasticsearch.User == "" && qmc.cfg.Elasticsearch.Password == "" {
+	if (qmc.cfg.Elasticsearch.User == "" && qmc.cfg.Elasticsearch.Password == "") || qmc.cfg.DisableAuth {
 		logger.Warn().Msg("admin console authentication is disabled")
 	} else {
 		qmc.isAuthEnabled = true
