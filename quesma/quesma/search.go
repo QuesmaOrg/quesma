@@ -156,6 +156,7 @@ func (q *QueryRunner) HandleCount(ctx context.Context, indexPattern string) (int
 		}
 	}
 
+	// Query execution block
 	if len(indexes) == 1 {
 		return q.logManager.Count(ctx, indexes[0])
 	} else {
@@ -163,8 +164,11 @@ func (q *QueryRunner) HandleCount(ctx context.Context, indexPattern string) (int
 	}
 }
 
+// Composite search is a search that can contain multiple queries
+// like bulk
 func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName string, body types.NDJSON) ([]byte, error) {
 
+	// Split the body into queries
 	type msearchQuery struct {
 		indexName string
 		query     types.JSON
@@ -211,6 +215,7 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 
 	}
 
+	// Handle each query
 	var responses []any
 
 	for _, query := range queries {
@@ -254,6 +259,7 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 
 	}
 
+	// build the response
 	type msearchResponse struct {
 		Responses []any `json:"responses"`
 	}
