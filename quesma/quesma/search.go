@@ -164,16 +164,12 @@ func (q *QueryRunner) HandleCount(ctx context.Context, indexPattern string) (int
 	}
 }
 
-// Composite search is a search that can contain multiple queries
-// like bulk
-func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName string, body types.NDJSON) ([]byte, error) {
+type msearchQuery struct {
+	indexName string
+	query     types.JSON
+}
 
-	// Split the body into queries
-	type msearchQuery struct {
-		indexName string
-		query     types.JSON
-	}
-
+func SplitQueries(body types.NDJSON, defaultIndexName string) ([]msearchQuery, error) {
 	var queries []msearchQuery
 
 	var currentQuery *msearchQuery
@@ -214,6 +210,15 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 		currentQuery = nil
 
 	}
+	return queries, nil
+}
+
+// Composite search is a search that can contain multiple queries
+// like bulk
+func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName string, body types.NDJSON) ([]byte, error) {
+
+	// Split the body into queries
+	queries, err := SplitQueries(body, defaultIndexName)
 
 	// Handle each query
 	var responses []any
@@ -280,6 +285,7 @@ func (q *QueryRunner) HandleSearch(ctx context.Context, indexPattern string, bod
 
 func (q *QueryRunner) HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
 	waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
+	// AsyncQuery marker should be result of ParseQuery
 	async := AsyncQuery{
 		asyncId:          tracing.GetAsyncId(),
 		waitForResultsMs: waitForResultsMs,
@@ -567,14 +573,14 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		pushSecondaryInfo(q.debugInfoCollector, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
 		return responseBody, errors.New(string(responseBody))
 	}
-
-	plan.IndexPattern = indexPattern
-	plan.StartTime = startTime
-	plan.Name = model.MainExecutionPlan
 	err = q.transformQueries(plan)
 	if err != nil {
 		return responseBody, err
 	}
+	plan.IndexPattern = indexPattern
+	plan.StartTime = startTime
+	plan.Name = model.MainExecutionPlan
+
 	if decision.EnableABTesting {
 		return q.executeABTesting(ctx, plan, queryTranslator, table, body, optAsync, decision, indexPattern)
 	}
