@@ -69,9 +69,12 @@ func openDashboards(ids []string) {
 
 	for _, id := range ids {
 		dashboardUrl := fmt.Sprintf("%s/app/dashboards#/view/%s%s", kibanaURL, id, options)
+
+		localUrl := fmt.Sprintf("http://localhost:5601/app/dashboards#/view/%s%s", id, options)
+
 		fmt.Println("Opening:", dashboardUrl)
 
-		openPageChromeDP(dashboardUrl)
+		openPageChromeDP(dashboardUrl, localUrl, id)
 
 		log.Println("Waiting 10 seconds before opening the next dashboard...")
 		time.Sleep(1 * time.Second)
@@ -127,7 +130,7 @@ func toFilename(s string) string {
 	return s
 }
 
-func openPageChromeDP(url string) {
+func openPageChromeDP(url string, localUrl string, dashboardId string) {
 
 	allocCtx, cancel := chromedp.NewRemoteAllocator(context.Background(), "http://localhost:9222/json")
 	defer cancel()
@@ -154,13 +157,36 @@ func openPageChromeDP(url string) {
 		log.Fatal(err)
 	}
 
-	filename := fmt.Sprintf("screenshots/%d-%s-%s.png", time.Now().UnixMilli(), toFilename(url), toFilename(title))
+	screenshotFilename := fmt.Sprintf("screenshots/%d-%s.png", time.Now().UnixMilli(), dashboardId)
 
-	if err := os.WriteFile(filename, buf, 0o644); err != nil {
+	if err := os.WriteFile(screenshotFilename, buf, 0o644); err != nil {
 		log.Fatal(err)
 	}
 
-	log.Println("Screenshot '", title, "'  saved to", url, filename)
+	indexHtml := fmt.Sprintf("screenshots/index.html")
+
+	// Create index.html file
+	if _, err := os.Stat(indexHtml); os.IsNotExist(err) {
+		_, err := os.Create(indexHtml)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// Append to index.html
+	f, err := os.OpenFile(indexHtml, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(fmt.Sprintf(`%s %s - <a href="%s">screenshot</a>  <a href="%s">dashboard</a><br>`, dashboardId, title, strings.ReplaceAll(screenshotFilename, "screenshots/", ""), localUrl))
+
+	_, err = f.WriteString(fmt.Sprintf(`<img src="%s" width="800">`, strings.ReplaceAll(screenshotFilename, "screenshots/", "")))
+	f.WriteString("<hr>\n")
+
+	log.Println("Screenshot '", title, "'  saved to", url, screenshotFilename)
 
 }
 
