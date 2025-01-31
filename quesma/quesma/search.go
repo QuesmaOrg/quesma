@@ -298,7 +298,7 @@ type AsyncQuery struct {
 	startTime        time.Time
 }
 
-func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.ExecutionPlan) error {
+func (q *QueryRunner) transformQueries(plan *model.ExecutionPlan) error {
 	var err error
 	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
 	if err != nil {
@@ -565,7 +565,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	plan.IndexPattern = indexPattern
 	plan.StartTime = startTime
 	plan.Name = model.MainExecutionPlan
-	err = q.transformQueries(ctx, plan)
+	err = q.transformQueries(plan)
 	if err != nil {
 		return responseBody, err
 	}
