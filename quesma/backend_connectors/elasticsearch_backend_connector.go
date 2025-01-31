@@ -42,8 +42,8 @@ func NewElasticsearchBackendConnector(cfg config.ElasticsearchConfiguration) *El
 	return conn
 }
 
-// NewElasticsearchBackendConnector2 is an alternative constructor which uses the generic database configuration object
-func NewElasticsearchBackendConnector2(cfg config.RelationalDbConfiguration) *ElasticsearchBackendConnector {
+// NewElasticsearchBackendConnectorFromDbConfig is an alternative constructor which uses the generic database configuration object
+func NewElasticsearchBackendConnectorFromDbConfig(cfg config.RelationalDbConfiguration) *ElasticsearchBackendConnector {
 	conn := &ElasticsearchBackendConnector{
 		config: config.ElasticsearchConfiguration{
 			Url:      cfg.Url,

@@ -93,7 +93,7 @@ func buildQuesmaFromV2Config(cfg config.QuesmaNewConfiguration, deps *es_to_ch_c
 				pipeline.AddBackendConnector(backendConnector)
 			case config.ElasticsearchBackendConnectorName:
 				connectorDeclaration := cfg.GetBackendConnectorByType(config.ElasticsearchBackendConnectorName)
-				backendConnector := backend_connectors.NewElasticsearchBackendConnector2(connectorDeclaration.Config)
+				backendConnector := backend_connectors.NewElasticsearchBackendConnectorFromDbConfig(connectorDeclaration.Config)
 				pipeline.AddBackendConnector(backendConnector)
 			default:
 				log.Fatalf("unknown backend connector type: %s", bc.Type)
