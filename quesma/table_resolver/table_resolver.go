@@ -161,7 +161,11 @@ func (r *tableRegistryImpl) updateIndexes() {
 		return true
 	})
 
-	logger.Info().Msgf("Clickhouse tables updated: %v", clickhouseIndexes)
+	if len(clickhouseIndexes) < 20 {
+		logger.Info().Msgf("Clickhouse tables updated: %v", clickhouseIndexes)
+	} else {
+		logger.Info().Msgf("Clickhouse tables updated: %d tables", len(clickhouseIndexes))
+	}
 
 	elasticIndexes := make(map[string]table)
 	r.indexManager.ReloadIndices()

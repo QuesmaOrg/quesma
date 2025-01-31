@@ -28,9 +28,28 @@ type ElasticsearchBackendConnector struct {
 	config config.ElasticsearchConfiguration
 }
 
+// NewElasticsearchBackendConnector is a constructor which uses old (v1) configuration object
 func NewElasticsearchBackendConnector(cfg config.ElasticsearchConfiguration) *ElasticsearchBackendConnector {
 	conn := &ElasticsearchBackendConnector{
 		config: cfg,
+		client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+			Timeout: esRequestTimeout,
+		},
+	}
+	return conn
+}
+
+// NewElasticsearchBackendConnectorFromDbConfig is an alternative constructor which uses the generic database configuration object
+func NewElasticsearchBackendConnectorFromDbConfig(cfg config.RelationalDbConfiguration) *ElasticsearchBackendConnector {
+	conn := &ElasticsearchBackendConnector{
+		config: config.ElasticsearchConfiguration{
+			Url:      cfg.Url,
+			User:     cfg.User,
+			Password: cfg.Password,
+		},
 		client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -84,8 +103,12 @@ func (e *ElasticsearchBackendConnector) Send(r *http.Request) (*http.Response, e
 	r.URL.Host = e.config.Url.Host
 	r.URL.Scheme = e.config.Url.Scheme
 	r.RequestURI = "" // this is important for the request to be sent correctly to a different host
-	maybeAuthdReq := elasticsearch.AddBasicAuthIfNeeded(r, e.config.User, e.config.Password)
-	return e.client.Do(maybeAuthdReq)
+	if r.Header.Get("Authorization") == "" {
+		maybeAuthdReq := elasticsearch.AddBasicAuthIfNeeded(r, e.config.User, e.config.Password)
+		return e.client.Do(maybeAuthdReq)
+	} else { // request already came with auth header so just forward these credentials
+		return e.client.Do(r)
+	}
 }
 
 func (e *ElasticsearchBackendConnector) GetId() quesma_api.BackendConnectorType {
