@@ -82,6 +82,40 @@ func TestSearchCommonTable(t *testing.T) {
 		},
 
 		{
+			Name:         "query virtual tables (the one is not existing)",
+			IndexPattern: "logs-1,logs-2,logs-not-existing",
+			QueryJson: `
+        {
+          "query": {
+            "match_all": {}
+          },
+          "track_total_hits": false,
+          "runtime_mappings": {
+        }
+}`,
+			WantedSql: []string{
+				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') LIMIT 10`,
+			},
+		},
+
+		{
+			Name:         "query virtual tables - daily indexes with optimization enabled",
+			IndexPattern: "daily-20250113,daily-20250114,daily-202500115",
+			QueryJson: `
+        {
+          "query": {
+            "match_all": {}
+          },
+          "track_total_hits": false,
+          "runtime_mappings": {
+        }
+}`,
+			WantedSql: []string{
+				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE startsWith("__quesma_index_name",'daily-') LIMIT 10`,
+			},
+		},
+
+		{
 			Name:         "query all logs - we query only virtual tables",
 			IndexPattern: "logs-*",
 			QueryJson: `
@@ -163,6 +197,15 @@ func TestSearchCommonTable(t *testing.T) {
 	}
 
 	quesmaConfig := &config.QuesmaConfiguration{
+		DefaultQueryOptimizers: map[string]config.OptimizerConfiguration{
+			"group_common_table_indexes": {
+				Disabled: false,
+				Properties: map[string]string{
+					"daily-": "true",
+				},
+			},
+		},
+		UseCommonTableForWildcard: true,
 		IndexConfig: map[string]config.IndexConfiguration{
 			"logs-1": {
 				UseCommonTable: true,
@@ -252,7 +295,35 @@ func TestSearchCommonTable(t *testing.T) {
 		},
 	})
 
+	for _, dailyIndex := range []string{"daily-20250113", "daily-20250114", "daily-202500115"} {
+
+		schemaRegistry.Tables[schema.IndexName(dailyIndex)] = schema.Schema{
+			Fields: map[schema.FieldName]schema.Field{
+				"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword},
+			},
+		}
+
+		tableMap.Store(dailyIndex, &clickhouse.Table{
+			Name: dailyIndex,
+			Cols: map[string]*clickhouse.Column{
+				"@timestamp": {Name: "@timestamp"},
+				"message":    {Name: "message"},
+			},
+			VirtualTable: true,
+		})
+
+	}
+
 	resolver := table_resolver.NewEmptyTableResolver()
+
+	resolver.Decisions["daily-20250113,daily-20250114,daily-202500115"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
+			ClickhouseTableName: common_table.TableName,
+			ClickhouseIndexes:   []string{"daily-20250113", "daily-20250114", "daily-202500115"},
+			IsCommonTable:       true,
+		}},
+	}
 
 	resolver.Decisions["logs-1"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
@@ -282,6 +353,14 @@ func TestSearchCommonTable(t *testing.T) {
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
 			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
+			IsCommonTable:       true,
+		}},
+	}
+
+	resolver.Decisions["logs-1,logs-2,logs-not-existing"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
+			ClickhouseTableName: common_table.TableName,
+			ClickhouseIndexes:   []string{"logs-1", "logs-2", "logs-not-existing"},
 			IsCommonTable:       true,
 		}},
 	}
