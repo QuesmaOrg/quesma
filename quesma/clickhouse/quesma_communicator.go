@@ -41,7 +41,7 @@ type PerformanceResult struct {
 // TODO query param should be type safe Query representing all parts of
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
-func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query) (rows []model.QueryResultRow, performanceResult PerformanceResult, err error) {
+func (lm *LogManager) ProcessQuery(ctx context.Context, query *model.Query) (rows []model.QueryResultRow, performanceResult PerformanceResult, err error) {
 	rowToScan := make([]interface{}, len(query.SelectCommand.Columns))
 	columns := make([]string, 0, len(query.SelectCommand.Columns))
 
@@ -88,11 +88,6 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 
 	rows, performanceResult, err = executeQuery(ctx, lm, query, columns, rowToScan)
 
-	if err == nil {
-		for _, row := range rows {
-			row.Index = table.Name
-		}
-	}
 	return rows, performanceResult, err
 }
 

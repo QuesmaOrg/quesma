@@ -809,8 +809,13 @@ func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]mo
 func (q *QueryRunner) makeJob(table *clickhouse.Table, query *model.Query) QueryJob {
 	return func(ctx context.Context) ([]model.QueryResultRow, clickhouse.PerformanceResult, error) {
 		var err error
-		rows, performance, err := q.logManager.ProcessQuery(ctx, table, query)
-
+		rows, performance, err := q.logManager.ProcessQuery(ctx, query)
+		// Another postprocessing of the result
+		if err == nil {
+			for _, row := range rows {
+				row.Index = table.Name
+			}
+		}
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			performance.Error = err

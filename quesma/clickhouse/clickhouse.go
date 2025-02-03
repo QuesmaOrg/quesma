@@ -71,7 +71,7 @@ type (
 type LogManagerIFace interface {
 	ResolveIndexPattern(ctx context.Context, schema schema.Registry, pattern string) (results []string, err error)
 	FindTable(tableName string) (result *Table)
-	ProcessQuery(ctx context.Context, table *Table, query *model.Query) (rows []model.QueryResultRow, performanceResult PerformanceResult, err error)
+	ProcessQuery(ctx context.Context, query *model.Query) (rows []model.QueryResultRow, performanceResult PerformanceResult, err error)
 	CountMultiple(ctx context.Context, tables ...string) (int64, error)
 	Count(ctx context.Context, table string) (int64, error)
 	GetTableDefinitions() (TableMap, error)

@@ -96,10 +96,16 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.
 	// TODO this will be used to cancel goroutine that is executing the query
 	_ = cancel
 
-	if rows, _, err2 := lm.ProcessQuery(dbQueryCtx, qt.Table, selectQuery); err2 != nil {
+	if rows, _, err2 := lm.ProcessQuery(dbQueryCtx, selectQuery); err2 != nil {
 		logger.Error().Msgf("terms enum failed - error processing SQL query [%s]", err2)
 		result, err = json.Marshal(emptyTermsEnumResponse())
 	} else {
+		// Another postprocessing of the result
+		if err == nil {
+			for _, row := range rows {
+				row.Index = qt.Table.Name
+			}
+		}
 		result, err = json.Marshal(makeTermsEnumResponse(rows))
 	}
 	path := ""
