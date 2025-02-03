@@ -682,60 +682,6 @@ func withAutodiscovery(cfg config.QuesmaConfiguration) config.QuesmaConfiguratio
 	return cfg
 }
 
-func Test_matchedAgainstBulkBody(t *testing.T) {
-
-	t.Skip(skipMessage)
-
-	tests := []struct {
-		name   string
-		body   string
-		config config.QuesmaConfiguration
-		want   bool
-	}{
-		{
-			name:   "single index, config present",
-			body:   `{"create":{"_index":"logs-generic-default"}}`,
-			config: indexConfig("logs-generic-default", false),
-			want:   true,
-		},
-		{
-			name:   "single index, table not present",
-			body:   `{"create":{"_index":"logs-generic-default"}}`,
-			config: indexConfig("foo", false),
-			want:   false,
-		},
-		{
-			name:   "multiple indexes, table present",
-			body:   `{"create":{"_index":"logs-generic-default"}}` + "\n{}\n" + `{"create":{"_index":"logs-generic-default"}}`,
-			config: indexConfig("logs-generic-default", false),
-			want:   true,
-		},
-		{
-			name:   "multiple indexes, some tables not present",
-			body:   `{"create":{"_index":"logs-generic-default"}}` + "\n{}\n" + `{"create":{"_index":"non-existent"}}`,
-			config: indexConfig("logs-generic-default", false),
-			want:   true,
-		},
-		{
-			name:   "multiple indexes, all tables not present",
-			body:   `{"create":{"_index":"not-there"}}` + "\n{}\n" + `{"create":{"_index":"non-existent"}}`,
-			config: indexConfig("logs-generic-default", false),
-			want:   false,
-		},
-	}
-
-	resolver := table_resolver.NewEmptyTableResolver()
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			req := &quesma_api.Request{Body: tt.body}
-
-			assert.Equalf(t, tt.want, matchedAgainstBulkBody(&tt.config, resolver).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
-		})
-	}
-}
-
 const testIndexName = "indexName"
 
 func TestConfigureRouter(t *testing.T) {
