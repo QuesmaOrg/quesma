@@ -5,6 +5,7 @@ package es_to_ch_query
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
@@ -276,7 +277,18 @@ func findQueryTarget(index string, processorConfig config.QuesmaProcessorConfig)
 }
 
 func ReadResponseBody(resp *http.Response) ([]byte, error) {
-	respBody, err := io.ReadAll(resp.Body)
+	var reader io.Reader
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		gzipReader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer gzipReader.Close()
+		reader = gzipReader
+	} else {
+		reader = resp.Body
+	}
+	respBody, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
