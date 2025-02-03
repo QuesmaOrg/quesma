@@ -8,21 +8,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 )
 
-type TransformationPipeline struct {
-	transformers []model.QueryTransformer
-}
-
-func (o *TransformationPipeline) Transform(queries []*model.Query) ([]*model.Query, error) {
-	var err error
-	for _, transformer := range o.transformers {
-		queries, err = transformer.Transform(queries)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return queries, nil
-}
-
 type replaceColumNamesWithFieldNames struct {
 	indexSchema schema.Schema
 }
