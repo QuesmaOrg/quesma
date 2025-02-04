@@ -73,7 +73,7 @@ func (query *DateHistogram) AggregationType() model.AggregationType {
 }
 
 func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-
+	fmt.Println("rows", len(rows))
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in date_histogram aggregation response, len(rows[0].Cols): %d",
@@ -110,6 +110,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		})
 	}
 
+	fmt.Println("KK buckets:", response)
 	return model.JsonMap{
 		"buckets": response,
 	}
