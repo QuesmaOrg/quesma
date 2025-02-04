@@ -14,9 +14,11 @@ import (
 // e.g. for expression "abc", value is "abc", for expression "title:abc", value is also "abc",
 // and for expression "title:(abc OR (def AND ghi))", value is "(abc OR (def AND ghi))".
 
-var wildcards = map[rune]rune{
-	'*': '%',
-	'?': '_',
+var wildcards = map[rune]string{
+	'*': "%",
+	'?': "_",
+	'%': "\\%",
+	'_': "\\_",
 }
 
 var specialCharacters = []rune{'+', '-', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\'} // they can be escaped in query string
@@ -41,7 +43,7 @@ func (v termValue) toExpression(fieldName string) model.Expr {
 	}
 	fmt.Println(termAsStringToClickhouse)
 	if wildcardsExist {
-		return model.NewInfixExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
+		return model.NewLikeExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteral(termAsStringToClickhouse), model.None, model.Escaped)
 	} else {
 		return model.NewInfixExpr(model.NewColumnRef(fieldName), " = ", model.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
 	}
@@ -58,7 +60,7 @@ func (v termValue) transformSpecialCharacters() (termFinal string, wildcardsExis
 		replacement, isWildcard := wildcards[curRune]
 		if isWildcard {
 			wildcardsExist = true
-			returnTerm.WriteRune(replacement)
+			returnTerm.WriteString(replacement)
 			continue
 		}
 

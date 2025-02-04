@@ -68,7 +68,7 @@ func (v *BaseExprVisitor) VisitLikeExpr(e LikeExpr) interface{} {
 	}
 	lhs := e.Left.Accept(v)
 	rhs := e.Right.Accept(v)
-	return NewLikeExpr(lhs.(Expr), e.Op, rhs.(Expr), e.BoundType)
+	return NewLikeExpr(lhs.(Expr), e.Op, rhs.(Expr), e.BoundType, e.RightEscape)
 }
 
 func (v *BaseExprVisitor) VisitPrefixExpr(e PrefixExpr) interface{} {

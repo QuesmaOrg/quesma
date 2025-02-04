@@ -115,12 +115,14 @@ func (e InfixExpr) Accept(v ExprVisitor) interface{} {
 
 type (
 	LikeExpr struct {
-		Left      Expr
-		Op        string
-		Right     Expr
-		BoundType LikeExprBoundType
+		Left        Expr
+		Op          string
+		Right       Expr
+		BoundType   LikeExprBoundType
+		RightEscape LikeExprRightEscape
 	}
-	LikeExprBoundType int8
+	LikeExprBoundType   int8
+	LikeExprRightEscape bool // whether the right side string of LIKE expression is already escaped (e.g. % -> \%)
 )
 
 const (
@@ -128,10 +130,12 @@ const (
 	Left
 	Right
 	Both
+	AlreadyEscaped LikeExprRightEscape = true
+	NotEscaped     LikeExprRightEscape = false
 )
 
-func NewLikeExpr(lhs Expr, op string, rhs Expr, boundType LikeExprBoundType) LikeExpr {
-	return LikeExpr{Left: lhs, Op: op, Right: rhs, BoundType: boundType}
+func NewLikeExpr(lhs Expr, op string, rhs Expr, boundType LikeExprBoundType, rightEscape LikeExprRightEscape) LikeExpr {
+	return LikeExpr{Left: lhs, Op: op, Right: rhs, BoundType: boundType, RightEscape: rightEscape}
 }
 
 func (s LikeExpr) Accept(v ExprVisitor) interface{} {
