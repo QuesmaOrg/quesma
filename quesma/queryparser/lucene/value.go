@@ -39,6 +39,7 @@ func (v termValue) toExpression(fieldName string) model.Expr {
 	if alreadyQuoted(v.term) {
 		termAsStringToClickhouse = termAsStringToClickhouse[1 : len(termAsStringToClickhouse)-1]
 	}
+	fmt.Println(termAsStringToClickhouse)
 	if wildcardsExist {
 		return model.NewInfixExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
 	} else {

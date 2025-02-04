@@ -113,6 +113,31 @@ func (e InfixExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitInfix(e)
 }
 
+type (
+	LikeExpr struct {
+		Left      Expr
+		Op        string
+		Right     Expr
+		BoundType LikeExprBoundType
+	}
+	LikeExprBoundType int8
+)
+
+const (
+	None LikeExprBoundType = iota
+	Left
+	Right
+	Both
+)
+
+func NewLikeExpr(lhs Expr, op string, rhs Expr, boundType LikeExprBoundType) LikeExpr {
+	return LikeExpr{Left: lhs, Op: op, Right: rhs, BoundType: boundType}
+}
+
+func (s LikeExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitLikeExpr(s)
+}
+
 func NewFunction(name string, args ...Expr) FunctionExpr {
 	return FunctionExpr{Name: name, Args: args}
 }
@@ -307,6 +332,7 @@ type ExprVisitor interface {
 	VisitLiteral(l LiteralExpr) interface{}
 	VisitTuple(t TupleExpr) interface{}
 	VisitInfix(e InfixExpr) interface{}
+	VisitLikeExpr(e LikeExpr) interface{}
 	VisitColumnRef(e ColumnRef) interface{}
 	VisitPrefixExpr(e PrefixExpr) interface{}
 	VisitNestedProperty(e NestedProperty) interface{}

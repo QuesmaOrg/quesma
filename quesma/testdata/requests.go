@@ -1348,6 +1348,21 @@ var TestsSearch = []SearchTestCase{
 		[]string{},
 	},
 	{ // [14]
+		"Prefix with special characters",
+		`
+		{
+			"query": {
+				"prefix" : { "user" : "ki%_\\ \%" }
+			},
+			"track_total_hits": false,
+			"size": 10
+		}`,
+		[]string{`"user" iLIKE 'ki\%\_\\%'`},
+		model.ListAllFields,
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user" iLIKE 'ki\%\_\\%'`},
+		[]string{},
+	},
+	{ // [14]
 		"Query string, wildcards don't work properly",
 		`
 		{

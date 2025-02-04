@@ -7,6 +7,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/k0kubun/pp"
 	"regexp"
 	"sort"
 	"strconv"
@@ -103,6 +104,7 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	} else {
 		rhs = "< RHS NIL >"
 	}
+
 	// This might look like a strange heuristics to but is aligned with the way we are currently generating the statement
 	// I think in the future every infix op should be in braces.
 	if strings.HasPrefix(e.Op, "_") || e.Op == "AND" || e.Op == "OR" {
@@ -112,6 +114,33 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	} else {
 		return fmt.Sprintf("%v%v%v", lhs, e.Op, rhs)
 	}
+}
+
+func (v *renderer) VisitLikeExpr(e LikeExpr) interface{} {
+	var lhs, rhs interface{} // TODO FOR NOW LITTLE PARANOID BUT HELPS ME NOT SEE MANY PANICS WHEN TESTING
+	if e.Left != nil {
+		lhs = e.Left.Accept(v)
+	} else {
+		lhs = "< LHS NIL >"
+	}
+
+	if e.Right != nil {
+		rhs = e.Right.Accept(v)
+	} else {
+		rhs = "< RHS NIL >"
+	}
+
+	switch e.BoundType {
+	case Left:
+		rhs = "%" + rhs.(string)
+	case Right:
+		rhs = rhs.(string) + "%"
+	case Both:
+		rhs = "%" + rhs.(string) + "%"
+	default:
+	}
+	pp.Println("HOHO", lhs, e.Op, rhs)
+	return fmt.Sprintf("%v %v %v", lhs, e.Op, rhs)
 }
 
 func (v *renderer) VisitOrderByExpr(e OrderByExpr) interface{} {

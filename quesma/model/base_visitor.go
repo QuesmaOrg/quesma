@@ -7,6 +7,7 @@ type BaseExprVisitor struct {
 	OverrideVisitLiteral        func(b *BaseExprVisitor, l LiteralExpr) interface{}
 	OverrideVisitTuple          func(b *BaseExprVisitor, t TupleExpr) interface{}
 	OverrideVisitInfix          func(b *BaseExprVisitor, e InfixExpr) interface{}
+	OverrideVisitLikeExpr       func(b *BaseExprVisitor, e LikeExpr) interface{}
 	OverrideVisitColumnRef      func(b *BaseExprVisitor, e ColumnRef) interface{}
 	OverrideVisitPrefixExpr     func(b *BaseExprVisitor, e PrefixExpr) interface{}
 	OverrideVisitNestedProperty func(b *BaseExprVisitor, e NestedProperty) interface{}
@@ -59,6 +60,15 @@ func (v *BaseExprVisitor) VisitInfix(e InfixExpr) interface{} {
 	lhs := e.Left.Accept(v)
 	rhs := e.Right.Accept(v)
 	return NewInfixExpr(lhs.(Expr), e.Op, rhs.(Expr))
+}
+
+func (v *BaseExprVisitor) VisitLikeExpr(e LikeExpr) interface{} {
+	if v.OverrideVisitLikeExpr != nil {
+		return v.OverrideVisitLikeExpr(v, e)
+	}
+	lhs := e.Left.Accept(v)
+	rhs := e.Right.Accept(v)
+	return NewLikeExpr(lhs.(Expr), e.Op, rhs.(Expr), e.BoundType)
 }
 
 func (v *BaseExprVisitor) VisitPrefixExpr(e PrefixExpr) interface{} {

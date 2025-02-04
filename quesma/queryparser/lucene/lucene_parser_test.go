@@ -67,7 +67,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`!db.str:FAIL`, `NOT ("db.str" = 'FAIL')`},
 		{`_exists_:title`, `"title" IS NOT NULL`},
 		{`!_exists_:title`, `NOT ("title" IS NOT NULL)`},
-		{"db.str:*weaver*", `"db.str" ILIKE '%weaver%'`},
+		{"db.str:*weaver%12*", `"db.str" ILIKE '%weaver\%12%'`},
 		{"(db.str:*weaver*)", `("db.str" ILIKE '%weaver%')`},
 		{"(a.type:*ab* OR a.type:*Ab*)", `(("a.type" ILIKE '%ab%') OR "a.type" ILIKE '%Ab%')`},
 	}
