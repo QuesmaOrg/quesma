@@ -15,10 +15,10 @@ import (
 // and for expression "title:(abc OR (def AND ghi))", value is "(abc OR (def AND ghi))".
 
 var wildcards = map[rune]string{
-	'*': "%",
-	'?': "_",
-	'%': "\\%",
-	'_': "\\_",
+	'*': `%`,
+	'?': `_`,
+	'%': `\%`,
+	'_': `\_`,
 }
 
 var specialCharacters = []rune{'+', '-', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\'} // they can be escaped in query string
@@ -43,7 +43,7 @@ func (v termValue) toExpression(fieldName string) model.Expr {
 	}
 	fmt.Println(termAsStringToClickhouse)
 	if wildcardsExist {
-		return model.NewLikeExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteral(termAsStringToClickhouse), model.None, model.Escaped)
+		return model.NewLikeExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteral(termAsStringToClickhouse), model.None, model.AlreadyEscaped)
 	} else {
 		return model.NewInfixExpr(model.NewColumnRef(fieldName), " = ", model.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
 	}

@@ -118,17 +118,32 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 
 func (v *renderer) VisitLikeExpr(e LikeExpr) interface{} {
 	var lhs, rhs interface{} // TODO FOR NOW LITTLE PARANOID BUT HELPS ME NOT SEE MANY PANICS WHEN TESTING
+	//var rhs string
 	if e.Left != nil {
 		lhs = e.Left.Accept(v)
 	} else {
 		lhs = "< LHS NIL >"
 	}
 
+	if e.Right == nil {
+		rhs = "< RHS NIL >"
+	} else {
+		rhs = e.Right.Accept(v)
+	}
+
+	/*else if l, ok := e.Right.(LiteralExpr); ok {
+		if s, ok2 := l.Value.(string); ok2 {
+			_ = s
+		}
+	} else {
+		rhs = "< RHS NOT STRING >"
+	}
 	if e.Right != nil {
 		rhs = e.Right.Accept(v)
 	} else {
 		rhs = "< RHS NIL >"
 	}
+	*/
 
 	switch e.BoundType {
 	case Left:
@@ -140,7 +155,7 @@ func (v *renderer) VisitLikeExpr(e LikeExpr) interface{} {
 	default:
 	}
 	pp.Println("HOHO", lhs, e.Op, rhs)
-	return fmt.Sprintf("%v %v %v", lhs, e.Op, rhs)
+	return fmt.Sprintf("%v %v '%v'", lhs, e.Op, rhs)
 }
 
 func (v *renderer) VisitOrderByExpr(e OrderByExpr) interface{} {

@@ -4,6 +4,7 @@ package lucene
 
 import (
 	"context"
+	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"strconv"
@@ -55,7 +56,14 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`title:(return [Aida TO Carmen])`, `("title" = 'return' OR ("title" >= 'Aida' AND "title" <= 'Carmen'))`},
 		{`host.name:(NOT active OR NOT (pending OR in-progress)) (full text search)^2`, `((((NOT ("host.name" = 'active') OR NOT (("host.name" = 'pending' OR "host.name" = 'in-progress'))) OR (("title" = 'full' OR "text" = 'full'))) OR ("title" = 'text' OR "text" = 'text')) OR ("title" = 'search' OR "text" = 'search'))`},
 		{`host.name:(active AND NOT (pending OR in-progress)) hermes nemesis^2`, `((("host.name" = 'active' AND NOT (("host.name" = 'pending' OR "host.name" = 'in-progress'))) OR ("title" = 'hermes' OR "text" = 'hermes')) OR ("title" = 'nemesis' OR "text" = 'nemesis'))`},
+		// special characters
 		{`dajhd \(%&RY#WFDG`, `(("title" = 'dajhd' OR "text" = 'dajhd') OR ("title" = '(%&RY#WFDG' OR "text" = '(%&RY#WFDG'))`},
+		{`x:aaa'bbb`, `"x" = 'aaa\'bbb'`},
+		{`x:aaa\bbb`, `"x" = 'aaa\\\\bbb'`},
+		{`x:aaa*bbb`, `"x" = 'aaa%bbb'`},
+		{`x:aaa_bbb`, `"x" = 'aaa\\_bbb'`},
+		{`x:aaa%bbb`, `"x" = 'aaa\\%bbb'`},
+		{`x:aaa%\*_bbb`, `"x" = 'aaa\\%bbb'`},
 		// tests for wildcards
 		{`*`, `("title" ILIKE '%' OR "text" ILIKE '%')`},
 		{`*neme*`, `("title" ILIKE '%neme%' OR "text" ILIKE '%neme%')`},
@@ -133,5 +141,18 @@ func TestResolvePropertyNamesWhenTranslatingToSQL(t *testing.T) {
 				t.Errorf("\ngot  [%q]\nwant [%q]", got, tt.want)
 			}
 		})
+	}
+}
+
+func qTestA(t *testing.T) {
+	not := model.NewFunction("NOT", model.NewColumnRef("status"))
+	litOk := model.NewLiteral("active")
+	litNot := model.NewLiteral(3)
+
+	dupa := []model.Expr{not, litOk, litNot}
+	for _, x := range dupa {
+		if a, ok := x.(model.LiteralExpr).Value.(string); ok {
+			fmt.Println("OK", a)
+		}
 	}
 }
