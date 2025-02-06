@@ -231,7 +231,7 @@ func ResolveType(clickHouseTypeName string) reflect.Type {
 }
 
 // 'value': value of a field, from unmarshalled JSON
-func NewType(value any) Type {
+func NewType(value any, valueOrigin string) Type {
 	isFloatInt := func(f float64) bool {
 		return math.Mod(f, 1.0) == 0.0
 	}
@@ -258,7 +258,7 @@ func NewType(value any) Type {
 		cols := make([]*Column, len(valueCasted))
 		for k, v := range valueCasted {
 			if v != nil {
-				cols = append(cols, &Column{Name: k, Type: NewType(v), Codec: Codec{Name: ""}})
+				cols = append(cols, &Column{Name: k, Type: NewType(v, fmt.Sprintf("%s.%s", valueOrigin, k)), Codec: Codec{Name: ""}})
 			}
 		}
 		return MultiValueType{Name: "Tuple", Cols: cols}
@@ -267,10 +267,10 @@ func NewType(value any) Type {
 			// empty array defaults to string for now, maybe change needed or error returned
 			return CompoundType{Name: "Array", BaseType: NewBaseType("String")}
 		}
-		return CompoundType{Name: "Array", BaseType: NewType(valueCasted[0])}
+		return CompoundType{Name: "Array", BaseType: NewType(valueCasted[0], fmt.Sprintf("%s[0]", valueOrigin))}
 	}
 
-	logger.Warn().Msgf("Unsupported type '%T' of value: %v.", value, value)
+	logger.Warn().Msgf("Unsupported type '%T' of value: %v (origin: %s).", value, value, valueOrigin)
 
 	// value can be nil, so should return something reasonable here
 	return BaseType{Name: "String", GoType: reflect.TypeOf("")}
