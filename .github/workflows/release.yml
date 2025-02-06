@@ -92,6 +92,9 @@ jobs:
             ```bash
             docker pull quesma/quesma:${{ github.event.inputs.VERSION }}
             ```
+            
+            **Release Notes:**
+            - This is a bugix release.
 
             All tags URL: https://hub.docker.com/r/quesma/quesma/tags
           draft: true
