@@ -215,6 +215,11 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 
 	var responses []any
 
+	var queriedIndices []string
+	for _, query := range queries {
+		queriedIndices = append(queriedIndices, query.indexName)
+	}
+	logger.DebugWithCtx(ctx).Msgf("handling multisearch: queries=%d, indices=[%s], defaultIndex=[%s]", len(queries), queriedIndices, defaultIndexName)
 	for _, query := range queries {
 
 		// TODO ask table resolver here and go to the right connector or connectors
