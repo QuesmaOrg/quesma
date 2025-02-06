@@ -209,3 +209,29 @@ func HandleBulk(ctx context.Context, body types.NDJSON, ip *ingest.IngestProcess
 	results, err := bulk.Write(ctx, nil, body, ip, ingestStatsEnabled, esConn, dependencies.PhoneHomeAgent(), tableResolver)
 	return bulkInsertResult(ctx, results, err)
 }
+
+func HandleMultiSearch(ctx context.Context, req *quesma_api.Request, defaultIndexName string, queryRunner QueryRunnerIFace) (*quesma_api.Result, error) {
+
+	body, err := types.ExpectNDJSON(req.ParsedBody)
+	if err != nil {
+		return nil, err
+	}
+
+	responseBody, err := queryRunner.HandleMultiSearch(ctx, defaultIndexName, body)
+
+	if err != nil {
+		if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
+			return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
+		} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
+			return &quesma_api.Result{
+				Body:          string(queryparser.BadRequestParseError(err)),
+				StatusCode:    http.StatusBadRequest,
+				GenericResult: queryparser.BadRequestParseError(err),
+			}, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+}
