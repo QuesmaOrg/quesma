@@ -273,7 +273,9 @@ func (r *Dispatcher) Reroute(ctx context.Context, w http.ResponseWriter, req *ht
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.debugInfoCollector, func() (*quesma_api.Result, error) {
 			var result *quesma_api.Result
 			result, err = handlersPipe.Handler(ctx, quesmaRequest, w)
-
+			if err != nil {
+				logger.ErrorWithCtx(ctx).Msgf("Error processing request: %v", err)
+			}
 			if result == nil {
 				return result, err
 			}
