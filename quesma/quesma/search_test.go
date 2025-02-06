@@ -872,7 +872,7 @@ func TestFullQueryTestWIP(t *testing.T) {
 		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 		for i, expectedSQL := range testcase.ExpectedSQLs {
-			rows := sqlmock.NewRows([]string{"name-not-important"})
+			rows := sqlmock.NewRows([]string{"column-name-not-important"})
 			for _, row := range testcase.ExpectedSQLResults[i] {
 				rows.AddRow(row.Cols[0].Value)
 			}
