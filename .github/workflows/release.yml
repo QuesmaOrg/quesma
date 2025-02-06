@@ -94,7 +94,7 @@ jobs:
             ```
             
             **Release Notes:**
-            - This is a bugix release.
+            - This is a minor bugfix release.
 
             All tags URL: https://hub.docker.com/r/quesma/quesma/tags
           draft: true
