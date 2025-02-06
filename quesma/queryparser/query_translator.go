@@ -4,6 +4,7 @@ package queryparser
 
 import (
 	"context"
+	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
@@ -79,6 +80,7 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 	if !isPartial {
 		response.CompletionStatus = completionStatusOK
 	}
+	fmt.Println("KK 3", response)
 	return &response, nil
 }
 
@@ -100,6 +102,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 			}
 		}
 	}
+	fmt.Println("KK 1", aggregations)
 	return aggregations, nil
 }
 
@@ -256,7 +259,7 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 			Relation: "gte",
 		}
 	}
-
+	fmt.Println("KK 2", response)
 	return response
 }
 

@@ -333,7 +333,7 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 		}
 
 		searchResponse := queryTranslator.MakeSearchResponse(plan.Queries, results)
-
+		fmt.Println("KK 4, search.go", searchResponse)
 		doneCh <- asyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 	}()
 }
@@ -364,7 +364,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	}
 
 	q.runExecutePlanAsync(ctx, plan, queryTranslator, table, doneCh, optAsync)
-
+	fmt.Println("optAsync == nil?", optAsync)
 	if optAsync == nil {
 		bodyAsBytes, _ := body.Bytes()
 		response := <-doneCh

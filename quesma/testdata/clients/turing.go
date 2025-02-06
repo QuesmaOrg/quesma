@@ -40,7 +40,7 @@ var TuringTests = []testdata.AggregationTestCase{
 		{
 			"aggregations": {
 				"2": {
-					"buckets": null
+					"buckets": []
 				}
 			}
 		}`,
@@ -67,7 +67,7 @@ var TuringTests = []testdata.AggregationTestCase{
 				FROM __quesma_table_name
 				GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
 				  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
-				  "aggr__2__key_0", "level" AS "aggr__2__3__key_0"))
+				  "aggr__2__key_0", "score" AS "aggr__2__3__key_0"))
 			WHERE "aggr__2__3__order_1_rank"<=6
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
 	},

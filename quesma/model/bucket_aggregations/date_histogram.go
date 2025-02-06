@@ -89,7 +89,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
-	var response []model.JsonMap
+	response := make([]model.JsonMap, 0, len(rows))
 	for _, row := range rows {
 		docCount := row.LastColValue()
 		docCountAsInt, err := util.ExtractInt64(docCount)
