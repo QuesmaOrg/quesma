@@ -77,6 +77,7 @@ type QueryRunnerIFace interface {
 	GetLogManager() clickhouse.LogManagerIFace
 	DeleteAsyncSearch(id string) ([]byte, error)
 	HandlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error)
+	HandleMultiSearch(ctx context.Context, defaultIndexName string, body types.NDJSON) ([]byte, error)
 }
 
 func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
@@ -447,7 +448,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	}
 
-	// it's impossible here to don't have a clickhouse decision
+	// it's impossible here to don't have a clickhouse decision TODO: it's possible in `_msearch` case
 	if clickhouseConnector == nil {
 		return nil, fmt.Errorf("no clickhouse connector")
 	}
@@ -631,7 +632,8 @@ func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
 	return size
 }
 
-func (q *QueryRunner) HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error) {
+func (q *QueryRunner) HandleAsyncSearchStatus(ctx context.Context, id string) ([]byte, error) {
+	logger.DebugWithCtx(ctx).Msgf("handling async search status for id: %s", id)
 	if _, ok := q.AsyncRequestStorage.Load(id); ok { // there IS a result in storage, so query is completed/no longer running,
 		return queryparser.EmptyAsyncSearchStatusResponse(id, false, false, 200)
 	} else { // there is no result so query is might be(*) running
