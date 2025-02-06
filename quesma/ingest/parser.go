@@ -94,7 +94,7 @@ func JsonToColumns(m SchemaMap, chConfig *clickhouse.ChTableConfig) []CreateTabl
 		if value == nil { // HACK ALERT -> We're treating null values as strings for now, so that we don't completely discard documents with empty values
 			fTypeString = "Nullable(String)"
 		} else {
-			fType := clickhouse.NewType(value)
+			fType := clickhouse.NewType(value, name)
 
 			// handle "field":{} case (Elastic Agent sends such JSON fields) by ignoring them
 			if multiValueType, ok := fType.(clickhouse.MultiValueType); ok && len(multiValueType.Cols) == 0 {
@@ -315,7 +315,7 @@ func BuildAttrsMap(m SchemaMap, config *clickhouse.ChTableConfig) (map[string][]
 			if a.Type.CanConvert(value) {
 				result[a.KeysArrayName] = append(result[a.KeysArrayName], name)
 				result[a.ValuesArrayName] = append(result[a.ValuesArrayName], fmt.Sprintf("%v", value))
-				result[a.TypesArrayName] = append(result[a.TypesArrayName], clickhouse.NewType(value).String())
+				result[a.TypesArrayName] = append(result[a.TypesArrayName], clickhouse.NewType(value, name).String())
 
 				matched = true
 				break

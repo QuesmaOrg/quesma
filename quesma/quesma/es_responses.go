@@ -14,7 +14,6 @@ import (
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/goccy/go-json"
 	"net/http"
-	"regexp"
 	"sync"
 )
 
@@ -212,15 +211,3 @@ type (
 		Index              string `json:"index"`
 	}
 )
-
-var indexNamePattern = regexp.MustCompile(`"_index"\s*:\s*"([^"]+)"`)
-
-func extractIndexName(input string) string {
-	results := indexNamePattern.FindStringSubmatch(input)
-
-	if len(results) < 2 {
-		return ""
-	}
-
-	return results[1]
-}
