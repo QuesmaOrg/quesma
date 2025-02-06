@@ -3,7 +3,7 @@
 package telemetry
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -351,4 +351,77 @@ func TestAgent_CollectElastic_Version(t *testing.T) {
 
 	assert.Equal(t, "8.11.1", response.Version.Number)
 
+}
+
+func TestGetTopNValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string]int64
+		n        int
+		expected map[string]int64
+	}{
+		{
+			name: "LessThanN",
+			input: map[string]int64{
+				"table2": 300,
+				"table1": 500,
+			},
+			n: 5,
+			expected: map[string]int64{
+				"table1": 500,
+				"table2": 300,
+			},
+		},
+		{
+			name: "EqualToN",
+			input: map[string]int64{
+				"table1": 200,
+				"table3": 500,
+				"table2": 300,
+			},
+			n: 3,
+			expected: map[string]int64{
+				"table3": 500,
+				"table2": 300,
+				"table1": 200,
+			},
+		},
+		{
+			name: "MoreThanN",
+			input: map[string]int64{
+				"table2": 300,
+				"table4": 100,
+				"table1": 500,
+				"table3": 200,
+			},
+			n: 3,
+			expected: map[string]int64{
+				"table1": 500,
+				"table2": 300,
+				"table3": 200,
+			},
+		},
+		{
+			name:     "EmptyMap",
+			input:    map[string]int64{},
+			n:        3,
+			expected: map[string]int64{},
+		},
+		{
+			name: "NegativeN",
+			input: map[string]int64{
+				"table1": 500,
+				"table2": 300,
+			},
+			n:        -1,
+			expected: map[string]int64{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getTopNValues(tt.input, tt.n)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }

@@ -4,11 +4,11 @@ package ui
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
 	"github.com/rs/zerolog"
 	"net/url"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/quesma/ui/internal/builder"
 	"regexp"
 	"sort"
 )

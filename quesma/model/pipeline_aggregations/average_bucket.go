@@ -5,10 +5,9 @@ package pipeline_aggregations
 import (
 	"context"
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/queryprocessor"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 )
 
 type AverageBucket struct {
@@ -32,7 +31,7 @@ func (query AverageBucket) CalculateResultWhenMissing(parentRows []model.QueryRe
 	if len(parentRows) == 0 {
 		return resultRows // maybe null?
 	}
-	qp := queryprocessor.NewQueryProcessor(query.ctx)
+	qp := model.NewQueryProcessor(query.ctx)
 	parentFieldsCnt := len(parentRows[0].Cols) - 2 // -2, because row is [parent_cols..., current_key, current_value]
 	// in calculateSingleAvgBucket we calculate avg all current_keys with the same parent_cols
 	// so we need to split into buckets based on parent_cols

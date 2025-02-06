@@ -4,19 +4,21 @@ package ui
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/stats"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/rs/zerolog"
-	"quesma/elasticsearch"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/telemetry"
-	"quesma/util"
-
+	"io"
 	"net/http"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/stats"
 	"reflect"
 	"regexp"
 	"strings"
@@ -38,31 +40,10 @@ const (
 
 var requestIdRegex, _ = regexp.Compile(logger.RID + `":"([0-9a-fA-F-]+)"`)
 
-type QueryDebugPrimarySource struct {
-	Id          string
-	QueryResp   []byte
-	PrimaryTook time.Duration
-}
-
-type QueryDebugSecondarySource struct {
-	Id       string
-	AsyncId  string
-	OpaqueId string
-
-	Path              string
-	IncomingQueryBody []byte
-
-	QueryBodyTranslated    []types.TranslatedSQLQuery
-	QueryTranslatedResults []byte
-	SecondaryTook          time.Duration
-
-	IsAlternativePlan bool
-}
-
 type queryDebugInfo struct {
-	QueryDebugPrimarySource
-	QueryDebugSecondarySource
-	alternativePlanDebugSecondarySource *QueryDebugSecondarySource
+	diag.QueryDebugPrimarySource
+	diag.QueryDebugSecondarySource
+	alternativePlanDebugSecondarySource *diag.QueryDebugSecondarySource
 	logMessages                         []string
 	errorLogCount                       int
 	warnLogCount                        int
@@ -82,8 +63,8 @@ type recordRequests struct {
 
 type (
 	QuesmaManagementConsole struct {
-		queryDebugPrimarySource   chan *QueryDebugPrimarySource
-		queryDebugSecondarySource chan *QueryDebugSecondarySource
+		queryDebugPrimarySource   chan *diag.QueryDebugPrimarySource
+		queryDebugSecondarySource chan *diag.QueryDebugSecondarySource
 		queryDebugLogs            <-chan logger.LogWithLevel
 		ui                        *http.Server
 		mutex                     sync.Mutex
@@ -97,23 +78,23 @@ type (
 		clickhouseStatusCache     healthCheckStatusCache
 		elasticStatusCache        healthCheckStatusCache
 		logManager                *clickhouse.LogManager
-		indexManagement           elasticsearch.IndexManagement
-		phoneHomeAgent            telemetry.PhoneHomeAgent
+		phoneHomeAgent            diag.PhoneHomeRecentStatsProvider
 		schemasProvider           SchemasProvider
 		totalUnsupportedQueries   int
+		elasticsearch             *backend_connectors.ElasticsearchBackendConnector
 		tableResolver             table_resolver.TableResolver
 
 		isAuthEnabled bool
 	}
 	SchemasProvider interface {
-		AllSchemas() map[schema.TableName]schema.Schema
+		AllSchemas() map[schema.IndexName]schema.Schema
 	}
 )
 
-func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan logger.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent, schemasProvider SchemasProvider, indexRegistry table_resolver.TableResolver) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *clickhouse.LogManager, logChan <-chan logger.LogWithLevel, phoneHomeAgent diag.PhoneHomeRecentStatsProvider, schemasProvider SchemasProvider, indexRegistry table_resolver.TableResolver) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
-		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 10),
-		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 10),
+		queryDebugPrimarySource:   make(chan *diag.QueryDebugPrimarySource, 10),
+		queryDebugSecondarySource: make(chan *diag.QueryDebugSecondarySource, 10),
 		queryDebugLogs:            logChan,
 		debugInfoMessages:         make(map[string]queryDebugInfo),
 		debugLastMessages:         make([]string, 0),
@@ -125,18 +106,18 @@ func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *cli
 		clickhouseStatusCache:     newHealthCheckStatusCache(),
 		elasticStatusCache:        newHealthCheckStatusCache(),
 		logManager:                logManager,
-		indexManagement:           indexManager,
+		elasticsearch:             backend_connectors.NewElasticsearchBackendConnector(cfg.Elasticsearch),
 		phoneHomeAgent:            phoneHomeAgent,
 		schemasProvider:           schemasProvider,
 		tableResolver:             indexRegistry,
 	}
 }
 
-func (qmc *QuesmaManagementConsole) PushPrimaryInfo(qdebugInfo *QueryDebugPrimarySource) {
+func (qmc *QuesmaManagementConsole) PushPrimaryInfo(qdebugInfo *diag.QueryDebugPrimarySource) {
 	qmc.queryDebugPrimarySource <- qdebugInfo
 }
 
-func (qmc *QuesmaManagementConsole) PushSecondaryInfo(qdebugInfo *QueryDebugSecondarySource) {
+func (qmc *QuesmaManagementConsole) PushSecondaryInfo(qdebugInfo *diag.QueryDebugSecondarySource) {
 	qmc.queryDebugSecondarySource <- qdebugInfo
 }
 
@@ -174,8 +155,8 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 	select {
 	case msg := <-qmc.queryDebugPrimarySource:
 		logger.Debug().Msg("Received debug info from primary source: " + msg.Id)
-		debugPrimaryInfo := QueryDebugPrimarySource{msg.Id,
-			[]byte(util.JsonPrettify(string(msg.QueryResp), true)), msg.PrimaryTook}
+		debugPrimaryInfo := diag.QueryDebugPrimarySource{Id: msg.Id,
+			QueryResp: []byte(util.JsonPrettify(string(msg.QueryResp), true)), PrimaryTook: msg.PrimaryTook}
 		qmc.mutex.Lock()
 		if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
 			qmc.debugInfoMessages[msg.Id] = queryDebugInfo{
@@ -195,20 +176,20 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 	case msg := <-qmc.queryDebugSecondarySource:
 		logger.Debug().Msg("Received debug info from secondary source: " + msg.Id)
 		// fmt.Println(msg.IncomingQueryBody)
-		secondaryDebugInfo := QueryDebugSecondarySource{
-			msg.Id,
-			msg.AsyncId,
-			msg.OpaqueId,
-			msg.Path,
-			[]byte(util.JsonPrettify(string(msg.IncomingQueryBody), true)),
-			msg.QueryBodyTranslated,
-			[]byte(util.JsonPrettify(string(msg.QueryTranslatedResults), true)),
-			msg.SecondaryTook,
-			msg.IsAlternativePlan,
+		secondaryDebugInfo := diag.QueryDebugSecondarySource{
+			Id:                     msg.Id,
+			AsyncId:                msg.AsyncId,
+			OpaqueId:               msg.OpaqueId,
+			Path:                   msg.Path,
+			IncomingQueryBody:      []byte(util.JsonPrettify(string(msg.IncomingQueryBody), true)),
+			QueryBodyTranslated:    msg.QueryBodyTranslated,
+			QueryTranslatedResults: []byte(util.JsonPrettify(string(msg.QueryTranslatedResults), true)),
+			SecondaryTook:          msg.SecondaryTook,
+			IsAlternativePlan:      msg.IsAlternativePlan,
 		}
 		qmc.mutex.Lock()
 
-		setDebugInfo := func(info *queryDebugInfo, secondaryDebugInfo QueryDebugSecondarySource) {
+		setDebugInfo := func(info *queryDebugInfo, secondaryDebugInfo diag.QueryDebugSecondarySource) {
 			if secondaryDebugInfo.IsAlternativePlan {
 				info.alternativePlanDebugSecondarySource = &secondaryDebugInfo
 			} else {
@@ -280,7 +261,38 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 }
 
 func isComplete(value queryDebugInfo) bool {
-	return !reflect.DeepEqual(value.QueryDebugPrimarySource, QueryDebugPrimarySource{}) && !reflect.DeepEqual(value.QueryDebugSecondarySource, QueryDebugSecondarySource{})
+	return !reflect.DeepEqual(value.QueryDebugPrimarySource, diag.QueryDebugPrimarySource{}) && !reflect.DeepEqual(value.QueryDebugSecondarySource, diag.QueryDebugSecondarySource{})
+}
+
+func (qmc *QuesmaManagementConsole) GetElasticSearchIndices(ctx context.Context) (indices []string) {
+	sources := qmc.elasticsearchResolveIndexPattern(ctx, "*")
+	for _, index := range sources.Indices {
+		indices = append(indices, index.Name)
+	}
+	return
+}
+
+func (qmc *QuesmaManagementConsole) elasticsearchResolveIndexPattern(ctx context.Context, indexPattern string) (sources elasticsearch.Sources) {
+	resp, err := qmc.elasticsearch.RequestWithHeaders(ctx, "GET", elasticsearch.ResolveIndexPattenPath(indexPattern), nil, nil)
+	if err != nil {
+		logger.InfoWithCtx(ctx).Msgf("Failed call Elasticsearch: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.InfoWithCtx(ctx).Msgf("Failed to read response from Elasticsearch: %v", err)
+		return
+	}
+	err = json.Unmarshal(body, &sources)
+	if err != nil {
+		logger.InfoWithCtx(ctx).Msgf("Failed to parse response from Elasticsearch: %v", err)
+		return
+	}
+	return
 }
 
 func (qmc *QuesmaManagementConsole) Run() {

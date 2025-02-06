@@ -3,74 +3,49 @@
 package resolve
 
 import (
-	"quesma/elasticsearch"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"slices"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 )
 
-func HandleResolve(pattern string, sr schema.Registry, cfg *config.QuesmaConfiguration) (elasticsearch.Sources, error) {
-	// In the _resolve endpoint we want to combine the results from both schema.Registry and Elasticsearch
+// HandleResolve combines results from both schema.Registry (ClickHouse) and Elasticsearch,
+// This endpoint is used in Kibana/OSD when creating Data Views/Index Patterns.
+func HandleResolve(pattern string, sr schema.Registry, ir elasticsearch.IndexResolver) (elasticsearch.Sources, error) {
+	sourcesToShow := &elasticsearch.Sources{}
 
-	normalizedPattern := elasticsearch.NormalizePattern(pattern)
+	normalizedPattern := elasticsearch.NormalizePattern(pattern) // changes `_all` to `*`
 
-	// Optimization: if it's not a pattern, let's try avoiding querying Elasticsearch - let's first try
-	// finding that index in schema.Registry:
-	if !elasticsearch.IsIndexPattern(normalizedPattern) {
-		if foundSchema, found := sr.FindSchema(schema.TableName(normalizedPattern)); found {
-			if !foundSchema.ExistsInDataSource {
-				// index configured by the user, but not present in the data source
-				return elasticsearch.Sources{}, nil
-			}
-
-			return elasticsearch.Sources{
-				Indices: []elasticsearch.Index{},
-				Aliases: []elasticsearch.Alias{},
-				DataStreams: []elasticsearch.DataStream{
-					{
-						Name:           normalizedPattern,
-						BackingIndices: []string{normalizedPattern},
-						TimestampField: `@timestamp`,
-					},
-				},
-			}, nil
-		}
-
-		// ...index not found in schema.Registry (meaning the user did not configure it), but it could exist in Elastic
-	}
-
-	// Combine results from both schema.Registry and Elasticsearch:
-
-	// todo avoid creating new instances all the time
-	sourcesFromElastic, _, err := elasticsearch.NewIndexResolver(cfg.Elasticsearch).Resolve(normalizedPattern)
+	sourcesFromElasticsearch, _, err := ir.Resolve(normalizedPattern)
 	if err != nil {
-		return elasticsearch.Sources{}, err
+		logger.Warn().Msgf("Failed fetching resolving sources matching `%s`: %v", pattern, err)
+	} else {
+		sourcesToShow = &sourcesFromElasticsearch
 	}
 
-	combineSourcesFromElasticWithRegistry(&sourcesFromElastic, sr.AllSchemas(), normalizedPattern)
-	return sourcesFromElastic, nil
+	tablesFromClickHouse := getMatchingClickHouseTables(sr.AllSchemas(), normalizedPattern)
+
+	addClickHouseTablesToSourcesFromElastic(sourcesToShow, tablesFromClickHouse)
+	return *sourcesToShow, nil
 }
 
-func combineSourcesFromElasticWithRegistry(sourcesFromElastic *elasticsearch.Sources, schemas map[schema.TableName]schema.Schema, normalizedPattern string) {
-	sourcesFromElastic.Indices =
-		slices.DeleteFunc(sourcesFromElastic.Indices, func(i elasticsearch.Index) bool {
-			_, exists := schemas[schema.TableName(i.Name)]
-			return exists
-		})
-	sourcesFromElastic.DataStreams = slices.DeleteFunc(sourcesFromElastic.DataStreams, func(i elasticsearch.DataStream) bool {
-		_, exists := schemas[schema.TableName(i.Name)]
-		return exists
-	})
-
+func getMatchingClickHouseTables(schemas map[schema.IndexName]schema.Schema, normalizedPattern string) (tables []string) {
 	for name, currentSchema := range schemas {
 		indexName := name.AsString()
 
 		if config.MatchName(normalizedPattern, indexName) && currentSchema.ExistsInDataSource {
-			sourcesFromElastic.DataStreams = append(sourcesFromElastic.DataStreams, elasticsearch.DataStream{
-				Name:           indexName,
-				BackingIndices: []string{indexName},
-				TimestampField: `@timestamp`,
-			})
+			tables = append(tables, indexName)
 		}
+	}
+	return tables
+}
+
+func addClickHouseTablesToSourcesFromElastic(sourcesFromElastic *elasticsearch.Sources, chTableNames []string) {
+	for _, name := range chTableNames { // Quesma presents CH tables as Elasticsearch Data Streams.
+		sourcesFromElastic.DataStreams = append(sourcesFromElastic.DataStreams, elasticsearch.DataStream{
+			Name:           name,
+			BackingIndices: []string{name},
+			TimestampField: `@timestamp`,
+		})
 	}
 }

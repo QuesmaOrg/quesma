@@ -5,11 +5,11 @@ package queryparser
 import (
 	"errors"
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
-	"quesma/model/typical_queries"
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 )
 
 const PancakeOptimizerName = "pancake"
@@ -114,7 +114,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 		return nil, nil
 	}
 
-	// check if metadata's present
+	// check if metadata is present
 	var metadata model.JsonMap
 	if metaRaw, exists := queryMap["meta"]; exists {
 		metadata = metaRaw.(model.JsonMap)
@@ -143,7 +143,10 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 	}
 
 	// 2. Pipeline aggregation => always leaf (for now)
-	if pipelineAggr, isPipeline := cw.parsePipelineAggregations(queryMap); isPipeline {
+	if pipelineAggr, err := cw.parsePipelineAggregations(queryMap); err != nil || pipelineAggr != nil {
+		if err != nil {
+			return nil, err
+		}
 		aggregation.queryType = pipelineAggr
 		return aggregation, nil
 	}
@@ -164,9 +167,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 	}
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
-	// 	bucketAggrPresent, err := cw.pancakeTryBucketAggregation(aggregation, queryMap)
-	_, err := cw.pancakeTryBucketAggregation(aggregation, queryMap)
-	if err != nil {
+	if err := cw.pancakeTryBucketAggregation(aggregation, queryMap); err != nil {
 		return nil, err
 	}
 

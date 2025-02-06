@@ -5,18 +5,19 @@ package table_resolver
 import (
 	"context"
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/elasticsearch"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"sort"
 	"sync"
-	"time"
 )
 
 type tableResolver interface {
-	resolve(indexPattern string) *Decision
+	resolve(indexPattern string) *quesma_api.Decision
 }
 
 // parsedPattern stores the parsed index pattern
@@ -31,17 +32,17 @@ type parsedPattern struct {
 
 type patternSplitter struct {
 	name     string
-	resolver func(pattern string) (parsedPattern, *Decision)
+	resolver func(pattern string) (parsedPattern, *quesma_api.Decision)
 }
 
 type basicResolver struct {
 	name     string
-	resolver func(part string) *Decision
+	resolver func(part string) *quesma_api.Decision
 }
 
 type decisionMerger struct {
 	name   string
-	merger func(decisions []*Decision) *Decision
+	merger func(decisions []*quesma_api.Decision) *quesma_api.Decision
 }
 
 // Compound resolver works in the following way:
@@ -54,14 +55,14 @@ type compoundResolver struct {
 	decisionMerger  decisionMerger
 }
 
-func (ir *compoundResolver) resolve(indexName string) *Decision {
+func (ir *compoundResolver) resolve(indexName string) *quesma_api.Decision {
 	input, decision := ir.patternSplitter.resolver(indexName)
 	if decision != nil {
 		decision.ResolverName = ir.patternSplitter.name
 		return decision
 	}
 
-	var decisions []*Decision
+	var decisions []*quesma_api.Decision
 	for _, part := range input.parts {
 		for _, resolver := range ir.decisionLadder {
 			decision := resolver.resolver(part)
@@ -81,9 +82,9 @@ func (ir *compoundResolver) resolve(indexName string) *Decision {
 // now we have a single config for both, but with different fields
 func getTargets(indexConf config.IndexConfiguration, pipeline string) []string {
 	switch pipeline {
-	case IngestPipeline:
+	case quesma_api.IngestPipeline:
 		return indexConf.IngestTarget
-	case QueryPipeline:
+	case quesma_api.QueryPipeline:
 		return indexConf.QueryTarget
 	default:
 		return []string{}
@@ -100,7 +101,7 @@ type pipelineResolver struct {
 	pipelineName string
 
 	resolver        tableResolver
-	recentDecisions map[string]*Decision
+	recentDecisions map[string]*quesma_api.Decision
 }
 
 type tableRegistryImpl struct {
@@ -118,13 +119,13 @@ type tableRegistryImpl struct {
 	conf              config.QuesmaConfiguration
 }
 
-func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decision {
+func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *quesma_api.Decision {
 	r.m.Lock()
 	defer r.m.Unlock()
 
 	res, exists := r.pipelineResolvers[pipeline]
 	if !exists {
-		return &Decision{
+		return &quesma_api.Decision{
 			IndexPattern: indexPattern,
 			Err:          fmt.Errorf("pipeline '%s' not found", pipeline),
 			Reason:       "Pipeline not found. This is a bug.",
@@ -146,22 +147,8 @@ func (r *tableRegistryImpl) Resolve(pipeline string, indexPattern string) *Decis
 }
 
 func (r *tableRegistryImpl) updateIndexes() {
-	r.m.Lock()
-	defer r.m.Unlock()
-
-	defer func() {
-		for _, res := range r.pipelineResolvers {
-			res.recentDecisions = make(map[string]*Decision)
-		}
-	}()
 
 	logger.Info().Msgf("Index registry updating state.")
-
-	// TODO how to interact with the table discovery ?
-	// right now we enforce the reload of the table definitions
-	// schema registry is doing the same
-	// we should inject list of tables into the resolver
-	r.tableDiscovery.ReloadTableDefinitions()
 
 	tableMap := r.tableDiscovery.TableDefinitions()
 	clickhouseIndexes := make(map[string]table)
@@ -174,8 +161,11 @@ func (r *tableRegistryImpl) updateIndexes() {
 		return true
 	})
 
-	r.clickhouseIndexes = clickhouseIndexes
-	logger.Info().Msgf("Clickhouse tables updated: %v", clickhouseIndexes)
+	if len(clickhouseIndexes) < 20 {
+		logger.Info().Msgf("Clickhouse tables updated: %v", clickhouseIndexes)
+	} else {
+		logger.Info().Msgf("Clickhouse tables updated: %d tables", len(clickhouseIndexes))
+	}
 
 	elasticIndexes := make(map[string]table)
 	r.indexManager.ReloadIndices()
@@ -193,7 +183,18 @@ func (r *tableRegistryImpl) updateIndexes() {
 	}
 
 	logger.Info().Msgf("Elastic tables updated: %v", elasticIndexes)
+
+	// Let's update the state
+
+	r.m.Lock()
+	defer r.m.Unlock()
+
+	// this is a critical section
 	r.elasticIndexes = elasticIndexes
+	r.clickhouseIndexes = clickhouseIndexes
+	for _, res := range r.pipelineResolvers {
+		res.recentDecisions = make(map[string]*quesma_api.Decision)
+	}
 }
 
 func (r *tableRegistryImpl) updateState() {
@@ -206,6 +207,10 @@ func (r *tableRegistryImpl) Stop() {
 }
 
 func (r *tableRegistryImpl) Start() {
+
+	notificationChannel := make(chan types.ReloadMessage, 1)
+	r.tableDiscovery.RegisterTablesReloadListener(notificationChannel)
+
 	go func() {
 		defer recovery.LogPanic()
 		logger.Info().Msg("Table resolve started.")
@@ -214,14 +219,14 @@ func (r *tableRegistryImpl) Start() {
 			select {
 			case <-r.ctx.Done():
 				return
-			case <-time.After(1 * time.Minute):
+			case <-notificationChannel:
 				r.updateState()
 			}
 		}
 	}()
 }
 
-func (r *tableRegistryImpl) RecentDecisions() []PatternDecisions {
+func (r *tableRegistryImpl) RecentDecisions() []quesma_api.PatternDecisions {
 	r.m.Lock()
 	defer r.m.Unlock()
 
@@ -240,12 +245,12 @@ func (r *tableRegistryImpl) RecentDecisions() []PatternDecisions {
 
 	sort.Strings(patterns)
 
-	var res []PatternDecisions
+	var res []quesma_api.PatternDecisions
 	for _, p := range patterns {
 
-		pd := PatternDecisions{
+		pd := quesma_api.PatternDecisions{
 			Pattern:   p,
-			Decisions: make(map[string]*Decision),
+			Decisions: make(map[string]*quesma_api.Decision),
 		}
 		for _, resolver := range r.pipelineResolvers {
 			if decision, ok := resolver.recentDecisions[p]; ok {
@@ -293,7 +298,7 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 	// TODO We should use the pipeline name as a key in the map.
 
 	ingestResolver := &pipelineResolver{
-		pipelineName: IngestPipeline,
+		pipelineName: quesma_api.IngestPipeline,
 
 		resolver: &compoundResolver{
 			patternSplitter: patternSplitter{
@@ -302,25 +307,25 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 			},
 			decisionLadder: []basicResolver{
 				{"kibanaInternal", resolveInternalElasticName},
-				{"disabled", makeIsDisabledInConfig(indexConf, IngestPipeline)},
+				{"disabled", makeIsDisabledInConfig(indexConf, quesma_api.IngestPipeline)},
 
-				{"singleIndex", res.singleIndex(indexConf, IngestPipeline)},
-				{"commonTable", res.makeCommonTableResolver(indexConf, IngestPipeline)},
+				{"singleIndex", res.singleIndex(indexConf, quesma_api.IngestPipeline)},
+				{"commonTable", res.makeCommonTableResolver(indexConf, quesma_api.IngestPipeline)},
 
-				{"defaultWildcard", makeDefaultWildcard(quesmaConf, IngestPipeline)},
+				{"defaultWildcard", makeDefaultWildcard(quesmaConf, quesma_api.IngestPipeline)},
 			},
 			decisionMerger: decisionMerger{
 				name:   "basicDecisionMerger",
 				merger: basicDecisionMerger,
 			},
 		},
-		recentDecisions: make(map[string]*Decision),
+		recentDecisions: make(map[string]*quesma_api.Decision),
 	}
 
-	res.pipelineResolvers[IngestPipeline] = ingestResolver
+	res.pipelineResolvers[quesma_api.IngestPipeline] = ingestResolver
 
 	queryResolver := &pipelineResolver{
-		pipelineName: QueryPipeline,
+		pipelineName: quesma_api.QueryPipeline,
 
 		resolver: &compoundResolver{
 			patternSplitter: patternSplitter{
@@ -330,23 +335,23 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 			decisionLadder: []basicResolver{
 				// checking if we can handle the parsedPattern
 				{"kibanaInternal", resolveInternalElasticName},
-				{"disabled", makeIsDisabledInConfig(indexConf, QueryPipeline)},
+				{"disabled", makeIsDisabledInConfig(indexConf, quesma_api.QueryPipeline)},
 
-				{"singleIndex", res.singleIndex(indexConf, QueryPipeline)},
-				{"commonTable", res.makeCommonTableResolver(indexConf, QueryPipeline)},
+				{"singleIndex", res.singleIndex(indexConf, quesma_api.QueryPipeline)},
+				{"commonTable", res.makeCommonTableResolver(indexConf, quesma_api.QueryPipeline)},
 
 				// default action
-				{"defaultWildcard", makeDefaultWildcard(quesmaConf, QueryPipeline)},
+				{"defaultWildcard", makeDefaultWildcard(quesmaConf, quesma_api.QueryPipeline)},
 			},
 			decisionMerger: decisionMerger{
 				name:   "basicDecisionMerger",
 				merger: basicDecisionMerger,
 			},
 		},
-		recentDecisions: make(map[string]*Decision),
+		recentDecisions: make(map[string]*quesma_api.Decision),
 	}
 
-	res.pipelineResolvers[QueryPipeline] = queryResolver
+	res.pipelineResolvers[quesma_api.QueryPipeline] = queryResolver
 	// update the state ASAP
 	res.updateState()
 	return res

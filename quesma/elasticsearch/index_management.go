@@ -4,10 +4,10 @@ package elasticsearch
 
 import (
 	"context"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/recovery"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -20,6 +20,7 @@ type (
 		GetSources() Sources
 		GetSourceNames() map[string]bool
 		GetSourceNamesMatching(indexPattern string) map[string]bool
+		Resolve(indexPattern string) (Sources, bool, error)
 	}
 	indexManagement struct {
 		ElasticsearchUrl string
@@ -39,6 +40,10 @@ func NewIndexManagement(elasticsearch config.ElasticsearchConfiguration) IndexMa
 		ElasticsearchUrl: elasticsearch.Url.String(),
 		indexResolver:    NewIndexResolver(elasticsearch),
 	}
+}
+
+func (im *indexManagement) Resolve(indexPattern string) (Sources, bool, error) {
+	return im.indexResolver.Resolve(indexPattern)
 }
 
 func (im *indexManagement) ReloadIndices() {
@@ -100,7 +105,7 @@ func (im *indexManagement) Start() {
 	im.ctx, im.cancel = context.WithCancel(context.Background())
 
 	go func() {
-		recovery.LogPanic()
+		defer recovery.LogPanic()
 		for {
 			select {
 			case <-im.ctx.Done():
@@ -135,6 +140,9 @@ func (s stubIndexManagement) GetSources() Sources {
 	}
 	return Sources{DataStreams: dataStreams}
 }
+func (s stubIndexManagement) Resolve(_ string) (Sources, bool, error) {
+	return Sources{}, true, nil
+}
 
 func (s stubIndexManagement) GetSourceNames() map[string]bool {
 	var result = make(map[string]bool)
@@ -147,8 +155,10 @@ func (s stubIndexManagement) GetSourceNames() map[string]bool {
 func (s stubIndexManagement) GetSourceNamesMatching(indexPattern string) map[string]bool {
 	var result = make(map[string]bool)
 	for _, index := range s.indexes {
-		if util.IndexPatternMatches(indexPattern, index) {
+		if matches, err := util.IndexPatternMatches(indexPattern, index); err == nil && matches {
 			result[index] = true
+		} else {
+			logger.Error().Err(err)
 		}
 	}
 	return result

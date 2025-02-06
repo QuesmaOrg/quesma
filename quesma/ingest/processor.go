@@ -4,28 +4,26 @@ package ingest
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
-	chLib "quesma/clickhouse"
-	"quesma/comment_metadata"
-	"quesma/common_table"
-	"quesma/concurrent"
-	"quesma/end_user_errors"
-	"quesma/index"
-	"quesma/jsonprocessor"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/quesma/recovery"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/stats"
-	"quesma/table_resolver"
-	"quesma/telemetry"
-	"quesma/util"
+	chLib "github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/comment_metadata"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/stats"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
+	"github.com/goccy/go-json"
 	"slices"
 	"sort"
 	"strings"
@@ -59,10 +57,10 @@ type (
 	IngestProcessor struct {
 		ctx                       context.Context
 		cancel                    context.CancelFunc
-		chDb                      *sql.DB
+		chDb                      quesma_api.BackendConnector
 		tableDiscovery            chLib.TableDiscovery
 		cfg                       *config.QuesmaConfiguration
-		phoneHomeAgent            telemetry.PhoneHomeAgent
+		phoneHomeClient           diag.PhoneHomeClient
 		schemaRegistry            schema.Registry
 		ingestCounter             int64
 		ingestFieldStatistics     IngestFieldStatistics
@@ -70,7 +68,7 @@ type (
 		virtualTableStorage       persistence.JSONDatabase
 		tableResolver             table_resolver.TableResolver
 	}
-	TableMap  = concurrent.Map[string, *chLib.Table]
+	TableMap  = util.SyncMap[string, *chLib.Table]
 	SchemaMap = map[string]interface{} // TODO remove
 	Attribute struct {
 		KeysArrayName   string
@@ -83,7 +81,7 @@ type (
 )
 
 func NewTableMap() *TableMap {
-	return concurrent.NewMap[string, *chLib.Table]()
+	return util.NewSyncMap[string, *chLib.Table]()
 }
 
 func (ip *IngestProcessor) Start() {
@@ -99,7 +97,7 @@ func (ip *IngestProcessor) Start() {
 	forceReloadCh := ip.tableDiscovery.ForceReloadCh()
 
 	go func() {
-		recovery.LogPanic()
+		defer recovery.LogPanic()
 		for {
 			select {
 			case <-ip.ctx.Done():
@@ -172,7 +170,7 @@ func addOurFieldsToCreateTableQuery(q string, config *chLib.ChTableConfig, table
 
 func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, error) {
 	var count int64
-	err := ip.chDb.QueryRowContext(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
+	err := ip.chDb.QueryRow(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
@@ -205,18 +203,8 @@ func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, q
 }
 
 func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
-	if foundSchema, found := schemaRegistry.FindSchema(schema.TableName(tableName)); found {
+	if foundSchema, found := schemaRegistry.FindSchema(schema.IndexName(tableName)); found {
 		return &foundSchema
-	}
-	return nil
-}
-
-func (ip *IngestProcessor) getIgnoredFields(tableName string) []config.FieldName {
-	if indexConfig, found := ip.cfg.IndexConfig[tableName]; found && indexConfig.SchemaOverrides != nil {
-		// FIXME: don't get ignored fields from schema config, but store
-		// them in the schema registry - that way we don't have to manually replace '.' with '::'
-		// in removeFieldsTransformer's Transform method
-		return indexConfig.SchemaOverrides.IgnoredFields()
 	}
 	return nil
 }
@@ -502,32 +490,14 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	config *chLib.ChTableConfig,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]string, types.JSON, []NonSchemaField, error) {
 
-	jsonAsBytesSlice, err := json.Marshal(data)
-
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	// we find all non-schema fields
-	jsonMap, err := types.ParseJSON(string(jsonAsBytesSlice))
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
 	if len(config.Attributes) == 0 {
-		return nil, jsonMap, nil, nil
+		return nil, data, nil, nil
 	}
 
-	schemaFieldsJson, err := json.Marshal(jsonMap)
+	mDiff := DifferenceMap(data, table) // TODO change to DifferenceMap(m, t)
 
-	if err != nil {
-		return nil, jsonMap, nil, err
-	}
-
-	mDiff := DifferenceMap(jsonMap, table) // TODO change to DifferenceMap(m, t)
-
-	if len(mDiff) == 0 && string(schemaFieldsJson) == string(jsonAsBytesSlice) && len(inValidJson) == 0 { // no need to modify, just insert 'js'
-		return nil, jsonMap, nil, nil
+	if len(mDiff) == 0 && len(inValidJson) == 0 { // no need to modify, just insert 'js'
+		return nil, data, nil, nil
 	}
 
 	// check attributes precondition
@@ -558,7 +528,7 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 		return nil, nil, nil, err
 	}
 
-	onlySchemaFields := RemoveNonSchemaFields(jsonMap, table)
+	onlySchemaFields := RemoveNonSchemaFields(data, table)
 
 	return alterCmd, onlySchemaFields, nonSchemaFields, nil
 }
@@ -589,7 +559,7 @@ func generateSqlStatements(createTableCmd string, alterCmd []string, insert stri
 func populateFieldEncodings(jsonData []types.JSON, tableName string) map[schema.FieldEncodingKey]schema.EncodedFieldName {
 	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
 	for _, jsonValue := range jsonData {
-		flattenJson := jsonprocessor.FlattenMap(jsonValue, ".")
+		flattenJson := util.FlattenMap(jsonValue, ".")
 		for field := range flattenJson {
 			encodedField := util.FieldToColumnEncoder(field)
 			encodings[schema.FieldEncodingKey{TableName: tableName, FieldName: field}] =
@@ -601,12 +571,12 @@ func populateFieldEncodings(jsonData []types.JSON, tableName string) map[schema.
 
 func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	tableName string,
-	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	jsonData []types.JSON, transformer IngestTransformer,
 	tableFormatter TableColumNameFormatter, tableDefinitionChangeOnly bool) ([]string, error) {
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
-	preIngestTransformer := &jsonprocessor.RewriteArrayOfObject{}
+	preIngestTransformer := &util.RewriteArrayOfObject{}
 	var processed []types.JSON
 	for _, jsonValue := range jsonData {
 		result, err := preIngestTransformer.Transform(jsonValue)
@@ -637,14 +607,22 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 			return util.FieldToColumnEncoder(field)
 		})
 	}
+
+	var transformedJsons []types.JSON
+	for _, jsonValue := range jsonData {
+		transformedJson, err := transformer.Transform(jsonValue)
+		if err != nil {
+			return nil, fmt.Errorf("error while transforming json: %v", err)
+		}
+		transformedJsons = append(transformedJsons, transformedJson)
+	}
+
 	table := ip.FindTable(tableName)
 	var tableConfig *chLib.ChTableConfig
 	var createTableCmd string
 	if table == nil {
 		tableConfig = NewOnlySchemaFieldsCHConfig()
-		ignoredFields := ip.getIgnoredFields(tableName)
-		columnsFromJson := JsonToColumns("", jsonData[0], 1,
-			tableConfig, tableFormatter, ignoredFields)
+		columnsFromJson := JsonToColumns(transformedJsons[0], tableConfig)
 
 		fieldOrigins := make(map[schema.FieldName]schema.FieldSource)
 
@@ -652,14 +630,12 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 			fieldOrigins[schema.FieldName(column.ClickHouseColumnName)] = schema.FieldSourceIngest
 		}
 
-		ip.schemaRegistry.UpdateFieldsOrigins(schema.TableName(tableName), fieldOrigins)
+		ip.schemaRegistry.UpdateFieldsOrigins(schema.IndexName(tableName), fieldOrigins)
 
 		// This comes externally from (configuration)
 		// So we need to convert that separately
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter, tableName, ip.schemaRegistry.GetFieldEncodings())
-		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName), Indexes(jsonData[0]))
-		// TODO createTableCmd should contain information about field encodings
-		// in column comments
+		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName), Indexes(transformedJsons[0]))
 		createTableCmd = createTableQuery(tableName, columnsAsString, tableConfig)
 		var err error
 		createTableCmd, err = ip.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig, tableName, tableDefinitionChangeOnly)
@@ -678,13 +654,13 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	tableConfig = table.Config
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
-	var preprocessedJsons []types.JSON
+	var validatedJsons []types.JSON
 	var invalidJsons []types.JSON
-	preprocessedJsons, invalidJsons, err := ip.preprocessJsons(ctx, table.Name, jsonData, transformer)
+	validatedJsons, invalidJsons, err := ip.preprocessJsons(ctx, table.Name, transformedJsons)
 	if err != nil {
 		return nil, fmt.Errorf("error preprocessJsons: %v", err)
 	}
-	for i, preprocessedJson := range preprocessedJsons {
+	for i, preprocessedJson := range validatedJsons {
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], tableConfig, encodings)
 
@@ -708,18 +684,23 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
 }
 
-func (lm *IngestProcessor) Ingest(ctx context.Context, tableName string, jsonData []types.JSON) error {
+func (lm *IngestProcessor) Ingest(ctx context.Context, indexName string, jsonData []types.JSON) error {
+
+	err := elasticsearch.IsValidIndexName(indexName)
+	if err != nil {
+		return err
+	}
 
 	nameFormatter := DefaultColumnNameFormatter()
-	transformer := jsonprocessor.IngestTransformerFor(tableName, lm.cfg)
-	return lm.ProcessInsertQuery(ctx, tableName, jsonData, transformer, nameFormatter)
+	transformer := IngestTransformerFor(indexName, lm.cfg)
+	return lm.ProcessInsertQuery(ctx, indexName, jsonData, transformer, nameFormatter)
 }
 
 func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName string,
-	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	jsonData []types.JSON, transformer IngestTransformer,
 	tableFormatter TableColumNameFormatter) error {
 
-	decision := lm.tableResolver.Resolve(table_resolver.IngestPipeline, tableName)
+	decision := lm.tableResolver.Resolve(quesma_api.IngestPipeline, tableName)
 
 	if decision.Err != nil {
 		return decision.Err
@@ -735,10 +716,10 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 
 	for _, connectorDecision := range decision.UseConnectors {
 
-		var clickhouseDecision *table_resolver.ConnectorDecisionClickhouse
+		var clickhouseDecision *quesma_api.ConnectorDecisionClickhouse
 
 		var ok bool
-		if clickhouseDecision, ok = connectorDecision.(*table_resolver.ConnectorDecisionClickhouse); !ok {
+		if clickhouseDecision, ok = connectorDecision.(*quesma_api.ConnectorDecisionClickhouse); !ok {
 			continue
 		}
 
@@ -756,7 +737,7 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 				logger.ErrorWithCtx(ctx).Msgf("error processing insert query - virtual table schema update: %v", err)
 			}
 
-			pipeline := jsonprocessor.IngestTransformerPipeline{}
+			pipeline := IngestTransformerPipeline{}
 			pipeline = append(pipeline, &common_table.IngestAddIndexNameTransformer{IndexName: tableName})
 			pipeline = append(pipeline, transformer)
 
@@ -776,8 +757,45 @@ func (lm *IngestProcessor) ProcessInsertQuery(ctx context.Context, tableName str
 	return nil
 }
 
+func (ip *IngestProcessor) applyAsyncInsertOptimizer(tableName string, clickhouseSettings clickhouse.Settings) clickhouse.Settings {
+
+	const asyncInsertOptimizerName = "async_insert"
+	enableAsyncInsert := true // enabled by default
+	var asyncInsertProps map[string]string
+
+	if optimizer, ok := ip.cfg.DefaultIngestOptimizers[asyncInsertOptimizerName]; ok {
+		enableAsyncInsert = !optimizer.Disabled
+		asyncInsertProps = optimizer.Properties
+	}
+
+	idxCfg, ok := ip.cfg.IndexConfig[tableName]
+	if ok {
+		if optimizer, ok := idxCfg.Optimizers[asyncInsertOptimizerName]; ok {
+			enableAsyncInsert = !optimizer.Disabled
+			asyncInsertProps = optimizer.Properties
+		}
+	}
+
+	if enableAsyncInsert {
+		clickhouseSettings["async_insert"] = 1
+
+		// some sane defaults
+		clickhouseSettings["wait_for_async_insert"] = 1
+
+		clickhouseSettings["async_insert_busy_timeout_ms"] = 100      // default is 1000ms
+		clickhouseSettings["async_insert_max_data_size"] = 50_000_000 // default is 10MB
+		clickhouseSettings["async_insert_max_query_number"] = 10000   // default is 450
+
+		for k, v := range asyncInsertProps {
+			clickhouseSettings[k] = v
+		}
+	}
+
+	return clickhouseSettings
+}
+
 func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, tableName string,
-	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	jsonData []types.JSON, transformer IngestTransformer,
 	tableFormatter TableColumNameFormatter, isVirtualTable bool) error {
 	statements, err := ip.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter, isVirtualTable)
 	if err != nil {
@@ -798,10 +816,14 @@ func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, table
 		return nil
 	}
 
-	// We expect to have date format set to `best_effort`
-	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
+	clickhouseSettings := clickhouse.Settings{
 		"date_time_input_format": "best_effort",
-	}))
+	}
+
+	clickhouseSettings = ip.applyAsyncInsertOptimizer(tableName, clickhouseSettings)
+
+	// We expect to have date format set to `best_effort`
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouseSettings))
 
 	return ip.executeStatements(ctx, statements)
 }
@@ -817,23 +839,23 @@ func subtractInputJson(inputDoc types.JSON, anotherDoc types.JSON) types.JSON {
 // This function executes query with context
 // and creates span for it
 func (ip *IngestProcessor) execute(ctx context.Context, query string) error {
-	span := ip.phoneHomeAgent.ClickHouseInsertDuration().Begin()
+	span := ip.phoneHomeClient.ClickHouseInsertDuration().Begin()
 
 	// We log every DDL query
-	if strings.HasPrefix(query, "ALTER") || strings.HasPrefix(query, "CREATE") {
-		logger.InfoWithCtx(ctx).Msgf("DDL query execution: %s", query)
+	if ip.cfg.Logging.EnableSQLTracing {
+		if strings.HasPrefix(query, "ALTER") || strings.HasPrefix(query, "CREATE") {
+			logger.InfoWithCtx(ctx).Msgf("DDL query execution: %s", query)
+		}
 	}
 
-	_, err := ip.chDb.ExecContext(ctx, query)
+	err := ip.chDb.Exec(ctx, query)
 	span.End(err)
 	return err
 }
 
 func (ip *IngestProcessor) executeStatements(ctx context.Context, queries []string) error {
 	for _, q := range queries {
-		if strings.HasPrefix("ALTER", q) || strings.HasPrefix("CREATE", q) {
-			logger.InfoWithCtx(ctx).Msgf("DDL query execution: %s", q)
-		}
+
 		err := ip.execute(ctx, q)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error executing query: %v", err)
@@ -844,33 +866,29 @@ func (ip *IngestProcessor) executeStatements(ctx context.Context, queries []stri
 }
 
 func (ip *IngestProcessor) preprocessJsons(ctx context.Context,
-	tableName string, jsons []types.JSON, transformer jsonprocessor.IngestTransformer,
-) ([]types.JSON, []types.JSON, error) {
-	var preprocessedJsons []types.JSON
+	tableName string, jsons []types.JSON) ([]types.JSON, []types.JSON, error) {
+	var validatedJsons []types.JSON
 	var invalidJsons []types.JSON
 	for _, jsonValue := range jsons {
-		preprocessedJson, err := transformer.Transform(jsonValue)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error IngestTransformer: %v", err)
-		}
 		// Validate the input JSON
 		// against the schema
-		inValidJson, err := ip.validateIngest(tableName, preprocessedJson)
+		inValidJson, err := ip.validateIngest(tableName, jsonValue)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error validation: %v", err)
 		}
 		invalidJsons = append(invalidJsons, inValidJson)
-		stats.GlobalStatistics.UpdateNonSchemaValues(ip.cfg, tableName,
-			inValidJson, NestedSeparator)
+		if ip.cfg != nil {
+			stats.GlobalStatistics.UpdateNonSchemaValues(ip.cfg.IngestStatistics, tableName, inValidJson, NestedSeparator)
+		}
 		// Remove invalid fields from the input JSON
-		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
-		preprocessedJsons = append(preprocessedJsons, preprocessedJson)
+		jsonValue = subtractInputJson(jsonValue, inValidJson)
+		validatedJsons = append(validatedJsons, jsonValue)
 	}
-	return preprocessedJsons, invalidJsons, nil
+	return validatedJsons, invalidJsons, nil
 }
 
 func (ip *IngestProcessor) FindTable(tableName string) (result *chLib.Table) {
-	tableNamePattern := index.TableNamePatternRegexp(tableName)
+	tableNamePattern := util.TableNamePatternRegexp(tableName)
 	ip.tableDiscovery.TableDefinitions().
 		Range(func(name string, table *chLib.Table) bool {
 			if tableNamePattern.MatchString(name) {
@@ -942,7 +960,7 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 				logger.Error().Msgf("error storing virtual table: %v", err)
 			}
 		}
-		ip.tableDiscovery.TableDefinitions().Store(table.Name, table)
+		ip.tableDiscovery.AddTable(table.Name, table)
 		return true
 	}
 	wasntCreated := !t.Created
@@ -950,13 +968,21 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 	return wasntCreated
 }
 
+func (ip *IngestProcessor) GetSchemaRegistry() schema.Registry {
+	return ip.schemaRegistry
+}
+
+func (ip *IngestProcessor) GetTableResolver() table_resolver.TableResolver {
+	return ip.tableResolver
+}
+
 func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
-func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
+func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeClient diag.PhoneHomeClient, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
+	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
 }
 
 func NewOnlySchemaFieldsCHConfig() *chLib.ChTableConfig {

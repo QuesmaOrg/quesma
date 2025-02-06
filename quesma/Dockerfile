@@ -25,11 +25,11 @@ RUN --mount=type=cache,target="/root/.cache/go-build" \
     --mount=type=cache,target=/go/pkg/mod  \
     go build \
     -ldflags=" \
-    -X 'quesma/buildinfo.BuildHash=$QUESMA_BUILD_SHA'  \
+    -X 'github.com/QuesmaOrg/quesma/quesma/buildinfo.BuildHash=$QUESMA_BUILD_SHA'  \
     -X 'buildinfo.BuildHash=$QUESMA_BUILD_SHA'  \
-    -X 'quesma/buildinfo.Version=$QUESMA_VERSION'  \
+    -X 'github.com/QuesmaOrg/quesma/quesma/buildinfo.Version=$QUESMA_VERSION'  \
     -X 'buildinfo.Version=$QUESMA_VERSION'  \
-    -X 'quesma/buildinfo.BuildDate=$QUESMA_BUILD_DATE'  \
+    -X 'github.com/QuesmaOrg/quesma/quesma/buildinfo.BuildDate=$QUESMA_BUILD_DATE'  \
     -X 'buildinfo.BuildDate=$QUESMA_BUILD_DATE' \
     " \
     -o bin

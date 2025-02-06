@@ -69,33 +69,45 @@ K[Kibana/OSD] --> Q((Quesma))
         config:
           indexes:  # the list below is just an example, 
             siem:   # make sure to replace them with your actual table or index names
-              target: [ clickhouse-instance ]
+              target:
+                - clickhouse-instance
             logs:
-              target: [ clickhouse-instance ]
+              target:
+                - clickhouse-instance
             index1:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             index2:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             index3:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             '*':       # DO NOT remove, always required
-              target: [ elasticsearch-instance ]     
+              target:
+                - elasticsearch-instance     
       - name: ingest-processor
         type: quesma-v1-processor-ingest
         config:
           indexes:  # the list below is just an example, 
             siem:   # make sure to replace them with your actual table or index names
-              target: [ clickhouse-instance ]
+              target:
+                - clickhouse-instance
             logs:
-              target: [ clickhouse-instance ]
+              target:
+                - clickhouse-instance
             index1:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             index2:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             index3:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             '*':       # DO NOT remove, always required
-              target: [ elasticsearch-instance ]              
+              target:
+                - elasticsearch-instance              
     pipelines:
       - name: elasticsearch-proxy-read
         frontendConnectors: [ elastic-query ]
@@ -117,12 +129,42 @@ K[Kibana/OSD] --> Q((Quesma))
    You have now a running Quesma instance running  with Elasticsearch API endpoint on port 8080. You can also enable Quesma's admin panel at [localhost:9999](http://localhost:9999/) by adding `-p 9999:9999` to docker run command.
 3. Reconfigure client endpoint:
    * For Kibana: update your [Kibana configuration](https://www.elastic.co/guide/en/kibana/current/settings.html), so that it points to Quesma Elasticsearch API endpoint mentioned above, instead of Elasticsearch original endpoint. In your Kibana configuration file, replace the `elasticsearch.hosts` value with Quesma's host and port, e.g.:
-    ```yaml
-    elasticsearch.hosts: ["http://quesma:8080"]
-    ```
-   or optionally use `ELASTICSEARCH_HOSTS` environment variable.
+      ```yaml
+      elasticsearch.hosts: ["http://quesma:8080"]
+      ```
+      or optionally using `ELASTICSEARCH_HOSTS` environment variable.
+
+      If you use Elasticsearch/Kibana without authentication, please modify the `frontendConnectors` section in the following way:
+      ```yaml
+      frontendConnectors:
+        - name: elastic-query
+          type: elasticsearch-fe-query
+          config:
+            listenPort: 8080
+            disableAuth: true
+        - name: elastic-ingest
+          type: elasticsearch-fe-ingest
+          config:
+            listenPort: 8080
+            disableAuth: true
+      ```
    * For OpenSearchDashboards: modify [`opensearch_dashboards.yml` file](https://opensearch.org/docs/latest/install-and-configure/configuring-dashboards/) and change `opensearch.hosts` property.
    Also, make sure to update the Elasticsearch/OpenSearch endpoint configuration for any clients ingesting data.
+
+      If you use OpenSearch/OpenSearchDashboards without authentication, please modify the `frontendConnectors` section in the following way:
+      ```yaml
+      frontendConnectors:
+        - name: elastic-query
+          type: elasticsearch-fe-query
+          config:
+            listenPort: 8080
+            disableAuth: true
+        - name: elastic-ingest
+          type: elasticsearch-fe-ingest
+          config:
+            listenPort: 8080
+            disableAuth: true
+      ```
 4. Restart Kibana/OSD.
 5. Add DataViews/Index Patterns:
    * For Kibana: in order to view your ClickHouse tables in Kibana, you need to create **Data Views** for tables (indexes) from the config. If you're unsure how to do it, follow the [Data Views creation guide](./adding-kibana-dataviews.md) for more information.

@@ -5,10 +5,10 @@ package metrics_aggregations
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"math"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
 	"strconv"
 	"strings"
 	"time"

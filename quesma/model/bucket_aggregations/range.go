@@ -5,14 +5,12 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"math"
-	"quesma/logger"
-	"quesma/model"
 	"strconv"
 	"strings"
 )
-
-const keyedDefaultValue = false
 
 var IntervalInfiniteRange = math.NaN()
 
@@ -89,10 +87,6 @@ type Range struct {
 
 func NewRange(ctx context.Context, expr model.Expr, intervals []Interval, keyed bool) Range {
 	return Range{ctx, expr, intervals, keyed}
-}
-
-func NewRangeWithDefaultKeyed(ctx context.Context, expr model.Expr, intervals []Interval) Range {
-	return Range{ctx, expr, intervals, keyedDefaultValue}
 }
 
 func (query Range) AggregationType() model.AggregationType {

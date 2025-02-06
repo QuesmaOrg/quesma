@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package testdata
 
-import "quesma/quesma/ui"
+import "github.com/QuesmaOrg/quesma/quesma/quesma/ui"
 
 var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 	// bucket:
@@ -25,7 +25,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [2]
+	{ // [1]
 		TestName:  "bucket aggregation: categorize_text",
 		QueryType: "categorize_text",
 		QueryRequestJson: `
@@ -39,7 +39,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [3]
+	{ // [2]
 		TestName:  "bucket aggregation: children",
 		QueryType: "children",
 		QueryRequestJson: `
@@ -69,24 +69,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [4]
-		TestName:  "bucket aggregation: composite",
-		QueryType: "composite",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"my_buckets": {
-					"composite": {
-						"sources": [
-							{ "product": { "terms": { "field": "product" } } }
-						]
-					}
-				}
-			}
-		}`,
-	},
-	{ // [5]
+	{ // [3]
 		TestName:  "bucket aggregation: diversified_sampler",
 		QueryType: "diversified_sampler",
 		QueryRequestJson: `
@@ -114,7 +97,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [6]
+	{ // [4]
 		TestName:  "bucket aggregation: frequent_item_sets",
 		QueryType: "frequent_item_sets",
 		QueryRequestJson: `
@@ -139,7 +122,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [7]
+	{ // [5]
 		TestName:  "bucket aggregation: geo_distance",
 		QueryType: "geo_distance",
 		QueryRequestJson: `
@@ -160,7 +143,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [8]
+	{ // [6]
 		TestName:  "bucket aggregation: geohash_grid",
 		QueryType: "geohash_grid",
 		QueryRequestJson: `
@@ -179,7 +162,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [9]
+	{ // [7]
 		TestName:  "bucket aggregation: geohex_grid",
 		QueryType: "geohex_grid",
 		QueryRequestJson: `
@@ -198,7 +181,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [11]
+	{ // [8]
 		TestName:  "bucket aggregation: global",
 		QueryType: "global",
 		QueryRequestJson: `
@@ -217,42 +200,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [12]
-		TestName:  "bucket aggregation: ip_prefix",
-		QueryType: "ip_prefix",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"ipv4-subnets": {
-					"ip_prefix": {
-						"field": "ipv4",
-						"prefix_length": 24
-					}
-				}
-			}
-		}`,
-	},
-	{ // [13]
-		TestName:  "bucket aggregation: ip_range",
-		QueryType: "ip_range",
-		QueryRequestJson: `
-		{
-			"size": 10,
-			"aggs": {
-				"ip_ranges": {
-					"ip_range": {
-						"field": "ip",
-						"ranges": [
-							{ "to": "10.0.0.5" },
-							{ "from": "10.0.0.5" }
-						]
-					}
-				}
-			}
-		}`,
-	},
-	{ // [14]
+	{ // [9]
 		TestName:  "bucket aggregation: missing",
 		QueryType: "missing",
 		QueryRequestJson: `
@@ -264,7 +212,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [16]
+	{ // [10]
 		TestName:  "bucket aggregation: nested",
 		QueryType: "nested",
 		QueryRequestJson: `
@@ -290,7 +238,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [17]
+	{ // [11]
 		TestName:  "bucket aggregation: parent",
 		QueryType: "parent",
 		QueryRequestJson: `
@@ -320,7 +268,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [18]
+	{ // [12]
 		TestName:  "bucket aggregation: rare_terms",
 		QueryType: "rare_terms",
 		QueryRequestJson: `
@@ -334,7 +282,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [19]
+	{ // [13]
 		TestName:  "bucket aggregation: reverse_nested",
 		QueryType: "reverse_nested",
 		QueryRequestJson: `
@@ -367,7 +315,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [20]
+	{ // [14]
 		TestName:  "bucket aggregation: significant_text",
 		QueryType: "significant_text",
 		QueryRequestJson: `
@@ -389,7 +337,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [21]
+	{ // [15]
 		TestName:  "bucket aggregation: time_series",
 		QueryType: "time_series",
 		QueryRequestJson: `
@@ -401,7 +349,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [22]
+	{ // [16]
 		TestName:  "bucket aggregation: variable_width_histogram",
 		QueryType: "variable_width_histogram",
 		QueryRequestJson: `
@@ -417,7 +365,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 		}`,
 	},
 	// metrics:
-	{ // [23]
+	{ // [17]
 		TestName:  "metrics aggregation: boxplot",
 		QueryType: "boxplot",
 		QueryRequestJson: `
@@ -432,7 +380,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [25]
+	{ // [18]
 		TestName:  "metrics aggregation: geo_bounds",
 		QueryType: "geo_bounds",
 		QueryRequestJson: `
@@ -446,7 +394,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [27]
+	{ // [19]
 		TestName:  "metrics aggregation: geo_line",
 		QueryType: "geo_line",
 		QueryRequestJson: `
@@ -461,7 +409,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [28]
+	{ // [20]
 		TestName:  "metrics aggregation: cartesian_bounds",
 		QueryType: "cartesian_bounds",
 		QueryRequestJson: `
@@ -478,7 +426,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [29]
+	{ // [21]
 		TestName:  "metrics aggregation: cartesian_centroid",
 		QueryType: "cartesian_centroid",
 		QueryRequestJson: `
@@ -492,7 +440,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [30]
+	{ // [22]
 		TestName:  "metrics aggregation: matrix_stats",
 		QueryType: "matrix_stats",
 		QueryRequestJson: `
@@ -506,7 +454,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [31]
+	{ // [23]
 		TestName:  "metrics aggregation: median_absolute_deviation",
 		QueryType: "median_absolute_deviation",
 		QueryRequestJson: `
@@ -526,7 +474,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [32]
+	{ // [24]
 		TestName:  "metrics aggregation: rate",
 		QueryType: "rate",
 		QueryRequestJson: `
@@ -549,7 +497,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [33]
+	{ // [25]
 		TestName:  "metrics aggregation: scripted_metric",
 		QueryType: "scripted_metric",
 		QueryRequestJson: `
@@ -569,7 +517,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [34]
+	{ // [26]
 		TestName:  "metrics aggregation: string_stats",
 		QueryType: "string_stats",
 		QueryRequestJson: `
@@ -596,7 +544,7 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [36]
+	{ // [27]
 		TestName:  "metrics aggregation: weighted_avg",
 		QueryType: "weighted_avg",
 		QueryRequestJson: `

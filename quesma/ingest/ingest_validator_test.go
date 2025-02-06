@@ -7,13 +7,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/concurrent"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/table_resolver"
-	"quesma/util"
 	"strings"
 	"testing"
 )
@@ -124,7 +125,7 @@ func TestIngestValidation(t *testing.T) {
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"uint8_field":255}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"uint8_field":"1000"},"attributes_metadata":{"uint8_field":"v1;Int64"}}`, tableName),
 	}
-	tableMap := concurrent.NewMapWith(tableName, &clickhouse.Table{
+	tableMap := util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: NewChTableConfigFourAttrs(),
 		Cols: map[string]*clickhouse.Column{
@@ -166,14 +167,15 @@ func TestIngestValidation(t *testing.T) {
 		Created: true,
 	})
 	for i := range inputJson {
-		db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+		conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 		ip := newIngestProcessorEmpty()
 		ip.chDb = db
 		ip.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
 
 		resolver := table_resolver.NewEmptyTableResolver()
-		decision := &table_resolver.Decision{
-			UseConnectors: []table_resolver.ConnectorDecision{&table_resolver.ConnectorDecisionClickhouse{
+		decision := &mux.Decision{
+			UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 				ClickhouseTableName: "test_table",
 			}}}
 		resolver.Decisions["test_table"] = decision
@@ -183,7 +185,7 @@ func TestIngestValidation(t *testing.T) {
 		defer db.Close()
 
 		mock.ExpectExec(EscapeBrackets(expectedInsertJsons[i])).WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 0))
-		err := ip.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON((inputJson[i]))}, &IngestTransformer{}, &columNameFormatter{separator: "::"})
+		err := ip.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON((inputJson[i]))}, &IngestTransformerTest{}, &columNameFormatter{separator: "::"})
 		assert.NoError(t, err)
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatal("there were unfulfilled expections:", err)

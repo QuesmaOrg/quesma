@@ -25,17 +25,15 @@ func NewTransparentProxyIntegrationTestcase() *TransparentProxyIntegrationTestca
 
 func (a *TransparentProxyIntegrationTestcase) SetupContainers(ctx context.Context) error {
 	containers, err := setupContainersForTransparentProxy(ctx, a.ConfigTemplate)
-	if err != nil {
-		return err
-	}
 	a.Containers = containers
-	return nil
+	return err
 }
 
 func (a *TransparentProxyIntegrationTestcase) RunTests(ctx context.Context, t *testing.T) error {
 	t.Run("test basic request", func(t *testing.T) { a.testBasicRequest(ctx, t) })
 	t.Run("test if cat health request reaches elasticsearch", func(t *testing.T) { a.testIfCatHealthRequestReachesElasticsearch(ctx, t) })
 	t.Run("test if index creation works", func(t *testing.T) { a.testIfIndexCreationWorks(ctx, t) })
+	t.Run("test internal endpoints", func(t *testing.T) { a.testInternalEndpoints(ctx, t) })
 	return nil
 }
 
@@ -66,4 +64,14 @@ func (a *TransparentProxyIntegrationTestcase) testIfIndexCreationWorks(ctx conte
 	}
 	assert.Contains(t, string(bodyBytes), "index_1")
 	assert.Contains(t, string(bodyBytes), "index_2")
+}
+
+func (a *TransparentProxyIntegrationTestcase) testInternalEndpoints(ctx context.Context, t *testing.T) {
+	for _, internalPath := range InternalPaths {
+		t.Run(internalPath, func(t *testing.T) {
+			resp, _ := a.RequestToQuesma(ctx, t, "GET", internalPath, nil)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
+		})
+	}
 }

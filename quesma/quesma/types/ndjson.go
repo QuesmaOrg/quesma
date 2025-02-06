@@ -3,8 +3,8 @@
 package types
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"strings"
 )
 
@@ -63,20 +63,65 @@ func (op BulkOperation) GetOperation() string {
 	return ""
 }
 
+// BulkForEach iterates over the NDJSON lines and calls the supplied function for each **ENTRY**.
+//
+// Example bulk payload looks like following:
+// {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}
+// {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
+// {"delete":{"_index":"my_index","_id":"1"}}
+//
+// ENTRY is usually 2 lines: action/metadata and the actual document. However, it is possible to have only action/metadata line (for DELETE operation).
+// In that case the callback function will be invoked with an empty JSON document.
+// Ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html#docs-bulk-api-desc
 func (n NDJSON) BulkForEach(f func(entryNumber int, operationParsed BulkOperation, operation JSON, doc JSON) error) error {
+	for lineNum, entryNum := 0, 0; lineNum < len(n); lineNum++ {
+		actionAndMetadata := n[lineNum]
 
-	for i := 0; i+1 < len(n); i += 2 {
-		operation := n[i]  // {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}
-		document := n[i+1] // {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
+		actionAndMetadataParsed := make(BulkOperation)
+		for opType, opDetails := range actionAndMetadata {
+			if detailsMap, ok := opDetails.(map[string]interface{}); ok {
+				docTarget := DocumentTarget{}
 
-		var operationParsed BulkOperation // operationName (create, index, update, delete) -> DocumentTarget
+				if index, ok := detailsMap["_index"].(string); ok {
+					docTarget.Index = &index
+				}
+				if id, ok := detailsMap["_id"].(string); ok {
+					docTarget.Id = &id
+				}
 
-		_ = operation.Remarshal(&operationParsed) // ignore error, the callback must handle it (it will see an unknown operation)
+				actionAndMetadataParsed[opType] = docTarget
+			} else {
+				return fmt.Errorf("invalid metadata format for operation at index %d: %v", lineNum, actionAndMetadata)
+			}
+		}
 
-		err := f(i/2, operationParsed, operation, document)
-		if err != nil {
-			return err
+		if operationRequiresDocument(actionAndMetadata) {
+			if lineNum+1 >= len(n) {
+				return fmt.Errorf("missing document for metadata at index %d", lineNum)
+			}
+			optionalDocumentSource := n[lineNum+1]
+			err := f(entryNum, actionAndMetadataParsed, actionAndMetadata, optionalDocumentSource)
+			entryNum++
+			if err != nil {
+				return err
+			}
+			lineNum++ // Skip the document line
+		} else { // Call the callback without a document
+			err := f(entryNum, actionAndMetadataParsed, actionAndMetadata, JSON{})
+			entryNum++
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+func operationRequiresDocument(metadata JSON) bool {
+	for opType := range metadata {
+		if opType == "delete" {
+			return false
+		}
+	}
+	return true
 }

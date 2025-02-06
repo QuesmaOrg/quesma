@@ -18,32 +18,38 @@ backendConnectors:
     type: clickhouse-os
     config:
       url: clickhouse://{{ .clickhouse_host }}:{{ .clickhouse_port }}
-ingestStatistics: true
+logging:
+  path: "logs"
+  level: "info"
+  disableFileLogging: false
+  enableSQLTracing: true
 processors:
   - name: my-query-processor
     type: quesma-v1-processor-query
     config:
       indexes:
         "explicitly_disabled1":
-          target: [ ]
+          target:
         "explicitly_disabled3":
-          target: [ ]
+          target:
         "query_enabled":
-          target: [ my-clickhouse-instance ]
+          target:
+            - my-clickhouse-instance
         "*":
-          target: [ ]
+          target:
   - name: my-ingest-processor
     type: quesma-v1-processor-ingest
     config:
       indexes:
         "explicitly_disabled2":
-          target: [ ]
+          target:
         "explicitly_disabled3":
-          target: [ ]
+          target:
         "ingest_enabled":
-          target: [ my-clickhouse-instance ]
+          target:
+            - my-clickhouse-instance
         "*":
-          target: [ ]
+          target:
 pipelines:
   - name: my-elasticsearch-proxy-read
     frontendConnectors: [ elastic-query ]
@@ -53,4 +59,3 @@ pipelines:
     frontendConnectors: [ elastic-ingest ]
     processors: [ my-ingest-processor ]
     backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-instance ]
-

@@ -5,10 +5,10 @@ package ui
 import (
 	"encoding/base64"
 	"fmt"
-	"quesma/buildinfo"
-	"quesma/quesma/types"
-	"quesma/quesma/ui/internal/builder"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"strconv"
 	"strings"
 )
@@ -247,7 +247,7 @@ func (qmc *QuesmaManagementConsole) populateQueries(debugKeyValueSlice []queryDe
 	buffer.Html(`<div class="title-bar">Clickhouse translated query` + "\n" + `</div>`)
 	buffer.Html(`<div class="debug-body">`)
 
-	printQueries := func(queries []types.TranslatedSQLQuery) {
+	printQueries := func(queries []diag.TranslatedSQLQuery) {
 		for _, q := range queries {
 			buffer.Text(util.SqlPrettyPrint(q.Query))
 			buffer.Text("\n\n")
@@ -315,7 +315,7 @@ func errorBanner(debugInfo queryDebugInfo) string {
 	return result
 }
 
-func (qmc *QuesmaManagementConsole) printPerformanceResult(buffer *builder.HtmlBuffer, q types.TranslatedSQLQuery) {
+func (qmc *QuesmaManagementConsole) printPerformanceResult(buffer *builder.HtmlBuffer, q diag.TranslatedSQLQuery) {
 
 	if qmc.cfg.ClickHouse.AdminUrl != nil {
 		// ClickHouse web UI /play expects a base64-encoded query

@@ -6,20 +6,28 @@ package schema
 // This is due to the original schemaRegistry having a heavily side-effecting nature.
 // In the future we might revisit this design - have schema being fed by external components and ditch this implementation.
 type StaticRegistry struct {
-	Tables               map[TableName]Schema
+	Tables               map[IndexName]Schema
 	DynamicConfiguration map[string]Table
 	FieldEncodings       map[FieldEncodingKey]EncodedFieldName
 }
 
-func (e *StaticRegistry) AllSchemas() map[TableName]Schema {
-	if e.Tables != nil {
-		return e.Tables
-	} else {
-		return map[TableName]Schema{}
+func NewStaticRegistry(tables map[IndexName]Schema, dynamicConfiguration map[string]Table, fieldEncodings map[FieldEncodingKey]EncodedFieldName) *StaticRegistry {
+	return &StaticRegistry{
+		Tables:               tables,
+		DynamicConfiguration: dynamicConfiguration,
+		FieldEncodings:       fieldEncodings,
 	}
 }
 
-func (e *StaticRegistry) FindSchema(name TableName) (Schema, bool) {
+func (e *StaticRegistry) AllSchemas() map[IndexName]Schema {
+	if e.Tables != nil {
+		return e.Tables
+	} else {
+		return map[IndexName]Schema{}
+	}
+}
+
+func (e *StaticRegistry) FindSchema(name IndexName) (Schema, bool) {
 	if e.Tables == nil {
 		return Schema{}, false
 	}
@@ -27,7 +35,7 @@ func (e *StaticRegistry) FindSchema(name TableName) (Schema, bool) {
 	return s, found
 }
 
-func (e *StaticRegistry) UpdateDynamicConfiguration(name TableName, table Table) {
+func (e *StaticRegistry) UpdateDynamicConfiguration(name IndexName, table Table) {
 	e.DynamicConfiguration[name.AsString()] = table
 }
 
@@ -47,6 +55,9 @@ func (e *StaticRegistry) GetFieldEncodings() map[FieldEncodingKey]EncodedFieldNa
 	return e.FieldEncodings
 }
 
-func (e *StaticRegistry) UpdateFieldsOrigins(name TableName, fields map[FieldName]FieldSource) {
+func (e *StaticRegistry) UpdateFieldsOrigins(name IndexName, fields map[FieldName]FieldSource) {
 
 }
+
+func (e *StaticRegistry) Start() {}
+func (e *StaticRegistry) Stop()  {}

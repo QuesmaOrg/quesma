@@ -3,9 +3,9 @@
 package resolve
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/stretchr/testify/assert"
-	"quesma/elasticsearch"
-	"quesma/schema"
 	"testing"
 )
 
@@ -25,7 +25,7 @@ func Test_combineSourcesFromElasticWithRegistry(t *testing.T) {
 	tests := []struct {
 		name               string
 		sourcesFromElastic elasticsearch.Sources
-		schemas            map[schema.TableName]schema.Schema
+		schemas            map[schema.IndexName]schema.Schema
 		normalizedPattern  string
 		expectedResult     elasticsearch.Sources
 	}{
@@ -37,7 +37,7 @@ func Test_combineSourcesFromElasticWithRegistry(t *testing.T) {
 				Aliases:     []elasticsearch.Alias{},
 				DataStreams: []elasticsearch.DataStream{},
 			},
-			schemas:           map[schema.TableName]schema.Schema{}, // schema.Registry won't contain disabled indexes, even if they exist in the data source (manually created by the user)
+			schemas:           map[schema.IndexName]schema.Schema{}, // schema.Registry won't contain disabled indexes, even if they exist in the data source (manually created by the user)
 			normalizedPattern: "index*",
 			expectedResult: elasticsearch.Sources{
 				Indices:     []elasticsearch.Index{{Name: "index1"}},
@@ -53,14 +53,14 @@ func Test_combineSourcesFromElasticWithRegistry(t *testing.T) {
 				Aliases:     []elasticsearch.Alias{},
 				DataStreams: []elasticsearch.DataStream{},
 			},
-			schemas: map[schema.TableName]schema.Schema{
+			schemas: map[schema.IndexName]schema.Schema{
 				"index1": schema.Schema{ExistsInDataSource: false},
 				"index2": schema.Schema{ExistsInDataSource: false},
 				"quesma": schema.Schema{ExistsInDataSource: true},
 			},
 			normalizedPattern: "index*",
 			expectedResult: elasticsearch.Sources{
-				Indices:     []elasticsearch.Index{{Name: "index3"}},
+				Indices:     []elasticsearch.Index{{Name: "index1"}, {Name: "index3"}},
 				Aliases:     []elasticsearch.Alias{},
 				DataStreams: []elasticsearch.DataStream{},
 			},
@@ -73,7 +73,7 @@ func Test_combineSourcesFromElasticWithRegistry(t *testing.T) {
 				Aliases:     []elasticsearch.Alias{},
 				DataStreams: []elasticsearch.DataStream{{Name: "index3"}, {Name: "index5"}},
 			},
-			schemas: map[schema.TableName]schema.Schema{
+			schemas: map[schema.IndexName]schema.Schema{
 				"index1": schema.Schema{ExistsInDataSource: true},
 				"index2": schema.Schema{ExistsInDataSource: true},
 				"index3": schema.Schema{ExistsInDataSource: true},
@@ -81,9 +81,10 @@ func Test_combineSourcesFromElasticWithRegistry(t *testing.T) {
 			},
 			normalizedPattern: "index*",
 			expectedResult: elasticsearch.Sources{
-				Indices: []elasticsearch.Index{{Name: "index4"}},
+				Indices: []elasticsearch.Index{{Name: "index1"}, {Name: "index4"}},
 				Aliases: []elasticsearch.Alias{},
 				DataStreams: []elasticsearch.DataStream{
+					{Name: "index3"},
 					{Name: "index5"},
 					{Name: "index1", BackingIndices: []string{"index1"}, TimestampField: `@timestamp`},
 					{Name: "index2", BackingIndices: []string{"index2"}, TimestampField: `@timestamp`},
@@ -95,7 +96,7 @@ func Test_combineSourcesFromElasticWithRegistry(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			combineSourcesFromElasticWithRegistry(&tt.sourcesFromElastic, tt.schemas, tt.normalizedPattern)
+			addClickHouseTablesToSourcesFromElastic(&tt.sourcesFromElastic, getMatchingClickHouseTables(tt.schemas, tt.normalizedPattern))
 			assert.ElementsMatchf(t, tt.sourcesFromElastic.Aliases, tt.expectedResult.Aliases, "Aliases don't match")
 			assert.ElementsMatchf(t, tt.sourcesFromElastic.Indices, tt.expectedResult.Indices, "Indices don't match")
 			assert.ElementsMatchf(t, tt.sourcesFromElastic.DataStreams, tt.expectedResult.DataStreams, "DataStreams don't match")

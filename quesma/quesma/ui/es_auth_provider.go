@@ -4,7 +4,7 @@
 package ui
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"github.com/markbates/goth"
 	"golang.org/x/oauth2"
 )

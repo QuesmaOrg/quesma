@@ -3,7 +3,7 @@
 package model
 
 import (
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 )
 
 // Content of this file is a copy of

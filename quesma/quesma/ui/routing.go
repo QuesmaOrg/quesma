@@ -3,8 +3,8 @@
 package ui
 
 import (
-	"quesma/quesma/mux"
-	"quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"strings"
 )
 
@@ -39,7 +39,7 @@ func dropFirstSegment(path string) string {
 func (qmc *QuesmaManagementConsole) generateRouterStatistics() []byte {
 	var buffer builder.HtmlBuffer
 
-	matchedKeys, matched, unmatchedKeys, unmatched := mux.MatchStatistics().GroupByFirstSegment()
+	matchedKeys, matched, unmatchedKeys, unmatched := quesma_api.MatchStatistics().GroupByFirstSegment()
 
 	buffer.Html("\n<h2>Matched URLs</h2>\n<ul>")
 	for _, segment := range matchedKeys {

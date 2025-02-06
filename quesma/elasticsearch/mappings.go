@@ -3,10 +3,10 @@
 package elasticsearch
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch/elasticsearch_field_types"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"maps"
-	"quesma/elasticsearch/elasticsearch_field_types"
-	"quesma/logger"
-	"quesma/schema"
 )
 
 func ParseMappings(namespace string, mappings map[string]interface{}) map[string]schema.Column {

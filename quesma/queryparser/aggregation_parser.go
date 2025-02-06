@@ -3,10 +3,10 @@
 package queryparser
 
 import (
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
+	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"regexp"
 	"slices"
 	"strconv"
@@ -29,6 +29,8 @@ type metricsAggregation struct {
 	sigma               float64                 // only for standard deviation
 }
 
+type aggregationParser = func(queryMap QueryMap) (model.QueryType, error)
+
 const metricsAggregationDefaultFieldType = clickhouse.Invalid
 
 // Tries to parse metrics aggregation from queryMap. If it's not a metrics aggregation, returns false.
@@ -36,6 +38,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	if len(queryMap) != 1 {
 		return metricsAggregation{}, false
 	}
+	const dateInSchemaExpected = false
 
 	// full list: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-Aggregations-metrics.html
 	// shouldn't be hard to handle others, if necessary
@@ -48,7 +51,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			return metricsAggregation{
 				AggrType:            k,
 				Fields:              []model.Expr{field},
-				FieldType:           cw.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
+				FieldType:           cw.GetDateTimeTypeFromSelectClause(cw.Ctx, field, dateInSchemaExpected),
 				IsFieldNameCompound: isFromScript,
 			}, true
 		}
@@ -64,7 +67,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		return metricsAggregation{
 			AggrType:    "quantile",
 			Fields:      []model.Expr{field},
-			FieldType:   cw.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
+			FieldType:   cw.GetDateTimeTypeFromSelectClause(cw.Ctx, field, dateInSchemaExpected),
 			Percentiles: percentiles,
 			Keyed:       keyed,
 		}, true
@@ -172,7 +175,11 @@ func (cw *ClickhouseQueryTranslator) parseTopHits(queryMap QueryMap) (parsedTopH
 	const defaultSize = 1
 	size := cw.parseSize(params, defaultSize)
 
-	orderBy := cw.parseOrder(params, queryMap, []model.Expr{})
+	orderBy, err := cw.parseOrder(params, []model.Expr{})
+	if err != nil {
+		logger.WarnWithCtx(cw.Ctx).Msgf("error parsing order in top_hits: %v", err)
+		return
+	}
 	if len(orderBy) == 1 && orderBy[0].IsCountDesc() { // we don't need count DESC
 		orderBy = []model.OrderByExpr{}
 	}
@@ -234,7 +241,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldField(shouldBeMap any, aggregatio
 	}
 	if fieldRaw, ok := Map["field"]; ok {
 		if field, ok := fieldRaw.(string); ok {
-			return model.NewColumnRef(cw.ResolveField(cw.Ctx, field)) // model.NewSelectColumnTableField(cw.Table.ResolveField(cw.Ctx, field)) // remove this resolve? we do all transforms after parsing is done?
+			return model.NewColumnRef(ResolveField(cw.Ctx, field, cw.Schema)) // model.NewSelectColumnTableField(cw.Table.ResolveField(cw.Ctx, field)) // remove this resolve? we do all transforms after parsing is done?
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 		}
@@ -284,6 +291,36 @@ func (cw *ClickhouseQueryTranslator) parseStringField(queryMap QueryMap, fieldNa
 	return defaultValue
 }
 
+func (cw *ClickhouseQueryTranslator) parseStringFieldExistCheck(queryMap QueryMap, fieldName string) (value string, exists bool) {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asString, ok := valueRaw.(string); ok {
+			return asString, true
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a string, but %T, value: %v", fieldName, valueRaw, valueRaw)
+	}
+	return "", false
+}
+
+func (cw *ClickhouseQueryTranslator) parseArrayField(queryMap QueryMap, fieldName string) ([]any, error) {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asArray, ok := valueRaw.([]any); ok {
+			return asArray, nil
+		}
+		return nil, fmt.Errorf("%s is not an array, but %T, value: %v", fieldName, valueRaw, valueRaw)
+	}
+	return nil, fmt.Errorf("array field '%s' not found in aggregation queryMap: %v", fieldName, queryMap)
+}
+
+func (cw *ClickhouseQueryTranslator) parseBoolField(queryMap QueryMap, fieldName string, defaultValue bool) bool {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asBool, ok := valueRaw.(bool); ok {
+			return asBool
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a bool, but %T, value: %v. Using default: %v", fieldName, valueRaw, valueRaw, defaultValue)
+	}
+	return defaultValue
+}
+
 // parseFieldFieldMaybeScript is basically almost a copy of parseFieldField above, but it also handles a basic script, if "field" is missing.
 func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any, aggregationType string) (field model.Expr, isFromScript bool) {
 	Map, ok := shouldBeMap.(QueryMap)
@@ -294,7 +331,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any,
 	// maybe "field" field
 	if fieldRaw, ok := Map["field"]; ok {
 		if field, ok := fieldRaw.(string); ok {
-			return model.NewColumnRef(cw.ResolveField(cw.Ctx, field)), true // remove this resolve? we do all transforms after parsing is done?
+			return model.NewColumnRef(ResolveField(cw.Ctx, field, cw.Schema)), false // remove this resolve? we do all transforms after parsing is done?
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 		}
@@ -329,29 +366,21 @@ func (cw *ClickhouseQueryTranslator) parseFieldFromScriptField(queryMap QueryMap
 		logger.WarnWithCtx(cw.Ctx).Msgf("source is not a string, but %T, value: %v", sourceRaw, sourceRaw)
 	}
 
-	// source must look like "doc['field_name'].value.getHour()" or "doc['field_name'].value.hourOfDay"
+	// a) source must look like "doc['field_name'].value.getHour()" or "doc['field_name'].value.hourOfDay"
 	wantedRegex := regexp.MustCompile(`^doc\['(\w+)']\.value\.(?:getHour\(\)|hourOfDay)$`)
 	matches := wantedRegex.FindStringSubmatch(source)
 	if len(matches) == 2 {
 		return model.NewFunction("toHour", model.NewColumnRef(matches[1])), true
 	}
-	return
-}
 
-func (cw *ClickhouseQueryTranslator) parseMinDocCount(queryMap QueryMap) int {
-	if minDocCountRaw, exists := queryMap["min_doc_count"]; exists {
-		if minDocCount, ok := minDocCountRaw.(float64); ok {
-			asInt := int(minDocCount)
-			if asInt != 0 && asInt != 1 {
-				logger.WarnWithCtx(cw.Ctx).Msgf("min_doc_count is not 0 or 1, but %d. Not really supported", asInt)
-			}
-			return asInt
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("min_doc_count is not a number, but %T, value: %v. Using default value: %d",
-				minDocCountRaw, minDocCountRaw, bucket_aggregations.DefaultMinDocCount)
-		}
+	// b) source: "if (doc['field_name_1'].value == doc['field_name_2'].value") { return 1; } else { return 0; }"
+	wantedRegex = regexp.MustCompile(`^if \(doc\['(.*)\.value']\.value == doc\['(.*)\.value'].value\) \{ \n  return 1; \n} else \{ \n  return 0; \n}$`)
+	matches = wantedRegex.FindStringSubmatch(source)
+	if len(matches) == 3 {
+		return model.NewInfixExpr(model.NewColumnRef(matches[1]), "=", model.NewColumnRef(matches[2])), true
 	}
-	return bucket_aggregations.DefaultMinDocCount
+
+	return
 }
 
 // quoteArray returns a new array with the same elements, but quoted

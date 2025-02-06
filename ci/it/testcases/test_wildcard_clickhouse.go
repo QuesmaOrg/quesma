@@ -25,17 +25,15 @@ func NewWildcardClickhouseTestcase() *WildcardClickhouseTestcase {
 
 func (a *WildcardClickhouseTestcase) SetupContainers(ctx context.Context) error {
 	containers, err := setupAllContainersWithCh(ctx, a.ConfigTemplate)
-	if err != nil {
-		return err
-	}
 	a.Containers = containers
-	return nil
+	return err
 }
 
 func (a *WildcardClickhouseTestcase) RunTests(ctx context.Context, t *testing.T) error {
 	t.Run("test basic request", func(t *testing.T) { a.testBasicRequest(ctx, t) })
 	t.Run("test ingest+query works", func(t *testing.T) { a.testIngestQueryWorks(ctx, t) })
 	t.Run("test clickhouse table autodiscovery", func(t *testing.T) { a.testClickHouseTableAutodiscovery(ctx, t) })
+	t.Run("test internal endpoints", func(t *testing.T) { a.testInternalEndpoints(ctx, t) })
 	return nil
 }
 
@@ -96,4 +94,19 @@ func (a *WildcardClickhouseTestcase) testClickHouseTableAutodiscovery(ctx contex
 	// assert.Contains(t, string(bodyBytes), "Bob")
 	// assert.Contains(t, string(bodyBytes), "Charlie")
 	// assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
+}
+
+// For full list, run "rg -o 'new Route\([^/{}"]*("/_[^/{}"]*(/[^{}/"]*)?")' | cut -d'"' -f2 | sort | uniq"
+// on the ES codebase.
+var InternalPaths = []string{"/_nodes", "/_xpack", "/_stats", "/_all/_stats", "/_license", "/_cat", "/_cat/health", "/_cluster/stats", "/_data_stream/_stats"}
+
+func (a *WildcardClickhouseTestcase) testInternalEndpoints(ctx context.Context, t *testing.T) {
+	for _, internalPath := range InternalPaths {
+		t.Run(internalPath, func(t *testing.T) {
+			resp, _ := a.RequestToQuesma(ctx, t, "GET", internalPath, nil)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Quesma-Source"))
+			assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
+		})
+	}
 }

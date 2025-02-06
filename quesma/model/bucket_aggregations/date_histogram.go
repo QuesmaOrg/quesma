@@ -5,11 +5,10 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/kibana"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strconv"
 	"strings"
 	"time"
@@ -18,7 +17,6 @@ import (
 type DateHistogramIntervalType bool
 
 const (
-	DefaultMinDocCount                                      = -1
 	DateHistogramFixedInterval    DateHistogramIntervalType = true
 	DateHistogramCalendarInterval DateHistogramIntervalType = false
 	defaultDateTimeType                                     = clickhouse.DateTime64
@@ -94,7 +92,11 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 	var response []model.JsonMap
 	for _, row := range rows {
 		docCount := row.LastColValue()
-		if util.ExtractInt64(docCount) < int64(query.minDocCount) {
+		docCountAsInt, err := util.ExtractInt64(docCount)
+		if err != nil {
+			logger.ErrorWithCtx(query.ctx).Msgf("error parsing doc_count: %v", docCount)
+		}
+		if docCountAsInt < int64(query.minDocCount) {
 			continue
 		}
 		originalKey := query.getKey(row)
@@ -150,7 +152,7 @@ func (query *DateHistogram) GenerateSQL() model.Expr {
 }
 
 func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
-	interval, err := kibana.ParseInterval(query.interval)
+	interval, err := util.ParseInterval(query.interval)
 	if err != nil {
 		logger.ErrorWithCtx(query.ctx).Msg(err.Error())
 	}
@@ -195,12 +197,16 @@ func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
 		query.intervalType = DateHistogramFixedInterval
 		return query.generateSQLForFixedInterval()
 	case "week", "1w":
+		query.interval = "1w"
 		return exprForBiggerIntervals("toStartOfWeek")
 	case "month", "1M":
+		query.interval = "1M"
 		return exprForBiggerIntervals("toStartOfMonth")
 	case "quarter", "1q":
+		query.interval = "1q"
 		return exprForBiggerIntervals("toStartOfQuarter")
 	case "year", "1y":
+		query.interval = "1y"
 		return exprForBiggerIntervals("toStartOfYear")
 	}
 
@@ -253,7 +259,7 @@ func (query *DateHistogram) SetMinDocCountToZero() {
 }
 
 func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
-	duration, err := kibana.ParseInterval(query.interval)
+	duration, err := util.ParseInterval(query.interval)
 	var differenceBetweenTwoNextKeys int64
 	if err == nil {
 		differenceBetweenTwoNextKeys = duration.Milliseconds()
@@ -313,7 +319,7 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 		// ugly, but works, will do for now
 		doWeDivide := (currentKey/qt.getKey(rowsFromDB[i])) >= 100 || (float64(currentKey)/float64(qt.getKey(rowsFromDB[i]))) <= 0.01
 
-		for midKey := lastKey + qt.differenceBetweenTwoNextKeys; midKey < currentKey && emptyRowsAdded < maxEmptyBucketsAdded; midKey += qt.differenceBetweenTwoNextKeys {
+		for midKey := qt.nextKey(lastKey); midKey < currentKey && emptyRowsAdded < maxEmptyBucketsAdded; midKey = qt.nextKey(midKey) {
 			midRow := rowsFromDB[i-1].Copy()
 			divideBy := int64(1)
 			if doWeDivide {
@@ -395,4 +401,31 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 
 func (qt *DateHistogramRowsTransformer) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
+}
+
+func (qt *DateHistogramRowsTransformer) nextKey(key int64) int64 {
+	if qt.dateHistogram.intervalType == DateHistogramFixedInterval {
+		return key + qt.differenceBetweenTwoNextKeys
+	}
+	if qt.dateHistogram.interval != "1M" && qt.dateHistogram.interval != "1q" && qt.dateHistogram.interval != "1y" {
+		// intervals < month are the same as fixed_interval here
+		return key + qt.differenceBetweenTwoNextKeys
+	}
+
+	addNMonths := func(key int64, N int) int64 {
+		ts := time.UnixMilli(key).UTC()
+		// adding 2 days below isn't exactly necessary, it's only a quick way to make sure we're in the same month, even for weird timezones
+		return ts.AddDate(0, N, 2).UnixMilli() - ts.AddDate(0, 0, 2).UnixMilli()
+	}
+	var monthsNr int
+	switch qt.dateHistogram.interval {
+	case "1M":
+		monthsNr = 1
+	case "1q":
+		monthsNr = 3
+	case "1y":
+		monthsNr = 12
+	}
+	deltaInMs := addNMonths(key, monthsNr)
+	return key + deltaInMs
 }

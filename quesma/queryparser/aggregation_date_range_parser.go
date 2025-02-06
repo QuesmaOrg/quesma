@@ -3,80 +3,53 @@
 package queryparser
 
 import (
-	"quesma/logger"
-	"quesma/model/bucket_aggregations"
+	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
 	"unicode"
 )
 
-func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMap) (bucket_aggregations.DateRange, error) {
-	var err error
-	var fieldName, format string
+func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(aggregation *pancakeAggregationTreeNode, params QueryMap) (err error) {
+	field := cw.parseFieldField(params, "date_range")
+	if field == nil {
+		return fmt.Errorf("no field specified for date range aggregation, params: %v", params)
+	}
+	format := cw.parseStringField(params, "format", "")
+	ranges, err := cw.parseArrayField(params, "ranges")
+	if err != nil {
+		return err
+	}
 
-	if field, exists := dateRange["field"]; exists {
-		if fieldNameRaw, ok := field.(string); ok {
-			fieldName = cw.ResolveField(cw.Ctx, fieldNameRaw)
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("field specified for date range aggregation is not a string. Using empty. Querymap: %v", dateRange)
-		}
-	} else {
-		logger.WarnWithCtx(cw.Ctx).Msgf("no field specified for date range aggregation. Using empty. Querymap: %v", dateRange)
-	}
-	var ranges []any
-	var ok bool
-	if formatRaw, exists := dateRange["format"]; exists {
-		if formatParsed, ok := formatRaw.(string); ok {
-			format = formatParsed
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("format specified for date range aggregation is not a string. Using empty. Querymap: %v", dateRange)
-		}
-	}
-	if rangesRaw, exists := dateRange["ranges"]; exists {
-		if ranges, ok = rangesRaw.([]any); !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("ranges specified for date range aggregation is not an array. Using empty. Querymap: %v", dateRange)
-		}
-	} else {
-		logger.WarnWithCtx(cw.Ctx).Msgf("no ranges specified for date range aggregation. Using empty. Querymap: %v", dateRange)
-	}
 	intervals := make([]bucket_aggregations.DateTimeInterval, 0, len(ranges))
 	selectColumnsNr := len(ranges) // we query Clickhouse for every unbounded part of interval (begin and end)
-	for _, Range := range ranges {
-		rangeMap := Range.(QueryMap)
-		var intervalBegin, intervalEnd string
-		from, exists := rangeMap["from"]
-		if exists {
-			if fromRaw, ok := from.(string); ok {
-				intervalBegin, err = cw.parseDateTimeInClickhouseMathLanguage(fromRaw)
-				if err != nil {
-					return bucket_aggregations.DateRange{}, err
-				}
-				selectColumnsNr++
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("from specified for date range aggregation is not a string. Querymap: %v "+
-					"Using default (unbounded).", dateRange)
-				intervalBegin = bucket_aggregations.UnboundedInterval
-			}
-		} else {
-			intervalBegin = bucket_aggregations.UnboundedInterval
+	for _, rangeRaw := range ranges {
+		rangeMap, ok := rangeRaw.(QueryMap)
+		if !ok {
+			return fmt.Errorf("range is not a map, but %T, range: %v", rangeRaw, rangeRaw)
 		}
-		to, exists := rangeMap["to"]
-		if exists {
-			if toRaw, ok := to.(string); ok {
-				intervalEnd, err = cw.parseDateTimeInClickhouseMathLanguage(toRaw)
-				if err != nil {
-					return bucket_aggregations.DateRange{}, err
-				}
-				selectColumnsNr++
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("To specified for date range aggregation is not a string. Querymap: %v "+
-					"Using default (unbounded).", dateRange)
-				intervalEnd = bucket_aggregations.UnboundedInterval
+
+		const defaultIntervalBound = bucket_aggregations.UnboundedInterval
+		intervalBegin := defaultIntervalBound
+		if from := cw.parseStringField(rangeMap, "from", defaultIntervalBound); from != defaultIntervalBound {
+			intervalBegin, err = cw.parseDateTimeInClickhouseMathLanguage(from)
+			if err != nil {
+				return err
 			}
-		} else {
-			intervalEnd = bucket_aggregations.UnboundedInterval
+			selectColumnsNr++
+		}
+
+		intervalEnd := bucket_aggregations.UnboundedInterval
+		if to := cw.parseStringField(rangeMap, "to", defaultIntervalBound); to != defaultIntervalBound {
+			intervalEnd, err = cw.parseDateTimeInClickhouseMathLanguage(to)
+			if err != nil {
+				return err
+			}
+			selectColumnsNr++
 		}
 		intervals = append(intervals, bucket_aggregations.NewDateTimeInterval(intervalBegin, intervalEnd))
 	}
-	return bucket_aggregations.NewDateRange(cw.Ctx, fieldName, format, intervals, selectColumnsNr), nil
+
+	aggregation.queryType = bucket_aggregations.NewDateRange(cw.Ctx, field, format, intervals, selectColumnsNr)
+	return nil
 }
 
 // parseDateTimeInClickhouseMathLanguage parses dateTime from Clickhouse's format

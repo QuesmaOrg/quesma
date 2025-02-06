@@ -4,18 +4,20 @@ package clickhouse
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"quesma/common_table"
-	"quesma/end_user_errors"
-	"quesma/logger"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/goccy/go-json"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -34,24 +36,29 @@ func (d DbKind) String() string {
 type TableDiscovery interface {
 	ReloadTableDefinitions()
 	TableDefinitions() *TableMap
+	AddTable(tableName string, table *Table)
 	TableDefinitionsFetchError() error
 
 	LastAccessTime() time.Time
 	LastReloadTime() time.Time
 	ForceReloadCh() <-chan chan<- struct{}
 	AutodiscoveryEnabled() bool
+
+	RegisterTablesReloadListener(ch chan<- types.ReloadMessage)
 }
 
 type tableDiscovery struct {
 	cfg                               *config.QuesmaConfiguration
-	dbConnPool                        *sql.DB
-	tableVerifier                     tableVerifier
+	dbConnPool                        quesma_api.BackendConnector
 	tableDefinitions                  *atomic.Pointer[TableMap]
 	tableDefinitionsAccessUnixSec     atomic.Int64
 	tableDefinitionsLastReloadUnixSec atomic.Int64
 	forceReloadCh                     chan chan<- struct{}
 	ReloadTablesError                 error
 	virtualTableStorage               persistence.JSONDatabase
+
+	reloadObserversMutex sync.Mutex
+	reloadObservers      []chan<- types.ReloadMessage
 }
 
 type columnMetadata struct {
@@ -62,7 +69,7 @@ type columnMetadata struct {
 	comment string
 }
 
-func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB, virtualTablesDB persistence.JSONDatabase) TableDiscovery {
+func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool quesma_api.BackendConnector, virtualTablesDB persistence.JSONDatabase) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
 	result := &tableDiscovery{
@@ -80,12 +87,30 @@ type TableDiscoveryTableProviderAdapter struct {
 	TableDiscovery
 }
 
+func (t TableDiscoveryTableProviderAdapter) RegisterTablesReloadListener(ch chan<- types.ReloadMessage) {
+	t.TableDiscovery.RegisterTablesReloadListener(ch)
+}
+
 func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema.Table {
+
+	// here we filter out our internal columns
+
+	internalColumn := make(map[string]bool)
+	internalColumn[AttributesValuesColumn] = true
+	internalColumn[AttributesMetadataColumn] = true
+	internalColumn[DeprecatedAttributesKeyColumn] = true
+	internalColumn[DeprecatedAttributesValueColumn] = true
+	internalColumn[DeprecatedAttributesValueType] = true
+
 	tableMap := t.TableDiscovery.TableDefinitions()
 	tables := make(map[string]schema.Table)
 	tableMap.Range(func(tableName string, value *Table) bool {
 		table := schema.Table{Columns: make(map[string]schema.Column)}
 		for _, column := range value.Cols {
+			if internalColumn[column.Name] {
+				continue
+			}
+
 			table.Columns[column.Name] = schema.Column{
 				Name:    column.Name,
 				Type:    column.Type.String(),
@@ -99,7 +124,7 @@ func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema
 	return tables
 }
 
-func NewTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB, tables TableMap) TableDiscovery {
+func NewTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool quesma_api.BackendConnector, tables TableMap) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(&tables)
 	result := &tableDiscovery{
@@ -110,6 +135,31 @@ func NewTableDiscoveryWith(cfg *config.QuesmaConfiguration, dbConnPool *sql.DB, 
 	}
 	result.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 	return result
+}
+
+func (td *tableDiscovery) AddTable(tableName string, table *Table) {
+	td.tableDefinitions.Load().Store(tableName, table)
+	td.notifyObservers()
+}
+
+func (td *tableDiscovery) RegisterTablesReloadListener(ch chan<- types.ReloadMessage) {
+	td.reloadObserversMutex.Lock()
+	defer td.reloadObserversMutex.Unlock()
+	td.reloadObservers = append(td.reloadObservers, ch)
+}
+
+func (td *tableDiscovery) notifyObservers() {
+
+	td.reloadObserversMutex.Lock()
+	defer td.reloadObserversMutex.Unlock()
+
+	msg := types.ReloadMessage{Timestamp: time.Now()}
+	for _, observer := range td.reloadObservers {
+		logger.Info().Msgf("Sending message to observer %v", observer)
+		go func() {
+			observer <- msg
+		}()
+	}
 }
 
 func (td *tableDiscovery) TableDefinitionsFetchError() error {
@@ -164,8 +214,9 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 	configuredTables = td.readVirtualTables(configuredTables)
 
 	td.ReloadTablesError = nil
-	td.verify(configuredTables)
 	td.populateTableDefinitions(configuredTables, databaseName, td.cfg)
+
+	td.notifyObservers()
 }
 
 func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discoveredTable) map[string]discoveredTable {
@@ -236,18 +287,35 @@ func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discover
 func (td *tableDiscovery) configureTables(tables map[string]map[string]columnMetadata, databaseName string) (configuredTables map[string]discoveredTable) {
 	configuredTables = make(map[string]discoveredTable)
 	var explicitlyDisabledTables, notConfiguredTables []string
+	overrideToOriginal := make(map[string]string)
+
+	// populate map of override to original table names
+	// this will be further used to take specific index config
+	// from the original table
+	for indexName, indexConfig := range td.cfg.IndexConfig {
+		if len(indexConfig.Override) > 0 {
+			overrideToOriginal[indexConfig.Override] = indexName
+		}
+	}
+
 	for table, columns := range tables {
 
 		// single logs table is our internal table, user shouldn't configure it at all
 		// and we should always include it in the list of tables managed by Quesma
 		isCommonTable := table == common_table.TableName
-
-		if indexConfig, found := td.cfg.IndexConfig[table]; found || isCommonTable {
+		override := false
+		if _, found := overrideToOriginal[table]; found {
+			override = true
+		}
+		if indexConfig, found := td.cfg.IndexConfig[table]; found || isCommonTable || override {
 
 			if isCommonTable {
 				indexConfig = config.IndexConfiguration{}
 			}
-
+			// if table is overridden, we take the index config from the original index
+			if override {
+				indexConfig = td.cfg.IndexConfig[overrideToOriginal[table]]
+			}
 			if !isCommonTable && !indexConfig.IsClickhouseQueryEnabled() && !indexConfig.IsClickhouseIngestEnabled() {
 				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 			} else {
@@ -295,6 +363,7 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]colum
 }
 
 func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg *config.QuesmaConfiguration) {
+
 	tableMap := NewTableMap()
 	for tableName, resTable := range configuredTables {
 		var columnsMap = make(map[string]*Column)
@@ -306,16 +375,16 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 					continue
 				}
 			}
-			if col != AttributesValuesColumn && col != AttributesMetadataColumn {
-				column := resolveColumn(col, columnMeta.colType)
-				if column != nil {
-					column.Comment = columnMeta.comment
-					columnsMap[col] = column
-				} else {
-					logger.Warn().Msgf("column '%s.%s' type: '%s' not resolved. table will be skipped", tableName, col, columnMeta.colType)
-					partiallyResolved = true
-				}
+
+			column := resolveColumn(col, columnMeta.colType)
+			if column != nil {
+				column.Comment = columnMeta.comment
+				columnsMap[col] = column
+			} else {
+				logger.Warn().Msgf("column '%s.%s' type: '%s' not resolved. table will be skipped", tableName, col, columnMeta.colType)
+				partiallyResolved = true
 			}
+
 		}
 
 		var timestampFieldName *string
@@ -387,17 +456,6 @@ func (td *tableDiscovery) TableDefinitions() *TableMap {
 		<-doneCh
 	}
 	return td.tableDefinitions.Load()
-}
-
-func (td *tableDiscovery) verify(tables map[string]discoveredTable) {
-	for _, table := range tables {
-		logger.Info().Msgf("verifying table %s", table.name)
-		if correct, violations := td.tableVerifier.verify(table); correct {
-			logger.Debug().Msgf("table %s verified", table.name)
-		} else {
-			logger.Warn().Msgf("table %s verification failed: %s", table.name, violations)
-		}
-	}
 }
 
 func resolveColumn(colName, colType string) *Column {
@@ -534,18 +592,20 @@ func removePrecision(str string) string {
 }
 
 func (td *tableDiscovery) readTables(database string) (map[string]map[string]columnMetadata, error) {
-
 	logger.Debug().Msgf("describing tables: %s", database)
 
 	if td.dbConnPool == nil {
 		return map[string]map[string]columnMetadata{}, fmt.Errorf("database connection pool is nil, cannot describe tables")
 	}
-	rows, err := td.dbConnPool.Query("SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
+
+	rows, err := td.dbConnPool.Query(context.Background(), "SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
+
 	if err != nil {
 		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
 		return map[string]map[string]columnMetadata{}, err
 	}
 	defer rows.Close()
+
 	columnsPerTable := make(map[string]map[string]columnMetadata)
 	for rows.Next() {
 		var table, colName, colType, comment string
@@ -556,6 +616,10 @@ func (td *tableDiscovery) readTables(database string) (map[string]map[string]col
 			columnsPerTable[table] = make(map[string]columnMetadata)
 		}
 		columnsPerTable[table][colName] = columnMetadata{colType: colType, comment: comment}
+	}
+
+	if err := rows.Err(); err != nil {
+		return map[string]map[string]columnMetadata{}, err
 	}
 
 	return columnsPerTable, nil
@@ -574,7 +638,8 @@ func (td *tableDiscovery) tableTimestampField(database, table string, dbKind DbK
 func (td *tableDiscovery) getTimestampFieldForHydrolix(database, table string) (timestampField string) {
 	// In Hydrolix, there's always only one column in a table set as a primary timestamp
 	// Ref: https://docs.hydrolix.io/docs/transforms-and-write-schema#primary-timestamp
-	if err := td.dbConnPool.QueryRow("SELECT primary_key FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&timestampField); err != nil {
+	err := td.dbConnPool.QueryRow(context.Background(), "SELECT primary_key FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&timestampField)
+	if err != nil {
 		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
 	}
 	return timestampField
@@ -583,7 +648,8 @@ func (td *tableDiscovery) getTimestampFieldForHydrolix(database, table string) (
 func (td *tableDiscovery) getTimestampFieldForClickHouse(database, table string) (timestampField string) {
 	// In ClickHouse, there's no concept of a primary timestamp field, primary keys are often composite,
 	// hence we have to use following heuristic to determine the timestamp field (also just picking the first column if there are multiple)
-	if err := td.dbConnPool.QueryRow("SELECT name FROM system.columns WHERE database = ? AND table = ? AND is_in_primary_key = 1 AND type iLIKE 'DateTime%'", database, table).Scan(&timestampField); err != nil {
+	err := td.dbConnPool.QueryRow(context.Background(), "SELECT name FROM system.columns WHERE database = ? AND table = ? AND is_in_primary_key = 1 AND type iLIKE 'DateTime%'", database, table).Scan(&timestampField)
+	if err != nil {
 		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
 		return
 	}
@@ -591,9 +657,7 @@ func (td *tableDiscovery) getTimestampFieldForClickHouse(database, table string)
 }
 
 func (td *tableDiscovery) tableComment(database, table string) (comment string) {
-
-	err := td.dbConnPool.QueryRow("SELECT comment FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&comment)
-
+	err := td.dbConnPool.QueryRow(context.Background(), "SELECT comment FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&comment)
 	if err != nil {
 		logger.Error().Msgf("could not get table comment: %v", err)
 	}
@@ -601,10 +665,9 @@ func (td *tableDiscovery) tableComment(database, table string) (comment string) 
 }
 
 func (td *tableDiscovery) createTableQuery(database, table string) (ddl string) {
-	err := td.dbConnPool.QueryRow("SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&ddl)
-
+	err := td.dbConnPool.QueryRow(context.Background(), "SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&ddl)
 	if err != nil {
-		logger.Error().Msgf("could not get table comment: %v", err)
+		logger.Error().Msgf("could not get create table statement: %v", err)
 	}
 	return ddl
 }
@@ -619,6 +682,9 @@ func NewEmptyTableDiscovery() *EmptyTableDiscovery {
 	return &EmptyTableDiscovery{
 		TableMap: NewTableMap(),
 	}
+}
+
+func (td *EmptyTableDiscovery) RegisterTablesReloadListener(ch chan<- types.ReloadMessage) {
 }
 
 func (td *EmptyTableDiscovery) ReloadTableDefinitions() {
@@ -646,4 +712,8 @@ func (td *EmptyTableDiscovery) ForceReloadCh() <-chan chan<- struct{} {
 
 func (td *EmptyTableDiscovery) AutodiscoveryEnabled() bool {
 	return td.Autodiscovery
+}
+
+func (td *EmptyTableDiscovery) AddTable(tableName string, table *Table) {
+	td.TableMap.Store(tableName, table)
 }

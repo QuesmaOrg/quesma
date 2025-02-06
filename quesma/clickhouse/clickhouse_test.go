@@ -4,9 +4,10 @@ package clickhouse
 
 import (
 	"context"
-	"quesma/concurrent"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	schema2 "github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -576,16 +577,18 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 		Name:    "abc",
 		Cols: map[string]*Column{
 			"low_card_string": {
-				Name: "low_card_string",
-				Type: NewBaseType("LowCardinality(String)"),
+				Name:    "low_card_string",
+				Type:    NewBaseType("LowCardinality(String)"),
+				Comment: "some comment 1",
 			},
 			"uuid": {
 				Name: "uuid",
 				Type: NewBaseType("UUID"),
 			},
 			"int32": {
-				Name: "int32",
-				Type: NewBaseType("Int32"),
+				Name:    "int32",
+				Type:    NewBaseType("Int32"),
+				Comment: "some comment 2",
 			},
 			"epoch_time": {
 				Name:      "epoch_time",
@@ -615,8 +618,8 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 	}
 	expectedRows := []string{
 		`CREATE TABLE IF NOT EXISTS "abc" (`,
-		`"int32" Int32,`,
-		`"low_card_string" LowCardinality(String),`,
+		`"int32" Int32 COMMENT 'some comment 2',`,
+		`"low_card_string" LowCardinality(String) COMMENT 'some comment 1',`,
 		`"uuid" UUID,`,
 		`"others" JSON,`,
 		`"attributes_int64_key" Array(String),`,
@@ -646,49 +649,49 @@ func TestLogManager_GetTable(t *testing.T) {
 	}{
 		{
 			name:             "empty",
-			predefinedTables: *concurrent.NewMap[string, *Table](),
+			predefinedTables: *util.NewSyncMap[string, *Table](),
 			tableNamePattern: "table",
 			found:            false,
 		},
 		{
 			name:             "should find by name",
-			predefinedTables: *concurrent.NewMapWith("table1", &Table{Name: "table1"}),
+			predefinedTables: *util.NewSyncMapWith("table1", &Table{Name: "table1"}),
 			tableNamePattern: "table1",
 			found:            true,
 		},
 		{
 			name:             "should not find by name",
-			predefinedTables: *concurrent.NewMapWith("table1", &Table{Name: "table1"}),
+			predefinedTables: *util.NewSyncMapWith("table1", &Table{Name: "table1"}),
 			tableNamePattern: "foo",
 			found:            false,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-generic-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*-*-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-*-default",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*",
 			found:            true,
 		},
 		{
 			name:             "should not find by pattern",
-			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "foo-*",
 			found:            false,
 		},
@@ -774,9 +777,17 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
+			schemaTables := make(map[schema2.IndexName]schema2.Schema)
+
+			for _, name := range tt.tables.Keys() {
+				schemaTables[schema2.IndexName(name)] = schema2.Schema{}
+			}
+			schemaRegistry := schema2.StaticRegistry{
+				Tables: schemaTables,
+			}
 			tableDefinitions.Store(tt.tables)
 			lm := &LogManager{tableDiscovery: NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tt.tables)}
-			indexes, err := lm.ResolveIndexPattern(context.Background(), tt.patterns)
+			indexes, err := lm.ResolveIndexPattern(context.Background(), &schemaRegistry, tt.patterns)
 			assert.NoError(t, err)
 			assert.Equalf(t, tt.resolved, indexes, tt.patterns, "ResolveIndexPattern(%v)", tt.patterns)
 		})
@@ -784,7 +795,7 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 }
 
 func newTableMap(tables ...string) *TableMap {
-	newMap := concurrent.NewMap[string, *Table]()
+	newMap := util.NewSyncMap[string, *Table]()
 	for _, table := range tables {
 		newMap.Store(table, &Table{Name: table})
 	}

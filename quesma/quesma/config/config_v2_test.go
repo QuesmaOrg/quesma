@@ -268,6 +268,35 @@ func TestTargetNewVariant(t *testing.T) {
 	assert.Equal(t, expectedOverride, override.Override)
 }
 
+func TestTargetLegacyVariant(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/target_legacy_variant.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+	assert.False(t, legacyConf.TransparentProxy)
+	assert.Equal(t, 3, len(legacyConf.IndexConfig))
+	ecommerce := legacyConf.IndexConfig["kibana_sample_data_ecommerce"]
+	flights := legacyConf.IndexConfig["kibana_sample_data_flights"]
+	logs := legacyConf.IndexConfig["kibana_sample_data_logs"]
+
+	assert.Equal(t, []string{ClickhouseTarget}, ecommerce.QueryTarget)
+	assert.Equal(t, []string{ClickhouseTarget, ElasticsearchTarget}, ecommerce.IngestTarget)
+
+	assert.Equal(t, []string{ClickhouseTarget}, flights.QueryTarget)
+	assert.Equal(t, []string{ClickhouseTarget}, flights.IngestTarget)
+
+	assert.Equal(t, []string{ElasticsearchTarget, ClickhouseTarget}, logs.QueryTarget)
+	assert.Equal(t, []string{ClickhouseTarget, ElasticsearchTarget}, logs.IngestTarget)
+
+	assert.Equal(t, false, flights.UseCommonTable)
+	assert.Equal(t, "", flights.Override)
+	assert.Equal(t, false, ecommerce.UseCommonTable)
+	assert.Equal(t, "", ecommerce.Override)
+	assert.Equal(t, true, legacyConf.EnableIngest)
+}
+
 func TestUseCommonTableGlobalProperty(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/use_common_table_global_property.yaml")
 	cfg := LoadV2Config()
@@ -288,4 +317,25 @@ func TestUseCommonTableGlobalProperty(t *testing.T) {
 
 	assert.Equal(t, true, flights.UseCommonTable)
 	assert.Equal(t, false, ecommerce.UseCommonTable)
+}
+
+func TestIngestOptimizers(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/ingest_only_optimizers.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+	assert.False(t, legacyConf.TransparentProxy)
+	assert.Equal(t, 1, len(legacyConf.IndexConfig))
+	logs1, ok := legacyConf.IndexConfig["logs-1"]
+
+	assert.True(t, ok)
+	assert.Equal(t, 2, len(logs1.Optimizers))
+	assert.NotNil(t, legacyConf.DefaultIngestOptimizers)
+	assert.Equal(t, 1, len(legacyConf.DefaultIngestOptimizers))
+	assert.NotNil(t, legacyConf.DefaultIngestOptimizers["ingest_only"])
+
+	_, ok = legacyConf.DefaultIngestOptimizers["query_only"]
+	assert.False(t, ok)
 }
