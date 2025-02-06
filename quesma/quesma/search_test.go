@@ -851,7 +851,8 @@ func TestFullQueryTestWIP(t *testing.T) {
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
-			"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+			"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+			"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
 		},
 	}
 
@@ -861,7 +862,8 @@ func TestFullQueryTestWIP(t *testing.T) {
 		Cols: map[string]*clickhouse.Column{
 			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
-			"message": {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
 		Created: true,
 	})
