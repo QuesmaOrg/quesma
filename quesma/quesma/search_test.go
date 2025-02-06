@@ -761,7 +761,8 @@ func TestSearchTrackTotalCount(t *testing.T) {
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
-			"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+			"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+			"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
 		},
 	}
 
@@ -771,7 +772,8 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		Cols: map[string]*clickhouse.Column{
 			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
-			"message": {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
 		Created: true,
 	})
@@ -782,9 +784,19 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 		for i, expectedSQL := range testcase.ExpectedSQLs {
-			rows := sqlmock.NewRows([]string{"column-name-not-important"})
+			results := testcase.ExpectedSQLResults[i]
+			var rows *sqlmock.Rows
+			if len(results) == 0 || len(results[0].Cols) == 2 {
+				rows = sqlmock.NewRows([]string{"column-name-not-important", "same-here"})
+			} else {
+				rows = sqlmock.NewRows([]string{"column-name-not-important"})
+			}
 			for _, row := range testcase.ExpectedSQLResults[i] {
-				rows.AddRow(row.Cols[0].Value)
+				if len(row.Cols) == 2 {
+					rows.AddRow(row.Cols[0].Value, row.Cols[1].Value)
+				} else {
+					rows.AddRow(row.Cols[0].Value)
+				}
 			}
 			mock.ExpectQuery(expectedSQL).WillReturnRows(rows)
 		}
@@ -828,8 +840,12 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		actualMinusExpected, expectedMinusActual := util.MapDifference(responsePart,
 			expectedResponseMap, acceptableDifference, true, true)
 
-		pp.Println("expected", expectedResponseMap)
-		pp.Println("actual", responsePart)
+		if len(actualMinusExpected) != 0 {
+			pp.Println("ACTUAL diff", actualMinusExpected)
+		}
+		if len(expectedMinusActual) != 0 {
+			pp.Println("EXPECTED diff", expectedMinusActual)
+		}
 
 		assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference), "actualMinusExpected: %v", actualMinusExpected)
 		assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference), "expectedMinusActual: %v", expectedMinusActual)

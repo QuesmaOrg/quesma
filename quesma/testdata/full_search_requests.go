@@ -14,7 +14,7 @@ func selectTotalCnt() string {
 	return fmt.Sprintf(`SELECT count(*) AS "column_0" FROM %s`, TableName)
 }
 func selectStar(limit int) string {
-	return fmt.Sprintf("SELECT \"message\" FROM %s LIMIT %d", TableName, limit)
+	return fmt.Sprintf("SELECT \"@timestamp\", \"message\" FROM %s LIMIT %d", TableName, limit)
 }
 
 func resultCount(cnt int) []model.QueryResultRow {
@@ -27,7 +27,10 @@ func resultSelect(cnt int) []model.QueryResultRow {
 	result := make([]model.QueryResultRow, cnt)
 	for i := range cnt {
 		result[i] = model.QueryResultRow{
-			Cols: []model.QueryResultCol{model.NewQueryResultCol("message", "example")},
+			Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("@timestamp", "2021-01-01T00:00:00.000Z"),
+				model.NewQueryResultCol("message", "example"),
+			},
 		}
 	}
 	return result
@@ -95,10 +98,12 @@ var FullSearchRequests = []FullSearchTestCase{
 						"_id": "1",
 						"_score": 0.0,
 						"_source": {
-							"message": "example"
+							"message": "example",
+							"@timestamp": "2021-01-01T00:00:00.000Z"
 						},
 						"fields": {
-							"message": ["example"]
+							"message": ["example"],
+							"@timestamp": ["2021-01-01T00:00:00.000Z"]
 						}
 					}
 				]
@@ -136,10 +141,12 @@ var FullSearchRequests = []FullSearchTestCase{
 						"_id": "1",
 						"_score": 0.0,
 						"_source": {
-							"message": "example"
+							"message": "example",
+							"@timestamp": "2021-01-01T00:00:00.000Z"
 						},
 						"fields": {
-							"message": ["example"]
+							"message": ["example"],
+							"@timestamp": ["2021-01-01T00:00:00.000Z"]
 						}
 					},
 					{
@@ -147,10 +154,12 @@ var FullSearchRequests = []FullSearchTestCase{
 						"_id": "2",
 						"_score": 0.0,
 						"_source": {
-							"message": "example"
+							"message": "example",
+							"@timestamp": "2021-01-01T00:00:00.000Z"
 						},
 						"fields": {
-							"message": ["example"]
+							"message": ["example"],
+							"@timestamp": ["2021-01-01T00:00:00.000Z"]
 						}
 					}
 				]
@@ -187,10 +196,12 @@ var FullSearchRequests = []FullSearchTestCase{
 						"_id": "1",
 						"_score": 0.0,
 						"_source": {
-							"message": "example"
+							"message": "example",
+							"@timestamp": "2021-01-01T00:00:00.000Z"
 						},
 						"fields": {
-							"message": ["example"]
+							"message": ["example"],
+							"@timestamp": ["2021-01-01T00:00:00.000Z"]
 						}
 					},
 					{
@@ -198,10 +209,12 @@ var FullSearchRequests = []FullSearchTestCase{
 						"_id": "2",
 						"_score": 0.0,
 						"_source": {
-							"message": "example"
+							"message": "example",
+							"@timestamp": "2021-01-01T00:00:00.000Z"
 						},
 						"fields": {
-							"message": ["example"]
+							"message": ["example"],
+							"@timestamp": ["2021-01-01T00:00:00.000Z"]
 						}
 					}
 				]
@@ -238,10 +251,12 @@ var FullSearchRequests = []FullSearchTestCase{
 						"_id": "1",
 						"_score": 0.0,
 						"_source": {
-							"message": "example"
+							"message": "example",
+							"@timestamp": "2021-01-01T00:00:00.000Z"
 						},
 						"fields": {
-							"message": ["example"]
+							"message": ["example"],
+							"@timestamp": ["2021-01-01T00:00:00.000Z"]
 						}
 					},
 					{
@@ -249,10 +264,12 @@ var FullSearchRequests = []FullSearchTestCase{
 						"_id": "2",
 						"_score": 0.0,
 						"_source": {
-							"message": "example"
+							"message": "example",
+							"@timestamp": "2021-01-01T00:00:00.000Z"
 						},
 						"fields": {
-							"message": ["example"]
+							"message": ["example"],
+							"@timestamp": ["2021-01-01T00:00:00.000Z"]
 						}
 					}
 				]
@@ -289,10 +306,12 @@ var FullSearchRequests = []FullSearchTestCase{
 						"_id": "1",
 						"_score": 0.0,
 						"_source": {
-							"message": "example"
+							"message": "example",
+							"@timestamp": "2021-01-01T00:00:00.000Z"
 						},
 						"fields": {
-							"message": ["example"]
+							"message": ["example"],
+							"@timestamp": ["2021-01-01T00:00:00.000Z"]
 						}
 					},
 					{
@@ -300,10 +319,12 @@ var FullSearchRequests = []FullSearchTestCase{
 						"_id": "2",
 						"_score": 0.0,
 						"_source": {
-							"message": "example"
+							"message": "example",
+							"@timestamp": "2021-01-01T00:00:00.000Z"
 						},
 						"fields": {
-							"message": ["example"]
+							"message": ["example"],
+							"@timestamp": ["2021-01-01T00:00:00.000Z"]
 						}
 					}
 				]
@@ -340,10 +361,12 @@ var FullSearchRequests = []FullSearchTestCase{
 						"_id": "1",
 						"_score": 0.0,
 						"_source": {
-							"message": "example"
+							"message": "example",
+							"@timestamp": "2021-01-01T00:00:00.000Z"
 						},
 						"fields": {
-							"message": ["example"]
+							"message": ["example"],
+							"@timestamp": ["2021-01-01T00:00:00.000Z"]
 						}
 					}
 				]
