@@ -400,7 +400,31 @@ var FullSearchRequests = []FullSearchTestCase{
 			}
 		}`,
 		ExpectedSQLs: []string{
-			`SELECT "metric____quesma_total_count_col_0", "aggr__2__key_0", "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0", "aggr__2__3__count" FROM (SELECT "metric____quesma_total_count_col_0", "aggr__2__key_0", "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0", "aggr__2__3__count", dense_rank() OVER (ORDER BY "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY "aggr__2__3__count" DESC, "aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank" FROM (SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0", toInt64((toUnixTimestamp64Milli(NULL)+timeZoneOffset(toTimezone(NULL,'Europe/Warsaw'))*1000) / 43200000) AS "aggr__2__key_0", sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count", sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__3__parent_count", NULL AS "aggr__2__3__key_0", count(*) AS "aggr__2__3__count" FROM __quesma_table_name GROUP BY toInt64((toUnixTimestamp64Milli(NULL)+timeZoneOffset(toTimezone(NULL,'Europe/Warsaw'))*1000) / 43200000) AS "aggr__2__key_0", NULL AS "aggr__2__3__key_0")) WHERE "aggr__2__3__order_1_rank"<=6 ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
+			`SELECT "metric____quesma_total_count_col_0", "aggr__2__key_0", "aggr__2__count",
+			  "aggr__2__3__parent_count", "aggr__2__3__key_0", "aggr__2__3__count"
+			FROM (
+			  SELECT "metric____quesma_total_count_col_0", "aggr__2__key_0",
+				"aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0",
+				"aggr__2__3__count",
+				dense_rank() OVER (ORDER BY "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank"
+				,
+				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
+				"aggr__2__3__count" DESC, "aggr__2__3__key_0" ASC) AS
+				"aggr__2__3__order_1_rank"
+			  FROM (
+				SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
+				  toInt64((toUnixTimestamp64Milli(NULL)+timeZoneOffset(toTimezone(NULL,
+				  'Europe/Warsaw'))*1000) / 43200000) AS "aggr__2__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
+				  "aggr__2__3__parent_count", NULL AS "aggr__2__3__key_0",
+				  count(*) AS "aggr__2__3__count"
+				FROM __quesma_table_name
+				GROUP BY toInt64((toUnixTimestamp64Milli(NULL)+timeZoneOffset(toTimezone(
+				  NULL, 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__2__key_0",
+				  NULL AS "aggr__2__3__key_0"))
+			WHERE "aggr__2__3__order_1_rank"<=6
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
 		},
 		ExpectedSQLResults: [][]model.QueryResultRow{{}},
 	},
