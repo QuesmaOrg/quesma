@@ -182,7 +182,7 @@ func setupQuesma(ctx context.Context, quesmaConfig string) (testcontainers.Conta
 		return nil, err
 	}
 	quesmaReq := testcontainers.ContainerRequest{
-		Image:        "quesma/quesma:przemek",
+		Image:        "quesma/quesma:nigthly",
 		ExposedPorts: []string{"0.0.0.0::9999/tcp", "0.0.0.0::8080/tcp"},
 		Env: map[string]string{
 			"QUESMA_CONFIG_FILE": "/configuration/conf.yaml",
