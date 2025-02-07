@@ -190,7 +190,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		return HandleIndexAsyncSearch(ctx, req.Params["index"], query, waitForResultsMs, keepOnCompletion, queryRunner)
 	})
 
-	router.Register(routes.IndexMsearchPath, and(method("GET", "POST"), quesma_api.Always()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+	router.Register(routes.IndexMsearchPath, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 		return HandleMultiSearch(ctx, req, req.Params["index"], queryRunner)
 	})
 

@@ -453,9 +453,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	}
 
-	// it's impossible here to don't have a clickhouse decision TODO: it's possible in `_msearch` case
 	if clickhouseConnector == nil {
-		return nil, fmt.Errorf("no clickhouse connector")
+		// TODO: at this moment it's possible to land in this situation if `_msearch` payload contains Elasticsearch-targetted query
+		logger.Warn().Msgf("multi-search payload contains Elasticsearch-targetted query")
+		return nil, fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
 	}
 
 	var responseBody []byte
