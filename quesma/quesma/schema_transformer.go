@@ -5,16 +5,13 @@ package quesma
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/typical_queries"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"quesma/util"
-	"slices"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"sort"
 	"strings"
 )
@@ -360,6 +357,25 @@ func (s *SchemaCheckPass) applyMapTransformations(ctx context.Context, indexSche
 	return query, nil
 }
 
+func (s *SchemaCheckPass) computeListIndexPrefixesToGroup() []string {
+
+	const groupByCommonTableIndexes = "group_common_table_indexes"
+
+	var groupIndexesPrefix []string
+	if s.cfg.DefaultQueryOptimizers != nil {
+		if opt, ok := s.cfg.DefaultQueryOptimizers[groupByCommonTableIndexes]; ok {
+			if !opt.Disabled {
+				for k, v := range opt.Properties {
+					if v != "false" {
+						groupIndexesPrefix = append(groupIndexesPrefix, k)
+					}
+				}
+			}
+		}
+	}
+	return groupIndexesPrefix
+}
+
 func (s *SchemaCheckPass) applyPhysicalFromExpression(ctx context.Context, currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	if query.TableName == model.SingleTableNamePlaceHolder {
@@ -427,10 +443,40 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(ctx context.Context, curre
 		// add filter for common table, if needed
 		if useCommonTable && from == physicalFromExpression {
 
-			var indexWhere []model.Expr
+			orExpression := make(map[string]model.Expr)
+
+			groupIndexesPrefix := s.computeListIndexPrefixesToGroup()
 
 			for _, indexName := range query.Indexes {
-				indexWhere = append(indexWhere, model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", indexName))))
+				var added bool
+
+				// apply optimization here
+				if len(groupIndexesPrefix) > 0 {
+					for _, prefix := range groupIndexesPrefix {
+						if strings.HasPrefix(indexName, prefix) {
+							added = true
+							if _, ok := orExpression[prefix]; !ok {
+								orExpression[prefix] = model.NewFunction("startsWith", model.NewColumnRef(common_table.IndexNameColumn), model.NewLiteral(fmt.Sprintf("'%s'", prefix)))
+							}
+						}
+					}
+				}
+
+				if !added {
+					orExpression[indexName] = model.NewInfixExpr(model.NewColumnRef(common_table.IndexNameColumn), "=", model.NewLiteral(fmt.Sprintf("'%s'", indexName)))
+				}
+			}
+
+			// keep in the order
+			var orExpressionOrder []string
+			for k := range orExpression {
+				orExpressionOrder = append(orExpressionOrder, k)
+			}
+			sort.Strings(orExpressionOrder)
+
+			var indexWhere []model.Expr
+			for _, name := range orExpressionOrder {
+				indexWhere = append(indexWhere, orExpression[name])
 			}
 
 			indicesWhere := model.Or(indexWhere)
@@ -843,7 +889,11 @@ func (s *SchemaCheckPass) applyFieldEncoding(ctx context.Context, indexSchema sc
 		// This is workaround.
 		// Our query parse resolves columns sometimes. Here we detect it and skip the resolution.
 		if _, ok := indexSchema.ResolveFieldByInternalName(e.ColumnName); ok {
+<<<<<<< HEAD
 			logger.WarnWithCtx(ctx).Msgf("Got field already resolved %s", e.ColumnName)
+=======
+			logger.Debug().Msgf("Got field already resolved %s", e.ColumnName) // Reduced to debug as it was really noisy
+>>>>>>> main
 			return e
 		}
 
@@ -1058,6 +1108,10 @@ func columnsToAliasedColumns(columns []model.Expr) []model.Expr {
 			continue
 		}
 		if _, ok := column.(model.FunctionExpr); ok {
+			aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
+			continue
+		}
+		if _, ok := column.(model.WindowFunction); ok {
 			aliasedColumns[i] = model.NewAliasedExpr(column, fmt.Sprintf("column_%d", i))
 			continue
 		}

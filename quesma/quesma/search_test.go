@@ -8,19 +8,19 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
-	"quesma/backend_connectors"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/testdata"
-	"quesma/util"
-	tracing "quesma_v2/core/tracing"
 	"sort"
 	"strconv"
 	"strings"
@@ -763,7 +763,8 @@ func TestSearchTrackTotalCount(t *testing.T) {
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
-			"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+			"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+			"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
 		},
 	}
 
@@ -773,7 +774,8 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		Cols: map[string]*clickhouse.Column{
 			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
-			"message": {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
 		Created: true,
 	})
@@ -784,9 +786,19 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 		for i, expectedSQL := range testcase.ExpectedSQLs {
-			rows := sqlmock.NewRows([]string{testcase.ExpectedSQLResults[i][0].Cols[0].ColName})
+			results := testcase.ExpectedSQLResults[i]
+			var rows *sqlmock.Rows
+			if len(results) == 0 || len(results[0].Cols) == 2 {
+				rows = sqlmock.NewRows([]string{"column-name-not-important", "same-here"})
+			} else {
+				rows = sqlmock.NewRows([]string{"column-name-not-important"})
+			}
 			for _, row := range testcase.ExpectedSQLResults[i] {
-				rows.AddRow(row.Cols[0].Value)
+				if len(row.Cols) == 2 {
+					rows.AddRow(row.Cols[0].Value, row.Cols[1].Value)
+				} else {
+					rows.AddRow(row.Cols[0].Value)
+				}
 			}
 			mock.ExpectQuery(expectedSQL).WillReturnRows(rows)
 		}
@@ -826,12 +838,16 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		expectedResponseMap, err := util.JsonToMap(testcase.ExpectedResponse)
 		assert.NoError(t, err, "error unmarshalling expected response:")
 
-		actualMinusExpected, expectedMinusActual := util.MapDifference(responsePart,
-			expectedResponseMap, []string{}, true, true)
 		acceptableDifference := []string{"took", "_shards", "timed_out"}
+		actualMinusExpected, expectedMinusActual := util.MapDifference(responsePart,
+			expectedResponseMap, acceptableDifference, true, true)
 
-		pp.Println("expected", expectedResponseMap)
-		pp.Println("actual", responsePart)
+		if len(actualMinusExpected) != 0 {
+			pp.Println("ACTUAL diff", actualMinusExpected)
+		}
+		if len(expectedMinusActual) != 0 {
+			pp.Println("EXPECTED diff", expectedMinusActual)
+		}
 
 		assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference), "actualMinusExpected: %v", actualMinusExpected)
 		assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference), "expectedMinusActual: %v", expectedMinusActual)
@@ -848,12 +864,13 @@ func TestSearchTrackTotalCount(t *testing.T) {
 }
 
 func TestFullQueryTestWIP(t *testing.T) {
-	t.Skip(`We need to stop "unit" testing aggregation queries, because e.g. transformations aren't performed in tests whatsoever. Tests pass, but in real world things sometimes break. It's WIP.`)
+	logger.InitSimpleLoggerForTests()
 	s := &schema.StaticRegistry{Tables: map[schema.IndexName]schema.Schema{}}
 
 	s.Tables[tableName] = schema.Schema{
 		Fields: map[schema.FieldName]schema.Field{
-			"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+			"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+			"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
 		},
 	}
 
@@ -863,7 +880,8 @@ func TestFullQueryTestWIP(t *testing.T) {
 		Cols: map[string]*clickhouse.Column{
 			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
-			"message": {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
 		Created: true,
 	})
@@ -874,7 +892,7 @@ func TestFullQueryTestWIP(t *testing.T) {
 		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 		for i, expectedSQL := range testcase.ExpectedSQLs {
-			rows := sqlmock.NewRows([]string{testcase.ExpectedSQLResults[i][0].Cols[0].ColName})
+			rows := sqlmock.NewRows([]string{"column-name-not-important"})
 			for _, row := range testcase.ExpectedSQLResults[i] {
 				rows.AddRow(row.Cols[0].Value)
 			}
@@ -916,12 +934,19 @@ func TestFullQueryTestWIP(t *testing.T) {
 		expectedResponseMap, err := util.JsonToMap(testcase.ExpectedResponse)
 		assert.NoError(t, err, "error unmarshalling expected response:")
 
-		actualMinusExpected, expectedMinusActual := util.MapDifference(responsePart,
-			expectedResponseMap, []string{}, true, true)
 		acceptableDifference := []string{"took", "_shards", "timed_out"}
+		actualMinusExpected, expectedMinusActual := util.MapDifference(responsePart,
+			expectedResponseMap, acceptableDifference, true, true)
 
-		pp.Println("expected", expectedResponseMap)
-		pp.Println("actual", responsePart)
+		// pp.Println("expected", expectedResponseMap)
+		// pp.Println("actual", responsePart)
+
+		if len(actualMinusExpected) != 0 {
+			pp.Println("ACTUAL diff", actualMinusExpected)
+		}
+		if len(expectedMinusActual) != 0 {
+			pp.Println("EXPECTED diff", expectedMinusActual)
+		}
 
 		assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference), "actualMinusExpected: %v", actualMinusExpected)
 		assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference), "expectedMinusActual: %v", expectedMinusActual)
@@ -931,6 +956,9 @@ func TestFullQueryTestWIP(t *testing.T) {
 	for i, tt := range testdata.FullSearchRequests {
 		for _, handlerName := range handlers[:1] {
 			t.Run(strconv.Itoa(i)+" "+tt.Name, func(t *testing.T) {
+				if tt.Name != "Turing regression test" {
+					t.Skip(`We need to stop "unit" testing aggregation queries, because e.g. transformations aren't performed in tests whatsoever. Tests pass, but in real world things sometimes break. It's WIP.`)
+				}
 				test(handlerName, tt)
 			})
 		}

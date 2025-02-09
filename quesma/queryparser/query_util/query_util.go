@@ -4,10 +4,10 @@ package query_util
 
 import (
 	"context"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
-	"quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
 )
 
 func IsNonAggregationQuery(query *model.Query) bool {

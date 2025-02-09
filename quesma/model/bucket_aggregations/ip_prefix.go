@@ -5,10 +5,10 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"math/big"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/util"
 	"reflect"
 )
 

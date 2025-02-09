@@ -4,207 +4,107 @@
 package main
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/licensing"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
+	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_ingest"
+	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_query"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"log"
-	"quesma/backend_connectors"
-	"quesma/frontend_connectors"
-	"quesma/processors/es_to_ch_ingest"
-	"quesma/processors/es_to_ch_query"
-	"quesma/quesma/config"
-	quesma_api "quesma_v2/core"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 // BuildNewQuesma creates a new quesma instance with both Ingest And Query Processors, unused yet
 func BuildNewQuesma() quesma_api.QuesmaBuilder {
 
-	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+	var newConfiguration = config.LoadV2Config()
+	var cfg = newConfiguration.TranslateToLegacyConfig()
 
-	queryFrontendConnector := frontend_connectors.NewElasticsearchQueryFrontendConnector(
-		":8080",
-		&config.QuesmaConfiguration{
-			DisableAuth: true,
-			Elasticsearch: config.ElasticsearchConfiguration{
-				Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
-				User:     "",
-				Password: "",
-			},
-		})
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("error validating configuration: %v", err)
+	}
 
-	var queryPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
-	queryPipeline.AddFrontendConnector(queryFrontendConnector)
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	doneCh := make(chan struct{})
+	licenseMod := licensing.Init(&cfg)
+	logChan := logger.InitLogger(logger.Configuration{
+		FileLogging:       cfg.Logging.FileLogging,
+		Path:              cfg.Logging.Path,
+		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
+		Level:             *cfg.Logging.Level,
+		ClientId:          licenseMod.License.ClientID,
+	}, sig, doneCh)
 
-	queryProcessor := es_to_ch_query.NewElasticsearchToClickHouseQueryProcessor(
-		config.QuesmaProcessorConfig{
-			UseCommonTable: false,
-			IndexConfig: map[string]config.IndexConfiguration{
-				"test_index":   {},
-				"test_index_2": {},
-				"tab1": {
-					UseCommonTable: true,
-				},
-				"tab2": {
-					UseCommonTable: true,
-				},
-				"kibana_sample_data_ecommerce": {
-					QueryTarget: []string{config.ClickhouseTarget}, // table_discovery2.go:230 explains why this is needed
-				},
-				"*": {
-					QueryTarget: []string{config.ElasticsearchTarget},
-				},
-			},
-		},
-	)
+	deps := quesma_api.EmptyDependencies()
 
-	ingestFrontendConnector := frontend_connectors.NewElasticsearchIngestFrontendConnector(":8080")
+	legacyDependencies := es_to_ch_common.InitializeLegacyQuesmaDependencies(deps, &cfg, logChan)
 
-	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
-	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
+	return buildQuesmaFromV2Config(newConfiguration, legacyDependencies)
+}
 
-	ingestProcessor := es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor(
-		config.QuesmaProcessorConfig{
-			UseCommonTable: false,
-			IndexConfig: map[string]config.IndexConfiguration{
-				"test_index":   {},
-				"test_index_2": {},
-				"tab1": {
-					UseCommonTable: true,
-				},
-				"tab2": {
-					UseCommonTable: true,
-				},
-				"*": {
-					IngestTarget: []string{config.ElasticsearchTarget},
-				},
-			},
-		},
-	)
+func buildQuesmaFromV2Config(cfg config.QuesmaNewConfiguration, deps *es_to_ch_common.LegacyQuesmaDependencies) quesma_api.QuesmaBuilder {
 
-	ingestPipeline.AddProcessor(ingestProcessor)
-	quesmaBuilder.AddPipeline(ingestPipeline)
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(deps)
 
-	queryPipeline.AddProcessor(queryProcessor)
-	quesmaBuilder.AddPipeline(queryPipeline)
+	for _, p := range cfg.Pipelines {
+		var pipeline quesma_api.PipelineBuilder = quesma_api.NewNamedPipeline(p.Name)
+		for _, fcName := range p.FrontendConnectors {
+			fc := cfg.GetFrontendConnectorByName(fcName)
+			switch fc.Type {
+			case config.ElasticsearchFrontendQueryConnectorName:
+				pipeline.AddFrontendConnector(frontend_connectors.NewElasticsearchQueryFrontendConnector(":"+fc.Config.ListenPort.String(), deps.OldQuesmaConfig.Elasticsearch, fc.Config.DisableAuth))
+			case config.ElasticsearchFrontendIngestConnectorName:
+				pipeline.AddFrontendConnector(frontend_connectors.NewElasticsearchIngestFrontendConnector(":"+fc.Config.ListenPort.String(), deps.OldQuesmaConfig.Elasticsearch, fc.Config.DisableAuth))
+			default:
+				log.Fatalf("unknown frontend connector type: %s", fc.Type)
+			}
+		}
+		for _, procName := range p.Processors {
+			proc := cfg.GetProcessorByName(procName)
+			switch proc.Type {
+			case config.QuesmaV1ProcessorQuery:
+				pipeline.AddProcessor(es_to_ch_query.NewElasticsearchToClickHouseQueryProcessor(proc.Config, deps))
+			case config.QuesmaV1ProcessorIngest:
+				pipeline.AddProcessor(es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor(proc.Config, deps))
+			default:
+				log.Fatalf("unknown processor type: %s", proc.Type)
+			}
+		}
+		for _, bcName := range p.BackendConnectors {
+			bc := cfg.GetBackendConnectorByName(bcName)
+			switch bc.Type {
+			case config.ClickHouseOSBackendConnectorName:
+				connectorDeclaration := cfg.GetBackendConnectorByType(config.ClickHouseOSBackendConnectorName)
+				backendConnector := backend_connectors.NewClickHouseBackendConnector(&connectorDeclaration.Config)
+				pipeline.AddBackendConnector(backendConnector)
+			case config.ClickHouseBackendConnectorName:
+				connectorDeclaration := cfg.GetBackendConnectorByType(config.ClickHouseBackendConnectorName)
+				backendConnector := backend_connectors.NewClickHouseBackendConnector(&connectorDeclaration.Config)
+				pipeline.AddBackendConnector(backendConnector)
+			case config.HydrolixBackendConnectorName:
+				connectorDeclaration := cfg.GetBackendConnectorByType(config.HydrolixBackendConnectorName)
+				backendConnector := backend_connectors.NewClickHouseBackendConnector(&connectorDeclaration.Config)
+				pipeline.AddBackendConnector(backendConnector)
+			case config.ElasticsearchBackendConnectorName:
+				connectorDeclaration := cfg.GetBackendConnectorByType(config.ElasticsearchBackendConnectorName)
+				backendConnector := backend_connectors.NewElasticsearchBackendConnectorFromDbConfig(connectorDeclaration.Config)
+				pipeline.AddBackendConnector(backendConnector)
+			default:
+				log.Fatalf("unknown backend connector type: %s", bc.Type)
+			}
+		}
+		quesmaBuilder.AddPipeline(pipeline)
 
-	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector("clickhouse://localhost:9000")
-	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector(
-		config.ElasticsearchConfiguration{
-			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
-			User:     "elastic",
-			Password: "quesmaquesma",
-		})
-	queryPipeline.AddBackendConnector(clickHouseBackendConnector)
-	queryPipeline.AddBackendConnector(elasticsearchBackendConnector)
-
-	ingestPipeline.AddBackendConnector(clickHouseBackendConnector)
-	ingestPipeline.AddBackendConnector(elasticsearchBackendConnector)
-
+	}
 	quesmaInstance, err := quesmaBuilder.Build()
 	if err != nil {
 		log.Fatalf("error building quesma instance: %v", err)
 	}
 	return quesmaInstance
 }
-
-// buildIngestOnlyQuesma is for now a helper function to help establishing the way of v2 module api import
-func buildIngestOnlyQuesma() quesma_api.QuesmaBuilder {
-	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
-
-	ingestFrontendConnector := frontend_connectors.NewElasticsearchIngestFrontendConnector(":8080")
-
-	var ingestPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
-	ingestPipeline.AddFrontendConnector(ingestFrontendConnector)
-
-	ingestProcessor := es_to_ch_ingest.NewElasticsearchToClickHouseIngestProcessor(
-		config.QuesmaProcessorConfig{
-			UseCommonTable: false,
-			IndexConfig: map[string]config.IndexConfiguration{
-				"test_index":   {},
-				"test_index_2": {},
-				"tab1": {
-					UseCommonTable: true,
-				},
-				"tab2": {
-					UseCommonTable: true,
-				},
-				"*": {
-					IngestTarget: []string{config.ElasticsearchTarget},
-				},
-			},
-		},
-	)
-	ingestPipeline.AddProcessor(ingestProcessor)
-	quesmaBuilder.AddPipeline(ingestPipeline)
-
-	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector("clickhouse://localhost:9000")
-	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector(
-		config.ElasticsearchConfiguration{
-			Url:      &config.Url{Host: "localhost:9200", Scheme: "https"},
-			User:     "elastic",
-			Password: "quesmaquesma",
-		})
-	ingestPipeline.AddBackendConnector(clickHouseBackendConnector)
-	ingestPipeline.AddBackendConnector(elasticsearchBackendConnector)
-
-	quesmaInstance, err := quesmaBuilder.Build()
-	if err != nil {
-		log.Fatalf("error building quesma instance: %v", err)
-	}
-	return quesmaInstance
-}
-
-// buildQueryOnlyQuesma is for now a helper function to help establishing the way of v2 module api import
-//func buildQueryOnlyQuesma() quesma_api.QuesmaBuilder {
-//	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
-//	queryFrontendConnector := frontend_connectors.NewElasticsearchQueryFrontendConnector(
-//		":8080",
-//		&config.QuesmaConfiguration{
-//			DisableAuth: true,
-//			Elasticsearch: config.ElasticsearchConfiguration{
-//				Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
-//				User:     "",
-//				Password: "",
-//			},
-//		})
-//
-//	var queryPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
-//	queryPipeline.AddFrontendConnector(queryFrontendConnector)
-//
-//	queryProcessor := es_to_ch_query.NewElasticsearchToClickHouseQueryProcessor(
-//		config.QuesmaProcessorConfig{
-//			UseCommonTable: false,
-//			IndexConfig: map[string]config.IndexConfiguration{
-//				"test_index":   {},
-//				"test_index_2": {},
-//				"tab1": {
-//					UseCommonTable: true,
-//				},
-//				"tab2": {
-//					UseCommonTable: true,
-//				},
-//				"kibana_sample_data_ecommerce": {
-//					QueryTarget: []string{config.ClickhouseTarget}, // table_discovery2.go:230 explains why this is needed
-//				},
-//				"*": {
-//					QueryTarget: []string{config.ElasticsearchTarget},
-//				},
-//			},
-//		},
-//	)
-//	queryPipeline.AddProcessor(queryProcessor)
-//	quesmaBuilder.AddPipeline(queryPipeline)
-//
-//	clickHouseBackendConnector := backend_connectors.NewClickHouseBackendConnector("clickhouse://localhost:9000")
-//	elasticsearchBackendConnector := backend_connectors.NewElasticsearchBackendConnector(
-//		config.ElasticsearchConfiguration{
-//			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
-//			User:     "elastic",
-//			Password: "quesmaquesma",
-//		})
-//	queryPipeline.AddBackendConnector(clickHouseBackendConnector)
-//	queryPipeline.AddBackendConnector(elasticsearchBackendConnector)
-//
-//	quesmaInstance, err := quesmaBuilder.Build()
-//	if err != nil {
-//		log.Fatalf("error building quesma instance: %v", err)
-//	}
-//	return quesmaInstance
-//}

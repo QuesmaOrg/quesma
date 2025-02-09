@@ -5,13 +5,13 @@ package ui
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/goccy/go-json"
 	"io"
-	"quesma/elasticsearch"
-	"quesma/jsondiff"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/ui/internal/builder"
 	"strings"
 	"time"
 )
@@ -24,12 +24,8 @@ func (qmc *QuesmaManagementConsole) hasABTestingTable() bool {
 
 	sql := `SELECT count(*) FROM ab_testing_logs`
 
-	row, err := db.Query(context.Background(), sql)
+	row := db.QueryRow(context.Background(), sql)
 	var count int
-	if err != nil {
-		logger.Error().Err(err).Msg("Error checking for ab_testing_logs table")
-		return false
-	}
 	if errScan := row.Scan(&count); errScan != nil {
 		logger.Error().Err(errScan).Msg("Error scanning for ab_testing_logs table")
 		return false
@@ -235,8 +231,8 @@ func (qmc *QuesmaManagementConsole) readKibanaDashboards() (resolvedDashboards, 
 	return result, nil
 }
 
-func parseMismatches(mismatch string) ([]jsondiff.JSONMismatch, error) {
-	var mismatches []jsondiff.JSONMismatch
+func parseMismatches(mismatch string) ([]util.JSONMismatch, error) {
+	var mismatches []util.JSONMismatch
 	err := json.Unmarshal([]byte(mismatch), &mismatches)
 	return mismatches, err
 }
@@ -335,6 +331,7 @@ GROUP BY
 		return nil, err
 	}
 
+	defer rows.Close()
 	for rows.Next() {
 		row := abTestingReportRow{}
 		err := rows.Scan(&row.dashboardId, &row.panelId, &row.aName, &row.bName, &row.successRate, &row.count, &row.aTime, &row.bTime)
@@ -509,6 +506,7 @@ func (qmc *QuesmaManagementConsole) abTestingReadPanelDetails(dashboardId, panel
 		return nil, err
 	}
 
+	defer rows.Close()
 	var result []abTestingPanelDetailsRow
 	for rows.Next() {
 
@@ -536,7 +534,7 @@ func (qmc *QuesmaManagementConsole) abTestingReadPanelDetails(dashboardId, panel
 	return result, nil
 }
 
-func (qmc *QuesmaManagementConsole) renderABTestingMismatch(buffer *builder.HtmlBuffer, mismatch jsondiff.JSONMismatch) {
+func (qmc *QuesmaManagementConsole) renderABTestingMismatch(buffer *builder.HtmlBuffer, mismatch util.JSONMismatch) {
 
 	buffer.Html(`<li>`)
 	buffer.Html(`<p>`)
@@ -626,7 +624,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 				size := len(mismatches)
 				if size > limit {
 					mismatches = mismatches[:limit]
-					mismatches = append(mismatches, jsondiff.JSONMismatch{
+					mismatches = append(mismatches, util.JSONMismatch{
 						Message: fmt.Sprintf("... and %d more", size-limit),
 					})
 				}
@@ -692,6 +690,7 @@ func (qmc *QuesmaManagementConsole) abTestingReadMismatchDetails(dashboardId, pa
 		return nil, err
 	}
 
+	defer rows.Close()
 	var result []abTestingMismatchDetailsRow
 	for rows.Next() {
 
@@ -823,11 +822,9 @@ func (qmc *QuesmaManagementConsole) abTestingReadRow(requestId string) (abTestin
 
 	db := qmc.logManager.GetDB()
 
-	row, err := db.Query(context.Background(), sql, requestId)
+	row := db.QueryRow(context.Background(), sql, requestId)
 	rec := abTestingTableRow{}
-	if err != nil {
-		return rec, err
-	}
+
 	errScan := row.Scan(
 		&rec.requestID, &rec.requestPath, &rec.requestIndexName,
 		&rec.requestBody, &rec.responseBTime, &rec.responseBError, &rec.responseBName, &rec.responseBBody,
@@ -839,10 +836,6 @@ func (qmc *QuesmaManagementConsole) abTestingReadRow(requestId string) (abTestin
 
 	if errScan != nil {
 		return rec, errScan
-	}
-
-	if row.Err() != nil {
-		return rec, row.Err()
 	}
 
 	return rec, nil

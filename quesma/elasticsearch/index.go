@@ -4,12 +4,13 @@ package elasticsearch
 
 import (
 	"fmt"
-	"quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
 	"strings"
 )
 
 const (
 	internalIndexPrefix = "."
+	internalPathPrefix  = "_"
 )
 
 func IsIndexPattern(index string) bool {
@@ -17,11 +18,8 @@ func IsIndexPattern(index string) bool {
 }
 
 func IsInternalIndex(index string) bool {
-	return strings.HasPrefix(index, internalIndexPrefix)
+	return strings.HasPrefix(index, internalIndexPrefix) || strings.HasPrefix(index, internalPathPrefix)
 }
-
-// InternalPaths is a list of paths that are considered internal and should not handled by Quesma
-var InternalPaths = []string{"/_nodes", "/_xpack"}
 
 func IsValidIndexName(name string) error {
 	const maxIndexNameLength = 256

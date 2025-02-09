@@ -5,9 +5,9 @@ package optimize
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/stretchr/testify/assert"
-	"quesma/model"
-	"quesma/quesma/config"
 	"testing"
 )
 

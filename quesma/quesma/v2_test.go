@@ -5,15 +5,15 @@ package quesma
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/processors"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"os"
 	"os/signal"
-	"quesma/backend_connectors"
-	"quesma/frontend_connectors"
-	"quesma/processors"
-	"quesma/quesma/config"
-	quesma_api "quesma_v2/core"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -110,6 +110,34 @@ func ab_testing_scenario() quesma_api.QuesmaBuilder {
 	queryPipeline.AddProcessor(queryProcessor)
 	queryPipeline.AddProcessor(abQueryTestProcessor)
 	quesmaBuilder.AddPipeline(ingestPipeline)
+	quesmaBuilder.AddPipeline(queryPipeline)
+
+	quesma, _ := quesmaBuilder.Build()
+	return quesma
+}
+
+func full_workflow_scenario() quesma_api.QuesmaBuilder {
+	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+
+	cfg := &config.QuesmaConfiguration{
+		DisableAuth: true,
+		Elasticsearch: config.ElasticsearchConfiguration{
+			Url:      &config.Url{Host: "localhost:9200", Scheme: "http"},
+			User:     "",
+			Password: "",
+		},
+	}
+
+	queryFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
+	queryHTTPRouter := quesma_api.NewPathRouter()
+	queryHTTPRouter.AddRoute("/_search", searchHandler)
+	queryHTTPRouter.AddFallbackHandler(fallback)
+	queryFrontendConnector.AddRouter(queryHTTPRouter)
+	var queryPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+	queryPipeline.AddFrontendConnector(queryFrontendConnector)
+	var queryProcessor quesma_api.Processor = NewQueryComplexProcessor()
+
+	queryPipeline.AddProcessor(queryProcessor)
 	quesmaBuilder.AddPipeline(queryPipeline)
 
 	quesma, _ := quesmaBuilder.Build()
@@ -373,4 +401,19 @@ func Test_QuesmaBuild(t *testing.T) {
 
 		assert.NoError(t, err)
 	}
+}
+
+func Test_complex_scenario1(t *testing.T) {
+	q1 := full_workflow_scenario()
+	q1.Start()
+	stop := make(chan os.Signal, 1)
+	testData := []struct {
+		url              string
+		expectedResponse string
+	}{
+		{"http://localhost:8888/_search", "qqq->"},
+	}
+	emitRequests(stop, t, testData)
+	<-stop
+	q1.Stop(context.Background())
 }

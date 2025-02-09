@@ -4,15 +4,21 @@
 package table_resolver
 
 import (
-	mux "quesma_v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 
 // DummyTableResolver is a dummy implementation of TableResolver to satisfy the QueryRunner and make it be compatible with the v2 api
 // thanks to this we can reuse the existing QueryRunner implementation without any changes.
-type DummyTableResolver struct{}
+type DummyTableResolver struct {
+	cfg                 config.IndicesConfigs
+	wildcardCommonTable bool
+}
 
-func NewDummyTableResolver() *DummyTableResolver {
-	return &DummyTableResolver{}
+func NewDummyTableResolver(cfg config.IndicesConfigs, wildcardCommonTable bool) *DummyTableResolver {
+	return &DummyTableResolver{cfg: cfg, wildcardCommonTable: wildcardCommonTable}
 }
 
 func (t DummyTableResolver) Start() {}
@@ -20,20 +26,57 @@ func (t DummyTableResolver) Start() {}
 func (t DummyTableResolver) Stop() {}
 
 func (t DummyTableResolver) Resolve(_ string, indexPattern string) *mux.Decision {
-	return &mux.Decision{
-		UseConnectors: []mux.ConnectorDecision{
-			&mux.ConnectorDecisionClickhouse{
-				ClickhouseTableName: indexPattern,
-				ClickhouseIndexes:   []string{indexPattern}, // TODO this won't work for 'common table' feature
-				//IsCommonTable: false,
-			},
-		},
+	if elasticsearch.IsInternalIndex(indexPattern) { // e.g. `.kibana_analytics_8.11.1`
+		return t.resolveElastic()
+	}
+	if t.wildcardCommonTable {
+		return t.resolveCommonTable(indexPattern)
 	}
 
+	if indexCfg, ok := t.cfg[indexPattern]; !ok {
+		return t.resolveElastic()
+	} else {
+		if indexCfg.UseCommonTable {
+			return t.resolveCommonTable(indexPattern)
+		} else {
+			return t.resolveClickhouse(indexPattern)
+		}
+	}
 }
 
 func (t DummyTableResolver) Pipelines() []string { return []string{} }
 
 func (t DummyTableResolver) RecentDecisions() []mux.PatternDecisions {
 	return []mux.PatternDecisions{}
+}
+
+func (t DummyTableResolver) resolveElastic() *mux.Decision {
+	return &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{
+			&mux.ConnectorDecisionElastic{},
+		},
+	}
+}
+
+func (t DummyTableResolver) resolveCommonTable(indexPattern string) *mux.Decision {
+	return &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{
+			&mux.ConnectorDecisionClickhouse{
+				ClickhouseTableName: common_table.TableName,
+				ClickhouseIndexes:   []string{indexPattern},
+				IsCommonTable:       true,
+			},
+		},
+	}
+}
+
+func (t DummyTableResolver) resolveClickhouse(indexPattern string) *mux.Decision {
+	return &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{
+			&mux.ConnectorDecisionClickhouse{
+				ClickhouseTableName: indexPattern,
+				ClickhouseIndexes:   []string{indexPattern},
+			},
+		},
+	}
 }

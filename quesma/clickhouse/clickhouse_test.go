@@ -4,10 +4,10 @@ package clickhouse
 
 import (
 	"context"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	schema2 "quesma/schema"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	schema2 "github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -577,16 +577,18 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 		Name:    "abc",
 		Cols: map[string]*Column{
 			"low_card_string": {
-				Name: "low_card_string",
-				Type: NewBaseType("LowCardinality(String)"),
+				Name:    "low_card_string",
+				Type:    NewBaseType("LowCardinality(String)"),
+				Comment: "some comment 1",
 			},
 			"uuid": {
 				Name: "uuid",
 				Type: NewBaseType("UUID"),
 			},
 			"int32": {
-				Name: "int32",
-				Type: NewBaseType("Int32"),
+				Name:    "int32",
+				Type:    NewBaseType("Int32"),
+				Comment: "some comment 2",
 			},
 			"epoch_time": {
 				Name:      "epoch_time",
@@ -616,8 +618,8 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 	}
 	expectedRows := []string{
 		`CREATE TABLE IF NOT EXISTS "abc" (`,
-		`"int32" Int32,`,
-		`"low_card_string" LowCardinality(String),`,
+		`"int32" Int32 COMMENT 'some comment 2',`,
+		`"low_card_string" LowCardinality(String) COMMENT 'some comment 1',`,
 		`"uuid" UUID,`,
 		`"others" JSON,`,
 		`"attributes_int64_key" Array(String),`,

@@ -3,8 +3,8 @@
 package bucket_aggregations
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/stretchr/testify/assert"
-	"quesma/model"
 	"testing"
 	"time"
 )

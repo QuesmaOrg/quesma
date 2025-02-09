@@ -5,8 +5,8 @@ package queryparser
 
 import (
 	"context"
-	"quesma/model"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strconv"
 	"time"
 )

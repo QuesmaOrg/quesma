@@ -4,13 +4,16 @@ package collector
 
 import (
 	"context"
-	"quesma/ab_testing"
-	"quesma/buildinfo"
-	"quesma/ingest"
-	"quesma/logger"
-	"quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
 	"time"
 )
+
+//const abTestingLogsIndex = "ab_testing_logs"
 
 type ResponseMismatch struct {
 	IsOK bool `json:"is_ok"` // true if responses are the same
@@ -68,7 +71,7 @@ func (r *InMemoryCollector) String() string {
 	return "InMemoryCollector(sends data to Quesma)"
 }
 
-func NewCollector(ctx context.Context, ingester ingest.Ingester, healthQueue chan<- ab_testing.HealthMessage) *InMemoryCollector {
+func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessage, _ *backend_connectors.ElasticsearchBackendConnector, ingester ingest.Ingester) *InMemoryCollector {
 
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -87,8 +90,8 @@ func NewCollector(ctx context.Context, ingester ingest.Ingester, healthQueue cha
 			//&mismatchedOnlyFilter{},
 			&redactOkResults{},
 			//&elasticSearchFanout{
-			//	url:       "http://localhost:8080",
-			//	indexName: "ab_testing_logs",
+			//	esConn:    esConn,
+			//	indexName: abTestingLogsIndex,
 			//},
 			&internalIngestFanout{
 				indexName:       ab_testing.ABTestingTableName,

@@ -4,10 +4,10 @@ package elasticsearch
 
 import (
 	"context"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/recovery"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 	"sync/atomic"
 	"time"

@@ -3,9 +3,9 @@
 package testdata
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"math"
-	"quesma/clickhouse"
-	"quesma/model"
 	"time"
 )
 

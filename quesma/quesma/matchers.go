@@ -3,56 +3,21 @@
 package quesma
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/painful"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
-	"quesma/logger"
-	"quesma/painful"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/table_resolver"
-	"quesma_v2/core"
-	tracing "quesma_v2/core/tracing"
 	"strings"
 )
 
 func matchedAgainstAsyncId() quesma_api.RequestMatcher {
 	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
 		if !strings.HasPrefix(req.Params["id"], tracing.AsyncIdPrefix) {
-			logger.Debug().Msgf("async query id %s is forwarded to Elasticsearch", req.Params["id"])
 			return quesma_api.MatchResult{Matched: false}
 		}
 		return quesma_api.MatchResult{Matched: true}
-	})
-}
-
-func matchedAgainstBulkBody(configuration *config.QuesmaConfiguration, tableResolver table_resolver.TableResolver) quesma_api.RequestMatcher {
-	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
-		idx := 0
-		for _, s := range strings.Split(req.Body, "\n") {
-			if len(s) == 0 {
-				// ElasticSearch Agent sends empty lines between some JSONs, ignore them.
-				continue
-			}
-			if idx%2 == 0 {
-				name := extractIndexName(s)
-
-				decision := tableResolver.Resolve(quesma_api.IngestPipeline, name)
-
-				if decision.IsClosed {
-					return quesma_api.MatchResult{Matched: true, Decision: decision}
-				}
-
-				// if have any enabled Clickhouse connector, then return true
-				for _, connector := range decision.UseConnectors {
-					if _, ok := connector.(*quesma_api.ConnectorDecisionClickhouse); ok {
-						return quesma_api.MatchResult{Matched: true, Decision: decision}
-					}
-				}
-			}
-			idx += 1
-		}
-
-		// All indexes are disabled, the whole bulk can go to Elastic
-		return quesma_api.MatchResult{Matched: false}
 	})
 }
 

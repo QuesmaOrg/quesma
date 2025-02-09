@@ -7,18 +7,18 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser/lucene"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/util/regex"
 	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
-	"quesma/model/typical_queries"
-	"quesma/queryparser/lucene"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/util"
-	"quesma/util/regex"
 	"strconv"
 	"strings"
 	"unicode"
@@ -350,17 +350,21 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	}
 
 	// TODO replace with cw.Schema
-	var idToSql func(string) model.Expr
+	var idToSql func(string) (model.Expr, error)
 	timestampColumnName := model.TimestampFieldName
 	if column, ok := cw.Table.Cols[timestampColumnName]; ok {
 		switch column.Type.String() {
 		case clickhouse.DateTime64.String():
-			idToSql = func(id string) model.Expr {
-				return model.NewFunction("toDateTime64", model.NewLiteral(id), model.NewLiteral(3))
+			idToSql = func(id string) (model.Expr, error) {
+				precision, success := util.FindTimestampPrecision(id[1 : len(id)-1]) // strip quotes added above
+				if !success {
+					return nil, fmt.Errorf("invalid timestamp format: %s", id)
+				}
+				return model.NewFunction("toDateTime64", model.NewLiteral(id), model.NewLiteral(precision)), nil
 			}
 		case clickhouse.DateTime.String():
-			idToSql = func(id string) model.Expr {
-				return model.NewFunction("toDateTime", model.NewLiteral(id))
+			idToSql = func(id string) (model.Expr, error) {
+				return model.NewFunction("toDateTime", model.NewLiteral(id)), nil
 			}
 		default:
 			logger.ErrorWithCtx(cw.Ctx).Msgf("timestamp field of unsupported type %s", column.Type.String())
@@ -376,11 +380,20 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	case 0:
 		whereStmt = model.FalseExpr // timestamp IN [] <=> false
 	case 1:
-		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", idToSql(ids[0]))
+		sql, err := idToSql(ids[0])
+		if err != nil {
+			logger.ErrorWithCtx(cw.Ctx).Msgf("error converting id to sql: %v", err)
+			return model.NewSimpleQueryInvalid()
+		}
+		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", sql)
 	default:
 		idsAsExprs := make([]model.Expr, len(ids))
 		for i, id := range ids {
-			idsAsExprs[i] = idToSql(id)
+			idsAsExprs[i], err = idToSql(id)
+			if err != nil {
+				logger.ErrorWithCtx(cw.Ctx).Msgf("error converting id to sql: %v", err)
+				return model.NewSimpleQueryInvalid()
+			}
 		}
 		idsTuple := model.NewTupleExpr(idsAsExprs...)
 		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " IN ", idsTuple)

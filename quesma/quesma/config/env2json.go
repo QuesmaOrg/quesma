@@ -5,9 +5,9 @@ package config
 import (
 	"errors"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/tidwall/sjson"
 	"os"
-	"quesma/logger"
 	"strings"
 )
 

@@ -4,10 +4,10 @@ package quesma
 
 import (
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/schema"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 )
 
 type (

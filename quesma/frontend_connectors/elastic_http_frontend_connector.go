@@ -5,11 +5,11 @@ package frontend_connectors
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
-	"quesma/clickhouse"
-	"quesma/quesma/config"
-	"quesma/schema"
-	quesma_api "quesma_v2/core"
 )
 
 type ElasticHttpIngestFrontendConnector struct {
@@ -25,7 +25,7 @@ func NewElasticHttpIngestFrontendConnector(endpoint string,
 		BasicHTTPFrontendConnector: NewBasicHTTPFrontendConnector(endpoint, config),
 	}
 	fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		fc.BasicHTTPFrontendConnector.GetRouterInstance().ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
+		fc.BasicHTTPFrontendConnector.GetDispatcherInstance().ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
 		return nil, nil
 	}
 
@@ -48,7 +48,7 @@ func NewElasticHttpQueryFrontendConnector(endpoint string,
 		BasicHTTPFrontendConnector: NewBasicHTTPFrontendConnector(endpoint, config),
 	}
 	fallback := func(ctx context.Context, req *quesma_api.Request, writer http.ResponseWriter) (*quesma_api.Result, error) {
-		fc.BasicHTTPFrontendConnector.GetRouterInstance().ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
+		fc.BasicHTTPFrontendConnector.GetDispatcherInstance().ElasticFallback(req.Decision, ctx, writer, req.OriginalRequest, []byte(req.Body), logManager, registry)
 		return nil, nil
 	}
 	router.AddFallbackHandler(fallback)

@@ -6,6 +6,8 @@ package ui
 import (
 	"embed"
 	"errors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/stats"
 	"github.com/goccy/go-json"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
@@ -14,8 +16,6 @@ import (
 	"github.com/markbates/goth/gothic"
 	"net/http"
 	"net/http/pprof"
-	"quesma/logger"
-	"quesma/stats"
 	"runtime"
 )
 

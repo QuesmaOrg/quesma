@@ -4,8 +4,8 @@ package queryparser
 
 import (
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 )
 
 const maxPrecision = 0.999999

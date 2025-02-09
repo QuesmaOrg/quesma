@@ -3,9 +3,9 @@
 package queryparser
 
 import (
-	"quesma/model"
-	"quesma/painful"
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/painful"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 )
 
 func ParseRuntimeMappings(body types.JSON) (map[string]model.RuntimeMapping, error) {

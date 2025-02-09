@@ -5,9 +5,9 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"net/netip"
-	"quesma/logger"
-	"quesma/model"
 	"reflect"
 )
 

@@ -5,19 +5,18 @@ package quesma
 import (
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
-	"quesma/ab_testing"
-	"quesma/backend_connectors"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/elasticsearch"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/table_resolver"
-	mux "quesma_v2/core"
-	"quesma_v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"testing"
 )
 
@@ -79,6 +78,40 @@ func TestSearchCommonTable(t *testing.T) {
 }`,
 			WantedSql: []string{
 				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') LIMIT 10`,
+			},
+		},
+
+		{
+			Name:         "query virtual tables (the one is not existing)",
+			IndexPattern: "logs-1,logs-2,logs-not-existing",
+			QueryJson: `
+        {
+          "query": {
+            "match_all": {}
+          },
+          "track_total_hits": false,
+          "runtime_mappings": {
+        }
+}`,
+			WantedSql: []string{
+				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') LIMIT 10`,
+			},
+		},
+
+		{
+			Name:         "query virtual tables - daily indexes with optimization enabled",
+			IndexPattern: "daily-20250113,daily-20250114,daily-202500115",
+			QueryJson: `
+        {
+          "query": {
+            "match_all": {}
+          },
+          "track_total_hits": false,
+          "runtime_mappings": {
+        }
+}`,
+			WantedSql: []string{
+				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE startsWith("__quesma_index_name",'daily-') LIMIT 10`,
 			},
 		},
 
@@ -170,6 +203,15 @@ func TestSearchCommonTable(t *testing.T) {
 	}
 
 	quesmaConfig := &config.QuesmaConfiguration{
+		DefaultQueryOptimizers: map[string]config.OptimizerConfiguration{
+			"group_common_table_indexes": {
+				Disabled: false,
+				Properties: map[string]string{
+					"daily-": "true",
+				},
+			},
+		},
+		UseCommonTableForWildcard: true,
 		IndexConfig: map[string]config.IndexConfiguration{
 			"logs-1": {
 				UseCommonTable: true,
@@ -259,7 +301,35 @@ func TestSearchCommonTable(t *testing.T) {
 		},
 	})
 
+	for _, dailyIndex := range []string{"daily-20250113", "daily-20250114", "daily-202500115"} {
+
+		schemaRegistry.Tables[schema.IndexName(dailyIndex)] = schema.Schema{
+			Fields: map[schema.FieldName]schema.Field{
+				"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword},
+			},
+		}
+
+		tableMap.Store(dailyIndex, &clickhouse.Table{
+			Name: dailyIndex,
+			Cols: map[string]*clickhouse.Column{
+				"@timestamp": {Name: "@timestamp"},
+				"message":    {Name: "message"},
+			},
+			VirtualTable: true,
+		})
+
+	}
+
 	resolver := table_resolver.NewEmptyTableResolver()
+
+	resolver.Decisions["daily-20250113,daily-20250114,daily-202500115"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
+			ClickhouseTableName: common_table.TableName,
+			ClickhouseIndexes:   []string{"daily-20250113", "daily-20250114", "daily-202500115"},
+			IsCommonTable:       true,
+		}},
+	}
 
 	resolver.Decisions["logs-1"] = &mux.Decision{
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
@@ -289,6 +359,14 @@ func TestSearchCommonTable(t *testing.T) {
 		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
 			ClickhouseTableName: common_table.TableName,
 			ClickhouseIndexes:   []string{"logs-1", "logs-2"},
+			IsCommonTable:       true,
+		}},
+	}
+
+	resolver.Decisions["logs-1,logs-2,logs-not-existing"] = &mux.Decision{
+		UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
+			ClickhouseTableName: common_table.TableName,
+			ClickhouseIndexes:   []string{"logs-1", "logs-2", "logs-not-existing"},
 			IsCommonTable:       true,
 		}},
 	}
@@ -324,10 +402,9 @@ func TestSearchCommonTable(t *testing.T) {
 			// db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 			// defer db.Close()
 
-			indexManagement := elasticsearch.NewFixedIndexManagement()
 			lm := clickhouse.NewLogManagerWithConnection(db, tableMap)
 
-			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, indexManagement, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
+			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
 
 			for i, query := range tt.WantedSql {
 
@@ -339,7 +416,7 @@ func TestSearchCommonTable(t *testing.T) {
 				mock.ExpectQuery(query).WillReturnRows(rows)
 			}
 
-			queryRunner := NewQueryRunner(lm, quesmaConfig, indexManagement, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
+			queryRunner := NewQueryRunner(lm, quesmaConfig, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
 			queryRunner.maxParallelQueries = 0
 
 			_, err = queryRunner.HandleSearch(ctx, tt.IndexPattern, types.MustJSON(tt.QueryJson))

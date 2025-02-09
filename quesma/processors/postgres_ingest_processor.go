@@ -6,9 +6,9 @@ package processors
 import (
 	"context"
 	"fmt"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/google/uuid"
 	"log"
-	quesma_api "quesma_v2/core"
 )
 
 type PostgresIngestProcessor struct {

@@ -4,8 +4,8 @@ package queryparser
 
 import (
 	"fmt"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
 	"regexp"
 	"strings"
 )

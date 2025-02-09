@@ -4,16 +4,16 @@ package queryparser
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser/query_util"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"quesma/clickhouse"
-	"quesma/model"
-	"quesma/model/typical_queries"
-	"quesma/queryparser/query_util"
-	"quesma/schema"
-	"quesma/util"
 	"strconv"
 	"testing"
 )

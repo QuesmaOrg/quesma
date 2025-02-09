@@ -4,9 +4,9 @@ package quesma
 
 import (
 	"context"
-	"quesma/model"
-	"quesma/painful"
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/painful"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 )
 
 type TransformationPipeline struct {

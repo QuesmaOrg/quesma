@@ -4,8 +4,8 @@ package optimize
 
 import (
 	"context"
-	"quesma/model"
-	"quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"strings"
 	"time"
 )

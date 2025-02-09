@@ -99,22 +99,19 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 
 	// Second pass is about connecting routers with processors
 	// and merge them if they are the same properties
-	handlersPerEndpoint := make(map[string]map[string]HandlersPipe)
+	handlersPerEndpoint := make(map[string][]HandlersPipe)
 	for _, pipeline := range quesma.pipelines {
 		for _, conn := range pipeline.GetFrontendConnectors() {
 			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
-				router := httpConn.GetRouter()
-				for path, handlerWrapper := range router.GetHandlers() {
+				connectorsRouter := httpConn.GetRouter()
+				connectorHandlers := make([]HandlersPipe, 0)
+				for path, handlerWrapper := range connectorsRouter.GetHandlers() {
 					handlerWrapper.Processors = append(handlerWrapper.Processors, pipeline.GetProcessors()...)
-					sharedWrappers := make(map[string]HandlersPipe)
-					sharedWrappers[path] = handlerWrapper
-					if _, ok := handlersPerEndpoint[conn.GetEndpoint()]; ok {
-						for path, handlerWrapper := range handlersPerEndpoint[conn.GetEndpoint()] {
-							sharedWrappers[path] = handlerWrapper
-						}
-					}
-					handlersPerEndpoint[conn.GetEndpoint()] = sharedWrappers
+					handlerWrapper.Path = path
+					connectorHandlers = append(connectorHandlers, handlerWrapper)
 				}
+				// Now add the handlers from given connector to the endpoint
+				handlersPerEndpoint[conn.GetEndpoint()] = append(handlersPerEndpoint[conn.GetEndpoint()], connectorHandlers...)
 			}
 		}
 	}
@@ -124,10 +121,10 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 	// This pass sets the routers with the handlers
 	for _, pipeline := range quesma.pipelines {
 		for _, conn := range pipeline.GetFrontendConnectors() {
-			if httpConn, ok := conn.(HTTPFrontendConnector); ok {
-				router := httpConn.GetRouter().Clone().(Router)
+			if finalHttpConn, ok := conn.(HTTPFrontendConnector); ok {
+				router := finalHttpConn.GetRouter().Clone().(Router)
 				router.SetHandlers(handlersPerEndpoint[conn.GetEndpoint()])
-				httpConn.AddRouter(router)
+				finalHttpConn.AddRouter(router)
 			}
 		}
 	}
@@ -145,7 +142,7 @@ func (quesma *Quesma) buildInternal() (QuesmaBuilder, error) {
 						if info.pipelineIndex == pipelineIndex && info.connIndex == connIndex {
 							continue
 						}
-						quesma.dependencies.Logger().Info().Msgf("Sharing frontend connector %v with %v", sharedFc.InstanceName(), conn.InstanceName())
+						quesma.dependencies.Logger().Info().Msgf("Sharing frontend connector %p with %p", sharedFc, pipeline.GetFrontendConnectors()[connIndex])
 						pipeline.GetFrontendConnectors()[connIndex] = sharedFc
 					}
 				}

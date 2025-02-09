@@ -5,41 +5,31 @@ package quesma
 import (
 	"context"
 	"errors"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/painful"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/errors"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/routes"
 	"github.com/goccy/go-json"
 	"net/http"
-	"quesma/clickhouse"
-	"quesma/elasticsearch"
-	"quesma/ingest"
-	"quesma/logger"
-	"quesma/painful"
-	"quesma/queryparser"
-	"quesma/quesma/config"
-	"quesma/quesma/errors"
-	"quesma/quesma/functionality/bulk"
-	"quesma/quesma/functionality/doc"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/table_resolver"
-	quesma_api "quesma_v2/core"
-	"quesma_v2/core/routes"
 	"strings"
 	"time"
 )
 
-func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesma_api.Dependencies, ip *ingest.IngestProcessor, tableResolver table_resolver.TableResolver) quesma_api.Router {
+func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesma_api.Dependencies, ip *ingest.IngestProcessor, tableResolver table_resolver.TableResolver, esConn *backend_connectors.ElasticsearchBackendConnector) quesma_api.Router {
 	// some syntactic sugar
 	method := quesma_api.IsHTTPMethod
 	and := quesma_api.And
 
 	router := quesma_api.NewPathRouter()
-
-	// These are the endpoints that are not supported by Quesma
-	// These will redirect to the elastic cluster.
-	for _, path := range elasticsearch.InternalPaths {
-		router.Register(path, quesma_api.Never(), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-			return nil, nil
-		})
-	}
 
 	router.Register(routes.ExecutePainlessScriptPath, and(method("POST"), matchAgainstIndexNameInScriptRequestBody(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 
@@ -78,15 +68,12 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		}, nil
 	})
 
-	router.Register(routes.BulkPath, and(method("POST", "PUT"), matchedAgainstBulkBody(cfg, tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-
+	router.Register(routes.BulkPath, method("POST", "PUT"), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 		body, err := types.ExpectNDJSON(req.ParsedBody)
 		if err != nil {
 			return nil, err
 		}
-
-		results, err := bulk.Write(ctx, nil, body, ip, cfg, dependencies.PhoneHomeAgent(), tableResolver)
-		return bulkInsertResult(ctx, results, err)
+		return HandleBulk(ctx, body, ip, cfg.IngestStatistics, esConn, dependencies, tableResolver)
 	})
 	router.Register(routes.IndexDocPath, and(method("POST"), matchedExactIngestPath(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 		index := req.Params["index"]
@@ -100,16 +87,7 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 			}, nil
 		}
 
-		result, err := doc.Write(ctx, &index, body, ip, cfg, dependencies.PhoneHomeAgent(), tableResolver)
-		if err != nil {
-			return &quesma_api.Result{
-				Body:          string(queryparser.BadRequestParseError(err)),
-				StatusCode:    http.StatusBadRequest,
-				GenericResult: queryparser.BadRequestParseError(err),
-			}, nil
-		}
-
-		return indexDocResult(result)
+		return HandleIndexDoc(ctx, index, body, ip, cfg.IngestStatistics, esConn, dependencies, tableResolver)
 	})
 
 	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExactIngestPath(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
@@ -120,8 +98,7 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 			return nil, err
 		}
 
-		results, err := bulk.Write(ctx, &index, body, ip, cfg, dependencies.PhoneHomeAgent(), tableResolver)
-		return bulkInsertResult(ctx, results, err)
+		return HandleBulkIndex(ctx, index, body, ip, cfg.IngestStatistics, esConn, dependencies, tableResolver)
 	})
 	return router
 }
@@ -133,14 +110,6 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 	and := quesma_api.And
 
 	router := quesma_api.NewPathRouter()
-
-	// These are the endpoints that are not supported by Quesma
-	// These will redirect to the elastic cluster.
-	for _, path := range elasticsearch.InternalPaths {
-		router.Register(path, quesma_api.Never(), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-			return nil, nil
-		})
-	}
 
 	// These are the endpoints that are supported by Quesma
 
@@ -221,38 +190,12 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		return HandleIndexAsyncSearch(ctx, req.Params["index"], query, waitForResultsMs, keepOnCompletion, queryRunner)
 	})
 
-	handleMultiSearch := func(ctx context.Context, req *quesma_api.Request, defaultIndexName string, _ http.ResponseWriter) (*quesma_api.Result, error) {
-
-		body, err := types.ExpectNDJSON(req.ParsedBody)
-		if err != nil {
-			return nil, err
-		}
-
-		responseBody, err := queryRunner.HandleMultiSearch(ctx, defaultIndexName, body)
-
-		if err != nil {
-			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
-			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
-				return &quesma_api.Result{
-					Body:          string(queryparser.BadRequestParseError(err)),
-					StatusCode:    http.StatusBadRequest,
-					GenericResult: queryparser.BadRequestParseError(err),
-				}, nil
-			} else {
-				return nil, err
-			}
-		}
-
-		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
-	}
-
-	router.Register(routes.IndexMsearchPath, and(method("GET", "POST"), quesma_api.Always()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		return handleMultiSearch(ctx, req, req.Params["index"], nil)
+	router.Register(routes.IndexMsearchPath, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+		return HandleMultiSearch(ctx, req, req.Params["index"], queryRunner)
 	})
 
 	router.Register(routes.GlobalMsearchPath, and(method("GET", "POST"), quesma_api.Always()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		return handleMultiSearch(ctx, req, "", nil)
+		return HandleMultiSearch(ctx, req, "", queryRunner)
 	})
 
 	router.Register(routes.IndexMappingPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
@@ -303,20 +246,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 	})
 
 	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		body, err := types.ExpectJSON(req.ParsedBody)
-		if err != nil {
-			return nil, err
-		}
-
-		responseBody, err := queryRunner.handleEQLSearch(ctx, req.Params["index"], body)
-		if err != nil {
-			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
-				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
-			} else {
-				return nil, err
-			}
-		}
-		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+		return nil, errors.New("EQL is not supported")
 	})
 
 	router.Register(routes.IndexPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {

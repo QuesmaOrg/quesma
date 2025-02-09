@@ -4,11 +4,11 @@ package quesma
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/model"
-	"quesma/quesma/config"
-	"quesma/schema"
 	"strconv"
 	"testing"
 )

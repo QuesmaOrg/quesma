@@ -3,8 +3,8 @@
 package ui
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/goccy/go-json"
-	"quesma/logger"
 )
 
 func (qmc *QuesmaManagementConsole) generateTelemetry() []byte {
