@@ -3,11 +3,11 @@ package terms_enum
 import (
 	"context"
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/schema"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"slices"
 	"strings"
 )

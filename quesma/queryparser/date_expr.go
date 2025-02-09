@@ -5,7 +5,7 @@ package queryparser
 import (
 	"errors"
 	"fmt"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"strconv"
 	"strings"
 	"time"

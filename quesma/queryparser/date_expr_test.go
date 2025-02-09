@@ -3,9 +3,9 @@
 package queryparser
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"quesma/model"
 	"testing"
 )
 

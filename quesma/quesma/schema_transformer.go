@@ -12,6 +12,9 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/k0kubun/pp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -889,11 +892,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(ctx context.Context, indexSchema sc
 		// This is workaround.
 		// Our query parse resolves columns sometimes. Here we detect it and skip the resolution.
 		if _, ok := indexSchema.ResolveFieldByInternalName(e.ColumnName); ok {
-<<<<<<< HEAD
-			logger.WarnWithCtx(ctx).Msgf("Got field already resolved %s", e.ColumnName)
-=======
-			logger.Debug().Msgf("Got field already resolved %s", e.ColumnName) // Reduced to debug as it was really noisy
->>>>>>> main
+			logger.DebugWithCtx(ctx).Msgf("Got field already resolved %s", e.ColumnName) // Reduced to debug as it was really noisy
 			return e
 		}
 
