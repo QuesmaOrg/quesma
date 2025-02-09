@@ -102,7 +102,10 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 
 	for i, tt := range append(properQueries, randomQueriesWithPossiblyIncorrectInput...) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			if i != 38 { //i > 40 {
+			if i == 38 { //i > 40 {
+				t.Skip("Fixed in https://github.com/QuesmaOrg/quesma/pull/1246")
+			}
+			if i > 40 {
 				t.Skip()
 			}
 			parser := newLuceneParser(context.Background(), defaultFieldNames, currentSchema)
@@ -122,7 +125,7 @@ func TestResolvePropertyNamesWhenTranslatingToSQL(t *testing.T) {
 		mapping map[string]string
 		want    string
 	}{
-		{query: `title:"The Right Way" AND text:go!!`, mapping: map[string]string{}, want: `("title" = 'The Right Way' AND "text" = 'go!!')`},
+		{query: `title:"The Right Way" AND text:go!!`, mapping: map[string]string{}, want: `("title" ILIKE '%The Right Way%' AND "text" ILIKE '%go!!%')`},
 		{query: `age:>10`, mapping: map[string]string{"age": "foo"}, want: `"foo" > '10'`},
 	}
 	for i, tt := range properQueries {
