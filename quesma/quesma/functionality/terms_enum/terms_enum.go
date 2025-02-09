@@ -13,6 +13,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
+	transformations_delete "github.com/QuesmaOrg/quesma/quesma/transformations-delete"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
@@ -92,7 +93,7 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.
 
 	where := qt.ParseAutocomplete(indexFilter, field, prefixString, caseInsensitive)
 	selectQuery := buildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
-	selectQuery, err = applyNecessaryTransformations(ctx, lm, qt.Table.Name, qt.Schema, selectQuery)
+	selectQuery, err = transformations_delete.ApplyNecessaryTransformations(ctx, lm.FindTable(qt.Table.Name), qt.Table.Name, qt.Schema, selectQuery)
 	if err != nil {
 		return json.Marshal(emptyTermsEnumResponse())
 	}

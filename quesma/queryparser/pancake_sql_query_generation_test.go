@@ -10,6 +10,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
+	transformations_delete "github.com/QuesmaOrg/quesma/quesma/transformations-delete"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
@@ -81,7 +82,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp, false)
 			for j, pancake := range pancakeSqls {
-				pancakeSqls[j], _ = applyNecessaryTransformations(context.Background(), pancake, &table, currentSchema)
+				pancakeSqls[j], _ = transformations_delete.ApplyNecessaryTransformations(context.Background(), &table, tableName, currentSchema, pancake)
 			}
 			assert.NoError(t, err)
 			assert.True(t, len(pancakeSqls) >= 1, "pancakeSqls should have at least one query")
