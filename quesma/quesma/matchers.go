@@ -3,7 +3,6 @@
 package quesma
 
 import (
-	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/painful"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
@@ -16,7 +15,6 @@ import (
 func matchedAgainstAsyncId() quesma_api.RequestMatcher {
 	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
 		if !strings.HasPrefix(req.Params["id"], tracing.AsyncIdPrefix) {
-			logger.Debug().Msgf("async query id %s is forwarded to Elasticsearch", req.Params["id"])
 			return quesma_api.MatchResult{Matched: false}
 		}
 		return quesma_api.MatchResult{Matched: true}
