@@ -1252,9 +1252,9 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"exception-list-agnostic.list_id" = 'endpoint_event_filters'`},
+		[]string{`"exception-list-agnostic.list_id" ILIKE 'endpoint\_event\_filters'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "exception-list-agnostic.list_id" = 'endpoint_event_filters'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "exception-list-agnostic.list_id" ILIKE 'endpoint\\_event\\_filters'`},
 		[]string{},
 	},
 	{ // [10]
@@ -1352,14 +1352,14 @@ var TestsSearch = []SearchTestCase{
 		`
 		{
 			"query": {
-				"prefix" : { "user" : "ki%_\\ \%" }
+				"prefix" : { "user" : "ki%_\\ \\%" }
 			},
 			"track_total_hits": false,
 			"size": 10
 		}`,
-		[]string{`"user" iLIKE 'ki\%\_\\%'`},
+		[]string{`"user" iLIKE 'ki\%\_\\ \\\%%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user" iLIKE 'ki\%\_\\%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user" iLIKE 'ki\\%\\_\\\\ \\\\\\%%'`},
 		[]string{},
 	},
 	{ // [14]

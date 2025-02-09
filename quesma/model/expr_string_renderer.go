@@ -117,41 +117,35 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 }
 
 func (v *renderer) VisitLikeExpr(e LikeExpr) interface{} {
-	var lhs, rhs interface{} // TODO FOR NOW LITTLE PARANOID BUT HELPS ME NOT SEE MANY PANICS WHEN TESTING
-	//var rhs string
+	var lhs interface{} // TODO FOR NOW LITTLE PARANOID BUT HELPS ME NOT SEE MANY PANICS WHEN TESTING
 	if e.Left != nil {
 		lhs = e.Left.Accept(v)
 	} else {
 		lhs = "< LHS NIL >"
 	}
 
-	if e.Right == nil {
-		rhs = "< RHS NIL >"
-	} else {
-		rhs = e.Right.Accept(v)
-	}
+	pp.Println("visit", e)
 
-	/*else if l, ok := e.Right.(LiteralExpr); ok {
+	rhs := "< RHS NIL >"
+	if e.RightEscape == NotEscaped {
+		// we escape here
+		rhs = e.Right.Accept(v).(string)
+		rhs = strings.ReplaceAll(rhs, `%`, `\%`)
+		rhs = strings.ReplaceAll(rhs, `_`, `\_`)
+	} else if l, ok := e.Right.(LiteralExpr); ok {
+		// it's already escaped (by Lucene), so we take literal value
 		if s, ok2 := l.Value.(string); ok2 {
-			_ = s
+			rhs = s
 		}
-	} else {
-		rhs = "< RHS NOT STRING >"
 	}
-	if e.Right != nil {
-		rhs = e.Right.Accept(v)
-	} else {
-		rhs = "< RHS NIL >"
-	}
-	*/
 
 	switch e.BoundType {
 	case Left:
-		rhs = "%" + rhs.(string)
+		rhs = "%" + rhs
 	case Right:
-		rhs = rhs.(string) + "%"
+		rhs = rhs + "%"
 	case Both:
-		rhs = "%" + rhs.(string) + "%"
+		rhs = "%" + rhs + "%"
 	default:
 	}
 	pp.Println("HOHO", lhs, e.Op, rhs)
