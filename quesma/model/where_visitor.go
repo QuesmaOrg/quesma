@@ -4,6 +4,7 @@ package model
 
 import (
 	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/k0kubun/pp"
 	"math"
 )
 
@@ -18,6 +19,7 @@ func FindTimestampLowerBound(field ColumnRef, whereClause Expr) (timestampInMill
 	timestampInMillis = math.MaxInt64
 	visitor := NewBaseVisitor()
 	visitor.OverrideVisitInfix = func(visitor *BaseExprVisitor, e InfixExpr) interface{} {
+		pp.Println("infix", e)
 		if columnRef, ok := e.Left.(ColumnRef); ok && columnRef == field && e.Op == ">=" || e.Op == ">" {
 			if fun, ok := e.Right.(FunctionExpr); ok && fun.Name == "fromUnixTimestamp64Milli" && len(fun.Args) == 1 {
 				if rhs, ok := fun.Args[0].(LiteralExpr); ok {

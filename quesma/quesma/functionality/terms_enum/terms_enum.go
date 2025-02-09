@@ -93,7 +93,7 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.
 
 	where := qt.ParseAutocomplete(indexFilter, field, prefixString, caseInsensitive)
 	selectQuery := buildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
-	selectQuery, err = transformations_delete.ApplyNecessaryTransformations(ctx, lm.FindTable(qt.Table.Name), qt.Table.Name, qt.Schema, selectQuery)
+	selectQuery, err = transformations_delete.ApplyNecessaryTransformations(ctx, selectQuery, lm.FindTable(qt.Table.Name), qt.Schema)
 	if err != nil {
 		return json.Marshal(emptyTermsEnumResponse())
 	}

@@ -56,7 +56,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Fix filters")
 			}
 
-			if i != 82 {
+			if i == 168 || i == 169 || i == 170 {
+				t.Skip()
+			}
+			if i != 99 {
 				t.Skip()
 			}
 
@@ -82,7 +85,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp, false)
 			for j, pancake := range pancakeSqls {
-				pancakeSqls[j], _ = transformations_delete.ApplyNecessaryTransformations(context.Background(), &table, tableName, currentSchema, pancake)
+				pancakeSqls[j], _ = transformations_delete.ApplyNecessaryTransformations(context.Background(), pancake, &table, currentSchema)
 			}
 			assert.NoError(t, err)
 			assert.True(t, len(pancakeSqls) >= 1, "pancakeSqls should have at least one query")

@@ -8,13 +8,19 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/k0kubun/pp"
 	"slices"
 	"strings"
 )
 
 // Delete some time in the future. It should just use normal schema transformations.
-func ApplyNecessaryTransformations(ctx context.Context, table *clickhouse.Table, tableName string, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, table *clickhouse.Table, indexSchema schema.Schema) (*model.Query, error) {
+	fmt.Println("KK TRANSF")
+	pp.Println(query)
+
 	visitor := model.NewBaseVisitor()
+
+	// we look for: (timestamp_field OP fromUnixTimestamp)
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 		visitChildren := func() model.InfixExpr {
 			return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
@@ -92,10 +98,95 @@ func ApplyNecessaryTransformations(ctx context.Context, table *clickhouse.Table,
 
 		return visitChildren() // unreachable
 	}
+
+	// we look for: toUnixTimestamp(timestamp_field)
+	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
+		visitChildren := func() model.FunctionExpr {
+			return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+		}
+
+		fmt.Println("KK f start 1", e)
+		if e.Name != model.ToUnixTimestampMs || e.Name != model.ToUnixTimestamp { // TODO
+			fmt.Println("wtf, name:", e.Name)
+			return visitChildren()
+		}
+		if len(e.Args) != 1 {
+			logger.WarnWithCtx(ctx).Msgf("invalid number of arguments for %s function", e.Name)
+			return visitChildren()
+		}
+		colRef, ok := e.Args[0].(model.ColumnRef)
+		if !ok {
+			return visitChildren()
+		}
+		fmt.Println("KK f start 2", e, colRef)
+		field, ok := indexSchema.ResolveField(colRef.ColumnName)
+		fmt.Println("KK f start 2.5", field, ok)
+		if !ok {
+			logger.WarnWithCtx(ctx).Msgf("field %s not found in schema for table %s", colRef.ColumnName, query.TableName)
+			return visitChildren()
+		}
+		col, ok := table.Cols[field.InternalPropertyName.AsString()]
+		if !ok {
+			logger.WarnWithCtx(ctx).Msgf("field %s not found in table %s", field.InternalPropertyName.AsString(), query.TableName)
+			return visitChildren()
+		}
+		isDatetime := col.IsDatetime()
+		isDateTime64 := col.IsDatetime64()
+		fmt.Println("KK f start 3", e, isDatetime, isDateTime64)
+		if !isDatetime && !isDateTime64 {
+			return visitChildren()
+		}
+
+		var clickhouseFunc string
+		if isDateTime64 {
+			clickhouseFunc = model.ClickhouseToUnixTimestampMsFromDatetime64Function
+		} else if isDatetime {
+			clickhouseFunc = model.ClickhouseToUnixTimestampMsFromDatetimeFunction
+		}
+		return model.NewFunction(clickhouseFunc, colRef)
+	}
+
+	// we look for: MillisecondsLiteral
+	visitor.OverrideVisitLiteral = func(b *model.BaseExprVisitor, l model.LiteralExpr) interface{} {
+		pp.Println("literal", l)
+		msLiteral, ok := l.Value.(model.MillisecondsLiteral)
+		if !ok {
+			return model.NewLiteral(l.Value)
+		}
+
+		fmt.Println("LOL", msLiteral)
+
+		field, ok := indexSchema.ResolveField(msLiteral.TimestampField.ColumnName)
+		fmt.Println("1 LOL", msLiteral, field, ok)
+		if !ok {
+			logger.WarnWithCtx(ctx).Msgf("field %v not found in schema for table %s", msLiteral.TimestampField, query.TableName)
+			return model.NewLiteral(l.Value)
+		}
+		col, ok := table.Cols[field.InternalPropertyName.AsString()]
+		fmt.Println("1LOL", msLiteral, col)
+		if !ok {
+			logger.WarnWithCtx(ctx).Msgf("field %s not found in table %s", field.InternalPropertyName.AsString(), query.TableName)
+			return model.NewLiteral(l.Value)
+		}
+
+		fmt.Println("2LOL", msLiteral, col.IsDatetime())
+
+		if col.IsDatetime() {
+			ts, isNumber := util.ExtractNumeric64Maybe(msLiteral.Value)
+			if !isNumber {
+				logger.WarnWithCtx(ctx).Msgf("invalid argument for a timestamp: %v. isn't integer, but %T", msLiteral.Value, msLiteral.Value)
+				return model.NewLiteral(msLiteral.Value)
+			}
+			return model.NewLiteral(int64(ts / 1000))
+		}
+		return model.NewLiteral(msLiteral.Value)
+	}
+
 	expr := query.SelectCommand.Accept(visitor)
 
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
 	return query, nil
+
 }

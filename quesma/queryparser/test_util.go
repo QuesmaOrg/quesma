@@ -25,37 +25,39 @@ func applyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 		visitChildren := func() model.InfixExpr {
 			return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
 		}
+		// we look for: timestamp_field OP from/toUnixTimestamp...
 
-		fmt.Println("KK start 1", e)
+		/*
+			table := lm.FindTable(tableName)
+			fmt.Println("table", table, "name:", query.TableName)
+			if table == nil {
+				logger.WarnWithCtx(ctx).Msgf("table %s not found", query.TableName)
+				return visitChildren()
+			}
+
+		*/
 
 		// check if timestamp_field is ok
-		colRef, ok := e.Left.(model.ColumnRef)
-		fmt.Println("KK start 2", colRef, ok)
+		col, ok := e.Left.(model.ColumnRef)
+		fmt.Println("KKK col", col, ok, "e.Left:", e.Left)
 		if !ok {
 			return visitChildren()
 		}
-		field, ok := indexSchema.ResolveField(colRef.ColumnName)
-		fmt.Println("KK start 3", field, ok)
+		field, ok := indexSchema.ResolveField(col.ColumnName)
+		fmt.Println("KKK field", field, "name:", col.ColumnName)
 		if !ok {
-			logger.WarnWithCtx(ctx).Msgf("field %s not found in schema for table %s", colRef.ColumnName, query.TableName)
+			logger.WarnWithCtx(ctx).Msgf("field %s not found in schema for table %s", col.ColumnName, query.TableName)
 			return visitChildren()
 		}
-		col, ok := table.Cols[field.InternalPropertyName.AsString()]
-		if !ok {
-			logger.WarnWithCtx(ctx).Msgf("field %s not found in table %s", field.InternalPropertyName.AsString(), query.TableName)
-			return visitChildren()
-		}
-		fmt.Println("KK start 3", e, col, ok)
-		isDatetime := col.IsDatetime()
-		isDateTime64 := col.IsDatetime64()
+		isDatetime := table.Cols[field.InternalPropertyName.AsString()].IsDatetime()
+		isDateTime64 := table.Cols[field.InternalPropertyName.AsString()].IsDatetime64()
 		if !isDatetime && !isDateTime64 {
 			return visitChildren()
 		}
 
 		// check if operator is ok
 		op := strings.TrimSpace(e.Op)
-		fmt.Println(e, op)
-		if !slices.Contains([]string{"=", "!=", ">", "<", ">=", "<=", "/"}, op) {
+		if !slices.Contains([]string{"=", "!=", ">", "<", ">=", "<="}, op) {
 			return visitChildren()
 		}
 
@@ -65,7 +67,6 @@ func applyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 			return visitChildren()
 		}
 		if tsFunc.Name != model.FromUnixTimestampMs && tsFunc.Name != model.ToUnixTimestampMs {
-			//fmt.Println("wtf, name:", tsFunc.Name)
 			return visitChildren()
 		}
 		if len(tsFunc.Args) != 1 {
@@ -75,23 +76,24 @@ func applyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 
 		arg := tsFunc.Args[0].Accept(b).(model.Expr)
 		if isDateTime64 {
-			clickhouseFunc := model.ClickhouseFromUnixTimestampMsToDatetime64Function
-			return model.NewInfixExpr(colRef, e.Op, model.NewFunction(clickhouseFunc, arg))
+			return model.NewInfixExpr(col, e.Op,
+				model.NewFunction(model.ClickhouseFromUnixTimestampMsToDatetime64Function, arg),
+			)
 		} else if isDatetime {
-			//fmt.Println("KK ", arg)
 			tsAny, isLiteral := arg.(model.LiteralExpr)
 			if !isLiteral {
 				logger.WarnWithCtx(ctx).Msgf("invalid argument for %s function: %v. isn't literal, but %T", tsFunc.Name, arg, arg)
 				return visitChildren()
 			}
-			ts, isNumber := util.ExtractNumeric64Maybe(tsAny.Value)
-			if !isNumber {
+			ts, err := util.ExtractInt64(tsAny.Value)
+			if err != nil {
 				logger.WarnWithCtx(ctx).Msgf("invalid argument for %s function: %v. isn't integer, but %T", tsFunc.Name, arg, arg)
 				return visitChildren()
 			}
 
-			clickhouseFunc := model.ClickhouseFromUnixTimestampMsToDatetimeFunction
-			return model.NewInfixExpr(colRef, e.Op, model.NewFunction(clickhouseFunc, model.NewLiteral(int64(ts/1000))))
+			return model.NewInfixExpr(col, e.Op,
+				model.NewFunction(model.ClickhouseFromUnixTimestampMsToDatetimeFunction, model.NewLiteral(ts/1000)),
+			)
 		}
 
 		return visitChildren() // unreachable
