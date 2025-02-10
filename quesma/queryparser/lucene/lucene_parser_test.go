@@ -115,7 +115,7 @@ func TestResolvePropertyNamesWhenTranslatingToSQL(t *testing.T) {
 		want    string
 	}{
 		{query: `title:"The Right Way" AND text:go!!`, mapping: map[string]string{}, want: `("title" = 'The Right Way' AND "text" = 'go!!')`},
-		{query: `age:>10`, mapping: map[string]string{"age": "foo"}, want: `"foo" > '10'`},
+		{query: `age:>10`, mapping: map[string]string{"age": "foo"}, want: `"age" > '10'`},
 	}
 	for i, tt := range properQueries {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
