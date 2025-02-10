@@ -49,7 +49,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 		// strings
 		"a.b":            {PropertyName: "a.b", InternalPropertyName: "a_b", Type: schema.QuesmaTypeText},
-		"host.name":      {PropertyName: "host.name", InternalPropertyName: "host_name", Type: schema.QuesmaTypeObject}, // internal name should be host_name, but it mainly should be tested in schema, doesn't matter much here
+		"host.name":      {PropertyName: "host.name", InternalPropertyName: "host_name", Type: schema.QuesmaTypeObject},
 		"message":        {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
 		"OriginCityName": {PropertyName: "OriginCityName", InternalPropertyName: "origincityname", Type: schema.QuesmaTypeText},
 		"severity":       {PropertyName: "severity", InternalPropertyName: "severity", Type: schema.QuesmaTypeText},
@@ -79,7 +79,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	}
 
 	currentSchema := schema.NewSchema(fields, false, "")
-
 	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: currentSchema}
 
 	for i, test := range allAggregationTests() {

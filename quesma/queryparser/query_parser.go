@@ -509,8 +509,8 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 		return model.NewSimpleQueryInvalid()
 	}
 
-	for k, v := range queryMap {
-		if strings.HasPrefix(k, "_") {
+	for fieldName, v := range queryMap {
+		if strings.HasPrefix(fieldName, "_") {
 			// terms enum API uses _tier terms ( data_hot, data_warm, etc.)
 			// we don't want these internal fields to percolate to the SQL query
 			return model.NewSimpleQuery(nil, true)
@@ -521,7 +521,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			return model.NewSimpleQueryInvalid()
 		}
 		if len(vAsArray) == 1 {
-			simpleStatement := model.NewInfixExpr(model.NewColumnRef(k), "=", model.NewLiteral(sprint(vAsArray[0])))
+			simpleStatement := model.NewInfixExpr(model.NewColumnRef(fieldName), "=", model.NewLiteral(sprint(vAsArray[0])))
 			return model.NewSimpleQuery(simpleStatement, true)
 		}
 		values := make([]model.Expr, len(vAsArray))
@@ -529,7 +529,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			values[i] = model.NewLiteral(sprint(v))
 		}
 		tuple := model.NewTupleExpr(values...)
-		compoundStatement := model.NewInfixExpr(model.NewColumnRef(k), "IN", tuple)
+		compoundStatement := model.NewInfixExpr(model.NewColumnRef(fieldName), "IN", tuple)
 		return model.NewSimpleQuery(compoundStatement, true)
 	}
 
