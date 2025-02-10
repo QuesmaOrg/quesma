@@ -258,7 +258,13 @@ func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalid
 	for k, v := range invalidJson {
 		newAttrsMap[chLib.DeprecatedAttributesKeyColumn] = append(newAttrsMap[chLib.DeprecatedAttributesKeyColumn], k)
 		newAttrsMap[chLib.DeprecatedAttributesValueColumn] = append(newAttrsMap[chLib.DeprecatedAttributesValueColumn], v)
-		newAttrsMap[chLib.DeprecatedAttributesValueType] = append(newAttrsMap[chLib.DeprecatedAttributesValueType], chLib.NewType(v, k).String())
+
+		valueType, err := chLib.NewType(v, k)
+		if err != nil {
+			newAttrsMap[chLib.DeprecatedAttributesValueType] = append(newAttrsMap[chLib.DeprecatedAttributesValueType], err.Error())
+		} else {
+			newAttrsMap[chLib.DeprecatedAttributesValueType] = append(newAttrsMap[chLib.DeprecatedAttributesValueType], valueType.String())
+		}
 	}
 	return newAttrsMap
 }
