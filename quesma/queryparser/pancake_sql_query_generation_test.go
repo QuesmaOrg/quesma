@@ -37,12 +37,48 @@ func TestPancakeQueryGeneration(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	currentSchema := schema.Schema{
-		Fields:             nil,
-		Aliases:            nil,
-		ExistsInDataSource: false,
-		DatabaseName:       "",
+	fields := map[schema.FieldName]schema.Field{
+		// datetime
+		"customer_birth_date":            {PropertyName: "customer_birth_date", InternalPropertyName: "customer_birth_date", Type: schema.QuesmaTypeDate},
+		"customer_birth_date_datetime64": {PropertyName: "customer_birth_date_datetime64", InternalPropertyName: "customer_birth_date_datetime64", Type: schema.QuesmaTypeDate},
+		"epoch_time":                     {PropertyName: "epoch_time", InternalPropertyName: "epoch_time", Type: schema.QuesmaTypeDate},
+		"order_date":                     {PropertyName: "order_date", InternalPropertyName: "order_date", Type: schema.QuesmaTypeDate},
+		"reqTimeSec":                     {PropertyName: "reqTimeSec", InternalPropertyName: "reqtimesec", Type: schema.QuesmaTypeDate},
+		"timestamp":                      {PropertyName: "timestamp", InternalPropertyName: "timestamp", Type: schema.QuesmaTypeDate},
+		"@timestamp":                     {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+
+		// strings
+		"a.b":            {PropertyName: "a.b", InternalPropertyName: "a_b", Type: schema.QuesmaTypeText},
+		"host.name":      {PropertyName: "host.name", InternalPropertyName: "host_name", Type: schema.QuesmaTypeObject}, // internal name should be host_name, but it mainly should be tested in schema, doesn't matter much here
+		"message":        {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+		"OriginCityName": {PropertyName: "OriginCityName", InternalPropertyName: "origincityname", Type: schema.QuesmaTypeText},
+		"severity":       {PropertyName: "severity", InternalPropertyName: "severity", Type: schema.QuesmaTypeText},
+
+		// ints
+		"body_bytes_sent": {PropertyName: "body_bytes_sent", InternalPropertyName: "body_bytes_sent", Type: schema.QuesmaTypeInteger},
+		"bytes":           {PropertyName: "bytes", InternalPropertyName: "bytes", Type: schema.QuesmaTypeInteger},
+		"bytes2":          {PropertyName: "bytes2", InternalPropertyName: "bytes2", Type: schema.QuesmaTypeInteger},
+		"bytes_gauge":     {PropertyName: "bytes_gauge", InternalPropertyName: "bytes_gauge", Type: schema.QuesmaTypeInteger},
+		"day_of_week_i":   {PropertyName: "day_of_week_i", InternalPropertyName: "day_of_week_i", Type: schema.QuesmaTypeInteger},
+		"latency":         {PropertyName: "latency", InternalPropertyName: "latency", Type: schema.QuesmaTypeInteger},
+		"memory":          {PropertyName: "memory", InternalPropertyName: "memory", Type: schema.QuesmaTypeInteger},
+		"rspContentLen":   {PropertyName: "rspContentLen", InternalPropertyName: "rspcontentlen", Type: schema.QuesmaTypeInteger},
+
+		// floats
+		"AvgTicketPrice":     {PropertyName: "AvgTicketPrice", InternalPropertyName: "avgticketprice", Type: schema.QuesmaTypeFloat},
+		"cost":               {PropertyName: "cost", InternalPropertyName: "cost", Type: schema.QuesmaTypeFloat},
+		"DistanceKilometers": {PropertyName: "DistanceKilometers", InternalPropertyName: "distancekilometers", Type: schema.QuesmaTypeFloat},
+		"DistanceMiles":      {PropertyName: "DistanceMiles", InternalPropertyName: "distancemiles", Type: schema.QuesmaTypeFloat},
+		"FlightDelayMin":     {PropertyName: "FlightDelayMin", InternalPropertyName: "flightdelaymin", Type: schema.QuesmaTypeFloat},
+		"multiplier":         {PropertyName: "multiplier", InternalPropertyName: "multiplier", Type: schema.QuesmaTypeFloat},
+		"price":              {PropertyName: "price", InternalPropertyName: "price", Type: schema.QuesmaTypeFloat},
+		"spent":              {PropertyName: "spent", InternalPropertyName: "spent", Type: schema.QuesmaTypeFloat},
+		"some":               {PropertyName: "some", InternalPropertyName: "some", Type: schema.QuesmaTypeFloat},
+		"taxful_total_price": {PropertyName: "taxful_total_price", InternalPropertyName: "taxful_total_price", Type: schema.QuesmaTypeFloat},
+		"total":              {PropertyName: "total", InternalPropertyName: "total", Type: schema.QuesmaTypeFloat},
 	}
+
+	currentSchema := schema.NewSchema(fields, false, "")
 
 	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: currentSchema}
 

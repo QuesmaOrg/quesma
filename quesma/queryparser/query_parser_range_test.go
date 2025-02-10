@@ -77,8 +77,9 @@ var parseRangeTests = []parseRangeTest{
 func Test_parseRange(t *testing.T) {
 	s := schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
+					"timestamp":         {PropertyName: "timestamp", InternalPropertyName: "timestamp", Type: schema.QuesmaTypeDate},
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
 					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
 					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
@@ -89,6 +90,7 @@ func Test_parseRange(t *testing.T) {
 					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
 					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
 					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
+					"time_taken":        {PropertyName: "time_taken", InternalPropertyName: "time_taken", Type: schema.QuesmaTypeFloat},
 				},
 			},
 		},

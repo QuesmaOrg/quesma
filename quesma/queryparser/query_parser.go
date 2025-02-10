@@ -494,8 +494,7 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) model.SimpleQu
 				whereClause = model.NewInfixExpr(model.NewLiteral("0"), "=", model.NewLiteral("0 /* "+k+"="+sprint(v)+" */"))
 				return model.NewSimpleQuery(whereClause, true)
 			}
-			fieldName := ResolveField(cw.Ctx, k, cw.Schema)
-			whereClause = model.NewInfixExpr(model.NewColumnRef(fieldName), "=", model.NewLiteral(sprint(v)))
+			whereClause = model.NewInfixExpr(model.NewColumnRef(k), "=", model.NewLiteral(sprint(v)))
 			return model.NewSimpleQuery(whereClause, true)
 		}
 	}
@@ -560,7 +559,6 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 	}
 
 	for fieldName, v := range queryMap {
-		fieldName = ResolveField(cw.Ctx, fieldName, cw.Schema)
 		// (fieldName, v) = either e.g. ("message", "this is a test")
 		//                  or  ("message", map["query": "this is a test", ...]). Here we only care about "query" until we find a case where we need more.
 		vUnNested := v
@@ -782,8 +780,6 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 	const dateInSchemaExpected = true
 
 	for fieldName, v := range queryMap {
-		fieldName = ResolveField(cw.Ctx, fieldName, cw.Schema)
-
 		fieldType := cw.Table.GetDateTimeType(cw.Ctx, ResolveField(cw.Ctx, fieldName, cw.Schema), dateInSchemaExpected)
 		stmts := make([]model.Expr, 0)
 		if _, ok := v.(QueryMap); !ok {
@@ -940,7 +936,6 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 		if fieldStr == "*" {
 			return []string{model.FullTextFieldNamePlaceHolder}
 		}
-		fieldStr = ResolveField(cw.Ctx, fieldStr, cw.Schema)
 		result = append(result, fieldStr)
 	}
 	return result
