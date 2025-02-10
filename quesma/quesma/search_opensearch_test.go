@@ -5,15 +5,15 @@ package quesma
 import (
 	"context"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/stretchr/testify/assert"
-	"quesma/backend_connectors"
-	"quesma/clickhouse"
-	"quesma/model"
-	"quesma/queryparser"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/testdata"
-	"quesma/util"
 	"strconv"
 	"testing"
 )
@@ -48,7 +48,7 @@ func TestSearchOpensearch(t *testing.T) {
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
 			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
-			cw := queryparser.ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: s.Tables[tableName], Config: &DefaultConfig}
+			cw := queryparser.ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: s.Tables[tableName]}
 
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)

@@ -4,14 +4,13 @@ package queryparser
 
 import (
 	"context"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/typical_queries"
-	"quesma/queryparser/query_util"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser/query_util"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 )
 
 type JsonMap = map[string]interface{}
@@ -23,8 +22,6 @@ type ClickhouseQueryTranslator struct {
 	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 
 	Indexes []string
-
-	Config *config.QuesmaConfiguration
 
 	// TODO this will be removed
 	Table *clickhouse.Table

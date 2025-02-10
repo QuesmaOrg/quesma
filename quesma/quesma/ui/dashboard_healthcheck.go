@@ -3,8 +3,9 @@
 package ui
 
 import (
-	"quesma/end_user_errors"
-	"quesma/health"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"sync"
 	"time"
 )
@@ -15,12 +16,12 @@ type healthCheckStatusCache struct {
 	mutex      sync.Mutex
 	lastRun    time.Time
 	scheduled  bool
-	lastStatus health.Status
+	lastStatus quesma_api.Status
 }
 
 const healthCheckInterval = 5 * time.Second
 
-func (c *healthCheckStatusCache) check(updateFunc func() health.Status) health.Status {
+func (c *healthCheckStatusCache) check(updateFunc func() quesma_api.Status) quesma_api.Status {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if !c.scheduled || time.Since(c.lastRun) > healthCheckInterval {
@@ -39,55 +40,55 @@ func (c *healthCheckStatusCache) check(updateFunc func() health.Status) health.S
 
 func newHealthCheckStatusCache() healthCheckStatusCache {
 	return healthCheckStatusCache{
-		lastStatus: health.NewStatus("grey", "N/A", "Have not run yet"),
+		lastStatus: quesma_api.NewStatus("grey", "N/A", "Have not run yet"),
 		scheduled:  false,
 		lastRun:    time.Unix(0, 0),
 	}
 }
 
-func (qmc *QuesmaManagementConsole) checkClickhouseHealth() health.Status {
+func (qmc *QuesmaManagementConsole) checkClickhouseHealth() quesma_api.Status {
 	if !qmc.cfg.WritesToClickhouse() && !qmc.cfg.ReadsFromClickhouse() {
-		return health.NewStatus("grey", "N/A (not writing)", "")
+		return quesma_api.NewStatus("grey", "N/A (not writing)", "")
 	}
 
-	return qmc.clickhouseStatusCache.check(func() health.Status {
+	return qmc.clickhouseStatusCache.check(func() quesma_api.Status {
 		err := qmc.logManager.Ping()
 		if err != nil {
 			endUserError := end_user_errors.GuessClickhouseErrorType(err)
-			return health.NewStatus("red", "Ping failed", endUserError.Reason())
+			return quesma_api.NewStatus("red", "Ping failed", endUserError.Reason())
 
 		}
-		return health.NewStatus("green", "Healthy", "")
+		return quesma_api.NewStatus("green", "Healthy", "")
 	})
 }
 
-func (qmc *QuesmaManagementConsole) checkElasticsearch() health.Status {
+func (qmc *QuesmaManagementConsole) checkElasticsearch() quesma_api.Status {
 
 	if !qmc.cfg.WritesToElasticsearch() && !qmc.cfg.ReadsFromElasticsearch() {
-		return health.NewStatus("grey", "N/A (not writing)", "")
+		return quesma_api.NewStatus("grey", "N/A (not writing)", "")
 	}
 
-	healthCheck := health.NewElasticHealthChecker(qmc.cfg)
+	healthCheck := elasticsearch.NewElasticHealthChecker(qmc.cfg)
 
 	return qmc.elasticStatusCache.check(healthCheck.CheckHealth)
 }
 
-func (qmc *QuesmaManagementConsole) checkKibana() health.Status {
+func (qmc *QuesmaManagementConsole) checkKibana() quesma_api.Status {
 	statA := qmc.requestsStore.GetRequestsStats(RequestStatisticKibana2Clickhouse)
 	statB := qmc.requestsStore.GetRequestsStats(RequestStatisticKibana2Elasticsearch)
 	if statA.RatePerMinute > 0 || statB.RatePerMinute > 0 {
-		return health.NewStatus("green", "Healthy", "We see requests from Kibana")
+		return quesma_api.NewStatus("green", "Healthy", "We see requests from Kibana")
 	} else {
-		return health.NewStatus("grey", "N/A", "No requests from Kibana")
+		return quesma_api.NewStatus("grey", "N/A", "No requests from Kibana")
 	}
 }
 
-func (qmc *QuesmaManagementConsole) checkIngest() health.Status {
+func (qmc *QuesmaManagementConsole) checkIngest() quesma_api.Status {
 	statA := qmc.requestsStore.GetRequestsStats(RequestStatisticIngest2Clickhouse)
 	statB := qmc.requestsStore.GetRequestsStats(RequestStatisticIngest2Elasticsearch)
 	if statA.RatePerMinute > 0 || statB.RatePerMinute > 0 {
-		return health.NewStatus("green", "Healthy", "We see ingest traffic")
+		return quesma_api.NewStatus("green", "Healthy", "We see ingest traffic")
 	} else {
-		return health.NewStatus("grey", "N/A", "No ingest traffic")
+		return quesma_api.NewStatus("grey", "N/A", "No ingest traffic")
 	}
 }

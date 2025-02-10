@@ -4,7 +4,7 @@ package optimize
 
 import (
 	"fmt"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"strings"
 	"time"
 )

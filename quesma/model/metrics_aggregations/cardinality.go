@@ -4,7 +4,7 @@ package metrics_aggregations
 
 import (
 	"context"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 )
 
 type Cardinality struct {

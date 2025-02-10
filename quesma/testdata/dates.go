@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package testdata
 
-import "quesma/model"
+import "github.com/QuesmaOrg/quesma/quesma/model"
 
 var AggregationTestsWithDates = []AggregationTestCase{
 	{ // [0]
@@ -827,5 +827,144 @@ var AggregationTestsWithDates = []AggregationTestCase{
 			GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("date", 'UTC'))))*1000
 			  AS "aggr__sales_per_year__key_0"
 			ORDER BY "aggr__sales_per_year__key_0" ASC`,
+	},
+	{ // [7]
+		TestName: "turing 1 - painless script in terms",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"1": {
+					"aggs": {
+						"2": {
+							"terms": {
+								"order": {
+									"_count": "desc"
+								},
+								"script": {
+									"lang": "painless",
+									"source": "if (doc['request_id.value'].value == doc['origin_request_id.value'].value) { \n  return 1; \n} else { \n  return 0; \n}"
+								},
+								"shard_size": 25,
+								"size": 5,
+								"value_type": "boolean"
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "@timestamp",
+						"fixed_interval": "30d",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"script_fields": {
+				"is_initial_request": {
+					"script": {
+						"lang": "painless",
+						"source": "if (doc['request_id.value'].value == doc['origin_request_id.value'].value) { \n  return 1; \n} else { \n  return 0; \n}"
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"aggregations": {
+				"1": {
+					"buckets": [
+						{
+							"2": {
+								"doc_count_error_upper_bound": 0,
+								"sum_other_doc_count": 0,
+								"buckets": [
+									{
+										"key": 1,
+										"key_as_string": "true",
+										"doc_count": 1635
+									},
+									{
+										"key": 0,
+										"key_as_string": "false",
+										"doc_count": 50
+									}
+								]
+							},
+							"key_as_string": "2024-12-12T23:00:00.000",
+							"key": 1734044400000,
+							"doc_count": 1685
+						},
+						{
+							"2": {
+								"doc_count_error_upper_bound": 0,
+								"sum_other_doc_count": 0,
+								"buckets": [
+									{
+										"key": 1,
+										"key_as_string": "true",
+										"doc_count": 6844
+									}
+								]
+							},
+							"key_as_string": "2025-01-11T23:00:00.000",
+							"key": 1736636400000,
+							"doc_count": 6844
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__key_0", int64(1734054400000/2592000000)),
+				model.NewQueryResultCol("aggr__1__count", int64(1685)),
+				model.NewQueryResultCol("aggr__1__2__parent_count", int64(1685)),
+				model.NewQueryResultCol("aggr__1__2__key_0", true),
+				model.NewQueryResultCol("aggr__1__2__count", int64(1635)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__key_0", int64(1734054400000/2592000000)),
+				model.NewQueryResultCol("aggr__1__count", int64(1685)),
+				model.NewQueryResultCol("aggr__1__2__parent_count", int64(1685)),
+				model.NewQueryResultCol("aggr__1__2__key_0", false),
+				model.NewQueryResultCol("aggr__1__2__count", int64(50)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__key_0", int64(1736646400000/2592000000)),
+				model.NewQueryResultCol("aggr__1__count", int64(6844)),
+				model.NewQueryResultCol("aggr__1__2__parent_count", int64(6844)),
+				model.NewQueryResultCol("aggr__1__2__key_0", true),
+				model.NewQueryResultCol("aggr__1__2__count", int64(6844)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__1__key_0", "aggr__1__count", "aggr__1__2__parent_count",
+              "aggr__1__2__key_0", "aggr__1__2__count"
+            FROM (
+              SELECT "aggr__1__key_0", "aggr__1__count", "aggr__1__2__parent_count",
+                "aggr__1__2__key_0", "aggr__1__2__count",
+                dense_rank() OVER (ORDER BY "aggr__1__key_0" ASC) AS "aggr__1__order_1_rank",
+                dense_rank() OVER (PARTITION BY "aggr__1__key_0" ORDER BY
+                "aggr__1__2__count" DESC, "aggr__1__2__key_0" ASC) AS
+                "aggr__1__2__order_1_rank"
+              FROM (
+                SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
+                  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
+                  "aggr__1__key_0",
+                  sum(count(*)) OVER (PARTITION BY "aggr__1__key_0") AS "aggr__1__count",
+                  sum(count(*)) OVER (PARTITION BY "aggr__1__key_0") AS
+                  "aggr__1__2__parent_count",
+                  "request_id"="origin_request_id" AS "aggr__1__2__key_0",
+                  count(*) AS "aggr__1__2__count"
+                FROM __quesma_table_name
+                GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
+                  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
+                  "aggr__1__key_0", "request_id"="origin_request_id" AS "aggr__1__2__key_0"))
+            WHERE "aggr__1__2__order_1_rank"<=6
+            ORDER BY "aggr__1__order_1_rank" ASC, "aggr__1__2__order_1_rank" ASC`,
 	},
 }

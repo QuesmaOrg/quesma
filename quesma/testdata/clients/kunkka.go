@@ -3,8 +3,8 @@
 package clients
 
 import (
-	"quesma/model"
-	"quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
 )
 
 const TableName = model.SingleTableNamePlaceHolder

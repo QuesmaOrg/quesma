@@ -4,20 +4,20 @@ package quesma
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
-	"quesma/ab_testing"
-	"quesma/clickhouse"
-	"quesma/elasticsearch"
-	"quesma/frontend_connectors"
-	"quesma/ingest"
-	"quesma/logger"
-	"quesma/queryparser"
-	"quesma/quesma/async_search_storage"
-	"quesma/quesma/config"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/util"
-	quesma_api "quesma_v2/core"
 	"strconv"
 	"sync/atomic"
 )
@@ -51,7 +51,6 @@ func (c *simultaneousClientsLimiterV2) ServeHTTP(w http.ResponseWriter, r *http.
 
 type dualWriteHttpProxyV2 struct {
 	quesmaV2            quesma_api.QuesmaBuilder
-	indexManagement     elasticsearch.IndexManagement
 	logManager          *clickhouse.LogManager
 	publicPort          util.Port
 	asyncQueriesEvictor *async_search_storage.AsyncQueriesEvictor
@@ -64,9 +63,9 @@ func (q *dualWriteHttpProxyV2) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config *config.QuesmaConfiguration, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
+func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, registry schema.Registry, config *config.QuesmaConfiguration, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
 
-	queryProcessor := NewQueryRunner(logManager, config, indexManager, dependencies.DebugInfoCollector(), registry, abResultsRepository, resolver, schemaLoader)
+	queryProcessor := NewQueryRunner(logManager, config, dependencies.DebugInfoCollector(), registry, abResultsRepository, resolver, schemaLoader)
 
 	// not sure how we should configure our query translator ???
 	// is this a config option??
@@ -75,8 +74,9 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 
 	// tests should not be run with optimization enabled by default
 	queryProcessor.EnableQueryOptimization(config)
+	esConn := backend_connectors.NewElasticsearchBackendConnector(config.Elasticsearch)
 
-	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver)
+	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver, esConn)
 	searchRouter := ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
 
 	elasticHttpIngestFrontendConnector := frontend_connectors.NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
@@ -109,12 +109,11 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 	}
 
 	return &dualWriteHttpProxyV2{
-		schemaRegistry:  registry,
-		schemaLoader:    schemaLoader,
-		quesmaV2:        quesmaV2,
-		indexManagement: indexManager,
-		logManager:      logManager,
-		publicPort:      config.PublicTcpPort,
+		schemaRegistry: registry,
+		schemaLoader:   schemaLoader,
+		quesmaV2:       quesmaV2,
+		logManager:     logManager,
+		publicPort:     config.PublicTcpPort,
 		asyncQueriesEvictor: async_search_storage.NewAsyncQueriesEvictor(
 			queryProcessor.AsyncRequestStorage.(async_search_storage.AsyncSearchStorageInMemory),
 			queryProcessor.AsyncQueriesContexts.(async_search_storage.AsyncQueryContextStorageInMemory),
@@ -139,7 +138,6 @@ func (q *dualWriteHttpProxyV2) Close(ctx context.Context) {
 func (q *dualWriteHttpProxyV2) Ingest() {
 	q.schemaLoader.ReloadTableDefinitions()
 	q.logManager.Start()
-	q.indexManagement.Start()
 	go q.asyncQueriesEvictor.AsyncQueriesGC()
 	q.quesmaV2.Start()
 }

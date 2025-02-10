@@ -6,16 +6,16 @@ package queryparser
 import (
 	"fmt"
 	"github.com/H0llyW00dzZ/cidr"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	cidr2 "github.com/apparentlymart/go-cidr/cidr"
 	"github.com/pkg/errors"
 	"math"
 	"net"
 	"net/netip"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
-	"quesma/util"
 	"sort"
 	"strconv"
 	"strings"
@@ -163,9 +163,14 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 	)
 
 	var didWeAddMissing, didWeUpdateFieldHere bool
-	field := cw.parseFieldField(params, aggrName)
-	field, didWeAddMissing = cw.addMissingParameterIfPresent(field, params)
-	field, didWeUpdateFieldHere = terms.UpdateFieldForIncludeAndExclude(field)
+	field, isFromScript := cw.parseFieldFieldMaybeScript(params, aggrName)
+	if !isFromScript {
+		// We currently don't support both 'script' and any of ['include', 'exclude', 'missing'] at the same time
+		// as it's not completely obvious how to handle it. Let's wait for a use case.
+		// (we'll see it in logs if it happens, because of CheckParamsTerms above)
+		field, didWeAddMissing = cw.addMissingParameterIfPresent(field, params)
+		field, didWeUpdateFieldHere = terms.UpdateFieldForIncludeAndExclude(field)
+	}
 
 	// If we updated above, we change our select to if(condition, field, NULL), so we also need to filter out those NULLs later
 	if !didWeAddMissing || didWeUpdateFieldHere {

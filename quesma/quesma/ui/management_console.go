@@ -4,18 +4,21 @@ package ui
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/stats"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/rs/zerolog"
-	"quesma/elasticsearch"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/util"
-	"quesma_v2/core/diag"
-
+	"io"
 	"net/http"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/stats"
 	"reflect"
 	"regexp"
 	"strings"
@@ -75,10 +78,10 @@ type (
 		clickhouseStatusCache     healthCheckStatusCache
 		elasticStatusCache        healthCheckStatusCache
 		logManager                *clickhouse.LogManager
-		indexManagement           elasticsearch.IndexManagement
 		phoneHomeAgent            diag.PhoneHomeRecentStatsProvider
 		schemasProvider           SchemasProvider
 		totalUnsupportedQueries   int
+		elasticsearch             *backend_connectors.ElasticsearchBackendConnector
 		tableResolver             table_resolver.TableResolver
 
 		isAuthEnabled bool
@@ -88,7 +91,7 @@ type (
 	}
 )
 
-func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan logger.LogWithLevel, phoneHomeAgent diag.PhoneHomeRecentStatsProvider, schemasProvider SchemasProvider, indexRegistry table_resolver.TableResolver) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *clickhouse.LogManager, logChan <-chan logger.LogWithLevel, phoneHomeAgent diag.PhoneHomeRecentStatsProvider, schemasProvider SchemasProvider, indexRegistry table_resolver.TableResolver) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *diag.QueryDebugPrimarySource, 10),
 		queryDebugSecondarySource: make(chan *diag.QueryDebugSecondarySource, 10),
@@ -103,7 +106,7 @@ func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *cli
 		clickhouseStatusCache:     newHealthCheckStatusCache(),
 		elasticStatusCache:        newHealthCheckStatusCache(),
 		logManager:                logManager,
-		indexManagement:           indexManager,
+		elasticsearch:             backend_connectors.NewElasticsearchBackendConnector(cfg.Elasticsearch),
 		phoneHomeAgent:            phoneHomeAgent,
 		schemasProvider:           schemasProvider,
 		tableResolver:             indexRegistry,
@@ -259,6 +262,37 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 
 func isComplete(value queryDebugInfo) bool {
 	return !reflect.DeepEqual(value.QueryDebugPrimarySource, diag.QueryDebugPrimarySource{}) && !reflect.DeepEqual(value.QueryDebugSecondarySource, diag.QueryDebugSecondarySource{})
+}
+
+func (qmc *QuesmaManagementConsole) GetElasticSearchIndices(ctx context.Context) (indices []string) {
+	sources := qmc.elasticsearchResolveIndexPattern(ctx, "*")
+	for _, index := range sources.Indices {
+		indices = append(indices, index.Name)
+	}
+	return
+}
+
+func (qmc *QuesmaManagementConsole) elasticsearchResolveIndexPattern(ctx context.Context, indexPattern string) (sources elasticsearch.Sources) {
+	resp, err := qmc.elasticsearch.RequestWithHeaders(ctx, "GET", elasticsearch.ResolveIndexPattenPath(indexPattern), nil, nil)
+	if err != nil {
+		logger.InfoWithCtx(ctx).Msgf("Failed call Elasticsearch: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.InfoWithCtx(ctx).Msgf("Failed to read response from Elasticsearch: %v", err)
+		return
+	}
+	err = json.Unmarshal(body, &sources)
+	if err != nil {
+		logger.InfoWithCtx(ctx).Msgf("Failed to parse response from Elasticsearch: %v", err)
+		return
+	}
+	return
 }
 
 func (qmc *QuesmaManagementConsole) Run() {

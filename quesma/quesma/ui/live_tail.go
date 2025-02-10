@@ -5,10 +5,10 @@ package ui
 import (
 	"encoding/base64"
 	"fmt"
-	"quesma/buildinfo"
-	"quesma/quesma/ui/internal/builder"
-	"quesma/util"
-	"quesma_v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"strconv"
 	"strings"
 )

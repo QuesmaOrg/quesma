@@ -6,8 +6,8 @@ package frontend_connectors
 import (
 	"context"
 	"fmt"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net"
-	quesma_api "quesma_v2/core"
 	"sync/atomic"
 )
 
@@ -56,6 +56,10 @@ func (t *TCPListener) Listen() error {
 
 func (t *TCPListener) GetEndpoint() string {
 	return t.Endpoint
+}
+
+func (t *TCPListener) InstanceName() string {
+	return "TCPListener"
 }
 
 func (t *TCPListener) AddConnectionHandler(handler quesma_api.TCPConnectionHandler) {

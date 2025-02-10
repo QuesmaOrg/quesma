@@ -8,6 +8,11 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	telemetry_headers "github.com/QuesmaOrg/quesma/quesma/telemetry/headers"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v3/mem"
@@ -15,18 +20,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"quesma/buildinfo"
-	"quesma/elasticsearch"
-	"quesma/health"
-	telemetry_headers "quesma/telemetry/headers"
-	quesma_api "quesma_v2/core"
-	"quesma_v2/core/diag"
 	"sort"
 
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/recovery"
-	"quesma/stats/errorstats"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/stats/errorstats"
 
 	"runtime"
 	"strings"
@@ -465,7 +464,7 @@ func (a *agent) collectElasticVersion(ctx context.Context, stats *diag.ElasticSt
 
 func (a *agent) collectElasticHealthStatus(ctx context.Context, stats *diag.ElasticStats) (err error) {
 
-	healthChecker := health.NewElasticHealthChecker(a.config)
+	healthChecker := elasticsearch.NewElasticHealthChecker(a.config)
 
 	stats.HealthStatus = healthChecker.CheckHealth().String()
 

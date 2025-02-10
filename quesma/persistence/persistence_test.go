@@ -4,9 +4,9 @@ package persistence
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"net/url"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
 	"testing"
 	"time"
 )

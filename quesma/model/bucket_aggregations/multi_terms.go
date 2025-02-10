@@ -5,9 +5,9 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 )
 
@@ -30,7 +30,7 @@ func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in terms aggregation response, len: %d, expected (at least): %d, rows[0]: %v", len(rows[0].Cols), minimumExpectedColNr, rows[0])
 	}
-	var response []model.JsonMap
+	buckets := make([]model.JsonMap, 0, len(rows))
 	const delimiter = '|' // between keys in key_as_string
 	for _, row := range rows {
 		startIndex := len(row.Cols) - query.fieldsNr - 1
@@ -54,7 +54,7 @@ func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 			"key_as_string": keyAsString.String(),
 			"doc_count":     query.docCount(row),
 		}
-		response = append(response, bucket)
+		buckets = append(buckets, bucket)
 	}
 	sumOtherDocCount := 0
 	if len(rows) > 0 {
@@ -67,7 +67,7 @@ func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 	return model.JsonMap{
 		"sum_other_doc_count":         sumOtherDocCount,
 		"doc_count_error_upper_bound": 0,
-		"buckets":                     response,
+		"buckets":                     buckets,
 	}
 }
 

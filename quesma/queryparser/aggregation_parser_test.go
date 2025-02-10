@@ -5,14 +5,14 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/testdata"
+	"github.com/QuesmaOrg/quesma/quesma/testdata/clients"
+	dashboard_1 "github.com/QuesmaOrg/quesma/quesma/testdata/dashboard-1"
+	kibana_visualize "github.com/QuesmaOrg/quesma/quesma/testdata/kibana-visualize"
+	opensearch_visualize "github.com/QuesmaOrg/quesma/quesma/testdata/opensearch-visualize"
 	"github.com/stretchr/testify/assert"
-	"quesma/model"
-	"quesma/schema"
-	"quesma/testdata"
-	"quesma/testdata/clients"
-	dashboard_1 "quesma/testdata/dashboard-1"
-	kibana_visualize "quesma/testdata/kibana-visualize"
-	opensearch_visualize "quesma/testdata/opensearch-visualize"
 	"testing"
 )
 
@@ -667,6 +667,7 @@ func allAggregationTests() []testdata.AggregationTestCase {
 	add(clients.KunkkaTests, "clients/kunkka")
 	add(clients.OpheliaTests, "clients/ophelia")
 	add(clients.CloverTests, "clients/clover")
+	add(clients.TuringTests, "clients/turing")
 
 	return allTests
 }

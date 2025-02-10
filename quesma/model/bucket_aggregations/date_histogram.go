@@ -5,10 +5,10 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strconv"
 	"strings"
 	"time"
@@ -73,7 +73,6 @@ func (query *DateHistogram) AggregationType() model.AggregationType {
 }
 
 func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in date_histogram aggregation response, len(rows[0].Cols): %d",
@@ -89,7 +88,7 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
-	var response []model.JsonMap
+	response := make([]model.JsonMap, 0, len(rows))
 	for _, row := range rows {
 		docCount := row.LastColValue()
 		docCountAsInt, err := util.ExtractInt64(docCount)

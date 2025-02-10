@@ -5,16 +5,16 @@ package clickhouse
 import (
 	"context"
 	"fmt"
-	"quesma/end_user_errors"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/persistence"
-	"quesma/quesma/config"
-	"quesma/quesma/recovery"
-	"quesma/schema"
-	"quesma/util"
-	quesma_api "quesma_v2/core"
-	"quesma_v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -89,7 +89,13 @@ func (lm *LogManager) Start() {
 
 	lm.tableDiscovery.ReloadTableDefinitions()
 
-	logger.Info().Msgf("schemas loaded: %s", lm.tableDiscovery.TableDefinitions().Keys())
+	schemaNames := lm.tableDiscovery.TableDefinitions().Keys()
+	if len(schemaNames) < 20 {
+		logger.Info().Msgf("schemas loaded: %s", lm.tableDiscovery.TableDefinitions().Keys())
+	} else {
+		logger.Info().Msgf("total schemas loaded: %d", len(schemaNames))
+	}
+
 	const reloadInterval = 1 * time.Minute
 	forceReloadCh := lm.tableDiscovery.ForceReloadCh()
 
