@@ -9,9 +9,11 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -103,12 +105,25 @@ func (e *ElasticsearchBackendConnector) Send(r *http.Request) (*http.Response, e
 	r.URL.Host = e.config.Url.Host
 	r.URL.Scheme = e.config.Url.Scheme
 	r.RequestURI = "" // this is important for the request to be sent correctly to a different host
+	r = ensureContentType(r)
 	if r.Header.Get("Authorization") == "" {
 		maybeAuthdReq := elasticsearch.AddBasicAuthIfNeeded(r, e.config.User, e.config.Password)
 		return e.client.Do(maybeAuthdReq)
 	} else { // request already came with auth header so just forward these credentials
 		return e.client.Do(r)
 	}
+}
+
+// ensureContentType is doing what Quesma did in MVP/v1 version
+// so that you can technically send no content-type, but when request is sent to ES, it will won't get rejected
+func ensureContentType(r *http.Request) *http.Request {
+	originalContentType := r.Header.Get("Content-Type")
+	//"application/json", "application/x-ndjson" are expected, of course `Content-Type: application/json; charset=UTF-8` has to be supported
+	if strings.Contains(originalContentType, "json") {
+		logger.Info().Msgf("Setting Content-Type to application/json for %s routed to Elasticsearch", r.URL)
+		r.Header.Set("Content-Type", "application/json")
+	}
+	return r
 }
 
 func (e *ElasticsearchBackendConnector) GetId() quesma_api.BackendConnectorType {

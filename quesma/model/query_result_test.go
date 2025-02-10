@@ -120,8 +120,8 @@ func TestQueryResultCol_ExtractValue(t *testing.T) {
 	for i, tt := range testcases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			col := QueryResultCol{ColName: "name", Value: tt.value}
-			if col.ExtractValue(context.Background()) != tt.expected {
-				t.Errorf("Expected %v, got %v", tt.expected, col.ExtractValue(context.Background()))
+			if col.ExtractValue() != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, col.ExtractValue())
 			}
 		})
 	}
