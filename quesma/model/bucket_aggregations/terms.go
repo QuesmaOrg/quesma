@@ -42,7 +42,7 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 			"unexpected number of columns in terms aggregation response, len: %d, rows[0]: %v", len(rows[0].Cols), rows[0])
 	}
 	if len(rows) == 0 {
-		return model.JsonMap{}
+		return model.JsonMap{"buckets": []model.JsonMap{}}
 	}
 
 	var response []model.JsonMap

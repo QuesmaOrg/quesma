@@ -836,7 +836,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for i, tt := range testdata.FullSearchRequests {
-		for _, handlerName := range handlers[:1] {
+		for _, handlerName := range handlers {
 			t.Run(strconv.Itoa(i)+" "+tt.Name, func(t *testing.T) {
 				test(handlerName, tt)
 			})
@@ -926,7 +926,7 @@ func TestFullQueryTestWIP(t *testing.T) {
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for i, tt := range testdata.FullSearchRequests {
-		for _, handlerName := range handlers[:1] {
+		for _, handlerName := range handlers {
 			t.Run(strconv.Itoa(i)+" "+tt.Name, func(t *testing.T) {
 				test(handlerName, tt)
 			})
