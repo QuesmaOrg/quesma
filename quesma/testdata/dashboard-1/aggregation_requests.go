@@ -199,8 +199,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  count(*) AS "aggr__0__1__count",
 				  avgOrNull("rspContentLen") AS "metric__0__1__2_col_0"
 				FROM __quesma_table_name
-				WHERE ("reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<=
-				  '2024-04-24T11:10:23.606Z')
+				WHERE ("reqTimeSec">=fromUnixTimestamp64Milli(1713956123606) AND
+                  "reqTimeSec"<=fromUnixTimestamp64Milli(1713957023606))
 				GROUP BY floor("rspContentLen"/2e+06)*2e+06 AS "aggr__0__key_0",
 				  floor("rspContentLen"/2e+06)*2e+06 AS "aggr__0__1__key_0"))
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
@@ -460,8 +460,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  count(*) AS "aggr__0__1__count",
 				  quantiles(0.950000)("latency") AS "metric__0__1__2_col_0"
 				FROM __quesma_table_name
-				WHERE ("reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<=
-				  '2024-04-24T11:30:46.279Z')
+				WHERE ("reqTimeSec">=fromUnixTimestamp64Milli(1713957346279) AND
+      				"reqTimeSec"<=fromUnixTimestamp64Milli(1713958246279))
 				GROUP BY toInt64((toUnixTimestamp64Milli("reqTimeSec")+timeZoneOffset(
 				  toTimezone("reqTimeSec", 'Europe/Warsaw'))*1000) / 30000) AS
 				  "aggr__0__key_0", floor("billingRegion"/0.5)*0.5 AS "aggr__0__1__key_0"))
