@@ -7,7 +7,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/util"
-	"github.com/k0kubun/pp"
 	"regexp"
 	"sort"
 	"strconv"
@@ -124,16 +123,13 @@ func (v *renderer) VisitLikeExpr(e LikeExpr) interface{} {
 		lhs = "< LHS NIL >"
 	}
 
-	pp.Println("visit", e)
-
 	rhs := "< RHS NIL >"
-	if e.RightEscape == NotEscaped {
-		// we escape here
+	if !e.AlreadyEscaped {
 		rhs = e.Right.Accept(v).(string)
 		rhs = strings.ReplaceAll(rhs, `%`, `\%`)
 		rhs = strings.ReplaceAll(rhs, `_`, `\_`)
 	} else if l, ok := e.Right.(LiteralExpr); ok {
-		// it's already escaped (by Lucene), so we take literal value
+		// it's already escaped (for now, only by Lucene), so we take literal value
 		if s, ok2 := l.Value.(string); ok2 {
 			rhs = s
 		}
@@ -148,7 +144,7 @@ func (v *renderer) VisitLikeExpr(e LikeExpr) interface{} {
 		rhs = "%" + rhs + "%"
 	default:
 	}
-	pp.Println("HOHO", lhs, e.Op, rhs)
+
 	return fmt.Sprintf("%v %v '%v'", lhs, e.Op, rhs)
 }
 

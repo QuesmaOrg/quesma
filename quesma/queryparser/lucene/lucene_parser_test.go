@@ -4,7 +4,6 @@ package lucene
 
 import (
 	"context"
-	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"strconv"
@@ -141,18 +140,5 @@ func TestResolvePropertyNamesWhenTranslatingToSQL(t *testing.T) {
 				t.Errorf("\ngot  [%q]\nwant [%q]", got, tt.want)
 			}
 		})
-	}
-}
-
-func qTestA(t *testing.T) {
-	not := model.NewFunction("NOT", model.NewColumnRef("status"))
-	litOk := model.NewLiteral("active")
-	litNot := model.NewLiteral(3)
-
-	dupa := []model.Expr{not, litOk, litNot}
-	for _, x := range dupa {
-		if a, ok := x.(model.LiteralExpr).Value.(string); ok {
-			fmt.Println("OK", a)
-		}
 	}
 }
