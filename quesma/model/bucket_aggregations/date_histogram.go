@@ -153,8 +153,44 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 	interval, err := util.ParseInterval(query.interval)
 	if err != nil {
 		logger.ErrorWithCtx(query.ctx).Msg(err.Error())
+		return model.InvalidExpr
 	}
-	return clickhouse.TimestampGroupByWithTimezone(query.field, query.timestampColumn, interval, query.timezone)
+
+	var groupBy model.InfixExpr
+	// If no timezone, or timezone is default (UTC)
+	if query.timezone == "" {
+		groupBy = model.NewInfixExpr(
+			model.NewFunction(model.ToUnixTimestampMs, query.field),
+			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
+			model.NewMillisecondsLiteral(query.timestampColumn, interval.Milliseconds()),
+		)
+	} else {
+		offset := model.NewInfixExpr(
+			model.NewFunction(
+				"timeZoneOffset",
+				model.NewFunction(
+					"toTimezone",
+					query.field, model.NewLiteralSingleQuoteString(query.timezone),
+				),
+			),
+			"*",
+			model.NewMillisecondsLiteral(query.timestampColumn, 1000),
+		)
+
+		unixTsWithOffset := model.NewInfixExpr(
+			model.NewFunction(model.ToUnixTimestampMs, query.field),
+			"+",
+			offset,
+		)
+
+		groupBy = model.NewInfixExpr(
+			model.NewParenExpr(unixTsWithOffset),
+			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
+			model.NewMillisecondsLiteral(query.timestampColumn, interval.Milliseconds()),
+		)
+	}
+
+	return model.NewFunction("toInt64", groupBy)
 }
 
 func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
