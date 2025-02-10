@@ -451,4 +451,48 @@ var FullSearchRequests = []FullSearchTestCase{
 		},
 		ExpectedSQLResults: [][]model.QueryResultRow{{}},
 	},
+	{ // [8]
+		Name: "Turing regression test",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"terms": {
+						"field": "path_id",
+						"order": {
+							"_count": "desc"
+						},
+						"size": 20
+					}
+				}
+			},
+			"size": 0
+		}`,
+		ExpectedResponse: `
+		{
+			"aggregations": {
+				"2": {
+					"buckets": []
+				}
+			},
+			"hits": {
+				"total": {
+					"value": 0,
+					"relation": "gte"
+				},
+				"max_score": null,
+				"hits": []
+			}
+		}`,
+		ExpectedSQLs: []string{
+			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
+			  sum(count(*)) OVER () AS "aggr__2__parent_count", NULL AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY NULL AS "aggr__2__key_0"
+			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
+			LIMIT 21`,
+		},
+		ExpectedSQLResults: [][]model.QueryResultRow{{}},
+	},
 }

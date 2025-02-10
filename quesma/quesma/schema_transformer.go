@@ -415,7 +415,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(ctx context.Context, curre
 		// TODO is this nessessery?
 		if useCommonTable {
 			if e.ColumnName == "timestamp" || e.ColumnName == "epoch_time" || e.ColumnName == `"epoch_time"` {
-				return model.NewColumnRef("@timestamp")
+				return model.NewColumnRefWithTable("@timestamp", e.TableAlias)
 			}
 		}
 		return e
@@ -606,7 +606,8 @@ func (s *SchemaCheckPass) applyFullTextField(ctx context.Context, indexSchema sc
 				var expressions []model.Expr
 
 				for _, field := range fullTextFields {
-					expressions = append(expressions, model.NewInfixExpr(model.NewColumnRef(field), e.Op, e.Right))
+					colRef := model.NewColumnRefWithTable(field, col.TableAlias)
+					expressions = append(expressions, model.NewInfixExpr(colRef, e.Op, e.Right))
 				}
 
 				res := model.Or(expressions)
@@ -648,7 +649,7 @@ func (s *SchemaCheckPass) applyTimestampField(ctx context.Context, indexSchema s
 			timestampColumnName = *table.DiscoveredTimestampFieldName
 		}
 	*/
-	var replacementExpr model.Expr
+	var replacementName string
 
 	if timestampColumnName == "" {
 		// no timestamp field found, replace with NULL if any
@@ -666,12 +667,12 @@ func (s *SchemaCheckPass) applyTimestampField(ctx context.Context, indexSchema s
 
 		// if the target column is not the canonical timestamp field, replace it
 		if timestampColumnName != model.TimestampFieldName {
-			replacementExpr = model.NewColumnRef(timestampColumnName)
+			replacementName = timestampColumnName
 		}
 	}
 
 	// no replacement needed
-	if replacementExpr == nil {
+	if replacementName == "" {
 		return query, nil
 	}
 
@@ -680,7 +681,7 @@ func (s *SchemaCheckPass) applyTimestampField(ctx context.Context, indexSchema s
 
 		// full text field should be used only in where clause
 		if e.ColumnName == model.TimestampFieldName {
-			return replacementExpr
+			return model.NewColumnRefWithTable(replacementName, e.TableAlias)
 		}
 		return e
 	}
@@ -897,7 +898,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(ctx context.Context, indexSchema sc
 		}
 
 		if resolvedField, ok := indexSchema.ResolveField(e.ColumnName); ok {
-			return model.NewColumnRef(resolvedField.InternalPropertyName.AsString())
+			return model.NewColumnRefWithTable(resolvedField.InternalPropertyName.AsString(), e.TableAlias)
 		} else {
 			if hasAttributesValuesColumn {
 				return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))

@@ -4975,7 +4975,10 @@ var AggregationTests = []AggregationTestCase{
 						},
 						{
 							"doc_count": 0,
-							"key": 2000.0
+							"key": 2000.0,
+							"2": {
+								"buckets": []
+							}
 						},
 						{
 							"doc_count": 1,
@@ -5329,6 +5332,9 @@ var AggregationTests = []AggregationTestCase{
 							"doc_count": 1410,
 							"1": {
 								"value": null
+							},
+							"2": {
+								"buckets": []
 							}
 						},
 						{
@@ -6177,7 +6183,7 @@ var AggregationTests = []AggregationTestCase{
 			],
 			"track_total_hits": true
 		}`,
-		ExpectedResponse:       `{"response": {"aggregations":{}}}`,
+		ExpectedResponse:       `{"response": {"aggregations":{"0": {"buckets": []}}}}`,
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
@@ -6284,7 +6290,7 @@ var AggregationTests = []AggregationTestCase{
 			],
 			"track_total_hits": false
 		}`,
-		ExpectedResponse:       `{"response": {"aggregations":{}}}`,
+		ExpectedResponse:       `{"response": {"aggregations":{"0": {"buckets": []}}}}`,
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
@@ -6388,7 +6394,7 @@ var AggregationTests = []AggregationTestCase{
 			],
 			"track_total_hits": true
 		}`,
-		ExpectedResponse:       `{"response": {"aggregations":{}}}`,
+		ExpectedResponse:       `{"response": {"aggregations":{"0": {"buckets": []}}}}`,
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
@@ -6494,7 +6500,8 @@ var AggregationTests = []AggregationTestCase{
 							"intervalString": "3600s",
 							"seriesId":       "61ca57f1-469d-11e7-af02-69e470af7417",
 							"timeField":      "timestamp"
-						}
+						},
+						"buckets": []
 					}
 				}
 			}
@@ -6595,7 +6602,7 @@ var AggregationTests = []AggregationTestCase{
 			],
 			"track_total_hits": false
 		}`,
-		ExpectedResponse:       `{"response": {"aggregations":{}}}`,
+		ExpectedResponse:       `{"response": {"aggregations":{"0": {"buckets": []}}}}`,
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
@@ -6821,7 +6828,7 @@ var AggregationTests = []AggregationTestCase{
 				}
 			}
 		}`,
-		ExpectedResponse:       `{"aggregations": {}}`,
+		ExpectedResponse:       `{"aggregations": {"2": {"buckets": []}}}`,
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
@@ -6883,7 +6890,7 @@ var AggregationTests = []AggregationTestCase{
 			],
 			"track_total_hits": true
 		}`,
-		ExpectedResponse:       `{"response": {"aggregations":{}}}`,
+		ExpectedResponse:       `{"response": {"aggregations":{"0": {"buckets": []}}}}`,
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
