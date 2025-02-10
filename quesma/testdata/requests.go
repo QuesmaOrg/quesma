@@ -2491,8 +2491,6 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 	},
 }
 
-//
-
 var TestSearchRuntimeMappings = []SearchTestCase{
 
 	{ // [0]
