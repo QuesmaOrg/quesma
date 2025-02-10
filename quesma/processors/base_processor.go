@@ -7,6 +7,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/hashicorp/go-multierror"
 )
 
 type BaseProcessor struct {
@@ -61,14 +62,15 @@ func (p *BaseProcessor) executeQueries(queries []*model.Query) ([]model.QueryRes
 func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any) (map[string]interface{}, any, error) {
 	logger.Debug().Msg("BaseProcessor: Handle")
 	var resp any
+	var mError error
 	for _, msg := range messages {
 		executionPlan, err := p.QueryTransformationPipeline.ParseQuery(msg)
 		if err != nil {
-			logger.Error().Err(err).Msg("Error parsing query")
+			mError = multierror.Append(mError, err)
 		}
 		queries, err := p.QueryTransformationPipeline.Transform(executionPlan.Queries)
 		if err != nil {
-			logger.Error().Err(err).Msg("Error transforming queries")
+			mError = multierror.Append(mError, err)
 		}
 		// Execute the queries
 		var results [][]model.QueryResultRow
@@ -77,12 +79,12 @@ func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any)
 		// Transform the results
 		transformedResults, err := p.QueryTransformationPipeline.TransformResults(results)
 		if err != nil {
-			logger.Error().Err(err).Msg("Error transforming results")
+			mError = multierror.Append(mError, err)
 		}
 		resp = p.QueryTransformationPipeline.ComposeResult(transformedResults)
 	}
 
-	return metadata, resp, nil
+	return metadata, resp, mError
 }
 
 func (p *BaseProcessor) RegisterTransformationPipeline(pipeline QueryTransformationPipeline) {
