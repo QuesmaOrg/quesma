@@ -33,6 +33,10 @@ func (e ColumnRef) Accept(v ExprVisitor) interface{} {
 	return v.VisitColumnRef(e)
 }
 
+func (e ColumnRef) Clone() ColumnRef {
+	return ColumnRef{TableAlias: e.TableAlias, ColumnName: e.ColumnName}
+}
+
 // PrefixExpr represents unary operators, e.g. NOT, - etc.
 type PrefixExpr struct {
 	Op   string

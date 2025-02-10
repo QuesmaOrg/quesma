@@ -79,7 +79,7 @@ func (v *BaseExprVisitor) VisitColumnRef(e ColumnRef) interface{} {
 	if v.OverrideVisitColumnRef != nil {
 		return v.OverrideVisitColumnRef(v, e)
 	}
-	return NewColumnRef(e.ColumnName)
+	return e.Clone()
 }
 
 func (v *BaseExprVisitor) VisitNestedProperty(e NestedProperty) interface{} {
