@@ -853,7 +853,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for i, tt := range testdata.FullSearchRequests {
-		for _, handlerName := range handlers[:1] {
+		for _, handlerName := range handlers {
 			t.Run(strconv.Itoa(i)+" "+tt.Name, func(t *testing.T) {
 				test(handlerName, tt)
 			})
@@ -952,7 +952,7 @@ func TestFullQueryTestWIP(t *testing.T) {
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for i, tt := range testdata.FullSearchRequests {
-		for _, handlerName := range handlers[:1] {
+		for _, handlerName := range handlers {
 			t.Run(strconv.Itoa(i)+" "+tt.Name, func(t *testing.T) {
 				if tt.Name != "Turing regression test" {
 					t.Skip(`We need to stop "unit" testing aggregation queries, because e.g. transformations aren't performed in tests whatsoever. Tests pass, but in real world things sometimes break. It's WIP.`)
