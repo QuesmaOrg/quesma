@@ -8,11 +8,13 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/common_table"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/telemetry"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/ucarion/urlpath"
 	"net/http"
@@ -98,9 +100,11 @@ type LegacyQuesmaDependencies struct {
 	TableDiscovery      clickhouse.TableDiscovery
 	SchemaRegistry      schema.Registry
 	TableResolver       table_resolver.TableResolver
-	Adminconsole        *ui.QuesmaManagementConsole
+	UIConsole           *ui.QuesmaManagementConsole
 	AbTestingController *sender.SenderCoordinator
 	IngestProcessor     *ingest.IngestProcessor
+	LogManager          clickhouse.LogManagerIFace
+	LogChan             <-chan logger.LogWithLevel
 }
 
 func newLegacyQuesmaDependencies(
@@ -113,6 +117,9 @@ func newLegacyQuesmaDependencies(
 	tableResolver table_resolver.TableResolver,
 	abTestingController *sender.SenderCoordinator,
 	ingestProcessor *ingest.IngestProcessor,
+	logManager clickhouse.LogManagerIFace,
+	logChan <-chan logger.LogWithLevel,
+	uiConsole *ui.QuesmaManagementConsole,
 ) *LegacyQuesmaDependencies {
 	return &LegacyQuesmaDependencies{
 		DependenciesImpl:    baseDependencies,
@@ -124,21 +131,27 @@ func newLegacyQuesmaDependencies(
 		TableResolver:       tableResolver,
 		AbTestingController: abTestingController,
 		IngestProcessor:     ingestProcessor,
+		LogManager:          logManager,
+		LogChan:             logChan,
+		UIConsole:           uiConsole,
 	}
 }
 
-func InitializeLegacyQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, oldQuesmaConfig *config.QuesmaConfiguration) *LegacyQuesmaDependencies {
+func InitializeLegacyQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, oldQuesmaConfig *config.QuesmaConfiguration, logChan <-chan logger.LogWithLevel) *LegacyQuesmaDependencies {
 	connectionPool := clickhouse.InitDBConnectionPool(oldQuesmaConfig)
 	virtualTableStorage := persistence.NewElasticJSONDatabase(oldQuesmaConfig.Elasticsearch, common_table.VirtualTableElasticIndexName)
 	tableDisco := clickhouse.NewTableDiscovery(oldQuesmaConfig, connectionPool, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
 	schemaRegistry.Start()
 	dummyTableResolver := table_resolver.NewDummyTableResolver(oldQuesmaConfig.IndexConfig, oldQuesmaConfig.UseCommonTableForWildcard)
+	//phoneHomeAgent := baseDeps.PhoneHomeAgent() //TODO perhaps remove? we could get away with Client if not the UI console. Because of that we have to use Agent
+	phoneHomeAgent := telemetry.NewPhoneHomeAgent(oldQuesmaConfig, connectionPool, "DuMMY_CLIENT_ID")
+	phoneHomeAgent.Start()
 
 	ingestProcessor := ingest.NewIngestProcessor(
 		oldQuesmaConfig,
 		connectionPool,
-		baseDeps.PhoneHomeAgent(),
+		phoneHomeAgent,
 		tableDisco,
 		schemaRegistry,
 		virtualTableStorage,
@@ -149,6 +162,12 @@ func InitializeLegacyQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, o
 	abTestingController := sender.NewSenderCoordinator(oldQuesmaConfig, ingestProcessor)
 	abTestingController.Start()
 
-	legacyDependencies := newLegacyQuesmaDependencies(*baseDeps, oldQuesmaConfig, connectionPool, *virtualTableStorage, tableDisco, schemaRegistry, dummyTableResolver, abTestingController, ingestProcessor)
+	logManager := clickhouse.NewEmptyLogManager(oldQuesmaConfig, connectionPool, phoneHomeAgent, tableDisco)
+	logManager.Start()
+
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(oldQuesmaConfig, logManager, logChan, phoneHomeAgent, schemaRegistry, dummyTableResolver)
+	go quesmaManagementConsole.Run()
+
+	legacyDependencies := newLegacyQuesmaDependencies(*baseDeps, oldQuesmaConfig, connectionPool, *virtualTableStorage, tableDisco, schemaRegistry, dummyTableResolver, abTestingController, ingestProcessor, logManager, logChan, quesmaManagementConsole)
 	return legacyDependencies
 }

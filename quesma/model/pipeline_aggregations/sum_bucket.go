@@ -43,14 +43,13 @@ func (query SumBucket) CalculateResultWhenMissing(parentRows []model.QueryResult
 	if len(parentRows) == 0 {
 		return resultRows // maybe null?
 	}
-	qp := model.NewQueryProcessor(query.ctx)
 	parentFieldsCnt := len(parentRows[0].Cols) - 2 // -2, because row is [parent_cols..., current_key, current_value]
 	// in calculateSingleAvgBucket we calculate avg all current_keys with the same parent_cols
 	// so we need to split into buckets based on parent_cols
 	if parentFieldsCnt < 0 {
 		logger.WarnWithCtx(query.ctx).Msgf("parentFieldsCnt is less than 0: %d", parentFieldsCnt)
 	}
-	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
+	for _, parentRowsOneBucket := range model.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
 		resultRows = append(resultRows, query.calculateSingleSumBucket(parentRowsOneBucket))
 	}
 	return resultRows

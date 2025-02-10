@@ -69,7 +69,7 @@ func (query *TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow)
 				withoutQuotes = col.ColName
 			}
 			colName, _ := strings.CutPrefix(withoutQuotes, `windowed_`)
-			metrics[colName] = col.ExtractValue(query.ctx)
+			metrics[colName] = col.ExtractValue()
 		}
 		elem := model.JsonMap{
 			"sort":    sortVal,

@@ -169,11 +169,41 @@ func validateNumericType(columnType string, incomingValueType string, value inte
 	return false
 }
 
-func validateValueAgainstType(fieldName string, value interface{}, column *clickhouse.Column) types.JSON {
+func validateValueAgainstType(fieldName string, value interface{}, targetColumnType clickhouse.Type) types.JSON {
+	// Validate Array() types by recursing on the inner type:
+	if compoundType, isCompound := targetColumnType.(clickhouse.CompoundType); isCompound && compoundType.Name == "Array" {
+		if valueAsArray, isArray := value.([]interface{}); isArray && len(valueAsArray) > 0 {
+			innerTypesAreCompatible := true
+			innerTypeName := getTypeName(valueAsArray[0])
+
+			// Make sure that all elements of the array have the same type
+			for _, e := range valueAsArray {
+				eTypeName := getTypeName(e)
+				// Check if the type names are exactly the same. However, if it's a numeric type, perform more advanced
+				// validation (to handle an array like [3.5, 4, 4.5]).
+				if isNumericType(eTypeName) && isNumericType(innerTypeName) {
+					if !validateNumericType(innerTypeName, eTypeName, e) {
+						innerTypesAreCompatible = false
+						break
+					}
+				} else {
+					if getTypeName(e) != innerTypeName {
+						innerTypesAreCompatible = false
+						break
+					}
+				}
+			}
+
+			if innerTypesAreCompatible {
+				return validateValueAgainstType(fieldName, valueAsArray[0], compoundType.BaseType)
+			}
+		}
+	}
+
 	const DateTimeType = "DateTime64"
 	const StringType = "String"
 	deletedFields := make(types.JSON, 0)
-	columnType := column.Type.String()
+	columnType := targetColumnType.String()
 	columnType = removeLowCardinality(columnType)
 	incomingValueType := getTypeName(value)
 
@@ -217,7 +247,7 @@ func (ip *IngestProcessor) validateIngest(tableName string, document types.JSON)
 			if value == nil {
 				continue
 			}
-			for k, v := range validateValueAgainstType(columnName, value, column) {
+			for k, v := range validateValueAgainstType(columnName, value, column.Type) {
 				deletedFields[k] = v
 			}
 		}

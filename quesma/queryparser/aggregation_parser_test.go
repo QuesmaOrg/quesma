@@ -667,6 +667,7 @@ func allAggregationTests() []testdata.AggregationTestCase {
 	add(clients.KunkkaTests, "clients/kunkka")
 	add(clients.OpheliaTests, "clients/ophelia")
 	add(clients.CloverTests, "clients/clover")
+	add(clients.TuringTests, "clients/turing")
 
 	return allTests
 }

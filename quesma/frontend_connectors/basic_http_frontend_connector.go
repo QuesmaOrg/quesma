@@ -127,7 +127,7 @@ func (h *BasicHTTPFrontendConnector) finalHandler(w http.ResponseWriter, req *ht
 		h.phoneHomeClient.UserAgentCounters().Add(ua, 1)
 	}
 
-	h.dispatcher.Reroute(req.Context(), w, req, reqBody, h.router, h.logManager, h.registry)
+	h.dispatcher.Reroute(req.Context(), w, req, reqBody, h.router)
 }
 
 func (h *BasicHTTPFrontendConnector) Listen() error {

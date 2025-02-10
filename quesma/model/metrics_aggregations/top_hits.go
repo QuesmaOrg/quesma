@@ -43,7 +43,7 @@ func (query *TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mo
 
 		for _, col := range valuesForHits {
 
-			value := col.ExtractValue(query.ctx)
+			value := col.ExtractValue()
 
 			sourceMap[col.ColName] = value
 

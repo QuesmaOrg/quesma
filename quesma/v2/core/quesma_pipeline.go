@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Elastic-2.0
 package quesma_api
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Pipeline struct {
+	Name               string // Name is the user-defined name of the pipeline
 	FrontendConnectors []FrontendConnector
 	Processors         []Processor
 	BackendConnectors  map[BackendConnectorType]BackendConnector
@@ -15,6 +18,17 @@ func NewPipeline() *Pipeline {
 	backendConnectors := make(map[BackendConnectorType]BackendConnector)
 	backendConnectors[NoopBackend] = &NoopBackendConnector{}
 	return &Pipeline{
+		FrontendConnectors: make([]FrontendConnector, 0),
+		Processors:         make([]Processor, 0),
+		BackendConnectors:  backendConnectors,
+	}
+}
+
+func NewNamedPipeline(name string) *Pipeline {
+	backendConnectors := make(map[BackendConnectorType]BackendConnector)
+	backendConnectors[NoopBackend] = &NoopBackendConnector{}
+	return &Pipeline{
+		Name:               name,
 		FrontendConnectors: make([]FrontendConnector, 0),
 		Processors:         make([]Processor, 0),
 		BackendConnectors:  backendConnectors,

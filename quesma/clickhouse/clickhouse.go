@@ -89,7 +89,13 @@ func (lm *LogManager) Start() {
 
 	lm.tableDiscovery.ReloadTableDefinitions()
 
-	logger.Info().Msgf("schemas loaded: %s", lm.tableDiscovery.TableDefinitions().Keys())
+	schemaNames := lm.tableDiscovery.TableDefinitions().Keys()
+	if len(schemaNames) < 20 {
+		logger.Info().Msgf("schemas loaded: %s", lm.tableDiscovery.TableDefinitions().Keys())
+	} else {
+		logger.Info().Msgf("total schemas loaded: %d", len(schemaNames))
+	}
+
 	const reloadInterval = 1 * time.Minute
 	forceReloadCh := lm.tableDiscovery.ForceReloadCh()
 

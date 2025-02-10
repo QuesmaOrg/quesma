@@ -24,12 +24,8 @@ func (qmc *QuesmaManagementConsole) hasABTestingTable() bool {
 
 	sql := `SELECT count(*) FROM ab_testing_logs`
 
-	row, err := db.Query(context.Background(), sql)
+	row := db.QueryRow(context.Background(), sql)
 	var count int
-	if err != nil {
-		logger.Error().Err(err).Msg("Error checking for ab_testing_logs table")
-		return false
-	}
 	if errScan := row.Scan(&count); errScan != nil {
 		logger.Error().Err(errScan).Msg("Error scanning for ab_testing_logs table")
 		return false
@@ -335,6 +331,7 @@ GROUP BY
 		return nil, err
 	}
 
+	defer rows.Close()
 	for rows.Next() {
 		row := abTestingReportRow{}
 		err := rows.Scan(&row.dashboardId, &row.panelId, &row.aName, &row.bName, &row.successRate, &row.count, &row.aTime, &row.bTime)
@@ -509,6 +506,7 @@ func (qmc *QuesmaManagementConsole) abTestingReadPanelDetails(dashboardId, panel
 		return nil, err
 	}
 
+	defer rows.Close()
 	var result []abTestingPanelDetailsRow
 	for rows.Next() {
 
@@ -692,6 +690,7 @@ func (qmc *QuesmaManagementConsole) abTestingReadMismatchDetails(dashboardId, pa
 		return nil, err
 	}
 
+	defer rows.Close()
 	var result []abTestingMismatchDetailsRow
 	for rows.Next() {
 
@@ -823,11 +822,9 @@ func (qmc *QuesmaManagementConsole) abTestingReadRow(requestId string) (abTestin
 
 	db := qmc.logManager.GetDB()
 
-	row, err := db.Query(context.Background(), sql, requestId)
+	row := db.QueryRow(context.Background(), sql, requestId)
 	rec := abTestingTableRow{}
-	if err != nil {
-		return rec, err
-	}
+
 	errScan := row.Scan(
 		&rec.requestID, &rec.requestPath, &rec.requestIndexName,
 		&rec.requestBody, &rec.responseBTime, &rec.responseBError, &rec.responseBName, &rec.responseBBody,
@@ -839,10 +836,6 @@ func (qmc *QuesmaManagementConsole) abTestingReadRow(requestId string) (abTestin
 
 	if errScan != nil {
 		return rec, errScan
-	}
-
-	if row.Err() != nil {
-		return rec, row.Err()
 	}
 
 	return rec, nil

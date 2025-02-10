@@ -34,3 +34,9 @@ func (p *MySqlBackendConnector) Open() error {
 	p.connection = conn
 	return nil
 }
+
+func NewMySqlBackendConnector(endpoint string) *MySqlBackendConnector {
+	return &MySqlBackendConnector{
+		Endpoint: endpoint,
+	}
+}
