@@ -411,9 +411,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 		// TODO is this nessessery?
 		if useCommonTable {
 			if e.ColumnName == "timestamp" || e.ColumnName == "epoch_time" || e.ColumnName == `"epoch_time"` {
-				col := e.Clone()
-				col.ColumnName = "@timestamp"
-				return col
+				return model.NewColumnRefWithTable("@timestamp", e.TableAlias)
 			}
 		}
 		return e
@@ -604,7 +602,7 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 				var expressions []model.Expr
 
 				for _, field := range fullTextFields {
-					colRef := model.ColumnRef{ColumnName: field, TableAlias: col.TableAlias}
+					colRef := model.NewColumnRefWithTable(field, col.TableAlias)
 					expressions = append(expressions, model.NewInfixExpr(colRef, e.Op, e.Right))
 				}
 
