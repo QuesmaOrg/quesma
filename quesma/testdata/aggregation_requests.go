@@ -4400,15 +4400,14 @@ var AggregationTests = []AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf("timestamp"<toInt64(toUnixTimestamp(now()))) AS
-			  "range_0__aggr__2__count",
-			  countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfDay(subDate(now(),
-			  INTERVAL 3 week)))) AND "timestamp"<toInt64(toUnixTimestamp(now())))) AS
-			  "range_1__aggr__2__count",
-			  countIf("timestamp">=toInt64(toUnixTimestamp('2024-04-14'))) AS
-			  "range_2__aggr__2__count"
-			FROM ` + TableName + ` 
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1712388530059) AND "timestamp"<=fromUnixTimestamp64Milli(1713288530059))`,
+			SELECT countIf("timestamp"<now()) AS "range_0__aggr__2__count",
+              countIf(("timestamp">=toStartOfDay(subDate(now(), INTERVAL 3 week)) AND
+              "timestamp"<now())) AS "range_1__aggr__2__count",
+              countIf("timestamp">=fromUnixTimestamp64Milli(1713052800000)) AS
+              "range_2__aggr__2__count"
+            FROM __quesma_table_name
+            WHERE ("timestamp">=fromUnixTimestamp64Milli(1712388530059) AND "timestamp"<=
+              fromUnixTimestamp64Milli(1713288530059))`,
 	},
 	{ // [23]
 		TestName: "significant terms aggregation: same as terms for now",

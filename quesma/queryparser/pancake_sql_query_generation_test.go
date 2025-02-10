@@ -62,21 +62,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Fix filters")
 			}
 
-			if i == 168 || i == 169 || i == 170 {
-				//t.Skip()
-			}
-			if i > 80 { //99 {
-				t.Skip()
-			}
-
-			if i == 31 {
-				//t.Skip()
-			}
-
-			if i == 22 {
-				t.Skip()
-			}
-
 			if test.TestName == "Line, Y-axis: Min, Buckets: Date Range, X-Axis: Terms, Split Chart: Date Histogram(file:kibana-visualize/agg_req,nr:9)" {
 				t.Skip("Date range is broken, fix in progress (PR #971)")
 			}
