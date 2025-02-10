@@ -864,7 +864,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 }
 
 func TestFullQueryTestWIP(t *testing.T) {
-	logger.InitSimpleLoggerForTests()
+	// logger.InitSimpleLoggerForTests()
 	s := &schema.StaticRegistry{Tables: map[schema.IndexName]schema.Schema{}}
 
 	s.Tables[tableName] = schema.Schema{
