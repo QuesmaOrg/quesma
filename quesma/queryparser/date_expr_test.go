@@ -55,7 +55,7 @@ func Test_parseDateTimeInClickhouseMathLanguage(t *testing.T) {
 				return
 			}
 
-			resultExpr, err := renderer.RenderSQL(dt)
+			resultExpr, err := renderer.RenderExpr(dt)
 			assert.NoError(t, err)
 
 			if err != nil {
@@ -102,8 +102,7 @@ func Test_DateMathExpressionAsLiteral(t *testing.T) {
 			// this renderer is single use, so we can't reuse it
 			renderer := DateMathExpressionRendererFactory(DateMathExpressionFormatLiteralTest)
 
-			resultExpr, err := renderer.RenderSQL(dt)
-
+			resultExpr, err := renderer.RenderExpr(dt)
 			assert.NoError(t, err)
 
 			if err != nil {
