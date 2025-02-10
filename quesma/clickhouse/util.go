@@ -131,10 +131,7 @@ func TimestampGroupByWithTimezone(fullTimestampExpr model.Expr, timestampField m
 		return TimestampGroupBy(fullTimestampExpr, timestampField, groupByInterval)
 	}
 
-	fmt.Println("QQQ")
-
-	var offset model.Expr
-	offset = model.NewInfixExpr(
+	var offset model.Expr = model.NewInfixExpr(
 		model.NewFunction(
 			"timeZoneOffset",
 			model.NewFunction(
