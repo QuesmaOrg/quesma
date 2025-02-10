@@ -130,7 +130,7 @@ func full_workflow_scenario() quesma_api.QuesmaBuilder {
 
 	queryFrontendConnector := frontend_connectors.NewBasicHTTPFrontendConnector(":8888", cfg)
 	queryHTTPRouter := quesma_api.NewPathRouter()
-	queryHTTPRouter.AddRoute("/_search", searchHandler)
+	queryHTTPRouter.AddRoute("/_search", searchHandler2)
 	queryHTTPRouter.AddFallbackHandler(fallback)
 	queryFrontendConnector.AddRouter(queryHTTPRouter)
 	var queryPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
