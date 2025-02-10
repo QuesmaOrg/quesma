@@ -100,7 +100,7 @@ func ParseDateMathExpression(input string) (*DateMathExpression, error) {
 }
 
 type DateMathExpressionRenderer interface {
-	RenderSQL(expression *DateMathExpression) (model.Expr, error)
+	RenderExpr(expression *DateMathExpression) (model.Expr, error)
 }
 
 const DateMathExpressionFormatLiteral = "literal"
@@ -124,7 +124,7 @@ func DateMathExpressionRendererFactory(format string) DateMathExpressionRenderer
 
 type DateMathAsClickhouseIntervals struct{}
 
-func (b *DateMathAsClickhouseIntervals) RenderSQL(expression *DateMathExpression) (model.Expr, error) {
+func (b *DateMathAsClickhouseIntervals) RenderExpr(expression *DateMathExpression) (model.Expr, error) {
 
 	result := model.NewFunction("now")
 
@@ -196,7 +196,7 @@ type DateMathExpressionAsLiteral struct {
 	now time.Time
 }
 
-func (b *DateMathExpressionAsLiteral) RenderSQL(expression *DateMathExpression) (model.Expr, error) {
+func (b *DateMathExpressionAsLiteral) RenderExpr(expression *DateMathExpression) (model.Expr, error) {
 
 	const format = "2006-01-02 15:04:05"
 
@@ -256,6 +256,5 @@ func (b *DateMathExpressionAsLiteral) RenderSQL(expression *DateMathExpression) 
 		return nil, fmt.Errorf("unsupported rounding unit: %s", expression.rounding)
 	}
 
-	fmt.Println("result", result)
 	return model.NewLiteralSingleQuoteString(result.Format(format)), nil
 }
