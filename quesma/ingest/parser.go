@@ -93,6 +93,7 @@ func JsonToColumns(m SchemaMap, chConfig *clickhouse.ChTableConfig) []CreateTabl
 		fType, err := clickhouse.NewType(value, name)
 		if err != nil {
 			// Skip column with invalid/incomplete type
+			logger.Warn().Msgf("Skipping field '%s' with invalid/incomplete type: %v", name, err)
 			continue
 		}
 
