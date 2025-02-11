@@ -47,14 +47,14 @@ func TestValidateIngest(t *testing.T) {
 	}}
 
 	invalidJson := validateValueAgainstType("float", 1, floatCol.Type)
-	assert.Equal(t, 0, len(invalidJson))
+	assert.True(t, invalidJson)
 	StringCol := &clickhouse.Column{Name: "float_field", Type: clickhouse.BaseType{
 		Name:   "String",
 		GoType: clickhouse.NewBaseType("string").GoType,
 	}}
 
 	invalidJson = validateValueAgainstType("string", 1, StringCol.Type)
-	assert.Equal(t, 1, len(invalidJson))
+	assert.False(t, invalidJson)
 
 }
 

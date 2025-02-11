@@ -169,7 +169,7 @@ func validateNumericType(columnType string, incomingValueType string, value inte
 	return false
 }
 
-func validateValueAgainstType(fieldName string, value interface{}, targetColumnType clickhouse.Type) types.JSON {
+func validateValueAgainstType(fieldName string, value interface{}, targetColumnType clickhouse.Type) (isValid bool) {
 	// Validate Array() types by recursing on the inner type:
 	if compoundType, isCompound := targetColumnType.(clickhouse.CompoundType); isCompound && compoundType.Name == "Array" {
 		if valueAsArray, isArray := value.([]interface{}); isArray && len(valueAsArray) > 0 {
@@ -202,30 +202,48 @@ func validateValueAgainstType(fieldName string, value interface{}, targetColumnT
 
 	const DateTimeType = "DateTime64"
 	const StringType = "String"
-	deletedFields := make(types.JSON, 0)
-	columnType := targetColumnType.String()
-	columnType = removeLowCardinality(columnType)
-	incomingValueType := getTypeName(value)
+	columnType := targetColumnType
 
-	// Hot path
-	if columnType == incomingValueType {
-		return deletedFields
+	incomingValueType, err := clickhouse.NewType(value, fieldName)
+	if err != nil {
+		return false
 	}
 
-	if columnType == DateTimeType {
-		// TODO validate date format
-		// For now we store dates as strings
-		if incomingValueType != StringType {
-			deletedFields[fieldName] = value
+	switch columnType := columnType.(type) {
+	case clickhouse.BaseType:
+		columnTypeName := removeLowCardinality(columnType.Name)
+
+		if columnTypeName == DateTimeType {
+			if incomingValueType, isBaseType := incomingValueType.(clickhouse.BaseType); isBaseType && incomingValueType.Name == StringType {
+				// DateTime64 can be stored into String currently
+				return true
+			}
 		}
-	} else if isNumericType(columnType) {
-		if !validateNumericType(columnType, incomingValueType, value) {
-			deletedFields[fieldName] = value
+
+		if isNumericType(columnTypeName) {
+			if incomingValueType, isBaseType := incomingValueType.(clickhouse.BaseType); isBaseType && validateNumericType(columnTypeName, incomingValueType.Name, value) {
+				// Numeric types match!
+				return true
+			}
 		}
-	} else if columnType != incomingValueType {
-		deletedFields[fieldName] = value
+
+		if incomingValueType, isBaseType := incomingValueType.(clickhouse.BaseType); isBaseType && incomingValueType.Name == columnTypeName {
+			// Types match!
+			return true
+		}
+
+		return false
+	case clickhouse.MultiValueType:
+		logger.Error().Msgf("MultiValueType validation is not yet supported for type: %v", columnType)
+
+		return false
+	case clickhouse.CompoundType:
+		logger.Error().Msgf("CompoundType validation is not yet supported for type: %v", columnType)
+
+		return false
 	}
-	return deletedFields
+
+	return false
 }
 
 // validateIngest validates the document against the table schema
@@ -247,8 +265,8 @@ func (ip *IngestProcessor) validateIngest(tableName string, document types.JSON)
 			if value == nil {
 				continue
 			}
-			for k, v := range validateValueAgainstType(columnName, value, column.Type) {
-				deletedFields[k] = v
+			if !validateValueAgainstType(columnName, value, column.Type) {
+				deletedFields[columnName] = value
 			}
 		}
 	}

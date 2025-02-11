@@ -255,6 +255,8 @@ func NewType(value any, valueOrigin string) (Type, error) {
 		} else {
 			return BaseType{Name: "Float64", GoType: reflect.TypeOf(float64(0))}, nil
 		}
+	case int:
+		return BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0))}, nil
 	case bool:
 		return BaseType{Name: "Bool", GoType: reflect.TypeOf(true)}, nil
 	case map[string]interface{}:
