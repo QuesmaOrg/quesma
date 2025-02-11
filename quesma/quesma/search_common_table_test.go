@@ -388,9 +388,6 @@ func TestSearchCommonTable(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
-			if i != 5 {
-				t.Skip()
-			}
 
 			conn, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
