@@ -169,41 +169,7 @@ func validateNumericType(columnType string, incomingValueType string, value inte
 	return false
 }
 
-func validateValueAgainstType(fieldName string, value interface{}, targetColumnType clickhouse.Type) (isValid bool) {
-	// Validate Array() types by recursing on the inner type:
-	if compoundType, isCompound := targetColumnType.(clickhouse.CompoundType); isCompound && compoundType.Name == "Array" {
-		if valueAsArray, isArray := value.([]interface{}); isArray && len(valueAsArray) > 0 {
-			innerTypesAreCompatible := true
-			innerTypeName := getTypeName(valueAsArray[0])
-
-			// Make sure that all elements of the array have the same type
-			for _, e := range valueAsArray {
-				eTypeName := getTypeName(e)
-				// Check if the type names are exactly the same. However, if it's a numeric type, perform more advanced
-				// validation (to handle an array like [3.5, 4, 4.5]).
-				if isNumericType(eTypeName) && isNumericType(innerTypeName) {
-					if !validateNumericType(innerTypeName, eTypeName, e) {
-						innerTypesAreCompatible = false
-						break
-					}
-				} else {
-					if getTypeName(e) != innerTypeName {
-						innerTypesAreCompatible = false
-						break
-					}
-				}
-			}
-
-			if innerTypesAreCompatible {
-				return validateValueAgainstType(fieldName, valueAsArray[0], compoundType.BaseType)
-			}
-		}
-	}
-
-	const DateTimeType = "DateTime64"
-	const StringType = "String"
-	columnType := targetColumnType
-
+func validateValueAgainstType(fieldName string, value interface{}, columnType clickhouse.Type) (isValid bool) {
 	incomingValueType, err := clickhouse.NewType(value, fieldName)
 	if err != nil {
 		return false
@@ -213,13 +179,6 @@ func validateValueAgainstType(fieldName string, value interface{}, targetColumnT
 	case clickhouse.BaseType:
 		columnTypeName := removeLowCardinality(columnType.Name)
 
-		if columnTypeName == DateTimeType {
-			if incomingValueType, isBaseType := incomingValueType.(clickhouse.BaseType); isBaseType && incomingValueType.Name == StringType {
-				// DateTime64 can be stored into String currently
-				return true
-			}
-		}
-
 		if isNumericType(columnTypeName) {
 			if incomingValueType, isBaseType := incomingValueType.(clickhouse.BaseType); isBaseType && validateNumericType(columnTypeName, incomingValueType.Name, value) {
 				// Numeric types match!
@@ -228,7 +187,7 @@ func validateValueAgainstType(fieldName string, value interface{}, targetColumnT
 		}
 
 		if incomingValueType, isBaseType := incomingValueType.(clickhouse.BaseType); isBaseType && incomingValueType.Name == columnTypeName {
-			// Types match!
+			// Types match exactly!
 			return true
 		}
 
@@ -238,6 +197,17 @@ func validateValueAgainstType(fieldName string, value interface{}, targetColumnT
 
 		return false
 	case clickhouse.CompoundType:
+		if columnType.Name == "Array" {
+			if value, isArray := value.([]interface{}); isArray {
+				for _, elem := range value {
+					if !validateValueAgainstType(fieldName, elem, columnType.BaseType) {
+						return false
+					}
+				}
+				return true
+			}
+		}
+
 		logger.Error().Msgf("CompoundType validation is not yet supported for type: %v", columnType)
 
 		return false
