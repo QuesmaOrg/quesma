@@ -159,7 +159,7 @@ func BuildAttrsMap(m SchemaMap, config *ChTableConfig) (map[string][]interface{}
 
 				valueType, err := NewType(value, name)
 				if err != nil {
-					result[a.TypesArrayName] = append(result[a.TypesArrayName], err.Error())
+					result[a.TypesArrayName] = append(result[a.TypesArrayName], UndefinedType)
 				} else {
 					result[a.TypesArrayName] = append(result[a.TypesArrayName], valueType.String())
 				}

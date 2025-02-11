@@ -312,7 +312,7 @@ func BuildAttrsMap(m SchemaMap, config *clickhouse.ChTableConfig) (map[string][]
 
 				valueType, err := clickhouse.NewType(value, name)
 				if err != nil {
-					result[a.TypesArrayName] = append(result[a.TypesArrayName], err.Error())
+					result[a.TypesArrayName] = append(result[a.TypesArrayName], clickhouse.UndefinedType)
 				} else {
 					result[a.TypesArrayName] = append(result[a.TypesArrayName], valueType.String())
 				}

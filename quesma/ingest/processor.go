@@ -261,7 +261,7 @@ func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalid
 
 		valueType, err := chLib.NewType(v, k)
 		if err != nil {
-			newAttrsMap[chLib.DeprecatedAttributesValueType] = append(newAttrsMap[chLib.DeprecatedAttributesValueType], err.Error())
+			newAttrsMap[chLib.DeprecatedAttributesValueType] = append(newAttrsMap[chLib.DeprecatedAttributesValueType], chLib.UndefinedType)
 		} else {
 			newAttrsMap[chLib.DeprecatedAttributesValueType] = append(newAttrsMap[chLib.DeprecatedAttributesValueType], valueType.String())
 		}
@@ -314,6 +314,11 @@ func (ip *IngestProcessor) generateNewColumns(
 
 		columnType := ""
 		modifiers := ""
+
+		if attrTypes[i] == chLib.UndefinedType {
+			continue
+		}
+
 		// Array and Map are not Nullable
 		if strings.Contains(attrTypes[i], "Array") || strings.Contains(attrTypes[i], "Map") {
 			columnType = attrTypes[i]

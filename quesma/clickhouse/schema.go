@@ -21,6 +21,8 @@ const (
 	attributesColumnType     = "Map(String, String)" // ClickHouse type of AttributesValuesColumn, AttributesMetadataColumn
 	AttributesValuesColumn   = "attributes_values"
 	AttributesMetadataColumn = "attributes_metadata"
+
+	UndefinedType = "Undefined" // used for unknown types or incomplete types for which NewType can't infer a proper type
 )
 
 type (
