@@ -191,6 +191,16 @@ func (t MultiValueType) CanConvert(v interface{}) bool {
 	return false // TODO for now. For sure can implement tuples easily, maybe some other too
 }
 
+func (t MultiValueType) GetColumn(name string) *Column {
+	// TODO: maybe use map for faster lookup, but Tuples probably aren't typically large so linear scan suffices for now
+	for _, col := range t.Cols {
+		if col.Name == name {
+			return col
+		}
+	}
+	return nil
+}
+
 func NewBaseType(clickHouseTypeName string) BaseType {
 	var GoType = ResolveType(clickHouseTypeName)
 	if GoType == nil {

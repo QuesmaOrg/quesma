@@ -121,14 +121,28 @@ func validateValueAgainstType(fieldName string, value interface{}, columnType cl
 
 		return false
 	case clickhouse.MultiValueType:
+		if columnType.Name == "Tuple" {
+			if value, isMap := value.(map[string]interface{}); isMap {
+				for key, elem := range value {
+					subtype := columnType.GetColumn(key)
+					if subtype == nil {
+						return false
+					}
+					if !validateValueAgainstType(fmt.Sprintf("%s.%s", fieldName, key), elem, subtype.Type) {
+						return false
+					}
+				}
+				return true
+			}
+		}
 		logger.Error().Msgf("MultiValueType validation is not yet supported for type: %v", columnType)
 
 		return false
 	case clickhouse.CompoundType:
 		if columnType.Name == "Array" {
 			if value, isArray := value.([]interface{}); isArray {
-				for _, elem := range value {
-					if !validateValueAgainstType(fieldName, elem, columnType.BaseType) {
+				for i, elem := range value {
+					if !validateValueAgainstType(fmt.Sprintf("%s[%d]", fieldName, i), elem, columnType.BaseType) {
 						return false
 					}
 				}
