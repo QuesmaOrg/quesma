@@ -9,79 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"math"
-	"reflect"
 )
-
-func isInt(f float64) bool {
-	return f == float64(int64(f))
-}
-
-func isUnsignedInt(f float64) bool {
-	if f < 0 {
-		return false
-	}
-	return f == float64(uint64(f))
-}
-
-func getTypeName(v interface{}) string {
-	const unknownLiteral = "unknown"
-	const arrayLiteral = "Array"
-	primitiveTypes := map[string]string{
-		"string":  "String",
-		"bool":    "Bool",
-		"int":     "Int64",
-		"float64": "Float64",
-		"uint":    "UInt64",
-	}
-	if v == nil {
-		return unknownLiteral
-	}
-	GoType := reflect.TypeOf(v).String()
-	switch GoType {
-	case "string", "bool":
-		return primitiveTypes[GoType]
-	case "int":
-		if v.(int) < 0 {
-			return primitiveTypes["int"]
-		} else {
-			return primitiveTypes["uint"]
-		}
-	case "float64":
-		if isInt(v.(float64)) {
-			return primitiveTypes["int"]
-		} else if isUnsignedInt(v.(float64)) {
-			return primitiveTypes["uint"]
-		}
-		return primitiveTypes[GoType]
-	}
-	switch elem := v.(type) {
-	case []interface{}:
-		if len(elem) == 0 {
-			return arrayLiteral + "(unknown)"
-		} else {
-			innerTypeName := getTypeName(elem[0])
-			// Make sure that all elements of the array have the same type
-			for _, e := range elem {
-				if getTypeName(e) != innerTypeName {
-					return arrayLiteral + "(unknown)"
-				}
-			}
-			return arrayLiteral + "(" + innerTypeName + ")"
-		}
-	case interface{}:
-		if e := reflect.ValueOf(elem); e.Kind() == reflect.Slice {
-			innerTypeName := getTypeName(e.Index(0).Interface())
-			// Make sure that all elements of the slice have the same type
-			for i := 1; i < e.Len(); i++ {
-				if getTypeName(e.Index(i).Interface()) != innerTypeName {
-					return arrayLiteral + "(unknown)"
-				}
-			}
-			return arrayLiteral + "(" + innerTypeName + ")"
-		}
-	}
-	return GoType
-}
 
 func removeLowCardinality(columnType string) string {
 	if columnType == "LowCardinality(String)" {
