@@ -1369,7 +1369,7 @@ var AggregationTests = []AggregationTestCase{
 					Cols: []model.QueryResultCol{
 						model.NewQueryResultCol("aggr__origins__parent_count", uint64(13014)),
 						model.NewQueryResultCol("aggr__origins__key_0", "DLH"),
-						model.NewQueryResultCol("aggr__origins__count", int64(15)),
+						model.NewQueryResultCol("aggr__origins__count", int64(25)),
 						model.NewQueryResultCol("top_hits__origins__originLocation_col_0", map[string]interface{}{
 							"lat": "46.84209824",
 							"lon": "-92.19360352",
