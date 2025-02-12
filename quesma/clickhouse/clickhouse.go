@@ -72,8 +72,8 @@ type LogManagerIFace interface {
 	ResolveIndexPattern(ctx context.Context, schema schema.Registry, pattern string) (results []string, err error)
 	FindTable(tableName string) (result *Table)
 	ProcessQuery(ctx context.Context, table *Table, query *model.Query) (rows []model.QueryResultRow, performanceResult PerformanceResult, err error)
-	CountMultiple(ctx context.Context, tables ...string) (int64, error)
-	Count(ctx context.Context, table string) (int64, error)
+	CountMultiple(ctx context.Context, tables ...*Table) (int64, error)
+	Count(ctx context.Context, table *Table) (int64, error)
 	GetTableDefinitions() (TableMap, error)
 }
 
@@ -196,7 +196,7 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, schema schema.Reg
 	return util.Distinct(results), nil
 }
 
-func (lm *LogManager) CountMultiple(ctx context.Context, tables ...string) (int64, error) {
+func (lm *LogManager) CountMultiple(ctx context.Context, tables ...*Table) (int64, error) {
 	if len(tables) == 0 {
 		return 0, nil
 	}
@@ -206,20 +206,20 @@ func (lm *LogManager) CountMultiple(ctx context.Context, tables ...string) (int6
 		subCountStatements = append(subCountStatements, subcountStatement)
 	}
 	var count int64
-	var anyTables []any
+	tableNames := make([]any, 0, len(tables))
 	for _, t := range tables {
-		anyTables = append(anyTables, t)
+		tableNames = append(tableNames, t.FullTableName())
 	}
-	err := lm.chDb.QueryRow(ctx, fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL ")), anyTables...).Scan(&count)
+	err := lm.chDb.QueryRow(ctx, fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL ")), tableNames...).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
 	return count, nil
 }
 
-func (lm *LogManager) Count(ctx context.Context, table string) (int64, error) {
+func (lm *LogManager) Count(ctx context.Context, table *Table) (int64, error) {
 	var count int64
-	err := lm.chDb.QueryRow(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
+	err := lm.chDb.QueryRow(ctx, "SELECT count(*) FROM ?", table.FullTableName()).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
