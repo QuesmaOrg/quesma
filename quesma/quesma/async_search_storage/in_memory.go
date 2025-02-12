@@ -107,7 +107,3 @@ func (s AsyncQueryContextStorageInMemory) evict(evictOlderThan time.Duration) {
 		logger.Info().Msgf("Evicted %d async queries : %s", len(evictedIds), strings.Join(evictedIds, ","))
 	}
 }
-
-func elapsedTime(t time.Time) time.Duration {
-	return time.Since(t)
-}
