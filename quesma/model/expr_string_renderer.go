@@ -69,7 +69,20 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 	switch val := l.Value.(type) {
 	case string:
-		return escapeString(val)
+		fmt.Println("VisitLiteral", val, l.EscapeType)
+		switch l.EscapeType {
+		case NormalNotEscaped:
+			return escapeStringNormal(val)
+		case NotEscapedLikePrefix:
+			return util.SingleQuote(escapeStringLike(escapeStringNormal(val)) + "%")
+		case NotEscapedLikeFull:
+			return util.SingleQuote("%" + escapeStringLike(escapeStringNormal(val)) + "%")
+		case FullyEscaped:
+			return util.SingleQuote(val)
+		default:
+			logger.WarnWithThrottling("VisitLiteral %s", val)
+			return escapeStringNormal(val) // like normal
+		}
 	default:
 		return fmt.Sprintf("%v", val)
 	}
@@ -113,39 +126,6 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	} else {
 		return fmt.Sprintf("%v%v%v", lhs, e.Op, rhs)
 	}
-}
-
-func (v *renderer) VisitLikeExpr(e LikeExpr) interface{} {
-	var lhs interface{} // TODO FOR NOW LITTLE PARANOID BUT HELPS ME NOT SEE MANY PANICS WHEN TESTING
-	if e.Left != nil {
-		lhs = e.Left.Accept(v)
-	} else {
-		lhs = "< LHS NIL >"
-	}
-
-	rhs := "< RHS NIL >"
-	if !e.AlreadyEscaped {
-		rhs = e.Right.Accept(v).(string)
-		rhs = strings.ReplaceAll(rhs, `%`, `\%`)
-		rhs = strings.ReplaceAll(rhs, `_`, `\_`)
-	} else if l, ok := e.Right.(LiteralExpr); ok {
-		// it's already escaped (for now, only by Lucene), so we take literal value
-		if s, ok2 := l.Value.(string); ok2 {
-			rhs = s
-		}
-	}
-
-	switch e.BoundType {
-	case Left:
-		rhs = "%" + rhs
-	case Right:
-		rhs = rhs + "%"
-	case Both:
-		rhs = "%" + rhs + "%"
-	default:
-	}
-
-	return fmt.Sprintf("%v %v '%v'", lhs, e.Op, rhs)
 }
 
 func (v *renderer) VisitOrderByExpr(e OrderByExpr) interface{} {
@@ -390,13 +370,19 @@ func (v *renderer) VisitCTE(c CTE) interface{} {
 	return fmt.Sprintf("%s AS (%s) ", c.Name, AsString(c.SelectCommand))
 }
 
-// escapeString escapes the given string so that it can be used in a SQL Clickhouse query.
+// escapeStringNormal escapes the given string so that it can be used in a SQL Clickhouse query.
 // It escapes ' and \ characters: ' -> \', \ -> \\.
-func escapeString(s string) string {
+func escapeStringNormal(s string) string {
 	s = strings.ReplaceAll(s, `\`, `\\`) // \ should be escaped with no exceptions
 	if len(s) >= 2 && s[0] == '\'' && s[len(s)-1] == '\'' {
 		// don't escape the first and last '
 		return util.SingleQuote(strings.ReplaceAll(s[1:len(s)-1], `'`, `\'`))
 	}
 	return strings.ReplaceAll(s, `'`, `\'`)
+}
+
+// escapeStringLike escapes the given string so that it can be used in a SQL Clickhouse query.
+func escapeStringLike(s string) string {
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	return strings.ReplaceAll(s, `_`, `\_`)
 }

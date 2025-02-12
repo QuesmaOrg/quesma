@@ -43,10 +43,9 @@ func (v termValue) toExpression(fieldName string) model.Expr {
 	}
 
 	if wildcardsExist {
-		const alreadyEscaped = true
-		return model.NewLikeExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteral(termAsStringToClickhouse), model.None, alreadyEscaped)
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteralWithEscapeType(termAsStringToClickhouse, model.FullyEscaped))
 	} else {
-		return model.NewInfixExpr(model.NewColumnRef(fieldName), " = ", model.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), " = ", model.NewLiteralSingleQuoteString(termAsStringToClickhouse))
 	}
 }
 

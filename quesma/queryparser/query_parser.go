@@ -661,16 +661,16 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.Simple
 		return model.NewSimpleQueryInvalid()
 	}
 
-	const alreadyEscaped = false
 	for fieldName, v := range queryMap {
 		fieldName = ResolveField(cw.Ctx, fieldName, cw.Schema)
 		switch vCasted := v.(type) {
 		case string:
-			simpleStat := model.NewLikeExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral(vCasted), model.Right, alreadyEscaped)
+			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteralWithEscapeType(vCasted, model.NotEscapedLikePrefix))
+			fmt.Println("SIMPLE STAT", simpleStat)
 			return model.NewSimpleQuery(simpleStat, true)
 		case QueryMap:
 			token := vCasted["value"].(string)
-			simpleStat := model.NewLikeExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral(token), model.Right, alreadyEscaped)
+			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteralWithEscapeType(token, model.NotEscapedLikePrefix))
 			return model.NewSimpleQuery(simpleStat, true)
 		default:
 			logger.WarnWithCtx(cw.Ctx).Msgf("unsupported prefix type: %T, value: %v", v, v)

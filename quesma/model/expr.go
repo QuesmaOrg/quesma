@@ -83,9 +83,20 @@ func (e FunctionExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitFunction(e)
 }
 
-type LiteralExpr struct {
-	Value any
-}
+type (
+	LiteralExpr struct {
+		Value      any
+		EscapeType EscapeType // only meaningful if Value is string
+	}
+	EscapeType string
+)
+
+const (
+	NormalNotEscaped     EscapeType = "normal"
+	NotEscapedLikePrefix            = "like_prefix"
+	NotEscapedLikeFull              = "like_full"
+	FullyEscaped                    = "fully_escaped"
+)
 
 func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLiteral(e)
@@ -113,32 +124,6 @@ func (e InfixExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitInfix(e)
 }
 
-type (
-	LikeExpr struct {
-		Left           Expr
-		Op             string
-		Right          Expr
-		BoundType      LikeExprBoundType // Both means we do '%...%' (default), Right means we do '...%' (e.g. for prefix aggregation)
-		AlreadyEscaped bool              // whether the pattern (Right) is already escaped (e.g. % -> \%)
-	}
-	LikeExprBoundType int
-)
-
-const (
-	None LikeExprBoundType = iota
-	Left
-	Right
-	Both
-)
-
-func NewLikeExpr(lhs Expr, op string, rhs Expr, boundType LikeExprBoundType, alreadyEscaped bool) LikeExpr {
-	return LikeExpr{Left: lhs, Op: op, Right: rhs, BoundType: boundType, AlreadyEscaped: alreadyEscaped}
-}
-
-func (s LikeExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitLikeExpr(s)
-}
-
 func NewFunction(name string, args ...Expr) FunctionExpr {
 	return FunctionExpr{Name: name, Args: args}
 }
@@ -150,10 +135,10 @@ func NewCountFunc(args ...Expr) FunctionExpr {
 	return NewFunction("count", args...)
 }
 
-var NewWildcardExpr = LiteralExpr{Value: "*"}
+var NewWildcardExpr = NewLiteral("*")
 
 func NewLiteral(value any) LiteralExpr {
-	return LiteralExpr{Value: value}
+	return LiteralExpr{Value: value, EscapeType: NormalNotEscaped}
 }
 
 // NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else
@@ -164,6 +149,14 @@ func NewLiteralSingleQuoteString(value any) LiteralExpr {
 	default:
 		return LiteralExpr{Value: v}
 	}
+}
+
+func NewLiteralWithEscapeType(value any, escapeType EscapeType) LiteralExpr {
+	return LiteralExpr{Value: value, EscapeType: escapeType}
+}
+
+func (e LiteralExpr) Clone() LiteralExpr {
+	return NewLiteralWithEscapeType(e.Value, e.EscapeType)
 }
 
 // DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`
@@ -333,7 +326,6 @@ type ExprVisitor interface {
 	VisitLiteral(l LiteralExpr) interface{}
 	VisitTuple(t TupleExpr) interface{}
 	VisitInfix(e InfixExpr) interface{}
-	VisitLikeExpr(e LikeExpr) interface{}
 	VisitColumnRef(e ColumnRef) interface{}
 	VisitPrefixExpr(e PrefixExpr) interface{}
 	VisitNestedProperty(e NestedProperty) interface{}
