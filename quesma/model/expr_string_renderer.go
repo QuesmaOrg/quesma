@@ -69,7 +69,6 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 	switch val := l.Value.(type) {
 	case string:
-		fmt.Println("VisitLiteral", val, l.EscapeType)
 		switch l.EscapeType {
 		case NormalNotEscaped:
 			return escapeStringNormal(val)
@@ -381,7 +380,8 @@ func escapeStringNormal(s string) string {
 	return strings.ReplaceAll(s, `'`, `\'`)
 }
 
-// escapeStringLike escapes the given string so that it can be used in a SQL Clickhouse query.
+// escapeStringLike escapes the given string so that it can be used in a SQL 'LIKE' query.
+// (% and _ are special characters there and need to be escaped)
 func escapeStringLike(s string) string {
 	s = strings.ReplaceAll(s, `%`, `\%`)
 	return strings.ReplaceAll(s, `_`, `\_`)

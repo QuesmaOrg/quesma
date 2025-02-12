@@ -92,10 +92,10 @@ type (
 )
 
 const (
-	NormalNotEscaped     EscapeType = "normal"
-	NotEscapedLikePrefix            = "like_prefix"
-	NotEscapedLikeFull              = "like_full"
-	FullyEscaped                    = "fully_escaped"
+	NormalNotEscaped     EscapeType = "normal"        // used in 90% cases, everywhere but not in 'LIKE' exprs
+	NotEscapedLikePrefix            = "like_prefix"   // used in 'LIKE' exprs, will be rendered 'value%'
+	NotEscapedLikeFull              = "like_full"     // used in 'LIKE' exprs, will be rendered '%value%'
+	FullyEscaped                    = "fully_escaped" // will be rendered as is, as Lucene parser did all the escaping
 )
 
 func (e LiteralExpr) Accept(v ExprVisitor) interface{} {

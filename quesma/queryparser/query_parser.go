@@ -666,7 +666,6 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.Simple
 		switch vCasted := v.(type) {
 		case string:
 			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteralWithEscapeType(vCasted, model.NotEscapedLikePrefix))
-			fmt.Println("SIMPLE STAT", simpleStat)
 			return model.NewSimpleQuery(simpleStat, true)
 		case QueryMap:
 			token := vCasted["value"].(string)
