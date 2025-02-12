@@ -50,17 +50,15 @@ func TestCountEndpoint(t *testing.T) {
 
 	lm := clickhouse.NewLogManagerWithConnection(db, tables)
 	logChan := logger.InitOnlyChannelLoggerForTests()
-
 	resolver := table_resolver.NewEmptyTableResolver()
 
 	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tables
 
 	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
-
 	go managementConsole.RunOnlyChannelProcessor()
 
-	queryRunner := NewQueryRunner(lm, &DefaultConfig, managementConsole, staticRegistry, ab_testing.NewEmptySender(), table_resolver.NewEmptyTableResolver(), tableDiscovery)
+	queryRunner := NewQueryRunner(lm, &DefaultConfig, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
 
 	testcases := []struct {
 		index       string
