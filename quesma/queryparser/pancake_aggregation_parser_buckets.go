@@ -5,11 +5,17 @@ package queryparser
 
 import (
 	"fmt"
+	"github.com/H0llyW00dzZ/cidr"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	cidr2 "github.com/apparentlymart/go-cidr/cidr"
 	"github.com/pkg/errors"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
+	"math"
+	"net"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,6 +43,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}},
 		{"multi_terms", cw.parseMultiTerms},
 		{"composite", cw.parseComposite},
+		{"ip_range", cw.parseIpRange},
 		{"ip_prefix", cw.parseIpPrefix},
 	}
 
@@ -147,20 +154,38 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 
 // aggrName - "terms" or "significant_terms"
 func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeAggregationTreeNode, params QueryMap, aggrName string) error {
-	field := cw.parseFieldField(params, aggrName)
-	field, didWeAddMissing := cw.addMissingParameterIfPresent(field, params)
-	if !didWeAddMissing {
+	if err := bucket_aggregations.CheckParamsTerms(cw.Ctx, params); err != nil {
+		return err
+	}
+
+	terms := bucket_aggregations.NewTerms(
+		cw.Ctx, aggrName == "significant_terms", params["include"], params["exclude"],
+	)
+
+	var didWeAddMissing, didWeUpdateFieldHere bool
+	field, isFromScript := cw.parseFieldFieldMaybeScript(params, aggrName)
+	if !isFromScript {
+		// We currently don't support both 'script' and any of ['include', 'exclude', 'missing'] at the same time
+		// as it's not completely obvious how to handle it. Let's wait for a use case.
+		// (we'll see it in logs if it happens, because of CheckParamsTerms above)
+		field, didWeAddMissing = cw.addMissingParameterIfPresent(field, params)
+		field, didWeUpdateFieldHere = terms.UpdateFieldForIncludeAndExclude(field)
+	}
+
+	// If we updated above, we change our select to if(condition, field, NULL), so we also need to filter out those NULLs later
+	if !didWeAddMissing || didWeUpdateFieldHere {
 		aggregation.filterOutEmptyKeyBucket = true
 	}
 
 	const defaultSize = 10
 	size := cw.parseSize(params, defaultSize)
+
 	orderBy, err := cw.parseOrder(params, []model.Expr{field})
 	if err != nil {
 		return err
 	}
 
-	aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, aggrName == "significant_terms", orderBy[0]) // TODO probably full, not [0]
+	aggregation.queryType = terms
 	aggregation.selectedColumns = append(aggregation.selectedColumns, field)
 	aggregation.limit = size
 	aggregation.orderBy = orderBy
@@ -379,6 +404,64 @@ func (cw *ClickhouseQueryTranslator) parseComposite(aggregation *pancakeAggregat
 	size := cw.parseIntField(params, "size", defaultSize)
 	aggregation.limit = size
 	aggregation.queryType = bucket_aggregations.NewComposite(cw.Ctx, size, baseAggrs)
+	return nil
+}
+
+func (cw *ClickhouseQueryTranslator) parseIpRange(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
+	const defaultKeyed = false
+
+	if err := bucket_aggregations.CheckParamsIpRange(cw.Ctx, params); err != nil {
+		return err
+	}
+
+	rangesRaw := params["ranges"].([]any)
+	ranges := make([]bucket_aggregations.IpInterval, 0, len(rangesRaw))
+	for _, rangeRaw := range rangesRaw {
+		var begin, end string
+		var key *string
+		if keyIfPresent, exists := cw.parseStringFieldExistCheck(rangeRaw.(QueryMap), "key"); exists {
+			key = &keyIfPresent
+		}
+		if maskIfExists, exists := cw.parseStringFieldExistCheck(rangeRaw.(QueryMap), "mask"); exists {
+			_, ipNet, err := net.ParseCIDR(maskIfExists)
+			if err != nil {
+				return err
+			}
+			if ipNet.IP.To4() != nil {
+				// it's ipv4
+				beginAsInt, endAsInt := cidr.IPv4ToRange(ipNet)
+				begin = util.IntToIpv4(beginAsInt)
+				// endAsInt is inclusive, we do +1, because we need it exclusive
+				if endAsInt != math.MaxUint32 {
+					end = util.IntToIpv4(endAsInt + 1)
+				} else {
+					end = bucket_aggregations.BiggestIpv4 // "255.255.255.255 + 1", so to say (value in compliance with Elastic)
+				}
+			} else if ipNet.IP.To16() != nil {
+				// it's ipv6
+				beginInclusive, endInclusive := cidr2.AddressRange(ipNet)
+				begin = beginInclusive.String()
+				// we do +1 (.Next()), because we need end to be exclusive
+				endExclusive := netip.MustParseAddr(endInclusive.String()).Next()
+				if endExclusive.IsValid() {
+					end = endExclusive.String()
+				} else { // invalid means endInclusive was already the biggest possible value (ff...ff)
+					end = bucket_aggregations.UnboundedInterval
+				}
+			} else {
+				return fmt.Errorf("invalid mask: %s", maskIfExists)
+			}
+			if key == nil {
+				key = &maskIfExists
+			}
+		} else {
+			begin = cw.parseStringField(rangeRaw.(QueryMap), "from", bucket_aggregations.UnboundedInterval)
+			end = cw.parseStringField(rangeRaw.(QueryMap), "to", bucket_aggregations.UnboundedInterval)
+		}
+		ranges = append(ranges, bucket_aggregations.NewIpInterval(begin, end, key))
+	}
+	aggregation.isKeyed = cw.parseBoolField(params, "keyed", defaultKeyed)
+	aggregation.queryType = bucket_aggregations.NewIpRange(cw.Ctx, ranges, cw.parseFieldField(params, "ip_range"), aggregation.isKeyed)
 	return nil
 }
 

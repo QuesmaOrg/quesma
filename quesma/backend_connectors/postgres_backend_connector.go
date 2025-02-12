@@ -4,14 +4,19 @@
 package backend_connectors
 
 import (
-	"context"
-	"github.com/jackc/pgx/v4"
-	quesma_api "quesma_v2/core"
+	"database/sql"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type PostgresBackendConnector struct {
-	Endpoint   string
-	connection *pgx.Conn
+	BasicSqlBackendConnector
+	Endpoint string
+}
+
+func (p *PostgresBackendConnector) InstanceName() string {
+	return "postgresql"
 }
 
 func (p *PostgresBackendConnector) GetId() quesma_api.BackendConnectorType {
@@ -19,7 +24,13 @@ func (p *PostgresBackendConnector) GetId() quesma_api.BackendConnectorType {
 }
 
 func (p *PostgresBackendConnector) Open() error {
-	conn, err := pgx.Connect(context.Background(), p.Endpoint)
+	// Note: pgx library also has its own custom interface (pgx.Connect), which is not compatible
+	// with the standard sql.DB interface, but has more features and is more efficient.
+	conn, err := sql.Open("pgx", p.Endpoint)
+	if err != nil {
+		return err
+	}
+	err = conn.Ping()
 	if err != nil {
 		return err
 	}
@@ -27,22 +38,8 @@ func (p *PostgresBackendConnector) Open() error {
 	return nil
 }
 
-func (p *PostgresBackendConnector) Close() error {
-	if p.connection == nil {
-		return nil
+func NewPostgresBackendConnector(endpoint string) *PostgresBackendConnector {
+	return &PostgresBackendConnector{
+		Endpoint: endpoint,
 	}
-	return p.connection.Close(context.Background())
-}
-
-func (p *PostgresBackendConnector) Query(ctx context.Context, query string, args ...interface{}) (quesma_api.Rows, error) {
-	return p.connection.Query(context.Background(), query, args...)
-}
-
-func (p *PostgresBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
-	if len(args) == 0 {
-		_, err := p.connection.Exec(context.Background(), query)
-		return err
-	}
-	_, err := p.connection.Exec(context.Background(), query, args...)
-	return err
 }

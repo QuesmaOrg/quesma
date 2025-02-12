@@ -3,8 +3,8 @@
 package ingest
 
 import (
-	"quesma/clickhouse"
-	"quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"unicode"
 )
 

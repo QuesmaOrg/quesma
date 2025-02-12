@@ -8,10 +8,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
-	"quesma/elasticsearch"
-	"quesma/quesma/config"
-	quesma_api "quesma_v2/core"
+	"strings"
 	"time"
 )
 
@@ -28,9 +30,28 @@ type ElasticsearchBackendConnector struct {
 	config config.ElasticsearchConfiguration
 }
 
+// NewElasticsearchBackendConnector is a constructor which uses old (v1) configuration object
 func NewElasticsearchBackendConnector(cfg config.ElasticsearchConfiguration) *ElasticsearchBackendConnector {
 	conn := &ElasticsearchBackendConnector{
 		config: cfg,
+		client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+			Timeout: esRequestTimeout,
+		},
+	}
+	return conn
+}
+
+// NewElasticsearchBackendConnectorFromDbConfig is an alternative constructor which uses the generic database configuration object
+func NewElasticsearchBackendConnectorFromDbConfig(cfg config.RelationalDbConfiguration) *ElasticsearchBackendConnector {
+	conn := &ElasticsearchBackendConnector{
+		config: config.ElasticsearchConfiguration{
+			Url:      cfg.Url,
+			User:     cfg.User,
+			Password: cfg.Password,
+		},
 		client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -47,6 +68,10 @@ func (e *ElasticsearchBackendConnector) InstanceName() string {
 
 func (e *ElasticsearchBackendConnector) GetConfig() config.ElasticsearchConfiguration {
 	return e.config
+}
+
+func (e *ElasticsearchBackendConnector) Request(ctx context.Context, method, endpoint string, body []byte) (*http.Response, error) {
+	return e.doRequest(ctx, method, endpoint, body, http.Header{})
 }
 
 func (e *ElasticsearchBackendConnector) RequestWithHeaders(ctx context.Context, method, endpoint string, body []byte, headers http.Header) (*http.Response, error) {
@@ -72,21 +97,33 @@ func (e *ElasticsearchBackendConnector) doRequest(ctx context.Context, method, e
 
 // HttpBackendConnector is a base interface for sending http requests, for now
 type HttpBackendConnector interface {
-	Send(r *http.Request) *http.Response
+	Send(r *http.Request) (*http.Response, error)
 }
 
-func (e *ElasticsearchBackendConnector) Send(r *http.Request) *http.Response {
+func (e *ElasticsearchBackendConnector) Send(r *http.Request) (*http.Response, error) {
 	r.Host = e.config.Url.Host
 	r.URL.Host = e.config.Url.Host
 	r.URL.Scheme = e.config.Url.Scheme
 	r.RequestURI = "" // this is important for the request to be sent correctly to a different host
-	maybeAuthdReq := elasticsearch.AddBasicAuthIfNeeded(r, e.config.User, e.config.Password)
-	if resp, err := e.client.Do(maybeAuthdReq); err != nil {
-		fmt.Printf("Error: %v\n", err)
-		panic(err)
-	} else {
-		return resp
+	r = ensureContentType(r)
+	if r.Header.Get("Authorization") == "" {
+		maybeAuthdReq := elasticsearch.AddBasicAuthIfNeeded(r, e.config.User, e.config.Password)
+		return e.client.Do(maybeAuthdReq)
+	} else { // request already came with auth header so just forward these credentials
+		return e.client.Do(r)
 	}
+}
+
+// ensureContentType is doing what Quesma did in MVP/v1 version
+// so that you can technically send no content-type, but when request is sent to ES, it will won't get rejected
+func ensureContentType(r *http.Request) *http.Request {
+	originalContentType := r.Header.Get("Content-Type")
+	//"application/json", "application/x-ndjson" are expected, of course `Content-Type: application/json; charset=UTF-8` has to be supported
+	if strings.Contains(originalContentType, "json") {
+		logger.Info().Msgf("Setting Content-Type to application/json for %s routed to Elasticsearch", r.URL)
+		r.Header.Set("Content-Type", "application/json")
+	}
+	return r
 }
 
 func (e *ElasticsearchBackendConnector) GetId() quesma_api.BackendConnectorType {
@@ -101,10 +138,22 @@ func (e *ElasticsearchBackendConnector) Query(ctx context.Context, query string,
 	panic("not implemented")
 }
 
+func (e *ElasticsearchBackendConnector) QueryRow(ctx context.Context, query string, args ...interface{}) quesma_api.Row {
+	panic("not implemented")
+}
+
+func (e *ElasticsearchBackendConnector) Stats() quesma_api.DBStats {
+	return quesma_api.DBStats{}
+}
+
 func (e *ElasticsearchBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
 	panic("not implemented")
 }
 
 func (e *ElasticsearchBackendConnector) Close() error {
+	return nil
+}
+
+func (e *ElasticsearchBackendConnector) Ping() error {
 	return nil
 }

@@ -3,13 +3,10 @@
 package async_search_storage
 
 import (
-	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"math"
-	"quesma/logger"
-	"quesma/quesma/recovery"
-	"quesma/tracing"
-	"quesma/util"
 	"strings"
 	"time"
 )
@@ -113,60 +110,4 @@ func (s AsyncQueryContextStorageInMemory) evict(evictOlderThan time.Duration) {
 
 func elapsedTime(t time.Time) time.Duration {
 	return time.Since(t)
-}
-
-type AsyncQueryTraceLoggerEvictor struct {
-	AsyncQueryTrace *util.SyncMap[string, tracing.TraceCtx]
-	ctx             context.Context
-	cancel          context.CancelFunc
-}
-
-func (e *AsyncQueryTraceLoggerEvictor) Start() {
-	e.ctx, e.cancel = context.WithCancel(context.Background())
-
-	go e.FlushHangingAsyncQueryTrace(elapsedTime)
-}
-
-func (e *AsyncQueryTraceLoggerEvictor) Stop() {
-	e.cancel()
-	logger.Info().Msg("AsyncQueryTraceLoggerEvictor Stopped")
-}
-
-func (e *AsyncQueryTraceLoggerEvictor) TryFlushHangingAsyncQueryTrace(timeFun func(time.Time) time.Duration) {
-	asyncIds := []string{}
-	e.AsyncQueryTrace.Range(func(key string, value tracing.TraceCtx) bool {
-		if timeFun(value.Added) > evictionInterval {
-			asyncIds = append(asyncIds, key)
-			logger.Error().Msgf("Async query %s was not finished", key)
-			var formattedLines strings.Builder
-			formattedLines.WriteString(tracing.FormatMessages(value.Messages))
-			logger.Info().Msg(formattedLines.String())
-		}
-		return true
-	})
-	for _, asyncId := range asyncIds {
-		e.AsyncQueryTrace.Delete(asyncId)
-	}
-}
-
-func (e *AsyncQueryTraceLoggerEvictor) FlushHangingAsyncQueryTrace(timeFun func(time.Time) time.Duration) {
-	go func() {
-		defer recovery.LogPanic()
-		for {
-			select {
-			case <-time.After(gcInterval):
-				e.TryFlushHangingAsyncQueryTrace(timeFun)
-			case <-e.ctx.Done():
-				logger.Debug().Msg("AsyncQueryTraceLoggerEvictor stopped")
-				e.AsyncQueryTrace.Range(func(key string, value tracing.TraceCtx) bool {
-					logger.Error().Msgf("Async query %s was not finished", key)
-					var formattedLines strings.Builder
-					formattedLines.WriteString(tracing.FormatMessages(value.Messages))
-					logger.Info().Msg(formattedLines.String())
-					return true
-				})
-				return
-			}
-		}
-	}()
 }

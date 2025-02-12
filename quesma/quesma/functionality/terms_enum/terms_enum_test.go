@@ -7,20 +7,21 @@ import (
 	"context"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/queryparser"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/util"
-	"quesma_v2/core/diag"
-	tracing "quesma_v2/core/tracing"
 	"regexp"
 	"testing"
 )
@@ -94,24 +95,27 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 		Created: true,
 	}
 	tableResolver := table_resolver.NewEmptyTableResolver()
-	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, nil, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, tableResolver)
-	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, tableResolver)
+	conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, util.NewSyncMapWith(testTableName, table))
 	s := schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
 			testTableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"client_name":       {PropertyName: "client_name", InternalPropertyName: "client_name", Type: schema.QuesmaTypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
+					"client_name":           {PropertyName: "client_name", InternalPropertyName: "client_name", Type: schema.QuesmaTypeObject},
+					"type":                  {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+					"name":                  {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
+					"content":               {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
+					"message":               {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+					"host_name.keyword":     {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
+					"FlightDelay":           {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
+					"Cancelled":             {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
+					"FlightDelayMin":        {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
+					"_id":                   {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
+					"epoch_time":            {PropertyName: "epoch_time", InternalPropertyName: "epoch_time", Type: schema.QuesmaTypeDate},
+					"epoch_time_datetime64": {PropertyName: "epoch_time_datetime64", InternalPropertyName: "epoch_time_datetime64", Type: schema.QuesmaTypeDate},
 				},
 				Aliases: map[schema.FieldName]schema.FieldName{
 					"client.name": "client_name",

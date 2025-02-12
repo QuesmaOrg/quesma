@@ -7,13 +7,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
-	"quesma/table_resolver"
-	"quesma/util"
-	mux "quesma_v2/core"
 	"strings"
 	"testing"
 )
@@ -45,14 +46,14 @@ func TestValidateIngest(t *testing.T) {
 		GoType: clickhouse.NewBaseType("float64").GoType,
 	}}
 
-	invalidJson := validateValueAgainstType("float", 1, floatCol)
+	invalidJson := validateValueAgainstType("float", 1, floatCol.Type)
 	assert.Equal(t, 0, len(invalidJson))
 	StringCol := &clickhouse.Column{Name: "float_field", Type: clickhouse.BaseType{
 		Name:   "String",
 		GoType: clickhouse.NewBaseType("string").GoType,
 	}}
 
-	invalidJson = validateValueAgainstType("string", 1, StringCol)
+	invalidJson = validateValueAgainstType("string", 1, StringCol.Type)
 	assert.Equal(t, 1, len(invalidJson))
 
 }
@@ -96,6 +97,9 @@ func TestIngestValidation(t *testing.T) {
 		`{"uint8_field":-1}`,
 		`{"uint8_field":255}`,
 		`{"uint8_field":1000}`,
+
+		`{"float_array_field":[3.14, 6.28, 0.99]}`,
+		`{"float_array_field":[1, 2, 3]}`,
 	}
 	expectedInsertJsons := []string{
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"string_field":"10"},"attributes_metadata":{"string_field":"v1;Int64"}}`, tableName),
@@ -123,6 +127,9 @@ func TestIngestValidation(t *testing.T) {
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"uint8_field":"-1"},"attributes_metadata":{"uint8_field":"v1;Int64"}}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"uint8_field":255}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"uint8_field":"1000"},"attributes_metadata":{"uint8_field":"v1;Int64"}}`, tableName),
+
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_array_field":[3.14,6.28,0.99]}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_array_field":[1,2,3]}`, tableName),
 	}
 	tableMap := util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
@@ -162,11 +169,19 @@ func TestIngestValidation(t *testing.T) {
 					GoType: clickhouse.NewBaseType("Int64").GoType,
 				},
 			}},
+			"float_array_field": {Name: "float_array_field", Type: clickhouse.CompoundType{
+				Name: "Array",
+				BaseType: clickhouse.BaseType{
+					Name:   "Float64",
+					GoType: clickhouse.NewBaseType("Float64").GoType,
+				},
+			}},
 		},
 		Created: true,
 	})
 	for i := range inputJson {
-		db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+		conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 		ip := newIngestProcessorEmpty()
 		ip.chDb = db
 		ip.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
@@ -183,7 +198,7 @@ func TestIngestValidation(t *testing.T) {
 		defer db.Close()
 
 		mock.ExpectExec(EscapeBrackets(expectedInsertJsons[i])).WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 0))
-		err := ip.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON((inputJson[i]))}, &IngestTransformer{}, &columNameFormatter{separator: "::"})
+		err := ip.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON((inputJson[i]))}, &IngestTransformerTest{}, &columNameFormatter{separator: "::"})
 		assert.NoError(t, err)
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatal("there were unfulfilled expections:", err)

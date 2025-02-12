@@ -5,9 +5,9 @@ package pipeline_aggregations
 import (
 	"context"
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"time"
 )
 
@@ -43,14 +43,13 @@ func (query SumBucket) CalculateResultWhenMissing(parentRows []model.QueryResult
 	if len(parentRows) == 0 {
 		return resultRows // maybe null?
 	}
-	qp := model.NewQueryProcessor(query.ctx)
 	parentFieldsCnt := len(parentRows[0].Cols) - 2 // -2, because row is [parent_cols..., current_key, current_value]
 	// in calculateSingleAvgBucket we calculate avg all current_keys with the same parent_cols
 	// so we need to split into buckets based on parent_cols
 	if parentFieldsCnt < 0 {
 		logger.WarnWithCtx(query.ctx).Msgf("parentFieldsCnt is less than 0: %d", parentFieldsCnt)
 	}
-	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
+	for _, parentRowsOneBucket := range model.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
 		resultRows = append(resultRows, query.calculateSingleSumBucket(parentRowsOneBucket))
 	}
 	return resultRows
@@ -60,13 +59,7 @@ func (query SumBucket) CalculateResultWhenMissing(parentRows []model.QueryResult
 func (query SumBucket) calculateSingleSumBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
 	var resultValue any
 
-	firstNonNilIndex := -1
-	for i, row := range parentRows {
-		if row.LastColValue() != nil {
-			firstNonNilIndex = i
-			break
-		}
-	}
+	firstNonNilIndex := model.FirstNonNilIndex(parentRows)
 	if firstNonNilIndex == -1 {
 		resultRow := parentRows[0].Copy()
 		resultRow.Cols[len(resultRow.Cols)-1].Value = model.JsonMap{

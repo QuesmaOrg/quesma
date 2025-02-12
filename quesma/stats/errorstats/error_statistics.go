@@ -3,8 +3,8 @@
 package errorstats
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/rs/zerolog"
-	tracing "quesma_v2/core/tracing"
 	"sort"
 	"sync"
 	"time"

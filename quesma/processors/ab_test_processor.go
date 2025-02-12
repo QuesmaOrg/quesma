@@ -6,8 +6,8 @@ package processors
 import (
 	"encoding/json"
 	"fmt"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/google/go-cmp/cmp"
-	quesma_api "quesma_v2/core"
 	"strconv"
 )
 
@@ -50,10 +50,8 @@ func (p *ABTestProcessor) compare(json1 string, json2 string) (bool, string) {
 
 	diff := cmp.Diff(obj1, obj2)
 	if diff == "" {
-		fmt.Println("JSON objects are equal")
 		return true, ""
 	}
-	fmt.Println("JSON objects are not equal:", diff)
 	return false, diff
 }
 
@@ -77,8 +75,6 @@ func (p *ABTestProcessor) Handle(metadata map[string]interface{}, message ...any
 
 		data = append(data, strconv.Itoa(level)...)
 		data = append(data, []byte(p.GetId())...)
-		data = append(data, []byte(",correlationId:")...)
-		data = append(data, []byte(correlationId)...)
 		data = append(data, []byte("\n")...)
 	}
 
@@ -88,16 +84,12 @@ func (p *ABTestProcessor) Handle(metadata map[string]interface{}, message ...any
 	resp := make([]byte, 0)
 	for _, messages := range p.messageStorage {
 		if len(messages) == 2 {
-			equal, diff := p.compare(string(messages[0]), string(messages[1]))
+			equal, _ := p.compare(string(messages[0]), string(messages[1]))
 			if equal {
-				resp = append(resp, []byte("ABTestProcessor processor: Responses are equal\n\n")...)
-				resp = append(resp, []byte("\n")...)
-				resp = append(resp, []byte(diff)...)
+				resp = append(resp, []byte("ABTestProcessor processor: Responses are equal\n")...)
 
 			} else {
-				resp = append(resp, []byte("ABTestProcessor processor: Responses are not equal\n\n")...)
-				resp = append(resp, []byte("\n")...)
-				resp = append(resp, []byte(diff)...)
+				resp = append(resp, []byte("ABTestProcessor processor: Responses are not equal\n")...)
 			}
 			// clean storage
 			p.messageStorage = make(map[string][][]byte)

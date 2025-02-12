@@ -61,3 +61,13 @@ func TestABTestcase(t *testing.T) {
 	testCase := testcases.NewABTestcase()
 	runIntegrationTest(t, testCase)
 }
+
+func TestIngestTypesTestcase(t *testing.T) {
+	testCase := testcases.NewIngestTypesTestcase()
+	runIntegrationTest(t, testCase)
+}
+
+func TestTableOverrideTestcase(t *testing.T) {
+	testCase := testcases.NewOverrideTestcase()
+	runIntegrationTest(t, testCase)
+}

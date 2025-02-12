@@ -4,9 +4,9 @@ package queryparser
 
 import (
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/logger"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"regexp"
 	"slices"
 	"strconv"
@@ -291,6 +291,16 @@ func (cw *ClickhouseQueryTranslator) parseStringField(queryMap QueryMap, fieldNa
 	return defaultValue
 }
 
+func (cw *ClickhouseQueryTranslator) parseStringFieldExistCheck(queryMap QueryMap, fieldName string) (value string, exists bool) {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asString, ok := valueRaw.(string); ok {
+			return asString, true
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a string, but %T, value: %v", fieldName, valueRaw, valueRaw)
+	}
+	return "", false
+}
+
 func (cw *ClickhouseQueryTranslator) parseArrayField(queryMap QueryMap, fieldName string) ([]any, error) {
 	if valueRaw, exists := queryMap[fieldName]; exists {
 		if asArray, ok := valueRaw.([]any); ok {
@@ -321,7 +331,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any,
 	// maybe "field" field
 	if fieldRaw, ok := Map["field"]; ok {
 		if field, ok := fieldRaw.(string); ok {
-			return model.NewColumnRef(ResolveField(cw.Ctx, field, cw.Schema)), true // remove this resolve? we do all transforms after parsing is done?
+			return model.NewColumnRef(ResolveField(cw.Ctx, field, cw.Schema)), false // remove this resolve? we do all transforms after parsing is done?
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 		}
@@ -356,12 +366,20 @@ func (cw *ClickhouseQueryTranslator) parseFieldFromScriptField(queryMap QueryMap
 		logger.WarnWithCtx(cw.Ctx).Msgf("source is not a string, but %T, value: %v", sourceRaw, sourceRaw)
 	}
 
-	// source must look like "doc['field_name'].value.getHour()" or "doc['field_name'].value.hourOfDay"
+	// a) source must look like "doc['field_name'].value.getHour()" or "doc['field_name'].value.hourOfDay"
 	wantedRegex := regexp.MustCompile(`^doc\['(\w+)']\.value\.(?:getHour\(\)|hourOfDay)$`)
 	matches := wantedRegex.FindStringSubmatch(source)
 	if len(matches) == 2 {
 		return model.NewFunction("toHour", model.NewColumnRef(matches[1])), true
 	}
+
+	// b) source: "if (doc['field_name_1'].value == doc['field_name_2'].value") { return 1; } else { return 0; }"
+	wantedRegex = regexp.MustCompile(`^if \(doc\['(.*)\.value']\.value == doc\['(.*)\.value'].value\) \{ \n  return 1; \n} else \{ \n  return 0; \n}$`)
+	matches = wantedRegex.FindStringSubmatch(source)
+	if len(matches) == 3 {
+		return model.NewInfixExpr(model.NewColumnRef(matches[1]), "=", model.NewColumnRef(matches[2])), true
+	}
+
 	return
 }
 

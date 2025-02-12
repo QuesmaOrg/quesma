@@ -4,8 +4,8 @@ package lucene
 
 import (
 	"context"
-	"quesma/model"
-	"quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"strconv"
 	"testing"
 )

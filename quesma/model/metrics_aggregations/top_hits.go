@@ -4,8 +4,8 @@ package metrics_aggregations
 
 import (
 	"context"
-	"quesma/logger"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 )
 
 type TopHits struct {
@@ -43,7 +43,7 @@ func (query *TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mo
 
 		for _, col := range valuesForHits {
 
-			value := col.ExtractValue(query.ctx)
+			value := col.ExtractValue()
 
 			sourceMap[col.ColName] = value
 

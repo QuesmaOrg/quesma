@@ -4,9 +4,9 @@ package bucket_aggregations
 
 import (
 	"context"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 )
 
 type Histogram struct {
@@ -35,7 +35,7 @@ func (query *Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow) 
 		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
-	var response []model.JsonMap
+	response := make([]model.JsonMap, 0, len(rows))
 	for _, row := range rows {
 		response = append(response, model.JsonMap{
 			"key":       row.Cols[len(row.Cols)-2].Value,

@@ -12,6 +12,7 @@ const (
 	PgSQLBackend
 	ClickHouseSQLBackend
 	ElasticsearchBackend
+	TcpBackend
 )
 
 func GetBackendConnectorNameFromType(connectorType BackendConnectorType) string {
@@ -52,6 +53,18 @@ func (p *NoopBackendConnector) Query(ctx context.Context, query string, args ...
 	return nil, nil
 }
 
+func (p *NoopBackendConnector) QueryRow(ctx context.Context, query string, args ...interface{}) Row {
+	return nil
+}
+
+func (p *NoopBackendConnector) Stats() DBStats {
+	return DBStats{}
+}
+
 func (p *NoopBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
+	return nil
+}
+
+func (p *NoopBackendConnector) Ping() error {
 	return nil
 }

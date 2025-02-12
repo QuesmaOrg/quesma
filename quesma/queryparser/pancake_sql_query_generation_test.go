@@ -5,14 +5,14 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
-	"quesma/clickhouse"
-	"quesma/model"
-	"quesma/model/bucket_aggregations"
-	"quesma/quesma/types"
-	"quesma/schema"
-	"quesma/util"
 	"strconv"
 	"strings"
 	"testing"
@@ -195,7 +195,7 @@ func filters(testName string) bool {
 
 func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 
-	debug := true
+	debug := false
 
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
@@ -209,7 +209,12 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	currentSchema := schema.Schema{}
+	currentSchema := schema.NewSchema(
+		map[schema.FieldName]schema.Field{
+			"host.name":   {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
+			"bytes_gauge": {PropertyName: "bytes_gauge", InternalPropertyName: "bytes_gauge", Type: schema.QuesmaTypeInteger},
+		}, true, "",
+	)
 
 	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: currentSchema}
 
@@ -229,7 +234,6 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
         "order": {
           "_count": "desc"
         },
-        "shard_size": 25,
         "size": 3
       }
     }

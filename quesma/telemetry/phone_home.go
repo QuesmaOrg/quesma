@@ -7,8 +7,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
-	"database/sql"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	telemetry_headers "github.com/QuesmaOrg/quesma/quesma/telemetry/headers"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v3/mem"
@@ -16,17 +20,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"quesma/buildinfo"
-	"quesma/elasticsearch"
-	"quesma/health"
-	telemetry_headers "quesma/telemetry/headers"
-	"quesma_v2/core/diag"
 	"sort"
 
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/recovery"
-	"quesma/stats/errorstats"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/stats/errorstats"
 
 	"runtime"
 	"strings"
@@ -64,7 +63,7 @@ type agent struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	clickHouseDb *sql.DB
+	clickHouseDb quesma_api.BackendConnector
 	config       *config.QuesmaConfiguration
 	clientId     string
 
@@ -110,7 +109,7 @@ func hostname() string {
 	return name
 }
 
-func NewPhoneHomeAgent(configuration *config.QuesmaConfiguration, clickHouseDb *sql.DB, clientId string) PhoneHomeAgent {
+func NewPhoneHomeAgent(configuration *config.QuesmaConfiguration, clickHouseDb quesma_api.BackendConnector, clientId string) PhoneHomeAgent {
 
 	// TODO
 	// this is a question, maybe we should inherit context from the caller
@@ -198,7 +197,7 @@ where active
 	ctx, cancel := context.WithTimeout(ctx, clickhouseTimeout)
 	defer cancel()
 
-	rows, err := a.clickHouseDb.QueryContext(ctx, totalSummaryQuery)
+	rows, err := a.clickHouseDb.Query(ctx, totalSummaryQuery)
 
 	if err != nil {
 
@@ -267,7 +266,7 @@ WHERE active = 1 AND database = ?
 GROUP BY table
 ORDER BY total_size DESC;`
 
-	rows, err := a.clickHouseDb.QueryContext(ctx, query, dbName)
+	rows, err := a.clickHouseDb.Query(ctx, query, dbName)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -319,7 +318,7 @@ func (a *agent) collectClickHouseVersion(ctx context.Context, stats *diag.ClickH
 	ctx, cancel := context.WithTimeout(ctx, clickhouseTimeout)
 	defer cancel()
 
-	rows, err := a.clickHouseDb.QueryContext(ctx, totalSummaryQuery)
+	rows, err := a.clickHouseDb.Query(ctx, totalSummaryQuery)
 
 	if err != nil {
 		logger.Error().Err(err).Msg("Error getting version from clickhouse.")
@@ -465,7 +464,7 @@ func (a *agent) collectElasticVersion(ctx context.Context, stats *diag.ElasticSt
 
 func (a *agent) collectElasticHealthStatus(ctx context.Context, stats *diag.ElasticStats) (err error) {
 
-	healthChecker := health.NewElasticHealthChecker(a.config)
+	healthChecker := elasticsearch.NewElasticHealthChecker(a.config)
 
 	stats.HealthStatus = healthChecker.CheckHealth().String()
 

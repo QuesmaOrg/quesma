@@ -3,7 +3,7 @@
 package persistence
 
 import (
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"time"
 )
 

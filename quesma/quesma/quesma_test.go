@@ -5,10 +5,10 @@ package quesma
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/stretchr/testify/assert"
 	"net/http"
-	"quesma/logger"
-	"quesma/quesma/config"
 	"testing"
 	"time"
 )

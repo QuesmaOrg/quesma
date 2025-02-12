@@ -4,8 +4,8 @@ package optimize
 
 import (
 	"fmt"
-	"quesma/logger"
-	"quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"sort"
 	"strconv"
 	"strings"
@@ -243,7 +243,7 @@ func (s splitTimeRange) transformQuery(query *model.Query, properties map[string
 	for i, column := range namedCTEs[0].SelectCommand.Columns {
 		switch column := (column).(type) {
 		case model.ColumnRef:
-			selectedColumns[i] = model.NewColumnRef(column.ColumnName)
+			selectedColumns[i] = column.Clone()
 		case model.LiteralExpr:
 			selectedColumns[i] = model.NewColumnRef(column.Value.(string))
 		case model.AliasedExpr:

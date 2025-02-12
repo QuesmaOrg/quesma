@@ -4,31 +4,32 @@ package quesma
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
-	"quesma/ab_testing"
-	"quesma/clickhouse"
-	"quesma/common_table"
-	"quesma/elasticsearch"
-	"quesma/end_user_errors"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/optimize"
-	"quesma/painful"
-	"quesma/queryparser"
-	"quesma/quesma/async_search_storage"
-	"quesma/quesma/config"
-	"quesma/quesma/errors"
-	"quesma/quesma/recovery"
-	"quesma/quesma/types"
-	"quesma/quesma/ui"
-	"quesma/schema"
-	"quesma/table_resolver"
-	"quesma/util"
-	"quesma_v2/core"
-	"quesma_v2/core/diag"
-	tracing "quesma_v2/core/tracing"
+	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/optimize"
+	"github.com/QuesmaOrg/quesma/quesma/painful"
+	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/errors"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
+	"github.com/goccy/go-json"
+	"net/http"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -46,9 +47,8 @@ type QueryRunner struct {
 	cancel               context.CancelFunc
 	AsyncRequestStorage  async_search_storage.AsyncRequestResultStorage
 	AsyncQueriesContexts async_search_storage.AsyncQueryContextStorage
-	logManager           *clickhouse.LogManager
+	logManager           clickhouse.LogManagerIFace
 	cfg                  *config.QuesmaConfiguration
-	im                   elasticsearch.IndexManagement
 	debugInfoCollector   diag.DebugInfoCollector
 
 	tableDiscovery clickhouse.TableDiscovery
@@ -57,7 +57,7 @@ type QueryRunner struct {
 	// this is passed to the QueryTranslator to render date math expressions
 	DateMathRenderer         string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 	currentParallelQueryJobs atomic.Int64
-	transformationPipeline   TransformationPipeline
+	transformationPipeline   model.TransformationPipeline
 	schemaRegistry           schema.Registry
 	ABResultsSender          ab_testing.Sender
 	tableResolver            table_resolver.TableResolver
@@ -65,13 +65,27 @@ type QueryRunner struct {
 	maxParallelQueries int // if set to 0, we run queries in sequence, it's fine for testing purposes
 }
 
-func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
-	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
+// QueryRunnerIFace is a temporary interface to bridge gap between QueryRunner and QueryRunner2 in `router_v2.go`.
+// moving forwards as we remove two implementations we might look at making all these methods private again.
+type QueryRunnerIFace interface {
+	HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error)
+	HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON, waitForResultsMs int, keepOnCompletion bool) ([]byte, error)
+	HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error)
+	HandleCount(ctx context.Context, indexPattern string) (int64, error)
+	// Todo: consider removing this getters for these two below, this was required for temporary Field Caps impl in v2 api
+	GetSchemaRegistry() schema.Registry
+	GetLogManager() clickhouse.LogManagerIFace
+	DeleteAsyncSearch(id string) ([]byte, error)
+	HandlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error)
+	HandleMultiSearch(ctx context.Context, defaultIndexName string, body types.NDJSON) ([]byte, error)
 }
 
-func NewQueryRunner(lm *clickhouse.LogManager,
+func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
+	q.transformationPipeline.AddTransformer(optimize.NewOptimizePipeline(cfg))
+}
+
+func NewQueryRunner(lm clickhouse.LogManagerIFace,
 	cfg *config.QuesmaConfiguration,
-	im elasticsearch.IndexManagement,
 	qmc diag.DebugInfoCollector,
 	schemaRegistry schema.Registry,
 	abResultsRepository ab_testing.Sender,
@@ -79,28 +93,31 @@ func NewQueryRunner(lm *clickhouse.LogManager,
 	tableDiscovery clickhouse.TableDiscovery) *QueryRunner {
 
 	ctx, cancel := context.WithCancel(context.Background())
-
-	return &QueryRunner{logManager: lm, cfg: cfg, im: im, debugInfoCollector: qmc,
+	transformationPipeline := model.NewTransformationPipeline()
+	transformationPipeline.AddTransformer(NewSchemaCheckPass(cfg, tableDiscovery, defaultSearchAfterStrategy))
+	return &QueryRunner{logManager: lm, cfg: cfg, debugInfoCollector: qmc,
 		executionCtx: ctx, cancel: cancel,
 		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemoryFallbackElastic(cfg.Elasticsearch),
 		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemoryFallbackElasticsearch(cfg.Elasticsearch),
-		transformationPipeline: TransformationPipeline{
-			transformers: []model.QueryTransformer{
-				&SchemaCheckPass{
-					cfg:            cfg,
-					tableDiscovery: tableDiscovery,
-				},
-			},
-		},
-		schemaRegistry:     schemaRegistry,
-		ABResultsSender:    abResultsRepository,
-		tableResolver:      resolver,
-		tableDiscovery:     tableDiscovery,
-		maxParallelQueries: maxParallelQueries,
+
+		transformationPipeline: *transformationPipeline,
+		schemaRegistry:         schemaRegistry,
+		ABResultsSender:        abResultsRepository,
+		tableResolver:          resolver,
+		tableDiscovery:         tableDiscovery,
+		maxParallelQueries:     maxParallelQueries,
 	}
 }
 
-func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
+func (q *QueryRunner) GetSchemaRegistry() schema.Registry {
+	return q.schemaRegistry
+}
+
+func (q *QueryRunner) GetLogManager() clickhouse.LogManagerIFace {
+	return q.logManager
+}
+
+func NewQueryRunnerDefaultForTests(db quesma_api.BackendConnector, cfg *config.QuesmaConfiguration,
 	tableName string, tables *clickhouse.TableMap, staticRegistry *schema.StaticRegistry) *QueryRunner {
 
 	lm := clickhouse.NewLogManagerWithConnection(db, tables)
@@ -119,15 +136,15 @@ func NewQueryRunnerDefaultForTests(db *sql.DB, cfg *config.QuesmaConfiguration,
 	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tables
 
-	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
+	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
 
 	go managementConsole.RunOnlyChannelProcessor()
 
-	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
+	return NewQueryRunner(lm, cfg, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
 }
 
-// returns -1 when table name could not be resolved
-func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int64, error) {
+// HandleCount returns -1 when table name could not be resolved
+func (q *QueryRunner) HandleCount(ctx context.Context, indexPattern string) (int64, error) {
 	indexes, err := q.logManager.ResolveIndexPattern(ctx, q.schemaRegistry, indexPattern)
 	if err != nil {
 		return 0, err
@@ -141,6 +158,7 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int
 		}
 	}
 
+	// Query execution block
 	if len(indexes) == 1 {
 		return q.logManager.Count(ctx, indexes[0])
 	} else {
@@ -148,16 +166,138 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int
 	}
 }
 
-func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
-	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageDefault)
+type msearchQuery struct {
+	indexName string
+	query     types.JSON
 }
 
-func (q *QueryRunner) handleEQLSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
-	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageEQL)
+func SplitQueries(body types.NDJSON, defaultIndexName string) ([]msearchQuery, error) {
+	var queries []msearchQuery
+
+	var currentQuery *msearchQuery
+
+	for _, line := range body {
+
+		if currentQuery == nil {
+			currentQuery = &msearchQuery{}
+
+			if v, ok := line["index"].(string); ok {
+				currentQuery.indexName = v
+			} else {
+				currentQuery.indexName = defaultIndexName
+			}
+			continue
+		}
+
+		newQuery := types.JSON{}
+
+		if query, ok := line["query"]; ok {
+			newQuery["query"] = query
+		} else {
+			return nil, fmt.Errorf("query parameter not found")
+		}
+
+		if aggs, ok := line["aggs"]; ok {
+			newQuery["aggs"] = aggs
+		}
+		if size, ok := line["size"]; ok {
+			newQuery["size"] = size
+		}
+		if from, ok := line["from"]; ok {
+			newQuery["from"] = from
+		}
+
+		currentQuery.query = newQuery
+		queries = append(queries, *currentQuery)
+		currentQuery = nil
+
+	}
+	return queries, nil
 }
 
-func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
+// Composite search is a search that can contain multiple queries
+// like bulk
+func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName string, body types.NDJSON) ([]byte, error) {
+
+	// Split the body into queries
+	// This is what ParseQuery does or should do
+	queries, err := SplitQueries(body, defaultIndexName)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle each query
+	var responses []any
+
+	var queriedIndices []string
+	for _, query := range queries {
+		queriedIndices = append(queriedIndices, query.indexName)
+	}
+	logger.DebugWithCtx(ctx).Msgf("handling multisearch: queries=%d, indices=[%s], defaultIndex=[%s]", len(queries), queriedIndices, defaultIndexName)
+	for _, query := range queries {
+
+		// TODO ask table resolver here and go to the right connector or connectors
+
+		responseBody, err := q.HandleSearch(ctx, query.indexName, query.query)
+
+		if err != nil {
+
+			var wrappedErr any
+
+			// TODO check if it's correct implementation
+
+			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
+				wrappedErr = &quesma_api.Result{StatusCode: http.StatusNotFound}
+			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
+				wrappedErr = &quesma_api.Result{
+					Body:          string(queryparser.BadRequestParseError(err)),
+					StatusCode:    http.StatusBadRequest,
+					GenericResult: queryparser.BadRequestParseError(err),
+				}
+			} else {
+				logger.ErrorWithCtx(ctx).Msgf("error handling multisearch: %v", err)
+				wrappedErr = &quesma_api.Result{
+					Body:          "Internal error",
+					StatusCode:    http.StatusInternalServerError,
+					GenericResult: queryparser.BadRequestParseError(err),
+				}
+			}
+
+			responses = append(responses, wrappedErr)
+		} else {
+
+			parsedResponseBody, err := types.ParseJSON(string(responseBody))
+			if err != nil {
+				return nil, err
+			}
+			responses = append(responses, parsedResponseBody)
+		}
+
+	}
+
+	// build the response
+	type msearchResponse struct {
+		Responses []any `json:"responses"`
+	}
+
+	resp := msearchResponse{Responses: responses}
+
+	responseBody, err := json.Marshal(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return responseBody, nil
+}
+
+func (q *QueryRunner) HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
+	return q.handleSearchCommon(ctx, indexPattern, body, nil)
+}
+
+func (q *QueryRunner) HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
 	waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
+	// AsyncQuery marker should be result of ParseQuery
 	async := AsyncQuery{
 		asyncId:          tracing.GetAsyncId(),
 		waitForResultsMs: waitForResultsMs,
@@ -166,7 +306,7 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string
 	}
 	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, async.asyncId)
 	logger.InfoWithCtx(ctx).Msgf("async search request id: %s started", async.asyncId)
-	return q.handleSearchCommon(ctx, indexPattern, body, &async, QueryLanguageDefault)
+	return q.handleSearchCommon(ctx, indexPattern, body, &async)
 }
 
 type asyncSearchWithError struct {
@@ -182,7 +322,7 @@ type AsyncQuery struct {
 	startTime        time.Time
 }
 
-func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.ExecutionPlan) error {
+func (q *QueryRunner) transformQueries(plan *model.ExecutionPlan) error {
 	var err error
 	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
 	if err != nil {
@@ -241,11 +381,6 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 		}
 	}
 
-	err = q.transformQueries(ctx, plan)
-	if err != nil {
-		return responseBody, err
-	}
-
 	q.runExecutePlanAsync(ctx, plan, queryTranslator, table, doneCh, optAsync)
 
 	if optAsync == nil {
@@ -273,7 +408,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 				responseBody, err = q.storeAsyncSearch(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, body, res, true, opaqueId)
 				sendMainPlanResult(responseBody, err)
 			}()
-			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
+			return q.HandlePartialAsyncSearch(ctx, optAsync.asyncId)
 		case res := <-doneCh:
 			responseBody, err = q.storeAsyncSearch(q.debugInfoCollector, id, optAsync.asyncId, optAsync.startTime, path, body, res,
 				optAsync.keepOnCompletion, opaqueId)
@@ -283,7 +418,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	}
 }
 
-func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
+func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery) ([]byte, error) {
 
 	decision := q.tableResolver.Resolve(quesma_api.QueryPipeline, indexPattern)
 
@@ -330,15 +465,19 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	}
 
-	// it's impossible here to don't have a clickhouse decision
 	if clickhouseConnector == nil {
-		return nil, fmt.Errorf("no clickhouse connector")
+		// TODO: at this moment it's possible to land in this situation if `_msearch` payload contains Elasticsearch-targetted query
+		logger.Warn().Msgf("multi-search payload contains Elasticsearch-targetted query")
+		return nil, fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
 	}
 
 	var responseBody []byte
 
 	startTime := time.Now()
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
+	id := "FAKE_ID"
+	if val := ctx.Value(tracing.RequestIdCtxKey); val != nil {
+		id = val.(string)
+	}
 	path := ""
 	if value := ctx.Value(tracing.RequestPath); value != nil {
 		if str, ok := value.(string); ok {
@@ -355,7 +494,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	var currentSchema schema.Schema
 	resolvedIndexes := clickhouseConnector.ClickhouseIndexes
 
-	if len(resolvedIndexes) == 1 {
+	if !clickhouseConnector.IsCommonTable {
+		if len(resolvedIndexes) < 1 {
+			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load [%s] schema", resolvedIndexes)).Details("Table: [%v]", resolvedIndexes)
+		}
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
 		resolvedTableName := q.cfg.IndexConfig[indexName].TableName(indexName)
 
@@ -378,7 +520,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		for _, indexName := range resolvedIndexes {
 			table, _ = tables.Load(q.cfg.IndexConfig[indexName].TableName(indexName))
 			if table == nil {
-				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", indexName)).Details("Table: %s", indexName)
+				continue
 			}
 			if table.VirtualTable {
 				virtualOnlyTables = append(virtualOnlyTables, indexName)
@@ -407,8 +549,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			DatabaseName:       "", // it doesn't matter here, common table will be used
 		}
 
+		schemas := q.schemaRegistry.AllSchemas()
+
 		for _, idx := range resolvedIndexes {
-			scm, ok := q.schemaRegistry.FindSchema(schema.IndexName(idx))
+			scm, ok := schemas[schema.IndexName(idx)]
 			if !ok {
 				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", idx)).Details("Table: %s", idx)
 			}
@@ -423,7 +567,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		table = commonTable
 	}
 
-	queryTranslator := NewQueryTranslator(ctx, queryLanguage, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes, q.cfg)
+	queryTranslator := NewQueryTranslator(ctx, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes)
 
 	plan, err := queryTranslator.ParseQuery(body)
 
@@ -442,7 +586,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		pushSecondaryInfo(q.debugInfoCollector, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
 		return responseBody, errors.New(string(responseBody))
 	}
-
+	err = q.transformQueries(plan)
+	if err != nil {
+		return responseBody, err
+	}
 	plan.IndexPattern = indexPattern
 	plan.StartTime = startTime
 	plan.Name = model.MainExecutionPlan
@@ -450,7 +597,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if decision.EnableABTesting {
 		return q.executeABTesting(ctx, plan, queryTranslator, table, body, optAsync, decision, indexPattern)
 	}
-
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, nil, true)
 
 }
@@ -458,8 +604,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 func (q *QueryRunner) storeAsyncSearch(qmc diag.DebugInfoCollector, id, asyncId string,
 	startTime time.Time, path string, body types.JSON, result asyncSearchWithError, keep bool, opaqueId string) (responseBody []byte, err error) {
 
-	took := time.Since(startTime)
-	bodyAsBytes, _ := body.Bytes()
 	if result.err == nil {
 		okStatus := 200
 		asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncId, false, &okStatus)
@@ -469,16 +613,20 @@ func (q *QueryRunner) storeAsyncSearch(qmc diag.DebugInfoCollector, id, asyncId 
 		err = result.err
 	}
 
-	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
-		Id:                     id,
-		AsyncId:                asyncId,
-		OpaqueId:               opaqueId,
-		Path:                   path,
-		IncomingQueryBody:      bodyAsBytes,
-		QueryBodyTranslated:    result.translatedQueryBody,
-		QueryTranslatedResults: responseBody,
-		SecondaryTook:          took,
-	})
+	if qmc != nil {
+		took := time.Since(startTime)
+		bodyAsBytes, _ := body.Bytes()
+		qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
+			Id:                     id,
+			AsyncId:                asyncId,
+			OpaqueId:               opaqueId,
+			Path:                   path,
+			IncomingQueryBody:      bodyAsBytes,
+			QueryBodyTranslated:    result.translatedQueryBody,
+			QueryTranslatedResults: responseBody,
+			SecondaryTook:          took,
+		})
+	}
 
 	if keep {
 		compressedBody := responseBody
@@ -495,8 +643,9 @@ func (q *QueryRunner) storeAsyncSearch(qmc diag.DebugInfoCollector, id, asyncId 
 	return
 }
 
-func (q *QueryRunner) handleAsyncSearchStatus(_ context.Context, id string) ([]byte, error) {
+func (q *QueryRunner) HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error) {
 	if _, err := q.AsyncRequestStorage.Load(id); err != nil { // there IS a result in storage, so query is completed/no longer running,
+
 		return queryparser.EmptyAsyncSearchStatusResponse(id, false, false, 200)
 	} else { // there is no result so query is might be(*) running
 		return queryparser.EmptyAsyncSearchStatusResponse(id, true, true, 0) // 0 is a placeholder for missing completion status
@@ -505,7 +654,7 @@ func (q *QueryRunner) handleAsyncSearchStatus(_ context.Context, id string) ([]b
 	// However since you're referring to async ID given from Quesma, we naively assume it *does* exist.
 }
 
-func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
+func (q *QueryRunner) HandlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
 	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		logger.ErrorWithCtx(ctx).Msgf("non quesma async id: %v", id)
 		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
@@ -540,7 +689,7 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 	}
 }
 
-func (q *QueryRunner) deleteAsyncSearch(id string) ([]byte, error) {
+func (q *QueryRunner) DeleteAsyncSearch(id string) ([]byte, error) {
 	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		return nil, errors.New("invalid quesma async search id : " + id)
 	}

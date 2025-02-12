@@ -4,8 +4,8 @@ package async_search_storage
 
 import (
 	"context"
-	"quesma/persistence"
-	"quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/persistence"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"time"
 )
 

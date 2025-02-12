@@ -5,13 +5,13 @@ package ui
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/goccy/go-json"
 	"io"
-	"quesma/elasticsearch"
-	"quesma/jsondiff"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/ui/internal/builder"
 	"strings"
 	"time"
 )
@@ -24,11 +24,10 @@ func (qmc *QuesmaManagementConsole) hasABTestingTable() bool {
 
 	sql := `SELECT count(*) FROM ab_testing_logs`
 
-	row := db.QueryRow(sql)
+	row := db.QueryRow(context.Background(), sql)
 	var count int
-	err := row.Scan(&count)
-	if err != nil {
-		logger.Error().Err(err).Msg("Error checking for ab_testing_logs table")
+	if errScan := row.Scan(&count); errScan != nil {
+		logger.Error().Err(errScan).Msg("Error scanning for ab_testing_logs table")
 		return false
 	}
 
@@ -232,8 +231,8 @@ func (qmc *QuesmaManagementConsole) readKibanaDashboards() (resolvedDashboards, 
 	return result, nil
 }
 
-func parseMismatches(mismatch string) ([]jsondiff.JSONMismatch, error) {
-	var mismatches []jsondiff.JSONMismatch
+func parseMismatches(mismatch string) ([]util.JSONMismatch, error) {
+	var mismatches []util.JSONMismatch
 	err := json.Unmarshal([]byte(mismatch), &mismatches)
 	return mismatches, err
 }
@@ -327,11 +326,12 @@ GROUP BY
 	var result []abTestingReportRow
 
 	db := qmc.logManager.GetDB()
-	rows, err := db.Query(sql, orderBySQL)
+	rows, err := db.Query(context.Background(), sql, orderBySQL)
 	if err != nil {
 		return nil, err
 	}
 
+	defer rows.Close()
 	for rows.Next() {
 		row := abTestingReportRow{}
 		err := rows.Scan(&row.dashboardId, &row.panelId, &row.aName, &row.bName, &row.successRate, &row.count, &row.aTime, &row.bTime)
@@ -501,11 +501,12 @@ func (qmc *QuesmaManagementConsole) abTestingReadPanelDetails(dashboardId, panel
 `
 	db := qmc.logManager.GetDB()
 
-	rows, err := db.Query(sql, dashboardId, panelId)
+	rows, err := db.Query(context.Background(), sql, dashboardId, panelId)
 	if err != nil {
 		return nil, err
 	}
 
+	defer rows.Close()
 	var result []abTestingPanelDetailsRow
 	for rows.Next() {
 
@@ -533,7 +534,7 @@ func (qmc *QuesmaManagementConsole) abTestingReadPanelDetails(dashboardId, panel
 	return result, nil
 }
 
-func (qmc *QuesmaManagementConsole) renderABTestingMismatch(buffer *builder.HtmlBuffer, mismatch jsondiff.JSONMismatch) {
+func (qmc *QuesmaManagementConsole) renderABTestingMismatch(buffer *builder.HtmlBuffer, mismatch util.JSONMismatch) {
 
 	buffer.Html(`<li>`)
 	buffer.Html(`<p>`)
@@ -623,7 +624,7 @@ func (qmc *QuesmaManagementConsole) generateABPanelDetails(dashboardId, panelId 
 				size := len(mismatches)
 				if size > limit {
 					mismatches = mismatches[:limit]
-					mismatches = append(mismatches, jsondiff.JSONMismatch{
+					mismatches = append(mismatches, util.JSONMismatch{
 						Message: fmt.Sprintf("... and %d more", size-limit),
 					})
 				}
@@ -684,11 +685,12 @@ func (qmc *QuesmaManagementConsole) abTestingReadMismatchDetails(dashboardId, pa
 
 	db := qmc.logManager.GetDB()
 
-	rows, err := db.Query(sql, dashboardId, panelId, mismatchHash)
+	rows, err := db.Query(context.Background(), sql, dashboardId, panelId, mismatchHash)
 	if err != nil {
 		return nil, err
 	}
 
+	defer rows.Close()
 	var result []abTestingMismatchDetailsRow
 	for rows.Next() {
 
@@ -820,10 +822,10 @@ func (qmc *QuesmaManagementConsole) abTestingReadRow(requestId string) (abTestin
 
 	db := qmc.logManager.GetDB()
 
-	row := db.QueryRow(sql, requestId)
-
+	row := db.QueryRow(context.Background(), sql, requestId)
 	rec := abTestingTableRow{}
-	err := row.Scan(
+
+	errScan := row.Scan(
 		&rec.requestID, &rec.requestPath, &rec.requestIndexName,
 		&rec.requestBody, &rec.responseBTime, &rec.responseBError, &rec.responseBName, &rec.responseBBody,
 		&rec.quesmaHash, &rec.kibanaDashboardID, &rec.opaqueID, &rec.responseABody, &rec.responseATime,
@@ -832,12 +834,8 @@ func (qmc *QuesmaManagementConsole) abTestingReadRow(requestId string) (abTestin
 		&rec.responseMismatchMismatches, &rec.responseMismatchMessage, &rec.quesmaVersion,
 		&rec.kibanaDashboardPanelID)
 
-	if err != nil {
-		return rec, err
-	}
-
-	if row.Err() != nil {
-		return rec, row.Err()
+	if errScan != nil {
+		return rec, errScan
 	}
 
 	return rec, nil

@@ -7,12 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/k0kubun/pp"
 	"io"
 	"math"
 	"net/http"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
+
 	"time"
 )
 

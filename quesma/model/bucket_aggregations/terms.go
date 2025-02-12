@@ -4,19 +4,32 @@ package bucket_aggregations
 
 import (
 	"context"
-	"quesma/logger"
-	"quesma/model"
-	"quesma/util"
+	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/util/regex"
+	"reflect"
 )
 
+// TODO when adding include/exclude, check escaping of ' and \ in those fields
 type Terms struct {
 	ctx         context.Context
 	significant bool // true <=> significant_terms, false <=> terms
-	OrderByExpr model.Expr
+	// include is either:
+	//   - single value: then for strings, it can be a regex.
+	//   - array: then field must match exactly one of the values (never a regex)
+	// Nil if missing in request.
+	include any
+	// exclude is either:
+	//   - single value: then for strings, it can be a regex.
+	//   - array: then field must match exactly one of the values (never a regex)
+	// Nil if missing in request.
+	exclude any
 }
 
-func NewTerms(ctx context.Context, significant bool, orderByExpr model.Expr) Terms {
-	return Terms{ctx: ctx, significant: significant, OrderByExpr: orderByExpr}
+func NewTerms(ctx context.Context, significant bool, include, exclude any) Terms {
+	return Terms{ctx: ctx, significant: significant, include: include, exclude: exclude}
 }
 
 func (query Terms) AggregationType() model.AggregationType {
@@ -29,21 +42,33 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 			"unexpected number of columns in terms aggregation response, len: %d, rows[0]: %v", len(rows[0].Cols), rows[0])
 	}
 	if len(rows) == 0 {
-		return model.JsonMap{}
+		return model.JsonMap{"buckets": []model.JsonMap{}}
 	}
 
-	var response []model.JsonMap
+	buckets := make([]model.JsonMap, 0, len(rows))
 	for _, row := range rows {
 		docCount := query.docCount(row)
 		bucket := model.JsonMap{
-			"key":       query.key(row),
 			"doc_count": docCount,
 		}
 		if query.significant {
 			bucket["score"] = docCount
 			bucket["bg_count"] = docCount
 		}
-		response = append(response, bucket)
+
+		// response for bool keys is different
+		key := query.key(row)
+		if boolPtr, isBoolPtr := key.(*bool); isBoolPtr {
+			key = *boolPtr
+		}
+		if keyAsBool, ok := key.(bool); ok {
+			bucket["key"] = util.BoolToInt(keyAsBool)
+			bucket["key_as_string"] = util.BoolToString(keyAsBool)
+		} else {
+			bucket["key"] = key
+		}
+
+		buckets = append(buckets, bucket)
 	}
 
 	if !query.significant {
@@ -52,12 +77,12 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 		return model.JsonMap{
 			"sum_other_doc_count":         sumOtherDocCount,
 			"doc_count_error_upper_bound": 0,
-			"buckets":                     response,
+			"buckets":                     buckets,
 		}
 	} else {
 		parentDocCount, _ := util.ExtractInt64(query.parentCount(rows[0]))
 		return model.JsonMap{
-			"buckets":   response,
+			"buckets":   buckets,
 			"doc_count": parentDocCount,
 			"bg_count":  parentDocCount,
 		}
@@ -105,4 +130,118 @@ func (query Terms) key(row model.QueryResultRow) any {
 
 func (query Terms) parentCount(row model.QueryResultRow) any {
 	return row.Cols[len(row.Cols)-3].Value
+}
+
+func (query Terms) UpdateFieldForIncludeAndExclude(field model.Expr) (updatedField model.Expr, didWeUpdateField bool) {
+	// We'll use here everywhere Clickhouse 'if' function: if(condition, then, else)
+	// In our case field becomes: if(condition that field is not excluded, field, NULL)
+	ifOrNull := func(condition model.Expr) model.FunctionExpr {
+		return model.NewFunction("if", condition, field, model.NullExpr)
+	}
+
+	hasExclude := query.exclude != nil
+	excludeArr, excludeIsArray := query.exclude.([]any)
+	switch {
+	case hasExclude && excludeIsArray:
+		if len(excludeArr) == 0 {
+			return field, false
+		}
+
+		// Select expr will be: if(field NOT IN (excludeArr[0], excludeArr[1], ...), field, NULL)
+		exprs := make([]model.Expr, 0, len(excludeArr))
+		for _, excludeVal := range excludeArr {
+			exprs = append(exprs, model.NewLiteralSingleQuoteString(excludeVal))
+		}
+		return ifOrNull(model.NewInfixExpr(field, "NOT IN", model.NewTupleExpr(exprs...))), true
+	case hasExclude:
+		switch exclude := query.exclude.(type) {
+		case string: // hard case, might be regex
+			funcName, patternExpr := regex.ToClickhouseExpr(exclude)
+			return ifOrNull(model.NewInfixExpr(field, "NOT "+funcName, patternExpr)), true
+		default: // easy case, never regex
+			return ifOrNull(model.NewInfixExpr(field, "!=", model.NewLiteral(query.exclude))), true
+		}
+
+	default:
+		return field, false // TODO implement similar support for 'include' in next PR
+	}
+}
+
+// TODO make part of QueryType interface and implement for all aggregations
+// TODO add bad requests to tests
+// Doing so will ensure we see 100% of what we're interested in in our logs (now we see ~95%)
+func CheckParamsTerms(ctx context.Context, paramsRaw any) error {
+	eitherRequired := map[string]string{"field": "string", "script": "map"}
+	optionalParams := map[string]string{
+		"size":                      "float64|string", // TODO should be int|string, will be fixed
+		"shard_size":                "float64",        // TODO should be int, will be fixed
+		"order":                     "order",          // TODO add order type
+		"min_doc_count":             "float64",        // TODO should be int, will be fixed
+		"shard_min_doc_count":       "float64",        // TODO should be int, will be fixed
+		"show_term_doc_count_error": "bool",
+		"exclude":                   "not-checking-type-now-complicated",
+		"include":                   "not-checking-type-now-complicated",
+		"collect_mode":              "string",
+		"execution_hint":            "string",
+		"missing":                   "string",
+		"value_type":                "string",
+	}
+	logIfYouSeeThemParams := []string{
+		"shard_size", "min_doc_count", "shard_min_doc_count",
+		"show_term_doc_count_error", "collect_mode", "execution_hint", "value_type",
+	}
+
+	params, ok := paramsRaw.(model.JsonMap)
+	if !ok {
+		return fmt.Errorf("params is not a map, but %+v", paramsRaw)
+	}
+
+	// check if required are present
+	nrOfRequired := 0
+	for paramName := range eitherRequired {
+		if _, exists := params[paramName]; exists {
+			nrOfRequired++
+		}
+	}
+	if nrOfRequired != 1 {
+		return fmt.Errorf("expected exactly one of %v in Terms params %v", eitherRequired, params)
+	}
+	if field, exists := params["field"]; exists {
+		if _, isString := field.(string); !isString {
+			return fmt.Errorf("field is not a string, but %T", field)
+		}
+	} else {
+		_, hasInclude := params["include"]
+		_, hasExclude := params["exclude"]
+		_, hasMissing := params["missing"]
+		if hasInclude || hasExclude || hasMissing {
+			return fmt.Errorf("field is missing, but include/exclude/missing are present in Terms params %v", params)
+		}
+		// TODO check script's type as well
+	}
+
+	// check if only required/optional are present
+	for paramName := range params {
+		if _, isRequired := eitherRequired[paramName]; !isRequired {
+			wantedType, isOptional := optionalParams[paramName]
+			if !isOptional {
+				return fmt.Errorf("unexpected parameter %s found in Terms params %v", paramName, params)
+			}
+			if wantedType == "not-checking-type-now-complicated" || wantedType == "order" || wantedType == "float64|string" {
+				continue // TODO: add that later
+			}
+			if reflect.TypeOf(params[paramName]).Name() != wantedType { // TODO I'll make a small rewrite to not use reflect here
+				return fmt.Errorf("optional parameter %s is not of type %s, but %T", paramName, wantedType, params[paramName])
+			}
+		}
+	}
+
+	// log if you see them
+	for _, warnParam := range logIfYouSeeThemParams {
+		if _, exists := params[warnParam]; exists {
+			logger.WarnWithCtxAndThrottling(ctx, "terms", warnParam, "we didn't expect %s in Terms params %v", warnParam, params)
+		}
+	}
+
+	return nil
 }

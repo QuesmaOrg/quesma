@@ -28,6 +28,9 @@ const (
 	IndexPath                 = "/:index"
 	ExecutePainlessScriptPath = "/_scripts/painless/_execute" // This path is used on the Kibana side to evaluate painless scripts when adding a new scripted field.
 
+	IndexMsearchPath  = "/:index/_msearch"
+	GlobalMsearchPath = "/_msearch"
+
 	// Quesma internal paths
 
 	QuesmaTableResolverPath = "/:index/_quesma_table_resolver"

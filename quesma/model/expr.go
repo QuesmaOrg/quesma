@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Elastic-2.0
 package model
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 // Expr is a generic representation of an expression which is a part of the SQL query.
 type Expr interface {
@@ -12,6 +15,8 @@ type Expr interface {
 var (
 	InvalidExpr = Expr(nil)
 	TrueExpr    = NewLiteral(true)
+	FalseExpr   = NewLiteral(false)
+	NullExpr    = NewLiteral("NULL")
 )
 
 // ColumnRef is a reference to a column in a table, we can enrich it with more information (e.g. type used) as we go
@@ -24,8 +29,16 @@ func NewColumnRef(name string) ColumnRef {
 	return ColumnRef{ColumnName: name}
 }
 
+func NewColumnRefWithTable(name, tableAlias string) ColumnRef {
+	return ColumnRef{ColumnName: name, TableAlias: tableAlias}
+}
+
 func (e ColumnRef) Accept(v ExprVisitor) interface{} {
 	return v.VisitColumnRef(e)
+}
+
+func (e ColumnRef) Clone() ColumnRef {
+	return ColumnRef{TableAlias: e.TableAlias, ColumnName: e.ColumnName}
 }
 
 // PrefixExpr represents unary operators, e.g. NOT, - etc.
@@ -86,6 +99,18 @@ func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLiteral(e)
 }
 
+type TupleExpr struct {
+	Exprs []Expr
+}
+
+func NewTupleExpr(exprs ...Expr) TupleExpr {
+	return TupleExpr{Exprs: exprs}
+}
+
+func (e TupleExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitTuple(e)
+}
+
 type InfixExpr struct {
 	Left  Expr
 	Op    string
@@ -111,6 +136,16 @@ var NewWildcardExpr = LiteralExpr{Value: "*"}
 
 func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value}
+}
+
+// NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else
+func NewLiteralSingleQuoteString(value any) LiteralExpr {
+	switch v := value.(type) {
+	case string:
+		return LiteralExpr{Value: fmt.Sprintf("'%s'", v)}
+	default:
+		return LiteralExpr{Value: v}
+	}
 }
 
 // DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`
@@ -278,6 +313,7 @@ func (e CTE) Accept(v ExprVisitor) interface{} {
 type ExprVisitor interface {
 	VisitFunction(e FunctionExpr) interface{}
 	VisitLiteral(l LiteralExpr) interface{}
+	VisitTuple(t TupleExpr) interface{}
 	VisitInfix(e InfixExpr) interface{}
 	VisitColumnRef(e ColumnRef) interface{}
 	VisitPrefixExpr(e PrefixExpr) interface{}

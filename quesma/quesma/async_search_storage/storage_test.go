@@ -6,10 +6,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"net/url"
-	"quesma/quesma/config"
+
 	"testing"
 	"time"
 )

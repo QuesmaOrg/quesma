@@ -185,11 +185,12 @@ ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
 	expect := strings.Trim(sql, " \n")
 
 	sqlFormatted := SqlPrettyPrint([]byte(sql))
-	println("===== Expected: ")
-
-	println(expect)
-	println("===== Actual: ")
-	println(sqlFormatted)
+	/*
+		println("===== Expected: ")
+		println(expect)
+		println("===== Actual: ")
+		println(sqlFormatted)
+	*/
 	assert.Equal(t, expect, sqlFormatted)
 }
 
@@ -217,11 +218,12 @@ ORDER BY "aggr__0__order_1_rank" ASC`
 	expect := strings.Trim(sql, " \n")
 
 	sqlFormatted := SqlPrettyPrint([]byte(sql))
-	println("===== Expected: ")
-
-	println(expect)
-	println("===== Actual: ")
-	println(sqlFormatted)
+	/*
+		println("===== Expected: ")
+		println(expect)
+		println("===== Actual: ")
+		println(sqlFormatted)
+	*/
 	assert.Equal(t, expect, sqlFormatted)
 }
 

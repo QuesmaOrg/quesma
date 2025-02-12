@@ -4,8 +4,8 @@ package types
 
 import (
 	"fmt"
-	"quesma/end_user_errors"
-	quesma_api "quesma_v2/core"
+	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
+	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"strings"
 )
 
@@ -73,6 +73,8 @@ func ExpectJSON(body quesma_api.RequestBody) (JSON, error) {
 func ExpectNDJSON(body quesma_api.RequestBody) (NDJSON, error) {
 
 	switch b := body.(type) {
+	case JSON:
+		return NDJSON{b}, nil
 	case NDJSON:
 		return b, nil
 	default:

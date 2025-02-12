@@ -5,9 +5,9 @@ package collector
 import (
 	"crypto/sha1"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/goccy/go-json"
-	"quesma/jsondiff"
-	"quesma/quesma/types"
 )
 
 type diffTransformer struct {
@@ -17,7 +17,7 @@ func (t *diffTransformer) name() string {
 	return "diffTransformer"
 }
 
-func (t *diffTransformer) mostCommonMismatchType(mismatches []jsondiff.JSONMismatch) (string, int) {
+func (t *diffTransformer) mostCommonMismatchType(mismatches []util.JSONMismatch) (string, int) {
 
 	currentMax := 0
 	maxType := ""
@@ -37,9 +37,9 @@ func (t *diffTransformer) mostCommonMismatchType(mismatches []jsondiff.JSONMisma
 
 func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
 
-	mismatches := jsondiff.Mismatches{}
+	mismatches := util.Mismatches{}
 
-	d, err := jsondiff.NewElasticResponseJSONDiff()
+	d, err := NewElasticResponseJSONDiff()
 	if err != nil {
 		return in, false, err
 	}
@@ -47,7 +47,7 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 	if in.A.Error != "" || in.B.Error != "" {
 
 		if in.A.Error != "" {
-			mismatches = append(mismatches, jsondiff.JSONMismatch{
+			mismatches = append(mismatches, util.JSONMismatch{
 				Type:     "error",
 				Message:  fmt.Sprintf("\nA response has an error: %s", in.A.Error),
 				Path:     "n/a",
@@ -57,7 +57,7 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 		}
 
 		if in.B.Error != "" {
-			mismatches = append(mismatches, jsondiff.JSONMismatch{
+			mismatches = append(mismatches, util.JSONMismatch{
 				Type:     "error",
 				Message:  fmt.Sprintf("\nB response has an error: %s", in.B.Error),
 				Path:     "n/a",
@@ -120,7 +120,7 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 
 		if len(mismatches) > mismatchesSize {
 			mismatches = mismatches[:mismatchesSize]
-			mismatches = append(mismatches, jsondiff.JSONMismatch{
+			mismatches = append(mismatches, util.JSONMismatch{
 				Type:    "info",
 				Message: fmt.Sprintf("only first %d mismatches, total %d", mismatchesSize, size),
 			})

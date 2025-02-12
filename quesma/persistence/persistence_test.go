@@ -4,11 +4,10 @@ package persistence
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/stretchr/testify/assert"
 	"net/url"
-	"quesma/logger"
-	"quesma/quesma/config"
-	"quesma/quesma/types"
 	"testing"
 	"time"
 )
@@ -87,7 +86,7 @@ func TestNewElasticPersistence(t *testing.T) {
 
 func TestJSONDatabaseWithEviction_noEviction(t *testing.T) {
 	t.Skip("Test passes locally (20.12.2024), but requires elasticsearch to be running, so skipping for now")
-	logger.InitSimpleLoggerForTests()
+
 	indexName := fmt.Sprintf("quesma_test_%d", time.Now().UnixMilli())
 	fmt.Println("indexName:", indexName)
 
@@ -156,7 +155,7 @@ func TestJSONDatabaseWithEviction_noEviction(t *testing.T) {
 
 func TestJSONDatabaseWithEviction_withEviction(t *testing.T) {
 	t.Skip("Test passes locally (20.12.2024), but requires elasticsearch to be running, so skipping for now")
-	logger.InitSimpleLoggerForTests()
+
 	indexName := fmt.Sprintf("quesma_test_%d", time.Now().UnixMilli())
 
 	realUrl, err := url.Parse("http://localhost:9200")

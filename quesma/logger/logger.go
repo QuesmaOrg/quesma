@@ -5,13 +5,12 @@ package logger
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/stats/errorstats"
+	quesma_v2 "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/rs/zerolog"
 	"io"
 	"net/http"
 	"os"
-	"quesma/stats/errorstats"
-	asyncQueryTracing "quesma/tracing"
-	quesma_v2 "quesma_v2/core"
 
 	"time"
 )
@@ -41,7 +40,7 @@ const (
 )
 
 // InitLogger returns channel where log messages will be sent
-func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asyncQueryTraceLogger *asyncQueryTracing.AsyncTraceLogger) <-chan LogWithLevel {
+func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}) <-chan LogWithLevel {
 	zerolog.TimeFieldFormat = time.RFC3339Nano // without this we don't have milliseconds timestamp precision
 	var output io.Writer = zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.StampMilli}
 	if os.Getenv("GO_ENV") == "production" { // ConsoleWriter is slow, disable it in production
@@ -97,9 +96,6 @@ func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asy
 
 	globalError := errorstats.GlobalErrorHook{}
 	l = l.Hook(&globalError)
-	if asyncQueryTraceLogger != nil {
-		l = l.Hook(asyncQueryTraceLogger)
-	}
 
 	l.Info().Msgf("Logger initialized with level %s", cfg.Level)
 

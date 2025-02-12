@@ -5,12 +5,12 @@ package ui
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/util"
+	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
+	tracing "github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
 	"gopkg.in/yaml.v3"
-	"quesma/quesma/ui/internal/builder"
-	"quesma/util"
-	"quesma_v2/core/diag"
-	tracing "quesma_v2/core/tracing"
 	"strings"
 )
 

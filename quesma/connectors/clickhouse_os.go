@@ -3,7 +3,7 @@
 package connectors
 
 import (
-	"quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 )
 
 type ClickHouseOSConnector struct {

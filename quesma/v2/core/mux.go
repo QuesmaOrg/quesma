@@ -6,6 +6,7 @@ import (
 	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 )
 
@@ -110,21 +111,22 @@ func (p *PathRouter) Matches(req *Request) (*HandlersPipe, *Decision) {
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (*HandlersPipe, *Decision) {
+func (p *PathRouter) findHandler(req *Request) (handler *HandlersPipe, decision *Decision) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
-		meta, match := m.compiledPath.Match(path)
-		if match {
-			req.Params = meta.Params
-			predicateResult := m.predicate.Matches(req)
-			if predicateResult.Matched {
-				return m.handler, predicateResult.Decision
-			} else {
-				return nil, predicateResult.Decision
-			}
+		meta, pathMatches := m.compiledPath.Match(path)
+		req.Params = meta.Params // this is dodgy and we should stop doing it
+		predicateMatchResult := m.predicate.Matches(req)
+		if pathMatches && predicateMatchResult.Matched {
+			decision = predicateMatchResult.Decision
+			handler = m.handler
+			break
+		} else if pathMatches { // index can be disabled in config, in that case `predicateMatchResult.Matched == false`
+			decision = predicateMatchResult.Decision
 		}
+
 	}
-	return nil, nil
+	return handler, decision
 }
 
 type httpMethodPredicate struct {
@@ -202,24 +204,40 @@ func (p *PathRouter) GetHandlers() map[string]HandlersPipe {
 	}
 	return callInfos
 }
-func (p *PathRouter) SetHandlers(handlers map[string]HandlersPipe) {
-	newHandlers := make(map[string]HandlersPipe, 0)
-	for path, handler := range handlers {
-		for index := range p.mappings {
-			if p.mappings[index].pattern == path {
-				p.mappings[index].handler.Processors = handler.Processors
-				p.mappings[index].handler.Predicate = handler.Predicate
-			} else {
-				newHandlers[path] = handler
+
+// SetHandlers sets the handlers for the router, adding handlers to existing `PathRouter.mappings`
+// **WARNING**: This is an idempotent operation, meant to set handlers in a *final* frontend connector (in case there are multiple of them being merged).
+func (p *PathRouter) SetHandlers(handlers []HandlersPipe) {
+	handlersToBeAdded := make([]HandlersPipe, 0)
+	p.mappings = make([]mapping, 0)
+	for _, handler := range handlers {
+		var index int
+		var found bool
+		for index = range p.mappings {
+			if p.mappings[index].pattern == handler.Path &&
+				p.mappings[index].handler.Predicate == handler.Predicate {
+				found = true
+				break
 			}
 		}
+		if !found {
+			handlersToBeAdded = append(handlersToBeAdded, handler)
+		}
 	}
-	for path, handler := range newHandlers {
-		p.mappings = append(p.mappings, mapping{pattern: path,
-			compiledPath: urlpath.New(path),
+
+	for _, handler := range handlersToBeAdded { // adding
+		p.mappings = append(p.mappings, mapping{pattern: handler.Path,
+			compiledPath: urlpath.New(handler.Path),
 			predicate:    handler.Predicate,
-			handler: &HandlersPipe{Handler: handler.Handler,
+			handler: &HandlersPipe{
+				Path:       handler.Path,
+				Handler:    handler.Handler,
 				Predicate:  handler.Predicate,
 				Processors: handler.Processors}})
 	}
+	// mappings needs to be sorted as literal paths should be matched first
+	// for instance /_search should be matched before /:index
+	sort.Slice(p.mappings, func(i, j int) bool {
+		return p.mappings[i].pattern > p.mappings[j].pattern
+	})
 }

@@ -5,8 +5,8 @@ package ingest
 import (
 	"bytes"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/goccy/go-json"
-	"quesma/clickhouse"
 	"strings"
 )
 

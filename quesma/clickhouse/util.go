@@ -5,9 +5,9 @@ package clickhouse
 import (
 	"bytes"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/goccy/go-json"
-	"quesma/logger"
-	"quesma/model"
 	"strings"
 	"time"
 )
