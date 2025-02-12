@@ -79,9 +79,15 @@ func (db *ElasticDatabaseWithEviction) Put(document *JSONWithSize) error {
 	if printDebugElasticDB {
 		fmt.Println("kk dbg Put() resp:", resp, "err:", err)
 	}
-	if err != nil && (resp == nil || resp.StatusCode != http.StatusCreated) {
+	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		return errors.New("failed to put document, got status: " + resp.Status)
+	}
+
 	return nil
 }
 
@@ -100,8 +106,12 @@ func (db *ElasticDatabaseWithEviction) Get(id string) ([]byte, error) {
 func (db *ElasticDatabaseWithEviction) Delete(id string) error {
 	elasticsearchURL := fmt.Sprintf("%s/_doc/%s", db.indexName, id)
 	resp, err := db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodDelete, elasticsearchURL, nil)
-	if err != nil && (resp == nil || resp.StatusCode != http.StatusCreated) {
+	if err != nil {
 		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		return errors.New("failed to delete document")
 	}
 	return nil
 }
@@ -133,6 +143,15 @@ func (db *ElasticDatabaseWithEviction) DeleteOld(deleteOlderThan time.Duration) 
 
 	var resp *http.Response
 	resp, err = db.httpClient.DoRequestCheckResponseStatusOK(context.Background(), http.MethodPost, elasticsearchURL, []byte(query))
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
+		return errors.New("failed to delete old documents, got status: " + resp.Status)
+	}
+
 	if printDebugElasticDB {
 		fmt.Println("kk dbg DocCount() resp:", resp, "err:", err, "elastic url:", elasticsearchURL)
 	}
@@ -153,10 +172,12 @@ func (db *ElasticDatabaseWithEviction) DocCount() (docCount int, err error) {
 		fmt.Println("kk dbg DocCount() resp:", resp, "err:", err, "elastic url:", elasticsearchURL)
 	}
 	if err != nil {
-		if resp != nil && (resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound) {
-			return 0, nil
-		}
 		return -1, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound {
+		return 0, nil
 	}
 
 	var jsonAsBytes []byte
@@ -193,12 +214,14 @@ func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, err err
 		fmt.Println("kk dbg SizeInBytes() err:", err, "\nresp:", resp)
 	}
 	if err != nil {
-		if resp != nil && resp.StatusCode == 404 {
-			return 0, nil
-		}
 		return
 	}
-	defer resp.Body.Close() // add everywhere
+	
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 404 {
+		return 0, nil
+	}
 
 	var jsonAsBytes []byte
 	jsonAsBytes, err = io.ReadAll(resp.Body)
