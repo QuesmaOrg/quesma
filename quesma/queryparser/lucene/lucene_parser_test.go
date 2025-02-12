@@ -60,8 +60,8 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 
 		// special characters
 		{`dajhd \(%&RY#WFDG`, `(("title" = 'dajhd' OR "text" = 'dajhd') OR ("title" ILIKE '(\%&RY#WFDG' OR "text" ILIKE '(\%&RY#WFDG'))`},
-		{`x:aaa'bbb`, `"x" = 'aaa\'bbb'`},
-		{`x:aaa\bbb`, `"x" = 'aaa\\bbb'`},
+		{`x:aaa'bbb`, `"x" ILIKE '%aaa\'bbb%'`},
+		{`x:aaa\bbb`, `"x" ILIKE '%aaa\\bbb%'`},
 		{`x:aaa*bbb`, `"x" ILIKE 'aaa%bbb'`},
 		{`x:aaa_bbb`, `"x" ILIKE 'aaa\_bbb'`},
 		{`x:aaa%bbb`, `"x" ILIKE 'aaa\%bbb'`},
