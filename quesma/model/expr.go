@@ -29,8 +29,16 @@ func NewColumnRef(name string) ColumnRef {
 	return ColumnRef{ColumnName: name}
 }
 
+func NewColumnRefWithTable(name, tableAlias string) ColumnRef {
+	return ColumnRef{ColumnName: name, TableAlias: tableAlias}
+}
+
 func (e ColumnRef) Accept(v ExprVisitor) interface{} {
 	return v.VisitColumnRef(e)
+}
+
+func (e ColumnRef) Clone() ColumnRef {
+	return ColumnRef{TableAlias: e.TableAlias, ColumnName: e.ColumnName}
 }
 
 // PrefixExpr represents unary operators, e.g. NOT, - etc.
@@ -83,9 +91,20 @@ func (e FunctionExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitFunction(e)
 }
 
-type LiteralExpr struct {
-	Value any
-}
+type (
+	LiteralExpr struct {
+		Value      any
+		EscapeType EscapeType // only meaningful if Value is string
+	}
+	EscapeType string
+)
+
+const (
+	NormalNotEscaped     EscapeType = "normal"        // used in 90% cases, everywhere but not in 'LIKE' exprs
+	NotEscapedLikePrefix EscapeType = "like_prefix"   // used in 'LIKE' exprs, will be rendered 'value%'
+	NotEscapedLikeFull   EscapeType = "like_full"     // used in 'LIKE' exprs, will be rendered '%value%'
+	FullyEscaped         EscapeType = "fully_escaped" // will be rendered as is, as Lucene parser did all the escaping
+)
 
 func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLiteral(e)
@@ -124,10 +143,10 @@ func NewCountFunc(args ...Expr) FunctionExpr {
 	return NewFunction("count", args...)
 }
 
-var NewWildcardExpr = LiteralExpr{Value: "*"}
+var NewWildcardExpr = NewLiteral("*")
 
 func NewLiteral(value any) LiteralExpr {
-	return LiteralExpr{Value: value}
+	return LiteralExpr{Value: value, EscapeType: NormalNotEscaped}
 }
 
 // NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else
@@ -138,6 +157,14 @@ func NewLiteralSingleQuoteString(value any) LiteralExpr {
 	default:
 		return LiteralExpr{Value: v}
 	}
+}
+
+func NewLiteralWithEscapeType(value any, escapeType EscapeType) LiteralExpr {
+	return LiteralExpr{Value: value, EscapeType: escapeType}
+}
+
+func (e LiteralExpr) Clone() LiteralExpr {
+	return NewLiteralWithEscapeType(e.Value, e.EscapeType)
 }
 
 // DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`

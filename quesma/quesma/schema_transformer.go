@@ -44,10 +44,10 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query
 			if strings.Contains(boolLiteral, "true") || strings.Contains(boolLiteral, "false") {
 				boolLiteral = strings.TrimLeft(boolLiteral, "'")
 				boolLiteral = strings.TrimRight(boolLiteral, "'")
-				return model.NewLiteral(boolLiteral)
+				return model.NewLiteralWithEscapeType(boolLiteral, e.EscapeType)
 			}
 		}
-		return model.NewLiteral(e.Value)
+		return e.Clone()
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
@@ -411,7 +411,7 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 		// TODO is this nessessery?
 		if useCommonTable {
 			if e.ColumnName == "timestamp" || e.ColumnName == "epoch_time" || e.ColumnName == `"epoch_time"` {
-				return model.NewColumnRef("@timestamp")
+				return model.NewColumnRefWithTable("@timestamp", e.TableAlias)
 			}
 		}
 		return e
@@ -602,7 +602,8 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 				var expressions []model.Expr
 
 				for _, field := range fullTextFields {
-					expressions = append(expressions, model.NewInfixExpr(model.NewColumnRef(field), e.Op, e.Right))
+					colRef := model.NewColumnRefWithTable(field, col.TableAlias)
+					expressions = append(expressions, model.NewInfixExpr(colRef, e.Op, e.Right))
 				}
 
 				res := model.Or(expressions)
@@ -644,7 +645,7 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 			timestampColumnName = *table.DiscoveredTimestampFieldName
 		}
 	*/
-	var replacementExpr model.Expr
+	var replacementName string
 
 	if timestampColumnName == "" {
 		// no timestamp field found, replace with NULL if any
@@ -662,12 +663,12 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 		// if the target column is not the canonical timestamp field, replace it
 		if timestampColumnName != model.TimestampFieldName {
-			replacementExpr = model.NewColumnRef(timestampColumnName)
+			replacementName = timestampColumnName
 		}
 	}
 
 	// no replacement needed
-	if replacementExpr == nil {
+	if replacementName == "" {
 		return query, nil
 	}
 
@@ -676,7 +677,7 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 		// full text field should be used only in where clause
 		if e.ColumnName == model.TimestampFieldName {
-			return replacementExpr
+			return model.NewColumnRefWithTable(replacementName, e.TableAlias)
 		}
 		return e
 	}
@@ -713,7 +714,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 		}
 
 		if resolvedField, ok := indexSchema.ResolveField(e.ColumnName); ok {
-			return model.NewColumnRef(resolvedField.InternalPropertyName.AsString())
+			return model.NewColumnRefWithTable(resolvedField.InternalPropertyName.AsString(), e.TableAlias)
 		} else {
 			if hasAttributesValuesColumn {
 				return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
@@ -1036,7 +1037,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeBoolean.Name:
 				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
 			default:
-				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteral("'%"+rhsValue+"%'"))
+				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteralWithEscapeType(rhsValue, model.NotEscapedLikeFull))
 			}
 		}
 

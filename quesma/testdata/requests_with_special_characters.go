@@ -158,8 +158,8 @@ var AggregationTestsWithSpecialCharactersInFieldNames = []AggregationTestCase{
 				"metric____quesma_total_count_col_0",
 				"group_table"."aggr__0__key_0" AS "aggr__0__key_0",
 				"group_table"."aggr__0__count" AS "aggr__0__count",
-				"__bytes" AS "top_metrics__0__1_col_0",
-				"__timestamp" AS "top_metrics__0__1_col_1",
+				"hit_table"."__bytes" AS "top_metrics__0__1_col_0",
+				"hit_table"."__timestamp" AS "top_metrics__0__1_col_1",
 				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__0__key_0" ORDER BY
 				"__timestamp" DESC) AS "top_hits_rank"
 			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN

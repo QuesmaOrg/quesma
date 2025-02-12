@@ -19,6 +19,7 @@ var wildcards = map[rune]string{
 	'*': "%",
 	'?': "_",
 	'%': `\%`,
+	'_': `\_`,
 }
 
 var specialCharacters = []rune{'+', '-', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\'} // they can be escaped in query string
@@ -55,7 +56,7 @@ func (v termValue) toExpression(fieldName string) model.Expr {
 		return model.NewInfixExpr(model.NewColumnRef(fieldName), " = ", model.NewLiteral(termAsStringToClickhouse))
 	} else {
 		fmt.Println(model.AsString(model.NewInfixExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))))
-		return model.NewInfixExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteralWithEscapeType(termAsStringToClickhouse, model.FullyEscaped))
 	}
 }
 
