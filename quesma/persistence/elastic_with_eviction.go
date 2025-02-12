@@ -216,7 +216,7 @@ func (db *ElasticDatabaseWithEviction) SizeInBytes() (sizeInBytes int64, err err
 	if err != nil {
 		return
 	}
-	
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 404 {
