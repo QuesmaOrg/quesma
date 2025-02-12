@@ -192,7 +192,7 @@ func (t MultiValueType) CanConvert(v interface{}) bool {
 }
 
 func (t MultiValueType) GetColumn(name string) *Column {
-	// TODO: maybe use map for faster lookup, but Tuples probably aren't typically large so linear scan suffices for now
+	// TODO: linear scan, but this will suffice for now (Tuples aren't typically large)
 	for _, col := range t.Cols {
 		if col.Name == name {
 			return col

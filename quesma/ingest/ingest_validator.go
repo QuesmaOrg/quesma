@@ -134,8 +134,9 @@ func validateValueAgainstType(fieldName string, value interface{}, columnType cl
 				}
 				return true
 			}
+		} else {
+			logger.Error().Msgf("MultiValueType validation is not yet supported for type: %v", columnType)
 		}
-		logger.Error().Msgf("MultiValueType validation is not yet supported for type: %v", columnType)
 
 		return false
 	case clickhouse.CompoundType:
@@ -148,9 +149,9 @@ func validateValueAgainstType(fieldName string, value interface{}, columnType cl
 				}
 				return true
 			}
+		} else {
+			logger.Error().Msgf("CompoundType validation is not yet supported for type: %v", columnType)
 		}
-
-		logger.Error().Msgf("CompoundType validation is not yet supported for type: %v", columnType)
 
 		return false
 	}
