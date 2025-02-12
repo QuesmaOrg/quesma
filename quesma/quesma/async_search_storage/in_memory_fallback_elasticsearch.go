@@ -21,7 +21,7 @@ func NewAsyncSearchStorageInMemoryFallbackElastic(cfg config.ElasticsearchConfig
 
 func (s AsyncRequestResultStorageInMemoryFallbackElastic) Store(id string, result *AsyncRequestResult) {
 	s.inMemory.Store(id, result)
-	go s.inElasticsearch.Store(id, result)
+	s.inElasticsearch.Store(id, result)
 }
 
 func (s AsyncRequestResultStorageInMemoryFallbackElastic) Load(id string) (*AsyncRequestResult, error) {
@@ -34,7 +34,7 @@ func (s AsyncRequestResultStorageInMemoryFallbackElastic) Load(id string) (*Asyn
 
 func (s AsyncRequestResultStorageInMemoryFallbackElastic) Delete(id string) {
 	s.inMemory.Delete(id)
-	go s.inElasticsearch.Delete(id)
+	s.inElasticsearch.Delete(id)
 }
 
 // DocCount returns inMemory doc count
@@ -54,7 +54,7 @@ func (s AsyncRequestResultStorageInMemoryFallbackElastic) SpaceMaxAvailable() in
 
 func (s AsyncRequestResultStorageInMemoryFallbackElastic) evict(olderThan time.Duration) {
 	s.inMemory.evict(olderThan)
-	go s.inElasticsearch.DeleteOld(olderThan)
+	s.inElasticsearch.DeleteOld(olderThan)
 }
 
 type AsyncQueryContextStorageInMemoryFallbackElasticsearch struct {
@@ -71,10 +71,10 @@ func NewAsyncQueryContextStorageInMemoryFallbackElasticsearch(cfg config.Elastic
 
 func (s AsyncQueryContextStorageInMemoryFallbackElasticsearch) Store(context *AsyncQueryContext) {
 	s.inMemory.Store(context)
-	go s.inElasticsearch.Store(context)
+	s.inElasticsearch.Store(context)
 }
 
 func (s AsyncQueryContextStorageInMemoryFallbackElasticsearch) evict(evictOlderThan time.Duration) {
 	s.inMemory.evict(evictOlderThan)
-	go s.inElasticsearch.evict(evictOlderThan)
+	s.inElasticsearch.evict(evictOlderThan)
 }
