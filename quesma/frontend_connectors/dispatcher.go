@@ -34,7 +34,7 @@ import (
 
 func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter) {
 	if id, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
-		logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
+		logger.Debug().Str(logger.RID, id).Msgf("responding from Elasticsearch, status_code=%d", elkResponse.StatusCode)
 	}
 
 	copyHeaders(w, elkResponse)
@@ -221,6 +221,7 @@ func (r *Dispatcher) ElasticFallback(decision *quesma_api.Decision,
 			}
 			feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(OpaqueIdHeaderKey), resolveIndexPattern)
 		}
+		logger.DebugWithCtx(ctx).Msgf("request to path=%s routed to Elasticsearch", req.URL)
 		rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 		response := rawResponse.response
 		if response != nil {
@@ -237,7 +238,7 @@ func (r *Dispatcher) ElasticFallback(decision *quesma_api.Decision,
 	}
 }
 
-func (r *Dispatcher) Reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router quesma_api.Router, logManager *clickhouse.LogManager, schemaRegistry schema.Registry) {
+func (r *Dispatcher) Reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router quesma_api.Router) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
@@ -446,7 +447,7 @@ func PeekBodyV2(r *http.Request) ([]byte, error) {
 	reqBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		logger.ErrorWithCtxAndReason(r.Context(), "incomplete request").
-			Msgf("Error reading request body: %v", err)
+			Msgf("Error reading request body: %v, url=%v", err, r.URL)
 		return nil, err
 	}
 

@@ -333,8 +333,6 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		}
 	}
 
-	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
-
 	// when our generated ID appears in query looks like this: `1d<TRUNCATED>0b8q1`
 	// therefore we need to strip the hex part (before `q`) and convert it to decimal
 	// then we can query at DB level
@@ -665,11 +663,11 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.Simple
 		fieldName = ResolveField(cw.Ctx, fieldName, cw.Schema)
 		switch vCasted := v.(type) {
 		case string:
-			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'"+vCasted+"%'"))
+			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteralWithEscapeType(vCasted, model.NotEscapedLikePrefix))
 			return model.NewSimpleQuery(simpleStat, true)
 		case QueryMap:
 			token := vCasted["value"].(string)
-			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'"+token+"%'"))
+			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteralWithEscapeType(token, model.NotEscapedLikePrefix))
 			return model.NewSimpleQuery(simpleStat, true)
 		default:
 			logger.WarnWithCtx(cw.Ctx).Msgf("unsupported prefix type: %T, value: %v", v, v)

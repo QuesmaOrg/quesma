@@ -2984,7 +2984,10 @@ var AggregationTests2 = []AggregationTestCase{
 							},
 							{
 								"doc_count": 17,
-								"key": 224.19300000000004
+								"key": 224.19300000000004,
+								"0": {
+									"buckets": []
+								}
 							}
 						]
 					}
@@ -3231,7 +3234,10 @@ var AggregationTests2 = []AggregationTestCase{
 							},
 							{
 								"doc_count": 17,
-								"key": 224.19300000000004
+								"key": 224.19300000000004,
+								"0": {
+									"buckets": []
+								}
 							},
 							{
 								"doc_count": 15,
@@ -3497,7 +3503,10 @@ var AggregationTests2 = []AggregationTestCase{
 							{
 								"doc_count": 17,
 								"key": 1706021670000,
-								"key_as_string": "2024-01-23T14:54:30.000"
+								"key_as_string": "2024-01-23T14:54:30.000",
+								"0": {
+									"buckets": []
+								}
 							}
 						]
 					}
@@ -3642,17 +3651,26 @@ var AggregationTests2 = []AggregationTestCase{
 							{
 								"doc_count": 0,
 								"key": 1706021670000,
-								"key_as_string": "2024-01-23T14:54:30.000"
+								"key_as_string": "2024-01-23T14:54:30.000",
+								"0": {
+									"buckets": []
+								}
 							},
 							{
 								"doc_count": 17,
 								"key": 1706021700000,
-								"key_as_string": "2024-01-23T14:55:00.000"
+								"key_as_string": "2024-01-23T14:55:00.000",
+								"0": {
+									"buckets": []
+								}
 							},
 							{
 								"doc_count": 0,
 								"key": 1706021730000,
-								"key_as_string": "2024-01-23T14:55:30.000"
+								"key_as_string": "2024-01-23T14:55:30.000",
+								"0": {
+									"buckets": []
+								}
 							},
 							{
 								"doc_count": 15,

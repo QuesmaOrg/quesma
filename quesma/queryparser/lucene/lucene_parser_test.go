@@ -55,7 +55,14 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`title:(return [Aida TO Carmen])`, `("title" = 'return' OR ("title" >= 'Aida' AND "title" <= 'Carmen'))`},
 		{`host.name:(NOT active OR NOT (pending OR in-progress)) (full text search)^2`, `((((NOT ("host.name" = 'active') OR NOT (("host.name" = 'pending' OR "host.name" = 'in-progress'))) OR (("title" = 'full' OR "text" = 'full'))) OR ("title" = 'text' OR "text" = 'text')) OR ("title" = 'search' OR "text" = 'search'))`},
 		{`host.name:(active AND NOT (pending OR in-progress)) hermes nemesis^2`, `((("host.name" = 'active' AND NOT (("host.name" = 'pending' OR "host.name" = 'in-progress'))) OR ("title" = 'hermes' OR "text" = 'hermes')) OR ("title" = 'nemesis' OR "text" = 'nemesis'))`},
-		{`dajhd \(%&RY#WFDG`, `(("title" = 'dajhd' OR "text" = 'dajhd') OR ("title" = '(%&RY#WFDG' OR "text" = '(%&RY#WFDG'))`},
+		// special characters
+		{`dajhd \(%&RY#WFDG`, `(("title" = 'dajhd' OR "text" = 'dajhd') OR ("title" ILIKE '(\%&RY#WFDG' OR "text" ILIKE '(\%&RY#WFDG'))`},
+		{`x:aaa'bbb`, `"x" = 'aaa\'bbb'`},
+		{`x:aaa\bbb`, `"x" = 'aaa\\bbb'`},
+		{`x:aaa*bbb`, `"x" ILIKE 'aaa%bbb'`},
+		{`x:aaa_bbb`, `"x" ILIKE 'aaa\_bbb'`},
+		{`x:aaa%bbb`, `"x" ILIKE 'aaa\%bbb'`},
+		{`x:aaa%\*_bbb`, `"x" ILIKE 'aaa\%*\_bbb'`},
 		// tests for wildcards
 		{`*`, `("title" ILIKE '%' OR "text" ILIKE '%')`},
 		{`*neme*`, `("title" ILIKE '%neme%' OR "text" ILIKE '%neme%')`},
@@ -67,7 +74,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`!db.str:FAIL`, `NOT ("db.str" = 'FAIL')`},
 		{`_exists_:title`, `"title" IS NOT NULL`},
 		{`!_exists_:title`, `NOT ("title" IS NOT NULL)`},
-		{"db.str:*weaver*", `"db.str" ILIKE '%weaver%'`},
+		{"db.str:*weaver%12*", `"db.str" ILIKE '%weaver\%12%'`},
 		{"(db.str:*weaver*)", `("db.str" ILIKE '%weaver%')`},
 		{"(a.type:*ab* OR a.type:*Ab*)", `(("a.type" ILIKE '%ab%') OR "a.type" ILIKE '%Ab%')`},
 	}

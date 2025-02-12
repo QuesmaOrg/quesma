@@ -57,7 +57,7 @@ type QueryRunner struct {
 	// this is passed to the QueryTranslator to render date math expressions
 	DateMathRenderer         string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 	currentParallelQueryJobs atomic.Int64
-	transformationPipeline   TransformationPipeline
+	transformationPipeline   model.TransformationPipeline
 	schemaRegistry           schema.Registry
 	ABResultsSender          ab_testing.Sender
 	tableResolver            table_resolver.TableResolver
@@ -77,10 +77,11 @@ type QueryRunnerIFace interface {
 	GetLogManager() clickhouse.LogManagerIFace
 	DeleteAsyncSearch(id string) ([]byte, error)
 	HandlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error)
+	HandleMultiSearch(ctx context.Context, defaultIndexName string, body types.NDJSON) ([]byte, error)
 }
 
 func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
-	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
+	q.transformationPipeline.AddTransformer(optimize.NewOptimizePipeline(cfg))
 }
 
 func NewQueryRunner(lm clickhouse.LogManagerIFace,
@@ -92,19 +93,18 @@ func NewQueryRunner(lm clickhouse.LogManagerIFace,
 	tableDiscovery clickhouse.TableDiscovery) *QueryRunner {
 
 	ctx, cancel := context.WithCancel(context.Background())
-
+	transformationPipeline := model.NewTransformationPipeline()
+	transformationPipeline.AddTransformer(NewSchemaCheckPass(cfg, tableDiscovery, defaultSearchAfterStrategy))
 	return &QueryRunner{logManager: lm, cfg: cfg, debugInfoCollector: qmc,
 		executionCtx: ctx, cancel: cancel,
-		AsyncRequestStorage:  async_search_storage.NewAsyncSearchStorageInMemory(),
-		AsyncQueriesContexts: async_search_storage.NewAsyncQueryContextStorageInMemory(),
-		transformationPipeline: TransformationPipeline{
-			transformers: []model.QueryTransformer{NewSchemaCheckPass(cfg, tableDiscovery, defaultSearchAfterStrategy)},
-		},
-		schemaRegistry:     schemaRegistry,
-		ABResultsSender:    abResultsRepository,
-		tableResolver:      resolver,
-		tableDiscovery:     tableDiscovery,
-		maxParallelQueries: maxParallelQueries,
+		AsyncRequestStorage:    async_search_storage.NewAsyncSearchStorageInMemory(),
+		AsyncQueriesContexts:   async_search_storage.NewAsyncQueryContextStorageInMemory(),
+		transformationPipeline: *transformationPipeline,
+		schemaRegistry:         schemaRegistry,
+		ABResultsSender:        abResultsRepository,
+		tableResolver:          resolver,
+		tableDiscovery:         tableDiscovery,
+		maxParallelQueries:     maxParallelQueries,
 	}
 }
 
@@ -157,6 +157,7 @@ func (q *QueryRunner) HandleCount(ctx context.Context, indexPattern string) (int
 		}
 	}
 
+	// Query execution block
 	if len(indexes) == 1 {
 		return q.logManager.Count(ctx, indexes[0])
 	} else {
@@ -164,13 +165,12 @@ func (q *QueryRunner) HandleCount(ctx context.Context, indexPattern string) (int
 	}
 }
 
-func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName string, body types.NDJSON) ([]byte, error) {
+type msearchQuery struct {
+	indexName string
+	query     types.JSON
+}
 
-	type msearchQuery struct {
-		indexName string
-		query     types.JSON
-	}
-
+func SplitQueries(body types.NDJSON, defaultIndexName string) ([]msearchQuery, error) {
 	var queries []msearchQuery
 
 	var currentQuery *msearchQuery
@@ -211,9 +211,29 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 		currentQuery = nil
 
 	}
+	return queries, nil
+}
 
+// Composite search is a search that can contain multiple queries
+// like bulk
+func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName string, body types.NDJSON) ([]byte, error) {
+
+	// Split the body into queries
+	// This is what ParseQuery does or should do
+	queries, err := SplitQueries(body, defaultIndexName)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle each query
 	var responses []any
 
+	var queriedIndices []string
+	for _, query := range queries {
+		queriedIndices = append(queriedIndices, query.indexName)
+	}
+	logger.DebugWithCtx(ctx).Msgf("handling multisearch: queries=%d, indices=[%s], defaultIndex=[%s]", len(queries), queriedIndices, defaultIndexName)
 	for _, query := range queries {
 
 		// TODO ask table resolver here and go to the right connector or connectors
@@ -255,6 +275,7 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 
 	}
 
+	// build the response
 	type msearchResponse struct {
 		Responses []any `json:"responses"`
 	}
@@ -275,6 +296,7 @@ func (q *QueryRunner) HandleSearch(ctx context.Context, indexPattern string, bod
 
 func (q *QueryRunner) HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
 	waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
+	// AsyncQuery marker should be result of ParseQuery
 	async := AsyncQuery{
 		asyncId:          tracing.GetAsyncId(),
 		waitForResultsMs: waitForResultsMs,
@@ -299,7 +321,7 @@ type AsyncQuery struct {
 	startTime        time.Time
 }
 
-func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.ExecutionPlan) error {
+func (q *QueryRunner) transformQueries(plan *model.ExecutionPlan) error {
 	var err error
 	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
 	if err != nil {
@@ -356,11 +378,6 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 				endTime:      time.Now(),
 			}
 		}
-	}
-
-	err = q.transformQueries(ctx, plan)
-	if err != nil {
-		return responseBody, err
 	}
 
 	q.runExecutePlanAsync(ctx, plan, queryTranslator, table, doneCh, optAsync)
@@ -447,9 +464,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	}
 
-	// it's impossible here to don't have a clickhouse decision
 	if clickhouseConnector == nil {
-		return nil, fmt.Errorf("no clickhouse connector")
+		// TODO: at this moment it's possible to land in this situation if `_msearch` payload contains Elasticsearch-targetted query
+		logger.Warn().Msgf("multi-search payload contains Elasticsearch-targetted query")
+		return nil, fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
 	}
 
 	var responseBody []byte
@@ -567,7 +585,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		pushSecondaryInfo(q.debugInfoCollector, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
 		return responseBody, errors.New(string(responseBody))
 	}
-
+	err = q.transformQueries(plan)
+	if err != nil {
+		return responseBody, err
+	}
 	plan.IndexPattern = indexPattern
 	plan.StartTime = startTime
 	plan.Name = model.MainExecutionPlan
@@ -575,7 +596,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if decision.EnableABTesting {
 		return q.executeABTesting(ctx, plan, queryTranslator, table, body, optAsync, decision, indexPattern)
 	}
-
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, nil, true)
 
 }
@@ -631,7 +651,8 @@ func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
 	return size
 }
 
-func (q *QueryRunner) HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error) {
+func (q *QueryRunner) HandleAsyncSearchStatus(ctx context.Context, id string) ([]byte, error) {
+	logger.DebugWithCtx(ctx).Msgf("handling async search status for id: %s", id)
 	if _, ok := q.AsyncRequestStorage.Load(id); ok { // there IS a result in storage, so query is completed/no longer running,
 		return queryparser.EmptyAsyncSearchStatusResponse(id, false, false, 200)
 	} else { // there is no result so query is might be(*) running

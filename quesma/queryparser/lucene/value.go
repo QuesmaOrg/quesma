@@ -14,9 +14,11 @@ import (
 // e.g. for expression "abc", value is "abc", for expression "title:abc", value is also "abc",
 // and for expression "title:(abc OR (def AND ghi))", value is "(abc OR (def AND ghi))".
 
-var wildcards = map[rune]rune{
-	'*': '%',
-	'?': '_',
+var wildcards = map[rune]string{
+	'*': `%`,
+	'?': `_`,
+	'%': `\%`,
+	'_': `\_`,
 }
 
 var specialCharacters = []rune{'+', '-', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\'} // they can be escaped in query string
@@ -39,10 +41,11 @@ func (v termValue) toExpression(fieldName string) model.Expr {
 	if alreadyQuoted(v.term) {
 		termAsStringToClickhouse = termAsStringToClickhouse[1 : len(termAsStringToClickhouse)-1]
 	}
+
 	if wildcardsExist {
-		return model.NewInfixExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteralWithEscapeType(termAsStringToClickhouse, model.FullyEscaped))
 	} else {
-		return model.NewInfixExpr(model.NewColumnRef(fieldName), " = ", model.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), " = ", model.NewLiteralSingleQuoteString(termAsStringToClickhouse))
 	}
 }
 
@@ -57,7 +60,7 @@ func (v termValue) transformSpecialCharacters() (termFinal string, wildcardsExis
 		replacement, isWildcard := wildcards[curRune]
 		if isWildcard {
 			wildcardsExist = true
-			returnTerm.WriteRune(replacement)
+			returnTerm.WriteString(replacement)
 			continue
 		}
 

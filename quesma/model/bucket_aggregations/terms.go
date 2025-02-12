@@ -42,10 +42,10 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 			"unexpected number of columns in terms aggregation response, len: %d, rows[0]: %v", len(rows[0].Cols), rows[0])
 	}
 	if len(rows) == 0 {
-		return model.JsonMap{}
+		return model.JsonMap{"buckets": []model.JsonMap{}}
 	}
 
-	var response []model.JsonMap
+	buckets := make([]model.JsonMap, 0, len(rows))
 	for _, row := range rows {
 		docCount := query.docCount(row)
 		bucket := model.JsonMap{
@@ -68,7 +68,7 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 			bucket["key"] = key
 		}
 
-		response = append(response, bucket)
+		buckets = append(buckets, bucket)
 	}
 
 	if !query.significant {
@@ -77,12 +77,12 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 		return model.JsonMap{
 			"sum_other_doc_count":         sumOtherDocCount,
 			"doc_count_error_upper_bound": 0,
-			"buckets":                     response,
+			"buckets":                     buckets,
 		}
 	} else {
 		parentDocCount, _ := util.ExtractInt64(query.parentCount(rows[0]))
 		return model.JsonMap{
-			"buckets":   response,
+			"buckets":   buckets,
 			"doc_count": parentDocCount,
 			"bg_count":  parentDocCount,
 		}
