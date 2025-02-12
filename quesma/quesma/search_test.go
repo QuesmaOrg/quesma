@@ -621,7 +621,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 									ORDER BY "aggr__0__key_0" ASC`,
 	}
 
-	logger.InitSimpleLoggerForTestsWarnLevel()
+	// logger.InitSimpleLoggerForTestsWarnLevel()
 	conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 	defer conn.Close()
 	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)

@@ -397,7 +397,7 @@ func TestSearchCommonTable(t *testing.T) {
 
 			// You can replace above with this when debugging - much better errors
 			// db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-			// defer db.Close()
+			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, tableMap)
 
