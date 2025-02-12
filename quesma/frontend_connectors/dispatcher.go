@@ -447,7 +447,7 @@ func PeekBodyV2(r *http.Request) ([]byte, error) {
 	reqBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		logger.ErrorWithCtxAndReason(r.Context(), "incomplete request").
-			Msgf("Error reading request body: %v", err)
+			Msgf("Error reading request body: %v, url=%v", err, r.URL)
 		return nil, err
 	}
 
