@@ -29,8 +29,16 @@ func NewColumnRef(name string) ColumnRef {
 	return ColumnRef{ColumnName: name}
 }
 
+func NewColumnRefWithTable(name, tableAlias string) ColumnRef {
+	return ColumnRef{ColumnName: name, TableAlias: tableAlias}
+}
+
 func (e ColumnRef) Accept(v ExprVisitor) interface{} {
 	return v.VisitColumnRef(e)
+}
+
+func (e ColumnRef) Clone() ColumnRef {
+	return ColumnRef{TableAlias: e.TableAlias, ColumnName: e.ColumnName}
 }
 
 // PrefixExpr represents unary operators, e.g. NOT, - etc.
@@ -93,9 +101,9 @@ type (
 
 const (
 	NormalNotEscaped     EscapeType = "normal"        // used in 90% cases, everywhere but not in 'LIKE' exprs
-	NotEscapedLikePrefix            = "like_prefix"   // used in 'LIKE' exprs, will be rendered 'value%'
-	NotEscapedLikeFull              = "like_full"     // used in 'LIKE' exprs, will be rendered '%value%'
-	FullyEscaped                    = "fully_escaped" // will be rendered as is, as Lucene parser did all the escaping
+	NotEscapedLikePrefix EscapeType = "like_prefix"   // used in 'LIKE' exprs, will be rendered 'value%'
+	NotEscapedLikeFull   EscapeType = "like_full"     // used in 'LIKE' exprs, will be rendered '%value%'
+	FullyEscaped         EscapeType = "fully_escaped" // will be rendered as is, as Lucene parser did all the escaping
 )
 
 func (e LiteralExpr) Accept(v ExprVisitor) interface{} {

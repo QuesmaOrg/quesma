@@ -5,7 +5,9 @@ package processors
 
 import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/model"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"github.com/hashicorp/go-multierror"
 )
 
 type BaseProcessor struct {
@@ -48,36 +50,41 @@ func (p *BaseProcessor) GetSupportedBackendConnectors() []quesma_api.BackendConn
 	return []quesma_api.BackendConnectorType{quesma_api.NoopBackend}
 }
 
-func (p *BaseProcessor) executeQuery(query string) ([]QueryResultRow, error) {
-	logger.Debug().Msgf("BaseProcessor: executeQuery:%s", query)
+func (p *BaseProcessor) executeQueries(queries []*model.Query) ([]model.QueryResultRow, error) {
+	results := make([]model.QueryResultRow, 0)
+	for _, query := range queries {
+		logger.Debug().Msgf("BaseProcessor: executeQuery:%s", query.SelectCommand.String())
+	}
 	// This will be forwarded to the query execution engine
-	return nil, nil
+	return results, nil
 }
 
 func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any) (map[string]interface{}, any, error) {
 	logger.Debug().Msg("BaseProcessor: Handle")
 	var resp any
+	var mError error
 	for _, msg := range messages {
 		executionPlan, err := p.QueryTransformationPipeline.ParseQuery(msg)
 		if err != nil {
-			logger.Error().Err(err).Msg("Error parsing query")
+			mError = multierror.Append(mError, err)
 		}
 		queries, err := p.QueryTransformationPipeline.Transform(executionPlan.Queries)
 		if err != nil {
-			logger.Error().Err(err).Msg("Error transforming queries")
+			mError = multierror.Append(mError, err)
 		}
 		// Execute the queries
-		var results [][]QueryResultRow
-		for _, query := range queries {
-			result, _ := p.executeQuery(query.Query)
-			results = append(results, result)
-		}
+		var results [][]model.QueryResultRow
+		result, _ := p.executeQueries(queries)
+		results = append(results, result)
 		// Transform the results
-		transformedResults := p.QueryTransformationPipeline.TransformResults(results)
+		transformedResults, err := p.QueryTransformationPipeline.TransformResults(results)
+		if err != nil {
+			mError = multierror.Append(mError, err)
+		}
 		resp = p.QueryTransformationPipeline.ComposeResult(transformedResults)
 	}
 
-	return metadata, resp, nil
+	return metadata, resp, mError
 }
 
 func (p *BaseProcessor) RegisterTransformationPipeline(pipeline QueryTransformationPipeline) {

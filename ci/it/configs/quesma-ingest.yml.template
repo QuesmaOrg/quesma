@@ -99,6 +99,9 @@ processors:
         encodings_test:
           target:
             - my-clickhouse-instance
+        incomplete_types_test:
+          target:
+            - my-clickhouse-instance
         "*":
           target:
             - my-clickhouse-instance
@@ -175,6 +178,9 @@ processors:
           target:
             - my-clickhouse-instance
         encodings_test:
+          target:
+            - my-clickhouse-instance
+        incomplete_types_test:
           target:
             - my-clickhouse-instance
         "*":
