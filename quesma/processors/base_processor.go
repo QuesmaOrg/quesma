@@ -4,6 +4,7 @@
 package processors
 
 import (
+	"context"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
@@ -68,7 +69,7 @@ func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any)
 		if err != nil {
 			mError = multierror.Append(mError, err)
 		}
-		queries, err := p.QueryTransformationPipeline.Transform(executionPlan.Queries)
+		queries, err := p.QueryTransformationPipeline.Transform(context.Background(), executionPlan.Queries)
 		if err != nil {
 			mError = multierror.Append(mError, err)
 		}

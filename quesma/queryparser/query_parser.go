@@ -759,7 +759,7 @@ func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (model
 		return nil, fmt.Errorf("no date math expression renderer found: %s", cw.DateMathRenderer)
 	}
 
-	sql, err := builder.RenderSQL(exp)
+	sql, err := builder.RenderExpr(exp)
 	if err != nil {
 		return nil, err
 	}
