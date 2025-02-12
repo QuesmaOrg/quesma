@@ -44,18 +44,6 @@ func (es *SimpleClient) RequestWithHeaders(ctx context.Context, method, endpoint
 	return es.doRequest(ctx, method, endpoint, body, headers)
 }
 
-func (es *SimpleClient) DoRequestCheckResponseStatusOK(ctx context.Context, method, endpoint string, body []byte) (resp *http.Response, err error) {
-	resp, err = es.doRequest(ctx, method, endpoint, body, nil)
-	if err != nil {
-		return
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return resp, fmt.Errorf("response code from Elastic is not 200 OK, but %s", resp.Status)
-	}
-	return resp, nil
-}
-
 func (es *SimpleClient) Authenticate(ctx context.Context, authHeader string) bool {
 	var authEndpoint string
 	// This is really suboptimal, and we should find a better way to set this systematically (config perhaps?)
