@@ -98,13 +98,13 @@ func validateNumericType(columnType string, incomingValueType string, value inte
 }
 
 func validateValueAgainstType(fieldName string, value interface{}, columnType clickhouse.Type) (isValid bool) {
-	incomingValueType, err := clickhouse.NewType(value, fieldName)
-	if err != nil {
-		return false
-	}
-
 	switch columnType := columnType.(type) {
 	case clickhouse.BaseType:
+		incomingValueType, err := clickhouse.NewType(value, fieldName)
+		if err != nil {
+			return false
+		}
+
 		columnTypeName := removeLowCardinality(columnType.Name)
 
 		if isNumericType(columnTypeName) {

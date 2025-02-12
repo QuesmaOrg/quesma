@@ -79,6 +79,45 @@ func TestIngestValidation(t *testing.T) {
 
 		`{"float_array_field":[3.14, 6.28, 0.99]}`,
 		`{"float_array_field":[1, 2, 3]}`,
+
+		`{"nested_array_map_field": [
+			[
+				[
+					{"field1": "value1", "field2": [1, 2, 3]},
+					{"field1": "value2", "field2": [4, 5, 6]}
+				],
+				[
+					{"field1": "value3", "field2": [7, 8, 9]},
+					{"field1": "value4", "field2": [10, 11, 12]}
+				]
+			],
+			[
+				[
+					{"field1": "value1", "field2": [1, 2, 3]}
+				]
+			],
+			[]
+		]}`,
+		`{"nested_array_map_field": [
+			[],
+			[
+				[],
+				[{}],
+				[
+					{"field1": "value1", "field2": [1, 2, 3]},
+					{"field1": "value2", "field2": [4, 5, 6]}
+				],
+				[
+					{"field1": "value3", "field2": [7, 8, 9]},
+					{"field1": "value4", "field2": [10, 11, 12]}
+				]
+			],
+			[
+				[
+					{"field1": "value1", "field2": [1, 2, 3]}
+				]
+			],
+		]}`,
 	}
 	expectedInsertJsons := []string{
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"string_field":"10"},"attributes_metadata":{"string_field":"v1;Int64"}}`, tableName),
@@ -109,6 +148,9 @@ func TestIngestValidation(t *testing.T) {
 
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_array_field":[3.14,6.28,0.99]}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_array_field":[1,2,3]}`, tableName),
+
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"nested_array_map_field":[[[{"field1":"value1","field2":[1,2,3]},{"field1":"value2","field2":[4,5,6]}],[{"field1":"value3","field2":[7,8,9]},{"field1":"value4","field2":[10,11,12]}]],[[{"field1":"value1","field2":[1,2,3]}]],[]]}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"nested_array_map_field":[[],[[],[{}],[{"field1":"value1","field2":[1,2,3]},{"field1":"value2","field2":[4,5,6]}],[{"field1":"value3","field2":[7,8,9]},{"field1":"value4","field2":[10,11,12]}]],[[{"field1":"value1","field2":[1,2,3]}]]]}`, tableName),
 	}
 	tableMap := util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
@@ -153,6 +195,38 @@ func TestIngestValidation(t *testing.T) {
 				BaseType: clickhouse.BaseType{
 					Name:   "Float64",
 					GoType: clickhouse.NewBaseType("Float64").GoType,
+				},
+			}},
+			// Array(Array(Array(Tuple(field1 String, field2 Array(Int64)))))
+			"nested_array_map_field": {Name: "nested_array_map_field", Type: clickhouse.CompoundType{
+				Name: "Array",
+				BaseType: clickhouse.CompoundType{
+					Name: "Array",
+					BaseType: clickhouse.CompoundType{
+						Name: "Array",
+						BaseType: clickhouse.MultiValueType{
+							Name: "Tuple",
+							Cols: []*clickhouse.Column{
+								{
+									Name: "field1",
+									Type: clickhouse.BaseType{
+										Name:   "String",
+										GoType: clickhouse.NewBaseType("String").GoType,
+									},
+								},
+								{
+									Name: "field2",
+									Type: clickhouse.CompoundType{
+										Name: "Array",
+										BaseType: clickhouse.BaseType{
+											Name:   "Int64",
+											GoType: clickhouse.NewBaseType("Int64").GoType,
+										},
+									},
+								},
+							},
+						},
+					},
 				},
 			}},
 		},
