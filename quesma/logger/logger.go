@@ -263,3 +263,11 @@ func Panic() *zerolog.Event {
 func ReasonUnsupportedQuery(queryType string) string {
 	return ReasonPrefixUnsupportedQueryType + queryType
 }
+
+func DeduplicatedInfo() quesma_v2.DeduplicatedEvent {
+	return logger.DeduplicatedInfo()
+}
+
+func DeduplicatedWarn() quesma_v2.DeduplicatedEvent {
+	return logger.DeduplicatedWarn()
+}

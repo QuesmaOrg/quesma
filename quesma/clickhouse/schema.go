@@ -268,13 +268,13 @@ func NewType(value any, valueOrigin string) (Type, error) {
 			cols = append(cols, &Column{Name: k, Type: innerType, Codec: Codec{Name: ""}})
 		}
 		if len(cols) == 0 {
-			logger.Warn().Msgf("Empty map type (origin: %s).", valueOrigin)
+			logger.DeduplicatedWarn().Msgf("Empty map type (origin: %s).", valueOrigin)
 			return nil, fmt.Errorf("empty map type (origin: %s)", valueOrigin)
 		}
 		return MultiValueType{Name: "Tuple", Cols: cols}, nil
 	case []interface{}:
 		if len(valueCasted) == 0 {
-			logger.Warn().Msgf("Empty array type (origin: %s).", valueOrigin)
+			logger.DeduplicatedWarn().Msgf("Empty array type (origin: %s).", valueOrigin)
 			return nil, fmt.Errorf("empty array type (origin: %s)", valueOrigin)
 		}
 		innerName := fmt.Sprintf("%s[0]", valueOrigin)
@@ -284,11 +284,11 @@ func NewType(value any, valueOrigin string) (Type, error) {
 		}
 		return CompoundType{Name: "Array", BaseType: innerType}, nil
 	case nil:
-		logger.Warn().Msgf("Nil type (origin: %s).", valueOrigin)
+		logger.DeduplicatedWarn().Msgf("Nil type (origin: %s).", valueOrigin)
 		return nil, fmt.Errorf("nil type (origin: %s)", valueOrigin)
 	}
 
-	logger.Warn().Msgf("Unsupported type '%T' of value: %v (origin: %s).", value, value, valueOrigin)
+	logger.DeduplicatedWarn().Msgf("Unsupported type '%T' of value: %v (origin: %s).", value, value, valueOrigin)
 	return nil, fmt.Errorf("unsupported type '%T' of value: %v (origin: %s)", value, value, valueOrigin)
 }
 
