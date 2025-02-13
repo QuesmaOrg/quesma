@@ -77,7 +77,7 @@ func TestParseSignozSchema_2(t *testing.T) {
 		assert.Contains(t, table.Cols, fieldName)
 	}
 	assert.Equal(t, "db", table.DatabaseName)
-	assert.Equal(t, "cluster", table.Cluster)
+	assert.Equal(t, "cluster", table.ClusterName)
 }
 
 func TestParseQuotedTablename(t *testing.T) {

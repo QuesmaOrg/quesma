@@ -227,7 +227,7 @@ func Indexes(m SchemaMap) string {
 func createTableQuery(name string, columns string, config *chLib.ChTableConfig) string {
 	var onClusterClause string
 	if config.ClusterName != "" {
-		onClusterClause = " ON CLUSTER " + strconv.Quote(config.ClusterName)
+		onClusterClause = "ON CLUSTER " + strconv.Quote(config.ClusterName) + " "
 	}
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s" %s
 (

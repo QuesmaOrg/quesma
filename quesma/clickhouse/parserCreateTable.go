@@ -389,11 +389,22 @@ func ParseCreateTable(q string) (*Table, int) {
 	// parse [ON CLUSTER cluster_name]
 	i3 := parseExact(q, i2, "ON CLUSTER ")
 	if i3 != -1 {
+		i3 = omitWhitespace(q, i3)
+		i4 := parseExact(q, i3, `"`)
+		if i4 != -1 {
+			i3 = i4
+		}
 		i4, ident := parseIdent(q, i3)
 		if i4 == -1 {
 			return &t, i3
 		}
 		t.ClusterName = ident
+		if i4 != -1 {
+			i4 = parseExact(q, i4, `"`)
+			if i4 == -1 {
+				return &t, i3
+			}
+		}
 		i2 = i4
 	}
 
